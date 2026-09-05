@@ -2060,9 +2060,8 @@ export async function registerRoutes(
       await storage.upsertSetting('grade_change_requests', JSON.stringify(requests));
       
       // Notify all admins
-      const admins = await storage.getAllUsers();
-      const adminUsers = admins.filter((u: any) => u.is_admin);
-      for (const admin of adminUsers) {
+      const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true).eq("role", "admin");
+      for (const admin of (adminRows || [])) {
         await storage.createMessage(
           admin.id,
           'system',
