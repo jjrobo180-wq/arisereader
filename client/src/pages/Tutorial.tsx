@@ -1114,7 +1114,7 @@ export default function Tutorial() {
                   <div className="p-4 rounded-xl bg-card border border-border text-left">
                     <ClipboardList className="w-6 h-6 text-primary mb-2" />
                     <h3 className="font-semibold text-sm">Create Quizzes</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Paste AI-generated questions, add covers, set points</p>
+                    <p className="text-xs text-muted-foreground mt-1">Paste questions, add covers, set points</p>
                   </div>
                   <div className="p-4 rounded-xl bg-card border border-border text-left">
                     <Inbox className="w-6 h-6 text-primary mb-2" />
@@ -1163,7 +1163,7 @@ export default function Tutorial() {
                   })}
                 </div>
                 <div className="space-y-3">
-                  <FeatureRow icon={<ClipboardList className="w-4 h-4" />} title="Create Quizzes" desc="Paste AI-generated questions and the tool formats them into a 10-question quiz automatically. Set points, add cover image." />
+                  <FeatureRow icon={<ClipboardList className="w-4 h-4" />} title="Create Quizzes" desc="Paste your questions and the tool formats them into a 10-question quiz automatically. Set points, add cover image." />
                   <FeatureRow icon={<BookPlus className="w-4 h-4" />} title="Quiz Requests" desc="When students request books, they appear here. Click 'Create Quiz' to jump straight into building it." />
                   <FeatureRow icon={<Inbox className="w-4 h-4" />} title="DM-Style Inbox" desc="See all student conversations in one place. Click a student to open the thread. Reply, compose new, send links." />
                 </div>
@@ -1219,12 +1219,12 @@ export default function Tutorial() {
             {/* Step 3: Create Quizzes */}
             {step === 3 && (
               <StepContainer
-                title="Create Quizzes with AI"
+                title="Create Quizzes"
                 icon={<ClipboardList className="w-6 h-6 text-primary" />}
                 onNext={() => setStep(4)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
-                  Creating a quiz is simple: paste AI-generated questions (from ChatGPT, Claude, or any AI), and the tool formats them into a 10-question multiple-choice quiz automatically. Set the book title, author, points value, and cover image — all from one form.
+                  Creating a quiz is simple: paste your questions and the tool formats them into a 10-question multiple-choice quiz automatically. Set the book title, author, points value, and cover image — all from one form.
                 </p>
                 <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
                   <div className="space-y-3">
@@ -1245,8 +1245,8 @@ export default function Tutorial() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Paste AI-Generated Questions</label>
-                      <textarea disabled rows={4} placeholder="Paste 10 questions here from ChatGPT..." className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70 resize-none" />
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Paste Your Questions</label>
+                      <textarea disabled rows={4} placeholder="Paste 10 questions here..." className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70 resize-none" />
                     </div>
                     <Button size="sm" disabled className="w-full">Create Quiz</Button>
                   </div>
