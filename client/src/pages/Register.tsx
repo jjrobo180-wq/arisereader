@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
+import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,11 +23,11 @@ export default function Register() {
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
 
   useEffect(() => {
-    fetch("port/5000/api/teachers")
+    fetch(`${API_BASE}/api/teachers`)
       .then(r => r.ok ? r.json() : [])
       .then(data => setTeachers(Array.isArray(data) ? data : []))
       .catch(() => {});
-    fetch("port/5000/api/schools")
+    fetch(`${API_BASE}/api/schools`)
       .then(r => r.ok ? r.json() : [])
       .then(data => setSchools(Array.isArray(data) ? data : []))
       .catch(() => {});
