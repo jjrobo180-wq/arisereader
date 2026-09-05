@@ -36,28 +36,39 @@ export default function AssessmentPopup({ onNavigate }: { onNavigate: (path: str
       setLoading(false);
       return;
     }
-    // Fall back to API check only if login response didn't include the field
-    if (user.assessmentPromptShown === undefined) {
-      const token = getTokenFromCookie();
-      if (!token) {
-        setLoading(false);
+    // Wait for profile setup overlay to complete before showing the popup
+    // (prevents the popup from appearing during the loading screen)
+    const checkReady = () => {
+      const setupInProgress = sessionStorage.getItem('show_profile_setup') === 'true';
+      if (setupInProgress) {
+        // Setup still running, check again in 500ms
+        setTimeout(checkReady, 500);
         return;
       }
-      fetch(`${API_BASE}/api/assessment-popup-status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.shown) {
-            setShow(true);
-          }
+      // Setup is done (or was never needed), proceed with popup check
+      if (user.assessmentPromptShown === undefined) {
+        const token = getTokenFromCookie();
+        if (!token) {
           setLoading(false);
+          return;
+        }
+        fetch(`${API_BASE}/api/assessment-popup-status`, {
+          headers: { Authorization: `Bearer ${token}` },
         })
-        .catch(() => setLoading(false));
-    } else {
-      setShow(true);
-      setLoading(false);
-    }
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.shown) {
+              setShow(true);
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      } else {
+        setShow(true);
+        setLoading(false);
+      }
+    };
+    checkReady();
   }, [user]);
 
   const dismiss = (action: "assessment" | "iready" | "skip") => {
