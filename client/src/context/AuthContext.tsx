@@ -21,7 +21,7 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null) => Promise<void>;
+  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -146,11 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistSession(data.user, data.token);
   }, [persistSession]);
 
-  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null) => {
+  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string) => {
     const res = await fetch(`${API_BASE}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId, schoolId }),
+      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId, schoolId, gradeLevel }),
     });
     if (!res.ok) {
       const data = await res.json();

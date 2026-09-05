@@ -286,6 +286,7 @@ export interface IStorage {
   getAnnouncement(): Promise<string>;
   setAnnouncement(text: string): Promise<void>;
   getSetting(key: string): Promise<string>;
+  upsertSetting(key: string, value: string): Promise<void>;
   // Schools & Classes
   createSchool(name: string): Promise<any>;
   getAllSchools(): Promise<any[]>;
@@ -832,6 +833,11 @@ export class DatabaseStorage implements IStorage {
       const data = await fetchSingle(supabase.from("settings").select("value").eq("key", key).single());
       return data?.value || "";
     });
+  }
+
+  async upsertSetting(key: string, value: string): Promise<void> {
+    const { error } = await supabase.from("settings").upsert({ key, value }, { onConflict: "key" });
+    if (error) throw new Error(error.message);
   }
 
   // ─── Schools & Classes ────────────────────────────────────────────────

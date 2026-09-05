@@ -1512,6 +1512,34 @@ Generate exactly 10 questions.`;
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
                       </select>
+                      <select
+                        className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs"
+                        defaultValue={""}
+                        onChange={async (e) => {
+                          const grade = e.target.value;
+                          if (!grade) return;
+                          const authToken = token || getTokenFromCookie();
+                          const currentGrades = (window as any).__teacherGrades?.[t.id] || [];
+                          const newGrades = currentGrades.includes(grade) ? currentGrades.filter((g: string) => g !== grade) : [...currentGrades, grade];
+                          try {
+                            const res = await fetch(`${API_BASE}/api/admin/teachers/${t.id}/assign-grades`, {
+                              method: "POST",
+                              headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                              body: JSON.stringify({ grades: newGrades }),
+                            });
+                            if (res.ok) {
+                              (window as any).__teacherGrades = (window as any).__teacherGrades || {};
+                              (window as any).__teacherGrades[t.id] = newGrades;
+                              fetchTeachers();
+                            }
+                          } catch {}
+                        }}
+                      >
+                        <option value="">Assign grade...</option>
+                        {["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map((g) => (
+                          <option key={g} value={g}>Grade {g}</option>
+                        ))}
+                      </select>
                       <button onClick={() => handleResetTeacherPassword(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-blue-600/80 text-white hover:opacity-90">Reset</button>
                       <button onClick={() => handleDeleteUser(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-red-600/80 text-white hover:opacity-90">Delete</button>
                     </div>
@@ -2204,6 +2232,37 @@ Generate exactly 10 questions.`;
                     <option value="">No school assigned</option>
                     {schools.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Assign Grade */}
+              <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                <Label className="text-xs text-muted-foreground mb-2 block">Assign Grade Level</Label>
+                <div className="flex gap-2">
+                  <select
+                    className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
+                    defaultValue={""}
+                    onChange={async (e) => {
+                      const grade = e.target.value;
+                      if (!grade) return;
+                      const authToken = token || getTokenFromCookie();
+                      try {
+                        const res = await fetch(`${API_BASE}/api/admin/users/${detailStudent.id}/assign-grade`, {
+                          method: "POST",
+                          headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                          body: JSON.stringify({ grade }),
+                        });
+                        if (res.ok) {
+                          fetchStudents();
+                        }
+                      } catch {}
+                    }}
+                  >
+                    <option value="">Select grade...</option>
+                    {["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map((g) => (
+                      <option key={g} value={g}>Grade {g}</option>
                     ))}
                   </select>
                 </div>

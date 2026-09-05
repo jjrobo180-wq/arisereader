@@ -7,6 +7,15 @@ import bcrypt from "bcryptjs";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
+
+function gradeToBand(grade: string): string | null {
+  const g = grade.toUpperCase().trim();
+  if (["K", "1", "2"].includes(g)) return "K-2";
+  if (["3", "4", "5"].includes(g)) return "3-5";
+  if (["6", "7", "8"].includes(g)) return "6-8";
+  if (["9", "10", "11", "12"].includes(g)) return "9-12";
+  return null;
+}
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const PROXY_URL = process.env.CUSTOM_CRED_API_RESEND_COM_URL || "";
 const PROXY_TOKEN = process.env.CUSTOM_CRED_API_RESEND_COM_TOKEN || "";
@@ -172,7 +181,7 @@ export async function registerRoutes(
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, displayName, isEyeGazeUser, teacherId, schoolId } = req.body;
+      const { username, password, displayName, isEyeGazeUser, teacherId, schoolId, gradeLevel } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }
@@ -200,6 +209,15 @@ export async function registerRoutes(
         schoolId: schoolId ? parseInt(schoolId) : null,
       });
 
+      // Save grade level for student
+      if (gradeLevel) {
+        const rawGrades = await storage.getSetting('user_grades');
+        let userGrades: Record<string, string> = {};
+        if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+        userGrades[String(user.id)] = gradeLevel;
+        await storage.upsertSetting('user_grades', JSON.stringify(userGrades));
+      }
+
       const session = await storage.createSession(user.id);
       res.status(201).json({
         token: session.token,
@@ -213,7 +231,7 @@ export async function registerRoutes(
   // Teacher signup (pending admin approval)
   app.post("/api/auth/register-teacher", async (req, res) => {
     try {
-      const { username, password, displayName, email, schoolId } = req.body;
+      const { username, password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }
@@ -239,6 +257,15 @@ export async function registerRoutes(
         email: email || null,
         schoolId: schoolId ? parseInt(schoolId) : null,
       });
+
+      // Save grade level for teacher
+      if (gradesTaught && Array.isArray(gradesTaught)) {
+        const rawGrades = await storage.getSetting('teacher_grades');
+        let teacherGrades: Record<string, string[]> = {};
+        if (rawGrades) { try { teacherGrades = JSON.parse(rawGrades); } catch {} }
+        teacherGrades[String(user.id)] = gradesTaught;
+        await storage.upsertSetting('teacher_grades', JSON.stringify(teacherGrades));
+      }
 
       // Don't create a session - teacher must be approved first
       // Clear teachers cache so admin sees the new pending teacher immediately
@@ -303,8 +330,30 @@ export async function registerRoutes(
   });
 
   // Book routes
-  app.get("/api/books", authMiddleware, async (_req, res) => {
+  app.get("/api/books", authMiddleware, async (req: any, res) => {
     const books = await storage.getAllBooks();
+    
+    // Filter by grade band if user has a grade
+    const rawGrades = await storage.getSetting('user_grades');
+    let userGrades: Record<string, string> = {};
+    if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+    const userGrade = userGrades[String(req.user.id)];
+    if (userGrade) {
+      const band = gradeToBand(userGrade);
+      if (band) {
+        // Fetch book grade bands
+        const rawBands = await storage.getSetting('book_grade_bands');
+        let bookBands: Record<string, string> = {};
+        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+        
+        const filtered = books.filter((b: any) => {
+          const bookBand = bookBands[String(b.id)];
+          return !bookBand || bookBand === band;
+        });
+        return res.json(filtered);
+      }
+    }
+    
     res.json(books);
   });
 
@@ -419,6 +468,21 @@ export async function registerRoutes(
     const book = await storage.getBook(bookId);
     if (!book) return res.status(404).json({ message: "Book not found" });
 
+    // Grade band enforcement: students can only take quizzes in their band
+    const rawGrades = await storage.getSetting('user_grades');
+    let userGrades: Record<string, string> = {};
+    if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+    const userGrade = userGrades[String(req.user.id)];
+    if (userGrade) {
+      const userBand = gradeToBand(userGrade);
+      const rawBands = await storage.getSetting('book_grade_bands');
+      let bookBands: Record<string, string> = {};
+      if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+      const bookBand = bookBands[String(bookId)];
+      if (userBand && bookBand && userBand !== bookBand) {
+        return res.status(403).json({ message: "This book is not available for your grade level" });
+      }
+    }
     const allQuestions = await storage.getQuestionsByBook(bookId);
     // Strip correct answers before sending to client
     const safeQuestions = allQuestions.map(q => ({
@@ -442,6 +506,22 @@ export async function registerRoutes(
     const existingAttempt = await storage.getAttempt(req.user.id, bookId);
     if (existingAttempt) {
       return res.status(403).json({ message: "You have already taken this quiz" });
+    }
+
+    // Grade band enforcement on submit too
+    const rawGrades = await storage.getSetting('user_grades');
+    let userGrades: Record<string, string> = {};
+    if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+    const userGrade = userGrades[String(req.user.id)];
+    if (userGrade) {
+      const userBand = gradeToBand(userGrade);
+      const rawBands = await storage.getSetting('book_grade_bands');
+      let bookBands: Record<string, string> = {};
+      if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+      const bookBand = bookBands[String(bookId)];
+      if (userBand && bookBand && userBand !== bookBand) {
+        return res.status(403).json({ message: "This book is not available for your grade level" });
+      }
     }
 
     const { answers } = req.body; // { questionId: "A"|"B"|"C"|"D" }
@@ -730,9 +810,22 @@ export async function registerRoutes(
   // Public leaderboard (no auth needed — for login page)
   app.get("/api/tutorial/leaderboard", async (req, res) => {
     const month = req.query.month as string;
-    const leaderboard = month
+    const band = req.query.band as string;
+    let leaderboard = month
       ? await storage.getMonthlyLeaderboard(month)
       : await storage.getLeaderboard();
+    
+    // Filter by grade band if requested
+    if (band) {
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      leaderboard = leaderboard.filter((entry: any) => {
+        const userGrade = userGrades[String(entry.userId)] || userGrades[String(entry.id)];
+        return userGrade && gradeToBand(userGrade) === band;
+      });
+    }
+    
     // Only expose display name, points, quizzes — no usernames or IDs
     const safe = leaderboard.map((entry: any, idx: number) => ({
       rank: idx + 1,
@@ -744,11 +837,24 @@ export async function registerRoutes(
   });
 
   // Authenticated leaderboard (supports monthly filtering)
-  app.get("/api/leaderboard", authMiddleware, async (req, res) => {
+  app.get("/api/leaderboard", authMiddleware, async (req: any, res) => {
     const month = req.query.month as string;
-    const leaderboard = month
+    const band = req.query.band as string;
+    let leaderboard = month
       ? await storage.getMonthlyLeaderboard(month)
       : await storage.getLeaderboard();
+    
+    // Filter by grade band if requested
+    if (band) {
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      leaderboard = leaderboard.filter((entry: any) => {
+        const userGrade = userGrades[String(entry.userId)] || userGrades[String(entry.id)];
+        return userGrade && gradeToBand(userGrade) === band;
+      });
+    }
+    
     res.json(leaderboard);
   });
 
@@ -819,6 +925,89 @@ export async function registerRoutes(
         try { ids = JSON.parse(raw); } catch {}
       }
       res.json({ bookIds: Array.isArray(ids) ? ids : [] });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Get user's grade level
+  app.get("/api/user-grade", authMiddleware, async (req: any, res) => {
+    try {
+      const raw = await storage.getSetting('user_grades');
+      let grades: Record<string, string> = {};
+      if (raw) { try { grades = JSON.parse(raw); } catch {} }
+      const grade = grades[String(req.user.id)] || null;
+      res.json({ grade, band: grade ? gradeToBand(grade) : null });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Get teachers filtered by school and grade
+  app.get("/api/teachers/by-school-grade", async (req, res) => {
+    try {
+      const schoolId = req.query.schoolId;
+      const grade = req.query.grade;
+      const teachers = await storage.getApprovedTeachers();
+      
+      // Fetch teacher grade assignments
+      const rawGrades = await storage.getSetting('teacher_grades');
+      let teacherGrades: Record<string, string[]> = {};
+      if (rawGrades) { try { teacherGrades = JSON.parse(rawGrades); } catch {} }
+      
+      // Filter by school and grade
+      const filtered = teachers.filter((t: any) => {
+        const schoolMatch = !schoolId || String(t.school_id) === String(schoolId);
+        const gradesTaught = teacherGrades[String(t.id)] || [];
+        const gradeMatch = !grade || gradesTaught.includes(grade);
+        return schoolMatch && gradeMatch;
+      });
+      
+      res.json(filtered);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: set user grade
+  app.post("/api/admin/users/:id/assign-grade", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const { grade } = req.body;
+      const raw = await storage.getSetting('user_grades');
+      let grades: Record<string, string> = {};
+      if (raw) { try { grades = JSON.parse(raw); } catch {} }
+      grades[userId] = grade;
+      await storage.upsertSetting('user_grades', JSON.stringify(grades));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: set teacher grades
+  app.post("/api/admin/teachers/:id/assign-grades", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const teacherId = req.params.id;
+      const { grades: gradeList } = req.body;
+      const raw = await storage.getSetting('teacher_grades');
+      let teacherGrades: Record<string, string[]> = {};
+      if (raw) { try { teacherGrades = JSON.parse(raw); } catch {} }
+      teacherGrades[teacherId] = gradeList;
+      await storage.upsertSetting('teacher_grades', JSON.stringify(teacherGrades));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Public endpoint - get book grade bands
+  app.get("/api/book-grade-bands", async (_req, res) => {
+    try {
+      const raw = await storage.getSetting('book_grade_bands');
+      let bands: Record<string, string> = {};
+      if (raw) { try { bands = JSON.parse(raw); } catch {} }
+      res.json(bands);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

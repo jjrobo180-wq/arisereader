@@ -41,14 +41,27 @@ export default function LeaderboardPage() {
   const [period, setPeriod] = useState<"all-time" | "monthly">("all-time");
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [boardType, setBoardType] = useState<"regular" | "eye-gaze">("regular");
+  const [userBand, setUserBand] = useState<string | null>(null);
   const recentMonths = getRecentMonths(6);
+
+  // Fetch user's grade band
+  useEffect(() => {
+    const token = document.cookie.split('; ').find(c => c.startsWith('token='))?.split('=')[1];
+    if (token) {
+      fetch(`${API_BASE}/api/user-grade`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.band) setUserBand(data.band); })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     const base = boardType === "eye-gaze" ? `${API_BASE}/api/tutorial/eye-gaze-leaderboard` : `${API_BASE}/api/tutorial/leaderboard`;
-    const url = period === "monthly"
-      ? `${base}?month=${selectedMonth}`
-      : base;
+    const params = new URLSearchParams();
+    if (period === "monthly") params.set("month", selectedMonth);
+    if (userBand) params.set("band", userBand);
+    const url = `${base}${params.toString() ? `?${params.toString()}` : ""}`;
     fetch(url)
       .then(res => { if (!res.ok) throw new Error('Failed'); return res.json(); })
       .then(data => {
@@ -56,7 +69,7 @@ export default function LeaderboardPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [period, selectedMonth, boardType]);
+  }, [period, selectedMonth, boardType, userBand]);
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);

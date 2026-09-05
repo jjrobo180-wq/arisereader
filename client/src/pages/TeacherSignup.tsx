@@ -14,6 +14,9 @@ export default function TeacherSignup() {
   const [loading, setLoading] = useState(false);
   const [schools, setSchools] = useState<any[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
+
+  const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
   useEffect(() => {
     fetch(`${API_BASE}/api/schools`)
@@ -31,7 +34,7 @@ export default function TeacherSignup() {
       const response = await fetch(`${API_BASE}/api/auth/register-teacher`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, displayName, email, schoolId: selectedSchoolId ? parseInt(selectedSchoolId) : null }),
+        body: JSON.stringify({ username, password, displayName, email, schoolId: selectedSchoolId ? parseInt(selectedSchoolId) : null, gradesTaught: selectedGrades }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
@@ -79,6 +82,35 @@ export default function TeacherSignup() {
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label style={{ ...styles.label, display: "block", marginBottom: 6 }}>Grades You Teach</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {GRADES.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setSelectedGrades((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g].sort((a, b) => parseInt(a) - parseInt(b)))}
+                    style={{
+                      ...styles.input,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 40,
+                      width: "auto",
+                      padding: "6px 14px",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      background: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 10%)",
+                      color: selectedGrades.includes(g) ? "hsl(0 0% 8%)" : "hsl(0 0% 92%)",
+                      borderColor: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 28%)",
+                    }}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 4 }}>Select all grades you teach. Students will find you by selecting their grade at signup.</p>
             </div>
             {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-teacher-account">

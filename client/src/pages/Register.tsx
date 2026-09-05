@@ -21,17 +21,29 @@ export default function Register() {
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [schools, setSchools] = useState<any[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
+  const [selectedGrade, setSelectedGrade] = useState("");
+
+  const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/teachers`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setTeachers(Array.isArray(data) ? data : []))
-      .catch(() => {});
     fetch(`${API_BASE}/api/schools`)
       .then(r => r.ok ? r.json() : [])
       .then(data => setSchools(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
+
+  // Fetch teachers when school and grade are selected
+  useEffect(() => {
+    if (selectedSchoolId && selectedGrade) {
+      fetch(`${API_BASE}/api/teachers/by-school-grade?schoolId=${selectedSchoolId}&grade=${selectedGrade}`)
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setTeachers(Array.isArray(data) ? data : []))
+        .catch(() => setTeachers([]));
+    } else {
+      setTeachers([]);
+      setSelectedTeacherId("");
+    }
+  }, [selectedSchoolId, selectedGrade]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +64,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(username, password, displayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null, selectedSchoolId ? parseInt(selectedSchoolId) : null);
+      await register(username, password, displayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null, selectedSchoolId ? parseInt(selectedSchoolId) : null, selectedGrade);
       // Navigation is handled by AppRouter redirects based on isAdmin
     } catch (err: any) {
       setError(err.message);
@@ -133,7 +145,7 @@ export default function Register() {
                 <select
                   id="school"
                   value={selectedSchoolId}
-                  onChange={(e) => setSelectedSchoolId(e.target.value)}
+                  onChange={(e) => { setSelectedSchoolId(e.target.value); setSelectedGrade(""); setSelectedTeacherId(""); }}
                   className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm"
                   data-testid="select-school"
                 >
@@ -144,18 +156,39 @@ export default function Register() {
                 </select>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="grade">Select Your Grade</Label>
+                <select
+                  id="grade"
+                  value={selectedGrade}
+                  onChange={(e) => { setSelectedGrade(e.target.value); setSelectedTeacherId(""); }}
+                  disabled={!selectedSchoolId}
+                  className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm disabled:opacity-50"
+                  data-testid="select-grade"
+                >
+                  <option value="">Choose your grade...</option>
+                  {GRADES.map((g) => (
+                    <option key={g} value={g}>Grade {g}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="teacher">Select Your Teacher (optional)</Label>
                 <select
                   id="teacher"
                   value={selectedTeacherId}
                   onChange={(e) => setSelectedTeacherId(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm"
+                  disabled={!selectedSchoolId || !selectedGrade}
+                  className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm disabled:opacity-50"
+                  data-testid="select-teacher"
                 >
-                  <option value="">No teacher selected</option>
+                  <option value="">{!selectedSchoolId || !selectedGrade ? "Select school and grade first..." : "No teacher selected"}</option>
                   {teachers.map((t: any) => (
                     <option key={t.id} value={t.id}>{t.display_name}</option>
                   ))}
                 </select>
+                {selectedSchoolId && selectedGrade && teachers.length === 0 && (
+                  <p className="text-xs text-amber-500 mt-1">No teachers found for this school and grade. You can still sign up without a teacher.</p>
+                )}
                 {selectedTeacherId && (
                   <p className="text-xs text-muted-foreground mt-1">You can start reading and taking quizzes right away. Your teacher will approve you to appear under their profile.</p>
                 )}
