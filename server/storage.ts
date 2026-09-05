@@ -264,7 +264,7 @@ export interface IStorage {
   getBook(id: number): Promise<any>;
   getQuestionsByBook(bookId: number): Promise<any[]>;
   getAttempt(userId: number, bookId: number): Promise<any>;
-  createAttempt(userId: number, bookId: number, score: number, total: number): Promise<any>;
+  createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number): Promise<any>;
   getUserAttempts(userId: number): Promise<any[]>;
   getUserMessages(userId: number): Promise<any[]>;
   createMessage(userId: number, senderType: string, text: string, linkUrl?: string): Promise<any>;
@@ -405,10 +405,15 @@ export class DatabaseStorage implements IStorage {
     return mapAttempt(data);
   }
 
-  async createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>) {
-    // Get the book's points value
-    const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).single());
-    const bookPoints = book?.points_value || 10;
+  async createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number) {
+    // Get the book's points value (use override if provided)
+    let bookPoints: number;
+    if (effectivePoints && effectivePoints > 0) {
+      bookPoints = effectivePoints;
+    } else {
+      const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).single());
+      bookPoints = book?.points_value || 10;
+    }
     const passingScore = Math.ceil(total * 0.7);
     const passed = score >= passingScore;
     const pointsEarned = passed ? bookPoints : 0;

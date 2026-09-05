@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
-import { Trophy, ArrowLeft, Crown, Medal, Award } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 
 interface LeaderboardEntry {
@@ -104,9 +104,20 @@ export default function LeaderboardPage() {
             <Trophy className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Leaderboard</h1>
+          {userBand ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/15 border border-primary/30 mb-2">
+              <GraduationCap className="w-4 h-4 text-primary" />
+              <span className="text-sm font-bold text-primary">Your Group: Grades {userBand}</span>
+            </div>
+          ) : null}
           <p className="text-sm text-muted-foreground">
             {boardType === "eye-gaze" ? "Eye Gaze / Non-Verbal leaderboard" : "Top readers ranked by points earned"}
           </p>
+          {userBand && (
+            <p className="text-xs text-muted-foreground mt-1">
+              You are competing only with students in your grade band.
+            </p>
+          )}
         </div>
 
         {/* Board Type Toggle */}

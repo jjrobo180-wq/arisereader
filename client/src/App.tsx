@@ -6,6 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { useState, useEffect } from "react";
+import { API_BASE } from "./lib/queryClient";
+import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
@@ -28,6 +31,50 @@ import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import AssessmentPopup from "./components/AssessmentPopup";
 import NotFound from "./pages/not-found";
+
+// Gate that shows profile setup overlay after student registration
+function StudentSetupGate({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [showSetup, setShowSetup] = useState(false);
+  const [bandInfo, setBandInfo] = useState<{ grade: string; band: string; bookCount: number } | null>(null);
+
+  useEffect(() => {
+    if (user && user.role === 'student' && !user.isAdmin) {
+      const flag = sessionStorage.getItem('show_profile_setup');
+      if (flag === 'true') {
+        sessionStorage.removeItem('show_profile_setup');
+        // Fetch grade band info
+        fetch(`${API_BASE}/api/grade-band-info`, {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem('token') || ''}` }
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && data.band) {
+              setBandInfo({ grade: data.grade, band: data.band, bookCount: data.bookCount });
+              setShowSetup(true);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [user]);
+
+  if (showSetup && bandInfo) {
+    return (
+      <ProfileSetupOverlay
+        grade={bandInfo.grade}
+        band={bandInfo.band}
+        bookCount={bandInfo.bookCount}
+        onComplete={() => {
+          setShowSetup(false);
+          setBandInfo(null);
+        }}
+      />
+    );
+  }
+
+  return <>{children}</>;
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -54,10 +101,10 @@ function AppRoutes() {
   return (
     <Switch>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : <Redirect to="/library" />) : <Login />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : <Redirect to="/library" />) : <Register />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />

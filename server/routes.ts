@@ -341,20 +341,73 @@ export async function registerRoutes(
     if (userGrade) {
       const band = gradeToBand(userGrade);
       if (band) {
-        // Fetch book grade bands
+        // Fetch book grade bands and overlaps
         const rawBands = await storage.getSetting('book_grade_bands');
         let bookBands: Record<string, string> = {};
         if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+        const rawOverlaps = await storage.getSetting('book_grade_overlaps');
+        let bookOverlaps: Record<string, string[]> = {};
+        if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
+        const rawOverrides = await storage.getSetting('book_point_overrides');
+        let pointOverrides: Record<string, Record<string, number>> = {};
+        if (rawOverrides) { try { pointOverrides = JSON.parse(rawOverrides); } catch {} }
         
         const filtered = books.filter((b: any) => {
-          const bookBand = bookBands[String(b.id)];
-          return !bookBand || bookBand === band;
+          const bid = String(b.id);
+          const bookBand = bookBands[bid];
+          // Include if primary band matches, or if overlap includes this band
+          if (!bookBand || bookBand === band) return true;
+          const overlaps = bookOverlaps[bid];
+          if (overlaps && overlaps.includes(band)) return true;
+          return false;
+        }).map((b: any) => {
+          const bid = String(b.id);
+          // Apply point override if this book is an overlap for this band
+          const overrides = pointOverrides[bid];
+          if (overrides && overrides[band]) {
+            return { ...b, points_value: overrides[band], original_points_value: b.points_value };
+          }
+          return b;
         });
         return res.json(filtered);
       }
     }
     
     res.json(books);
+  });
+
+  // Grade band info endpoint (for loading screen)
+  app.get("/api/grade-band-info", authMiddleware, async (req: any, res) => {
+    try {
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      const userGrade = userGrades[String(req.user.id)];
+      const band = userGrade ? gradeToBand(userGrade) : null;
+      
+      if (!band) return res.json({ grade: null, band: null, bookCount: 0 });
+      
+      const books = await storage.getAllBooks();
+      const rawBands = await storage.getSetting('book_grade_bands');
+      let bookBands: Record<string, string> = {};
+      if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+      const rawOverlaps = await storage.getSetting('book_grade_overlaps');
+      let bookOverlaps: Record<string, string[]> = {};
+      if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
+      
+      const bookCount = books.filter((b: any) => {
+        const bid = String(b.id);
+        const bookBand = bookBands[bid];
+        if (!bookBand || bookBand === band) return true;
+        const overlaps = bookOverlaps[bid];
+        if (overlaps && overlaps.includes(band)) return true;
+        return false;
+      }).length;
+      
+      res.json({ grade: userGrade, band, bookCount });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
   });
 
   // Public stats endpoint (no auth needed) — for login page display
@@ -468,7 +521,7 @@ export async function registerRoutes(
     const book = await storage.getBook(bookId);
     if (!book) return res.status(404).json({ message: "Book not found" });
 
-    // Grade band enforcement: students can only take quizzes in their band
+    // Grade band enforcement: students can only take quizzes in their band (or overlaps)
     const rawGrades = await storage.getSetting('user_grades');
     let userGrades: Record<string, string> = {};
     if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
@@ -478,8 +531,12 @@ export async function registerRoutes(
       const rawBands = await storage.getSetting('book_grade_bands');
       let bookBands: Record<string, string> = {};
       if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+      const rawOverlaps = await storage.getSetting('book_grade_overlaps');
+      let bookOverlaps: Record<string, string[]> = {};
+      if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
       const bookBand = bookBands[String(bookId)];
-      if (userBand && bookBand && userBand !== bookBand) {
+      const overlaps = bookOverlaps[String(bookId)] || [];
+      if (userBand && bookBand && userBand !== bookBand && !overlaps.includes(userBand)) {
         return res.status(403).json({ message: "This book is not available for your grade level" });
       }
     }
@@ -508,19 +565,34 @@ export async function registerRoutes(
       return res.status(403).json({ message: "You have already taken this quiz" });
     }
 
-    // Grade band enforcement on submit too
+    // Grade band enforcement on submit too (with overlaps)
     const rawGrades = await storage.getSetting('user_grades');
     let userGrades: Record<string, string> = {};
     if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
     const userGrade = userGrades[String(req.user.id)];
+    let effectivePoints = 0;
     if (userGrade) {
       const userBand = gradeToBand(userGrade);
       const rawBands = await storage.getSetting('book_grade_bands');
       let bookBands: Record<string, string> = {};
       if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+      const rawOverlaps = await storage.getSetting('book_grade_overlaps');
+      let bookOverlaps: Record<string, string[]> = {};
+      if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
+      const rawOverrides = await storage.getSetting('book_point_overrides');
+      let pointOverrides: Record<string, Record<string, number>> = {};
+      if (rawOverrides) { try { pointOverrides = JSON.parse(rawOverrides); } catch {} }
       const bookBand = bookBands[String(bookId)];
-      if (userBand && bookBand && userBand !== bookBand) {
+      const overlaps = bookOverlaps[String(bookId)] || [];
+      if (userBand && bookBand && userBand !== bookBand && !overlaps.includes(userBand)) {
         return res.status(403).json({ message: "This book is not available for your grade level" });
+      }
+      // Get effective points (override if this is an overlap book for this band)
+      const book = await storage.getBook(bookId);
+      effectivePoints = book?.pointsValue || 10;
+      const overrides = pointOverrides[String(bookId)];
+      if (overrides && overrides[userBand]) {
+        effectivePoints = overrides[userBand];
       }
     }
 
@@ -542,13 +614,13 @@ export async function registerRoutes(
       }
     }
 
-    const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, answers);
+    const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, answers, effectivePoints || undefined);
     const book = await storage.getBook(bookId);
     res.json({
       score,
       total: allQuestions.length,
       points: attempt.pointsEarned,
-      bookPoints: book?.pointsValue || 10,
+      bookPoints: effectivePoints || book?.pointsValue || 10,
       passed: attempt.passed,
       passingScore: attempt.passingScore,
       bookTitle: book?.title,
@@ -1835,6 +1907,112 @@ export async function registerRoutes(
       await storage.setEyeGazeUser(req.user.id, isEyeGaze);
       const user = await storage.getUser(req.user.id);
       res.json({ success: true, user });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ─── BANNER SYSTEM ───────────────────────────────────────────────
+
+  // Get banners (student banner visible to all, teacher banner visible to teachers+admin)
+  app.get("/api/banners", authMiddleware, async (req, res) => {
+    try {
+      const rawStudent = await storage.getSetting('student_banner');
+      const rawTeacher = await storage.getSetting('teacher_banner');
+      const result: any = {};
+      if (rawStudent) { try { result.studentBanner = JSON.parse(rawStudent); } catch {} }
+      if (rawTeacher) {
+        try {
+          result.teacherBanner = JSON.parse(rawTeacher);
+        } catch {}
+      }
+      // Only show teacher banner to teachers and admins
+      if (req.user.role !== 'teacher' && !req.user.isAdmin) {
+        delete result.teacherBanner;
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Update student banner
+  app.put("/api/admin/banners/student", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { text, bgColor, textColor, active } = req.body;
+      const banner = { text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false };
+      await storage.upsertSetting('student_banner', JSON.stringify(banner));
+      res.json({ success: true, banner });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Update teacher banner
+  app.put("/api/admin/banners/teacher", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { text, bgColor, textColor, active } = req.body;
+      const banner = { text: text || '', bgColor: bgColor || '#3b82f6', textColor: textColor || '#ffffff', active: active !== false };
+      await storage.upsertSetting('teacher_banner', JSON.stringify(banner));
+      res.json({ success: true, banner });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Sync banners (copy student to teacher or vice versa)
+  app.post("/api/admin/banners/sync", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { direction } = req.body; // 'student-to-teacher' or 'teacher-to-student'
+      if (direction === 'student-to-teacher') {
+        const raw = await storage.getSetting('student_banner');
+        if (raw) { await storage.upsertSetting('teacher_banner', raw); }
+      } else if (direction === 'teacher-to-student') {
+        const raw = await storage.getSetting('teacher_banner');
+        if (raw) { await storage.upsertSetting('student_banner', raw); }
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ─── PROCTOR PASSWORD ──────────────────────────────────────────────
+
+  // Get proctor password (teachers and admins only)
+  app.get("/api/proctor-password", authMiddleware, async (req, res) => {
+    try {
+      if (req.user.role !== 'teacher' && !req.user.isAdmin) {
+        return res.status(403).json({ message: 'Not authorized' });
+      }
+      const raw = await storage.getSetting('proctor_password');
+      res.json({ password: raw || '' });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Update proctor password (notifies all teachers)
+  app.put("/api/admin/proctor-password", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (!password || password.trim().length < 4) {
+        return res.status(400).json({ message: 'Password must be at least 4 characters' });
+      }
+      await storage.upsertSetting('proctor_password', password.trim());
+      
+      // Send notification to all teachers
+      const allTeachers = await storage.getApprovedTeachers();
+      for (const teacher of allTeachers) {
+        await storage.createMessage(
+          teacher.id,
+          'admin',
+          `The proctor password has been updated. Click here to view the new password.`,
+          '/profile'
+        );
+      }
+      
+      res.json({ success: true, password: password.trim() });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

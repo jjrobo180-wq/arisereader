@@ -155,6 +155,12 @@ export default function Admin() {
   const [showAdminSortMenu, setShowAdminSortMenu] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementMsg, setAnnouncementMsg] = useState("");
+  const [studentBanner, setStudentBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
+  const [teacherBanner, setTeacherBanner] = useState({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true });
+  const [bannerMsg, setBannerMsg] = useState("");
+  const [proctorPassword, setProctorPassword] = useState("");
+  const [newProctorPassword, setNewProctorPassword] = useState("");
+  const [proctorMsg, setProctorMsg] = useState("");
   const [quizForm, setQuizForm] = useState({
     title: "",
     author: "",
@@ -181,8 +187,6 @@ export default function Admin() {
   const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
   const [bookSearch, setBookSearch] = useState("");
-  const [proctorPassword, setProctorPassword] = useState("");
-  const [proctorMsg, setProctorMsg] = useState("");
   // Quiz review requests state
   const [reviewRequests, setReviewRequests] = useState<any[]>([]);
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState(false);
@@ -571,8 +575,9 @@ export default function Admin() {
     fetchUnreadMsgCount();
     fetchQuizRequests();
     fetchReviewRequests();
-    fetchProctorPassword();
     fetchAnnouncement();
+    fetchBanners();
+    fetchProctorPassword();
     fetchSchools();
     fetchTeachers();
   }, [token, user]);
@@ -607,34 +612,6 @@ export default function Admin() {
     return () => window.removeEventListener("arise-logout", clearCaches);
   }, []);
 
-  const fetchProctorPassword = async () => {
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/proctor-password`, {
-        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setProctorPassword(data.password || "");
-      }
-    } catch {}
-  };
-
-  const handleUpdateProctorPassword = async () => {
-    if (!token || proctorPassword.length < 4) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/proctor-password`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ password: proctorPassword }),
-      });
-      if (res.ok) {
-        setProctorMsg("Proctor password updated!");
-        setTimeout(() => setProctorMsg(""), 3000);
-      }
-    } catch {}
-  };
-
   const fetchAnnouncement = async () => {
     if (!token) return;
     try {
@@ -657,6 +634,97 @@ export default function Admin() {
       if (res.ok) {
         setAnnouncementMsg("Announcement updated!");
         setTimeout(() => setAnnouncementMsg(""), 3000);
+      }
+    } catch {}
+  };
+
+  const fetchBanners = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/banners`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.studentBanner) setStudentBanner(data.studentBanner);
+        if (data.teacherBanner) setTeacherBanner(data.teacherBanner);
+      }
+    } catch {}
+  };
+
+  const handleUpdateStudentBanner = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/banners/student`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(studentBanner),
+      });
+      if (res.ok) {
+        setBannerMsg("Student banner updated!");
+        setTimeout(() => setBannerMsg(""), 3000);
+      }
+    } catch {}
+  };
+
+  const handleUpdateTeacherBanner = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/banners/teacher`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(teacherBanner),
+      });
+      if (res.ok) {
+        setBannerMsg("Teacher banner updated!");
+        setTimeout(() => setBannerMsg(""), 3000);
+      }
+    } catch {}
+  };
+
+  const handleSyncBanners = async (direction: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/banners/sync`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ direction }),
+      });
+      if (res.ok) {
+        setBannerMsg("Banners synced!");
+        setTimeout(() => setBannerMsg(""), 3000);
+        fetchBanners();
+      }
+    } catch {}
+  };
+
+  const fetchProctorPassword = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/proctor-password`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setProctorPassword(data.password || "");
+      }
+    } catch {}
+  };
+
+  const handleUpdateProctorPassword = async () => {
+    if (!token || !newProctorPassword.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/proctor-password`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newProctorPassword.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProctorPassword(data.password);
+        setNewProctorPassword("");
+        setProctorMsg("Proctor password updated! All teachers notified.");
+        setTimeout(() => setProctorMsg(""), 4000);
+      } else {
+        const data = await res.json();
+        setProctorMsg(data.message || "Failed to update");
+        setTimeout(() => setProctorMsg(""), 4000);
       }
     } catch {}
   };
@@ -1358,22 +1426,6 @@ Generate exactly 10 questions.`;
             Add Quiz
           </Button>
 
-          {/* Proctor password */}
-          <div className="flex items-center gap-2">
-            <KeyRound className="w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Proctor password"
-              value={proctorPassword}
-              onChange={(e) => setProctorPassword(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary w-48"
-            />
-            <Button size="sm" variant="outline" onClick={handleUpdateProctorPassword} disabled={proctorPassword.length < 4}>
-              Update
-            </Button>
-            {proctorMsg && <span className="text-xs text-green-400">{proctorMsg}</span>}
-          </div>
-
           {/* Announcement banner */}
           <div className="space-y-2 pt-4 border-t border-border mt-4">
             <div className="flex items-center gap-2">
@@ -1396,6 +1448,94 @@ Generate exactly 10 questions.`;
               </Button>
             </div>
             {announcementMsg && <span className="text-xs text-green-400">{announcementMsg}</span>}
+          </div>
+
+          {/* Student Banner */}
+          <div className="space-y-2 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Student Banner (visible to students)</Label>
+            <textarea
+              placeholder="Banner text for students..."
+              value={studentBanner.text}
+              onChange={(e) => setStudentBanner({ ...studentBanner, text: e.target.value })}
+              className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
+            />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground">Bg:</label>
+                <input type="color" value={studentBanner.bgColor} onChange={(e) => setStudentBanner({ ...studentBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground">Text:</label>
+                <input type="color" value={studentBanner.textColor} onChange={(e) => setStudentBanner({ ...studentBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={studentBanner.active} onChange={(e) => setStudentBanner({ ...studentBanner, active: e.target.checked })} />
+                Active
+              </label>
+              <Button size="sm" variant="outline" onClick={handleUpdateStudentBanner}>Update</Button>
+            </div>
+          </div>
+
+          {/* Teacher Banner */}
+          <div className="space-y-2 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Teacher Banner (visible to teachers only)</Label>
+            <textarea
+              placeholder="Banner text for teachers..."
+              value={teacherBanner.text}
+              onChange={(e) => setTeacherBanner({ ...teacherBanner, text: e.target.value })}
+              className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
+            />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground">Bg:</label>
+                <input type="color" value={teacherBanner.bgColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground">Text:</label>
+                <input type="color" value={teacherBanner.textColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={teacherBanner.active} onChange={(e) => setTeacherBanner({ ...teacherBanner, active: e.target.checked })} />
+                Active
+              </label>
+              <Button size="sm" variant="outline" onClick={handleUpdateTeacherBanner}>Update</Button>
+            </div>
+            {/* Sync buttons */}
+            <div className="flex items-center gap-2 pt-2">
+              <Button size="sm" variant="ghost" onClick={() => handleSyncBanners("student-to-teacher")}>
+                Copy Student → Teacher
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => handleSyncBanners("teacher-to-student")}>
+                Copy Teacher → Student
+              </Button>
+            </div>
+            {bannerMsg && <span className="text-xs text-green-400">{bannerMsg}</span>}
+          </div>
+
+          {/* Proctor Password */}
+          <div className="space-y-2 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Proctor Password (Eye Gaze Quizzes)</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={proctorPassword}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-muted/30 border border-border text-foreground text-sm font-mono"
+              />
+              <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(proctorPassword)}>Copy</Button>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="New proctor password..."
+                value={newProctorPassword}
+                onChange={(e) => setNewProctorPassword(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <Button size="sm" variant="outline" onClick={handleUpdateProctorPassword}>Update</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Updating the proctor password sends a notification to all teachers with a direct link to view it.</p>
+            {proctorMsg && <span className="text-xs text-green-400">{proctorMsg}</span>}
           </div>
         </div>
 

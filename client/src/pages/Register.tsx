@@ -64,6 +64,7 @@ export default function Register() {
 
     setLoading(true);
     try {
+      sessionStorage.setItem('show_profile_setup', 'true');
       await register(username, password, displayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null, selectedSchoolId ? parseInt(selectedSchoolId) : null, selectedGrade);
       // Navigation is handled by AppRouter redirects based on isAdmin
     } catch (err: any) {

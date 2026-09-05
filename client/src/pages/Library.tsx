@@ -64,10 +64,11 @@ interface QuizResult {
 }
 
 // Module-level cache — survives component unmount/remount during navigation
-let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; quizCount?: number } = {
+let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; quizCount?: number; studentBanner?: { text: string; bgColor: string; textColor: string; active: boolean } } = {
   books: [],
   results: [],
   announcement: "",
+  studentBanner: undefined,
 };
 
 export default function Library() {
@@ -89,6 +90,7 @@ export default function Library() {
   const [messageText, setMessageText] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
   const [announcement, setAnnouncement] = useState(libraryCache.announcement);
+  const [studentBanner, setStudentBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>(libraryCache.studentBanner);
   const [iAriseBookIds, setIAriseBookIds] = useState<number[]>([]);
   const [iAriseEstTimes, setIAriseEstTimes] = useState<Record<string, string>>({});
 
@@ -192,6 +194,15 @@ export default function Library() {
         const text = data.text || "";
         setAnnouncement(text);
         libraryCache.announcement = text;
+      }
+      // Also fetch student banner
+      const bannerRes = await fetch(`${API_BASE}/api/banners`, { headers: { Authorization: `Bearer ${authToken}` } });
+      if (bannerRes.ok) {
+        const bannerData = await bannerRes.json();
+        if (bannerData.studentBanner) {
+          setStudentBanner(bannerData.studentBanner);
+          libraryCache.studentBanner = bannerData.studentBanner;
+        }
       }
     } catch {}
   }, [token]);
@@ -518,6 +529,20 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {/* Student banner from admin */}
+        {studentBanner && studentBanner.active && studentBanner.text && (
+          <div className="mb-6 rounded-xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: studentBanner.bgColor + '40' }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={studentBanner.textColor} strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm" style={{ color: studentBanner.textColor }}>{studentBanner.text}</p>
+            </div>
+          </div>
+        )}
+
         {/* Announcement banner */}
         {announcement && (
           <div className="mb-6 rounded-xl bg-primary/10 border border-primary/30 px-4 py-3 flex items-start gap-3">
