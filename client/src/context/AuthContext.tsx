@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme } from "@/lib/schoolTheme";
 
@@ -83,6 +83,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // No validation useEffect — if the token is invalid, the API will return 401
   // and the component's fetch handler will deal with it. This prevents the
   // session from being cleared due to a temporary network/API error.
+
+  // Apply school theme on page load if user is already logged in (from cookie)
+  useEffect(() => {
+    if (user && user.schoolId) {
+      fetch(`${API_BASE}/api/schools`)
+        .then(r => r.ok ? r.json() : [])
+        .then(schools => {
+          const school = schools.find((s: any) => s.id === user.schoolId);
+          if (school) {
+            setSchoolTheme({
+              mascotName: school.mascotName,
+              primaryHsl: school.primaryHsl,
+              primaryForegroundHsl: school.primaryForegroundHsl,
+              mascotEmoji: school.mascotEmoji,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
     sessionRef.current = { user: u, token: t };
