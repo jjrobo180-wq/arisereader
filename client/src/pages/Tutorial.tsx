@@ -94,6 +94,7 @@ const STUDENT_STEPS = [
   "Certificate",
   "Profile & Leaderboard",
   "Progress Monitoring",
+  "Grade Groups",
   "You're Ready!",
 ];
 
@@ -108,6 +109,7 @@ const TEACHER_STEPS = [
   "Notifications",
   "Library Overview",
   "Progress Monitoring",
+  "Grade Groups",
   "You're Ready!",
 ];
 
@@ -775,8 +777,44 @@ export default function Tutorial() {
               </StepContainer>
             )}
 
-            {/* Step 8: You're Ready */}
+            {/* Step 8: Grade Groups */}
             {step === 8 && (
+              <StepContainer
+                title="Grade Groups"
+                icon={<GraduationCap className="w-6 h-6 text-primary" />}
+                onNext={() => setStep(9)}
+                onBack={() => setStep(7)}
+              >
+                <p className="text-sm text-muted-foreground mb-4">
+                  A.R.I.S.E Reader groups students by grade level so competition is fair. A kindergartener should never compete against a high schooler. Here's how it works:
+                </p>
+                <div className="space-y-3 mb-4">
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Grade Bands</p>
+                    <p className="text-xs text-muted-foreground mt-1">Students are grouped into four bands: K-2 (Ages 3-7), 3-5 (Ages 6-10), 6-8 (Ages 9-14), and 9-12 (Ages 12+). When you sign up, you select your grade and you're placed in the right band automatically.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Books by Grade Level</p>
+                    <p className="text-xs text-muted-foreground mt-1">Your Library only shows books appropriate for your grade band. A 6th grader sees middle-grade books, not kindergarten picture books or high school novels. This keeps reading at the right level.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Leaderboard by Band</p>
+                    <p className="text-xs text-muted-foreground mt-1">The leaderboard only shows students in your grade band. You compete against students at your own reading level, so it's always fair.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Quiz Access</p>
+                    <p className="text-xs text-muted-foreground mt-1">You can only take quizzes for books in your grade band. This prevents students from taking quizzes above or below their level.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Why We Do This</p>
+                    <p className="text-xs text-muted-foreground mt-1">A 3rd grader reading 5-point books shouldn't be ranked below a 10th grader reading 10-point books. Grade bands make the competition fair, keep books at the right reading level, and ensure every student has a real shot at winning.</p>
+                  </div>
+                </div>
+              </StepContainer>
+            )}
+
+            {/* Step 9: You're Ready */}
+            {step === 9 && (
               <div className="text-center py-8">
                 <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 className="w-10 h-10 text-green-500" />
@@ -1469,8 +1507,44 @@ export default function Tutorial() {
               </StepContainer>
             )}
 
-            {/* Step 8: You're Ready */}
+            {/* Step 8: Grade Groups */}
             {step === 8 && (
+              <StepContainer
+                title="Grade Groups"
+                icon={<GraduationCap className="w-6 h-6 text-primary" />}
+                onNext={() => setStep(9)}
+                onBack={() => setStep(7)}
+              >
+                <p className="text-sm text-muted-foreground mb-4">
+                  A.R.I.S.E Reader groups students by grade level so competition is fair and books are age-appropriate. Here's what teachers and admins need to know:
+                </p>
+                <div className="space-y-3 mb-4">
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Four Grade Bands</p>
+                    <p className="text-xs text-muted-foreground mt-1">K-2 (Ages 3-7), 3-5 (Ages 6-10), 6-8 (Ages 9-14), and 9-12 (Ages 12+). Students select their grade at signup and are automatically placed in the correct band.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Teacher Grade Assignment</p>
+                    <p className="text-xs text-muted-foreground mt-1">At signup, teachers select all grades they teach. Students searching for a teacher will only see teachers who teach their grade at their school. Admins can assign or change grades for any teacher or student from the dashboard.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Signup Cascade</p>
+                    <p className="text-xs text-muted-foreground mt-1">Students select School first, then Grade, then Teacher. Each dropdown only shows options matching the previous selections. This ensures every student lands in the right group.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Filtered Library & Leaderboard</p>
+                    <p className="text-xs text-muted-foreground mt-1">Students only see books in their grade band and only compete on the leaderboard against students in the same band. A 6th grader competes against other 6-8 students — never against high schoolers or kindergarteners.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-sm font-semibold text-primary">Why We Do This</p>
+                    <p className="text-xs text-muted-foreground mt-1">A 3rd grader reading 5-point books shouldn't be ranked below a 10th grader reading 10-point books. Grade bands make the competition fair, keep books at the right reading level, and ensure every student has a real shot at winning.</p>
+                  </div>
+                </div>
+              </StepContainer>
+            )}
+
+            {/* Step 9: You're Ready */}
+            {step === 9 && (
               <div className="text-center py-8">
                 <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 className="w-10 h-10 text-green-500" />

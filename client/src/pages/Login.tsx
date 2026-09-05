@@ -17,7 +17,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<{ booksAvailable: number; quizzesAvailable: number; totalPoints: number } | null>(null);
   const [donationExpanded, setDonationExpanded] = useState(false);
-  const [faqExpanded, setFaqExpanded] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/public/stats`)
@@ -115,74 +114,6 @@ export default function Login() {
               <p className="text-xs text-muted-foreground text-center">
                 Every contribution, big or small, makes a difference
               </p>
-            </div>
-          )}
-        </div>
-
-        {/* What's Inside / FAQ section */}
-        <div className="mb-6 rounded-2xl border border-primary/30 bg-card p-4 shadow-lg overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setFaqExpanded(!faqExpanded)}
-            className="w-full flex items-center gap-2"
-          >
-            <BookOpen className="w-5 h-5 text-primary flex-shrink-0" />
-            <h2 className="text-base font-bold text-white text-left flex-1">What's Inside A.R.I.S.E Reader?</h2>
-            {faqExpanded ? (
-              <ChevronUp className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-            )}
-          </button>
-          {!faqExpanded && (
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              A.R.I.S.E Reader has something for every type of reader. Click to learn about each section.
-            </p>
-          )}
-          {faqExpanded && (
-            <div className="mt-3 space-y-3">
-              <div className="flex gap-3 items-start">
-                <BookOpen className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-white">Library</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Grade-level book quizzes. Students read a book, take a 10-question multiple choice quiz, and earn points. Books are filtered by grade band (K-2, 3-5, 6-8, 9-12) so students only see books at their reading level.</p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <GraduationCap className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-white">iArise</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Course-style lessons where students learn about a topic (current events, hobbies), read short lesson pages, then take a quiz to earn points. Each course shows estimated time and points.</p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <Eye className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-white">Eye Gaze / Non-Verbal</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Accessible quizzes for students with IEPs or 504 plans. These use pictures and simple choices instead of text. Protected by a proctor password so only eligible students can access them. Worth 10 points each.</p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <Trophy className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-white">Leaderboard</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Students compete within their grade band. A 6th grader competes against other 6-8 students, not against high schoolers. Points are earned by taking quizzes across all sections.</p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <FileQuestion className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-white">Polls</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">The admin creates polls for the community to vote on. Students, teachers, and parents can vote on things like monthly prizes, new features, or platform feedback. Results are shown immediately after voting.</p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <UserCog className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-white">Teacher & Admin Tools</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Teachers can view student profiles, print certificates, reset passwords, and message students. The admin can approve accounts, assign schools and grades, create polls, and manage all users.</p>
-                </div>
-              </div>
             </div>
           )}
         </div>
