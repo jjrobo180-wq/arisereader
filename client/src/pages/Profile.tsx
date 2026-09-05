@@ -81,6 +81,125 @@ let profileCache: {
   classmates: [],
 };
 
+// Grade Band Change component for students
+function GradeBandChange() {
+  const { token } = useAuth();
+  const [gradeInfo, setGradeInfo] = useState<{ grade: string; band: string; bookCount: number } | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<any>(null);
+  const [newGrade, setNewGrade] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    fetch(`${API_BASE}/api/grade-band-info`, { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setGradeInfo(data); })
+      .catch(() => {});
+    fetch(`${API_BASE}/api/grade-change-request`, { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.request) setPendingRequest(data.request); })
+      .catch(() => {});
+  }, [token]);
+
+  const submitRequest = async () => {
+    if (!newGrade) return;
+    setSubmitting(true);
+    setMsg("");
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/grade-change-request`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newGrade })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPendingRequest({ newGrade, newBand: ['K','1','2'].includes(newGrade) ? 'K-2' : ['3','4','5'].includes(newGrade) ? '3-5' : ['6','7','8'].includes(newGrade) ? '6-8' : '9-12', status: 'pending' });
+        setNewGrade("");
+        setMsg("Grade change request submitted! Your teacher will review it.");
+      } else {
+        setMsg(data.message || "Failed to submit request");
+      }
+    } catch (e: any) {
+      setMsg("Error submitting request");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (pendingRequest) {
+    const band = ['K','1','2'].includes(pendingRequest.newGrade) ? 'K-2' : ['3','4','5'].includes(pendingRequest.newGrade) ? '3-5' : ['6','7','8'].includes(pendingRequest.newGrade) ? '6-8' : '9-12';
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Current Group:</span>
+          <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-bold">{gradeInfo?.band || 'N/A'}</span>
+        </div>
+        <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
+          <p className="text-sm text-amber-400 font-medium">Pending Request</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            You requested to switch to Grade {pendingRequest.newGrade} ({band} Band). Waiting for teacher/admin approval.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium">Current Group:</span>
+        <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-bold">{gradeInfo?.band || 'N/A'}</span>
+        {gradeInfo && <span className="text-xs text-muted-foreground">({gradeInfo.bookCount} books available)</span>}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Want to switch to a different grade band? Submit a request and your teacher or admin will review it.
+        If approved, your library, leaderboard, and profile will update to reflect your new group.
+      </p>
+      <div className="flex items-center gap-2">
+        <select
+          value={newGrade}
+          onChange={(e) => setNewGrade(e.target.value)}
+          className="flex-1 p-2 rounded-lg bg-input text-white border border-border text-sm"
+        >
+          <option value="">Select new grade...</option>
+          <optgroup label="K-2 Band (Early Readers)">
+            <option value="K">Grade K — K-2 Band</option>
+            <option value="1">Grade 1 — K-2 Band</option>
+            <option value="2">Grade 2 — K-2 Band</option>
+          </optgroup>
+          <optgroup label="3-5 Band (Elementary)">
+            <option value="3">Grade 3 — 3-5 Band</option>
+            <option value="4">Grade 4 — 3-5 Band</option>
+            <option value="5">Grade 5 — 3-5 Band</option>
+          </optgroup>
+          <optgroup label="6-8 Band (Middle School)">
+            <option value="6">Grade 6 — 6-8 Band</option>
+            <option value="7">Grade 7 — 6-8 Band</option>
+            <option value="8">Grade 8 — 6-8 Band</option>
+          </optgroup>
+          <optgroup label="9-12 Band (High School)">
+            <option value="9">Grade 9 — 9-12 Band</option>
+            <option value="10">Grade 10 — 9-12 Band</option>
+            <option value="11">Grade 11 — 9-12 Band</option>
+            <option value="12">Grade 12 — 9-12 Band</option>
+          </optgroup>
+        </select>
+        <button
+          onClick={submitRequest}
+          disabled={!newGrade || submitting}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+        >
+          {submitting ? "Submitting..." : "Request Change"}
+        </button>
+      </div>
+      {msg && <p className="text-xs text-green-400">{msg}</p>}
+    </div>
+  );
+}
+
 export default function Profile() {
   const { user, token, logout } = useAuth();
   const [, navigate] = useLocation();
@@ -847,6 +966,23 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Grade Band Change Request - Students only */}
+        {user?.role === 'student' && (
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.836 5.253 9.5 4.5 8 4.5c-1.5 0-2.836.753-4 1.753v13c1.164-.991 2.5-1.753 4-1.753 1.5 0 2.836.753 4 1.753 1.164-.991 2.5-1.753 4-1.753 1.5 0 2.836.753 4 1.753v-13c-1.164-.991-2.5-1.753-4-1.753-1.5 0-2.836.753-4 1.753z" />
+              </svg>
+              Grade Band &amp; Group
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GradeBandChange />
+          </CardContent>
+        </Card>
+        )}
         </>
         )}
 

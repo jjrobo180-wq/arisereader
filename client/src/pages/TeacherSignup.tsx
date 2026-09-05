@@ -86,31 +86,35 @@ export default function TeacherSignup() {
             <div>
               <label style={{ ...styles.label, display: "block", marginBottom: 6 }}>Grades You Teach</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {GRADES.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setSelectedGrades((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g].sort((a, b) => parseInt(a) - parseInt(b)))}
-                    style={{
-                      ...styles.input,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minHeight: 40,
-                      width: "auto",
-                      padding: "6px 14px",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      background: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 10%)",
-                      color: selectedGrades.includes(g) ? "hsl(0 0% 8%)" : "hsl(0 0% 92%)",
-                      borderColor: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 28%)",
-                    }}
-                  >
-                    {g}
-                  </button>
-                ))}
+                {GRADES.map((g) => {
+                  const band = ["K","1","2"].includes(g) ? "K-2" : ["3","4","5"].includes(g) ? "3-5" : ["6","7","8"].includes(g) ? "6-8" : "9-12";
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setSelectedGrades((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g].sort((a, b) => parseInt(a) - parseInt(b)))}
+                      style={{
+                        ...styles.input,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 40,
+                        width: "auto",
+                        padding: "6px 14px",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        background: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 10%)",
+                        color: selectedGrades.includes(g) ? "hsl(0 0% 8%)" : "hsl(0 0% 92%)",
+                        borderColor: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 28%)",
+                      }}
+                      title={`Grade ${g} — ${band} Band`}
+                    >
+                      {g} <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>{band}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 4 }}>Select all grades you teach. Students will find you by selecting their grade at signup.</p>
+              <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 4 }}>Select all grades you teach. Grades are grouped by band: K-2, 3-5, 6-8, 9-12. Students will find you by selecting their grade at signup.</p>
             </div>
             {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-teacher-account">

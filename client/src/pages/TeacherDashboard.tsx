@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Check, KeyRound, LogOut, Mail, UserRound, Users } from "lucide-react";
+import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -20,7 +20,7 @@ function getTokenFromCookie(): string | null {
 }
 
 type Student = { id: number; displayName?: string; display_name?: string; username: string; totalPoints?: number; total_points?: number; quizzesTaken?: number; quizzes_taken?: number };
-type Tab = "students" | "pending" | "proctor";
+type Tab = "students" | "pending" | "proctor" | "grade-changes";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -32,6 +32,7 @@ export default function TeacherDashboard() {
   const [error, setError] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
   const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | null>(null);
+  const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
 
   const authorized = Boolean(user && (user.role === "teacher" || user.isAdmin));
   const accountApproved = user?.accountApproved !== false;
@@ -59,7 +60,7 @@ export default function TeacherDashboard() {
     if (!authorized) { navigate("/library"); return; }
     if (accountApproved) {
       void loadData();
-      // Fetch proctor password and teacher banner
+      // Fetch proctor password, teacher banner, and grade change requests
       const token = getTokenFromCookie();
       if (token) {
         fetch(`${API_BASE}/api/proctor-password`, { headers: { Authorization: `Bearer ${token}` } })
@@ -70,6 +71,7 @@ export default function TeacherDashboard() {
           .then(r => r.ok ? r.json() : null)
           .then(data => { if (data?.teacherBanner) setTeacherBanner(data.teacherBanner); })
           .catch(() => {});
+        fetchGradeChangeRequests(token);
       }
     } else { setLoading(false); }
   }, [user, authorized, accountApproved]);
@@ -86,12 +88,40 @@ export default function TeacherDashboard() {
   const points = (student: Student) => student.totalPoints ?? student.total_points ?? 0;
   const quizzes = (student: Student) => student.quizzesTaken ?? student.quizzes_taken ?? 0;
 
+  const fetchGradeChangeRequests = async (token: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/grade-change-requests`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setGradeChangeRequests(data.requests || []);
+      }
+    } catch {}
+  };
+
+  const handleGradeChange = async (requestId: number, action: 'approve' | 'deny') => {
+    try {
+      const token = getTokenFromCookie();
+      if (!token) return;
+      await fetch(`${API_BASE}/api/grade-change-requests/${requestId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      // Refresh requests
+      await fetchGradeChangeRequests(token);
+      // Reload data since student grades may have changed
+      await loadData();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Failed to process request');
+    }
+  };
+
   if (!user || !authorized) return null;
   return <main style={styles.page}>
     <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></header>
     {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={styles.content}>
-      <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections"><TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton><TabButton active={tab === "pending"} onClick={() => setTab("pending")} icon={<UserRound size={19} />}>Pending Approvals{pending.length ? ` (${pending.length})` : ""}</TabButton><TabButton active={tab === "proctor"} onClick={() => setTab("proctor")} icon={<KeyRound size={19} />}>Proctor</TabButton></div>
-      {loading ? <p style={styles.muted}>Loading students...</p> : error ? <div style={styles.error} role="alert">{error}</div> : tab === "students" ? <div style={styles.grid}>{students.length ? students.map((student) => <article key={student.id} style={styles.card} data-testid={`card-student-${student.id}`}><div style={styles.cardHead}><div><h2 style={styles.studentName}>{name(student)}</h2><p style={styles.username}>@{student.username}</p></div></div><div style={styles.stats}><span><strong>{points(student)}</strong> total points</span><span><strong>{quizzes(student)}</strong> quizzes taken</span></div><div style={styles.actions}><ActionButton onClick={() => navigate(`/student-profile/${student.id}`)} icon={<UserRound size={16} />}>View Profile</ActionButton><ActionButton onClick={() => navigate(`/messages/${student.id}`)} icon={<Mail size={16} />}>Message</ActionButton><ActionButton onClick={() => void resetPassword(student.id)} icon={<KeyRound size={16} />}>Reset Password</ActionButton><ActionButton onClick={() => navigate(`/student-certificates/${student.id}`)} icon={<Award size={16} />}>Print Certificates</ActionButton></div></article>) : <div style={styles.empty}>No students have joined your classroom yet.</div>}</div> : tab === "pending" ? <div style={styles.pendingList}>{pending.length ? pending.map((student) => <article key={student.id} style={styles.pendingCard} data-testid={`card-pending-student-${student.id}`}><div><h2 style={styles.studentName}>{name(student)}</h2><p style={styles.username}>@{student.username}</p></div><button onClick={() => void approve(student.id)} style={styles.approveButton} data-testid={`button-approve-student-${student.id}`}><Check size={18} /> Approve</button></article>) : <div style={styles.empty}>No pending students</div>}</div> : <div style={{ maxWidth: 600, margin: "0 auto" }}>{teacherBanner && teacherBanner.active && teacherBanner.text ? <div style={{ ...styles.bannerCard, background: teacherBanner.bgColor, color: teacherBanner.textColor, padding: 16, borderRadius: 10, marginBottom: 20 }}><p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{teacherBanner.text}</p></div> : null}<div style={styles.card}><h2 style={styles.studentName}>Proctor Password</h2><p style={{ ...styles.username, marginBottom: 12 }}>This password is required for students to access Eye Gaze / Non-Verbal quizzes. Only the admin can change it.</p><div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}><input type="text" readOnly value={proctorPassword} style={{ flex: 1, background: "hsl(0 0% 18%)", border: "1px solid hsl(0 0% 28%)", borderRadius: 7, color: "hsl(0 0% 96%)", padding: "10px 14px", fontSize: 18, fontFamily: "monospace", fontWeight: 700 }} data-testid="proctor-password-display" /><button onClick={() => navigator.clipboard.writeText(proctorPassword)} style={{ ...styles.actionButton, padding: "10px 16px" }}>Copy</button></div></div></div>}
+      <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections"><TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton><TabButton active={tab === "pending"} onClick={() => setTab("pending")} icon={<UserRound size={19} />}>Pending Approvals{pending.length ? ` (${pending.length})` : ""}</TabButton><TabButton active={tab === "proctor"} onClick={() => setTab("proctor")} icon={<KeyRound size={19} />}>Proctor</TabButton><TabButton active={tab === "grade-changes"} onClick={() => setTab("grade-changes")} icon={<GraduationCap size={19} />}>Grade Changes{gradeChangeRequests.length ? ` (${gradeChangeRequests.length})` : ""}</TabButton></div>
+      {loading ? <p style={styles.muted}>Loading students...</p> : error ? <div style={styles.error} role="alert">{error}</div> : tab === "students" ? <div style={styles.grid}>{students.length ? students.map((student) => <article key={student.id} style={styles.card} data-testid={`card-student-${student.id}`}><div style={styles.cardHead}><div><h2 style={styles.studentName}>{name(student)}</h2><p style={styles.username}>@{student.username}</p></div></div><div style={styles.stats}><span><strong>{points(student)}</strong> total points</span><span><strong>{quizzes(student)}</strong> quizzes taken</span></div><div style={styles.actions}><ActionButton onClick={() => navigate(`/student-profile/${student.id}`)} icon={<UserRound size={16} />}>View Profile</ActionButton><ActionButton onClick={() => navigate(`/messages/${student.id}`)} icon={<Mail size={16} />}>Message</ActionButton><ActionButton onClick={() => void resetPassword(student.id)} icon={<KeyRound size={16} />}>Reset Password</ActionButton><ActionButton onClick={() => navigate(`/student-certificates/${student.id}`)} icon={<Award size={16} />}>Print Certificates</ActionButton></div></article>) : <div style={styles.empty}>No students have joined your classroom yet.</div>}</div> : tab === "pending" ? <div style={styles.pendingList}>{pending.length ? pending.map((student) => <article key={student.id} style={styles.pendingCard} data-testid={`card-pending-student-${student.id}`}><div><h2 style={styles.studentName}>{name(student)}</h2><p style={styles.username}>@{student.username}</p></div><button onClick={() => void approve(student.id)} style={styles.approveButton} data-testid={`button-approve-student-${student.id}`}><Check size={18} /> Approve</button></article>) : <div style={styles.empty}>No pending students</div>}</div> : tab === "proctor" ? <div style={{ maxWidth: 600, margin: "0 auto" }}>{teacherBanner && teacherBanner.active && teacherBanner.text ? <div style={{ ...styles.bannerCard, background: teacherBanner.bgColor, color: teacherBanner.textColor, padding: 16, borderRadius: 10, marginBottom: 20 }}><p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{teacherBanner.text}</p></div> : null}<div style={styles.card}><h2 style={styles.studentName}>Proctor Password</h2><p style={{ ...styles.username, marginBottom: 12 }}>This password is required for students to access Eye Gaze / Non-Verbal quizzes. Only the admin can change it.</p><div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}><input type="text" readOnly value={proctorPassword} style={{ flex: 1, background: "hsl(0 0% 18%)", border: "1px solid hsl(0 0% 28%)", borderRadius: 7, color: "hsl(0 0% 96%)", padding: "10px 14px", fontSize: 18, fontFamily: "monospace", fontWeight: 700 }} data-testid="proctor-password-display" /><button onClick={() => navigator.clipboard.writeText(proctorPassword)} style={{ ...styles.actionButton, padding: "10px 16px" }}>Copy</button></div></div></div> : tab === "grade-changes" ? <div style={{ maxWidth: 700, margin: "0 auto" }}>{gradeChangeRequests.length ? gradeChangeRequests.map((r) => <div key={r.id} style={{ ...styles.card, marginBottom: 12 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}><div><h2 style={styles.studentName}>{r.displayName || r.username}</h2><p style={styles.username}>@{r.username}</p><p style={{ margin: "4px 0 0", fontSize: 14, color: "hsl(0 0% 70%)" }}>Grade {r.oldGrade} ({r.oldBand} Band) → Grade {r.newGrade} ({r.newBand} Band)</p></div><div style={{ display: "flex", gap: 8 }}><button onClick={() => handleGradeChange(r.id, 'approve')} style={{ ...styles.approveButton, fontSize: 14, padding: "8px 12px" }}>Approve</button><button onClick={() => handleGradeChange(r.id, 'deny')} style={{ ...styles.actionButton, fontSize: 14, padding: "8px 12px", borderColor: "hsl(0 73% 55%)" }}>Deny</button></div></div></div>) : <div style={styles.empty}>No pending grade change requests.</div>}</div> : null}
     </section>}
   </main>;
 }

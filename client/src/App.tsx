@@ -9,6 +9,22 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useState, useEffect } from "react";
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
+
+const SESSION_COOKIE = "arise_session";
+function getTokenFromCookie(): string | null {
+  try {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const c = cookies[i].trim();
+      if (c.startsWith(SESSION_COOKIE + "=")) {
+        const raw = c.substring(SESSION_COOKIE.length + 1);
+        const data = JSON.parse(atob(raw));
+        return data.token || null;
+      }
+    }
+  } catch {}
+  return null;
+}
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
@@ -34,7 +50,7 @@ import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
 function StudentSetupGate({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [showSetup, setShowSetup] = useState(false);
   const [bandInfo, setBandInfo] = useState<{ grade: string; band: string; bookCount: number } | null>(null);
 
@@ -43,21 +59,31 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
       const flag = sessionStorage.getItem('show_profile_setup');
       if (flag === 'true') {
         sessionStorage.removeItem('show_profile_setup');
+        const authToken = token || getTokenFromCookie();
+        if (!authToken) { setShowSetup(true); setBandInfo({ grade: '0', band: 'K-2', bookCount: 0 }); return; }
         // Fetch grade band info
         fetch(`${API_BASE}/api/grade-band-info`, {
-          headers: { Authorization: `Bearer ${sessionStorage.getItem('token') || ''}` }
+          headers: { Authorization: `Bearer ${authToken}` }
         })
           .then(r => r.ok ? r.json() : null)
           .then(data => {
             if (data && data.band) {
               setBandInfo({ grade: data.grade, band: data.band, bookCount: data.bookCount });
               setShowSetup(true);
+            } else {
+              // Fallback - still show the overlay even if API fails
+              setBandInfo({ grade: '0', band: 'K-2', bookCount: 0 });
+              setShowSetup(true);
             }
           })
-          .catch(() => {});
+          .catch(() => {
+            // Show overlay even on error
+            setBandInfo({ grade: '0', band: 'K-2', bookCount: 0 });
+            setShowSetup(true);
+          });
       }
     }
-  }, [user]);
+  }, [user, token]);
 
   if (showSetup && bandInfo) {
     return (

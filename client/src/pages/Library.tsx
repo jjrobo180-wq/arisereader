@@ -579,7 +579,7 @@ export default function Library() {
               <div className="text-sm text-white/80">Books to read</div>
             </div>
             <div>
-              <div className="text-3xl font-bold">{quizCount}</div>
+              <div className="text-3xl font-bold">{books.length}</div>
               <div className="text-sm text-white/80">Quizzes available</div>
             </div>
           </div>

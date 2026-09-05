@@ -2018,6 +2018,155 @@ export async function registerRoutes(
     }
   });
 
+  // ─── GRADE BAND CHANGE REQUESTS ───────────────────────────────────
+
+  // Student: Request grade band change
+  app.post("/api/grade-change-request", authMiddleware, async (req: any, res) => {
+    try {
+      const { newGrade } = req.body;
+      if (!newGrade) return res.status(400).json({ message: 'New grade is required' });
+      
+      // Check if student already has a pending request
+      const rawRequests = await storage.getSetting('grade_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+      
+      // Remove any existing pending request for this user
+      requests = requests.filter((r: any) => r.userId !== req.user.id || r.status !== 'pending');
+      
+      // Add new request
+      const newBand = gradeToBand(newGrade);
+      const oldGrade = await (async () => {
+        const rawGrades = await storage.getSetting('user_grades');
+        let userGrades: Record<string, string> = {};
+        if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+        return userGrades[String(req.user.id)] || null;
+      })();
+      const oldBand = oldGrade ? gradeToBand(oldGrade) : null;
+      
+      requests.push({
+        id: Date.now(),
+        userId: req.user.id,
+        username: req.user.username,
+        displayName: req.user.display_name || req.user.username,
+        oldGrade,
+        oldBand,
+        newGrade,
+        newBand,
+        status: 'pending',
+        requestedAt: new Date().toISOString()
+      });
+      
+      await storage.upsertSetting('grade_change_requests', JSON.stringify(requests));
+      res.json({ success: true, message: 'Grade change request submitted' });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Student: Check their grade change request status
+  app.get("/api/grade-change-request", authMiddleware, async (req: any, res) => {
+    try {
+      const rawRequests = await storage.getSetting('grade_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+      
+      const myRequest = requests.find((r: any) => r.userId === req.user.id && r.status === 'pending');
+      res.json({ request: myRequest || null });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Teacher/Admin: Get pending grade change requests
+  app.get("/api/grade-change-requests", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'teacher' && !req.user.isAdmin) {
+        return res.status(403).json({ message: 'Teacher or admin access required' });
+      }
+      const rawRequests = await storage.getSetting('grade_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+      
+      // For teachers, only show their students' requests
+      let pending = requests.filter((r: any) => r.status === 'pending');
+      if (req.user.role === 'teacher' && !req.user.isAdmin) {
+        const teacherStudents = await storage.getTeacherStudents(req.user.id);
+        const studentIds = new Set(teacherStudents.map((s: any) => s.id));
+        pending = pending.filter((r: any) => studentIds.has(r.userId));
+      }
+      res.json({ requests: pending });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Teacher/Admin: Approve or deny grade change request
+  app.post("/api/grade-change-requests/:id", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'teacher' && !req.user.isAdmin) {
+        return res.status(403).json({ message: 'Teacher or admin access required' });
+      }
+      const { action } = req.body; // 'approve' or 'deny'
+      const requestId = parseInt(req.params.id);
+      
+      const rawRequests = await storage.getSetting('grade_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+      
+      const request = requests.find((r: any) => r.id === requestId);
+      if (!request) return res.status(404).json({ message: 'Request not found' });
+      if (request.status !== 'pending') return res.status(400).json({ message: 'Request already processed' });
+      
+      // For teachers, verify this is their student
+      if (req.user.role === 'teacher' && !req.user.isAdmin) {
+        const teacherStudents = await storage.getTeacherStudents(req.user.id);
+        const studentIds = new Set(teacherStudents.map((s: any) => s.id));
+        if (!studentIds.has(request.userId)) {
+          return res.status(403).json({ message: 'This student is not in your class' });
+        }
+      }
+      
+      if (action === 'approve') {
+        request.status = 'approved';
+        request.processedAt = new Date().toISOString();
+        request.processedBy = req.user.id;
+        
+        // Update the student's grade
+        const rawGrades = await storage.getSetting('user_grades');
+        let userGrades: Record<string, string> = {};
+        if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+        userGrades[String(request.userId)] = request.newGrade;
+        await storage.upsertSetting('user_grades', JSON.stringify(userGrades));
+        
+        // Notify the student
+        await storage.createMessage(
+          request.userId,
+          req.user.isAdmin ? 'admin' : req.user.username,
+          `Your grade change request has been approved! You are now in Grade ${request.newGrade} (${request.newBand} Band). Your library and leaderboard have been updated.`,
+          '/library'
+        );
+      } else {
+        request.status = 'denied';
+        request.processedAt = new Date().toISOString();
+        request.processedBy = req.user.id;
+        
+        // Notify the student
+        await storage.createMessage(
+          request.userId,
+          req.user.isAdmin ? 'admin' : req.user.username,
+          `Your grade change request to Grade ${request.newGrade} (${request.newBand} Band) was not approved at this time.`,
+          '/profile'
+        );
+      }
+      
+      await storage.upsertSetting('grade_change_requests', JSON.stringify(requests));
+      res.json({ success: true, request });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ─── TEACHER ROUTES ────────────────────────────────────────────────
 
   // List approved teachers for student signup dropdown

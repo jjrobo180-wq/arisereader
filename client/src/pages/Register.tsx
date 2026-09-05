@@ -167,9 +167,26 @@ export default function Register() {
                   data-testid="select-grade"
                 >
                   <option value="">Choose your grade...</option>
-                  {GRADES.map((g) => (
-                    <option key={g} value={g}>Grade {g}</option>
-                  ))}
+                  <optgroup label="K-2 Band (Early Readers)">
+                    {GRADES.filter(g => ["K","1","2"].includes(g)).map((g) => (
+                      <option key={g} value={g}>Grade {g} — K-2 Band</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="3-5 Band (Elementary)">
+                    {GRADES.filter(g => ["3","4","5"].includes(g)).map((g) => (
+                      <option key={g} value={g}>Grade {g} — 3-5 Band</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="6-8 Band (Middle School)">
+                    {GRADES.filter(g => ["6","7","8"].includes(g)).map((g) => (
+                      <option key={g} value={g}>Grade {g} — 6-8 Band</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="9-12 Band (High School)">
+                    {GRADES.filter(g => ["9","10","11","12"].includes(g)).map((g) => (
+                      <option key={g} value={g}>Grade {g} — 9-12 Band</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
               <div className="space-y-2">
