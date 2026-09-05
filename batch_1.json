@@ -1,128 +1,152 @@
 [
   {
-    "title": "Captain Underpants: The First Epic Novel",
-    "author": "Dav Pilkey",
-    "points_value": 10,
-    "description": "Fourth graders George and Harold hypnotize their principal into becoming a superhero."
+    "title": "The Cat in the Hat",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "Diary of a Wimpy Kid",
-    "author": "Jeff Kinney",
-    "points_value": 10,
-    "description": "Middle schooler Greg Heffley documents his hilarious struggles with popularity and growing up."
+    "title": "Green Eggs and Ham",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "Magic Tree House: Dinosaurs Before Dark",
-    "author": "Mary Pope Osborne",
-    "points_value": 10,
-    "description": "Jack and Annie discover a magic tree house that transports them to prehistoric times."
+    "title": "Oh, the Places You'll Go!",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "Magic Tree House: The Knight at Dawn",
-    "author": "Mary Pope Osborne",
-    "points_value": 10,
-    "description": "Jack and Annie travel to medieval times and explore a castle."
+    "title": "The Lorax",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "Magic Tree House: Mummies in the Morning",
-    "author": "Mary Pope Osborne",
-    "points_value": 10,
-    "description": "Jack and Annie travel to ancient Egypt and meet a ghost queen."
+    "title": "Horton Hears a Who!",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "Magic Tree House: Pirates Past Noon",
-    "author": "Mary Pope Osborne",
-    "points_value": 10,
-    "description": "Jack and Annie encounter pirates on a Caribbean beach."
+    "title": "The Gruffalo",
+    "author": "Julia Donaldson",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "The Boxcar Children",
-    "author": "Gertrude Chandler Warner",
-    "points_value": 10,
-    "description": "Four orphaned children make a home in an abandoned boxcar."
+    "title": "Room on the Broom",
+    "author": "Julia Donaldson",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "Sideways Stories from Wayside School",
-    "author": "Louis Sachar",
-    "points_value": 10,
-    "description": "A school built sideways has thirty stories of wacky classrooms with bizarre characters."
+    "title": "The Very Hungry Caterpillar",
+    "author": "Eric Carle",
+    "ageGroup": "3-5",
+    "pointsValue": 3
   },
   {
-    "title": "The Mouse and the Motorcycle",
-    "author": "Beverly Cleary",
-    "points_value": 10,
-    "description": "A mouse named Ralph befriends a boy and rides his toy motorcycle."
+    "title": "Brown Bear, Brown Bear, What Do You See?",
+    "author": "Bill Martin Jr.",
+    "ageGroup": "3-5",
+    "pointsValue": 3
   },
   {
-    "title": "Ralph S. Mouse",
-    "author": "Beverly Cleary",
-    "points_value": 10,
-    "description": "Ralph the mouse goes to school with his friend Ryan."
+    "title": "Goodnight Moon",
+    "author": "Margaret Wise Brown",
+    "ageGroup": "3-5",
+    "pointsValue": 3
   },
   {
-    "title": "The Paper Bag Princess",
-    "author": "Robert Munsch",
-    "points_value": 10,
-    "description": "Princess Elizabeth outsmarts a dragon to rescue her prince, only to discover he is ungrateful."
+    "title": "Where the Wild Things Are",
+    "author": "Maurice Sendak",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "Alexander and the Terrible Horrible No Good Very Bad Day",
-    "author": "Judith Viorst",
-    "points_value": 10,
-    "description": "Alexander wakes up with gum in his hair and everything goes wrong all day."
+    "title": "Corduroy",
+    "author": "Don Freeman",
+    "ageGroup": "3-5",
+    "pointsValue": 3
   },
   {
-    "title": "Where the Sidewalk Ends",
-    "author": "Shel Silverstein",
-    "points_value": 10,
-    "description": "A collection of humorous and imaginative poems for children."
+    "title": "The Snowy Day",
+    "author": "Ezra Jack Keats",
+    "ageGroup": "3-5",
+    "pointsValue": 3
   },
   {
-    "title": "The Giving Tree",
-    "author": "Shel Silverstein",
-    "points_value": 10,
-    "description": "A tree loves a boy deeply and gives him everything she has throughout his life."
+    "title": "Make Way for Ducklings",
+    "author": "Robert McCloskey",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "The True Story of the Three Little Pigs",
-    "author": "Jon Scieszka",
-    "points_value": 10,
-    "description": "The Big Bad Wolf tells his side of the story about the three little pigs."
+    "title": "Curious George",
+    "author": "H.A. Rey",
+    "ageGroup": "5-7",
+    "pointsValue": 5
   },
   {
-    "title": "The Stinky Cheese Man and Other Fairly Stupid Tales",
-    "author": "Jon Scieszka",
-    "points_value": 10,
-    "description": "A hilarious collection of fractured fairy tales with unexpected twists."
+    "title": "The Witches",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 10
   },
   {
-    "title": "The Polar Express",
-    "author": "Chris Van Allsburg",
-    "points_value": 10,
-    "description": "A magical train takes a boy to the North Pole on Christmas Eve."
+    "title": "The Twits",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "Jumanji",
-    "author": "Chris Van Allsburg",
-    "points_value": 10,
-    "description": "A board game comes to life with jungle animals and dangers."
+    "title": "George's Marvelous Medicine",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "The Princess and the Goblin",
-    "author": "George MacDonald",
-    "points_value": 10,
-    "description": "A princess befriends a miner boy who protects her kingdom from goblins."
+    "title": "The Magic Finger",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "Amber Brown Is Not a Crayon",
-    "author": "Paula Danziger",
-    "points_value": 10,
-    "description": "Amber Brown deals with her best friend moving away and her parents' divorce."
+    "title": "Fantastic Mr. Fox",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "A Long Walk to Water",
-    "author": "Linda Sue Park",
-    "points_value": 20,
-    "description": "Two children in Sudan struggle to find water and survive civil war."
+    "title": "Danny the Champion of the World",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8
+  },
+  {
+    "title": "Charlie and the Great Glass Elevator",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 10
+  },
+  {
+    "title": "The Bad Beginning",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
+  },
+  {
+    "title": "The Reptile Room",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
+  },
+  {
+    "title": "The Wide Window",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   }
 ]

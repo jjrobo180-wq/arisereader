@@ -1,128 +1,152 @@
 [
   {
-    "title": "Al Capone Does My Shirts",
-    "author": "Gennifer Choldenko",
-    "points_value": 20,
-    "description": "A boy lives on Alcatraz Island where his father works as a guard and his sister has autism."
+    "title": "Diary of a Wimpy Kid: Double Down",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "Al Capone Shines My Shoes",
-    "author": "Gennifer Choldenko",
-    "points_value": 20,
-    "description": "Moose Flanagan returns to Alcatraz where convicts do laundry and trouble follows."
+    "title": "Diary of a Wimpy Kid: The Getaway",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "Patina",
-    "author": "Jason Reynolds",
-    "points_value": 20,
-    "description": "A girl named Patty runs track and deals with family challenges and school life."
+    "title": "Diary of a Wimpy Kid: The Meltdown",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "Sunny",
-    "author": "Jason Reynolds",
-    "points_value": 20,
-    "description": "Sunny runs the mile in track while dealing with the loss of his mother."
+    "title": "Dog Man",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5
   },
   {
-    "title": "Lu",
-    "author": "Jason Reynolds",
-    "points_value": 20,
-    "description": "Lu, a track captain born with albinism, faces his final season and new challenges."
+    "title": "Dog Man Unleashed",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5
   },
   {
-    "title": "Look Both Ways",
-    "author": "Jason Reynolds",
-    "points_value": 20,
-    "description": "Ten stories about ten different kids walking home from school."
+    "title": "Dog Man: A Tale of Two Kitties",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5
   },
   {
-    "title": "The Crossover",
-    "author": "Kwame Alexander",
-    "points_value": 20,
-    "description": "Twin brothers who are basketball stars deal with family and life challenges in verse."
+    "title": "Captain Underpants and the Attack of the Talking Toilets",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5
   },
   {
-    "title": "Booked",
-    "author": "Kwame Alexander",
-    "points_value": 20,
-    "description": "A soccer-loving boy discovers the power of words and poetry."
+    "title": "Captain Underpants and the Perilous Plot of Professor Poopypants",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5
   },
   {
-    "title": "Rebound",
-    "author": "Kwame Alexander",
-    "points_value": 20,
-    "description": "A prequel to The Crossover about Chuck Bell before he became a basketball star."
+    "title": "The Magic Tree House: Night of the Ninjas",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Out of My Heart",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "Melody Brooks, who has cerebral palsy, goes to summer camp and finds independence."
+    "title": "The Magic Tree House: Afternoon on the Amazon",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Blended",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "A biracial girl navigates life between her divorced parents' homes and identities."
+    "title": "The Magic Tree House: Sunset of the Sabertooth",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Stella by Starlight",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "A Black girl in 1932 North Carolina faces racism and finds her voice through writing."
+    "title": "The Magic Tree House: Midnight on the Moon",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Copper Sun",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "A 15-year-old African girl is captured and sold into slavery in colonial America."
+    "title": "The Magic Tree House: Day of the Dragon King",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Tears of a Tiger",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "A teen deals with guilt and grief after a drunk driving accident kills his best friend."
+    "title": "The Magic Tree House: Ghost Town at Sundown",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Forged by Fire",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "Gerald Nickelby overcomes abuse and addiction to protect his half-sister."
+    "title": "The Magic Tree House: Lions at Lunchtime",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Darkness Before Dawn",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "Keisha Montgomery faces senior year challenges and a dangerous relationship."
+    "title": "Junie B. Jones and the Stupid Smelly Bus",
+    "author": "Barbara Park",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Romiette and Julio",
-    "author": "Sharon Draper",
-    "points_value": 20,
-    "description": "A modern retelling of Romeo and Juliet with an interracial teen couple facing gang threats."
+    "title": "Junie B. Jones and a Little Monkey Business",
+    "author": "Barbara Park",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Fever 1793",
-    "author": "Laurie Halse Anderson",
-    "points_value": 20,
-    "description": "A teenage girl survives the yellow fever epidemic in Philadelphia in 1793."
+    "title": "Junie B. Jones and Her Big Fat Mouth",
+    "author": "Barbara Park",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Chains",
-    "author": "Laurie Halse Anderson",
-    "points_value": 20,
-    "description": "A young slave girl in Revolutionary War-era New York fights for freedom."
+    "title": "The Notebook of Doom: Rise of the Balloon Goons",
+    "author": "Troy Cummings",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Forge",
-    "author": "Laurie Halse Anderson",
-    "points_value": 20,
-    "description": "Curzon, a runaway slave, enlists in the Patriot army during the Revolutionary War."
+    "title": "The Notebook of Doom: Day of the Night Crawlers",
+    "author": "Troy Cummings",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "Ashes",
-    "author": "Laurie Halse Anderson",
-    "points_value": 20,
-    "description": "The conclusion of the Seeds of America trilogy follows Isabel and Curzon's fight for freedom."
+    "title": "Ivy and Bean",
+    "author": "Annie Barrows",
+    "ageGroup": "6-8",
+    "pointsValue": 5
+  },
+  {
+    "title": "Ivy and Bean and the Ghost That Had to Go",
+    "author": "Annie Barrows",
+    "ageGroup": "6-8",
+    "pointsValue": 5
+  },
+  {
+    "title": "Ramona Quimby, Age 8",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8
+  },
+  {
+    "title": "Beezus and Ramona",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8
+  },
+  {
+    "title": "Henry Huggins",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   }
 ]

@@ -1,0 +1,2702 @@
+[
+  {
+    "title": "The Cat in the Hat",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Why do the children stay home alone at the beginning of the story?",
+        "options": [
+          "They were sick and stayed home from school",
+          "Their parents went on vacation",
+          "Their babysitter canceled",
+          "Their mother went to town and left them alone"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who arrives on a rainy day to entertain the children?",
+        "options": [
+          "A friendly neighbor",
+          "Their grandmother",
+          "The Cat in the Hat",
+          "A talking dog"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the Cat in the Hat first balance on top of his head?",
+        "options": [
+          "A book",
+          "A bottle",
+          "A fishbowl with a fish in it",
+          "A cake"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Which character repeatedly warns that the Cat's behavior is a bad idea?",
+        "options": [
+          "The girl (Sally)",
+          "The fish",
+          "The boy",
+          "The dog"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the Cat bring out of his hat to help with cleanup?",
+        "options": [
+          "A mop",
+          "Thing One and Thing Two",
+          "A magic broom",
+          "A vacuum cleaner"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What do Thing One and Thing Two do when they are let out?",
+        "options": [
+          "They fly kites and make a mess",
+          "They go to sleep",
+          "They cook a meal",
+          "They clean the house"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "How does the Cat in the Hat finally clean up the mess?",
+        "options": [
+          "He asks the children to help",
+          "He uses a special machine called a Voom",
+          "He calls for help from the neighbors",
+          "He leaves the mess for the mother"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is the weather like on the day the Cat in the Hat visits?",
+        "options": [
+          "Snowy and cold",
+          "Windy and cloudy",
+          "Sunny and warm",
+          "Cold and rainy"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the name of the girl in the story?",
+        "options": [
+          "Sally",
+          "Mary",
+          "Jane",
+          "Lucy"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What question does the narrator ask the reader at the very end of the book?",
+        "options": [
+          "Where did the Cat go?",
+          "What would you do if your mother asked you?",
+          "Did you have fun?",
+          "Should we tell your mother about this?"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Green Eggs and Ham",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Who is the main character trying to get someone to eat green eggs and ham?",
+        "options": [
+          "The Lorax",
+          "The Cat in the Hat",
+          "Horton the Elephant",
+          "Sam-I-Am"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Where does the character refuse to eat green eggs and ham?",
+        "options": [
+          "All of the above",
+          "With a mouse",
+          "In a boat",
+          "In a house"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the character that does NOT want to eat the green eggs and ham?",
+        "options": [
+          "The Lorax",
+          "An unnamed grumpy character",
+          "Sam-I-Am",
+          "The Cat in the Hat"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What animal does Sam-I-Am suggest eating the green eggs and ham with?",
+        "options": [
+          "A goat",
+          "All of the above",
+          "A mouse",
+          "A fox"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does Sam-I-Am suggest eating the green eggs and ham?",
+        "options": [
+          "In a house, with a mouse",
+          "In a box, with a fox",
+          "All of the above",
+          "In a boat, with a goat"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How does the unnamed character finally react when he tries the green eggs and ham?",
+        "options": [
+          "He gives them to Sam-I-Am",
+          "He says he does not like them",
+          "He throws them away",
+          "He says he likes them"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the unnamed character say after trying green eggs and ham?",
+        "options": [
+          "I do so like green eggs and ham!",
+          "I want more",
+          "They taste terrible",
+          "I do not like them"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What color are the eggs and ham in the story?",
+        "options": [
+          "Yellow",
+          "Red",
+          "White",
+          "Green"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Sam-I-Am offer as a companion for eating green eggs and ham in a box?",
+        "options": [
+          "A cat",
+          "A goat",
+          "A fox",
+          "A mouse"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is the main lesson of Green Eggs and Ham?",
+        "options": [
+          "Never try new things",
+          "Always try something before deciding you don't like it",
+          "Green food is bad for you",
+          "Only eat what you know"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Oh, the Places You'll Go!",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What is the main theme of Oh, the Places You'll Go!?",
+        "options": [
+          "Traveling the world",
+          "Finding your way home",
+          "Making new friends",
+          "Life's journey and the possibilities ahead"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Dr. Seuss say about your brain in the opening of the book?",
+        "options": [
+          "You have brains in your head",
+          "Your brain is special",
+          "Your brain needs rest",
+          "Your brain is small"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Dr. Seuss say about your feet in the book?",
+        "options": [
+          "You have feet in your shoes, and you can steer yourself any direction you choose",
+          "They are strong",
+          "They will take you far",
+          "They are fast"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the place where things are not so great and you may feel alone?",
+        "options": [
+          "The Sad Place",
+          "The Dark Place",
+          "The Waiting Place",
+          "The Lonely Place"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What happens in the Waiting Place?",
+        "options": [
+          "People are sleeping",
+          "People are waiting for a train",
+          "People are just waiting for things to happen",
+          "People are lost"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What kind of troubles does Dr. Seuss say you will face?",
+        "options": [
+          "Some troubles, but you will get through them",
+          "Troubles you cannot overcome",
+          "No troubles at all",
+          "Only big troubles"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the book say about moving mountains?",
+        "options": [
+          "Mountains cannot be moved",
+          "Only strong people move mountains",
+          "Mountains are too tall",
+          "You will move mountains"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Dr. Seuss say about being alone in the book?",
+        "options": [
+          "You'll be on your own, and you'll be in charge of yourself",
+          "You will always need help",
+          "You will never be alone",
+          "Being alone is bad"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the book say about success?",
+        "options": [
+          "Success is not important",
+          "Success is impossible",
+          "You will succeed, yes you will indeed",
+          "Success comes easily"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who is the book Oh, the Places You'll Go! commonly given as a gift to?",
+        "options": [
+          "Retirees",
+          "Graduates",
+          "Birthday celebrants",
+          "New parents"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Lorax",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Who is the main character who tells the story of the Lorax to a young boy?",
+        "options": [
+          "The Once-ler",
+          "The boy's grandfather",
+          "A tree farmer",
+          "The Lorax"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the Once-ler discover in the Truffula Valley?",
+        "options": [
+          "Truffula Trees with soft, colorful tufts",
+          "Gold and treasure",
+          "A magical river",
+          "Talking animals"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the Once-ler make from the Truffula Trees?",
+        "options": [
+          "Blankets",
+          "Scarves",
+          "Thneeds",
+          "Hats"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who speaks for the trees because the trees have no tongues?",
+        "options": [
+          "The Lorax",
+          "The Bar-ba-loots",
+          "The Once-ler",
+          "The Swomee-Swans"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What happens to the Bar-ba-loots when the Truffula Trees are cut down?",
+        "options": [
+          "They have no food and must leave",
+          "They grow bigger",
+          "They become friends with the Once-ler",
+          "They get stronger"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "How does the Lorax finally leave the valley?",
+        "options": [
+          "He walks away",
+          "He floats away through the smog-filled air",
+          "He is captured",
+          "He climbs a tree"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the Lorax leave behind when he departs?",
+        "options": [
+          "A pile of stones",
+          "A letter",
+          "The word 'UNLESS' on a pile of small stones",
+          "A Truffula Tree"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does 'UNLESS' mean according to the Once-ler?",
+        "options": [
+          "Unless it rains",
+          "Unless someone like you cares a whole awful lot, nothing is going to get better",
+          "Unless someone pays for it",
+          "Unless the trees grow back on their own"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the Once-ler give the boy at the end of the story?",
+        "options": [
+          "A book",
+          "A Thneed",
+          "Money",
+          "The last Truffula Seed"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the main environmental lesson of The Lorax?",
+        "options": [
+          "Animals can talk",
+          "If you cut down all the trees, you destroy the homes of many creatures",
+          "Money is the most important thing",
+          "Progress is always good"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Horton Hears a Who!",
+    "author": "Dr. Seuss",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What kind of animal is Horton?",
+        "options": [
+          "A kangaroo",
+          "A bear",
+          "An elephant",
+          "A lion"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Where does Horton hear a small voice coming from?",
+        "options": [
+          "A puddle",
+          "A flower",
+          "A leaf",
+          "A speck of dust"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Where do the Whos live?",
+        "options": [
+          "In a river",
+          "In a speck of dust on a clover",
+          "Underground",
+          "In a tree"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the Mayor's son who makes noise to help the Whos be heard?",
+        "options": [
+          "Timmy",
+          "JoJo",
+          "Sammy",
+          "Billy"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the sour kangaroo that doesn't believe Horton?",
+        "options": [
+          "Kanga",
+          "Jane Kangaroo",
+          "Roo",
+          "Sour Kangaroo"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the sour kangaroo want to do with the clover?",
+        "options": [
+          "Keep it for herself",
+          "Eat it",
+          "Plant it",
+          "Destroy it in boiling beechnut oil"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What famous phrase does Horton repeat throughout the book?",
+        "options": [
+          "I meant what I said and I said what I meant",
+          "An elephant's faithful, one hundred percent",
+          "A person's a person, no matter how small",
+          "All of the above"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How do the Whos finally make themselves heard?",
+        "options": [
+          "By shouting one at a time",
+          "By all making noise together",
+          "By building a tower",
+          "By using instruments"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What do the Wickersham Brothers do to Horton?",
+        "options": [
+          "They try to take the clover away",
+          "They become his friends",
+          "They give him food",
+          "They help him"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is the main message of Horton Hears a Who!?",
+        "options": [
+          "Never trust kangaroos",
+          "Even the smallest person matters",
+          "Elephants are the strongest",
+          "Big things are always better"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Gruffalo",
+    "author": "Julia Donaldson",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What kind of animal is the main character in The Gruffalo?",
+        "options": [
+          "A fox",
+          "A hedgehog",
+          "A rabbit",
+          "A mouse"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Where does the mouse take a walk?",
+        "options": [
+          "Through the forest",
+          "Across a field",
+          "In a city park",
+          "Along the beach"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Which animal is the first to invite the mouse to its underground house?",
+        "options": [
+          "A fox",
+          "A snake",
+          "A rabbit",
+          "An owl"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the mouse tell the fox about the Gruffalo?",
+        "options": [
+          "The Gruffalo is tiny",
+          "The Gruffalo loves roasted fox",
+          "The Gruffalo lives in a cave",
+          "The Gruffalo is friendly"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the mouse say the Gruffalo's favorite food is when meeting the owl?",
+        "options": [
+          "Owl ice cream",
+          "Mouse sandwich",
+          "Roasted fox",
+          "Scrambled snake"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the mouse tell the snake the Gruffalo likes to eat?",
+        "options": [
+          "Scrambled snake",
+          "Roasted fox",
+          "Owl ice cream",
+          "Apple pie"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the mouse discover about the Gruffalo?",
+        "options": [
+          "The Gruffalo is a dream",
+          "The Gruffalo ran away",
+          "The Gruffalo is friendly",
+          "The Gruffalo is real and standing right there"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What are the Gruffalo's terrible teeth like?",
+        "options": [
+          "Like needles",
+          "Like saws",
+          "Like terrible tusks and terrible claws",
+          "Like knives"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the Gruffalo want to eat?",
+        "options": [
+          "Roasted fox",
+          "Scrambled snake",
+          "Owl ice cream",
+          "Mouse sandwich"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How does the mouse trick the Gruffalo at the end?",
+        "options": [
+          "He fights the Gruffalo",
+          "He hides in a hole",
+          "He tells the Gruffalo that all the animals are afraid of him, the mouse",
+          "He runs away"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "Room on the Broom",
+    "author": "Julia Donaldson",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Who is the main character in Room on the Broom?",
+        "options": [
+          "A wizard",
+          "A dragon",
+          "A witch",
+          "A cat"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the witch lose first that a dog finds?",
+        "options": [
+          "Her hat",
+          "Her broom",
+          "Her bow",
+          "Her wand"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the witch lose that a bird finds?",
+        "options": [
+          "Her broom",
+          "Her bow",
+          "Her wand",
+          "Her hat"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the witch lose that a frog finds?",
+        "options": [
+          "Her bow",
+          "Her hat",
+          "Her wand",
+          "Her broom"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What happens to the witch's broom when all the animals are on it?",
+        "options": [
+          "It breaks in two",
+          "It glows",
+          "It flies faster",
+          "It shrinks"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who threatens to eat the witch after the broom breaks?",
+        "options": [
+          "A wolf",
+          "A monster",
+          "A giant",
+          "A dragon"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the witch do to save herself from the dragon?",
+        "options": [
+          "She casts a spell to create a new creature",
+          "She hides",
+          "She flies away",
+          "She fights the dragon"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the witch's spell create from the various parts?",
+        "options": [
+          "A new wand",
+          "A magnificent new broom with seats for everyone",
+          "A flying dragon",
+          "A magical house"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Which animal is the witch's cat and companion at the start?",
+        "options": [
+          "A frog",
+          "A black dog",
+          "A bird",
+          "A green-eyed cat"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the witch's famous repeated line in the story?",
+        "options": [
+          "Up!",
+          "Away we go!",
+          "Down!",
+          "Is there room on the broom for me?"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "The Very Hungry Caterpillar",
+    "author": "Eric Carle",
+    "ageGroup": "3-5",
+    "pointsValue": 3,
+    "questions": [
+      {
+        "question": "What does the very hungry caterpillar eat on Monday?",
+        "options": [
+          "Three plums",
+          "Four strawberries",
+          "One apple",
+          "Two pears"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the caterpillar eat on Tuesday?",
+        "options": [
+          "Three plums",
+          "One apple",
+          "Four strawberries",
+          "Two pears"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the caterpillar eat on Wednesday?",
+        "options": [
+          "Five oranges",
+          "Two pears",
+          "Three plums",
+          "Four strawberries"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the caterpillar eat on Thursday?",
+        "options": [
+          "Five oranges",
+          "One apple",
+          "Four strawberries",
+          "Three plums"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the caterpillar eat on Friday?",
+        "options": [
+          "Five oranges",
+          "Two pears",
+          "One apple",
+          "Four strawberries"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the caterpillar eat on Saturday that gives him a stomachache?",
+        "options": [
+          "Only fruits",
+          "Only vegetables",
+          "Nothing",
+          "A lot of junk food including cake, ice cream, and pickle"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the caterpillar eat on Sunday to feel better?",
+        "options": [
+          "One green leaf",
+          "A pear",
+          "An apple",
+          "Nothing"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the caterpillar become at the end of the story?",
+        "options": [
+          "A bigger caterpillar",
+          "A beautiful butterfly",
+          "A bee",
+          "A moth"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does the caterpillar build his cocoon?",
+        "options": [
+          "In the ground",
+          "On a branch",
+          "On a wall",
+          "In a leaf"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What comes out of the egg at the very beginning of the story?",
+        "options": [
+          "A tiny caterpillar",
+          "A bird",
+          "A butterfly",
+          "A frog"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Brown Bear, Brown Bear, What Do You See?",
+    "author": "Bill Martin Jr.",
+    "ageGroup": "3-5",
+    "pointsValue": 3,
+    "questions": [
+      {
+        "question": "What does the brown bear see?",
+        "options": [
+          "A red bird",
+          "A green frog",
+          "A blue horse",
+          "A yellow duck"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the red bird see?",
+        "options": [
+          "A green frog",
+          "A purple cat",
+          "A yellow duck",
+          "A blue horse"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the yellow duck see?",
+        "options": [
+          "A white dog",
+          "A purple cat",
+          "A blue horse",
+          "A green frog"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the blue horse see?",
+        "options": [
+          "A purple cat",
+          "A yellow duck",
+          "A green frog",
+          "A white dog"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the green frog see?",
+        "options": [
+          "A white dog",
+          "A purple cat",
+          "A black sheep",
+          "A goldfish"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the purple cat see?",
+        "options": [
+          "A black sheep",
+          "A monkey",
+          "A goldfish",
+          "A white dog"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the white dog see?",
+        "options": [
+          "A teacher",
+          "A monkey",
+          "A black sheep",
+          "A goldfish"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the black sheep see?",
+        "options": [
+          "A monkey",
+          "A goldfish",
+          "A bear",
+          "A teacher"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the goldfish see?",
+        "options": [
+          "A bear",
+          "A mother",
+          "A monkey",
+          "A teacher"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the mother see?",
+        "options": [
+          "A blue horse",
+          "A red bird",
+          "A brown bear",
+          "Children looking at me"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "Goodnight Moon",
+    "author": "Margaret Wise Brown",
+    "ageGroup": "3-5",
+    "pointsValue": 3,
+    "questions": [
+      {
+        "question": "What color is the room in Goodnight Moon?",
+        "options": [
+          "Pink",
+          "Blue",
+          "Green",
+          "Yellow"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What kind of animal is in the room?",
+        "options": [
+          "A rabbit",
+          "A cat",
+          "A dog",
+          "A bear"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is the rabbit saying goodnight to first in the great green room?",
+        "options": [
+          "The room",
+          "The bears",
+          "The cow",
+          "The moon"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What jumps over the moon in the painting on the wall?",
+        "options": [
+          "A cat",
+          "A cow",
+          "A dog",
+          "A rabbit"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What are the three bears doing in their picture?",
+        "options": [
+          "Eating porridge",
+          "Dancing",
+          "Sleeping in beds",
+          "Sitting on chairs"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What kind of light is in the room?",
+        "options": [
+          "A lamp and a candle",
+          "A lamp and a nightlight",
+          "A fire and a flashlight",
+          "A lamp and a fire"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the rabbit say goodnight to outside the window?",
+        "options": [
+          "The trees",
+          "The stars",
+          "The moon",
+          "The sun"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is hanging on the wall that the rabbit says goodnight to?",
+        "options": [
+          "A picture of a house",
+          "A picture of a bear",
+          "A mirror",
+          "A picture of a cow jumping over the moon"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the old lady whispering?",
+        "options": [
+          "Sweet dreams",
+          "Goodnight",
+          "Hush",
+          "Sleep tight"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the rabbit say goodnight to at the very end?",
+        "options": [
+          "The moon",
+          "Noises everywhere",
+          "The room",
+          "The stars"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Where the Wild Things Are",
+    "author": "Maurice Sendak",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What is the name of the boy in Where the Wild Things Are?",
+        "options": [
+          "Leo",
+          "Max",
+          "Jack",
+          "Sam"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What kind of suit is Max wearing when he misbehaves?",
+        "options": [
+          "A dinosaur suit",
+          "A wolf suit",
+          "A monster suit",
+          "A bear suit"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Max do that gets him sent to his room?",
+        "options": [
+          "He breaks a window",
+          "He runs away",
+          "He hits his sister",
+          "He makes mischief of one kind and another"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Max's mother call him?",
+        "options": [
+          "Trouble",
+          "Wild Thing",
+          "Bad boy",
+          "Monster"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What punishment does Max receive from his mother?",
+        "options": [
+          "Grounded for a week",
+          "Sent to his room",
+          "Sent to bed without supper",
+          "No television"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What grows in Max's room when he is sent to bed?",
+        "options": [
+          "A jungle",
+          "A forest",
+          "A garden",
+          "A mountain"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How does Max travel to the place where the wild things are?",
+        "options": [
+          "By train",
+          "By flying",
+          "By walking",
+          "By boat, through night and day and in and out of weeks"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Max do to become king of the wild things?",
+        "options": [
+          "He fights them",
+          "He runs away from them",
+          "He tames them with a magic trick and stares into their yellow eyes",
+          "He tricks them"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What do Max and the wild things do together?",
+        "options": [
+          "They build a fort",
+          "They have a feast",
+          "They have a wild rumpus",
+          "They go to sleep"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Why does Max decide to go back home?",
+        "options": [
+          "He smells good food and wants to be where someone loves him best",
+          "He misses his toys",
+          "He is bored",
+          "He is scared"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Corduroy",
+    "author": "Don Freeman",
+    "ageGroup": "3-5",
+    "pointsValue": 3,
+    "questions": [
+      {
+        "question": "What kind of animal is Corduroy?",
+        "options": [
+          "A rabbit",
+          "A teddy bear",
+          "A dog",
+          "A cat"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does Corduroy live at the beginning of the story?",
+        "options": [
+          "In a toy shop",
+          "In a toy box",
+          "In a library",
+          "In a department store"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is missing from Corduroy that he wants to find?",
+        "options": [
+          "A shoe",
+          "A friend",
+          "A hat",
+          "A button"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Where does Corduroy go to look for his button at night?",
+        "options": [
+          "The clothing department",
+          "The shoe department",
+          "The furniture department",
+          "The toy department"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Corduroy think the furniture department is?",
+        "options": [
+          "A playground",
+          "A palace",
+          "A forest",
+          "A mountain"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Who wants to buy Corduroy but her mother says no at first?",
+        "options": [
+          "A little boy",
+          "A rich lady",
+          "A little girl named Lisa",
+          "An old woman"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Why does Lisa's mother say they cannot buy Corduroy?",
+        "options": [
+          "He is not cute enough",
+          "He is broken",
+          "He is too expensive",
+          "He is missing a button and they have spent too much already"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How does Lisa finally get Corduroy?",
+        "options": [
+          "She wins him in a contest",
+          "The store gives him away",
+          "She comes back the next day with her own money",
+          "Her mother buys him as a surprise"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Lisa do for Corduroy when she gets him home?",
+        "options": [
+          "She gives him a new name",
+          "She sews on a new button",
+          "She buys him clothes",
+          "She washes him"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Corduroy say at the end when Lisa hugs him?",
+        "options": [
+          "I like you the way you are",
+          "You're my best friend",
+          "Thank you",
+          "I love you"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "The Snowy Day",
+    "author": "Ezra Jack Keats",
+    "ageGroup": "3-5",
+    "pointsValue": 3,
+    "questions": [
+      {
+        "question": "What is the name of the main character in The Snowy Day?",
+        "options": [
+          "Sam",
+          "Peter",
+          "Jack",
+          "Leo"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Peter see when he wakes up and looks out the window?",
+        "options": [
+          "Rain",
+          "A rainbow",
+          "Snow covering everything as far as he could see",
+          "Sunshine"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Peter put on to go outside?",
+        "options": [
+          "His pajamas",
+          "His raincoat",
+          "His snowsuit",
+          "His swimsuit"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Peter make in the snow with his feet?",
+        "options": [
+          "A snow angel",
+          "A fort",
+          "Tracks",
+          "A snowman"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Peter drag behind him to make a new kind of track?",
+        "options": [
+          "His hand",
+          "A stick",
+          "His foot",
+          "A sled"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Peter try to bring home with him?",
+        "options": [
+          "A pine cone",
+          "An icicle",
+          "A snowball in his pocket",
+          "A snowman"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What happens to the snowball Peter put in his pocket?",
+        "options": [
+          "It melts",
+          "It turns to ice",
+          "It gets bigger",
+          "It stays the same"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where does Peter go before bed and dream about the sun melting the snow?",
+        "options": [
+          "To the kitchen",
+          "Outside again",
+          "Into bed",
+          "Into a warm bath"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Peter dream about in his sleep?",
+        "options": [
+          "The sun melting all the snow away",
+          "A snowman",
+          "A snowball fight",
+          "Sledding"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What happens when Peter wakes up the next morning?",
+        "options": [
+          "It is raining",
+          "The snow is gone",
+          "The sun is out",
+          "New snow is falling"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "Make Way for Ducklings",
+    "author": "Robert McCloskey",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What are the names of the two adult ducks in the story?",
+        "options": [
+          "Mr. and Mrs. Mallard",
+          "Tom and Jane Mallard",
+          "Jack and Jill Mallard",
+          "Mr. and Mrs. Duck"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where do Mr. and Mrs. Mallard first look for a place to live?",
+        "options": [
+          "A river",
+          "A pond in the country",
+          "A lake",
+          "The Public Garden in Boston"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Why do the Mallards decide not to nest in the Public Garden at first?",
+        "options": [
+          "There are too many dangers like bicycles and cars",
+          "It is too noisy",
+          "It is too crowded",
+          "There is no water"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where do the Mallards find a safe place to nest?",
+        "options": [
+          "In a tree",
+          "On an island in the Charles River",
+          "On a rooftop",
+          "In a park"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How many ducklings hatch from Mrs. Mallard's eggs?",
+        "options": [
+          "Six",
+          "Eight",
+          "Five",
+          "Ten"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What are the names of the eight ducklings?",
+        "options": [
+          "Tom, Dick, Harry, and friends",
+          "All named Jack",
+          "Jack, Kack, Lack, Mack, Nack, Ouack, Pack, and Quack",
+          "Numbers one through eight"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who helps the Mallards cross the busy streets of Boston?",
+        "options": [
+          "A friendly old woman",
+          "A firefighter",
+          "A traffic officer",
+          "A policeman named Michael"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the policeman do to stop traffic for the ducks?",
+        "options": [
+          "He waves a flag",
+          "He calls for other police to help stop traffic",
+          "He uses a whistle",
+          "He holds up his hand"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where do the Mallards finally end up living?",
+        "options": [
+          "In the Public Garden",
+          "On the river island",
+          "In a backyard pond",
+          "In a zoo"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What city does the story take place in?",
+        "options": [
+          "Philadelphia",
+          "New York",
+          "Chicago",
+          "Boston"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "Curious George",
+    "author": "H.A. Rey",
+    "ageGroup": "5-7",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where does George live at the beginning of the story?",
+        "options": [
+          "In the jungle in Africa",
+          "In a zoo",
+          "In a forest",
+          "In a city"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who takes George out of the jungle?",
+        "options": [
+          "The Man with the Yellow Hat",
+          "A sailor",
+          "A zookeeper",
+          "A hunter"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What color is the Man's hat?",
+        "options": [
+          "Green",
+          "Blue",
+          "Yellow",
+          "Red"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does George see that makes him want to fly?",
+        "options": [
+          "A kite",
+          "A bunch of balloons",
+          "A bird",
+          "An airplane"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens when George grabs the balloons?",
+        "options": [
+          "Nothing happens",
+          "He floats up into the air",
+          "They pop",
+          "He falls down"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How does George get down from floating with the balloons?",
+        "options": [
+          "A bird pecks the balloons",
+          "The Man with the Yellow Hat calls him down with a phone",
+          "He falls",
+          "The balloons pop"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does George do that causes trouble at the fire station?",
+        "options": [
+          "He calls the fire department as a prank",
+          "He sets a fire",
+          "He steals a fire truck",
+          "He gets stuck in a tree"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where does George end up after causing trouble?",
+        "options": [
+          "In prison",
+          "In the hospital",
+          "At the zoo",
+          "Back in Africa"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "How does George escape from prison?",
+        "options": [
+          "He picks the lock",
+          "He climbs out a window using a rope of bed sheets",
+          "A friend lets him out",
+          "He digs a hole"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does George finally end up living?",
+        "options": [
+          "In the zoo",
+          "In a new jungle",
+          "In a circus",
+          "With the Man with the Yellow Hat"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "The Witches",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "Where does the narrator's grandmother live that he goes to stay with her?",
+        "options": [
+          "England",
+          "France",
+          "America",
+          "Norway"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the grandmother tell the narrator about witches?",
+        "options": [
+          "They wear black hats",
+          "They look like ordinary women but are not",
+          "They have green skin",
+          "They fly on broomsticks"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What do real witches wear instead of wigs?",
+        "options": [
+          "They wear hats",
+          "They are bald and wear wigs",
+          "They have short hair",
+          "They have no hair"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is unusual about a witch's hands?",
+        "options": [
+          "They have claws instead of nails",
+          "They are very large",
+          "They have no fingers",
+          "They are cold"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where does the narrator encounter the witches' annual meeting?",
+        "options": [
+          "In the woods",
+          "In a cave",
+          "In a hotel in England",
+          "In a castle"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who is the Grand High Witch?",
+        "options": [
+          "A famous witch",
+          "An old woman",
+          "The narrator's grandmother",
+          "The leader of all the witches in the world"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What potion do the witches plan to use to get rid of children?",
+        "options": [
+          "Formula 86 Delayed Action Mouse-Maker",
+          "A shrinking potion",
+          "A sleeping potion",
+          "A poison"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the narrator get turned into?",
+        "options": [
+          "A frog",
+          "A bird",
+          "A cat",
+          "A mouse"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who else gets turned into a mouse along with the narrator?",
+        "options": [
+          "Another witch",
+          "A hotel worker",
+          "His grandmother",
+          "Bruno Jenkins"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How do the narrator and his grandmother defeat the witches?",
+        "options": [
+          "They put the mouse-maker potion in the witches' soup",
+          "They burn the hotel down",
+          "They call the police",
+          "They trap them in a room"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "The Twits",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "What kind of animals do Mr. and Mrs. Twit keep in their garden?",
+        "options": [
+          "Monkeys",
+          "Dogs",
+          "Cats",
+          "Birds"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is the monkeys' cage called?",
+        "options": [
+          "The Cage",
+          "The Monkey House",
+          "The Big Dead Tree",
+          "The Tree House"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Mr. Twit train the monkeys to do?",
+        "options": [
+          "Jump through hoops",
+          "Stand on their heads",
+          "Dance",
+          "Talk"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Why does Mr. Twit want the monkeys to stand on their heads?",
+        "options": [
+          "He wants to start a circus called the Great Twit Circus",
+          "He thinks it's funny",
+          "He is training them for a show",
+          "He wants to sell them"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is unusual about Mr. Twit's beard?",
+        "options": [
+          "It is full of bits of old food",
+          "It is fake",
+          "It is braided",
+          "It is very long"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Mrs. Twit carry with her that she uses as a walking stick?",
+        "options": [
+          "A broom",
+          "A cane",
+          "An umbrella",
+          "A walking stick that is actually much shorter than she thinks"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who is the bird that helps the monkeys?",
+        "options": [
+          "The Roly-Poly Bird",
+          "A crow",
+          "A robin",
+          "A parrot"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What do the monkeys and birds do to the Twits' house?",
+        "options": [
+          "They trash it",
+          "They glue all the furniture to the ceiling",
+          "They flood it",
+          "They burn it"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens to Mr. and Mrs. Twit at the end of the story?",
+        "options": [
+          "They are arrested",
+          "They become monkeys",
+          "They get the shrinking disease and disappear",
+          "They run away"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is the monkeys' family name?",
+        "options": [
+          "The Monkey Family",
+          "The Muggle-Wumps",
+          "The Twits",
+          "The Grumps"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "George's Marvelous Medicine",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "Who does George live with?",
+        "options": [
+          "His aunt",
+          "His grandfather",
+          "His grandmother",
+          "His parents"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is George's grandmother like?",
+        "options": [
+          "Grumpy, selfish, and complains all the time",
+          "Funny and nice",
+          "Sweet and kind",
+          "Quiet and shy"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What time does George's grandmother take her medicine?",
+        "options": [
+          "At noon",
+          "At bedtime",
+          "At 11 o'clock",
+          "In the morning"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does George decide to make instead of giving his grandmother her usual medicine?",
+        "options": [
+          "A special soup",
+          "A new medicine from things around the house",
+          "A cup of tea",
+          "A magic potion"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does George get the ingredients for his medicine?",
+        "options": [
+          "From the store",
+          "From the bathroom, laundry room, and garden shed",
+          "From the kitchen",
+          "From the pharmacy"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens when George's grandmother drinks the medicine?",
+        "options": [
+          "She grows very tall",
+          "She falls asleep",
+          "She shrinks",
+          "She turns green"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does George's father want to do with the medicine?",
+        "options": [
+          "Throw it away",
+          "Mass-produce it to make money",
+          "Give it to the animals",
+          "Hide it"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens to the farm animals when they try the medicine?",
+        "options": [
+          "They get sick",
+          "They shrink",
+          "They grow enormous",
+          "Nothing happens"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What goes wrong when George tries to make a second batch of medicine?",
+        "options": [
+          "He runs out of ingredients",
+          "He cannot remember the exact recipe and it keeps giving different results",
+          "He spills it",
+          "His grandmother finds out"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens to George's grandmother at the very end of the story?",
+        "options": [
+          "She shrinks so small she disappears",
+          "She becomes nice",
+          "She grows back to normal",
+          "She runs away"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Finger",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "Who is the main character in The Magic Finger?",
+        "options": [
+          "An old woman",
+          "A girl who has a magic finger",
+          "A teacher",
+          "A boy who hunts"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens when the girl gets angry and her magic finger activates?",
+        "options": [
+          "She makes people disappear",
+          "She can fly",
+          "She turns things to gold",
+          "She can make things happen with a flash from her finger"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who are the Gregg family?",
+        "options": [
+          "A family of witches",
+          "A family of farmers",
+          "A family of scientists",
+          "A family that loves to hunt ducks and deer"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the girl think about hunting?",
+        "options": [
+          "She is neutral",
+          "She hates it and thinks it is wrong",
+          "She wants to try it",
+          "She loves it"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the girl do to the Gregg family when they go hunting?",
+        "options": [
+          "She calls the police",
+          "She tells their mother",
+          "She yells at them",
+          "She uses her magic finger on them"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What happens to the Gregg family after the magic finger is used?",
+        "options": [
+          "They disappear",
+          "They shrink",
+          "They turn into birds with wings and human-sized bodies",
+          "They turn into ducks"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What do the Gregg family build when they are birds?",
+        "options": [
+          "A nest",
+          "A boat",
+          "A house",
+          "A tree fort"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who comes to shoot at the Greggs when they are birds?",
+        "options": [
+          "Three ducks with guns",
+          "The girl's father",
+          "Their neighbors",
+          "Hunters"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What happens at the end when the Greggs are human again?",
+        "options": [
+          "They become vegetarians",
+          "They keep hunting",
+          "They move away",
+          "They change their name to Egg and stop hunting"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the girl's teacher do when the girl refuses to spell 'cat'?",
+        "options": [
+          "She laughs",
+          "She tells the girl she is stupid, and the girl's magic finger zaps her",
+          "She gives her detention",
+          "She calls her parents"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Fantastic Mr. Fox",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "Who are the three farmers that Mr. Fox steals from?",
+        "options": [
+          "Smith, Jones, and Brown",
+          "Three unnamed farmers",
+          "Tom, Dick, and Harry",
+          "Boggis, Bunce, and Bean"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Boggis the chicken farmer eat every day?",
+        "options": [
+          "One chicken",
+          "A dozen eggs",
+          "Two chickens",
+          "Three boiled chickens"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Bunce the duck farmer eat?",
+        "options": [
+          "Roast duck",
+          "Goose pie",
+          "Doughnuts and goose-liver paste",
+          "Duck eggs"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Bean the turkey farmer drink?",
+        "options": [
+          "Milk",
+          "Wine",
+          "Water",
+          "Strong apple cider"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What do the three farmers decide to do about Mr. Fox?",
+        "options": [
+          "Wait outside his hole with guns",
+          "Set traps",
+          "Get dogs",
+          "Burn the hole"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What do the farmers do when they cannot catch Mr. Fox with guns?",
+        "options": [
+          "They give up",
+          "They flood the hole",
+          "They use shovels and then dig with machines",
+          "They use explosives"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How does Mr. Fox escape from being trapped underground?",
+        "options": [
+          "He finds a back exit",
+          "He digs deeper and faster than the machines",
+          "He fights through",
+          "He runs out at night"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does Mr. Fox finally dig to in order to find food?",
+        "options": [
+          "To another forest",
+          "To a grocery store",
+          "To a nearby farm",
+          "Into Boggis's chicken house, Bunce's storehouse, and Bean's cider cellar"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Mr. Fox do for all the other animals?",
+        "options": [
+          "He shares his food",
+          "He hosts a great feast for all the digging animals",
+          "He builds them homes",
+          "He gives them money"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is Mr. Fox's wife's name?",
+        "options": [
+          "Mrs. Fox",
+          "Rose",
+          "Sally",
+          "Felicity"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Danny the Champion of the World",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "Where does Danny live with his father?",
+        "options": [
+          "In a house",
+          "On a farm",
+          "In an apartment",
+          "In a caravan (gypsy caravan) behind a filling station"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Danny's father do for a living?",
+        "options": [
+          "He runs a filling station and fixes cars",
+          "He is a farmer",
+          "He is a mechanic",
+          "He is a teacher"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What secret does Danny's father reveal to him?",
+        "options": [
+          "He is a famous inventor",
+          "He is a spy",
+          "He is a poacher of pheasants",
+          "He used to be rich"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Whose woods do the pheasants live in?",
+        "options": [
+          "Danny's father's land",
+          "A public forest",
+          "The King's woods",
+          "Mr. Hazell's woods"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who is Mr. Hazell?",
+        "options": [
+          "A neighbor",
+          "A policeman",
+          "A farmer",
+          "A rich, snobby man who owns the brewery and the woods"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the first poaching method Danny's father teaches him?",
+        "options": [
+          "The Sticky Hat",
+          "The Horsehair Stopper",
+          "The Sticky Paper",
+          "The Hair Trap"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What poaching method involves raising raisins in the air to be eaten by pheasants?",
+        "options": [
+          "The Red Herrings",
+          "The Sticky Hat",
+          "The Horsehair Stopper",
+          "The Sleepy Seed"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What invention does Danny come up with to catch lots of pheasants at once?",
+        "options": [
+          "Soaking raisins in sleeping powder and putting them in the pheasants' food",
+          "A trap door",
+          "A large net",
+          "A whistle"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What happens when Danny and his father go to set the sleeping raisins?",
+        "options": [
+          "They get lost",
+          "Danny is discovered by the keepers and has to hide in a car",
+          "They get caught",
+          "It starts raining"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens to the pheasants at the end when they wake up?",
+        "options": [
+          "They die",
+          "They are eaten",
+          "They are caught by Mr. Hazell",
+          "They fly away all over town"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "Charlie and the Great Glass Elevator",
+    "author": "Roald Dahl",
+    "ageGroup": "8-10",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "Where does the story pick up from Charlie and the Chocolate Factory?",
+        "options": [
+          "In the great glass elevator floating up from the factory",
+          "In the chocolate factory",
+          "In a flying car",
+          "In Charlie's house"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who is with Charlie in the elevator?",
+        "options": [
+          "His school friends",
+          "Only Willy Wonka",
+          "Willy Wonka and all four grandparents",
+          "His parents"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Where does the elevator go by accident?",
+        "options": [
+          "To another planet",
+          "Back to the factory",
+          "Into orbit around Earth",
+          "To the moon"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the elevator crash into in space?",
+        "options": [
+          "A space hotel called the Space Hotel USA",
+          "A space station",
+          "A comet",
+          "A satellite"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What creatures are loose on the space hotel?",
+        "options": [
+          "Knids, which are shape-changing alien creatures",
+          "Giant spiders",
+          "Martians",
+          "Robots"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What are the Knids shaped like?",
+        "options": [
+          "Spheres",
+          "Blobs",
+          "Cubes",
+          "They can change shape but are usually like eggs or cylinders"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What do the Knids spell out in the sky?",
+        "options": [
+          "LEAVE",
+          "GO HOME",
+          "DANGER",
+          "SCRAM"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How do Willy Wonka and the others escape the Knids?",
+        "options": [
+          "They fight them",
+          "They crash back through the Earth's atmosphere, which destroys the Knids",
+          "They hide",
+          "They use weapons"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Willy Wonka give Charlie's grandparents to make them young again?",
+        "options": [
+          "Wonka-Vite pills",
+          "A special drink",
+          "A magical candy",
+          "A potion"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What goes wrong with the Wonka-Vite?",
+        "options": [
+          "It turns them into animals",
+          "It makes them sick",
+          "Grandma Georgina takes too much and becomes a baby (-2 years old)",
+          "It does not work"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "The Bad Beginning",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "What are the names of the three Baudelaire children?",
+        "options": [
+          "Violet, Kevin, and Sunny",
+          "Violet, Klaus, and Susan",
+          "Violet, Klaus, and Sunny",
+          "Vivian, Klaus, and Sunny"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What happens to the Baudelaire parents?",
+        "options": [
+          "They die in a fire that destroys their home",
+          "They are kidnapped",
+          "They abandon the children",
+          "They go missing"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who is Count Olaf?",
+        "options": [
+          "A distant relative who takes in the children",
+          "A family friend",
+          "A neighbor",
+          "A teacher"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is Count Olaf's house like?",
+        "options": [
+          "Dirty, with a tower and an eye-shaped tattoo on his ankle",
+          "Clean and modern",
+          "A mansion",
+          "A small apartment"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is Violet's special talent?",
+        "options": [
+          "She is an inventor",
+          "She is a reader",
+          "She is a cook",
+          "She is a fighter"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Violet do with her hair when she is thinking of an invention?",
+        "options": [
+          "She braids it",
+          "She brushes it",
+          "She ties it up with a ribbon",
+          "She covers it"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is Klaus's special talent?",
+        "options": [
+          "He is an inventor",
+          "He is an athlete",
+          "He is a voracious reader with great memory",
+          "He is a musician"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is Sunny's special talent?",
+        "options": [
+          "She can walk",
+          "She can sing",
+          "She has very sharp teeth and can bite through things",
+          "She can talk"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is Count Olaf's plan to get the Baudelaire fortune?",
+        "options": [
+          "He plans to forge a will",
+          "He plans to kidnap them",
+          "He plans to steal it",
+          "He plans to marry Violet in a fake play"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who helps the children by reading books on marriage law?",
+        "options": [
+          "A librarian",
+          "Justice Strauss, the neighbor",
+          "A lawyer",
+          "Mr. Poe, the banker"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Reptile Room",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "Who takes the Baudelaire children in at the beginning of The Reptile Room?",
+        "options": [
+          "Mr. Poe",
+          "Justice Strauss",
+          "Dr. Montgomery Montgomery, their uncle",
+          "Count Olaf"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is Dr. Montgomery's nickname?",
+        "options": [
+          "Dr. Monty",
+          "Uncle Montgomery",
+          "Uncle Monty",
+          "Monty"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is Dr. Montgomery's profession?",
+        "options": [
+          "He is a doctor",
+          "He is a herpetologist who studies snakes",
+          "He is a teacher",
+          "He is a scientist"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the snake that Dr. Montgomery discovered?",
+        "options": [
+          "The Black Mamba",
+          "The Golden Cobra",
+          "The Incredibly Deadly Viper",
+          "The Poison Python"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is unusual about the Incredibly Deadly Viper?",
+        "options": [
+          "It is actually harmless and friendly",
+          "It can talk",
+          "It is very dangerous",
+          "It is very large"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who arrives claiming to be Dr. Montgomery's new assistant?",
+        "options": [
+          "Mr. Poe",
+          "Count Olaf disguised as Stephano",
+          "A real assistant named Stephano",
+          "A new herpetologist"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Count Olaf (as Stephano) claim to be?",
+        "options": [
+          "A veterinarian",
+          "A scientist",
+          "A doctor",
+          "A herpetologist's assistant"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How does Count Olaf kill Dr. Montgomery?",
+        "options": [
+          "He stabs him",
+          "He poisons his food",
+          "He pushes him down stairs",
+          "He injects him with snake venom to make it look like a snakebite"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What snake does Count Olaf blame for Dr. Montgomery's death?",
+        "options": [
+          "A regular viper",
+          "A cobra",
+          "The Incredibly Deadly Viper",
+          "A python"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How is Count Olaf's disguise exposed?",
+        "options": [
+          "Sunny bites him",
+          "His eye tattoo is revealed and his disguise is spotted",
+          "He confesses",
+          "Violet recognizes him"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Wide Window",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "Who takes in the Baudelaire children in The Wide Window?",
+        "options": [
+          "Mr. Poe",
+          "Aunt Josephine, their aunt",
+          "A new guardian",
+          "Count Olaf"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does Aunt Josephine live?",
+        "options": [
+          "In a house on a cliff overlooking Lake Lachrymose",
+          "In a forest",
+          "In a city",
+          "Near a river"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is Aunt Josephine afraid of?",
+        "options": [
+          "Everything, especially realtors and the oven",
+          "Heights",
+          "Animals",
+          "Water"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Aunt Josephine love?",
+        "options": [
+          "Cooking",
+          "Grammar",
+          "Music",
+          "Gardening"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the lake near Aunt Josephine's house?",
+        "options": [
+          "Lake Superior",
+          "Lake Mystery",
+          "Lake Echo",
+          "Lake Lachrymose"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who does Captain Sham turn out to be?",
+        "options": [
+          "A real captain",
+          "Count Olaf in disguise",
+          "A fisherman",
+          "Mr. Poe's friend"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What business does Captain Sham claim to run?",
+        "options": [
+          "A tour company",
+          "A restaurant",
+          "A boat rental business",
+          "A fishing business"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How does Aunt Josephine leave a message that she has run away?",
+        "options": [
+          "She calls them",
+          "She tells them in person",
+          "She leaves a letter",
+          "She leaves a note with hidden grammatical errors that spell a message"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Where does the secret message say Aunt Josephine is hiding?",
+        "options": [
+          "In a cave called Curdled Cave on the lake",
+          "In town",
+          "In the attic",
+          "At a friend's house"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What happens to Aunt Josephine at the end?",
+        "options": [
+          "She is rescued",
+          "She drowns",
+          "She falls into the lake and is eaten by leeches",
+          "She escapes"
+        ],
+        "correct": "C"
+      }
+    ]
+  }
+]

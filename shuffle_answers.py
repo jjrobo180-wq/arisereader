@@ -1,39 +1,46 @@
-#!/usr/bin/env python3
-"""Shuffle answer options to balance correct_answer distribution across a,b,c,d."""
 import json
 import random
 
 random.seed(42)
 
-with open("/home/user/workspace/bookquiz/questions_batch_4.json") as f:
-    books = json.load(f)
+with open("/home/user/workspace/bookquiz/quizzes_batch_4.json", "r") as f:
+    quizzes = json.load(f)
 
-for book in books:
+# For each question, shuffle the options and update the correct answer
+for book in quizzes:
     for q in book["questions"]:
-        options = [
-            ("a", q["option_a"]),
-            ("b", q["option_b"]),
-            ("c", q["option_c"]),
-            ("d", q["option_d"]),
-        ]
-        correct_text = q[f"option_{q['correct_answer']}"]
+        options = q["options"]
+        correct_idx = ord(q["correct"]) - ord("A")
+        correct_text = options[correct_idx]
         
         # Shuffle the options
-        random.shuffle(options)
+        indices = list(range(4))
+        random.shuffle(indices)
         
-        # Reassign
-        letters = ["a", "b", "c", "d"]
-        for i, (letter, text) in enumerate(options):
-            q[f"option_{letters[i]}"] = text
-            if text == correct_text:
-                q["correct_answer"] = letters[i]
+        # Build new options list
+        new_options = [options[i] for i in indices]
+        
+        # Find where the correct answer ended up
+        new_correct_idx = indices.index(correct_idx)
+        new_correct = chr(ord("A") + new_correct_idx)
+        
+        q["options"] = new_options
+        q["correct"] = new_correct
 
-# Verify
-for book in books:
-    answers = [q["correct_answer"] for q in book["questions"]]
-    print(f"{book['title']}: a={answers.count('a')}, b={answers.count('b')}, c={answers.count('c')}, d={answers.count('d')}")
+# Verify all books have exactly 10 questions
+for i, book in enumerate(quizzes):
+    assert len(book["questions"]) == 10, f"Book {i+1} '{book['title']}' has {len(book['questions'])} questions, expected 10"
 
-with open("/home/user/workspace/bookquiz/questions_batch_4.json", "w") as f:
-    json.dump(books, f, indent=2)
+# Verify correct answer distribution
+for i, book in enumerate(quizzes):
+    answers = [q["correct"] for q in book["questions"]]
+    print(f"Book {i+1}: {book['title']} - A:{answers.count('A')}, B:{answers.count('B')}, C:{answers.count('C')}, D:{answers.count('D')}")
 
-print("\nDone! Questions written with balanced answer distribution.")
+print(f"\nTotal books: {len(quizzes)}")
+print(f"Total questions: {sum(len(b['questions']) for b in quizzes)}")
+
+# Save to file
+with open("/home/user/workspace/bookquiz/quizzes_batch_4.json", "w") as f:
+    json.dump(quizzes, f, indent=2)
+
+print("\nSaved to /home/user/workspace/bookquiz/quizzes_batch_4.json")

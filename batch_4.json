@@ -1,128 +1,152 @@
 [
   {
-    "title": "Speak",
-    "author": "Laurie Halse Anderson",
-    "points_value": 30,
-    "description": "A freshman girl becomes mute after a traumatic summer party and finds her voice through art."
+    "title": "Runaway Ralph",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "Twisted",
-    "author": "Laurie Halse Anderson",
-    "points_value": 30,
-    "description": "A senior boy struggles with social expectations and a false accusation."
+    "title": "Dear Mr. Henshaw",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "Wintergirls",
-    "author": "Laurie Halse Anderson",
-    "points_value": 30,
-    "description": "A girl battles anorexia and grief after her best friend's death."
+    "title": "Stuart Little",
+    "author": "E.B. White",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "The House of the Scorpion",
-    "author": "Nancy Farmer",
-    "points_value": 30,
-    "description": "A clone named Matt discovers his purpose in a dystopian future where clones are treated as subhuman."
+    "title": "The Trumpet of the Swan",
+    "author": "E.B. White",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "The Sea of Trolls",
-    "author": "Nancy Farmer",
-    "points_value": 30,
-    "description": "A young bard in Anglo-Saxon England is captured by Viking raiders."
+    "title": "A Bear Called Paddington",
+    "author": "Michael Bond",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "The Land of the Silver Apples",
-    "author": "Nancy Farmer",
-    "points_value": 30,
-    "description": "Jack continues his quest in a land of mythological creatures and elves."
+    "title": "Paddington Helps Out",
+    "author": "Michael Bond",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "The Islands of the Blessed",
-    "author": "Nancy Farmer",
-    "points_value": 30,
-    "description": "Jack and his companions face Norman invaders and mythical dangers."
+    "title": "My Father's Dragon",
+    "author": "Ruth Stiles Gannett",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "A Girl Named Disaster",
-    "author": "Nancy Farmer",
-    "points_value": 30,
-    "description": "A young girl in Mozambique escapes a forced marriage and journeys down the river."
+    "title": "Elmer and the Dragon",
+    "author": "Ruth Stiles Gannett",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "The Ear the Eye and the Arm",
-    "author": "Nancy Farmer",
-    "points_value": 30,
-    "description": "In futuristic Zimbabwe, three detectives with unusual abilities search for missing children."
+    "title": "The Dragons of Blueland",
+    "author": "Ruth Stiles Gannett",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   },
   {
-    "title": "The Graveyard Book",
-    "author": "Neil Gaiman",
-    "points_value": 30,
-    "description": "A boy raised by ghosts in a graveyard must protect himself from the man who killed his family."
+    "title": "The Hundred Dresses",
+    "author": "Eleanor Estes",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "Coraline",
-    "author": "Neil Gaiman",
-    "points_value": 30,
-    "description": "A girl discovers a parallel world with an evil other mother who wants to keep her forever."
+    "title": "Ginger Pye",
+    "author": "Eleanor Estes",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "The Ocean at the End of the Lane",
-    "author": "Neil Gaiman",
-    "points_value": 30,
-    "description": "A man returns to his childhood home and recalls supernatural events from his youth."
+    "title": "The Moffats",
+    "author": "Eleanor Estes",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "Fortunately the Milk",
-    "author": "Neil Gaiman",
-    "points_value": 30,
-    "description": "A father's trip to buy milk turns into an extraordinary adventure through time and space."
+    "title": "The Little Prince",
+    "author": "Antoine de Saint-Exupery",
+    "ageGroup": "8-10",
+    "pointsValue": 10
   },
   {
-    "title": "Stardust",
-    "author": "Neil Gaiman",
-    "points_value": 30,
-    "description": "A young man ventures into the land of Faerie to retrieve a fallen star for his beloved."
+    "title": "Pinocchio",
+    "author": "Carlo Collodi",
+    "ageGroup": "8-10",
+    "pointsValue": 10
   },
   {
-    "title": "The Princess Bride",
-    "author": "William Goldman",
-    "points_value": 30,
-    "description": "A classic tale of true love, giants, sword fights, and high adventure."
+    "title": "The Reluctant Dragon",
+    "author": "Kenneth Grahame",
+    "ageGroup": "8-10",
+    "pointsValue": 8
   },
   {
-    "title": "Ender's Game",
-    "author": "Orson Scott Card",
-    "points_value": 30,
-    "description": "A young genius is trained at a military school to lead Earth's defense against aliens."
+    "title": "At the Back of the North Wind",
+    "author": "George MacDonald",
+    "ageGroup": "8-10",
+    "pointsValue": 10
   },
   {
-    "title": "Ender's Shadow",
-    "author": "Orson Scott Card",
-    "points_value": 30,
-    "description": "Bean, a brilliant child from the streets, attends Battle School alongside Ender Wiggin."
+    "title": "The Book of Three",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
   },
   {
-    "title": "The Hobbit",
-    "author": "J.R.R. Tolkien",
-    "points_value": 30,
-    "description": "Bilbo Baggins goes on an adventure with dwarves to reclaim treasure from a dragon."
+    "title": "The Black Cauldron",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
   },
   {
-    "title": "The Fellowship of the Ring",
-    "author": "J.R.R. Tolkien",
-    "points_value": 30,
-    "description": "Frodo Baggins begins his quest to destroy the One Ring in Mordor."
+    "title": "The Castle of Llyr",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
   },
   {
-    "title": "The Two Towers",
-    "author": "J.R.R. Tolkien",
-    "points_value": 30,
-    "description": "The fellowship is broken as Frodo continues alone and others fight against Saruman's forces."
+    "title": "Taran Wanderer",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
   },
   {
-    "title": "The Return of the King",
-    "author": "J.R.R. Tolkien",
-    "points_value": 30,
-    "description": "The final battle for Middle-earth as Frodo reaches Mount Doom to destroy the Ring."
+    "title": "The High King",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
+  },
+  {
+    "title": "Westmark",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
+  },
+  {
+    "title": "The Kestrel",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
+  },
+  {
+    "title": "The Beggar Queen",
+    "author": "Lloyd Alexander",
+    "ageGroup": "10-12",
+    "pointsValue": 10
+  },
+  {
+    "title": "Amelia Bedelia",
+    "author": "Peggy Parish",
+    "ageGroup": "6-8",
+    "pointsValue": 5
   }
 ]

@@ -1,0 +1,2702 @@
+[
+  {
+    "title": "Diary of a Wimpy Kid: Double Down",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "What does Greg believe about his life at the beginning of the book?",
+        "options": [
+          "That it is a reality TV show",
+          "That he is a superhero",
+          "That he is dreaming",
+          "That he is being filmed for a movie"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Greg buy at the school book fair instead of books?",
+        "options": [
+          "Video games",
+          "Toys",
+          "Comic books",
+          "Candy"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What contest does Greg enter at school to try to win candy corn?",
+        "options": [
+          "A pie-eating contest",
+          "A costume contest",
+          "A balloon release contest",
+          "A spelling bee"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who finds Greg's balloon and is considered a possible role model for Greg?",
+        "options": [
+          "Fregley",
+          "Jake McGough",
+          "Rowley",
+          "Maddox"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What instrument does Greg choose to play in the school band?",
+        "options": [
+          "French horn",
+          "Trumpet",
+          "Flute",
+          "Drums"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Why does Greg join the school band?",
+        "options": [
+          "To impress his parents",
+          "To get invited to Mariana's Halloween party",
+          "To get extra credit",
+          "To avoid gym class"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens to the jar of candy corn that Greg wins?",
+        "options": [
+          "Greg gives it away",
+          "Manny spills it",
+          "The family pig eats it",
+          "Rowley drops it"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What movie do Greg and Rowley decide to make?",
+        "options": [
+          "Zombie Attack",
+          "The Monster Next Door",
+          "The Haunted Schoolhouse",
+          "Night of the Night Crawlers"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Greg's father think when Greg doesn't perform in the school concert?",
+        "options": [
+          "That Greg deliberately backed out",
+          "That Greg had stage fright",
+          "That Greg was lost",
+          "That Greg was sick"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Greg's father ground him for at the end of the book?",
+        "options": [
+          "Breaking a window",
+          "Goofing off and missing the concert",
+          "Failing a test",
+          "Stealing candy"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Diary of a Wimpy Kid: The Getaway",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "Where does Greg's family decide to go instead of celebrating Christmas at home?",
+        "options": [
+          "Disney World",
+          "Isle de Corales resort",
+          "A ski lodge",
+          "Hawaii"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where had Greg's parents gone for their honeymoon?",
+        "options": [
+          "A cruise",
+          "Hawaii",
+          "Isle de Corales",
+          "Paris"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What problem does the family discover when they arrive at the resort?",
+        "options": [
+          "Their room was double-booked",
+          "The resort was closed",
+          "They lost their tickets",
+          "They took the wrong suitcase"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What scares Greg in his slippers one morning at the resort?",
+        "options": [
+          "A tarantula",
+          "A scorpion",
+          "A crab",
+          "A snake"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What animal does Manny keep in a bucket at the resort?",
+        "options": [
+          "A starfish",
+          "A box jellyfish",
+          "A hermit crab",
+          "A sea urchin"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Why are the Heffleys ordered to leave the resort?",
+        "options": [
+          "They were too loud",
+          "Greg was rude to staff",
+          "They stole another family's clothes",
+          "Manny broke a window"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does the family do before leaving to end the trip on a positive note?",
+        "options": [
+          "Buy souvenirs",
+          "Have a nice dinner",
+          "Go to the beach one last time",
+          "Sneak back into the resort to take a family picture"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Greg discover on the resort's website after returning home?",
+        "options": [
+          "The resort is seeking information about his family",
+          "The resort posted their photo publicly",
+          "The resort has closed down",
+          "The resort changed its name"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What happens during the banana boat ride?",
+        "options": [
+          "They get lost",
+          "The banana boat is punctured",
+          "A shark appears",
+          "They fall off"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does Greg end up when the family splits up to escape the resort?",
+        "options": [
+          "The kitchen",
+          "The pool area",
+          "A private beach in the adults-only section",
+          "The golf course"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "Diary of a Wimpy Kid: The Meltdown",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10,
+    "questions": [
+      {
+        "question": "What does Greg worry about on a hot day in January?",
+        "options": [
+          "Failing a test",
+          "His pet pig",
+          "Climate change",
+          "Losing his friends"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Greg's mother forbid him from doing as punishment for forgetting a social studies assignment?",
+        "options": [
+          "Riding his bike",
+          "Eating dessert",
+          "Going outside",
+          "Watching TV or playing video games"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What two groups on Greg's street are rivals?",
+        "options": [
+          "Upper Surrey Street and Lower Surrey Street",
+          "The Mingo Kids and the Safety Patrols",
+          "Whirley Street and Surrey Street",
+          "The north side and the south side"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who are the savage group of kids that live in the woods?",
+        "options": [
+          "The Surrey Street Gang",
+          "The Mingo Kids",
+          "The Whirley Street Kids",
+          "The Safety Patrols"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What organization at school is made up only of female students?",
+        "options": [
+          "The Hall Monitors",
+          "The Student Council",
+          "The Safety Patrols",
+          "The Peacekeepers"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Greg build that indirectly starts a snowball fight?",
+        "options": [
+          "A snowman",
+          "An igloo",
+          "A snowball launcher",
+          "A snow fort"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who is the Lower Surrey Street spy that lures defenders away from the fort?",
+        "options": [
+          "Trevor Nix",
+          "Jake McGough",
+          "Rowley Jefferson",
+          "Manny Heffley"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What happens when the delayed snowplow arrives?",
+        "options": [
+          "It crashes into the fort",
+          "It drives through the remains of the fight",
+          "It gets stuck in the snow",
+          "It blocks the road"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What did the family pet pig do that is mentioned in the book?",
+        "options": [
+          "It ran away",
+          "It destroyed the yard",
+          "It escaped from obedience school",
+          "It ate all the candy corn"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How does Greg feel at the end of the snowball fight?",
+        "options": [
+          "Ready for revenge",
+          "Angry at Rowley",
+          "Embarrassed",
+          "Glad that he survived"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "Dog Man",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Who are the fictional creators of the Dog Man comics?",
+        "options": [
+          "Greg and Rowley",
+          "Henry and Ribsy",
+          "Jack and Annie",
+          "George Beard and Harold Hutchins"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is Dog Man's origin story?",
+        "options": [
+          "He has the head of a police dog and the body of a human cop",
+          "He was bitten by a radioactive dog",
+          "He was born with special powers",
+          "He is a robot shaped like a dog"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the main villain known as 'The World's Most Evilest Cat'?",
+        "options": [
+          "Flippy",
+          "Petey",
+          "Big Jim",
+          "Li'l Petey"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What weapon does Petey use to try to defeat Dog Man in the first chapter?",
+        "options": [
+          "A robot army",
+          "A freeze ray",
+          "A giant vacuum cleaner",
+          "A laser beam"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How does Dog Man defeat the vacuum cleaner?",
+        "options": [
+          "He buries it in sand",
+          "He unplugs it",
+          "He breaks it with his paws",
+          "He leads it to the beach where it sucks up too much water and explodes"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "In 'Robo Chief,' who replaces the police chief with a robot?",
+        "options": [
+          "An evil mayor",
+          "Petey",
+          "A mad scientist",
+          "The police department"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Petey do to all the words in books in 'Book 'Em Dog Man'?",
+        "options": [
+          "He hides the books",
+          "He zaps all the words out of books",
+          "He burns all the books",
+          "He rewrites the books"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How does Dog Man foil Petey's plan to remove words from books?",
+        "options": [
+          "He uses a machine to restore the words",
+          "He defeats Petey in a fight",
+          "He finds Petey's secret stash of books and distributes them to children",
+          "He calls the police"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Petey use to bring a hot dog to life?",
+        "options": [
+          "A laser beam",
+          "A magic potion",
+          "A spell",
+          "Living spray"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How does Dog Man defeat the hot dog army?",
+        "options": [
+          "He eats the army, with help from regular dogs",
+          "He traps them in a building",
+          "He uses living spray against them",
+          "He freezes them all"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Dog Man Unleashed",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What does Dog Man buy for the Chief's birthday at the pet store?",
+        "options": [
+          "A fish",
+          "A bone",
+          "A collar",
+          "A toy"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is the fish named that Dog Man brings to the police station?",
+        "options": [
+          "Swimmy",
+          "Goldie",
+          "Flippy",
+          "Bubbles"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Flippy eat that makes him extremely intelligent?",
+        "options": [
+          "Fish food",
+          "Brain Dots",
+          "A magic potion",
+          "Supervitamins"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the reporter who buys Zuzu and is Dog Man's biggest fan?",
+        "options": [
+          "Nancy Drew",
+          "Lucille",
+          "Mary Jane",
+          "Sarah Hatoff"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How does Petey escape from cat jail?",
+        "options": [
+          "He tricks an officer using a paper decoy of himself",
+          "He bribes a guard",
+          "He picks the lock",
+          "He digs a tunnel"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who brings the paper version of Petey to life with Living Spray?",
+        "options": [
+          "Dr. Dookie",
+          "Sarah Hatoff",
+          "Dr. Boog E. Feeva",
+          "The Chief"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is the name of the tank Petey builds to collect treasure?",
+        "options": [
+          "Golden Rover",
+          "Treasure Tank 2000",
+          "The Treasure Hunter",
+          "The Love Mobile"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What ray does Petey use to make people fall in love with him?",
+        "options": [
+          "Hypno Ray",
+          "Charm Beam",
+          "Mind Control Ray",
+          "Love Ray"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who is revealed to be the mysterious pet-store robber?",
+        "options": [
+          "Flippy",
+          "Dr. Boog E. Feeva",
+          "Flat Petey",
+          "Petey"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "How does Flat Petey get defeated at the end?",
+        "options": [
+          "He is torn to pieces",
+          "He is eaten by a dog",
+          "Dog Man licks him, covering him with saliva, and he freezes stiff",
+          "He falls in water and dissolves"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "Dog Man: A Tale of Two Kitties",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What does Petey do to create a butler for himself?",
+        "options": [
+          "He uses Living Spray",
+          "He buys a cloning machine",
+          "He builds an android",
+          "He hires a robot"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens instead of creating a full-sized clone of Petey?",
+        "options": [
+          "A dog is created",
+          "An evil twin is made",
+          "Nothing happens",
+          "A kitten version of Petey is created"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the kitten clone name himself?",
+        "options": [
+          "Snowball",
+          "Junior",
+          "Li'l Petey",
+          "Fluffy"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Why did the clone come out as a kitten instead of an adult?",
+        "options": [
+          "Petey didn't read the back page saying the clone must wait 18 years to reach adulthood",
+          "The machine was broken",
+          "He used the wrong DNA",
+          "The machine was set to kitten mode"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Petey eventually do to Li'l Petey?",
+        "options": [
+          "He sells him",
+          "He abandons him",
+          "He teaches him to be evil",
+          "He keeps him as a butler"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is Flippy turned into at the laboratory?",
+        "options": [
+          "A human",
+          "A ghost",
+          "A giant fish",
+          "A robot"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Flippy bring to life using his mind powers?",
+        "options": [
+          "An army of robots",
+          "A giant monster",
+          "Beasty Buildings",
+          "An army of cats"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is the name of Petey's robot that he builds?",
+        "options": [
+          "80-Hexotron-Droidformigon (80-HD)",
+          "Robo-Petey",
+          "The Supa Robot",
+          "Mega-Bot 3000"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "How does Li'l Petey defeat Flippy?",
+        "options": [
+          "He uses Living Spray",
+          "He shows Flippy a comic book he made, making Flippy cry with happiness and weakening his powers",
+          "He tricks Flippy into a trap",
+          "He fights Flippy with 80-HD"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does Li'l Petey end up living at the end of the book?",
+        "options": [
+          "With Sarah Hatoff",
+          "With Petey",
+          "At the police station",
+          "With Dog Man"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "Captain Underpants and the Attack of the Talking Toilets",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What event does Jerome Horwitz Elementary School hold?",
+        "options": [
+          "A science fair",
+          "A talent show",
+          "An Invention Convention",
+          "A field day"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Why are George and Harold forced to stay in study hall all day?",
+        "options": [
+          "Because they glued everyone to their seats the previous year",
+          "Because they cheated on a test",
+          "Because they were late",
+          "Because they were fighting"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What invention does Melvin Sneedly create?",
+        "options": [
+          "A time machine",
+          "A flying device",
+          "A robot that cleans",
+          "A photocopier that can turn a picture into a real being"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What happens when George and Harold use Melvin's invention to copy their comic?",
+        "options": [
+          "The comic characters come to life",
+          "The talking toilets come to life",
+          "The school catches fire",
+          "Nothing happens"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the Turbo Toilet 2000 do to Captain Underpants?",
+        "options": [
+          "Sends him flying",
+          "Traps him inside",
+          "Swallows him whole",
+          "Flushes him away"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What super-powered robot do George and Harold build using Melvin's machine?",
+        "options": [
+          "The Incredible Robo-Plunger",
+          "The Toilet Terminator",
+          "The Turbo Flush Bot",
+          "The Plunger Master 3000"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the Incredible Robo-Plunger do after repairing all the damage?",
+        "options": [
+          "Explodes",
+          "Becomes the new school mascot",
+          "Turns into a regular plunger",
+          "Flies off to Uranus"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What do George and Harold do after Mr. Krupp cancels their detention?",
+        "options": [
+          "Go home early",
+          "Hold an all-day carnival for the students",
+          "Throw a party in the gym",
+          "Sell the school's furniture"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What do George and Harold reveal they sold to pay for the carnival?",
+        "options": [
+          "School supplies",
+          "Melvin's invention",
+          "Mr. Krupp's antique furniture and the teachers' lounge furniture",
+          "The school's computers"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who is eaten by one of the talking toilets?",
+        "options": [
+          "Mr. Meaner, the gym teacher",
+          "Ms. Ribble",
+          "Melvin Sneedly",
+          "Mr. Krupp"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Captain Underpants and the Perilous Plot of Professor Poopypants",
+    "author": "Dav Pilkey",
+    "ageGroup": "7-10",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where is Professor Poopypants from?",
+        "options": [
+          "New Swisslandia",
+          "Switzerland",
+          "New Jersey",
+          "New Swissland"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What are the names of Professor Poopypants' two inventions?",
+        "options": [
+          "Small-O-Matic and Big-O-Matic",
+          "Shrinky-Pig and Goosy-Grow",
+          "Shrink-Ray and Grow-Ray",
+          "Mini-Mizer and Mega-Mizer"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Why does everyone laugh at Professor Poopypants?",
+        "options": [
+          "Because of his silly name",
+          "Because of his funny clothes",
+          "Because of his accent",
+          "Because of his bad jokes"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What job does Professor Poopypants apply for at the school?",
+        "options": [
+          "A librarian",
+          "A janitor",
+          "A replacement teacher",
+          "A science teacher"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Professor Poopypants do to the school?",
+        "options": [
+          "He floods it",
+          "He blows it up",
+          "He freezes it",
+          "He shrinks it and holds everyone hostage"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Professor Poopypants create to give everyone silly names?",
+        "options": [
+          "A magic potion",
+          "A system of three alphabetical name charts",
+          "A computer program",
+          "A name-generating machine"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What are George and Harold's silly names changed to?",
+        "options": [
+          "Fluffy and Cheeseball",
+          "Bubbles and Noodle",
+          "Buttercup and Snicklefritz",
+          "Pinky and Stinky"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Captain Underpants refuse to do when given a silly name?",
+        "options": [
+          "Help George and Harold",
+          "Wear a costume",
+          "Obey the order to change names",
+          "Fight Professor Poopypants"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How does Captain Underpants defeat Professor Poopypants?",
+        "options": [
+          "He tricks Poopypants",
+          "He calls for help",
+          "He uses the Shrinky-Pig",
+          "George enlarges Captain Underpants to the size of the gerbil"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What name does Professor Poopypants change his name to at the end?",
+        "options": [
+          "Professor Pippy",
+          "Tippy Tinkletrousers",
+          "Dr. Sillypants",
+          "Captain Poopy"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Tree House: Night of the Ninjas",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What do Jack and Annie find inside the tree house that Annie names Peanut?",
+        "options": [
+          "A tiny mouse",
+          "A frog",
+          "A small bird",
+          "A kitten"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where does the tree house transport Jack and Annie?",
+        "options": [
+          "Ancient Greece",
+          "Ancient Japan",
+          "Ancient Egypt",
+          "Ancient China"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What note do the children find from Morgan le Fay?",
+        "options": [
+          "That she has left forever",
+          "That she has been captured",
+          "That she needs help because she is under a spell",
+          "That she is waiting for them"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who do the ninjas take Jack and Annie to meet?",
+        "options": [
+          "A village chief",
+          "A wise monk",
+          "A samurai warrior",
+          "A ninja master"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What must Jack and Annie do to prove themselves worthy?",
+        "options": [
+          "Find their way back through the dark forest alone while avoiding the samurai",
+          "Cross a river",
+          "Fight a samurai",
+          "Find a hidden treasure"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What advice does the ninja master give the children?",
+        "options": [
+          "Trust no one",
+          "Use nature, be nature, and follow nature",
+          "Run fast and hide",
+          "Be brave and strong"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How does Jack determine which direction to go?",
+        "options": [
+          "He follows the stars",
+          "He asks Annie",
+          "He uses a stick and its shadow in the moonlight",
+          "He uses a compass"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Annie tell Jack to do when they see a samurai warrior?",
+        "options": [
+          "Fight back",
+          "Hide in a tree",
+          "Run away",
+          "Be as still as a rock"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the ninja master give the children after they prove themselves?",
+        "options": [
+          "A moonstone",
+          "A map",
+          "A sword",
+          "A scroll"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What helps Jack and Annie find their way back to the tree house?",
+        "options": [
+          "They follow the moon",
+          "Peanut the mouse leads them",
+          "They remember the path",
+          "They follow the river"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Tree House: Afternoon on the Amazon",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where does the tree house transport Jack and Annie in this book?",
+        "options": [
+          "Australian outback",
+          "The Amazon rainforest",
+          "South American coast",
+          "African jungle"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is the first item Jack and Annie have already found for Morgan?",
+        "options": [
+          "A mango",
+          "A mammoth bone",
+          "A moonstone",
+          "A map"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What animal does Peanut the mouse do to help the children?",
+        "options": [
+          "Fights off a snake",
+          "Distracts a predator",
+          "Finds food",
+          "Guides them back to the tree house"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What do Jack and Annie use as a canoe to travel down the Amazon River?",
+        "options": [
+          "A hollowed-out log",
+          "A raft",
+          "A large leaf",
+          "A fallen tree"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What kind of ants march through the rain forest that frighten the children?",
+        "options": [
+          "Army ants",
+          "Flesh-eating ants",
+          "Leaf-cutter ants",
+          "Fire ants"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Jack grab thinking it is a vine but turns out to be alive?",
+        "options": [
+          "A monkey's tail",
+          "A fish",
+          "A snake",
+          "A crocodile"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What animal does Annie befriend that helps them?",
+        "options": [
+          "A tapir",
+          "A parrot",
+          "A jaguar cub",
+          "A monkey"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the monkey give the children as the second item for Morgan?",
+        "options": [
+          "A mango",
+          "A coconut",
+          "A banana",
+          "A papaya"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Annie almost get attacked by while playing with what looks like a kitten?",
+        "options": [
+          "A snake",
+          "A mother jaguar",
+          "A crocodile",
+          "A tiger"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How do the items Jack and Annie have collected relate to Morgan's name?",
+        "options": [
+          "They are both foods",
+          "They are both round",
+          "They both start with the letter M",
+          "They both end with the letter A"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Tree House: Sunset of the Sabertooth",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where does the tree house transport Jack and Annie?",
+        "options": [
+          "Prehistoric Africa",
+          "Ancient Egypt",
+          "The Ice Age",
+          "Ancient Rome"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What are Jack and Annie wearing when they arrive at their destination?",
+        "options": [
+          "School uniforms",
+          "Pajamas",
+          "Winter coats",
+          "Bathing suits"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What people lived during the Ice Age according to Jack's book?",
+        "options": [
+          "Cro-Magnons",
+          "Cavemen",
+          "Vikings",
+          "Neanderthals"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What do Jack and Annie find inside the first cave they explore?",
+        "options": [
+          "A Cro-Magnon family",
+          "A sleeping bear",
+          "A treasure",
+          "A sabertooth tiger"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What do the children leave in the Cro-Magnon cave as gifts?",
+        "options": [
+          "Their shoes",
+          "Their books",
+          "Their towels and swimming goggles",
+          "Their backpacks"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What do Jack and Annie find on the cave walls?",
+        "options": [
+          "Ancient writing",
+          "Footprints",
+          "Treasure maps",
+          "Prehistoric animal drawings"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the sorcerer painted on the cave wall look like?",
+        "options": [
+          "A creature with an owl's face and reindeer antlers",
+          "A giant bear",
+          "A wolf-man",
+          "A deer with human legs"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What animal do Jack and Annie fall into a pit trying to escape from?",
+        "options": [
+          "A giant elk",
+          "A sabertooth tiger",
+          "A cave bear",
+          "A woolly mammoth"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the sorcerer give Jack as the third item for Morgan?",
+        "options": [
+          "An animal skin",
+          "A stone knife",
+          "A mammoth bone flute",
+          "A cave painting"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Annie name the woolly mammoth that helps them?",
+        "options": [
+          "Frosty",
+          "Snowball",
+          "Manny",
+          "Lulu"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Tree House: Midnight on the Moon",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where does the tree house transport Jack and Annie?",
+        "options": [
+          "A space station",
+          "Mars in the future",
+          "The moon in 1969",
+          "A moon base in the year 2031"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How many items have Jack and Annie already collected for Morgan before this book?",
+        "options": [
+          "Three items",
+          "Two items",
+          "Four items",
+          "One item"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What must Jack and Annie wear to survive on the moon?",
+        "options": [
+          "Oxygen masks",
+          "Space suits",
+          "Special helmets",
+          "Winter coats"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Why do Jack and Annie bounce like rabbits on the moon?",
+        "options": [
+          "Because of the wind",
+          "Because of the bouncy surface",
+          "Because there is no gravity",
+          "Because they are excited"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What do Jack and Annie find on the moon that men from Earth placed there?",
+        "options": [
+          "A building",
+          "A spaceship",
+          "A satellite",
+          "An American flag"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What do the children discover and ride on the moon?",
+        "options": [
+          "A moon buggy",
+          "A space motorcycle",
+          "A lunar rover",
+          "A rocket sled"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the moon man draw for Jack and Annie?",
+        "options": [
+          "A picture of Earth",
+          "A map of stars",
+          "A constellation",
+          "A message"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What shape do the stars on the map form?",
+        "options": [
+          "A cat",
+          "A rabbit",
+          "A mouse",
+          "A dog"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is revealed about Peanut the mouse?",
+        "options": [
+          "Peanut is from the moon",
+          "Peanut is a magical creature",
+          "Peanut can talk",
+          "Peanut is actually Morgan le Fay transformed"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who put the spell on Morgan le Fay?",
+        "options": [
+          "Merlin the magician",
+          "An evil witch",
+          "A dark wizard",
+          "The ninja master"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Tree House: Day of the Dragon King",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where does the tree house transport Jack and Annie?",
+        "options": [
+          "Ancient China",
+          "Ancient Rome",
+          "Ancient Egypt",
+          "Ancient Japan"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What is the Dragon King's real title?",
+        "options": [
+          "A wizard",
+          "A warlord",
+          "The first emperor of China",
+          "A mythical dragon"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What must Jack and Annie save before it is destroyed?",
+        "options": [
+          "An ancient map",
+          "A bamboo book from the Imperial Library",
+          "A golden dragon statue",
+          "A magic scroll"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What writing medium does Morgan give the children before they leave?",
+        "options": [
+          "A pen",
+          "A scroll",
+          "A brush",
+          "A bamboo stick"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who do Jack and Annie meet that asks them to deliver a message?",
+        "options": [
+          "A cowherd",
+          "A soldier",
+          "A farmer",
+          "A merchant"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does the silk weaver give the children?",
+        "options": [
+          "A silk scroll",
+          "A silk pouch",
+          "A ball of silk",
+          "A silk garment"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What famous structure did the Dragon King force his people to build?",
+        "options": [
+          "An army of statues",
+          "The Great Wall of China",
+          "A massive tomb",
+          "A giant palace"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does the Dragon King fear and want to destroy?",
+        "options": [
+          "Rebellions",
+          "Foreign invaders",
+          "Weapons",
+          "Books and knowledge"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Where do Jack and Annie hide to escape the soldiers?",
+        "options": [
+          "The burial grounds with life-size clay figures",
+          "A cave",
+          "A farmhouse",
+          "A river"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What guides Jack and Annie to the exit when they are lost in the burial grounds?",
+        "options": [
+          "They hear music",
+          "Jack reads a map",
+          "The ball of silk rolls toward the exit",
+          "Peanut leads them"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Tree House: Ghost Town at Sundown",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What animal does Annie see that she believes is a sign from Morgan?",
+        "options": [
+          "A bird",
+          "A rabbit",
+          "A cat",
+          "A deer"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where does the tree house transport Jack and Annie?",
+        "options": [
+          "A cattle ranch",
+          "A mining town",
+          "A frontier fort",
+          "A ghost town called Rattlesnake Flats"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What time period does this adventure take place in?",
+        "options": [
+          "The early 1900s",
+          "The mid-1800s",
+          "The late 1800s Wild West",
+          "The 1700s"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What do the children discover playing by itself in the hotel?",
+        "options": [
+          "A piano",
+          "A jukebox",
+          "A phonograph",
+          "A violin"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What do the children hide in to watch the horse thieves?",
+        "options": [
+          "A closet",
+          "Two empty barrels",
+          "In a wagon",
+          "Behind a building"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Annie name the colt that trots into town?",
+        "options": [
+          "Cowboy",
+          "Star",
+          "Dusty",
+          "Sunset"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who surprises the children and claims the horses belong to him?",
+        "options": [
+          "A farmer",
+          "A sheriff",
+          "A cowboy named Slim",
+          "A rancher"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is the answer to Morgan's riddle?",
+        "options": [
+          "An echo",
+          "A voice",
+          "A shadow",
+          "A ghost"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who is believed to be the ghost playing the piano?",
+        "options": [
+          "Slim",
+          "Lonesome Luke",
+          "A former sheriff",
+          "A miner"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What song does Slim play on his harmonica that the children recognize?",
+        "options": [
+          "Oh Susanna",
+          "Amazing Grace",
+          "Home on the Range",
+          "Red River Valley"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "The Magic Tree House: Lions at Lunchtime",
+    "author": "Mary Pope Osborne",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where does the tree house transport Jack and Annie?",
+        "options": [
+          "The African jungle",
+          "The Sahara Desert",
+          "The plains of Africa",
+          "The African savanna"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What animal leads Jack and Annie to the tree house at the beginning?",
+        "options": [
+          "A small deer-like animal",
+          "A bird",
+          "A rabbit",
+          "A monkey"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Morgan's riddle say they are looking for?",
+        "options": [
+          "Something sweet and hidden",
+          "Something gold and rare",
+          "Something shiny and dangerous",
+          "Something gold, sweet, and surrounded by danger"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What animals are trying to cross a river that Annie wants to help?",
+        "options": [
+          "Gazelles",
+          "Wildebeests",
+          "Hippos",
+          "Zebras"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Annie fall into while trying to help the animals?",
+        "options": [
+          "A ditch",
+          "A river",
+          "A mud pit",
+          "A trap"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What animals do Jack and Annie scare away by learning they are cowards?",
+        "options": [
+          "Hyenas",
+          "Vultures",
+          "Lions",
+          "Jackals"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What animal sprays Annie with water from its trunk?",
+        "options": [
+          "A buffalo",
+          "A hippo",
+          "A rhino",
+          "An elephant"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What bird leads the children to a beehive?",
+        "options": [
+          "A hornbill",
+          "A honey guide",
+          "A vulture",
+          "A starling"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is the answer to Morgan's riddle?",
+        "options": [
+          "Amber",
+          "Gold",
+          "Honey",
+          "Mango"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How do Jack and Annie get past the pride of lions at the base of the tree?",
+        "options": [
+          "They stand beneath a giraffe and walk with it",
+          "They distract the lions with food",
+          "They sneak past quietly",
+          "They climb down from above"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Junie B. Jones and the Stupid Smelly Bus",
+    "author": "Barbara Park",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What grade is Junie B. Jones about to start?",
+        "options": [
+          "First grade",
+          "Second grade",
+          "Preschool",
+          "Kindergarten"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Junie B. insist on being called?",
+        "options": [
+          "Beatrice",
+          "Junie B., with the B",
+          "Just Junie",
+          "Juniper"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Junie B. hate riding?",
+        "options": [
+          "The school bus",
+          "The car",
+          "The subway",
+          "The train"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who does Junie B. meet on the bus that she dislikes?",
+        "options": [
+          "A girl named Grace",
+          "A boy named William",
+          "A boy named Jim",
+          "A girl named Lucille"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Lucille tell Junie B. happens on the bus ride home?",
+        "options": [
+          "Children get sick",
+          "Children throw food",
+          "Children get pushed",
+          "Children pour chocolate milk on other children's heads"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Where does Junie B. hide instead of getting on the bus to go home?",
+        "options": [
+          "The library",
+          "A supply closet",
+          "The bathroom",
+          "Under a desk"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Junie B. do while exploring the school after everyone leaves?",
+        "options": [
+          "Pretends to be the teacher and the nurse",
+          "Reads books",
+          "Eats snacks",
+          "Plays games"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Junie B. play with in the nurse's office that is too tall for her?",
+        "options": [
+          "A bandage",
+          "A thermometer",
+          "Crutches",
+          "A stethoscope"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Junie B. do when she needs to use the restroom and all doors are locked?",
+        "options": [
+          "She finds a key",
+          "She waits until morning",
+          "She goes outside",
+          "She calls 911"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who does Junie B.'s mother suggest she sit with on the bus the next day?",
+        "options": [
+          "A boy named Jim",
+          "A girl named Grace",
+          "Her brother",
+          "A girl named Lucille"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Junie B. Jones and a Little Monkey Business",
+    "author": "Barbara Park",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What exciting news does Junie B. get about her family?",
+        "options": [
+          "She is getting a new baby brother",
+          "She is getting a puppy",
+          "She is moving",
+          "She is getting a new room"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where does Junie B. stay while the baby is being born?",
+        "options": [
+          "Her friend's house",
+          "Her grandfather's house",
+          "A neighbor's house",
+          "Her aunt's house"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Junie B. eat while she is upset about the baby?",
+        "options": [
+          "Ice cream",
+          "Pancakes",
+          "A fat lemon pie",
+          "A box of cookies"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Junie B.'s grandmother tell her about the new baby?",
+        "options": [
+          "That he looks just like her",
+          "That he is very small",
+          "That he has lots of hair",
+          "That he is a cute little monkey"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Junie B. believe her baby brother actually is?",
+        "options": [
+          "A real monkey",
+          "A kitten",
+          "A doll",
+          "An alien"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Junie B. call her baby brother?",
+        "options": [
+          "Baby Ollie",
+          "Mr. Monkey",
+          "Gutzman",
+          "Little Frank"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Why do Junie B.'s friends Grace and Lucille give her fancy presents?",
+        "options": [
+          "Because they feel sorry for her",
+          "Because it's her birthday",
+          "To be the first to see her new baby brother",
+          "Because she shared her lunch"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What name does Junie B. want to give her baby brother?",
+        "options": [
+          "Monkey",
+          "Frank",
+          "Ollie",
+          "Gutzman"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who is Miss Gutzman?",
+        "options": [
+          "Junie B.'s lunch lady",
+          "Junie B.'s neighbor",
+          "Junie B.'s teacher",
+          "Junie B.'s grandmother"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Junie B. imagine lives under her bed?",
+        "options": [
+          "A ghost",
+          "A droopy guy with claws",
+          "A snake",
+          "A monster"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Junie B. Jones and Her Big Fat Mouth",
+    "author": "Barbara Park",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What special event does Mrs. announce in Room Nine?",
+        "options": [
+          "Show and Tell Day",
+          "Job Day",
+          "Dress-Up Day",
+          "Career Week"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Junie B. tell her classmates she has?",
+        "options": [
+          "A new pet",
+          "A secret talent",
+          "The bestest job of all",
+          "A special costume"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Junie B. get for punishment in class?",
+        "options": [
+          "Extra homework",
+          "A note home",
+          "Lost recess",
+          "Time-out"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does the janitor stop Junie B. from doing at recess?",
+        "options": [
+          "Eating cherry Life Savers off the ground",
+          "Fighting with Jim",
+          "Climbing a tree",
+          "Running in the hall"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What three jobs does Junie B. originally want to combine?",
+        "options": [
+          "Doctor, pilot, and firefighter",
+          "Artist, someone with keys, and a superhero",
+          "Teacher, nurse, and chef",
+          "Painter, driver, and police officer"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What job does Junie B. finally decide to dress up as for Job Day?",
+        "options": [
+          "A police officer",
+          "An artist",
+          "A janitor",
+          "A superhero"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What items does Junie B. bring for her Job Day costume?",
+        "options": [
+          "A cape and a mask",
+          "A stethoscope and a badge",
+          "A brush and a helmet",
+          "Keys and a paint brush"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the janitor's name who becomes Junie B.'s friend?",
+        "options": [
+          "Gus Vallony",
+          "Mr. Pennycuff",
+          "Mr. Meaner",
+          "Mr. Krupp"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Why are Junie B.'s parents too busy to help her?",
+        "options": [
+          "They are sick",
+          "They are taking care of the new baby, Ollie",
+          "They are on vacation",
+          "They are working"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How do the classmates react when Junie B. announces she wants to be a janitor?",
+        "options": [
+          "They are impressed",
+          "They cheer",
+          "They laugh at her",
+          "They are confused"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "The Notebook of Doom: Rise of the Balloon Goons",
+    "author": "Troy Cummings",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What is the name of the main character who moves to a new town?",
+        "options": [
+          "Jack Beard",
+          "Greg Heffley",
+          "Alexander Bopp",
+          "Henry Huggins"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is the name of the town Alexander moves to?",
+        "options": [
+          "Salem",
+          "Sleepy Hollow",
+          "Springfield",
+          "Stermont"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Alexander find that is full of information about monsters?",
+        "options": [
+          "A notebook called the Notebook of Doom",
+          "A mysterious book",
+          "An old map",
+          "A secret diary"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What word is inscribed on the front cover of the notebook?",
+        "options": [
+          "MONSTERS",
+          "DOOM",
+          "DANGER",
+          "BEWARE"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Where is Alexander's new classroom temporarily located?",
+        "options": [
+          "In a library",
+          "In a church",
+          "In the hospital morgue",
+          "In a gymnasium"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What kind of monsters attack Alexander throughout the town?",
+        "options": [
+          "Tunnel fish",
+          "Forkupines",
+          "Shadow smashers",
+          "Balloon goons"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What are the balloon goons similar to?",
+        "options": [
+          "Those bendy balloon guys that businesses use",
+          "Parade floats",
+          "Regular balloons",
+          "Hot air balloons"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Alexander's teacher nickname him?",
+        "options": [
+          "Alexander the Great",
+          "Salamander Snott",
+          "Al",
+          "Bopp"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Who becomes Alexander's friend and ally against the balloon goons?",
+        "options": [
+          "Mr. Hoarsely",
+          "Dottie Rogers",
+          "Rip Bonkowski",
+          "Mr. Plunkett"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "How is the balloon goon fortress finally defeated?",
+        "options": [
+          "They pop on their own",
+          "Alexander uses a pin",
+          "Rain deflates them",
+          "Alexander's dad pops their fortress"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "The Notebook of Doom: Day of the Night Crawlers",
+    "author": "Troy Cummings",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What strange creatures appear all over Stermont after it rains?",
+        "options": [
+          "Snails",
+          "Frogs",
+          "Slugs",
+          "Worms called night crawlers"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Alexander's father cook him for breakfast on a rainy morning?",
+        "options": [
+          "A smiley-face without a mouth",
+          "Toast and eggs",
+          "Pancakes",
+          "Oatmeal"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What completes the smiley face on Alexander's breakfast plate?",
+        "options": [
+          "A berry",
+          "A worm flops on his plate",
+          "A piece of bacon",
+          "A drop of syrup"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Alexander suspect the worms might be?",
+        "options": [
+          "Poisonous creatures",
+          "Aliens",
+          "Megaworms described in the Notebook of Doom",
+          "Regular earthworms"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What new monsters are threatening Stermont Elementary?",
+        "options": [
+          "Underground worms",
+          "Giant bugs",
+          "Shadow creatures",
+          "Giant fish monsters called tunnel fish"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the name of the human-sized fish monster that can speak English?",
+        "options": [
+          "Fish-Kabob",
+          "Tunnel Fish",
+          "Bubble-Wrap Warrior",
+          "Mega Worm"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who does the Fish-Kabob monster masquerade as at the school?",
+        "options": [
+          "The librarian",
+          "The gym teacher",
+          "The principal",
+          "The janitor"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What do Alexander and Rip try to learn more about?",
+        "options": [
+          "The hospital morgue",
+          "The water tower",
+          "The monster-filled notebook",
+          "The town's history"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What do the night crawlers turn out to be trying to do?",
+        "options": [
+          "Find food",
+          "Take over the town",
+          "Attack the school",
+          "Warn Alexander and Rip about the tunnel fish"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does S.S.M.P. stand for?",
+        "options": [
+          "Super Secret Monster Patrol",
+          "Secret Society of Monster Protectors",
+          "Stermont's Secret Monster Patrol",
+          "Super Strong Monster Patrol"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Ivy and Bean",
+    "author": "Annie Barrows",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "What is Bean's real first name?",
+        "options": [
+          "Bernice",
+          "Beatrice",
+          "Barbara",
+          "Brianna"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where do Bean and Ivy both live?",
+        "options": [
+          "Birch Court",
+          "Maple Street",
+          "Pancake Court",
+          "Cul-de-sac Lane"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "Who is Bean's older sister?",
+        "options": [
+          "Mary Jane",
+          "Nancy",
+          "Ivy",
+          "Sophie"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Why does Bean's mother think Bean should play with Ivy?",
+        "options": [
+          "Because Ivy is lonely",
+          "Because they are the same age",
+          "Because Bean has no other friends",
+          "Because she thinks Ivy is a nice girl"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Bean think about Ivy before they become friends?",
+        "options": [
+          "That Ivy looks boring",
+          "That Ivy is weird",
+          "That Ivy is mean",
+          "That Ivy is too smart"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Bean take from Nancy's purse?",
+        "options": [
+          "Lipstick",
+          "A bracelet",
+          "A $20 bill",
+          "A phone"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What is Ivy studying to become?",
+        "options": [
+          "A sorceress",
+          "A witch",
+          "A wizard",
+          "A fairy"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What kind of spell do Bean and Ivy decide to cast on Nancy?",
+        "options": [
+          "A sleeping spell",
+          "A silence spell",
+          "An invisibility spell",
+          "A dancing spell that makes a person dance forever"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What do the girls need to collect for the dancing spell?",
+        "options": [
+          "A handful of worms",
+          "Spider webs",
+          "Flower petals",
+          "Dead frogs"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Where does Nancy fall when she chases Bean and Ivy?",
+        "options": [
+          "Down the stairs",
+          "Into a bush",
+          "Into the pit where they collected the worms",
+          "Into a puddle"
+        ],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "Ivy and Bean and the Ghost That Had to Go",
+    "author": "Annie Barrows",
+    "ageGroup": "6-8",
+    "pointsValue": 5,
+    "questions": [
+      {
+        "question": "Where does Ivy discover a ghost?",
+        "options": [
+          "In the cafeteria",
+          "In the school bathroom",
+          "In the gym",
+          "In the library"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Ivy first notice about the bathroom?",
+        "options": [
+          "A foul smell",
+          "Strange noises",
+          "Cold temperatures",
+          "A white mist coming from the air vent"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What is the name of Ivy and Bean's teacher?",
+        "options": [
+          "Mrs. Noble",
+          "Ms. Ribble",
+          "Ms. Aruba-Tate",
+          "Mrs. Quimby"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Ivy originally distract her classmates from?",
+        "options": [
+          "Her lack of cartwheeling skills",
+          "A test she failed",
+          "Her new shoes",
+          "A bad grade"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Ivy use to try to expel the ghost?",
+        "options": [
+          "A spell from a book",
+          "A special potion and ceremony",
+          "A magic wand",
+          "A s\u00e9ance"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Ivy wear when she performs the ghost-banishing spell?",
+        "options": [
+          "A white robe",
+          "A mask",
+          "A witch costume",
+          "A cape and goth-inspired makeup"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What do Ivy and Bean give the ghost as presents for its trip?",
+        "options": [
+          "They put them in the sink",
+          "They leave them by the vent",
+          "They flush presents down the toilet",
+          "They bury them outside"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What happens when Ivy and Bean perform their potion ceremony?",
+        "options": [
+          "The toilet overflows",
+          "Nothing happens",
+          "The ghost appears",
+          "The bathroom catches fire"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who is Bean's older sister that they try to mess with?",
+        "options": [
+          "Sophie",
+          "Nancy",
+          "Mary Jane",
+          "Ivy"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does their teacher tell Ivy about using imagination?",
+        "options": [
+          "That imagination is not real",
+          "That ghosts don't exist",
+          "That she should stop making up stories",
+          "That some stories can be harmful and they must use their imaginations responsibly"
+        ],
+        "correct": "D"
+      }
+    ]
+  },
+  {
+    "title": "Ramona Quimby, Age 8",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "What grade is Ramona starting in this book?",
+        "options": [
+          "Second grade",
+          "Fifth grade",
+          "Third grade",
+          "Fourth grade"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Mr. Quimby give Beezus and Ramona for good luck?",
+        "options": [
+          "New pink erasers",
+          "New shoes",
+          "New pencils",
+          "New notebooks"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "Who does Ramona spend afternoons with after school?",
+        "options": [
+          "Her aunt Beatrice",
+          "Her grandmother",
+          "A babysitter",
+          "Howie Kemp's grandmother and his sister Willa Jean"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Mrs. Whaley call the reading time at school?",
+        "options": [
+          "Silent Study",
+          "D.E.A.R. time - Drop Everything and Read",
+          "Quiet Reading Time",
+          "Free Reading"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What happens when Ramona tries to crack an egg on her head at lunch?",
+        "options": [
+          "The egg cracks perfectly",
+          "Nothing happens",
+          "The egg is raw and splatters over her face and hair",
+          "The egg is already peeled"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Ramona overhear Mrs. Whaley calling her?",
+        "options": [
+          "A show-off and a nuisance",
+          "A brat",
+          "Annoying",
+          "A troublemaker"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Mr. Quimby punish Beezus and Ramona for by making them cook dinner?",
+        "options": [
+          "Fighting with each other",
+          "Being late",
+          "Breaking a dish",
+          "Refusing to eat tongue for dinner"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What happens to Ramona at school that makes her vomit?",
+        "options": [
+          "She is nervous",
+          "She sees the jars of fly larvae in blue oatmeal",
+          "She gets too hot",
+          "She eats bad food"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What kind of presentation does Ramona give for her book report?",
+        "options": [
+          "A puppet show",
+          "A song",
+          "A cat-food commercial",
+          "A play"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What happens at the Whopperburger restaurant?",
+        "options": [
+          "An old man pays for the family's meal",
+          "The family gets free dessert",
+          "Ramona drops her hamburger",
+          "They meet their teacher"
+        ],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Beezus and Ramona",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "How old is Beezus in this book?",
+        "options": [
+          "Eight years old",
+          "Ten years old",
+          "Seven years old",
+          "Nine years old"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "How old is Ramona in this book?",
+        "options": [
+          "Three years old",
+          "Four years old",
+          "Five years old",
+          "Six years old"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What is Ramona's favorite book about?",
+        "options": [
+          "A forlorn steam shovel named Scoopy",
+          "A magic garden",
+          "A fairy princess",
+          "A talking dog"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Ramona wear to the library that embarrasses Beezus?",
+        "options": [
+          "A costume",
+          "A tutu",
+          "Paper rabbit ears",
+          "Mismatched shoes"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Ramona do to the library book?",
+        "options": [
+          "She tears out pages",
+          "She spills food on it",
+          "She loses it",
+          "She signs her name on every page"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What imaginary animal does Ramona bring to Beezus's art class?",
+        "options": [
+          "An imaginary dragon",
+          "An imaginary lizard named Ralph",
+          "An imaginary dog",
+          "An imaginary bird"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "What does Beezus discover Ramona has done to the apples in the basement?",
+        "options": [
+          "Taken a bite out of every apple",
+          "Hidden them",
+          "Smashed them",
+          "Painted them all"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What do Beezus and Ramona make from the damaged apples?",
+        "options": [
+          "Apple pie",
+          "Apple juice",
+          "Applesauce",
+          "Apple cider"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Ramona do to Beezus's birthday cake?",
+        "options": [
+          "Eats it",
+          "Drops it on the floor",
+          "Hides it",
+          "Puts her doll in the oven while it's baking"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "Who saves Beezus's birthday celebration?",
+        "options": [
+          "Mrs. Quimby",
+          "Aunt Beatrice",
+          "Henry",
+          "Mr. Quimby"
+        ],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Henry Huggins",
+    "author": "Beverly Cleary",
+    "ageGroup": "8-10",
+    "pointsValue": 8,
+    "questions": [
+      {
+        "question": "What does Henry find while waiting for the bus?",
+        "options": [
+          "A skinny stray dog",
+          "A bicycle",
+          "A lost kitten",
+          "A dollar bill"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Henry name the stray dog?",
+        "options": [
+          "Scoopy",
+          "Ribsy",
+          "Puddles",
+          "Dizzy"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "Why does Henry name the dog Ribsy?",
+        "options": [
+          "Because he found him near a rib joint",
+          "Because of his ribs of fur",
+          "Because the dog is so thin Henry can see his ribs",
+          "Because the dog likes ribs"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What does Henry buy at the pet store that keeps multiplying?",
+        "options": [
+          "Goldfish",
+          "Hamsters",
+          "Sea monkeys",
+          "Guppies"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What does Ribsy eat that Henry was bringing home from the pet store?",
+        "options": [
+          "Horse meat",
+          "Dog food",
+          "A bone",
+          "Fish food"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "What does Henry accidentally do with Scooter's football?",
+        "options": [
+          "Pops it",
+          "Throws it into a passing car window",
+          "Kicks it over a fence",
+          "Loses it in a river"
+        ],
+        "correct": "B"
+      },
+      {
+        "question": "How does Henry earn money to replace the football?",
+        "options": [
+          "Mowing lawns",
+          "Selling lemonade",
+          "Collecting night crawler worms for fishing bait",
+          "Doing chores"
+        ],
+        "correct": "C"
+      },
+      {
+        "question": "What happens to Henry during the school Christmas play?",
+        "options": [
+          "Henry trips on stage",
+          "Henry forgets his lines",
+          "His costume tears",
+          "Ribsy spills green paint on Henry's head"
+        ],
+        "correct": "D"
+      },
+      {
+        "question": "What prize does Ribsy win at the dog show?",
+        "options": [
+          "Most unusual dog",
+          "Fastest dog",
+          "Best in show",
+          "Best trick"
+        ],
+        "correct": "A"
+      },
+      {
+        "question": "When a boy claims Ribsy is his lost dog, how do they decide who keeps him?",
+        "options": [
+          "They flip a coin",
+          "They let Ribsy choose between them",
+          "They ask a judge",
+          "They have a race"
+        ],
+        "correct": "B"
+      }
+    ]
+  }
+]

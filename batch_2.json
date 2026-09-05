@@ -1,128 +1,152 @@
 [
   {
-    "title": "Walk Two Moons",
-    "author": "Sharon Creech",
-    "points_value": 20,
-    "description": "Salamanca Hiddle travels across the country to find her missing mother."
+    "title": "The Miserable Mill",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "The Wanderer",
-    "author": "Sharon Creech",
-    "points_value": 20,
-    "description": "Sophie sails across the Atlantic with her uncles and cousins, confronting her past."
+    "title": "The Austere Academy",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "Love That Dog",
-    "author": "Sharon Creech",
-    "points_value": 20,
-    "description": "A boy named Jack learns to appreciate poetry through his teacher's encouragement."
+    "title": "The Ersatz Elevator",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "Bloomability",
-    "author": "Sharon Creech",
-    "points_value": 20,
-    "description": "Dinnie Doone is kidnapped by her aunt and uncle and taken to Switzerland."
+    "title": "The Vile Village",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "The School for Good and Evil",
-    "author": "Soman Chainani",
-    "points_value": 20,
-    "description": "Two friends are kidnapped to a school that trains fairy tale heroes and villains."
+    "title": "The Hostile Hospital",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "The Tiger Rising",
-    "author": "Kate DiCamillo",
-    "points_value": 20,
-    "description": "A boy discovers a caged tiger in the woods and befriends a mysterious girl."
+    "title": "The Carnivorous Carnival",
+    "author": "Lemony Snicket",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   },
   {
-    "title": "The Miraculous Journey of Edward Tulane",
-    "author": "Kate DiCamillo",
-    "points_value": 20,
-    "description": "A china rabbit doll goes on an extraordinary journey learning to love."
+    "title": "Harry Potter and the Chamber of Secrets",
+    "author": "J.K. Rowling",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "Flora and Ulysses",
-    "author": "Kate DiCamillo",
-    "points_value": 20,
-    "description": "A girl rescues a squirrel that gains superpowers after being sucked into a vacuum cleaner."
+    "title": "Harry Potter and the Prisoner of Azkaban",
+    "author": "J.K. Rowling",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "Raymie Nightingale",
-    "author": "Kate DiCamillo",
-    "points_value": 20,
-    "description": "Three girls become friends while competing in a baton twirling contest."
+    "title": "Harry Potter and the Goblet of Fire",
+    "author": "J.K. Rowling",
+    "ageGroup": "10-12",
+    "pointsValue": 20
   },
   {
-    "title": "Louisiana's Way Home",
-    "author": "Kate DiCamillo",
-    "points_value": 20,
-    "description": "Louisiana Elefante must find her way home after being uprooted from her life."
+    "title": "Harry Potter and the Order of the Phoenix",
+    "author": "J.K. Rowling",
+    "ageGroup": "10-12",
+    "pointsValue": 20
   },
   {
-    "title": "The Lemonade War",
-    "author": "Jacqueline Davies",
-    "points_value": 20,
-    "description": "Siblings Evan and Jessie compete to see who can make the most money selling lemonade."
+    "title": "Harry Potter and the Half-Blood Prince",
+    "author": "J.K. Rowling",
+    "ageGroup": "10-12",
+    "pointsValue": 20
   },
   {
-    "title": "The Candymakers",
-    "author": "Wendy Mass",
-    "points_value": 20,
-    "description": "Four children compete in a candy-making contest at a famous candy factory."
+    "title": "Harry Potter and the Deathly Hallows",
+    "author": "J.K. Rowling",
+    "ageGroup": "10-12",
+    "pointsValue": 20
   },
   {
-    "title": "A Mango-Shaped Space",
-    "author": "Wendy Mass",
-    "points_value": 20,
-    "description": "A girl with synesthesia sees colors when she hears sounds or sees letters and numbers."
+    "title": "Percy Jackson and the Sea of Monsters",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "Every Soul a Star",
-    "author": "Wendy Mass",
-    "points_value": 20,
-    "description": "Three teens meet at a camp to witness a total solar eclipse."
+    "title": "The Titan's Curse",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "Jeremy Fink and the Meaning of Life",
-    "author": "Wendy Mass",
-    "points_value": 20,
-    "description": "A boy searches for the keys to a box containing the meaning of life."
+    "title": "The Battle of the Labyrinth",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "So B. It",
-    "author": "Sarah Weeks",
-    "points_value": 20,
-    "description": "A girl with a mentally disabled mother discovers the truth about her own history."
+    "title": "The Last Olympian",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "Ella Enchanted",
-    "author": "Gail Carson Levine",
-    "points_value": 20,
-    "description": "Ella is cursed with obedience and must break the spell to find true love and freedom."
+    "title": "The Red Pyramid",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "The Two Princesses of Bamarre",
-    "author": "Gail Carson Levine",
-    "points_value": 20,
-    "description": "A shy princess must find courage to save her sister from a deadly illness."
+    "title": "The Throne of Fire",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "A Wind in the Door",
-    "author": "Madeline L'Engle",
-    "points_value": 20,
-    "description": "Meg Murry travels inside her brother's cells to save him from a mysterious illness."
+    "title": "The Serpent's Shadow",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "A Swiftly Tilting Planet",
-    "author": "Madeline L'Engle",
-    "points_value": 20,
-    "description": "Charles Wallace travels through time to prevent a nuclear catastrophe."
+    "title": "The Son of Neptune",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
   },
   {
-    "title": "Many Waters",
-    "author": "Madeline L'Engle",
-    "points_value": 20,
-    "description": "Sandy and Dennys Murry travel back to the time of Noah's Ark."
+    "title": "The Mark of Athena",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
+  },
+  {
+    "title": "The House of Hades",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
+  },
+  {
+    "title": "The Blood of Olympus",
+    "author": "Rick Riordan",
+    "ageGroup": "10-12",
+    "pointsValue": 15
+  },
+  {
+    "title": "Diary of a Wimpy Kid: The Long Haul",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10
+  },
+  {
+    "title": "Diary of a Wimpy Kid: Old School",
+    "author": "Jeff Kinney",
+    "ageGroup": "8-12",
+    "pointsValue": 10
   }
 ]
