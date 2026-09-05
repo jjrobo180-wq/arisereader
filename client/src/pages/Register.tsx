@@ -161,23 +161,23 @@ export default function Register() {
                 <Label htmlFor="grade">Select Your Grade</Label>
                 {!selectedSchoolId ? (
                   <p className="text-xs text-muted-foreground italic">Please select your school first</p>
-                ) : !selectedGrade ? (
+                ) : !gradeBand ? (
                   <div className="space-y-3" data-testid="grade-picker">
                     <p className="text-xs text-muted-foreground">First, pick your grade band:</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => setGradeBand("K-2")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-K-2">
+                      <button type="button" onClick={() => setGradeBand("K-2")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "K-2" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-K-2">
                         <p className="text-sm font-bold text-white">K-2 Band</p>
                         <p className="text-xs text-muted-foreground">Early Readers</p>
                       </button>
-                      <button type="button" onClick={() => setGradeBand("3-5")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-3-5">
+                      <button type="button" onClick={() => setGradeBand("3-5")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "3-5" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-3-5">
                         <p className="text-sm font-bold text-white">3-5 Band</p>
                         <p className="text-xs text-muted-foreground">Elementary</p>
                       </button>
-                      <button type="button" onClick={() => setGradeBand("6-8")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-6-8">
+                      <button type="button" onClick={() => setGradeBand("6-8")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "6-8" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-6-8">
                         <p className="text-sm font-bold text-white">6-8 Band</p>
                         <p className="text-xs text-muted-foreground">Middle School</p>
                       </button>
-                      <button type="button" onClick={() => setGradeBand("9-12")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-9-12">
+                      <button type="button" onClick={() => setGradeBand("9-12")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "9-12" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-9-12">
                         <p className="text-sm font-bold text-white">9-12 Band</p>
                         <p className="text-xs text-muted-foreground">High School</p>
                       </button>
@@ -187,7 +187,7 @@ export default function Register() {
                   <div className="space-y-2" data-testid="grade-selected">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Your group: <span className="font-semibold text-primary">{gradeBand} Band</span></span>
-                      <button type="button" onClick={() => { setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="text-xs text-primary hover:underline">Change</button>
+                      <button type="button" onClick={() => { setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="text-xs text-primary hover:underline">Change Band</button>
                     </div>
                     <p className="text-xs text-muted-foreground">Now pick your grade:</p>
                     <div className="flex flex-wrap gap-2">
