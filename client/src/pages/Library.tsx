@@ -11,6 +11,9 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+// Book IDs that appear in the school curriculum section
+const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
+
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -352,6 +355,10 @@ export default function Library() {
 
   // Sort books
   const sortedBooks = [...filteredBooks].sort((a, b) => {
+    // Curriculum books always appear first
+    const aCur = CURRICULUM_BOOK_IDS.includes(a.id) ? 0 : 1;
+    const bCur = CURRICULUM_BOOK_IDS.includes(b.id) ? 0 : 1;
+    if (aCur !== bCur) return aCur - bCur;
     if (sortBy === "popular") {
       // Sort by how many times the quiz was taken (use results as proxy)
       const aTries = (results || []).filter(r => r.bookId === a.id).length;
@@ -382,12 +389,17 @@ export default function Library() {
   const pointsGroups: Record<string, Book[]> = {};
   const pointsOrder = ["10", "20", "30"];
   if (sortBy === "points") {
-    sortedBooks.forEach(b => {
+    nonCurriculumBooks.forEach(b => {
       const key = String(b.pointsValue || 10);
       if (!pointsGroups[key]) pointsGroups[key] = [];
       pointsGroups[key].push(b);
     });
   }
+
+  // Separate curriculum books from the rest
+  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id));
+  const curriculumCompletedIds = new Set(curriculumBooks.filter(b => completedIds.has(b.id)).map(b => b.id));
 
   return (
     <div className="min-h-screen bg-background">
@@ -833,7 +845,105 @@ export default function Library() {
               Request This Quiz
             </Button>
           </div>
-        ) : sortBy === "points" ? (
+        ) : (
+          <>
+            {/* Curriculum Section */}
+            {curriculumBooks.length > 0 && (
+              <div className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">Books in Your School Curriculum</h2>
+                  <span className="text-sm text-muted-foreground ml-1">({curriculumBooks.length})</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {curriculumBooks.map((book) => {
+                    const result = results.find(r => r.bookId === book.id);
+                    const isDone = completedIds.has(book.id);
+                    return (
+                      <Card
+                        key={book.id}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 ring-2 ring-primary/30"
+                        onClick={() => { if (!(user?.role === 'teacher' || user?.isAdmin)) navigate(`/quiz/${book.id}`); }}
+                        data-testid={`card-book-${book.id}`}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {book.coverUrl ? (
+                            <img
+                              src={book.coverUrl}
+                              alt={`Cover of ${book.title}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
+                              <span className="font-bold text-sm">{book.title}</span>
+                            </div>
+                          )}
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
+                              ✓ Done
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
+                          <div className="mt-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                              book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
+                              book.pointsValue === 20 ? "bg-primary/20 text-primary" :
+                              book.pointsValue === 30 ? "bg-red-500/20 text-red-400" :
+                              "bg-muted text-muted-foreground"
+                            }`}>
+                              <Trophy className="w-3 h-3" />
+                              {book.pointsValue || 10} pts
+                            </span>
+                          </div>
+                          {result && (
+                            <p className="text-xs text-primary font-semibold mt-1">
+                              {result.score}/{result.total} correct
+                            </p>
+                          )}
+                          <div className="flex gap-1.5 mt-2">
+                            {book.readUrl && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/read/${book.id}`);
+                                }}
+                                data-testid={`button-read-${book.id}`}
+                              >
+                                <BookOpen className="w-3 h-3 mr-1" />
+                                Read
+                              </Button>
+                            )}
+                            {!(user?.role === 'teacher' || user?.isAdmin) && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="h-7 text-xs flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/quiz/${book.id}`);
+                              }}
+                              data-testid={`button-quiz-${book.id}`}
+                            >
+                              Quiz
+                            </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Regular book sections */}
+            {sortBy === "points" ? (
           pointsOrder.filter(k => pointsGroups[k]).map((pts) => {
             const groupBooks = pointsGroups[pts];
             return (
@@ -932,7 +1042,7 @@ export default function Library() {
         ) : (
           <div className="mb-10">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {sortedBooks.map((book) => {
+              {nonCurriculumBooks.map((book) => {
                 const result = results.find(r => r.bookId === book.id);
                 const isDone = completedIds.has(book.id);
                 return (
@@ -1015,6 +1125,8 @@ export default function Library() {
             </div>
           </div>
         )}
+        </>
+      )}
       </main>
 
       {/* Student Inbox Dialog */}
