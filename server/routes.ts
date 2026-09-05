@@ -899,6 +899,19 @@ export async function registerRoutes(
     res.json({ message: "Class updated" });
   });
 
+  // Admin: assign school to a teacher
+  app.post("/api/admin/teachers/:id/assign-school", authMiddleware, adminMiddleware, async (req, res) => {
+    const userId = parseInt(req.params.id);
+    const { schoolId } = req.body;
+    try {
+      const { error } = await supabase.from("users").update({ school_id: schoolId || null }).eq("id", userId).eq("role", "teacher");
+      if (error) return res.status(500).json({ message: error.message });
+      res.json({ message: "School updated" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/admin/school-stats", authMiddleware, adminMiddleware, async (_req, res) => {
     const stats = await storage.getSchoolStats();
     res.json(stats);

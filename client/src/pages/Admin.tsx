@@ -52,10 +52,11 @@ interface Student {
 }
 
 interface StudentDetail {
-  user: { id: number; username: string; displayName: string; createdAt: string };
+  user: { id: number; username: string; displayName: string; createdAt: string; schoolId?: number };
   totalPoints: number;
   quizzesTaken: number;
   totalBooks: number;
+  schoolId?: number;
   quizHistory: {
     bookId: number;
     title: string;
@@ -1487,8 +1488,31 @@ Generate exactly 10 questions.`;
                         <div className="text-xs text-muted-foreground">@{t.username}{t.email ? " | " + t.email : ""}</div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleResetTeacherPassword(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-blue-600/80 text-white hover:opacity-90">Reset Password</button>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs"
+                        defaultValue={t.school_id || ""}
+                        onChange={async (e) => {
+                          const schoolId = e.target.value ? parseInt(e.target.value) : null;
+                          const authToken = token || getTokenFromCookie();
+                          try {
+                            const res = await fetch(`${API_BASE}/api/admin/teachers/${t.id}/assign-school`, {
+                              method: "POST",
+                              headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                              body: JSON.stringify({ schoolId }),
+                            });
+                            if (res.ok) {
+                              fetchTeachers();
+                            }
+                          } catch {}
+                        }}
+                      >
+                        <option value="">No school</option>
+                        {schools.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => handleResetTeacherPassword(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-blue-600/80 text-white hover:opacity-90">Reset</button>
                       <button onClick={() => handleDeleteUser(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-red-600/80 text-white hover:opacity-90">Delete</button>
                     </div>
                   </div>
@@ -2151,6 +2175,37 @@ Generate exactly 10 questions.`;
                 <div className="text-center p-3 rounded-xl bg-green-500/10">
                   <div className="text-xl font-bold text-green-400">{(studentDetail.totalBooks || 0) - (studentDetail.quizzesTaken || 0)}</div>
                   <div className="text-xs text-muted-foreground">Remaining</div>
+                </div>
+              </div>
+
+              {/* Assign School */}
+              <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                <Label className="text-xs text-muted-foreground mb-2 block">Assign School</Label>
+                <div className="flex gap-2">
+                  <select
+                    className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
+                    defaultValue={detailStudent?.schoolId || ""}
+                    onChange={async (e) => {
+                      const schoolId = e.target.value ? parseInt(e.target.value) : null;
+                      const authToken = token || getTokenFromCookie();
+                      try {
+                        const res = await fetch(`${API_BASE}/api/admin/students/${detailStudent.id}/assign-school`, {
+                          method: "POST",
+                          headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                          body: JSON.stringify({ schoolId }),
+                        });
+                        if (res.ok) {
+                          setDetailStudent(prev => prev ? { ...prev, schoolId } : null);
+                          fetchStudents();
+                        }
+                      } catch {}
+                    }}
+                  >
+                    <option value="">No school assigned</option>
+                    {schools.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

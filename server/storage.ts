@@ -658,10 +658,12 @@ export class DatabaseStorage implements IStorage {
         username: user.username,
         displayName: user.display_name,
         createdAt: user.created_at,
+        schoolId: user.school_id || null,
       },
       totalPoints,
       quizzesTaken: userAttempts ? userAttempts.length : 0,
       totalBooks: allBooks ? allBooks.length : 0,
+      schoolId: user.school_id || null,
       quizHistory,
       messages: (userMessages || []).map(mapMessage),
     };
@@ -1523,7 +1525,7 @@ export class DatabaseStorage implements IStorage {
   async getApprovedTeachers(): Promise<any[]> {
     const { data, error } = await supabase
       .from("users")
-      .select("id, display_name, username, role, email")
+      .select("id, display_name, username, role, email, school_id")
       .or("role.eq.teacher,is_admin.eq.true")
       .eq("account_approved", true)
       .order("display_name", { ascending: true });
