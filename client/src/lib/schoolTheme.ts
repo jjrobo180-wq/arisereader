@@ -5,6 +5,7 @@ export interface SchoolTheme {
   mascotName: string;
   primaryHsl: string;
   primaryForegroundHsl: string;
+  mascotEmoji?: string;
 }
 
 const DEFAULT_THEME: SchoolTheme = {
@@ -22,8 +23,8 @@ export function setSchoolTheme(theme: SchoolTheme | null | undefined) {
   root.style.setProperty("--primary-foreground", currentTheme.primaryForegroundHsl);
 }
 
-export function getSchoolTheme(): SchoolTheme {
-  return currentTheme;
+export function getMascotEmoji(): string {
+  return currentTheme.mascotEmoji || "";
 }
 
 export function getMascotName(): string {
@@ -35,4 +36,8 @@ export function getBrandSuffix(): string {
   const mascot = currentTheme.mascotName;
   if (mascot === "Reader") return "Reader";
   return `${mascot}!`;
+}
+
+export function getSchoolTheme(): SchoolTheme {
+  return currentTheme;
 }

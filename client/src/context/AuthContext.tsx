@@ -100,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               mascotName: school.mascotName,
               primaryHsl: school.primaryHsl,
               primaryForegroundHsl: school.primaryForegroundHsl,
+              mascotEmoji: school.mascotEmoji,
             });
           }
         })

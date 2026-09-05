@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
+import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -507,7 +508,7 @@ export default function Library() {
 
         {/* Welcome banner */}
         <div className="mb-8 rounded-2xl bg-primary text-white p-6 sm:p-8 shadow-lg">
-          <h1 className="text-2xl sm:text-3xl font-bold">Hi, {user?.displayName}!</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">{getMascotEmoji() && <span className="mr-2">{getMascotEmoji()}</span>}Hi, {user?.displayName}!</h1>
           {user?.role === 'teacher' || user?.isAdmin ? (
             <p className="mt-1 text-white/90">Browse the library and view student stats below.</p>
           ) : (
