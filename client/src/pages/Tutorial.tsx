@@ -11,6 +11,7 @@ import {
   Lock, MessageSquarePlus, BookPlus, UserPlus, X, ShieldCheck, Settings,
   Sparkles, ChevronLeft, BookUser, UserCog, PlayCircle, Eye
 } from "lucide-react";
+import { BrandText } from "@/components/BrandText";
 import { generateCertificate } from "@/lib/certificate";
 
 // ─── Types ──────────────────────────────────────────────────────────

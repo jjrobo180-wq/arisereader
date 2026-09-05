@@ -108,6 +108,7 @@ function mapUser(row: any) {
     approvedByTeacher: row.approved_by_teacher !== false,
     accountApproved: row.account_approved !== false,
     email: row.email || null,
+    school_id: row.school_id || null,
   };
 }
 
@@ -253,7 +254,7 @@ export async function seedData() {
 export interface IStorage {
   getUser(id: number): Promise<any>;
   getUserByUsername(username: string): Promise<any>;
-  createUser(user: { username: string; password: string; displayName: string }): Promise<any>;
+  createUser(user: { username: string; password: string; displayName: string; schoolId?: number | null }): Promise<any>;
   resetPassword(userId: number, newPassword: string): Promise<void>;
   getAllUsers(): Promise<any[]>;
   createSession(userId: number): Promise<any>;
@@ -284,6 +285,7 @@ export interface IStorage {
   setNotifSeenAt(key: string): Promise<void>;
   getAnnouncement(): Promise<string>;
   setAnnouncement(text: string): Promise<void>;
+  getSetting(key: string): Promise<string>;
   // Schools & Classes
   createSchool(name: string): Promise<any>;
   getAllSchools(): Promise<any[]>;
@@ -311,7 +313,7 @@ export class DatabaseStorage implements IStorage {
     return mapUser(data);
   }
 
-  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null }) {
+  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null }) {
     const { data, error } = await supabase
       .from("users")
       .insert({
@@ -325,6 +327,7 @@ export class DatabaseStorage implements IStorage {
         approved_by_teacher: user.approvedByTeacher ?? true,
         account_approved: user.accountApproved ?? true,
         email: user.email || null,
+        school_id: user.schoolId ?? null,
       })
       .select()
       .single();
@@ -820,6 +823,13 @@ export class DatabaseStorage implements IStorage {
       if (insertError) throw new Error(insertError.message);
     }
     clearCache('announcement');
+  }
+
+  async getSetting(key: string): Promise<string> {
+    return cached(`setting_${key}`, 300000, async () => {
+      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", key).single());
+      return data?.value || "";
+    });
   }
 
   // ─── Schools & Classes ────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { BrandText } from "@/components/BrandText";
 import { BookOpen, Brain, Trophy, Target, TrendingUp, ChevronRight, Clock, Award, BarChart3, ArrowRight, RotateCcw, CheckCircle2, Timer, Send, AlertCircle, Lock, Zap } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
@@ -427,7 +428,7 @@ export default function ReadingAssessment() {
                 ← Back
               </button>
               <span className="text-muted-foreground">|</span>
-              <span className="font-bold text-base sm:text-lg tracking-wide whitespace-nowrap">A.R.I.S.E<span className="text-primary"> Reader</span></span>
+              <BrandText />
             </div>
           </div>
         </header>
@@ -797,7 +798,7 @@ export default function ReadingAssessment() {
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-            <span className="font-bold text-base sm:text-lg tracking-wide whitespace-nowrap">A.R.I.S.E<span className="text-primary"> Reader</span></span>
+            <BrandText />
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${timeLeft < 60 ? "bg-red-500/20 text-red-400" : "bg-primary/10 text-primary"}`}>
               <Timer className="w-4 h-4" />
               <span className="font-mono font-bold text-sm">{formatTime(timeLeft)}</span>
@@ -844,7 +845,7 @@ export default function ReadingAssessment() {
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-            <span className="font-bold text-base sm:text-lg tracking-wide whitespace-nowrap">A.R.I.S.E<span className="text-primary"> Reader</span></span>
+            <BrandText />
             <div className="flex items-center gap-3">
               <div className="text-xs text-muted-foreground hidden sm:block">
                 {currentAnsweredCount}/{currentQuestions.length} in this round
@@ -934,7 +935,7 @@ export default function ReadingAssessment() {
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-            <span className="font-bold text-base sm:text-lg tracking-wide whitespace-nowrap">A.R.I.S.E<span className="text-primary"> Reader</span></span>
+            <BrandText />
           </div>
         </header>
 

@@ -18,11 +18,17 @@ export default function Register() {
   const [isEyeGaze, setIsEyeGaze] = useState(false);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
+  const [schools, setSchools] = useState<any[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState("");
 
   useEffect(() => {
     fetch("port/5000/api/teachers")
       .then(r => r.ok ? r.json() : [])
       .then(data => setTeachers(Array.isArray(data) ? data : []))
+      .catch(() => {});
+    fetch("port/5000/api/schools")
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setSchools(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -45,7 +51,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(username, password, displayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null);
+      await register(username, password, displayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null, selectedSchoolId ? parseInt(selectedSchoolId) : null);
       // Navigation is handled by AppRouter redirects based on isAdmin
     } catch (err: any) {
       setError(err.message);
@@ -120,6 +126,21 @@ export default function Register() {
                   className="bg-input text-white border-border"
                   data-testid="input-confirm"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="school">Select Your School</Label>
+                <select
+                  id="school"
+                  value={selectedSchoolId}
+                  onChange={(e) => setSelectedSchoolId(e.target.value)}
+                  className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm"
+                  data-testid="select-school"
+                >
+                  <option value="">Choose your school...</option>
+                  {schools.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="teacher">Select Your Teacher (optional)</Label>

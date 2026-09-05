@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, CheckCircle2, Info, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -12,6 +12,15 @@ export default function TeacherSignup() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [schools, setSchools] = useState<any[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState("");
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/schools`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setSchools(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -22,7 +31,7 @@ export default function TeacherSignup() {
       const response = await fetch(`${API_BASE}/api/auth/register-teacher`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, displayName, email }),
+        body: JSON.stringify({ username, password, displayName, email, schoolId: selectedSchoolId ? parseInt(selectedSchoolId) : null }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
@@ -55,6 +64,22 @@ export default function TeacherSignup() {
             <Field id="teacher-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
             <Field id="teacher-email" label="Email (for activation notification)" value={email} onChange={setEmail} type="email" autoComplete="email" />
             <Field id="teacher-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
+            <div>
+              <label htmlFor="teacher-school" style={{ ...styles.label, display: "block", marginBottom: 6 }}>Select Your School</label>
+              <select
+                id="teacher-school"
+                value={selectedSchoolId}
+                onChange={(e) => setSelectedSchoolId(e.target.value)}
+                required
+                style={styles.input}
+                data-testid="select-teacher-school"
+              >
+                <option value="">Choose your school...</option>
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
             {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-teacher-account">
               <UserPlus size={20} aria-hidden="true" /> {loading ? "Submitting Request..." : "Request Teacher Account"}

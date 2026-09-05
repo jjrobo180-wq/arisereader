@@ -172,7 +172,7 @@ export async function registerRoutes(
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, displayName, isEyeGazeUser, teacherId } = req.body;
+      const { username, password, displayName, isEyeGazeUser, teacherId, schoolId } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }
@@ -197,12 +197,13 @@ export async function registerRoutes(
         role: 'student',
         teacherId: teacherId ? parseInt(teacherId) : null,
         approvedByTeacher: teacherId ? false : true,
+        schoolId: schoolId ? parseInt(schoolId) : null,
       });
 
       const session = await storage.createSession(user.id);
       res.status(201).json({
         token: session.token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved },
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, schoolId: user.school_id },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -212,7 +213,7 @@ export async function registerRoutes(
   // Teacher signup (pending admin approval)
   app.post("/api/auth/register-teacher", async (req, res) => {
     try {
-      const { username, password, displayName, email } = req.body;
+      const { username, password, displayName, email, schoolId } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }
@@ -236,6 +237,7 @@ export async function registerRoutes(
         role: 'teacher',
         accountApproved: false,
         email: email || null,
+        schoolId: schoolId ? parseInt(schoolId) : null,
       });
 
       // Don't create a session - teacher must be approved first
@@ -279,7 +281,7 @@ export async function registerRoutes(
       const popupShown = !!(user as any).assessment_prompt_seen_at;
       res.json({
         token: session.token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email },
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -772,6 +774,29 @@ export async function registerRoutes(
       id: entry.id,
     }));
     res.json(safe);
+  });
+
+  // Public endpoint - get all schools with themes (for signup dropdown)
+  app.get("/api/schools", async (_req, res) => {
+    try {
+      const schools = await storage.getAllSchools();
+      // Get school themes from settings
+      const themesSetting = await storage.getSetting('school_themes');
+      let themes: Record<string, any> = {};
+      if (themesSetting) {
+        try { themes = JSON.parse(themesSetting); } catch {}
+      }
+      const result = schools.map(s => ({
+        id: s.id,
+        name: s.name,
+        mascotName: themes[String(s.id)]?.mascotName || 'Reader',
+        primaryHsl: themes[String(s.id)]?.primaryHsl || '21 100% 50%',
+        primaryForegroundHsl: themes[String(s.id)]?.primaryForegroundHsl || '0 0% 100%',
+      }));
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
   });
 
   app.get("/api/admin/schools", authMiddleware, adminMiddleware, async (_req, res) => {

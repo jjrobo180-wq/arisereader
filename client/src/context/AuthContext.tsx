@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
 import { API_BASE } from "@/lib/queryClient";
+import { setSchoolTheme } from "@/lib/schoolTheme";
 
 interface AuthUser {
   id: number;
@@ -13,13 +14,14 @@ interface AuthUser {
   assessmentPromptShown?: boolean;
   is_eye_gaze_user?: boolean;
   email?: string | null;
+  schoolId?: number | null;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null) => Promise<void>;
+  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -87,6 +89,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveSessionCookie(u, t);
     setUser(u);
     setToken(t);
+    // Apply school theme based on logged-in user's school
+    if (u && u.schoolId) {
+      fetch(`${API_BASE}/api/schools`)
+        .then(r => r.ok ? r.json() : [])
+        .then(schools => {
+          const school = schools.find((s: any) => s.id === u.schoolId);
+          if (school) {
+            setSchoolTheme({
+              mascotName: school.mascotName,
+              primaryHsl: school.primaryHsl,
+              primaryForegroundHsl: school.primaryForegroundHsl,
+            });
+          }
+        })
+        .catch(() => {});
+    } else {
+      setSchoolTheme(null);
+    }
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
@@ -105,11 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistSession(data.user, data.token);
   }, [persistSession]);
 
-  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null) => {
+  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null) => {
     const res = await fetch(`${API_BASE}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId }),
+      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId, schoolId }),
     });
     if (!res.ok) {
       const data = await res.json();

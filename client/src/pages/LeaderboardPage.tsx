@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { Trophy, ArrowLeft, Crown, Medal, Award } from "lucide-react";
+import { BrandText } from "@/components/BrandText";
 
 interface LeaderboardEntry {
   rank: number;

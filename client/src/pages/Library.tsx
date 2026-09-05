@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
+import { BrandText } from "@/components/BrandText";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -406,7 +407,7 @@ export default function Library() {
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between h-16">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-bold text-base sm:text-lg tracking-wide whitespace-nowrap">A.R.I.S.E<span className="text-primary"> Reader</span></span>
+            <BrandText />
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
             <NotificationBell onNavigate={(type, id) => {
