@@ -2052,5 +2052,187 @@ export async function registerRoutes(
     }
   });
 
+  // ========== POLLS ==========
+
+  // Helper: read polls directly from Supabase (no cache)
+  async function getPolls(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", "polls").maybeSingle();
+      if (error || !data) return [];
+      try { return JSON.parse(data.value); } catch { return []; }
+    } catch { return []; }
+  }
+
+  // Helper: save polls to Supabase
+  async function savePolls(polls: any[]): Promise<boolean> {
+    try {
+      const json = JSON.stringify(polls);
+      const { error: updateErr } = await supabase.from("settings").update({ value: json }).eq("key", "polls");
+      if (updateErr) {
+        const { error: insertErr } = await supabase.from("settings").insert({ key: "polls", value: json });
+        if (insertErr) return false;
+      }
+      return true;
+    } catch { return false; }
+  }
+
+  // GET /api/polls - get all polls
+  app.get("/api/polls", authMiddleware, async (req: any, res) => {
+    try {
+      const polls = await getPolls();
+      const userId = req.user.id;
+      const isAdmin = req.user.isAdmin;
+      const result = polls.map(p => {
+        const now = new Date();
+        const endsAt = new Date(p.endsAt);
+        const isActive = now < endsAt;
+        const userVote = p.votes && p.votes[userId];
+        const totalVotes = p.votes ? Object.keys(p.votes).length : 0;
+        const optionCounts: Record<string, number> = {};
+        if (p.votes) {
+          for (const [uid, v] of Object.entries(p.votes)) {
+            optionCounts[(v as any).optionId] = (optionCounts[(v as any).optionId] || 0) + 1;
+          }
+        }
+        const optionResults = p.options.map((opt: any) => ({
+          id: opt.id,
+          text: opt.text,
+          count: optionCounts[opt.id] || 0,
+          percentage: totalVotes > 0 ? Math.round(((optionCounts[opt.id] || 0) / totalVotes) * 100) : 0,
+        }));
+        const showResults = !!userVote || isAdmin || !isActive;
+        return {
+          id: p.id,
+          question: p.question,
+          options: showResults ? optionResults : p.options.map((o: any) => ({ id: o.id, text: o.text })),
+          isActive,
+          endsAt: p.endsAt,
+          createdAt: p.createdAt,
+          hasVoted: !!userVote,
+          selectedOptionId: userVote ? (userVote as any).optionId : null,
+          totalVotes,
+          showResults,
+        };
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/admin/polls - create a poll (admin only)
+  app.post("/api/admin/polls", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const { question, options, durationHours } = req.body;
+      if (!question || !question.trim()) return res.status(400).json({ message: "Question is required" });
+      if (!options || !Array.isArray(options) || options.length < 2 || options.length > 6) {
+        return res.status(400).json({ message: "Provide 2-6 options" });
+      }
+      const dur = durationHours || 24;
+      const now = new Date();
+      const endsAt = new Date(now.getTime() + dur * 60 * 60 * 1000);
+      const polls = await getPolls();
+      const newPoll = {
+        id: `poll_${Date.now()}`,
+        question: question.trim(),
+        options: options.map((text: string, i: number) => ({ id: `opt_${i}`, text: text.trim() })),
+        createdAt: now.toISOString(),
+        endsAt: endsAt.toISOString(),
+        createdBy: req.user.id,
+        votes: {},
+      };
+      polls.unshift(newPoll);
+      const trimmed = polls.slice(0, 20);
+      const ok = await savePolls(trimmed);
+      if (!ok) return res.status(500).json({ message: "Failed to save poll" });
+      res.json({ success: true, poll: newPoll });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/polls/:pollId/vote - vote on a poll
+  app.post("/api/polls/:pollId/vote", authMiddleware, async (req: any, res) => {
+    try {
+      const { pollId } = req.params;
+      const { optionId } = req.body;
+      const userId = req.user.id;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const polls = await getPolls();
+        const poll = polls.find(p => p.id === pollId);
+        if (!poll) return res.status(404).json({ message: "Poll not found" });
+        const now = new Date();
+        const endsAt = new Date(poll.endsAt);
+        if (now >= endsAt) return res.status(400).json({ message: "This poll has ended" });
+        if (poll.votes && poll.votes[userId]) return res.status(400).json({ message: "You have already voted on this poll" });
+        const validOption = poll.options.find((o: any) => o.id === optionId);
+        if (!validOption) return res.status(400).json({ message: "Invalid option" });
+        if (!poll.votes) poll.votes = {};
+        poll.votes[userId] = { optionId, votedAt: new Date().toISOString() };
+        const ok = await savePolls(polls);
+        if (ok) {
+          const totalVotes = Object.keys(poll.votes).length;
+          const optionCounts: Record<string, number> = {};
+          for (const [uid, v] of Object.entries(poll.votes)) {
+            optionCounts[(v as any).optionId] = (optionCounts[(v as any).optionId] || 0) + 1;
+          }
+          const optionResults = poll.options.map((opt: any) => ({
+            id: opt.id,
+            text: opt.text,
+            count: optionCounts[opt.id] || 0,
+            percentage: totalVotes > 0 ? Math.round(((optionCounts[opt.id] || 0) / totalVotes) * 100) : 0,
+          }));
+          return res.json({
+            success: true,
+            poll: {
+              id: poll.id,
+              question: poll.question,
+              options: optionResults,
+              isActive: true,
+              endsAt: poll.endsAt,
+              hasVoted: true,
+              selectedOptionId: optionId,
+              totalVotes,
+              showResults: true,
+            },
+          });
+        }
+      }
+      res.status(500).json({ message: "Failed to submit vote after retries" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/admin/polls/:pollId/close - close a poll early (admin only)
+  app.post("/api/admin/polls/:pollId/close", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const { pollId } = req.params;
+      const polls = await getPolls();
+      const poll = polls.find(p => p.id === pollId);
+      if (!poll) return res.status(404).json({ message: "Poll not found" });
+      poll.endsAt = new Date().toISOString();
+      const ok = await savePolls(polls);
+      if (!ok) return res.status(500).json({ message: "Failed to close poll" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/admin/polls/:pollId - delete a poll (admin only)
+  app.delete("/api/admin/polls/:pollId", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const { pollId } = req.params;
+      const polls = await getPolls();
+      const filtered = polls.filter(p => p.id !== pollId);
+      const ok = await savePolls(filtered);
+      if (!ok) return res.status(500).json({ message: "Failed to delete poll" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }

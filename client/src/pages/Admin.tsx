@@ -19,7 +19,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
-  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2
+  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -1238,6 +1238,10 @@ Generate exactly 10 questions.`;
           <Button variant="ghost" size="sm" onClick={() => navigate("/library")} className="flex-shrink-0">
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Library</span>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/polls")} className="flex-shrink-0">
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">Polls</span>
           </Button>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-sm sm:text-base truncate">Admin Dashboard</h1>

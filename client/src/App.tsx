@@ -17,6 +17,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Tutorial from "./pages/Tutorial";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import Polls from "./pages/Polls";
 import ReadingAssessment from "./pages/ReadingAssessment";
 import EyeGazeQuiz from "./pages/EyeGazeQuiz";
 import QuizBuilder from "./pages/QuizBuilder";
@@ -74,6 +75,9 @@ function AppRoutes() {
       </Route>
       <Route path="/leaderboard">
         <LeaderboardPage />
+      </Route>
+      <Route path="/polls">
+        <ProtectedRoute><Polls /></ProtectedRoute>
       </Route>
       <Route path="/library">
         <ProtectedRoute><Library /></ProtectedRoute>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3 } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -102,6 +102,8 @@ export default function Library() {
   const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
   const [regularCustomQuizzes, setRegularCustomQuizzes] = useState<any[]>([]);
   const [showEyeGaze, setShowEyeGaze] = useState(false);
+  const [eyeGazePage, setEyeGazePage] = useState(1);
+  const EYE_GAZE_PAGE_SIZE = 5;
 
   // Reset eye gaze state when user changes (handles login/logout switching)
   useEffect(() => {
@@ -445,6 +447,10 @@ export default function Library() {
               <Brain className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Progress</span>
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/polls")} className="hidden sm:flex">
+              <BarChart3 className="w-4 h-4 mr-1" />
+              <span className="hidden md:inline">Polls</span>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} data-testid="button-profile" className="hidden sm:flex">
               <User className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">{user?.displayName}</span>
@@ -474,6 +480,9 @@ export default function Library() {
                   </div>
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Progress
+                  </button>
+                  <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" /> Polls
                   </button>
                   <button onClick={() => { navigate("/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <User className="w-4 h-4" /> {user?.displayName || "Profile"}
@@ -633,8 +642,18 @@ export default function Library() {
                 Create Quiz
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {eyeGazeQuizzes.map((quiz) => (
+            {(() => {
+              const allEyeGazeItems = [
+                ...eyeGazeQuizzes.map(q => ({ ...q, _builtin: true, _key: `b-${q.id}` })),
+                ...customQuizzes.map(q => ({ ...q, _builtin: false, _key: `c-${q.id}` })),
+              ];
+              const totalPages = Math.ceil(allEyeGazeItems.length / EYE_GAZE_PAGE_SIZE);
+              const startIdx = (eyeGazePage - 1) * EYE_GAZE_PAGE_SIZE;
+              const pageItems = allEyeGazeItems.slice(startIdx, startIdx + EYE_GAZE_PAGE_SIZE);
+              return (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pageItems.map((quiz) => quiz._builtin ? (
                 <button
                   key={quiz.id}
                   onClick={() => navigate(`/eye-gaze-quiz/${quiz.id}`)}
@@ -668,11 +687,9 @@ export default function Library() {
                     </div>
                   )}
                 </button>
-              ))}
-              {/* Custom quizzes created by teachers/parents */}
-              {customQuizzes.map((quiz) => (
+              ) : (
                 <button
-                  key={`custom-${quiz.id}`}
+                  key={quiz._key}
                   onClick={() => navigate(`/custom-quiz/${quiz.id}`)}
                   disabled={quiz.hasCompleted}
                   className={`group relative rounded-2xl overflow-hidden border-2 transition-all ${
@@ -732,7 +749,29 @@ export default function Library() {
                   )}
                 </button>
               ))}
-            </div>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-4">
+                      <button
+                        onClick={() => setEyeGazePage(p => Math.max(1, p - 1))}
+                        disabled={eyeGazePage === 1}
+                        className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        ← Previous
+                      </button>
+                      <span className="text-sm text-muted-foreground">Page {eyeGazePage} of {totalPages}</span>
+                      <button
+                        onClick={() => setEyeGazePage(p => Math.min(totalPages, p + 1))}
+                        disabled={eyeGazePage === totalPages}
+                        className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
