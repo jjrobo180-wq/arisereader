@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, Info } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -80,6 +80,8 @@ export default function Library() {
   const [results, setResults] = useState<QuizResult[]>(libraryCache.results);
   const [loading, setLoading] = useState(libraryCache.books.length === 0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [adminBandFilter, setAdminBandFilter] = useState("");
+  const [bookBands, setBookBands] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"points" | "popular" | "recent" | "classics" | "new">("points");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
@@ -91,6 +93,7 @@ export default function Library() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [announcement, setAnnouncement] = useState(libraryCache.announcement);
   const [studentBanner, setStudentBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>(libraryCache.studentBanner);
+  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>();
   const [iAriseBookIds, setIAriseBookIds] = useState<number[]>([]);
   const [iAriseEstTimes, setIAriseEstTimes] = useState<Record<string, string>>({});
 
@@ -154,6 +157,16 @@ export default function Library() {
           setIAriseEstTimes(await estTimesRes.json());
         }
       } catch {}
+      // Fetch book grade bands for admin filtering
+      if (user?.isAdmin) {
+        try {
+          const bandsRes = await fetch(`${API_BASE}/api/admin/book-bands`, { headers: { Authorization: `Bearer ${authToken}` } });
+          if (bandsRes.ok) {
+            const bandsData = await bandsRes.json();
+            setBookBands(bandsData);
+          }
+        } catch {}
+      }
       // Fetch quiz count from public stats (no auth needed)
       try {
         const statsRes = await fetch(`${API_BASE}/api/public/stats`);
@@ -195,13 +208,16 @@ export default function Library() {
         setAnnouncement(text);
         libraryCache.announcement = text;
       }
-      // Also fetch student banner
+      // Also fetch banners
       const bannerRes = await fetch(`${API_BASE}/api/banners`, { headers: { Authorization: `Bearer ${authToken}` } });
       if (bannerRes.ok) {
         const bannerData = await bannerRes.json();
         if (bannerData.studentBanner) {
           setStudentBanner(bannerData.studentBanner);
           libraryCache.studentBanner = bannerData.studentBanner;
+        }
+        if (bannerData.teacherBanner) {
+          setTeacherBanner(bannerData.teacherBanner);
         }
       }
     } catch {}
@@ -376,13 +392,20 @@ export default function Library() {
   const completedIds = new Set((results || []).map(r => r.bookId));
   const totalPoints = (results || []).reduce((sum, r) => sum + (r.pointsEarned ?? r.score ?? 0), 0);
 
-  // Filter books by search
-  const filteredBooks = searchQuery.trim()
+  // Filter books by search and admin band filter
+  const filteredBooks = (searchQuery.trim()
     ? (books || []).filter(b => 
         (b?.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (b?.author || "").toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : (books || []);
+    : (books || [])
+  ).filter(b => {
+    if (user?.isAdmin && adminBandFilter) {
+      const band = bookBands[String(b.id)];
+      if (band !== adminBandFilter) return false;
+    }
+    return true;
+  });
 
   // Sort books
   const sortedBooks = [...filteredBooks].sort((a, b) => {
@@ -469,6 +492,10 @@ export default function Library() {
               <BarChart3 className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Polls</span>
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/about")} className="hidden sm:flex">
+              <Info className="w-4 h-4 mr-1" />
+              <span className="hidden md:inline">About</span>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} data-testid="button-profile" className="hidden sm:flex">
               <User className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">{user?.displayName}</span>
@@ -502,6 +529,9 @@ export default function Library() {
                   <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" /> Polls
                   </button>
+                  <button onClick={() => { navigate("/about"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                    <Info className="w-4 h-4" /> About
+                  </button>
                   <button onClick={() => { navigate("/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <User className="w-4 h-4" /> {user?.displayName || "Profile"}
                   </button>
@@ -529,8 +559,8 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Student banner from admin */}
-        {studentBanner && studentBanner.active && studentBanner.text && (
+        {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
+        {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <div className="mb-6 rounded-xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: studentBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={studentBanner.textColor} strokeWidth="2">
@@ -539,6 +569,18 @@ export default function Library() {
             </div>
             <div className="flex-1">
               <p className="text-sm" style={{ color: studentBanner.textColor }}>{studentBanner.text}</p>
+            </div>
+          </div>
+        )}
+        {(user?.role === 'teacher' || user?.isAdmin) && teacherBanner && teacherBanner.active && teacherBanner.text && (
+          <div className="mb-6 rounded-xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: teacherBanner.bgColor + '20', borderColor: teacherBanner.bgColor, borderWidth: 1 }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: teacherBanner.bgColor + '40' }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={teacherBanner.textColor} strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm" style={{ color: teacherBanner.textColor }}>{teacherBanner.text}</p>
             </div>
           </div>
         )}
@@ -854,6 +896,15 @@ export default function Library() {
 
         {/* Search bar + Sort */}
         <div className="mb-6 flex gap-2">
+          {user?.isAdmin && (
+            <select value={adminBandFilter} onChange={(e) => setAdminBandFilter(e.target.value)} className="px-3 py-3 rounded-xl bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="">All Bands</option>
+              <option value="K-2">K-2</option>
+              <option value="3-5">3-5</option>
+              <option value="6-8">6-8</option>
+              <option value="9-12">9-12</option>
+            </select>
+          )}
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
             <input

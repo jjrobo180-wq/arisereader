@@ -120,6 +120,12 @@ export default function Admin() {
   const [, navigate] = useLocation();
   const [students, setStudents] = useState<Student[]>(adminCache.students);
   const [loading, setLoading] = useState(adminCache.students.length === 0);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [filterBand, setFilterBand] = useState("");
+  const [filterSchool, setFilterSchool] = useState("");
+  const [filterGrade, setFilterGrade] = useState("");
+  const [filterTeacher, setFilterTeacher] = useState("");
+  const [userGradesMap, setUserGradesMap] = useState<Record<string, string>>({});
   const [resetStudent, setResetStudent] = useState<Student | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
@@ -170,6 +176,9 @@ export default function Admin() {
     pointsValue: 20,
     readUrl: "",
   });
+  const [quizGradeBand, setQuizGradeBand] = useState("");
+  const [bandSuggestion, setBandSuggestion] = useState("");
+  const [bandSuggesting, setBandSuggesting] = useState(false);
   const [questions, setQuestions] = useState<QuestionForm[]>(
     Array.from({ length: 10 }, () => ({ question: "", options: ["", "", "", ""], correct: "A" }))
   );
@@ -186,7 +195,6 @@ export default function Admin() {
   const [quizRequests, setQuizRequests] = useState<QuizRequestItem[]>([]);
   const [quizRequestsLoading, setQuizRequestsLoading] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
-  const [studentSearch, setStudentSearch] = useState("");
   const [bookSearch, setBookSearch] = useState("");
   // Quiz review requests state
   const [reviewRequests, setReviewRequests] = useState<any[]>([]);
@@ -336,6 +344,14 @@ export default function Admin() {
       const studentsArr = (Array.isArray(data) ? data : []).filter((s: any) => s.role === 'student' || (!s.role && !s.isAdmin));
       setStudents(studentsArr);
       adminCache.students = studentsArr;
+      // Fetch user grades for band filtering
+      try {
+        const grRes = await fetch(`${API_BASE}/api/admin/user-grades`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+        if (grRes.ok) {
+          const grades = await grRes.json();
+          setUserGradesMap(grades);
+        }
+      } catch {}
     } catch (err) {
       console.error("Failed to fetch students:", err);
     } finally {
@@ -1168,6 +1184,33 @@ Generate exactly 10 questions.`;
     }
   };
 
+  const handleSuggestBand = async () => {
+    if (!quizForm.title.trim()) {
+      setQuizError("Enter a book title first.");
+      return;
+    }
+    setBandSuggesting(true);
+    setQuizError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/suggest-band`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ title: quizForm.title, author: quizForm.author }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBandSuggestion(data.band || "");
+        setQuizGradeBand(data.band || "");
+      } else {
+        setQuizError("Could not suggest a band. Please select manually.");
+      }
+    } catch {
+      setQuizError("Could not suggest a band. Please select manually.");
+    } finally {
+      setBandSuggesting(false);
+    }
+  };
+
   const handleAddQuiz = async () => {
     setQuizError("");
     setQuizSuccess("");
@@ -1190,6 +1233,7 @@ Generate exactly 10 questions.`;
           ...quizForm,
           pointsValue: quizForm.pointsValue || 10,
           readUrl: quizForm.readUrl || null,
+          gradeBand: quizGradeBand || null,
           questions: questions.map(q => ({
             question: q.question,
             options: q.options,
@@ -1546,7 +1590,7 @@ Generate exactly 10 questions.`;
 
           {/* Proctor Password */}
           <div className="space-y-2 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Proctor Password (Eye Gaze Quizzes)</Label>
+            <Label className="text-sm font-medium">Proctor Password (All Proctored Tests)</Label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -1801,16 +1845,42 @@ Generate exactly 10 questions.`;
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Student search */}
-            <div className="mb-4 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search students by name or username..."
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+            {/* Student search + filters */}
+            <div className="mb-4 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search students by name or username..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <select value={filterBand} onChange={(e) => setFilterBand(e.target.value)} className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs">
+                  <option value="">All Bands</option>
+                  <option value="K-2">K-2 Band</option>
+                  <option value="3-5">3-5 Band</option>
+                  <option value="6-8">6-8 Band</option>
+                  <option value="9-12">9-12 Band</option>
+                </select>
+                <select value={filterSchool} onChange={(e) => setFilterSchool(e.target.value)} className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs">
+                  <option value="">All Schools</option>
+                  {schools.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+                </select>
+                <select value={filterGrade} onChange={(e) => setFilterGrade(e.target.value)} className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs">
+                  <option value="">All Grades</option>
+                  {['K','1','2','3','4','5','6','7','8','9','10','11','12'].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                </select>
+                <select value={filterTeacher} onChange={(e) => setFilterTeacher(e.target.value)} className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs">
+                  <option value="">All Teachers</option>
+                  {allTeachers.map(t => <option key={t.id} value={String(t.id)}>{t.display_name || t.username}</option>)}
+                </select>
+                {(filterBand || filterSchool || filterGrade || filterTeacher) && (
+                  <button onClick={() => { setFilterBand(""); setFilterSchool(""); setFilterGrade(""); setFilterTeacher(""); }} className="px-3 py-1.5 text-xs text-primary hover:underline">Clear filters</button>
+                )}
+              </div>
             </div>
             {loading ? (
               <div className="space-y-3">
@@ -1822,32 +1892,50 @@ Generate exactly 10 questions.`;
               <p className="text-center text-muted-foreground py-8">
                 No students registered yet. Share the link with your students!
               </p>
-            ) : (students || []).filter(s => 
-              (s?.displayName || "").toLowerCase().includes(studentSearch.toLowerCase()) ||
-              (s?.username || "").toLowerCase().includes(studentSearch.toLowerCase())
-            ).length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No students found.</p>
-            ) : (
-              <div className="space-y-2">
-                {(students || []).filter(s => 
-                  (s?.displayName || "").toLowerCase().includes(studentSearch.toLowerCase()) ||
-                  (s?.username || "").toLowerCase().includes(studentSearch.toLowerCase())
-                ).map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-                      {s.displayName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{s.displayName}</p>
-                      <p className="text-xs text-muted-foreground">@{s.username}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0 hidden sm:block">
-                      <div className="font-bold text-sm">{s.totalPoints} pts</div>
-                      <div className="text-xs text-muted-foreground">{s.quizzesTaken} quizzes</div>
-                    </div>
+            ) : (() => {
+              const gradeToBand = (g: string) => {
+                if (['K','1','2'].includes(g)) return 'K-2';
+                if (['3','4','5'].includes(g)) return '3-5';
+                if (['6','7','8'].includes(g)) return '6-8';
+                if (['9','10','11','12'].includes(g)) return '9-12';
+                return '';
+              };
+              const filtered = (students || []).filter(s => {
+                const nameMatch = (s?.displayName || "").toLowerCase().includes(studentSearch.toLowerCase()) ||
+                  (s?.username || "").toLowerCase().includes(studentSearch.toLowerCase());
+                if (!nameMatch) return false;
+                const sGrade = userGradesMap[String(s.id)] || '';
+                const sBand = gradeToBand(sGrade);
+                if (filterBand && sBand !== filterBand) return false;
+                if (filterSchool && String(s.schoolId || '') !== filterSchool) return false;
+                if (filterGrade && sGrade !== filterGrade) return false;
+                if (filterTeacher && String(s.teacherId || '') !== filterTeacher) return false;
+                return true;
+              });
+              if (filtered.length === 0) {
+                return <p className="text-center text-muted-foreground py-8">No students found with these filters.</p>;
+              }
+              return (
+                <div className="space-y-2">
+                  {filtered.map((s) => {
+                    const sGrade = userGradesMap[String(s.id)] || '';
+                    const sBand = gradeToBand(sGrade);
+                    return (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                        {s.displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{s.displayName}</p>
+                        <p className="text-xs text-muted-foreground">@{s.username}{sBand ? ` · ${sBand} Band${sGrade ? ` · Grade ${sGrade}` : ''}` : ''}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0 hidden sm:block">
+                        <div className="font-bold text-sm">{s.totalPoints} pts</div>
+                        <div className="text-xs text-muted-foreground">{s.quizzesTaken} quizzes</div>
+                      </div>
                     <div className="flex gap-1 flex-shrink-0">
                       {/* View detail */}
                       <Button variant="ghost" size="sm" onClick={() => handleViewStudent(s)}>
@@ -1954,9 +2042,11 @@ Generate exactly 10 questions.`;
                       </Button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -2967,6 +3057,31 @@ Generate exactly 10 questions.`;
                     <option value={30}>30 pts (Hard)</option>
                   </select>
                 </div>
+              </div>
+              {/* Grade Band Suggestion */}
+              <div className="space-y-2 p-3 rounded-xl bg-muted/20 border border-border">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Grade Band</Label>
+                  <button type="button" onClick={handleSuggestBand} disabled={bandSuggesting || !quizForm.title.trim()} className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                    {bandSuggesting ? "Suggesting..." : "Suggest Band"}
+                  </button>
+                </div>
+                {bandSuggestion && (
+                  <p className="text-xs text-green-400">Suggested: <span className="font-semibold">{bandSuggestion}</span></p>
+                )}
+                <div className="flex gap-2">
+                  {["K-2", "3-5", "6-8", "9-12"].map(b => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => { setQuizGradeBand(b); setBandSuggestion(b); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${quizGradeBand === b ? "bg-primary text-primary-foreground" : "bg-muted text-white hover:bg-muted/80"}`}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Selects which grade bands see this book in their library.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

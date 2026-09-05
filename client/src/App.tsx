@@ -46,6 +46,7 @@ import StudentProfileView from "./pages/StudentProfileView";
 import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import AssessmentPopup from "./components/AssessmentPopup";
+import About from "./pages/About";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -170,6 +171,9 @@ function AppRoutes() {
       </Route>
       <Route path="/leaderboard">
         <LeaderboardPage />
+      </Route>
+      <Route path="/about">
+        <About />
       </Route>
       <Route path="/polls">
         <ProtectedRoute><Polls /></ProtectedRoute>

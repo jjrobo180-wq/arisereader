@@ -930,6 +930,45 @@ export async function registerRoutes(
     res.json(leaderboard);
   });
 
+  // Eye Gaze student ranking within their band (inclusive leaderboard)
+  app.get("/api/eye-gaze-band-rank", authMiddleware, async (req: any, res) => {
+    try {
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      const userGrade = userGrades[String(req.user.id)];
+      const userBand = userGrade ? gradeToBand(userGrade) : null;
+      
+      if (!userBand) return res.json({ band: null, overallRank: null, eyeGazeRank: null, totalInBand: 0, totalEyeGazeInBand: 0 });
+      
+      // Get full leaderboard (all-time)
+      const fullLeaderboard = await storage.getLeaderboard();
+      
+      // Filter to user's band
+      const bandLeaderboard = fullLeaderboard.filter((entry: any) => {
+        const g = userGrades[String(entry.userId)] || userGrades[String(entry.id)];
+        return g && gradeToBand(g) === userBand;
+      });
+      
+      // Find user's overall rank in band
+      const overallRank = bandLeaderboard.findIndex((e: any) => e.userId === req.user.id || e.id === req.user.id) + 1;
+      
+      // Filter to eye gaze users in band
+      const eyeGazeInBand = bandLeaderboard.filter((entry: any) => entry.is_eye_gaze_user);
+      const eyeGazeRank = eyeGazeInBand.findIndex((e: any) => e.userId === req.user.id || e.id === req.user.id) + 1;
+      
+      res.json({
+        band: userBand,
+        overallRank: overallRank || null,
+        eyeGazeRank: eyeGazeRank || null,
+        totalInBand: bandLeaderboard.length,
+        totalEyeGazeInBand: eyeGazeInBand.length
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ─── Schools & Classes (Admin) ────────────────────────────────────────
 
   // Eye Gaze Leaderboard (public, safe data only)
@@ -1276,8 +1315,38 @@ export async function registerRoutes(
   });
 
   // Admin: add new quiz/book
+  // Admin: Suggest grade band for a book
+  app.post("/api/admin/suggest-band", authMiddleware, adminMiddleware, async (req, res) => {
+    const { title, author } = req.body;
+    if (!title) return res.status(400).json({ message: "Title is required" });
+    const t = title.toLowerCase();
+    // Simple heuristic based on common book titles and keywords
+    const k2 = ["picture book", "beginning reader", "easy reader", "children's", "kindergarten", "cat in the hat", "very hungry caterpillar", "goodnight moon", "where the wild things are"];
+    const elem = ["magic tree house", "junie b", "diary of a wimpy kid", "captain underpants", "charlotte's web", "bridge to terabithia", "because of winn-dixie", "hatchet", "number the stars", "tale of despereaux", "the giver", "holes", "bud not buddy", "walter bobbsey", "boxcar children"];
+    const mid = ["harry potter", "percy jackson", "hunger games", "twilight", "divergent", "maze runner", "the outsiders", "fault in our stars", "looking for alaska", "wonder", "ghost", "patina", "refugee", "amenity"];
+    const hs = ["1984", "to kill a mockingbird", "the great gatsby", "lord of the flies", "catcher in the rye", "romeo and juliet", "macbeth", "hamlet", "of mice and men", "the crucible", "the odyssey", "frankenstein", "pride and prejudice", "jane eyre", "brave new world", "handmaid's tale", "beloved", "things fall apart", "native son", "invisible man", "slaughterhouse"];
+    
+    if (k2.some(k => t.includes(k))) return res.json({ band: "K-2" });
+    if (elem.some(k => t.includes(k))) return res.json({ band: "3-5" });
+    if (mid.some(k => t.includes(k))) return res.json({ band: "6-8" });
+    if (hs.some(k => t.includes(k))) return res.json({ band: "9-12" });
+    
+    // Fallback: use author keywords
+    const a = (author || "").toLowerCase();
+    if (["seuss", "carle", "goodman", "numeroff", "willems"].some(k => a.includes(k))) return res.json({ band: "K-2" });
+    if (["cleary", "dahl", "white", "lowry", "spinelli", "sachar"].some(k => a.includes(k))) return res.json({ band: "3-5" });
+    if (["riordan", "rowling", "collins", "meyer", "green"].some(k => a.includes(k))) return res.json({ band: "6-8" });
+    if (["shakespeare", "fitzgerald", "orwell", "huxley", "atwood", "morrison"].some(k => a.includes(k))) return res.json({ band: "9-12" });
+    
+    // Default suggestion based on title length (longer titles tend to be higher level)
+    if (title.split(" ").length > 8) return res.json({ band: "9-12" });
+    if (title.split(" ").length > 5) return res.json({ band: "6-8" });
+    if (title.split(" ").length > 3) return res.json({ band: "3-5" });
+    return res.json({ band: "K-2" });
+  });
+
   app.post("/api/admin/books", authMiddleware, adminMiddleware, async (req, res) => {
-    const { title, author, coverUrl, description, questions: quizQuestions, pointsValue, readUrl } = req.body;
+    const { title, author, coverUrl, description, questions: quizQuestions, pointsValue, readUrl, gradeBand } = req.body;
     if (!title || !author) {
       return res.status(400).json({ message: "Title and author are required" });
     }
@@ -1298,6 +1367,16 @@ export async function registerRoutes(
       { title, author, ageGroup: derivedAgeGroup, coverUrl, description, pointsValue: pts, readUrl: readUrl || null },
       quizQuestions
     );
+    // Save grade band if provided
+    if (gradeBand && ["K-2", "3-5", "6-8", "9-12"].includes(gradeBand)) {
+      try {
+        const rawBands = await storage.getSetting('book_grade_bands');
+        let bookBands: Record<string, string> = {};
+        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+        bookBands[String(book.id)] = gradeBand;
+        await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+      } catch {}
+    }
     res.status(201).json({ message: "Quiz created successfully", bookId: book.id });
   });
 
@@ -2108,6 +2187,32 @@ export async function registerRoutes(
         pending = pending.filter((r: any) => studentIds.has(r.userId));
       }
       res.json({ requests: pending });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Get all user grades (for student filtering)
+  app.get("/api/admin/user-grades", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin) return res.status(403).json({ message: 'Admin only' });
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      res.json(userGrades);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Get book grade bands (for library filtering)
+  app.get("/api/admin/book-bands", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin) return res.status(403).json({ message: 'Admin only' });
+      const rawBands = await storage.getSetting('book_grade_bands');
+      let bookBands: Record<string, string> = {};
+      if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+      res.json(bookBands);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

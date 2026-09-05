@@ -22,6 +22,7 @@ export default function Register() {
   const [schools, setSchools] = useState<any[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
+  const [gradeBand, setGradeBand] = useState("");
 
   const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
@@ -158,36 +159,60 @@ export default function Register() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="grade">Select Your Grade</Label>
-                <select
-                  id="grade"
-                  value={selectedGrade}
-                  onChange={(e) => { setSelectedGrade(e.target.value); setSelectedTeacherId(""); }}
-                  disabled={!selectedSchoolId}
-                  className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm disabled:opacity-50"
-                  data-testid="select-grade"
-                >
-                  <option value="">Choose your grade...</option>
-                  <optgroup label="K-2 Band (Early Readers)">
-                    {GRADES.filter(g => ["K","1","2"].includes(g)).map((g) => (
-                      <option key={g} value={g}>Grade {g} — K-2 Band</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="3-5 Band (Elementary)">
-                    {GRADES.filter(g => ["3","4","5"].includes(g)).map((g) => (
-                      <option key={g} value={g}>Grade {g} — 3-5 Band</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="6-8 Band (Middle School)">
-                    {GRADES.filter(g => ["6","7","8"].includes(g)).map((g) => (
-                      <option key={g} value={g}>Grade {g} — 6-8 Band</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="9-12 Band (High School)">
-                    {GRADES.filter(g => ["9","10","11","12"].includes(g)).map((g) => (
-                      <option key={g} value={g}>Grade {g} — 9-12 Band</option>
-                    ))}
-                  </optgroup>
-                </select>
+                {!selectedSchoolId ? (
+                  <p className="text-xs text-muted-foreground italic">Please select your school first</p>
+                ) : !selectedGrade ? (
+                  <div className="space-y-3" data-testid="grade-picker">
+                    <p className="text-xs text-muted-foreground">First, pick your grade band:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setGradeBand("K-2")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-K-2">
+                        <p className="text-sm font-bold text-white">K-2 Band</p>
+                        <p className="text-xs text-muted-foreground">Early Readers</p>
+                      </button>
+                      <button type="button" onClick={() => setGradeBand("3-5")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-3-5">
+                        <p className="text-sm font-bold text-white">3-5 Band</p>
+                        <p className="text-xs text-muted-foreground">Elementary</p>
+                      </button>
+                      <button type="button" onClick={() => setGradeBand("6-8")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-6-8">
+                        <p className="text-sm font-bold text-white">6-8 Band</p>
+                        <p className="text-xs text-muted-foreground">Middle School</p>
+                      </button>
+                      <button type="button" onClick={() => setGradeBand("9-12")} className="p-3 rounded-lg border-2 border-border hover:border-primary transition-colors text-left" data-testid="band-9-12">
+                        <p className="text-sm font-bold text-white">9-12 Band</p>
+                        <p className="text-xs text-muted-foreground">High School</p>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2" data-testid="grade-selected">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Your group: <span className="font-semibold text-primary">{gradeBand} Band</span></span>
+                      <button type="button" onClick={() => { setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="text-xs text-primary hover:underline">Change</button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Now pick your grade:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {GRADES.filter(g => {
+                        if (gradeBand === "K-2") return ["K","1","2"].includes(g);
+                        if (gradeBand === "3-5") return ["3","4","5"].includes(g);
+                        if (gradeBand === "6-8") return ["6","7","8"].includes(g);
+                        if (gradeBand === "9-12") return ["9","10","11","12"].includes(g);
+                        return false;
+                      }).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => { setSelectedGrade(g); setSelectedTeacherId(""); }}
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                            selectedGrade === g ? "bg-primary text-primary-foreground" : "bg-muted text-white hover:bg-muted/80"
+                          }`}
+                          data-testid={`grade-btn-${g}`}
+                        >
+                          Grade {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="teacher">Select Your Teacher (optional)</Label>

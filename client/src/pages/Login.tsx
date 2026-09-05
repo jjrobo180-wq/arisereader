@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 
 export default function Login() {
@@ -204,6 +204,14 @@ export default function Login() {
               >
                 <Trophy className="w-4 h-4" />
                 View Leaderboard
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/about")}
+                className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-muted/30 border border-border text-sm font-medium text-foreground hover:bg-muted/50 transition-all"
+              >
+                <Info className="w-4 h-4 text-primary" />
+                About A.R.I.S.E.
               </button>
               <p className="text-xs text-muted-foreground text-center mt-2">
                 No login needed — perfect for presentations to parents, teachers, or students

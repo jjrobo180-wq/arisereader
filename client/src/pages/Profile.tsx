@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Trophy, BookOpen, MessageSquare, Send, ExternalLink, Mail, Award, Lock, User, LayoutGrid, LogOut, Brain } from "lucide-react";
+import { ArrowLeft, Trophy, BookOpen, MessageSquare, Send, ExternalLink, Mail, Award, Lock, User, LayoutGrid, LogOut, Brain, Info } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { generateCertificate } from "@/lib/certificate";
@@ -158,39 +158,41 @@ function GradeBandChange() {
         Want to switch to a different grade band? Submit a request and your teacher or admin will review it.
         If approved, your library, leaderboard, and profile will update to reflect your new group.
       </p>
-      <div className="flex items-center gap-2">
-        <select
-          value={newGrade}
-          onChange={(e) => setNewGrade(e.target.value)}
-          className="flex-1 p-2 rounded-lg bg-input text-white border border-border text-sm"
-        >
-          <option value="">Select new grade...</option>
-          <optgroup label="K-2 Band (Early Readers)">
-            <option value="K">Grade K — K-2 Band</option>
-            <option value="1">Grade 1 — K-2 Band</option>
-            <option value="2">Grade 2 — K-2 Band</option>
-          </optgroup>
-          <optgroup label="3-5 Band (Elementary)">
-            <option value="3">Grade 3 — 3-5 Band</option>
-            <option value="4">Grade 4 — 3-5 Band</option>
-            <option value="5">Grade 5 — 3-5 Band</option>
-          </optgroup>
-          <optgroup label="6-8 Band (Middle School)">
-            <option value="6">Grade 6 — 6-8 Band</option>
-            <option value="7">Grade 7 — 6-8 Band</option>
-            <option value="8">Grade 8 — 6-8 Band</option>
-          </optgroup>
-          <optgroup label="9-12 Band (High School)">
-            <option value="9">Grade 9 — 9-12 Band</option>
-            <option value="10">Grade 10 — 9-12 Band</option>
-            <option value="11">Grade 11 — 9-12 Band</option>
-            <option value="12">Grade 12 — 9-12 Band</option>
-          </optgroup>
-        </select>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">Select your new grade band:</p>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { band: "K-2", grades: ["K", "1", "2"], label: "Early Readers", color: "bg-green-500/20" },
+            { band: "3-5", grades: ["3", "4", "5"], label: "Elementary", color: "bg-blue-500/20" },
+            { band: "6-8", grades: ["6", "7", "8"], label: "Middle School", color: "bg-purple-500/20" },
+            { band: "9-12", grades: ["9", "10", "11", "12"], label: "High School", color: "bg-orange-500/20" },
+          ].map((band) => (
+            <div key={band.band} className={`rounded-lg ${band.color} border border-border p-2 space-y-2`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white">{band.band} Band</span>
+                <span className="text-xs text-muted-foreground">{band.label}</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {band.grades.map(g => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setNewGrade(g)}
+                    className={`px-2 py-1 rounded text-xs font-medium ${
+                      newGrade === g ? "bg-primary text-primary-foreground" : "bg-muted/50 text-white hover:bg-muted"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
         <button
           onClick={submitRequest}
           disabled={!newGrade || submitting}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+          className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
         >
           {submitting ? "Submitting..." : "Request Change"}
         </button>
@@ -226,6 +228,8 @@ export default function Profile() {
   const [nameError, setNameError] = useState("");
   const [nameLoading, setNameLoading] = useState(false);
   const [eyeGazeEnabled, setEyeGazeEnabled] = useState(user?.is_eye_gaze_user || false);
+  const [eyeGazeRankInfo, setEyeGazeRankInfo] = useState<{ band: string; overallRank: number | null; eyeGazeRank: number | null; totalInBand: number; totalEyeGazeInBand: number } | null>(null);
+  const [showEyeGazeRank, setShowEyeGazeRank] = useState(false);
   const [eyeGazeLoading, setEyeGazeLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "leaderboard">("profile");
   const [lbPeriod, setLbPeriod] = useState<"all-time" | "monthly">("all-time");
@@ -310,6 +314,25 @@ export default function Profile() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch eye gaze band rank for eye gaze students
+  const fetchEyeGazeRank = async () => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/eye-gaze-band-rank`, { headers: { Authorization: `Bearer ${authToken}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setEyeGazeRankInfo(data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (user?.is_eye_gaze_user) {
+      fetchEyeGazeRank();
+    }
+  }, [user?.is_eye_gaze_user]);
 
   // Retry profile fetch after a delay if quizResults are still empty
   useEffect(() => {
@@ -994,6 +1017,39 @@ export default function Profile() {
             </div>
             <h2 className="text-2xl font-bold text-white">Leaderboard</h2>
             <p className="text-sm text-muted-foreground mt-1">Top readers ranked by points earned</p>
+            {/* Eye Gaze inclusive rank info button */}
+            {user?.is_eye_gaze_user && eyeGazeRankInfo && (
+              <div className="mt-3 inline-flex justify-center">
+                <button
+                  onClick={() => setShowEyeGazeRank(!showEyeGazeRank)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-medium hover:bg-blue-500/25 transition-colors"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                  Your Eye Gaze / Non-Verbal Ranking
+                </button>
+              </div>
+            )}
+            {showEyeGazeRank && eyeGazeRankInfo && (
+              <div className="mt-3 max-w-md mx-auto rounded-xl bg-blue-500/10 border border-blue-500/20 p-4 text-left">
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-bold text-blue-400">Your Inclusive Ranking</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                    <span className="text-xs text-muted-foreground">Overall in {eyeGazeRankInfo.band} Band:</span>
+                    <span className="text-sm font-bold text-white">#{eyeGazeRankInfo.overallRank || "—"} of {eyeGazeRankInfo.totalInBand}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-blue-500/15">
+                    <span className="text-xs text-blue-300">Among Eye Gaze / Non-Verbal students:</span>
+                    <span className="text-sm font-bold text-blue-400">#{eyeGazeRankInfo.eyeGazeRank || "—"} of {eyeGazeRankInfo.totalEyeGazeInBand}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                  You compete in your grade band alongside all students. This shows how you rank among Eye Gaze / Non-Verbal students in your band.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Period Toggle */}

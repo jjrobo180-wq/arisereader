@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
-import { CheckCircle2, Trophy, RotateCcw, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Trophy, RotateCcw, ArrowLeft, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ProctorGate } from "@/components/ProctorGate";
+import { speakQuestion, stopSpeaking, initVoices } from "@/lib/tts";
 
 import { API_BASE } from "@/lib/queryClient";
 
@@ -58,7 +59,27 @@ export default function CustomEyeGazeQuiz() {
   const [autoAdvancing, setAutoAdvancing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Initialize voices
+  useEffect(() => {
+    initVoices();
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = () => initVoices();
+    }
+    return () => stopSpeaking();
+  }, []);
+
+  // Speak question when it changes
+  useEffect(() => {
+    if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
+      const q = quiz.questions[currentIdx];
+      const options = [q.option_a_text, q.option_b_text, q.option_c_text, q.option_d_text].filter(Boolean);
+      speakQuestion(q.prompt, options.join(" "));
+    }
+    return () => stopSpeaking();
+  }, [currentIdx, phase, quiz, ttsEnabled]);
 
   useEffect(() => {
     if (!user) return;
@@ -213,7 +234,25 @@ export default function CustomEyeGazeQuiz() {
         <button onClick={() => navigate("/library")} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "hsl(0 0% 66%)", fontSize: "1rem", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}>
           <ArrowLeft size={20} /> Exit
         </button>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          {/* TTS Toggle */}
+          <button
+            onClick={() => {
+              const next = !ttsEnabled;
+              setTtsEnabled(next);
+              if (!next) stopSpeaking();
+              else if (quiz?.questions?.[currentIdx]) {
+                const q = quiz.questions[currentIdx];
+                const opts = [q.option_a_text, q.option_b_text, q.option_c_text, q.option_d_text].filter(Boolean);
+                speakQuestion(q.prompt, opts.join(" "));
+              }
+            }}
+            title={ttsEnabled ? "Turn off voice" : "Turn on voice"}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "0.5rem", background: ttsEnabled ? "hsl(21 100% 50% / 0.15)" : "hsl(0 0% 14%)", border: ttsEnabled ? "1px solid hsl(21 100% 50% / 0.4)" : "1px solid hsl(0 0% 20%)", color: ttsEnabled ? "hsl(21 100% 50%)" : "hsl(0 0% 66%)", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
+          >
+            {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            {ttsEnabled ? "Voice On" : "Voice Off"}
+          </button>
           <span style={{ color: "hsl(21 100% 50%)", fontSize: "1rem", fontWeight: 600 }}>
             Question {currentIdx + 1} of {quiz.questions.length}
           </span>

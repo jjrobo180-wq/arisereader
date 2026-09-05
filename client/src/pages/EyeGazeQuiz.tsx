@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
-import { CheckCircle2, Trophy, RotateCcw, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Trophy, RotateCcw, ArrowLeft, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ProctorGate } from "@/components/ProctorGate";
+import { speakQuestion, stopSpeaking, initVoices } from "@/lib/tts";
 
 import { API_BASE } from "@/lib/queryClient";
 
@@ -63,7 +64,28 @@ export default function EyeGazeQuiz() {
   const [autoAdvancing, setAutoAdvancing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Initialize voices
+  useEffect(() => {
+    initVoices();
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = () => initVoices();
+    }
+    return () => stopSpeaking();
+  }, []);
+
+  // Speak question when it changes
+  useEffect(() => {
+    if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
+      const q = quiz.questions[currentIdx];
+      // Check all options for animal/sound keywords
+      const options = [q.option_a, q.option_b, q.option_c, q.option_d];
+      speakQuestion(q.prompt, options.join(" "));
+    }
+    return () => stopSpeaking();
+  }, [currentIdx, phase, quiz, ttsEnabled]);
 
   useEffect(() => {
     if (!user) return;
@@ -153,6 +175,67 @@ export default function EyeGazeQuiz() {
     );
   }
 
+  // Spectator mode for teachers/admins
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
+  const [spectatorQuestions, setSpectatorQuestions] = useState<any[]>([]);
+  const [spectatorLoading, setSpectatorLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isTeacherOrAdmin || !quizId) return;
+    setSpectatorLoading(true);
+    const token = getTokenFromCookie();
+    fetch(`${API_BASE}/api/eye-gaze/quizzes/${quizId}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.questions) setSpectatorQuestions(d.questions);
+        else if (d.error) setError(d.error);
+      })
+      .catch(() => {})
+      .finally(() => setSpectatorLoading(false));
+  }, [isTeacherOrAdmin, quizId]);
+
+  if (isTeacherOrAdmin && (spectatorLoading || spectatorQuestions.length > 0)) {
+    if (spectatorLoading) {
+      return (
+        <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
+          <div className="spinner" style={{ width: 60, height: 60, border: "5px solid hsl(0 0% 20%)", borderTopColor: "hsl(21 100% 50%)" }} />
+          <p style={{ fontSize: "1.25rem", color: "hsl(0 0% 66%)" }}>Loading quiz for viewing...</p>
+        </div>
+      );
+    }
+    return (
+      <div className="min-h-screen p-4 bg-background">
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-4 p-4 rounded-xl bg-muted/30 border border-border">
+            <h1 className="text-xl font-bold">Eye Gaze Quiz (Spectator Mode)</h1>
+            <span className="inline-block mt-1 px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">Read-Only - You cannot take this quiz</span>
+          </div>
+          <div className="space-y-3">
+            {spectatorQuestions.map((q: any, i: number) => (
+              <div key={i} className="p-4 rounded-xl bg-muted/20 border border-border">
+                <p className="font-medium mb-3"><span className="text-primary font-bold">Q{i + 1}.</span> {q.prompt || q.question}</p>
+                <div className="space-y-2">
+                  {['A', 'B', 'C', 'D'].map(opt => (
+                    <div key={opt} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+                      <span className="w-6 h-6 rounded-full bg-muted text-xs flex items-center justify-center font-bold">{opt}</span>
+                      <span className="text-sm">{q[`option${opt}`] || q[`option_${opt.toLowerCase()}`]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => navigate("/library")} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium inline-flex items-center gap-2">
+            <ArrowLeft size={16} /> Back to Library
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === "proctor") {
     return (
       <ProctorGate
@@ -224,7 +307,25 @@ export default function EyeGazeQuiz() {
         <button onClick={() => navigate("/library")} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "hsl(0 0% 66%)", fontSize: "1rem", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}>
           <ArrowLeft size={20} /> Exit
         </button>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          {/* TTS Toggle */}
+          <button
+            onClick={() => {
+              const next = !ttsEnabled;
+              setTtsEnabled(next);
+              if (!next) stopSpeaking();
+              else if (quiz?.questions?.[currentIdx]) {
+                const q = quiz.questions[currentIdx];
+                const opts = [q.option_a, q.option_b, q.option_c, q.option_d];
+                speakQuestion(q.prompt, opts.join(" "));
+              }
+            }}
+            title={ttsEnabled ? "Turn off voice" : "Turn on voice"}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "0.5rem", background: ttsEnabled ? "hsl(21 100% 50% / 0.15)" : "hsl(0 0% 14%)", border: ttsEnabled ? "1px solid hsl(21 100% 50% / 0.4)" : "1px solid hsl(0 0% 20%)", color: ttsEnabled ? "hsl(21 100% 50%)" : "hsl(0 0% 66%)", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
+          >
+            {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            {ttsEnabled ? "Voice On" : "Voice Off"}
+          </button>
           <span style={{ color: "hsl(21 100% 50%)", fontSize: "1rem", fontWeight: 600 }}>
             Question {currentIdx + 1} of {quiz.questions.length}
           </span>
