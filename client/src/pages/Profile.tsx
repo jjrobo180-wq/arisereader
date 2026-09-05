@@ -393,6 +393,7 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
+    if (!window.confirm("Are you sure you want to log out?")) return;
     // Clear module-level caches
     profileCache.messages = [];
     profileCache.leaderboard = [];

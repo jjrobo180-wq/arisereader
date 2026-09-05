@@ -1178,6 +1178,7 @@ Generate exactly 10 questions.`;
   };
 
   const handleLogout = () => {
+    if (!window.confirm("Are you sure you want to log out?")) return;
     // Clear module-level caches to prevent stale data
     adminCache.students = [];
     adminCache.books = [];
