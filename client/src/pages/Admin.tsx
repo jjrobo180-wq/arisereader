@@ -46,6 +46,9 @@ interface Student {
   createdAt: string;
   quizzesTaken: number;
   totalPoints: number;
+  approvedByTeacher?: boolean;
+  teacherId?: number;
+  teacherName?: string | null;
 }
 
 interface StudentDetail {
@@ -739,6 +742,25 @@ export default function Admin() {
         alert("User deleted.");
       } else {
         alert("Failed to delete user. Please refresh and try again.");
+      }
+    } catch {
+      alert("Network error. Please refresh and try again.");
+    }
+  };
+
+  const handleApproveStudent = async (studentId: number, studentName: string) => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/teacher/approve/${studentId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        alert(`${studentName} has been approved! They will see the welcome message next time they log in.`);
+        fetchStudents();
+      } else {
+        alert("Failed to approve student. Please try again.");
       }
     } catch {
       alert("Network error. Please refresh and try again.");
@@ -1472,6 +1494,38 @@ Generate exactly 10 questions.`;
           </CardContent>
         </Card>
         </div>
+
+        {/* Pending Student Approvals */}
+        {students.filter(s => s.approvedByTeacher === false).length > 0 && (
+          <Card className="shadow-md border-yellow-500/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-500">
+                <CheckCircle2 className="w-5 h-5" />
+                Pending Student Approvals ({students.filter(s => s.approvedByTeacher === false).length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-4">These students selected a teacher and are waiting to be approved. Use this to approve them when their teacher is unavailable.</p>
+              <div className="space-y-2">
+                {students.filter(s => s.approvedByTeacher === false).map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {s.displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{s.displayName}</p>
+                      <p className="text-xs text-muted-foreground">@{s.username}{s.teacherName ? ` — waiting for ${s.teacherName}` : ""}</p>
+                    </div>
+                    <Button size="sm" onClick={() => handleApproveStudent(s.id, s.displayName)} className="bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Approve</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Students table */}
         <Card className="shadow-md" ref={studentsRef}>

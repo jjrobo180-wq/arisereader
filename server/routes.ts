@@ -573,10 +573,17 @@ export async function registerRoutes(
       attemptsMap.set(u.id, attempts);
     }
     const result = [];
+    // Build a map of teacher names for student approval display
+    const allUsers = await storage.getAllUsers();
+    const teacherMap = new Map();
+    for (const u of allUsers) {
+      if (u.role === 'teacher') teacherMap.set(u.id, u.displayName);
+    }
     for (const s of students) {
       const attempts = attemptsMap.get(s.id) || [];
       const totalPoints = attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
       const quizzesMastered = attempts.filter(a => (a.points_earned || 0) > 0).length;
+      const teacherName = s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null;
       result.push({
         id: s.id,
         username: s.username,
@@ -585,6 +592,9 @@ export async function registerRoutes(
         quizzesTaken: attempts.length,
         quizzesMastered,
         totalPoints,
+        approvedByTeacher: s.approvedByTeacher,
+        teacherId: s.teacherId,
+        teacherName,
       });
     }
     res.json(result);
@@ -1641,7 +1651,11 @@ export async function registerRoutes(
         const teacherName = teacher?.displayName || "your teacher";
         await storage.createMessage(studentId, "teacher", `Welcome! You've been approved and are now in ${teacherName}'s class.`);
       } else {
+        // Admin approving on behalf of teacher
         await supabase.from("users").update({ approved_by_teacher: true }).eq("id", studentId);
+        const student = await storage.getUser(studentId);
+        const teacherName = student?.teacherId ? ((await storage.getUser(student.teacherId))?.displayName || "your teacher") : "your teacher";
+        await storage.createMessage(studentId, "teacher", `Welcome! You've been approved by an admin and are now in ${teacherName}'s class.`);
       }
       res.json({ success: true });
     } catch (error: any) {
