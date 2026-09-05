@@ -2065,7 +2065,7 @@ export async function registerRoutes(
         await storage.createMessage(
           admin.id,
           'system',
-          `${req.user.display_name || req.user.username} requested to change from Grade ${request.oldGrade || 'N/A'} (${request.oldBand || 'N/A'} Band) to Grade ${newGrade} (${newBand} Band). Review and approve or deny in the Admin panel.`,
+          `${req.user.display_name || req.user.username} requested to change from Grade ${oldGrade || 'N/A'} (${oldBand || 'N/A'} Band) to Grade ${newGrade} (${newBand} Band). Review and approve or deny in the Admin panel.`,
           '/admin'
         );
       }
