@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { CheckCircle2, Trophy, RotateCcw, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { ProctorGate } from "@/components/ProctorGate";
 
 import { API_BASE } from "@/lib/queryClient";
 
@@ -49,7 +50,7 @@ export default function CustomEyeGazeQuiz() {
   const quizId = parseInt(id || "0");
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [phase, setPhase] = useState<"loading" | "quiz" | "results">("loading");
+  const [phase, setPhase] = useState<"proctor" | "loading" | "quiz" | "results">("proctor");
   const [quiz, setQuiz] = useState<CustomQuiz | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -61,6 +62,7 @@ export default function CustomEyeGazeQuiz() {
 
   useEffect(() => {
     if (!user) return;
+    if (phase !== "loading") return;
     const token = getTokenFromCookie();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -144,6 +146,15 @@ export default function CustomEyeGazeQuiz() {
     );
   }
 
+  if (phase === "proctor") {
+    return (
+      <ProctorGate
+        quizTitle={"Eye Gaze Assessment"}
+        onAuthorized={() => setPhase("loading")}
+      />
+    );
+  }
+
   if (phase === "loading" || !quiz) {
     return (
       <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
@@ -172,6 +183,12 @@ export default function CustomEyeGazeQuiz() {
         <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 66%)" }}>
           {Math.round(result.pct)}% correct
         </p>
+        {result.passed && result.pointsEarned ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50% / 0.15)", padding: "0.75rem 1.5rem", borderRadius: "0.75rem" }}>
+            <Trophy size={24} color="hsl(21 100% 50%)" />
+            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "hsl(21 100% 50%)" }}>+{result.pointsEarned} points earned!</span>
+          </div>
+        ) : null}
         <button onClick={() => navigate("/library")} className="btn btn-primary" style={{ fontSize: "1.5rem", padding: "1.25rem 2.5rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50%)", color: "hsl(0 0% 0%)", border: "none", borderRadius: "0.5rem", cursor: "pointer", textDecoration: "none" }}>
           <ArrowLeft size={28} /> Back to Quizzes
         </button>

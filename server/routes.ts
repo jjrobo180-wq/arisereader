@@ -1564,6 +1564,21 @@ export async function registerRoutes(
 
   // ─── EYE GAZE TESTING ────────────────────────────────────────────────
 
+  // Public endpoint - verify proctor password for eye gaze quizzes
+  app.post("/api/eye-gaze/verify-proctor", authMiddleware, async (req, res) => {
+    try {
+      const { password } = req.body;
+      const proctorPassword = await storage.getSetting('proctor_password');
+      if (password === proctorPassword) {
+        res.json({ verified: true });
+      } else {
+        res.status(403).json({ message: "Invalid proctor password" });
+      }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/eye-gaze/quizzes", authMiddleware, async (req, res) => {
     try {
       const quizzes = await storage.getAllEyeGazeQuizzes();

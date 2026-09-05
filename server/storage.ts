@@ -1671,6 +1671,9 @@ export class DatabaseStorage implements IStorage {
     }
     const total = questions.length;
     const pct = total > 0 ? (score / total) * 100 : 0;
+    const passingScore = Math.ceil(total * 0.7);
+    const passed = score >= passingScore;
+    const pointsEarned = passed ? 10 : 0;
     const { data, error } = await supabase.from("eye_gaze_attempts").update({
       status: "completed",
       answers: answersByQuestionId,
@@ -1679,9 +1682,24 @@ export class DatabaseStorage implements IStorage {
       completed_at: new Date().toISOString(),
     }).eq("id", attemptId).select().single();
     if (error) throw new Error(error.message);
+    // Award points to user's total if passed
+    if (passed) {
+      const { data: userData } = await supabase.from("users").select("total_points").eq("id", attempt.user_id).single();
+      const currentPoints = userData?.total_points || 0;
+      await supabase.from("users").update({ total_points: currentPoints + pointsEarned }).eq("id", attempt.user_id).then(() => {}, () => {});
+      // Also record in attempts table for leaderboard consistency
+      await supabase.from("attempts").insert({
+        user_id: attempt.user_id,
+        book_id: -attempt.quiz_id, // negative to distinguish eye gaze
+        score,
+        total,
+        points_earned: pointsEarned,
+        answers: null,
+      }).then(() => {}, () => {});
+    }
     await this.updateEyeGazeProfile(attempt.user_id, pct, skillScores);
     clearCache("eye_gaze_quizzes");
-    return { ...data, skill_scores: skillScores, pct };
+    return { ...data, skill_scores: skillScores, pct, passed, pointsEarned };
   }
 
   async getEyeGazeProfile(userId: number): Promise<any> {
@@ -2069,6 +2087,9 @@ export class DatabaseStorage implements IStorage {
     }
     const total = questions.length;
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    const passingScore = Math.ceil(total * 0.7);
+    const passed = score >= passingScore;
+    const pointsEarned = passed ? 10 : 0;
     const { data, error } = await supabase.from("custom_eye_gaze_attempts").update({
       status: "completed",
       answers: answersByQuestionId,
@@ -2077,8 +2098,22 @@ export class DatabaseStorage implements IStorage {
       completed_at: new Date().toISOString(),
     }).eq("id", attemptId).select().single();
     if (error) throw new Error(error.message);
+    // Award points to user's total if passed
+    if (passed) {
+      const { data: userData } = await supabase.from("users").select("total_points").eq("id", attempt.user_id).single();
+      const currentPoints = userData?.total_points || 0;
+      await supabase.from("users").update({ total_points: currentPoints + pointsEarned }).eq("id", attempt.user_id).then(() => {}, () => {});
+      await supabase.from("attempts").insert({
+        user_id: attempt.user_id,
+        book_id: -attempt.quiz_id,
+        score,
+        total,
+        points_earned: pointsEarned,
+        answers: null,
+      }).then(() => {}, () => {});
+    }
     clearCache("custom_eye_gaze_quizzes");
-    return { ...data, pct, score, total };
+    return { ...data, pct, score, total, passed, pointsEarned };
   }
 
   async hasUserCompletedCustomQuiz(userId: number, quizId: number): Promise<boolean> {
