@@ -385,6 +385,10 @@ export default function Library() {
     return 0;
   });
 
+  // Separate curriculum books from the rest
+  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id));
+
   // Group by points value (only when sorting by points)
   const pointsGroups: Record<string, Book[]> = {};
   const pointsOrder = ["10", "20", "30"];
@@ -395,11 +399,6 @@ export default function Library() {
       pointsGroups[key].push(b);
     });
   }
-
-  // Separate curriculum books from the rest
-  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id));
-  const curriculumCompletedIds = new Set(curriculumBooks.filter(b => completedIds.has(b.id)).map(b => b.id));
 
   return (
     <div className="min-h-screen bg-background">
