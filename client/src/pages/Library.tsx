@@ -138,7 +138,7 @@ export default function Library() {
         setBooks(booksArr);
         libraryCache.books = booksArr;
       }
-      // Fetch I ARISE book IDs and estimated times
+      // Fetch iArise book IDs and estimated times
       try {
         const [iAriseRes, estTimesRes] = await Promise.all([
           fetch(`${API_BASE}/api/i-arise-book-ids`),
@@ -405,7 +405,7 @@ export default function Library() {
     return 0;
   });
 
-  // Separate I ARISE books, curriculum books, and the rest
+  // Separate iArise books, curriculum books, and the rest
   const iAriseBooks = sortedBooks.filter(b => iAriseBookIds.includes(b.id));
   const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
   const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
@@ -904,11 +904,11 @@ export default function Library() {
           </div>
         ) : (
           <>
-            {/* I ARISE Section */}
+            {/* iArise Section */}
             <div className="mb-10">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">I ARISE</h2>
+                <h2 className="text-lg font-bold text-foreground">iArise</h2>
               </div>
               <p className="text-sm text-muted-foreground mb-4 ml-7">Read. Learn. Rise.</p>
               {iAriseBooks.length > 0 ? (
@@ -920,7 +920,7 @@ export default function Library() {
                       <Card
                         key={book.id}
                         className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 ring-2 ring-primary/30"
-                        onClick={() => { if (!(user?.role === 'teacher' || user?.isAdmin)) navigate(`/quiz/${book.id}`); }}
+                        onClick={() => navigate(`/course/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
@@ -950,17 +950,10 @@ export default function Library() {
                           {result && (
                             <p className="text-xs text-primary font-semibold mt-1">{result.score}/{result.total} correct</p>
                           )}
-                          <div className="flex gap-1.5 mt-2">
-                            {book.readUrl && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate(`/read/${book.id}`); }}>
-                                <BookOpen className="w-3 h-3 mr-1" />Read
-                              </Button>
-                            )}
-                            {!(user?.role === 'teacher' || user?.isAdmin) && (
-                              <Button size="sm" variant="default" className="h-7 text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${book.id}`); }}>
-                                Quiz
-                              </Button>
-                            )}
+                          <div className="mt-2">
+                            <Button size="sm" variant="default" className="h-7 text-xs w-full">
+                              <BookOpen className="w-3 h-3 mr-1" />Start Course
+                            </Button>
                           </div>
                         </div>
                       </Card>

@@ -824,7 +824,24 @@ export async function registerRoutes(
     }
   });
 
-  // Public endpoint - get I ARISE estimated times
+  // Public endpoint - get iArise course content
+  app.get("/api/iarise-course/:bookId", async (req, res) => {
+    try {
+      const raw = await storage.getSetting('iarise_course_content');
+      let courses: any = {};
+      if (raw) {
+        try { courses = JSON.parse(raw); } catch {}
+      }
+      const bookId = req.params.bookId;
+      const course = courses[bookId];
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      res.json(course);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
   app.get("/api/i-arise-est-times", async (_req, res) => {
     try {
       const raw = await storage.getSetting('iarise_est_times');
