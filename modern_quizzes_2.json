@@ -1,0 +1,287 @@
+[
+  {
+    "title": "The Hunger Games",
+    "author": "Suzanne Collins",
+    "points_value": 30,
+    "questions": [
+      {
+        "question": "In which district does Katniss Everdeen live?",
+        "options": ["District 11", "District 12", "District 13", "District 2"],
+        "correct": "B"
+      },
+      {
+        "question": "Why does Katniss volunteer as tribute in the 74th Hunger Games?",
+        "options": ["She wants fame and fortune", "Her sister Primrose was selected", "She was drafted by lottery", "She owed a debt to the Capitol"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the male tribute from District 12 alongside Katniss?",
+        "options": ["Gale Hawthorne", "Peeta Mellark", "Haymitch Abernathy", "Cinna"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the young tribute from District 11 who allies with Katniss in the arena?",
+        "options": ["Rue", "Primrose", "Clove", "Glimmer"],
+        "correct": "A"
+      },
+      {
+        "question": "What are the genetically engineered wasps released in the arena called?",
+        "options": ["Tracker jackers", "Muttations", "Grievers", "Jabberjays"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Katniss shoot with an arrow during her private training session to impress the Gamemakers?",
+        "options": ["A target bullseye", "An apple in a roasted pig's mouth", "A clay pigeon", "A tributes' dummy"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the last surviving tribute besides Katniss and Peeta before they are declared co-victors?",
+        "options": ["Cato", "Marvel", "Clove", "Thresh"],
+        "correct": "A"
+      },
+      {
+        "question": "What poisonous berries do Katniss and Peeta threaten to eat together at the end of the Games?",
+        "options": ["Nightlock", "Hemlock", "Deadly nightshade", "Foxglove"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is Katniss and Peeta's mentor, a former Hunger Games victor from District 12?",
+        "options": ["Effie Trinket", "Cinna", "Haymitch Abernathy", "Plutarch Heavensbee"],
+        "correct": "C"
+      },
+      {
+        "question": "What rule change is announced during the Games that allows two tributes from the same district to win together?",
+        "options": ["Tributes may surrender voluntarily", "Two tributes from the same district may both win", "The arena will shrink every hour", "Sponsors may send weapons"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Maze Runner",
+    "author": "James Dashner",
+    "points_value": 30,
+    "questions": [
+      {
+        "question": "What is the only thing Thomas remembers when he first arrives in the Glade?",
+        "options": ["His full name and address", "His first name", "His parents' faces", "Nothing at all"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the enclosed community where the boys live?",
+        "options": ["The Maze", "The Glade", "The Box", "The Homestead"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the leader of the Gladers?",
+        "options": ["Newt", "Minho", "Alby", "Gally"],
+        "correct": "C"
+      },
+      {
+        "question": "What are the deadly creatures that roam the Maze at night called?",
+        "options": ["Grievers", "Beetle blades", "Stingers", "Watchers"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the first girl to ever arrive in the Glade?",
+        "options": ["Brenda", "Teresa", "Harriet", "Sonya"],
+        "correct": "B"
+      },
+      {
+        "question": "What message is found with Teresa when she arrives in the Glade?",
+        "options": ["Remember. Survive. Run.", "She's the last one. Ever.", "Trust no one.", "The end is coming."],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the organization behind the Maze experiment?",
+        "options": ["WICKED", "FLARE", "CRANK", "GRIEVE"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the Keeper of the Runners?",
+        "options": ["Newt", "Gally", "Minho", "Chuck"],
+        "correct": "C"
+      },
+      {
+        "question": "What is the painful process called that occurs when someone is stung by a Griever and given the serum?",
+        "options": ["The Changing", "The Shucking", "The Becoming", "The Awakening"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Thomas intentionally do to regain his memories and discover the exit from the Maze?",
+        "options": ["Gets himself stung by a Griever", "Jumps into the Box hole", "Steals the Grievers' serum", "Breaks through the Maze walls"],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Refugee",
+    "author": "Alan Gratz",
+    "points_value": 30,
+    "questions": [
+      {
+        "question": "In what year does Josef's story take place?",
+        "options": ["1933", "1938", "1942", "1945"],
+        "correct": "B"
+      },
+      {
+        "question": "On what ship does Josef's family attempt to flee Nazi Germany?",
+        "options": ["The SS Exodus", "The MS St. Louis", "The SS Normandie", "The Queen Mary"],
+        "correct": "B"
+      },
+      {
+        "question": "Where is Josef's father, Aaron, taken after the events of Kristallnacht?",
+        "options": ["Auschwitz", "Buchenwald", "Dachau concentration camp", "Treblinka"],
+        "correct": "C"
+      },
+      {
+        "question": "From what country is Isabel and her family trying to flee?",
+        "options": ["Haiti", "Dominican Republic", "Cuba", "Mexico"],
+        "correct": "C"
+      },
+      {
+        "question": "What destination are Isabel and her family trying to reach on their makeshift boat?",
+        "options": ["Miami, Florida", "New York City", "San Juan, Puerto Rico", "Tampa, Florida"],
+        "correct": "A"
+      },
+      {
+        "question": "In what Syrian city does Mahmoud's family live at the beginning of the story?",
+        "options": ["Damascus", "Aleppo", "Homs", "Hama"],
+        "correct": "B"
+      },
+      {
+        "question": "What event causes Josef's family to be torn apart at the start of the story?",
+        "options": ["The Anschluss", "Kristallnacht", "The Nuremberg Laws", "The invasion of Poland"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Mahmoud do at the detention center in Hungary?",
+        "options": ["He escapes alone at night", "He leads a march of refugees out", "He bribes a guard", "He calls for help from the UN"],
+        "correct": "B"
+      },
+      {
+        "question": "What country ultimately takes in Mahmoud's family?",
+        "options": ["France", "England", "Germany", "Sweden"],
+        "correct": "C"
+      },
+      {
+        "question": "Who is the elderly woman who takes in Mahmoud's family in Germany?",
+        "options": ["Isabel's grandmother", "Josef's sister Ruth", "A stranger with no connection to the other stories", "Mahmoud's distant relative"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Fault in Our Stars",
+    "author": "John Green",
+    "points_value": 30,
+    "questions": [
+      {
+        "question": "What type of cancer does Hazel Grace Lancaster have?",
+        "options": ["Leukemia", "Thyroid cancer", "Osteosarcoma", "Brain cancer"],
+        "correct": "B"
+      },
+      {
+        "question": "What did Augustus Waters lose to cancer?",
+        "options": ["His left arm", "His right leg", "His left kidney", "His right lung"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the title of Hazel's favorite novel that ends abruptly without a conclusion?",
+        "options": ["The Price of Dawn", "An Imperial Affliction", "The Red Wheelbarrow", "The Last Good Day"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the reclusive author of Hazel's favorite book?",
+        "options": ["Peter Van Houten", "John Green", "David Foster Wallace", "Lidewij Vliegenthart"],
+        "correct": "A"
+      },
+      {
+        "question": "Through what organization does Augustus obtain the wish to travel to Amsterdam?",
+        "options": ["Make-A-Wish Foundation", "The Genie Foundation", "The Starlight Foundation", "The Wish Granters"],
+        "correct": "B"
+      },
+      {
+        "question": "Where do Hazel and Augustus share their first kiss?",
+        "options": ["In the hospital garden", "At the Anne Frank House", "On the plane to Amsterdam", "At a support group meeting"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of Van Houten's assistant who helps arrange the meeting in Amsterdam?",
+        "options": ["Lidewij", "Anna", "Caroline", "Marie"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Augustus arrange for himself, Hazel, and Isaac before he dies?",
+        "options": ["A final trip together", "A pre-funeral where they deliver eulogies", "A letter to be opened after his death", "A video message for each of them"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Van Houten reveal at Augustus's funeral?",
+        "options": ["He is Augustus's biological father", "His own daughter died of cancer", "He is dying of cancer himself", "He wrote the eulogy Augustus left for Hazel"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Augustus give Hazel to read that he had written before his death?",
+        "options": ["A diary of his last days", "A eulogy for her", "A list of things he loved about her", "A letter to Van Houten"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "A Wrinkle in Time",
+    "author": "Madeleine L'Engle",
+    "points_value": 30,
+    "questions": [
+      {
+        "question": "Who is the first of the three mysterious beings (the Mrs. Ws) to visit the Murry home?",
+        "options": ["Mrs. Who", "Mrs. Which", "Mrs. Whatsit", "Mrs. Murry"],
+        "correct": "C"
+      },
+      {
+        "question": "What is a tesseract?",
+        "options": ["A time machine", "A wrinkle in space-time for fifth-dimensional travel", "A weapon against evil", "A communication device"],
+        "correct": "B"
+      },
+      {
+        "question": "On which planet is Meg's father, Mr. Murry, imprisoned?",
+        "options": ["Uriel", "Camazotz", "Ixchel", "Orion"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the evil force that threatens the universe?",
+        "options": ["The Red Thing", "The Dark Thing (or Black Thing)", "The Shadow", "The Void"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the disembodied brain that controls the planet Camazotz?",
+        "options": ["IT", "The Central Intelligence", "The Brain", "The Controller"],
+        "correct": "A"
+      },
+      {
+        "question": "Which character gets taken over and controlled by IT?",
+        "options": ["Calvin O'Keefe", "Mr. Murry", "Charles Wallace", "Meg Murry"],
+        "correct": "C"
+      },
+      {
+        "question": "What is the name of the planet where Meg recovers after tessering away from Camazotz?",
+        "options": ["Uriel", "Ixchel", "Orion", "Centaur"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Mrs. Which tell Meg she has that IT does not have?",
+        "options": ["Intelligence", "Courage", "Love", "Faith"],
+        "correct": "C"
+      },
+      {
+        "question": "Who is the popular schoolmate who joins Meg and Charles Wallace on their journey?",
+        "options": ["Calvin O'Keefe", "Sandy Murry", "Dennys Murry", "Patrick O'Keefe"],
+        "correct": "A"
+      },
+      {
+        "question": "What was Mrs. Whatsit before she became a celestial being?",
+        "options": ["An angel", "A star that gave its life fighting the Dark Thing", "A human scientist", "A queen of a distant planet"],
+        "correct": "B"
+      }
+    ]
+  }
+]

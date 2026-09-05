@@ -1,0 +1,287 @@
+[
+  {
+    "title": "The Wild Robot",
+    "author": "Peter Brown",
+    "points_value": 10,
+    "questions": [
+      {
+        "question": "What is the name of the robot who is the main character?",
+        "options": ["Roz", "Brightbill", "RECO", "Fink"],
+        "correct": "A"
+      },
+      {
+        "question": "What kind of animal does Roz adopt and raise?",
+        "options": ["A fox", "A gosling", "A bear cub", "An otter"],
+        "correct": "B"
+      },
+      {
+        "question": "What name does Roz give to the young goose she raises?",
+        "options": ["Brightbill", "Swooper", "Chitchat", "Thorn"],
+        "correct": "A"
+      },
+      {
+        "question": "Where does Roz wake up at the beginning of the story?",
+        "options": ["In a forest", "On an island", "In a city", "In a desert"],
+        "correct": "B"
+      },
+      {
+        "question": "What do the animals initially think Roz is?",
+        "options": ["A tree", "A monster", "A rock", "A giant bird"],
+        "correct": "B"
+      },
+      {
+        "question": "How does Roz learn the language of the animals?",
+        "options": ["She is pre-programmed with it", "She observes and mimics them", "A wise owl teaches her", "She downloads it overnight"],
+        "correct": "B"
+      },
+      {
+        "question": "What type of animal is Fink?",
+        "options": ["A beaver", "A fox", "A raccoon", "A deer"],
+        "correct": "B"
+      },
+      {
+        "question": "What happens to Roz at the end of the book that sets up the sequel?",
+        "options": ["She leaves the island on a boat", "She is taken away by other robots", "She loses her memory", "She becomes the island leader"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the goose who leads the flock that Brightbill joins?",
+        "options": ["Loudwing", "Swooper", "Tawny", "Paddler"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Roz do to help the animals during winter?",
+        "options": ["Builds fires", "Builds shelters", "Stores food", "Grows crops"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Ghost",
+    "author": "Jason Reynolds",
+    "points_value": 10,
+    "questions": [
+      {
+        "question": "What is the real first name of the main character?",
+        "options": ["Castle", "Carl", "Charles", "Craig"],
+        "correct": "A"
+      },
+      {
+        "question": "Why does Castle call himself 'Ghost'?",
+        "options": ["He runs so fast", "He sneaks up on people", "His dad called him that", "He wears white shoes"],
+        "correct": "C"
+      },
+      {
+        "question": "What sport does Castle join?",
+        "options": ["Basketball", "Track", "Football", "Soccer"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of Castle's coach?",
+        "options": ["Coach Carter", "Coach Otis", "Coach Brody", "Coach Mills"],
+        "correct": "C"
+      },
+      {
+        "question": "Why does Castle's father end up in prison?",
+        "options": ["He robbed a store", "He shot at Castle and his mother", "He dealt drugs", "He stole a car"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Castle do to his shoes to stand out?",
+        "options": ["Paints them silver", "Cuts off the tops", "Writes his name on them", "Dyes them blue"],
+        "correct": "A"
+      },
+      {
+        "question": "What world record is Castle obsessed with?",
+        "options": ["The 100-meter dash", "The long jump", "The mile run", "The 400-meter sprint"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Castle steal that threatens his place on the team?",
+        "options": ["A pair of sneakers", "A track uniform", "A medal", "Money from the concession stand"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Castle's mother do for a living?",
+        "options": ["She works at a hospital", "She works at a laundromat", "She is a teacher", "She works at a grocery store"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the girl on the team who becomes Castle's friend?",
+        "options": ["Lu", "Patina", "Sunny", "Whitney"],
+        "correct": "C"
+      }
+    ]
+  },
+  {
+    "title": "Restart",
+    "author": "Gordon Korman",
+    "points_value": 10,
+    "questions": [
+      {
+        "question": "What is the name of the main character who loses his memory?",
+        "options": ["Chase Ambrose", "Brandon Mitchell", "Aiden Cross", "Troy Wilson"],
+        "correct": "A"
+      },
+      {
+        "question": "How does Chase lose his memory?",
+        "options": ["He falls off a roof", "He gets in a car accident", "He is hit by a baseball", "He gets a concussion in football"],
+        "correct": "A"
+      },
+      {
+        "question": "What was Chase's reputation before his amnesia?",
+        "options": ["He was a bully", "He was a nerd", "He was quiet and shy", "He was a star athlete"],
+        "correct": "A"
+      },
+      {
+        "question": "What club does Chase join after his amnesia that surprises everyone?",
+        "options": ["The video club", "The chess club", "The drama club", "The debate team"],
+        "correct": "A"
+      },
+      {
+        "question": "Who are the two friends who were Chase's bullying partners before his memory loss?",
+        "options": ["Aaron and Bear", "Joel and Marcus", "Brendan and Bear", "Aaron and Joel"],
+        "correct": "A"
+      },
+      {
+        "question": "What girl does Chase befriend who runs the video club?",
+        "options": ["Brendan", "Shoshanna", "Kimberly", "Joelle"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Chase do to make amends for his past behavior?",
+        "options": ["Returns a stolen medal", "Apologizes to the whole school", "Joins the football team", "Gives away his belongings"],
+        "correct": "A"
+      },
+      {
+        "question": "What sport was Chase the star of before his accident?",
+        "options": ["Football", "Basketball", "Soccer", "Baseball"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Chase do when he returns to school and doesn't remember his old friends?",
+        "options": ["He befriends new people", "He pretends to remember", "He avoids everyone", "He quits school"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the person whose medal Chase had previously stolen?",
+        "options": ["Mr. Solway", "Mr. Jackson", "Mr. Navarro", "Mr. Fitzwallace"],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "New Kid",
+    "author": "Jerry Craft",
+    "points_value": 10,
+    "questions": [
+      {
+        "question": "What is the name of the main character?",
+        "options": ["Jordan Banks", "Drew Ellis", "Maury Collins", "Liam Snyder"],
+        "correct": "A"
+      },
+      {
+        "question": "What kind of school does Jordan transfer to?",
+        "options": ["A prestigious private school", "A boarding school", "A public magnet school", "A charter school"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Jordan love to do in his free time?",
+        "options": ["Draw comics", "Play basketball", "Write stories", "Play video games"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Jordan want to attend instead of his new school?",
+        "options": ["Art school", "His neighborhood public school", "A science academy", "A sports camp"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of Jordan's friend who is also a student of color at the school?",
+        "options": ["Drew", "Alex", "Tyler", "Marcus"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of Jordan's guide at his new school?",
+        "options": ["Liam", "Chad", "Brett", "Ryan"],
+        "correct": "A"
+      },
+      {
+        "question": "What does the school's Diversity Day reveal about the school?",
+        "options": ["The lack of actual diversity", "The students' hidden talents", "The teachers' biases", "The school's history"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Jordan's father do for a living?",
+        "options": ["He works at a community center", "He is a teacher", "He is an artist", "He is a businessman"],
+        "correct": "A"
+      },
+      {
+        "question": "What happens to Jordan's drawings throughout the book?",
+        "options": ["They help him cope and express his feelings", "They get published in the school paper", "They are stolen by a classmate", "They win an art contest"],
+        "correct": "A"
+      },
+      {
+        "question": "What lesson does Jordan learn by the end of the book?",
+        "options": ["He can be himself and still fit in", "He should transfer schools", "He should hide his interests", "He should focus only on art"],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Fish in a Tree",
+    "author": "Lynda Mullaly Hunt",
+    "points_value": 10,
+    "questions": [
+      {
+        "question": "What is the name of the main character?",
+        "options": ["Ally", "Anna", "Alice", "Abby"],
+        "correct": "A"
+      },
+      {
+        "question": "What learning difference does Ally struggle with?",
+        "options": ["Dyslexia", "Dyscalculia", "ADHD", "Autism"],
+        "correct": "A"
+      },
+      {
+        "question": "What is Ally's last name?",
+        "options": ["Nickerson", "Nelson", "Nicholson", "Newton"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of Ally's teacher who helps her?",
+        "options": ["Mr. Daniels", "Mr. Davis", "Mr. Dawson", "Mr. Dempsey"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Ally do to hide her reading difficulty?",
+        "options": ["She acts out and causes trouble", "She pretends to be sick", "She copies from classmates", "She avoids school"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of Ally's friend who also struggles in school?",
+        "options": ["Keisha", "Katie", "Kayla", "Kelly"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the boy who bullies Ally?",
+        "options": ["Shay", "Shawn", "Shane", "Sam"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Mr. Daniels do that helps Ally discover her strengths?",
+        "options": ["He gives her a special reading program", "He has her draw and use chess", "He gives her extra homework", "He lets her skip class"],
+        "correct": "B"
+      },
+      {
+        "question": "What famous people does Ally learn had dyslexia?",
+        "options": ["Einstein, Edison, and Disney", "Einstein, Darwin, and Lincoln", "Edison, Mozart, and Disney", "Einstein, Beethoven, and Disney"],
+        "correct": "A"
+      },
+      {
+        "question": "What does the title 'Fish in a Tree' refer to?",
+        "options": ["A quote about judging people by the wrong standards", "Ally's favorite hobby", "A poem Ally writes", "A class project"],
+        "correct": "A"
+      }
+    ]
+  }
+]

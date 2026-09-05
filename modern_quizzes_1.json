@@ -1,0 +1,287 @@
+[
+  {
+    "title": "Wonder",
+    "author": "R.J. Palacio",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What medical condition does the main character August Pullman have?",
+        "options": ["Treacher Collins syndrome", "Cleft palate", "Progeria", "Hemifacial microsomia"],
+        "correct": "A"
+      },
+      {
+        "question": "What school does Auggie attend for the first time in fifth grade?",
+        "options": ["Manhattan Middle School", "Beecher Prep", "Riverdale Academy", "Belmont Day School"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of Auggie's older sister?",
+        "options": ["Miranda", "Via", "Summer", "Olivia"],
+        "correct": "B"
+      },
+      {
+        "question": "Who becomes Auggie's first friend at his new school?",
+        "options": ["Jack Will", "Julian Albans", "Charlotte Cody", "Summer Dawson"],
+        "correct": "A"
+      },
+      {
+        "question": "What nickname does Julian give Auggie that everyone starts using behind his back?",
+        "options": ["The Freak", "Zombie Kid", "The Monster", "The Alien"],
+        "correct": "B"
+      },
+      {
+        "question": "What costume does Auggie wear on Halloween when he overhears Jack Will talking?",
+        "options": ["A mummy costume", "A ghost sheet", "Bleeding Scream costume", "A Darth Vader costume"],
+        "correct": "C"
+      },
+      {
+        "question": "Who is the girl who befriends Auggie by sitting with him at lunch?",
+        "options": ["Summer Dawson", "Charlotte Cody", "Savanna", "Ximena"],
+        "correct": "A"
+      },
+      {
+        "question": "What is Auggie's favorite holiday, which he celebrates obsessively?",
+        "options": ["Christmas", "Halloween", "Thanksgiving", "His birthday"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the nature reserve in Pennsylvania where the fifth graders go on retreat?",
+        "options": ["Broarwood Nature Reserve", "Camp Green Lake", "Pinewood Retreat", "Brooker Woods"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Auggie receive at the end of the school year ceremony?",
+        "options": ["The student of the year award", "The Henry Ward Beecher medal", "A perfect attendance award", "A scholarship to middle school"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The Giver",
+    "author": "Lois Lowry",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the name of the main character in The Giver?",
+        "options": ["Jonah", "Jonas", "Jasper", "Jacob"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the assignment Jonas receives at the Ceremony of Twelve?",
+        "options": ["Nurturer", "Receiver of Memory", "Birthmother", "Director of Recreation"],
+        "correct": "B"
+      },
+      {
+        "question": "What does the Receiver transmit to Jonas by laying hands on his back?",
+        "options": ["Memories of the past", "Physical strength", "Telepathic commands", "Dreams of the future"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the first memory the Giver transmits to Jonas?",
+        "options": ["Sunshine", "Snow and sledding", "A rainbow", "War"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Jonas's father do for a living in the community?",
+        "options": ["Teacher", "Nurturer (caretaker of infants)", "Pilot", "Street cleaner"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the baby that Jonas's father brings home to care for?",
+        "options": ["Gabe", "Asher", "Caleb", "Newchild"],
+        "correct": "A"
+      },
+      {
+        "question": "What happens during the 'release' of a person in the community?",
+        "options": ["They are sent to a new community", "They are given a new assignment", "They are given a lethal injection", "They are taken to a hospital"],
+        "correct": "C"
+      },
+      {
+        "question": "Who is Jonas's best friend who gets the assignment of Assistant Director of Recreation?",
+        "options": ["Asher", "Fiona", "Lily", "The Giver"],
+        "correct": "A"
+      },
+      {
+        "question": "What assignment does Fiona receive at the Ceremony of Twelve?",
+        "options": ["Caretaker of the Old", "Birthmother", "Nurturer", "Receiver of Memory"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the previous Receiver-in-training who was released after failing?",
+        "options": ["Rosemary", "Lily", "Katherine", "Annamarie"],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Holes",
+    "author": "Louis Sachar",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the name of the main character who is sent to Camp Green Lake?",
+        "options": ["Stanley Yelnats", "Stanley Miller", "Stanley Caveman", "Stanley Zero"],
+        "correct": "A"
+      },
+      {
+        "question": "What do the boys at Camp Green Lake have to dig every day?",
+        "options": ["Five-foot deep holes", "Trenches for a pipeline", "Wells for water", "Graves"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the real name of the boy everyone calls 'Zero'?",
+        "options": ["Hector Zeroni", "Rex Washburn", "Theodore Johnson", "Alan Walker"],
+        "correct": "A"
+      },
+      {
+        "question": "Why does Stanley's family always seem to have bad luck?",
+        "options": ["A curse placed on his great-great-grandfather", "They live on a fault line", "They owe money to the government", "A family heirloom is cursed"],
+        "correct": "A"
+      },
+      {
+        "question": "What was Stanley's great-great-grandfather Elya Yelnats supposed to do for Madame Zeroni?",
+        "options": ["Carry her up a mountain", "Bring her water from the well", "Find buried treasure", "Marry her daughter"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the woman who was known as Kissin' Kate Barlow?",
+        "options": ["Katherine Barlow, a schoolteacher turned outlaw", "Kate Yelnats, Stanley's grandmother", "A camp counselor at Green Lake", "A warden at the camp"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the warden of Camp Green Lake?",
+        "options": ["A descendant of Trout Walker and Linda", "Stanley's great-aunt", "A government official", "Madame Zeroni's granddaughter"],
+        "correct": "A"
+      },
+      {
+        "question": "What do Stanley and Zero find buried in the dirt that turns out to be treasure?",
+        "options": ["A chest of gold and jewels", "Kate Barlow's lipstick tube", "A collection of old coins", "A map to Green Lake"],
+        "correct": "A"
+      },
+      {
+        "question": "What food do the boys eat at Camp Green Lake, and what is the nickname for it?",
+        "options": ["Sploosh (canned peaches)", "Slop (oatmeal)", "Mud (bean stew)", "Dirt (bread)"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the onion salesman who helped Kate Barlow?",
+        "options": ["Sam", "Stanley", "Trout", "Elya"],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "The Lightning Thief",
+    "author": "Rick Riordan",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the name of the main character who discovers he is a demigod?",
+        "options": ["Percy Jackson", "Peter Johnson", "Perseus Jackson", "Paul Jackson"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is Percy's Greek god father?",
+        "options": ["Poseidon", "Zeus", "Apollo", "Hades"],
+        "correct": "A"
+      },
+      {
+        "question": "What weapon does Percy use, which returns to him when lost?",
+        "options": ["Riptide (a ballpoint pen that becomes a sword)", "A bronze dagger", "A celestial bow", "A shield called Aegis"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is Percy's satyr friend and protector?",
+        "options": ["Grover Underwood", "Gladiator Mills", "Gabe Ugliano", "Greg Underwood"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the summer camp for demigods?",
+        "options": ["Camp Half-Blood", "Camp Jupiter", "Camp Olympus", "Camp Demigod"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the daughter of Athena who joins Percy on his quest?",
+        "options": ["Annabeth Chase", "Clarisse La Rue", "Thalia Grace", "Silena Beauregard"],
+        "correct": "A"
+      },
+      {
+        "question": "What has been stolen that Percy must retrieve to prevent a war among the gods?",
+        "options": ["Zeus's master bolt", "Poseidon's trident", "Hades's helm of darkness", "Apollo's lyre"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the main antagonist behind the theft of the master bolt?",
+        "options": ["Kronos (via Luke Castellan)", "Ares", "Hades", "Typhon"],
+        "correct": "A"
+      },
+      {
+        "question": "What monster does Percy defeat on his quest by looking at it through a reflection?",
+        "options": ["Medusa", "The Minotaur", "The Hydra", "Cerberus"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of Percy's mortal stepfather who smells terrible?",
+        "options": ["Gabe Ugliano", "Paul Blofis", "Smelly Gabe", "Fred Ugliano"],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "The Outsiders",
+    "author": "S.E. Hinton",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the name of the main character and narrator of The Outsiders?",
+        "options": ["Ponyboy Curtis", "Johnny Cade", "Dallas Winston", "Sodapop Curtis"],
+        "correct": "A"
+      },
+      {
+        "question": "What are the two rival groups in the novel?",
+        "options": ["Greasers and Socs", "Greasers and Preps", "East Side and West Side", "Hoods and Rich Kids"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the youngest member of the gang who kills Bob Sheldon in self-defense?",
+        "options": ["Johnny Cade", "Ponyboy Curtis", "Dallas Winston", "Steve Randle"],
+        "correct": "A"
+      },
+      {
+        "question": "Where do Ponyboy and Johnny hide out after the killing?",
+        "options": ["An abandoned church in Windrixville", "A barn in the country", "Dallas's hideout apartment", "A cave in the hills"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Johnny say to Ponyboy before he dies in the hospital?",
+        "options": ["Stay gold, Ponyboy", "Tell Dally I'm sorry", "Don't fight anymore", "I love you, Pony"],
+        "correct": "A"
+      },
+      {
+        "question": "What happens to Dallas Winston (Dally) after Johnny's death?",
+        "options": ["He robs a store and is shot dead by police", "He runs away and is never seen again", "He turns himself in", "He attacks a Soc and is arrested"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the Soc girl that Ponyboy befriends at the drive-in movie?",
+        "options": ["Cherry Valance", "Marcia", "Sandy", "Evie"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the famous poem that Ponyboy recites to Johnny in the church?",
+        "options": ["Nothing Gold Can Stay by Robert Frost", "The Road Not Taken by Robert Frost", "Stopping by Woods on a Snowy Evening by Robert Frost", "Ozymandias by Percy Shelley"],
+        "correct": "A"
+      },
+      {
+        "question": "What are the ages of the Curtis brothers, Ponyboy and Sodapop, and their oldest brother?",
+        "options": ["Ponyboy is 14, Sodapop is 16, Darry is 20", "Ponyboy is 12, Sodapop is 15, Darry is 18", "Ponyboy is 16, Sodapop is 18, Darry is 22", "Ponyboy is 13, Sodapop is 17, Darry is 19"],
+        "correct": "A"
+      },
+      {
+        "question": "What assignment does Ponyboy's English teacher give him to pass the class?",
+        "options": ["Write a theme (essay) about anything he wants", "Write a report on a novel", "Give an oral presentation", "Read ten books over the summer"],
+        "correct": "A"
+      }
+    ]
+  }
+]

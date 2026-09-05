@@ -1,0 +1,1997 @@
+[
+  {
+    "title": "The Chronicles of Narnia: The Lion the Witch and the Wardrobe",
+    "questions": [
+      {
+        "question_text": "Which sibling is the first to enter Narnia through the wardrobe?",
+        "option_a": "Peter",
+        "option_b": "Edmund",
+        "option_c": "Susan",
+        "option_d": "Lucy",
+        "correct_answer": "d",
+        "question_order": 1
+      },
+      {
+        "question_text": "What does the White Witch use to tempt Edmund?",
+        "option_a": "Marmalade on toast",
+        "option_b": "Chocolate cake",
+        "option_c": "Turkish Delight",
+        "option_d": "Honey cakes",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is the name of the great lion who is the true king of Narnia?",
+        "option_a": "Aslan",
+        "option_b": "Tashlan",
+        "option_c": "Rilian",
+        "option_d": "Caspian",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "Why is it always winter and never Christmas in Narnia when the children first arrive?",
+        "option_a": "The White Witch's spell keeps it frozen",
+        "option_b": "The seasons were stolen by dwarfs",
+        "option_c": "Aslan has abandoned Narnia",
+        "option_d": "A dragon has cursed the land",
+        "correct_answer": "a",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who betrays his siblings and allies with the White Witch?",
+        "option_a": "Mr. Tumnus",
+        "option_b": "Edmund",
+        "option_c": "Peter",
+        "option_d": "Mr. Beaver",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "How is Edmund saved after the White Witch demands his life as a traitor?",
+        "option_a": "Peter fights the Witch to free him",
+        "option_b": "Aslan offers himself in Edmund's place",
+        "option_c": "Lucy uses a healing potion",
+        "option_d": "The beavers rescue him",
+        "correct_answer": "b",
+        "question_order": 6
+      },
+      {
+        "question_text": "What happens to Aslan at the Stone Table?",
+        "option_a": "He is sacrificed and killed by the Witch",
+        "option_b": "He discovers the Deep Magic",
+        "option_c": "He is crowned king",
+        "option_d": "He creates a new world",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What allows Aslan to be resurrected after his sacrifice?",
+        "option_a": "The Stone Table cracking",
+        "option_b": "Lucy's tears of love",
+        "option_c": "The beavers' healing magic",
+        "option_d": "The Deeper Magic from before the dawn of time",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who slays the White Witch in the final battle?",
+        "option_a": "Edmund",
+        "option_b": "Aslan",
+        "option_c": "Peter",
+        "option_d": "Susan",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What title is Peter given as a king of Narnia?",
+        "option_a": "Peter the Magnificent",
+        "option_b": "Peter the High King",
+        "option_c": "Peter the Just",
+        "option_d": "Peter the Valiant",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Chronicles of Narnia: Prince Caspian",
+    "questions": [
+      {
+        "question_text": "How do the Pevensie children return to Narnia?",
+        "option_a": "By a magic train",
+        "option_b": "Through Cair Paravel's ruins at a train station",
+        "option_c": "Through the wardrobe again",
+        "option_d": "Through a painting",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Why has Narnia changed so much since the children's last visit?",
+        "option_a": "It has been taken over by Telmarines",
+        "option_b": "The sea flooded it",
+        "option_c": "A dragon burned the forests",
+        "option_d": "Aslan cursed the land",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is Prince Caspian's evil uncle who wants to kill him?",
+        "option_a": "General Sopespian",
+        "option_b": "Lord Glozelle",
+        "option_c": "Doctor Cornelius",
+        "option_d": "King Miraz",
+        "correct_answer": "d",
+        "question_order": 3
+      },
+      {
+        "question_text": "What kind of creature is Trumpkin, one of Caspian's loyal allies?",
+        "option_a": "A dwarf",
+        "option_b": "A faun",
+        "option_c": "A badger",
+        "option_d": "A talking horse",
+        "correct_answer": "a",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who teaches Prince Caspian about Old Narnia and the history of the land?",
+        "option_a": "Nikabrik",
+        "option_b": "Reepicheep",
+        "option_c": "Doctor Cornelius",
+        "option_d": "Trumpkin",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "What magic item does Queen Susan use to summon help?",
+        "option_a": "A magic bow",
+        "option_b": "A magic mirror",
+        "option_c": "A magic horn",
+        "option_d": "A magic whistle",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "What is the name of the courageous talking mouse who fights in battle?",
+        "option_a": "Trufflehunter",
+        "option_b": "Pattertwig",
+        "option_c": "Glenstorm",
+        "option_d": "Reepicheep",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "Why can't Lucy wake the others when she sees Aslan?",
+        "option_a": "They are under a spell",
+        "option_b": "She is too afraid",
+        "option_c": "Aslan tells her others will not believe her easily",
+        "option_d": "They have left camp",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Aslan do to the trees during his procession?",
+        "option_a": "He burns them down",
+        "option_b": "He makes them walk and dance",
+        "option_c": "He makes them invisible",
+        "option_d": "He turns them to stone",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "Who challenges King Miraz to single combat?",
+        "option_a": "Edmund",
+        "option_b": "Peter",
+        "option_c": "Caspian",
+        "option_d": "Trumpkin",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Chronicles of Narnia: The Voyage of the Dawn Treader",
+    "questions": [
+      {
+        "question_text": "Who is the annoying cousin who travels to Narnia with Edmund and Lucy?",
+        "option_a": "Eustace Scrubb",
+        "option_b": "Puddleglum",
+        "option_c": "Caspian X",
+        "option_d": "Digory Kirke",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "How do the three children enter Narnia in this book?",
+        "option_a": "Through a magic door",
+        "option_b": "Through the wardrobe",
+        "option_c": "Through a painting of a ship",
+        "option_d": "By a magic train",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is the name of King Caspian's ship?",
+        "option_a": "The Dawn Treader",
+        "option_b": "The Splendour Hyaline",
+        "option_c": "The Sea Serpent",
+        "option_d": "The End of the World",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "What happens to Eustace when he falls asleep on a dragon's treasure hoard?",
+        "option_a": "He becomes invisible",
+        "option_b": "He turns into a dragon",
+        "option_c": "He loses his memory",
+        "option_d": "He is cursed with bad luck",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who turns Eustace back into a boy?",
+        "option_a": "Lucy",
+        "option_b": "Reepicheep",
+        "option_c": "Caspian",
+        "option_d": "Aslan",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "What island has inhabitants who are invisible and turned into ugly pig-monsters?",
+        "option_a": "Burnt Island",
+        "option_b": "The Island of the Voices",
+        "option_c": "Dragon Island",
+        "option_d": "Deathwater Island",
+        "correct_answer": "b",
+        "question_order": 6
+      },
+      {
+        "question_text": "What is the Dark Island known for?",
+        "option_a": "It turns water into gold",
+        "option_b": "It has no light at all",
+        "option_c": "It has sleeping men forever",
+        "option_d": "It is full of dragons",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Reepicheep the mouse hope to find at the end of the world?",
+        "option_a": "A treasure chest",
+        "option_b": "A new sword",
+        "option_c": "A new kingdom",
+        "option_d": "Aslan's country",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who meets Aslan as a lamb at the end of the world's sea?",
+        "option_a": "Eustace",
+        "option_b": "Lucy and Edmund",
+        "option_c": "Caspian",
+        "option_d": "Reepicheep",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "Who is chosen to go through a door into Aslan's country?",
+        "option_a": "Caspian",
+        "option_b": "Lucy",
+        "option_c": "Reepicheep",
+        "option_d": "Edmund",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Chronicles of Narnia: The Silver Chair",
+    "questions": [
+      {
+        "question_text": "Who are the two children called to Narnia in this story?",
+        "option_a": "Eustace and Jill",
+        "option_b": "Digory and Polly",
+        "option_c": "Peter and Susan",
+        "option_d": "Edmund and Lucy",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "How do Eustace and Jill enter Narnia?",
+        "option_a": "Through a magic train",
+        "option_b": "Through a painting",
+        "option_c": "Through a gate behind the school",
+        "option_d": "Through the wardrobe",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is the name of the gloomy marsh-wiggle who joins the quest?",
+        "option_a": "Puddleglum",
+        "option_b": "Reepicheep",
+        "option_c": "Glimfeather",
+        "option_d": "Trumpkin",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is Prince Caspian's son that the children must find?",
+        "option_a": "Prince Corin",
+        "option_b": "Prince Rilian",
+        "option_c": "Prince Cor",
+        "option_d": "Prince Aravis",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "What creature enchanted Prince Rilian and holds him captive?",
+        "option_a": "A witch in the form of a green serpent",
+        "option_b": "A sea monster",
+        "option_c": "A dragon",
+        "option_d": "An evil dwarf",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "Where is Prince Rilian held prisoner?",
+        "option_a": "In a tower in Archenland",
+        "option_b": "In Cair Paravel",
+        "option_c": "In the Underworld underground",
+        "option_d": "On a ship",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "What is the name of the chair that traps Prince Rilian?",
+        "option_a": "The Dark Chair",
+        "option_b": "The Iron Chair",
+        "option_c": "The Golden Chair",
+        "option_d": "The Silver Chair",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "How do the travelers free Rilian from the chair?",
+        "option_a": "They destroy it with fire",
+        "option_b": "They say Aslan's name",
+        "option_c": "They use a key from the witch",
+        "option_d": "They break the chair with a hammer",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens when the Lady of the Green Kirtle tries to enchant the travelers in the Underworld?",
+        "option_a": "They fall asleep forever",
+        "option_b": "Puddleglum stampedes through the fire breaking the spell",
+        "option_c": "They all escape by magic",
+        "option_d": "They become frogs",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What happens to King Caspian at the end of the book?",
+        "option_a": "He sails away forever",
+        "option_b": "He is turned to stone",
+        "option_c": "He abdicates his throne",
+        "option_d": "He dies of old age, then is revived briefly by Aslan",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Golden Compass",
+    "questions": [
+      {
+        "question_text": "What is Lyra's daemon (companion) named?",
+        "option_a": "Serafina",
+        "option_b": "Pantalaimon",
+        "option_c": "Kirjava",
+        "option_d": "Iorek",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "What does every human in Lyra's world have?",
+        "option_a": "A golden compass",
+        "option_b": "An invisible shield",
+        "option_c": "A daemon, an animal-shaped companion",
+        "option_d": "A magic wand",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "Where does Lyra live at the start of the story?",
+        "option_a": "London",
+        "option_b": "The North",
+        "option_c": "Oxford University (Jordan College)",
+        "option_d": "A floating city",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the mysterious and powerful woman Lyra goes to live with?",
+        "option_a": "Lyra's mother",
+        "option_b": "Mrs. Coulter",
+        "option_c": "Serafina Pekkala",
+        "option_d": "Ma Costa",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "What is the special device Lyra is given that can tell the truth?",
+        "option_a": "The Alethiometer (golden compass)",
+        "option_b": "A crystal ball",
+        "option_c": "A magic map",
+        "option_d": "A silver knife",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "What are the General Oblation Board, led by Mrs. Coulter, secretly doing to children?",
+        "option_a": "Teaching them magic",
+        "option_b": "Sending them to another world",
+        "option_c": "Turning them into animals",
+        "option_d": "Severing them from their daemons",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who is the armored bear Lyra befriends?",
+        "option_a": "Lee Scoresby",
+        "option_b": "Iorek Byrnison",
+        "option_c": "Serafina Pekkala",
+        "option_d": "Iofur Raknison",
+        "correct_answer": "b",
+        "question_order": 7
+      },
+      {
+        "question_text": "Where are the kidnapped children taken?",
+        "option_a": "To Oxford",
+        "option_b": "To a floating city",
+        "option_c": "To London",
+        "option_d": "To Svalbard, in the far North",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is Lyra's father, a powerful and controversial scholar?",
+        "option_a": "Lord Asriel",
+        "option_b": "Lee Scoresby",
+        "option_c": "John Parry",
+        "option_d": "Farder Coram",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Lord Asriel do at the end of the book?",
+        "option_a": "He becomes king",
+        "option_b": "He is killed",
+        "option_c": "He opens a bridge to another world",
+        "option_d": "He marries Mrs. Coulter",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Subtle Knife",
+    "questions": [
+      {
+        "question_text": "Who is the boy from our world who meets Lyra?",
+        "option_a": "Will Parry",
+        "option_b": "Roger Parslow",
+        "option_c": "Lee Scoresby",
+        "option_d": "John Parry",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is Will searching for?",
+        "option_a": "A magic compass",
+        "option_b": "His missing father, John Parry",
+        "option_c": "A map of worlds",
+        "option_d": "His daemon",
+        "correct_answer": "b",
+        "question_order": 2
+      },
+      {
+        "question_text": "What powerful weapon does Will obtain in the city of Citt\u00e0gazze?",
+        "option_a": "The Amber Spyglass",
+        "option_b": "The Golden Compass",
+        "option_c": "The Subtle Knife",
+        "option_d": "A magic bow",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "What does the Subtle Knife allow its user to do?",
+        "option_a": "Turn invisible",
+        "option_b": "Cut windows between worlds",
+        "option_c": "Heal any wound",
+        "option_d": "See the future",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "What danger lurks in the city of Citt\u00e0gazze?",
+        "option_a": "Soul-eating creatures called Specters",
+        "option_b": "Dragons",
+        "option_c": "Witches",
+        "option_d": "Armored bears",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who can see and be harmed by the Specters?",
+        "option_a": "Everyone",
+        "option_b": "Only witches",
+        "option_c": "Adults only, not children",
+        "option_d": "Children only",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Lyra discover about the mysterious substance called Dust?",
+        "option_a": "It is fairy dust",
+        "option_b": "It is a poison",
+        "option_c": "It is gold",
+        "option_d": "It comes from the Aurora and is related to consciousness",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "Who is the witch who helps Lyra and Will?",
+        "option_a": "Ruta Skadi",
+        "option_b": "Serafina Pekkala",
+        "option_c": "Mrs. Coulter",
+        "option_d": "Ma Costa",
+        "correct_answer": "b",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens to Lee Scoresby in this book?",
+        "option_a": "He dies defending Lyra's friend",
+        "option_b": "He finds Will's father",
+        "option_c": "He becomes king",
+        "option_d": "He flies away",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "Who finds Will's father, John Parry, but is killed right after?",
+        "option_a": "Lee Scoresby",
+        "option_b": "Lord Asriel",
+        "option_c": "Will himself",
+        "option_d": "John Parry himself, then a witch kills him",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Amber Spyglass",
+    "questions": [
+      {
+        "question_text": "What does Mrs. Coulter do to Lyra at the start of the book?",
+        "option_a": "She sends her to school",
+        "option_b": "She drugs and hides her in a cave",
+        "option_c": "She abandons her",
+        "option_d": "She sells her",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who rescues Lyra from the cave?",
+        "option_a": "Serafina Pekkala",
+        "option_b": "Will, using the Subtle Knife",
+        "option_c": "Iorek Byrnison",
+        "option_d": "Lord Asriel",
+        "correct_answer": "b",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is the name of the scientist who studies Dust using a special spyglass?",
+        "option_a": "Ruta Skadi",
+        "option_b": "Ma Costa",
+        "option_c": "Mary Malone",
+        "option_d": "Serafina Pekkala",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "What world does Mary Malone enter and befriend creatures called mulefa?",
+        "option_a": "Lyra's Oxford",
+        "option_b": "Citt\u00e0gazze",
+        "option_c": "Will's world",
+        "option_d": "A world with wheeled creatures and seed-pod trees",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What is Lord Asriel building to fight the Authority?",
+        "option_a": "A vast army and fortress",
+        "option_b": "A magic weapon",
+        "option_c": "A bridge",
+        "option_d": "A new world",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the Authority, the first angel?",
+        "option_a": "He is a king",
+        "option_b": "He is not actually the creator, but the first angel who took power",
+        "option_c": "He is a demon",
+        "option_d": "He is God the creator",
+        "correct_answer": "b",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Will and Lyra's love for each other do?",
+        "option_a": "It destroys the knife",
+        "option_b": "It awakens the Authority",
+        "option_c": "It opens a window and changes Dust's flow, saving the worlds",
+        "option_d": "It creates a new daemon",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "Why must Will and Lyra separate at the end?",
+        "option_a": "Because they are cursed",
+        "option_b": "Because their daemons forbid it",
+        "option_c": "Because too many windows open let Dust escape, and they belong in different worlds",
+        "option_d": "Because they are too young",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens to the Subtle Knife at the end?",
+        "option_a": "It is stolen",
+        "option_b": "It disappears",
+        "option_c": "Will gives it to Mary",
+        "option_d": "Will breaks it",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Lyra decide to do at the very end of the story?",
+        "option_a": "She decides to study at school and learn to read the Alethiometer again",
+        "option_b": "She becomes a witch",
+        "option_c": "She finds a new world",
+        "option_d": "She returns to the North",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Artemis Fowl",
+    "questions": [
+      {
+        "question_text": "Who is Artemis Fowl?",
+        "option_a": "A fairy detective",
+        "option_b": "A wizard",
+        "option_c": "A 12-year-old criminal mastermind and genius",
+        "option_d": "A teenage detective",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is Artemis trying to do in the first book?",
+        "option_a": "Go to fairy school",
+        "option_b": "Defeat a fairy queen",
+        "option_c": "Restore his family's fortune by stealing fairy gold",
+        "option_d": "Find his missing father",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is the name of Artemis's loyal bodyguard?",
+        "option_a": "Foaly",
+        "option_b": "Root",
+        "option_c": "Mulch",
+        "option_d": "Butler",
+        "correct_answer": "d",
+        "question_order": 3
+      },
+      {
+        "question_text": "Which fairy does Artemis kidnap to hold for ransom?",
+        "option_a": "Foaly",
+        "option_b": "Mulch Diggums",
+        "option_c": "Commander Root",
+        "option_d": "Captain Holly Short",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What is the name of the fairy police force?",
+        "option_a": "The Fairy Guard",
+        "option_b": "LEP (Lower Elements Police)",
+        "option_c": "The Haven Police",
+        "option_d": "The Mud People Police",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the LEPrecon commander who leads the rescue mission?",
+        "option_a": "Commander Julius Root",
+        "option_b": "Mulch Diggums",
+        "option_c": "Foaly",
+        "option_d": "Captain Holly Short",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What fairy creature is sent into Fowl Manor to help break in?",
+        "option_a": "A troll",
+        "option_b": "A dwarf named Mulch Diggums",
+        "option_c": "A goblin",
+        "option_d": "A centaur",
+        "correct_answer": "b",
+        "question_order": 7
+      },
+      {
+        "question_text": "What is the Book of the People that Artemis has translated?",
+        "option_a": "A map of Haven",
+        "option_b": "A history of humans",
+        "option_c": "A spellbook",
+        "option_d": "The fairy bible/rulebook",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "What clever trick allows Artemis to escape the time-stop at the end?",
+        "option_a": "He drugs himself and his companions to slip the time-stop",
+        "option_b": "He uses a secret tunnel",
+        "option_c": "He surrenders",
+        "option_d": "He bribes Foaly",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Holly give Artemis half of as part of their deal?",
+        "option_a": "A magic book",
+        "option_b": "A fairy badge",
+        "option_c": "A wish granted by the fairies",
+        "option_d": "A pot of gold",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Arctic Incident",
+    "questions": [
+      {
+        "question_text": "What is Artemis Fowl's mission in this book?",
+        "option_a": "To defeat a troll",
+        "option_b": "To find his mother",
+        "option_c": "To rescue his kidnapped father, Artemis Fowl Senior",
+        "option_d": "To steal more fairy gold",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who has been holding Artemis's father captive?",
+        "option_a": "A rival genius",
+        "option_b": "The fairies",
+        "option_c": "A troll",
+        "option_d": "The Russian Mafiya",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Why do the fairies suspect Artemis is smuggling batteries to goblins?",
+        "option_a": "Because Holly sees him",
+        "option_b": "Because they trace a shipment of batteries to him",
+        "option_c": "Because he confesses",
+        "option_d": "Because Butler tells them",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the centaur tech genius who works for the LEP?",
+        "option_a": "Mulch",
+        "option_b": "Foaly",
+        "option_c": "Root",
+        "option_d": "Briar Cudgeon",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "What fairy villain is secretly behind the goblin rebellion?",
+        "option_a": "Commander Root",
+        "option_b": "Opal Koboi",
+        "option_c": "Briar Cudgeon",
+        "option_d": "Foaly",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the leader of the B'wa Kell goblin triad?",
+        "option_a": "General Scalene",
+        "option_b": "Briar Cudgeon",
+        "option_c": "Opal Koboi",
+        "option_d": "Commander Root",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who saves Artemis and Butler during the Arctic rescue mission?",
+        "option_a": "Holly Short",
+        "option_b": "Foaly",
+        "option_c": "Commander Root",
+        "option_d": "Mulch",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Artemis give Holly at the end of the book?",
+        "option_a": "A kiss on the cheek",
+        "option_b": "A fairy badge",
+        "option_c": "A magic book",
+        "option_d": "A bag of gold",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What is revealed about Holly's father?",
+        "option_a": "He is a centaur",
+        "option_b": "He is a goblin",
+        "option_c": "He is a troll",
+        "option_d": "He was falsely accused of a crime",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "What happens to Briar Cudgeon at the end?",
+        "option_a": "He becomes commander",
+        "option_b": "He escapes",
+        "option_c": "He is arrested",
+        "option_d": "He is killed in a shootout with the goblins",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Eternity Code",
+    "questions": [
+      {
+        "question_text": "What does Artemis build using fairy technology?",
+        "option_a": "The C Cube, a supercomputer",
+        "option_b": "A time machine",
+        "option_c": "A flying car",
+        "option_d": "A magic weapon",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who steals the C Cube from Artemis?",
+        "option_a": "A goblin",
+        "option_b": "Jon Spiro, an American businessman",
+        "option_c": "Opal Koboi",
+        "option_d": "Briar Cudgeon",
+        "correct_answer": "b",
+        "question_order": 2
+      },
+      {
+        "question_text": "What happens to Butler when Jon Spiro's men attack?",
+        "option_a": "He is arrested",
+        "option_b": "He is turned into a fairy",
+        "option_c": "He is shot and nearly dies",
+        "option_d": "He is kidnapped",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "How does Artemis save Butler's life?",
+        "option_a": "He gives him a magic potion",
+        "option_b": "He calls a doctor",
+        "option_c": "He uses the C Cube",
+        "option_d": "He freezes him with fairy cryogenics until he can be healed",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who does Artemis recruit to help him retrieve the C Cube?",
+        "option_a": "Jon Spiro",
+        "option_b": "A troll",
+        "option_c": "The fairies (Holly, Foaly, Mulch)",
+        "option_d": "The Russian Mafiya",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "What is Juliet Butler's role in the story?",
+        "option_a": "She is a fairy",
+        "option_b": "She is kidnapped",
+        "option_c": "She goes undercover to help steal back the C Cube",
+        "option_d": "She is a teacher",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "Where is Jon Spiro's headquarters located?",
+        "option_a": "In Chicago, the Spiro Needle",
+        "option_b": "In New York",
+        "option_c": "In London",
+        "option_d": "In Haven City",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does the C Cube do if activated without the password?",
+        "option_a": "It calls the police",
+        "option_b": "It self-destructs",
+        "option_c": "It becomes a weapon",
+        "option_d": "It turns invisible",
+        "correct_answer": "b",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens to Jon Spiro at the end of the book?",
+        "option_a": "He is killed",
+        "option_b": "He escapes",
+        "option_c": "He becomes a fairy",
+        "option_d": "He is arrested and his company is destroyed",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "What do the fairies do to Artemis at the very end?",
+        "option_a": "They give him gold",
+        "option_b": "They mind-wipe him so he forgets everything about fairies",
+        "option_c": "They arrest him",
+        "option_d": "They make him a fairy",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Opal Deception",
+    "questions": [
+      {
+        "question_text": "Who is the main villain seeking revenge in this book?",
+        "option_a": "Opal Koboi",
+        "option_b": "Jon Spiro",
+        "option_c": "Briar Cudgeon",
+        "option_d": "A troll",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "What does Opal Koboi do to frame Holly Short?",
+        "option_a": "She turns Holly into a human",
+        "option_b": "She steals Holly's badge",
+        "option_c": "She kidnaps Holly",
+        "option_d": "She frames Holly for the murder of Commander Root",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "What happens to Commander Root?",
+        "option_a": "He is kidnapped",
+        "option_b": "He retires",
+        "option_c": "He is killed by a bomb planted by Opal",
+        "option_d": "He is fired",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the only one who can clear Holly's name?",
+        "option_a": "Commander Root",
+        "option_b": "Artemis Fowl",
+        "option_c": "Mulch",
+        "option_d": "Foaly",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "What problem does Artemis face at the start of the book?",
+        "option_a": "He is sick",
+        "option_b": "He has been mind-wiped and doesn't remember the fairies",
+        "option_c": "He has lost his fortune",
+        "option_d": "He is in prison",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who helps Artemis regain his memories?",
+        "option_a": "Holly and Mulch, using a flashback device",
+        "option_b": "His mother",
+        "option_c": "Butler",
+        "option_d": "Foaly",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "Where is Opal Koboi's secret base hidden?",
+        "option_a": "In an abandoned shuttleport",
+        "option_b": "In Fowl Manor",
+        "option_c": "In Chicago",
+        "option_d": "In Haven City",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Opal plan to do to the fairy world?",
+        "option_a": "Sink it underground",
+        "option_b": "Destroy it and take over",
+        "option_c": "Turn it to gold",
+        "option_d": "Make it invisible",
+        "correct_answer": "b",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens to Opal Koboi at the end of the book?",
+        "option_a": "She is killed",
+        "option_b": "She escapes",
+        "option_c": "She becomes good",
+        "option_d": "She is captured and arrested",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "Who becomes the new commander of the LEP?",
+        "option_a": "Mulch",
+        "option_b": "Foaly",
+        "option_c": "Ark Sool",
+        "option_d": "Holly Short",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Lost Colony",
+    "questions": [
+      {
+        "question_text": "What ancient fairy race does Artemis discover in this book?",
+        "option_a": "Goblins",
+        "option_b": "Demons, the eighth fairy family",
+        "option_c": "Trolls",
+        "option_d": "Centaurs",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Where do the demons live?",
+        "option_a": "On the island of Hybras, suspended in time",
+        "option_b": "In Haven City",
+        "option_c": "Underground",
+        "option_d": "In the Arctic",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is the name of the demon warlock who is trying to break the time spell?",
+        "option_a": "Imp Imbroli",
+        "option_b": "N\u00b01",
+        "option_c": "Qwan",
+        "option_d": "Leon Abbot",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the demon leader who took power by stealing magic?",
+        "option_a": "Qwan",
+        "option_b": "Artemis",
+        "option_c": "Leon Abbot",
+        "option_d": "N\u00b01",
+        "correct_answer": "c",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is the new fairy character, a demon imp who befriends Artemis?",
+        "option_a": "Holly",
+        "option_b": "Leon Abbot",
+        "option_c": "Qwan",
+        "option_d": "N\u00b01",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Holly Short do in this book?",
+        "option_a": "She quits the LEP",
+        "option_b": "She is kidnapped",
+        "option_c": "She becomes a demon",
+        "option_d": "She helps Artemis stop the time spell from destroying Hybras",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "What happens to the island of Hybras at the end of the book?",
+        "option_a": "It sinks",
+        "option_b": "It is destroyed",
+        "option_c": "It is returned to the real world, in Ireland",
+        "option_d": "It floats away",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "Who is the old demon warlock who helps save Hybras?",
+        "option_a": "Leon Abbot",
+        "option_b": "Foaly",
+        "option_c": "Qwan",
+        "option_d": "N\u00b01",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens to Artemis at the end of the book?",
+        "option_a": "He loses his memory",
+        "option_b": "He swaps an eye with Holly, gaining fairy magic",
+        "option_c": "He becomes a fairy",
+        "option_d": "He is arrested",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Minerva Paradiz, a young genius, want to do?",
+        "option_a": "Capture a demon for scientific glory",
+        "option_b": "Join the LEP",
+        "option_c": "Help Artemis",
+        "option_d": "Steal the C Cube",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Inkheart",
+    "questions": [
+      {
+        "question_text": "What special ability does Mo (Mortimer) have?",
+        "option_a": "He can turn invisible",
+        "option_b": "He can bring characters out of books by reading aloud",
+        "option_c": "He can fly",
+        "option_d": "He can talk to animals",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is the name of Mo's daughter, the protagonist?",
+        "option_a": "Elinor",
+        "option_b": "Meggie",
+        "option_c": "Resa",
+        "option_d": "Fenoglio",
+        "correct_answer": "b",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is the evil character read out of the book Inkheart?",
+        "option_a": "Dustfinger",
+        "option_b": "Fenoglio",
+        "option_c": "Capricorn",
+        "option_d": "Basta",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "What happened to Mo's wife Resa when he read Capricorn out of the book?",
+        "option_a": "She ran away",
+        "option_b": "She was kidnapped",
+        "option_c": "She died",
+        "option_d": "She was read into the book",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is the fire-eater who wants to return to the world of the book?",
+        "option_a": "Fenoglio",
+        "option_b": "Basta",
+        "option_c": "Dustfinger",
+        "option_d": "Capricorn",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the author of the book Inkheart within the story?",
+        "option_a": "Elinor",
+        "option_b": "Capricorn",
+        "option_c": "Mo",
+        "option_d": "Fenoglio",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Capricorn want from Mo?",
+        "option_a": "He wants Mo dead",
+        "option_b": "He wants Mo to write a new book",
+        "option_c": "He wants Mo's money",
+        "option_d": "He wants Mo to read the Shadow (a monster) out of the book for him",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "Where does Meggie's aunt Elinor live?",
+        "option_a": "In a house full of books in Italy",
+        "option_b": "In France",
+        "option_c": "In England",
+        "option_d": "In Germany",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Meggie discover she can also do?",
+        "option_a": "She can read characters out of books",
+        "option_b": "She can turn invisible",
+        "option_c": "She can fly",
+        "option_d": "She can talk to animals",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What happens at the climax of the book?",
+        "option_a": "Mo is killed",
+        "option_b": "Capricorn escapes",
+        "option_c": "Meggie reads the Shadow out, but it turns on Capricorn and kills him",
+        "option_d": "The book is destroyed",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Inkspell",
+    "questions": [
+      {
+        "question_text": "Where do Meggie and Farid go in this book?",
+        "option_a": "To a new world",
+        "option_b": "To the past",
+        "option_c": "To Italy",
+        "option_d": "Into the world of the Inkheart book",
+        "correct_answer": "d",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who read themselves into the book?",
+        "option_a": "Capricorn",
+        "option_b": "Mo",
+        "option_c": "Elinor",
+        "option_d": "Dustfinger, with Orpheus's help",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is the new villain who reads Dustfinger into the Inkworld?",
+        "option_a": "Capricorn",
+        "option_b": "Basta",
+        "option_c": "Orpheus",
+        "option_d": "Fenoglio",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "What role does Fenoglio, the author, take in the Inkworld?",
+        "option_a": "He becomes a court poet in Ombra",
+        "option_b": "He becomes a thief",
+        "option_c": "He becomes king",
+        "option_d": "He is captured",
+        "correct_answer": "a",
+        "question_order": 4
+      },
+      {
+        "question_text": "What happens to Mo in the Inkworld?",
+        "option_a": "He dies",
+        "option_b": "He returns home",
+        "option_c": "He is captured and becomes the Bluejay, a legendary robber",
+        "option_d": "He becomes king",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the evil ruler of the Inkworld?",
+        "option_a": "The Adderhead, a cruel tyrant",
+        "option_b": "Capricorn",
+        "option_c": "Orpheus",
+        "option_d": "Basta",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does the Adderhead want from the Bluejay (Mo)?",
+        "option_a": "He wants Mo to bind an immortal book for him",
+        "option_b": "He wants Mo to read for him",
+        "option_c": "He wants Mo dead",
+        "option_d": "He wants Mo's money",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "Who is Meggie's love interest in the Inkworld?",
+        "option_a": "Fenoglio",
+        "option_b": "Dustfinger",
+        "option_c": "Orpheus",
+        "option_d": "Farid",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens to Dustfinger in this book?",
+        "option_a": "He is captured",
+        "option_b": "He is killed by Basta",
+        "option_c": "He becomes king",
+        "option_d": "He returns home",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Meggie do at the end of the book?",
+        "option_a": "She marries Farid",
+        "option_b": "She writes a new ending to the story to save Mo",
+        "option_c": "She becomes queen",
+        "option_d": "She returns home",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Inkdeath",
+    "questions": [
+      {
+        "question_text": "Where does the story pick up after Inkspell?",
+        "option_a": "In Ombra",
+        "option_b": "In Italy",
+        "option_c": "In the Inkworld, after Dustfinger's death",
+        "option_d": "In the real world",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who brings Dustfinger back from the dead?",
+        "option_a": "Orpheus, by making a bargain with the White Women",
+        "option_b": "Meggie",
+        "option_c": "Fenoglio",
+        "option_d": "Mo",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who does Mo become known as in the Inkworld?",
+        "option_a": "The King",
+        "option_b": "The Bluejay, a legendary robber",
+        "option_c": "The Storyteller",
+        "option_d": "The Adderhead",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "What does the Adderhead want from the Bluejay?",
+        "option_a": "He wants Mo dead",
+        "option_b": "He wants Mo to bind him an immortal book so he can live forever",
+        "option_c": "He wants Mo's gold",
+        "option_d": "He wants Mo to read for him",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who becomes the new ruler after the Adderhead's downfall?",
+        "option_a": "Mo",
+        "option_b": "Fenoglio",
+        "option_c": "Violante's son, Jacopo",
+        "option_d": "Orpheus",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Meggie decide at the end of the book?",
+        "option_a": "She becomes queen",
+        "option_b": "She returns home",
+        "option_c": "She marries Farid",
+        "option_d": "She stays in the Inkworld with Doria, not Farid",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who is the character who can write new stories into the Inkworld?",
+        "option_a": "Fenoglio",
+        "option_b": "Meggie",
+        "option_c": "Orpheus",
+        "option_d": "Mo",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "What happens to Fenoglio in this book?",
+        "option_a": "He loses his ability to write new stories",
+        "option_b": "He becomes king",
+        "option_c": "He returns home",
+        "option_d": "He dies",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What is the fate of the Adderhead?",
+        "option_a": "He becomes good",
+        "option_b": "He dies when the immortal book is destroyed",
+        "option_c": "He becomes immortal",
+        "option_d": "He escapes",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Mo do at the very end of the book?",
+        "option_a": "He becomes king",
+        "option_b": "He dies",
+        "option_c": "He returns home",
+        "option_d": "He stays in the Inkworld with Resa",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Dragon Rider",
+    "questions": [
+      {
+        "question_text": "What is the name of the young dragon who is the main character?",
+        "option_a": "Sorrel",
+        "option_b": "Firedrake",
+        "option_c": "Ben",
+        "option_d": "Nettlebrand",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is Firedrake searching for?",
+        "option_a": "The Rim of Heaven, a mythical dragon sanctuary",
+        "option_b": "A magic sword",
+        "option_c": "A new home in the sea",
+        "option_d": "A treasure",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is the brownie (a forest creature) who accompanies Firedrake?",
+        "option_a": "Twigleg",
+        "option_b": "Sorrel",
+        "option_c": "Nettlebrand",
+        "option_d": "Ben",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the orphaned boy who joins Firedrake on his quest?",
+        "option_a": "Twigleg",
+        "option_b": "Guinevere",
+        "option_c": "Sorrel",
+        "option_d": "Ben",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is the golden dragon who hunts and kills real dragons?",
+        "option_a": "Firedrake",
+        "option_b": "Nettlebrand",
+        "option_c": "Guinevere",
+        "option_d": "Maeve",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the homunculus (tiny man) who serves Nettlebrand?",
+        "option_a": "Guinevere",
+        "option_b": "Sorrel",
+        "option_c": "Ben",
+        "option_d": "Twigleg",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Twigleg do during the quest?",
+        "option_a": "He stays loyal to Nettlebrand",
+        "option_b": "He runs away",
+        "option_c": "He betrays Nettlebrand and helps Firedrake",
+        "option_d": "He becomes a dragon",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "Where is the Rim of Heaven located?",
+        "option_a": "In the desert",
+        "option_b": "In the Arctic",
+        "option_c": "In the Himalayas",
+        "option_d": "In the Alps",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "What happens to Nettlebrand at the end of the book?",
+        "option_a": "He is defeated when the dragons and brownies work together",
+        "option_b": "He becomes good",
+        "option_c": "He becomes king",
+        "option_d": "He escapes",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Ben find at the end of his journey?",
+        "option_a": "A new family and a home with the dragons",
+        "option_b": "A magic sword",
+        "option_c": "A treasure",
+        "option_d": "His parents",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Thief Lord",
+    "questions": [
+      {
+        "question_text": "Where does this story take place?",
+        "option_a": "In Paris",
+        "option_b": "In Venice, Italy",
+        "option_c": "In London",
+        "option_d": "In Rome",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who are the two orphaned brothers at the center of the story?",
+        "option_a": "Hornet and Mosca",
+        "option_b": "Victor and Prosper",
+        "option_c": "Scipio and Riccio",
+        "option_d": "Prosper and Bo",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is the mysterious leader of the gang of runaway children?",
+        "option_a": "Riccio",
+        "option_b": "Victor",
+        "option_c": "Scipio, the Thief Lord",
+        "option_d": "Prosper",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the detective hired to find the runaway boys?",
+        "option_a": "Scipio",
+        "option_b": "The Conte",
+        "option_c": "Victor Getz",
+        "option_d": "Ida Spavento",
+        "correct_answer": "c",
+        "question_order": 4
+      },
+      {
+        "question_text": "What mysterious object is the Conte looking for?",
+        "option_a": "A magic mirror",
+        "option_b": "A magic book",
+        "option_c": "A treasure chest",
+        "option_d": "A magic merry-go-round that turns children into adults",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the mysterious woman who helps the children?",
+        "option_a": "Ida Spavento",
+        "option_b": "Scipio",
+        "option_c": "Victor Getz",
+        "option_d": "The Conte",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Scipio reveal about himself?",
+        "option_a": "He is a fairy",
+        "option_b": "He is actually the son of a wealthy man, not an orphan",
+        "option_c": "He is a thief",
+        "option_d": "He is a detective",
+        "correct_answer": "b",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does the magic merry-go-round do?",
+        "option_a": "It grants wishes",
+        "option_b": "It makes people invisible",
+        "option_c": "It turns children into adults and adults into children",
+        "option_d": "It flies",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who rides the merry-go-round to become an adult?",
+        "option_a": "Scipio",
+        "option_b": "Prosper",
+        "option_c": "Riccio",
+        "option_d": "Bo",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What happens at the end of the story?",
+        "option_a": "They all return home",
+        "option_b": "Scipio becomes Victor's assistant and the children find homes",
+        "option_c": "They become rich",
+        "option_d": "They are arrested",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Gregor the Overlander",
+    "questions": [
+      {
+        "question_text": "How does Gregor end up in the Underland?",
+        "option_a": "He finds a magic door",
+        "option_b": "He falls through a grate in his laundry room",
+        "option_c": "He is swallowed by a creature",
+        "option_d": "He is kidnapped",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who falls into the Underland with Gregor?",
+        "option_a": "His friend",
+        "option_b": "His father",
+        "option_c": "His little sister, Boots",
+        "option_d": "His mother",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "What creatures live in the Underland?",
+        "option_a": "Trolls",
+        "option_b": "Dragons",
+        "option_c": "Fairies",
+        "option_d": "Giant cockroaches, rats, bats, and spiders",
+        "correct_answer": "d",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who are the humans who live in the Underland?",
+        "option_a": "The people of the Surface",
+        "option_b": "The Fliers",
+        "option_c": "The Crawlers",
+        "option_d": "The people of Regalia",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is the princess of Regalia who befriends Gregor?",
+        "option_a": "Solovet",
+        "option_b": "Luxa",
+        "option_c": "Boots",
+        "option_d": "Vikus",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "What is the Prophecy of Gray?",
+        "option_a": "A prophecy about a flood",
+        "option_b": "A prophecy about a dragon",
+        "option_c": "A prophecy about a warrior from the Overland who must save the Underland",
+        "option_d": "A prophecy about a king",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who is the giant cockroach who becomes Gregor's friend?",
+        "option_a": "Temp",
+        "option_b": "Tick",
+        "option_c": "Ripred",
+        "option_d": "Ares",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "Who is the giant rat who is a fierce warrior and ally?",
+        "option_a": "Temp",
+        "option_b": "Ares",
+        "option_c": "Vikus",
+        "option_d": "Ripred",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Gregor discover about his father?",
+        "option_a": "His father is dead",
+        "option_b": "His father is a rat",
+        "option_c": "His father is a prisoner in the Underland",
+        "option_d": "His father is a king",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is the name of the giant bat who bonds with Gregor?",
+        "option_a": "Ares",
+        "option_b": "Luxa",
+        "option_c": "Ripred",
+        "option_d": "Temp",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Gregor and the Prophecy of Bane",
+    "questions": [
+      {
+        "question_text": "What is the Prophecy of Bane about?",
+        "option_a": "A dragon",
+        "option_b": "A flood",
+        "option_c": "A giant white rat called the Bane that threatens the Underland",
+        "option_d": "A plague",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who is the giant white rat that Gregor must defeat?",
+        "option_a": "Ripred",
+        "option_b": "The Bane",
+        "option_c": "King Gorger",
+        "option_d": "Twirltongue",
+        "correct_answer": "b",
+        "question_order": 2
+      },
+      {
+        "question_text": "Where does the Bane live?",
+        "option_a": "In the jungle",
+        "option_b": "In the Labyrinth, a maze of tunnels",
+        "option_c": "In the Dead Land",
+        "option_d": "In Regalia",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the rat who secretly manipulates the Bane?",
+        "option_a": "Ripred",
+        "option_b": "Solovet",
+        "option_c": "Vikus",
+        "option_d": "Twirltongue",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What happens to Gregor's bond, his bat Ares?",
+        "option_a": "He is accused of treason and put on trial",
+        "option_b": "He is killed",
+        "option_c": "He is exiled",
+        "option_d": "He is kidnapped",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who are the creatures who spin deadly silk in the Labyrinth?",
+        "option_a": "Giant spiders called Spinners",
+        "option_b": "Giant ants",
+        "option_c": "Giant rats",
+        "option_d": "Giant cockroaches",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Gregor discover about the Bane?",
+        "option_a": "The Bane is actually just a baby, not a monster",
+        "option_b": "The Bane is a human",
+        "option_c": "The Bane is invincible",
+        "option_d": "The Bane is a bat",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Gregor decide to do with the Bane?",
+        "option_a": "He takes the Bane to Regalia",
+        "option_b": "He gives the Bane to the rats",
+        "option_c": "He spares the Bane's life",
+        "option_d": "He kills the Bane",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is the leader of Regalia?",
+        "option_a": "Luxa",
+        "option_b": "Vikus",
+        "option_c": "Ripred",
+        "option_d": "Solovet",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "What happens at the end of the book?",
+        "option_a": "He becomes king",
+        "option_b": "He stays in the Underland",
+        "option_c": "He is killed",
+        "option_d": "Gregor returns home but knows he will be called back",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Gregor and the Curse of the Warmbloods",
+    "questions": [
+      {
+        "question_text": "What is the Curse of the Warmbloods?",
+        "option_a": "A curse that causes madness",
+        "option_b": "A deadly plague that kills all warm-blooded creatures in the Underland",
+        "option_c": "A curse that makes creatures invisible",
+        "option_d": "A curse that turns creatures to stone",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Where does the cure for the plague grow?",
+        "option_a": "In the Dead Land",
+        "option_b": "In Regalia",
+        "option_c": "In the Labyrinth",
+        "option_d": "In the Vineyard of Eyes, a dangerous jungle",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who leads the quest to find the cure?",
+        "option_a": "Solovet alone",
+        "option_b": "Ripred alone",
+        "option_c": "Luxa alone",
+        "option_d": "Gregor, along with a team of Underlanders",
+        "correct_answer": "d",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the rat that joins the quest?",
+        "option_a": "King Gorger",
+        "option_b": "The Bane",
+        "option_c": "Ripred",
+        "option_d": "Twirltongue",
+        "correct_answer": "c",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is the human scientist working on a cure?",
+        "option_a": "Solovet",
+        "option_b": "Hamnet",
+        "option_c": "Luxa",
+        "option_d": "Vikus",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is Hamnet, a character they meet?",
+        "option_a": "He is a bat",
+        "option_b": "He is Vikus's son, who lives in exile in the jungle",
+        "option_c": "He is a king",
+        "option_d": "He is a rat",
+        "correct_answer": "b",
+        "question_order": 6
+      },
+      {
+        "question_text": "What dangerous creature lives in the Vineyard of Eyes?",
+        "option_a": "Giant carnivorous plants that look like eyes",
+        "option_b": "Giant spiders",
+        "option_c": "Dragons",
+        "option_d": "Trolls",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What happens to the cure they find?",
+        "option_a": "It is a trap",
+        "option_b": "It is destroyed, and they must find another way",
+        "option_c": "It is stolen",
+        "option_d": "It works perfectly",
+        "correct_answer": "b",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is revealed to be secretly working against the quest?",
+        "option_a": "Ripred",
+        "option_b": "Luxa",
+        "option_c": "Solovet, who let the plague spread on purpose",
+        "option_d": "Hamnet",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What happens to Hamnet?",
+        "option_a": "He is cured",
+        "option_b": "He becomes king",
+        "option_c": "He dies protecting the others from the plants",
+        "option_d": "He escapes",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Gregor and the Marks of Secret",
+    "questions": [
+      {
+        "question_text": "What are the Marks of Secret?",
+        "option_a": "A secret language",
+        "option_b": "A treasure map",
+        "option_c": "A code of drawings that mark the path to a hidden disaster",
+        "option_d": "A magic spell",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "What do the Marks of Secret reveal?",
+        "option_a": "A treasure",
+        "option_b": "A new world",
+        "option_c": "A prophecy",
+        "option_d": "A plot by the rats to trap and kill the mice of the Underland",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who are the mice of the Underland called?",
+        "option_a": "The Nibblers",
+        "option_b": "The Gnawers",
+        "option_c": "The Fliers",
+        "option_d": "The Crawlers",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "What does the rat king plan to do to the mice?",
+        "option_a": "Drown them",
+        "option_b": "Trap them in a volcano that will erupt",
+        "option_c": "Starve them",
+        "option_d": "Poison them",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is the rat who leads the plot against the mice?",
+        "option_a": "Ripred",
+        "option_b": "Twirltongue",
+        "option_c": "King Gorger",
+        "option_d": "The Bane",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who helps Gregor decode the Marks of Secret?",
+        "option_a": "Ripred",
+        "option_b": "Vikus",
+        "option_c": "Luxa",
+        "option_d": "Solovet",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Gregor discover about his own role in the prophecy?",
+        "option_a": "He is a king",
+        "option_b": "He is a traitor",
+        "option_c": "He is a rat",
+        "option_d": "He is the warrior who must lead the final battle",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "What happens to the mice in this book?",
+        "option_a": "They become rats",
+        "option_b": "Many are killed when the volcano erupts",
+        "option_c": "They are saved",
+        "option_d": "They escape",
+        "correct_answer": "b",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Gregor do at the end of the book?",
+        "option_a": "He declares war on the rats, setting up the final battle",
+        "option_b": "He is killed",
+        "option_c": "He returns home",
+        "option_d": "He becomes king",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is the significance of this book in the series?",
+        "option_a": "It is a prequel",
+        "option_b": "It sets up the final war between the humans and the rats",
+        "option_c": "It is the last book",
+        "option_d": "It is a side story",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  }
+]

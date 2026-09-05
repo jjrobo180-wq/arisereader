@@ -1,0 +1,1997 @@
+[
+  {
+    "title": "Speak",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the protagonist in Speak?",
+        "option_a": "Melinda Sordino",
+        "option_b": "Heather",
+        "option_c": "Nicky",
+        "option_d": "Rachel",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What event causes Melinda to stop speaking?",
+        "option_a": "A fight with her best friend",
+        "option_b": "Her parents' divorce",
+        "option_c": "A car accident",
+        "option_d": "An assault at a summer party",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "Which class does Melinda find refuge in and use as a form of self-expression?",
+        "option_a": "Music class",
+        "option_b": "Creative writing",
+        "option_c": "Drama class",
+        "option_d": "Art class",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What tree does Melinda repeatedly draw and sculpt as a symbol of her emotional state?",
+        "option_a": "A pine tree",
+        "option_b": "A cherry tree",
+        "option_c": "An oak tree",
+        "option_d": "A willow tree",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who is the senior boy who assaulted Melinda at the summer party?",
+        "option_a": "David Petrakis",
+        "option_b": "Kyle Rodgers",
+        "option_c": "Eric",
+        "option_d": "Andy Evans",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What does Melinda call the boy who assaulted her throughout the novel?",
+        "option_a": "IT",
+        "option_b": "Him",
+        "option_c": "The Monster",
+        "option_d": "The Beast",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Who is Melinda's lab partner and one of the few people who treats her kindly?",
+        "option_a": "David Petrakis",
+        "option_b": "Heather",
+        "option_c": "Rachel",
+        "option_d": "Ivy",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What does Melinda do to help herself find her voice at the end of the novel?",
+        "option_a": "Confronts Andy Evans and fights back",
+        "option_b": "Runs away from home",
+        "option_c": "Writes a letter to the school",
+        "option_d": "Calls the police",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What is the name of the school mascot that changes during the novel?",
+        "option_a": "The Hornets",
+        "option_b": "The Merryweather Bees",
+        "option_c": "The Trojans",
+        "option_d": "The Bears",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 10,
+        "question_text": "Who does Melinda's former best friend Rachel start dating?",
+        "option_a": "Kyle Rodgers",
+        "option_b": "Greta-Ingrid",
+        "option_c": "David Petrakis",
+        "option_d": "Andy Evans",
+        "correct_answer": "d"
+      }
+    ]
+  },
+  {
+    "title": "Twisted",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the main character in Twisted?",
+        "option_a": "Parker",
+        "option_b": "Chip Matthews",
+        "option_c": "Evan",
+        "option_d": "Tyler Miller",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What did Tyler do that got him in trouble with the law before the story begins?",
+        "option_a": "Hacked the school's computer",
+        "option_b": "Got into a fight",
+        "option_c": "Spray-painted graffiti on school property",
+        "option_d": "Stole a car",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What summer activity does Tyler do to build up his physique?",
+        "option_a": "Weightlifting class",
+        "option_b": "Swimming",
+        "option_c": "Football camp",
+        "option_d": "Landscaping and yard work",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who is the popular girl that Tyler has a crush on?",
+        "option_a": "Parker",
+        "option_b": "Hannah",
+        "option_c": "Yoda",
+        "option_d": "Bethany Milbury",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What is the name of Tyler's friend who gives him the nickname 'Mouse'?",
+        "option_a": "Chip",
+        "option_b": "Adam Don",
+        "option_c": "Parker",
+        "option_d": "Yoda",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What false accusation is Tyler facing at school?",
+        "option_a": "Vandalizing the principal's office",
+        "option_b": "Stealing from the school",
+        "option_c": "Cheating on tests",
+        "option_d": "Sexually assaulting a girl",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What is Tyler's father's personality like?",
+        "option_a": "Abusive and controlling",
+        "option_b": "Funny and laid-back",
+        "option_c": "Absent and neglectful",
+        "option_d": "Warm and supportive",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What does Tyler consider doing when the pressure becomes overwhelming?",
+        "option_a": "Dropping out of school",
+        "option_b": "Joining the military",
+        "option_c": "Running away",
+        "option_d": "Suicide",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does Tyler ultimately decide to do about his situation?",
+        "option_a": "Join the military",
+        "option_b": "Transfer schools",
+        "option_c": "Take legal action and speak the truth",
+        "option_d": "Run away from home",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Tyler learn about social expectations and masculinity?",
+        "option_a": "That being popular is all that matters",
+        "option_b": "That real strength comes from honesty, not violence",
+        "option_c": "That he should conform to what others expect",
+        "option_d": "That revenge is the best response",
+        "correct_answer": "b"
+      }
+    ]
+  },
+  {
+    "title": "Wintergirls",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the protagonist in Wintergirls?",
+        "option_a": "Cassie",
+        "option_b": "Emma",
+        "option_c": "Chloe",
+        "option_d": "Lia",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What eating disorder does Lia struggle with?",
+        "option_a": "Binge eating",
+        "option_b": "Compulsive overeating",
+        "option_c": "Bulimia",
+        "option_d": "Anorexia nervosa",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What happened to Lia's best friend Cassie?",
+        "option_a": "She died alone in a motel room",
+        "option_b": "She went missing",
+        "option_c": "She was hospitalized",
+        "option_d": "She moved away",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What does Lia use to cope with her emotions and guilt?",
+        "option_a": "Journaling",
+        "option_b": "Talking to friends",
+        "option_c": "Exercise",
+        "option_d": "Cutting herself",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "How many times does Lia call Cassie's phone after her death?",
+        "option_a": "Thirty-three times",
+        "option_b": "Once",
+        "option_c": "Five times",
+        "option_d": "One hundred times",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who is Lia's stepsister who cares about her?",
+        "option_a": "Chloe",
+        "option_b": "Sarah",
+        "option_c": "Emma",
+        "option_d": "Jennifer",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What does Lia's ghostly vision of Cassie try to get her to do?",
+        "option_a": "Call her mother",
+        "option_b": "Starve herself to death",
+        "option_c": "Eat more",
+        "option_d": "Seek help",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What is Lia's goal weight that she is constantly striving for?",
+        "option_a": "85 pounds",
+        "option_b": "95 pounds",
+        "option_c": "100 pounds",
+        "option_d": "90 pounds",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does Lia's mother do for a living?",
+        "option_a": "A nurse",
+        "option_b": "A lawyer",
+        "option_c": "A doctor",
+        "option_d": "A teacher",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What realization does Lia come to by the end of the novel?",
+        "option_a": "That she needs to keep losing weight",
+        "option_b": "That she must choose life and seek recovery",
+        "option_c": "That Cassie's ghost was real",
+        "option_d": "That her parents are to blame",
+        "correct_answer": "b"
+      }
+    ]
+  },
+  {
+    "title": "The House of the Scorpion",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the clone protagonist in The House of the Scorpion?",
+        "option_a": "Celia",
+        "option_b": "Mateo",
+        "option_c": "Tam Lin",
+        "option_d": "Matt",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who is the powerful drug lord that Matt is a clone of?",
+        "option_a": "El Patron",
+        "option_b": "El Diablo",
+        "option_c": "Don Eduardo",
+        "option_d": "El Jefe",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What is the legal status of clones in this dystopian society?",
+        "option_a": "They are treated as equal citizens",
+        "option_b": "They are considered livestock and harvested for organs",
+        "option_c": "They are enslaved as soldiers",
+        "option_d": "They are exiled",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What is special about Matt's brain compared to other clones?",
+        "option_a": "It was left intact rather than destroyed at birth",
+        "option_b": "It is extra large",
+        "option_c": "It is damaged",
+        "option_d": "It has a computer chip",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who is the woman who raises Matt and shows him love and care?",
+        "option_a": "Rosa",
+        "option_b": "Celia",
+        "option_c": "Maria",
+        "option_d": "Esperanza",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who is the bodyguard/father figure who teaches Matt about life and nature?",
+        "option_a": "Tam Lin",
+        "option_b": "Felipe",
+        "option_c": "Chacho",
+        "option_d": "Tom",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Where is El Patron's estate located?",
+        "option_a": "In Opium, a country between the US and Mexico",
+        "option_b": "In the United States",
+        "option_c": "In Mexico",
+        "option_d": "In Colombia",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What does Matt discover about his purpose as El Patron's clone?",
+        "option_a": "He is meant to inherit the empire",
+        "option_b": "He was created to be a soldier",
+        "option_c": "He was created to provide donor organs for El Patron",
+        "option_d": "He was created to replace El Patron publicly",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 9,
+        "question_text": "Where does Matt escape to after El Patron's death?",
+        "option_a": "Mexico",
+        "option_b": "The United States",
+        "option_c": "Colombia",
+        "option_d": "Aztl\u00e1n",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Matt do at the end of the novel?",
+        "option_a": "Becomes a farmer",
+        "option_b": "Destroys the cloning facilities",
+        "option_c": "Escapes to the United States",
+        "option_d": "Returns to Opium to take over El Patron's empire",
+        "correct_answer": "d"
+      }
+    ]
+  },
+  {
+    "title": "The Sea of Trolls",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the young bard protagonist in The Sea of Trolls?",
+        "option_a": "Olaf",
+        "option_b": "Eric",
+        "option_c": "Jack",
+        "option_d": "Thorgil",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who trains Jack as a bard?",
+        "option_a": "Lucy",
+        "option_b": "Brother Aiden",
+        "option_c": "The Bard",
+        "option_d": "Father Swein",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What historical setting is the novel based in?",
+        "option_a": "Viking-age Scandinavia",
+        "option_b": "Anglo-Saxon England",
+        "option_c": "Ancient Rome",
+        "option_d": "Medieval France",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who captures Jack and his sister Lucy?",
+        "option_a": "The Picts",
+        "option_b": "The Berserkers",
+        "option_c": "The Romans",
+        "option_d": "The Normans",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What is the name of the Viking leader who takes Jack captive?",
+        "option_a": "Thorgil",
+        "option_b": "Olaf One-Brow",
+        "option_c": "Erik",
+        "option_d": "Ragnar",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who is the shield maiden who becomes Jack's companion?",
+        "option_a": "Lucy",
+        "option_b": "Freya",
+        "option_c": "Gretel",
+        "option_d": "Thorgil",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What must Jack and Thorgil do to save Lucy from the trolls?",
+        "option_a": "Complete a series of riddles",
+        "option_b": "Find Mimir's Well and drink from it",
+        "option_c": "Steal a magical sword",
+        "option_d": "Fight the troll king",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What do Jack and Thorgil find at Mimir's Well?",
+        "option_a": "A troll king",
+        "option_b": "The life force and wisdom of the well",
+        "option_c": "A golden treasure",
+        "option_d": "A magical sword",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What Norse mythological figure is referenced in the story?",
+        "option_a": "All of the above",
+        "option_b": "Odin",
+        "option_c": "Thor",
+        "option_d": "Loki",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What is the relationship between Jack and Lucy?",
+        "option_a": "They are siblings",
+        "option_b": "They are cousins",
+        "option_c": "They are strangers",
+        "option_d": "They are friends",
+        "correct_answer": "a"
+      }
+    ]
+  },
+  {
+    "title": "The Land of the Silver Apples",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the protagonist in The Land of the Silver Apples?",
+        "option_a": "Lucy",
+        "option_b": "Thorgil",
+        "option_c": "Jack",
+        "option_d": "Pega",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who has been kidnapped, prompting Jack's quest?",
+        "option_a": "Thorgil",
+        "option_b": "The Bard",
+        "option_c": "Pega",
+        "option_d": "Lucy",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What land does Jack travel to in search of Lucy?",
+        "option_a": "The Land of the Silver Apples",
+        "option_b": "Elfland",
+        "option_c": "Avalon",
+        "option_d": "Jotunheim",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What creatures rule the land Jack enters?",
+        "option_a": "Trolls",
+        "option_b": "Dragons",
+        "option_c": "Giants",
+        "option_d": "Elves",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who accompanies Jack on his quest?",
+        "option_a": "All of the above",
+        "option_b": "Thorgil",
+        "option_c": "The Bard",
+        "option_d": "Pega",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What is Pega's special ability?",
+        "option_a": "She can heal",
+        "option_b": "She can breathe underwater",
+        "option_c": "She can see the future",
+        "option_d": "She can talk to animals",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What must Jack do to free Lucy?",
+        "option_a": "Fight the elf king",
+        "option_b": "Play his harp for the elves",
+        "option_c": "Solve a riddle",
+        "option_d": "Steal the silver apples",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What happens to Thorgil in the story?",
+        "option_a": "She is captured by trolls",
+        "option_b": "She is transformed into a different creature",
+        "option_c": "She becomes queen",
+        "option_d": "She becomes an elf",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What do the silver apples represent?",
+        "option_a": "Knowledge and healing",
+        "option_b": "Love and friendship",
+        "option_c": "Immortality",
+        "option_d": "Wealth and power",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Jack learn about the elves?",
+        "option_a": "They are simple-minded",
+        "option_b": "They are kind and generous",
+        "option_c": "They are cowardly",
+        "option_d": "They are cruel and beautiful but lack empathy",
+        "correct_answer": "d"
+      }
+    ]
+  },
+  {
+    "title": "The Islands of the Blessed",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "Who is the main protagonist of The Islands of the Blessed?",
+        "option_a": "Thorgil",
+        "option_b": "Pega",
+        "option_c": "The Bard",
+        "option_d": "Jack",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What threat do Jack and his companions face in this novel?",
+        "option_a": "Dragons",
+        "option_b": "Roman soldiers",
+        "option_c": "Norman invaders",
+        "option_d": "Viking raiders",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What quest must the characters undertake?",
+        "option_a": "To retrieve stolen items and save their land",
+        "option_b": "To find the Holy Grail",
+        "option_c": "To find a lost treasure",
+        "option_d": "To defeat a dragon",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who is the Bard's true identity revealed to be?",
+        "option_a": "A Norse god",
+        "option_b": "A former king",
+        "option_c": "A fallen angel",
+        "option_d": "A dragon in disguise",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What is Thorgil's character arc throughout the series?",
+        "option_a": "She loses her memory",
+        "option_b": "She becomes more violent",
+        "option_c": "She becomes queen",
+        "option_d": "She learns compassion and humanity",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What mythical creatures appear in the novel?",
+        "option_a": "Unicorns",
+        "option_b": "Dragons and kelpies",
+        "option_c": "Trolls and elves",
+        "option_d": "Mermaids",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Where do Jack and his companions travel?",
+        "option_a": "To the Islands of the Blessed",
+        "option_b": "To Jotunheim",
+        "option_c": "To Rome",
+        "option_d": "To Avalon",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What does Jack use as his primary skill/tool?",
+        "option_a": "Archery",
+        "option_b": "His bardic abilities and harp",
+        "option_c": "Magic spells",
+        "option_d": "A sword",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does the Bard sacrifice to help the group?",
+        "option_a": "His memory",
+        "option_b": "His powers",
+        "option_c": "His immortality",
+        "option_d": "His life force",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What is the overall theme of the Sea of Trolls trilogy?",
+        "option_a": "Friendship, sacrifice, and the power of stories",
+        "option_b": "War and conquest",
+        "option_c": "Revenge and justice",
+        "option_d": "Survival of the fittest",
+        "correct_answer": "a"
+      }
+    ]
+  },
+  {
+    "title": "A Girl Named Disaster",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the young protagonist in A Girl Named Disaster?",
+        "option_a": "Tambudzai",
+        "option_b": "Chipo",
+        "option_c": "Netsai",
+        "option_d": "Nhamo",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "In what country does the story begin?",
+        "option_a": "Mozambique",
+        "option_b": "Tanzania",
+        "option_c": "Zimbabwe",
+        "option_d": "Zambia",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What is Nhamo forced to do by her family?",
+        "option_a": "Leave school",
+        "option_b": "Become a servant",
+        "option_c": "Work in the fields",
+        "option_d": "Marry a cruel man as a third wife",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 4,
+        "question_text": "How does Nhamo escape her situation?",
+        "option_a": "She hides in the mountains",
+        "option_b": "She runs to the city",
+        "option_c": "She joins a caravan",
+        "option_d": "She travels down the river in a boat",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What river does Nhamo travel down?",
+        "option_a": "The Nile",
+        "option_b": "The Zambezi River",
+        "option_c": "The Congo River",
+        "option_d": "The Limpopo River",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What does Nhamo rely on for guidance during her journey?",
+        "option_a": "A radio",
+        "option_b": "A compass",
+        "option_c": "A map",
+        "option_d": "Her grandmother's teachings and spirit stories",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What does Nhamo encounter that poses a danger during her river journey?",
+        "option_a": "Crocodiles and leopards",
+        "option_b": "A waterfall",
+        "option_c": "Hostile soldiers",
+        "option_d": "Pirates",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "Where does Nhamo eventually arrive at the end of her journey?",
+        "option_a": "Zimbabwe, where she finds help",
+        "option_b": "A refugee camp",
+        "option_c": "A mission station in Zimbabwe",
+        "option_d": "A city in South Africa",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What language does Nhamo speak?",
+        "option_a": "Swahili",
+        "option_b": "Zulu",
+        "option_c": "Shona",
+        "option_d": "Amharic",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Nhamo's name mean in her language?",
+        "option_a": "River",
+        "option_b": "Strength",
+        "option_c": "Hope",
+        "option_d": "Disaster",
+        "correct_answer": "d"
+      }
+    ]
+  },
+  {
+    "title": "The Ear the Eye and the Arm",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "In what country and time period is The Ear, the Eye, and the Arm set?",
+        "option_a": "Future South Africa",
+        "option_b": "Future Kenya",
+        "option_c": "Present-day Nigeria",
+        "option_d": "Future Zimbabwe",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who are the three detectives with unusual abilities?",
+        "option_a": "The Ear, the Eye, and the Arm",
+        "option_b": "The Mind, the Body, and the Soul",
+        "option_c": "The Nose, the Mouth, and the Hand",
+        "option_d": "The Head, the Heart, and the Hand",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What are the Ear, the Eye, and the Arm searching for?",
+        "option_a": "A stolen treasure",
+        "option_b": "Three missing children",
+        "option_c": "A lost city",
+        "option_d": "A murderer",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who are the three missing children?",
+        "option_a": "Tendai, Rita, and Chipo",
+        "option_b": "Tendai, Rita, and Nhamo",
+        "option_c": "Tendai, Rita, and Kuda",
+        "option_d": "Tendai, Rita, and Nokoma",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Whose children are the missing kids?",
+        "option_a": "A traditional chief",
+        "option_b": "A famous scientist",
+        "option_c": "A wealthy general",
+        "option_d": "The president",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What is the Ear's special ability?",
+        "option_a": "He can read minds",
+        "option_b": "He can fly",
+        "option_c": "Super hearing",
+        "option_d": "He can see through walls",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What is the Eye's special ability?",
+        "option_a": "He can see the future",
+        "option_b": "He can see through walls",
+        "option_c": "He can see great distances",
+        "option_d": "He can see in the dark",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What is the Arm's special ability?",
+        "option_a": "He can read thoughts and emotions",
+        "option_b": "He can become invisible",
+        "option_c": "He can stretch his limbs",
+        "option_d": "Super strength",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "Where do the children first end up after running away?",
+        "option_a": "In a neighboring country",
+        "option_b": "In the wilderness",
+        "option_c": "In the dangerous areas of the city",
+        "option_d": "In a secret government facility",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What is the overarching theme of the novel?",
+        "option_a": "The power of money",
+        "option_b": "The dangers of technology",
+        "option_c": "The futility of war",
+        "option_d": "The importance of family and cultural identity",
+        "correct_answer": "d"
+      }
+    ]
+  },
+  {
+    "title": "The Graveyard Book",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the boy raised by ghosts in The Graveyard Book?",
+        "option_a": "Bod",
+        "option_b": "Nobody Owens",
+        "option_c": "Silas",
+        "option_d": "Jack Frost",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What is Bod's full name given to him by the ghosts?",
+        "option_a": "Norman Owens",
+        "option_b": "Body Owens",
+        "option_c": "Bodhi Owens",
+        "option_d": "Nobody Owens",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "Who is the mysterious guardian who takes care of Bod?",
+        "option_a": "The Lady on the Grey",
+        "option_b": "Silas",
+        "option_c": "Mr. Owens",
+        "option_d": "Miss Lupescu",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who killed Bod's family when he was a baby?",
+        "option_a": "A group of thieves",
+        "option_b": "A ghost",
+        "option_c": "A vampire",
+        "option_d": "A man named Jack",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What organization does Jack belong to?",
+        "option_a": "The Jacks of All Trades",
+        "option_b": "The Dead Men",
+        "option_c": "The Night Watch",
+        "option_d": "The Honour Guard",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What ability does Bod learn from the ghosts?",
+        "option_a": "Reading minds",
+        "option_b": "Flying",
+        "option_c": "Fading (becoming invisible)",
+        "option_d": "Teleportation",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Who is the girl who becomes Bod's friend from the living world?",
+        "option_a": "Mo",
+        "option_b": "Abigail",
+        "option_c": "Liza",
+        "option_d": "Scarlett",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What is the Sleer that guards the treasure in the graveyard?",
+        "option_a": "A serpent-like creature",
+        "option_b": "A gargoyle",
+        "option_c": "A demon",
+        "option_d": "A ghost",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does Bod ultimately do at the end of the novel?",
+        "option_a": "Joins the Jacks",
+        "option_b": "Leaves the graveyard to live in the world of the living",
+        "option_c": "Becomes a ghost permanently",
+        "option_d": "Becomes a guardian of the graveyard",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Silas reveal himself to be?",
+        "option_a": "An angel",
+        "option_b": "A vampire",
+        "option_c": "A wizard",
+        "option_d": "A ghost",
+        "correct_answer": "b"
+      }
+    ]
+  },
+  {
+    "title": "Coraline",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the young girl protagonist in Coraline?",
+        "option_a": "Carrie",
+        "option_b": "Coraline",
+        "option_c": "Caroline",
+        "option_d": "Corinne",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What does Coraline discover in her new home?",
+        "option_a": "A hidden room",
+        "option_b": "A secret garden",
+        "option_c": "A magical book",
+        "option_d": "A small locked door leading to another world",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "Who is the main antagonist in the parallel world?",
+        "option_a": "The Other Mother",
+        "option_b": "The Other Father",
+        "option_c": "The Old Lady",
+        "option_d": "The Other Cat",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What is distinctive about the Other Mother?",
+        "option_a": "She has wings",
+        "option_b": "She has black button eyes",
+        "option_c": "She is made of glass",
+        "option_d": "She has no mouth",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What does the Other Mother want from Coraline?",
+        "option_a": "To stay forever and let her sew buttons on her eyes",
+        "option_b": "To find a treasure",
+        "option_c": "To play games",
+        "option_d": "Her money",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who helps Coraline in the parallel world?",
+        "option_a": "The Other Father",
+        "option_b": "A talking dog",
+        "option_c": "A talking cat",
+        "option_d": "A ghost child",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What must Coraline do to save herself?",
+        "option_a": "Destroy the parallel world",
+        "option_b": "Find the souls of the ghost children and her parents",
+        "option_c": "Find a way home",
+        "option_d": "Defeat the Other Mother in a fight",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "How many ghost children's souls does Coraline need to find?",
+        "option_a": "Three",
+        "option_b": "One",
+        "option_c": "Two",
+        "option_d": "Five",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What is the game Coraline plays with the Other Mother?",
+        "option_a": "A race",
+        "option_b": "A hide-and-seek for the souls and her parents",
+        "option_c": "A chess match",
+        "option_d": "A riddle contest",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Coraline do with the key at the end of the story?",
+        "option_a": "Throws it into a well to be rid of it",
+        "option_b": "Gives it to the cat",
+        "option_c": "Keeps it as a souvenir",
+        "option_d": "Locks the door forever",
+        "correct_answer": "a"
+      }
+    ]
+  },
+  {
+    "title": "The Ocean at the End of the Lane",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What prompts the narrator to return to his childhood home?",
+        "option_a": "Selling his parents' house",
+        "option_b": "A funeral",
+        "option_c": "A letter from an old friend",
+        "option_d": "A dream",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who is the girl who lives at the end of the lane?",
+        "option_a": "Lettie Hempstock",
+        "option_b": "Ursula Monkton",
+        "option_c": "Ginnie Hempstock",
+        "option_d": "Old Mrs. Hempstock",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What do the Hempstock women claim the pond behind their house is?",
+        "option_a": "An ocean",
+        "option_b": "A swimming pool",
+        "option_c": "A well",
+        "option_d": "A lake",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What does the opal miner do that triggers the supernatural events?",
+        "option_a": "He commits suicide in the narrator's car",
+        "option_b": "He steals from the Hempstocks",
+        "option_c": "He opens a portal",
+        "option_d": "He digs up something ancient",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who is the supernatural entity that arrives and causes trouble?",
+        "option_a": "The Flea",
+        "option_b": "The Skarthatch",
+        "option_c": "The Hunger Birds",
+        "option_d": "Ursula Monkton",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What does Ursula Monkton become to the narrator's family?",
+        "option_a": "The new nanny/housekeeper",
+        "option_b": "A teacher",
+        "option_c": "A neighbor",
+        "option_d": "A relative",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What do the hunger birds do?",
+        "option_a": "They guide lost souls",
+        "option_b": "They protect the narrator",
+        "option_c": "They clean up the world of supernatural remnants",
+        "option_d": "They eat crops",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What sacrifice does Lettie make to protect the narrator?",
+        "option_a": "She lets herself be taken by the hunger birds",
+        "option_b": "She gives up her life",
+        "option_c": "She gives up her powers",
+        "option_d": "She gives up her memories",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does the narrator forget about his childhood?",
+        "option_a": "Lettie's name",
+        "option_b": "His family",
+        "option_c": "The supernatural events, until he visits the pond again",
+        "option_d": "Everything",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 10,
+        "question_text": "Who is the narrator as an adult?",
+        "option_a": "A teacher",
+        "option_b": "A scientist",
+        "option_c": "A writer",
+        "option_d": "An artist",
+        "correct_answer": "c"
+      }
+    ]
+  },
+  {
+    "title": "Fortunately the Milk",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What does the father go out to buy in Fortunately, the Milk?",
+        "option_a": "Eggs",
+        "option_b": "Bread",
+        "option_c": "Cereal",
+        "option_d": "Milk",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Why is the father's errand taking so long?",
+        "option_a": "He got lost",
+        "option_b": "He fell asleep",
+        "option_c": "He met a friend",
+        "option_d": "He had an extraordinary adventure",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What does the father encounter that starts his adventure?",
+        "option_a": "An alien spaceship",
+        "option_b": "A dinosaur",
+        "option_c": "A time machine",
+        "option_d": "A pirate ship",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who are the aliens that abduct the father?",
+        "option_a": "The Splodons",
+        "option_b": "The Volcrons",
+        "option_c": "The Globefish",
+        "option_d": "The Mogons",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What do the aliens want from Earth?",
+        "option_a": "To steal its resources",
+        "option_b": "To conquer it",
+        "option_c": "Water",
+        "option_d": "To make friends",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What does the father travel through during his adventure?",
+        "option_a": "Different dimensions",
+        "option_b": "Underground tunnels",
+        "option_c": "Space only",
+        "option_d": "Time and space",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What prehistoric creature does the father encounter?",
+        "option_a": "A pterodactyl",
+        "option_b": "A T. rex",
+        "option_c": "A triceratops",
+        "option_d": "A stegosaurus",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "Who does the father meet that helps him on his adventure?",
+        "option_a": "A pirate",
+        "option_b": "A fairy",
+        "option_c": "A talking dinosaur",
+        "option_d": "A professor",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does the father bring back at the end of his adventure?",
+        "option_a": "Just the milk",
+        "option_b": "A magical artifact",
+        "option_c": "Milk and souvenirs",
+        "option_d": "Nothing",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What is the tone of the story?",
+        "option_a": "Serious and dramatic",
+        "option_b": "Sad and tragic",
+        "option_c": "Humorous and whimsical",
+        "option_d": "Dark and scary",
+        "correct_answer": "c"
+      }
+    ]
+  },
+  {
+    "title": "Stardust",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the young man who ventures into Faerie in Stardust?",
+        "option_a": "Tristran Thorn",
+        "option_b": "Tristan Thorn",
+        "option_c": "Septimus",
+        "option_d": "Dunstan",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What does Tristran promise to retrieve for Victoria, the woman he loves?",
+        "option_a": "A magical sword",
+        "option_b": "A golden crown",
+        "option_c": "A rare flower",
+        "option_d": "A fallen star",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What does Tristran find when he reaches the fallen star?",
+        "option_a": "A glowing rock",
+        "option_b": "A magical gem",
+        "option_c": "A small creature",
+        "option_d": "A woman, the star in human form",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What is the fallen star's name?",
+        "option_a": "Una",
+        "option_b": "Semele",
+        "option_c": "Dycha",
+        "option_d": "Yvaine",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who are the seven lords seeking the star?",
+        "option_a": "The Lords of Stormhold",
+        "option_b": "The Lords of the Highlands",
+        "option_c": "The Fairy Kings",
+        "option_d": "The Brothers Grimm",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Why do the lords want the star?",
+        "option_a": "To bring it to their father the king",
+        "option_b": "To use its power",
+        "option_c": "For its beauty",
+        "option_d": "To sell it",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Who are the witches pursuing the star?",
+        "option_a": "The Fates",
+        "option_b": "The Lilim",
+        "option_c": "The Sorceresses",
+        "option_d": "The Coven",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "Why do the Lilim want the star?",
+        "option_a": "To find a lost sister",
+        "option_b": "To gain power",
+        "option_c": "To gain eternal youth",
+        "option_d": "To destroy Faerie",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does Tristran discover about his parentage?",
+        "option_a": "He is a descendant of a fairy and a human",
+        "option_b": "He is the son of a king",
+        "option_c": "He is a star himself",
+        "option_d": "He is a fairy prince",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 10,
+        "question_text": "Who does Tristran ultimately fall in love with?",
+        "option_a": "Semele",
+        "option_b": "Victoria",
+        "option_c": "Yvaine",
+        "option_d": "Una",
+        "correct_answer": "c"
+      }
+    ]
+  },
+  {
+    "title": "The Princess Bride",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the farm boy who loves Buttercup in The Princess Bride?",
+        "option_a": "Westley",
+        "option_b": "Inigo",
+        "option_c": "Humperdinck",
+        "option_d": "Fezzik",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 2,
+        "question_text": "What does Westley always say to Buttercup when she asks him to do things?",
+        "option_a": "At once",
+        "option_b": "Of course",
+        "option_c": "Right away",
+        "option_d": "As you wish",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "Who is the swordsman seeking revenge for his father's death?",
+        "option_a": "Fezzik",
+        "option_b": "Vizzini",
+        "option_c": "Count Rugen",
+        "option_d": "Inigo Montoya",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 4,
+        "question_text": "How many fingers does Inigo Montoya have on his right hand?",
+        "option_a": "Five",
+        "option_b": "Three",
+        "option_c": "Four",
+        "option_d": "Six",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who is the giant with a heart of gold?",
+        "option_a": "Vizzini",
+        "option_b": "Humperdinck",
+        "option_c": "Fezzik",
+        "option_d": "Westley",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What is the name of the prince who plans to marry Buttercup?",
+        "option_a": "Prince Valiant",
+        "option_b": "Prince Humperdinck",
+        "option_c": "Prince Charming",
+        "option_d": "Prince Arthur",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Who killed Inigo Montoya's father?",
+        "option_a": "Westley",
+        "option_b": "Prince Humperdinck",
+        "option_c": "Count Rugen",
+        "option_d": "Vizzini",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What is the famous line Inigo says to Count Rugen?",
+        "option_a": "You will pay for what you did",
+        "option_b": "My name is Inigo Montoya, you killed my father, prepare to die",
+        "option_c": "Hello, my name is Inigo Montoya",
+        "option_d": "I will have my revenge",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What is the title of the book Goldman claims to be abridging?",
+        "option_a": "The Princess Bride by S. Morgenstern",
+        "option_b": "A True Love Story",
+        "option_c": "The Grand Tale of Buttercup",
+        "option_d": "The Good Parts Version",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What is the magical miracle cure that revives Westley?",
+        "option_a": "A magic potion",
+        "option_b": "True love's kiss",
+        "option_c": "A miracle pill",
+        "option_d": "A spell",
+        "correct_answer": "c"
+      }
+    ]
+  },
+  {
+    "title": "Ender's Game",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the full name of the protagonist in Ender's Game?",
+        "option_a": "Ender Wiggin",
+        "option_b": "Andrew Wiggin",
+        "option_c": "Andrew 'Ender' Wiggin",
+        "option_d": "Peter Wiggin",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Where is Ender sent for military training?",
+        "option_a": "A naval academy",
+        "option_b": "A military academy on Earth",
+        "option_c": "A training camp in space",
+        "option_d": "Battle School, a space station",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What alien species is humanity at war with?",
+        "option_a": "The Formics (Buggers)",
+        "option_b": "The Martians",
+        "option_c": "The Dracs",
+        "option_d": "The Xenos",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who is Ender's older brother who is jealous and cruel?",
+        "option_a": "Stilson",
+        "option_b": "Valentine",
+        "option_c": "Bonzo",
+        "option_d": "Peter",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who is Ender's loving older sister?",
+        "option_a": "Alai",
+        "option_b": "Rosa",
+        "option_c": "Petra",
+        "option_d": "Valentine",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What game does Ender play that becomes a psychological test?",
+        "option_a": "The Mind Game",
+        "option_b": "The Fantasy Game",
+        "option_c": "The Battle Game",
+        "option_d": "The Giant's Game",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Who is Ender's first friend at Battle School?",
+        "option_a": "Alai",
+        "option_b": "Bean",
+        "option_c": "Petra",
+        "option_d": "Dink",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What army does Ender eventually command?",
+        "option_a": "Salamander Army",
+        "option_b": "Dragon Army",
+        "option_c": "Rat Army",
+        "option_d": "Phoenix Army",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does Ender discover about the final battle simulation?",
+        "option_a": "It was a real battle against the Formics",
+        "option_b": "It was a dream",
+        "option_c": "It was just a test",
+        "option_d": "It was a trap",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Ender do after the war ends?",
+        "option_a": "He retires",
+        "option_b": "He travels to find a new home for the Formic queen egg",
+        "option_c": "He returns to Earth",
+        "option_d": "He becomes a military leader",
+        "correct_answer": "b"
+      }
+    ]
+  },
+  {
+    "title": "Ender's Shadow",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the real name of the protagonist known as 'Bean'?",
+        "option_a": "Nikolai Delphiki",
+        "option_b": "Julian Pik",
+        "option_c": "Bean Wiggin",
+        "option_d": "Julian Delphiki",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Where does Bean grow up before being recruited for Battle School?",
+        "option_a": "In an orphanage",
+        "option_b": "In a foster home",
+        "option_c": "In a military camp",
+        "option_d": "On the streets of Rotterdam",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "Who discovers Bean's extraordinary intelligence?",
+        "option_a": "Sister Carlotta",
+        "option_b": "Petra Arkanian",
+        "option_c": "Mazer Rackham",
+        "option_d": "Colonel Graff",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What is unusual about Bean's physical characteristics?",
+        "option_a": "He has unusual eyes",
+        "option_b": "He has a scar",
+        "option_c": "He is extremely small for his age",
+        "option_d": "He is extremely tall",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What is Bean's genetic secret?",
+        "option_a": "He is a clone",
+        "option_b": "He was genetically engineered with enhanced intelligence but will not stop growing",
+        "option_c": "He is an alien hybrid",
+        "option_d": "He has a terminal illness",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who is the tactical genius that Bean works alongside at Battle School?",
+        "option_a": "Ender Wiggin",
+        "option_b": "Petra Arkanian",
+        "option_c": "Dink Meeker",
+        "option_d": "Bonzo Madrid",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What role does Bean play in Ender's final battle against the Formics?",
+        "option_a": "He stays behind",
+        "option_b": "He serves as Ender's tactical backup and second-in-command",
+        "option_c": "He leads the fleet",
+        "option_d": "He is the pilot",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "Who is the bully that Bean outwits in Rotterdam?",
+        "option_a": "Stilson",
+        "option_b": "Bonzo",
+        "option_c": "Achilles",
+        "option_d": "Bernard",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What is Sister Carlotta's role in Bean's life?",
+        "option_a": "She is his teacher",
+        "option_b": "She is his protector and mentor who discovers his potential",
+        "option_c": "She is a military officer",
+        "option_d": "She is his aunt",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Bean ultimately discover about his origins?",
+        "option_a": "He was born in a lab",
+        "option_b": "He was stolen from his parents",
+        "option_c": "He is a clone of Ender",
+        "option_d": "He was an illegal genetic experiment",
+        "correct_answer": "d"
+      }
+    ]
+  },
+  {
+    "title": "The Hobbit",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the hobbit protagonist in The Hobbit?",
+        "option_a": "Merry Brandybuck",
+        "option_b": "Bilbo Baggins",
+        "option_c": "Samwise Gamgee",
+        "option_d": "Frodo Baggins",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who is the wizard who recruits Bilbo for the adventure?",
+        "option_a": "Saruman",
+        "option_b": "Radagast",
+        "option_c": "Elrond",
+        "option_d": "Gandalf",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 3,
+        "question_text": "How many dwarves accompany Bilbo on his adventure?",
+        "option_a": "Ten",
+        "option_b": "Seven",
+        "option_c": "Fifteen",
+        "option_d": "Thirteen",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who is the leader of the dwarves?",
+        "option_a": "Gimli",
+        "option_b": "Dwalin",
+        "option_c": "Thorin Oakenshield",
+        "option_d": "Balin",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What treasure are the dwarves trying to reclaim?",
+        "option_a": "The Arkenstone",
+        "option_b": "A magical sword",
+        "option_c": "A golden crown",
+        "option_d": "A map",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "What dragon guards the treasure in the Lonely Mountain?",
+        "option_a": "Ancalagon",
+        "option_b": "Scatha",
+        "option_c": "Smaug",
+        "option_d": "Glaurung",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What creature does Bilbo encounter underground and play a riddle game with?",
+        "option_a": "A troll",
+        "option_b": "A goblin",
+        "option_c": "Gollum",
+        "option_d": "A spider",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 8,
+        "question_text": "What does Bilbo find in Gollum's cave?",
+        "option_a": "A magic ring",
+        "option_b": "A map",
+        "option_c": "A sword",
+        "option_d": "Gold",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does Bilbo call his sword?",
+        "option_a": "Orcrist",
+        "option_b": "Glamdring",
+        "option_c": "Sting",
+        "option_d": "Narsil",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 10,
+        "question_text": "Who kills the dragon Smaug?",
+        "option_a": "Bard the Bowman",
+        "option_b": "Bilbo",
+        "option_c": "Thorin",
+        "option_d": "Gandalf",
+        "correct_answer": "a"
+      }
+    ]
+  },
+  {
+    "title": "The Fellowship of the Ring",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the name of the hobbit who inherits the One Ring?",
+        "option_a": "Bilbo Baggins",
+        "option_b": "Pippin Took",
+        "option_c": "Frodo Baggins",
+        "option_d": "Samwise Gamgee",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who created the One Ring?",
+        "option_a": "Gandalf",
+        "option_b": "Saruman",
+        "option_c": "Sauron",
+        "option_d": "Elrond",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 3,
+        "question_text": "Where must the Ring be destroyed?",
+        "option_a": "In the Shire",
+        "option_b": "In Mount Doom in Mordor",
+        "option_c": "In Rivendell",
+        "option_d": "In Moria",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 4,
+        "question_text": "How many members are in the Fellowship of the Ring?",
+        "option_a": "Nine",
+        "option_b": "Seven",
+        "option_c": "Eight",
+        "option_d": "Ten",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who is the elf member of the Fellowship?",
+        "option_a": "Legolas",
+        "option_b": "Elrond",
+        "option_c": "Arwen",
+        "option_d": "Haldir",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who is the dwarf member of the Fellowship?",
+        "option_a": "Balin",
+        "option_b": "Thorin",
+        "option_c": "Dwalin",
+        "option_d": "Gimli",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 7,
+        "question_text": "Who is the human ranger also known as Strider?",
+        "option_a": "Aragorn",
+        "option_b": "Eomer",
+        "option_c": "Faramir",
+        "option_d": "Boromir",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "In which location does the Fellowship break apart?",
+        "option_a": "Isengard",
+        "option_b": "Amon Hen",
+        "option_c": "Parth Galen",
+        "option_d": "Moria",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 9,
+        "question_text": "Who tries to take the Ring from Frodo and then dies fighting orcs?",
+        "option_a": "Legolas",
+        "option_b": "Aragorn",
+        "option_c": "Gimli",
+        "option_d": "Boromir",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What creature does Gandalf fight in Moria that causes him to fall?",
+        "option_a": "A Nazgul",
+        "option_b": "A dragon",
+        "option_c": "A Balrog",
+        "option_d": "A troll",
+        "correct_answer": "c"
+      }
+    ]
+  },
+  {
+    "title": "The Two Towers",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What is the title of the first book within The Two Towers?",
+        "option_a": "The Ring Goes South",
+        "option_b": "The Departure of Boromir",
+        "option_c": "The Treason of Isengard",
+        "option_d": "The Riders of Rohan",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who captures Merry and Pippin?",
+        "option_a": "Orcs of Saruman",
+        "option_b": "Spiders",
+        "option_c": "Nazgul",
+        "option_d": "Trolls",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 3,
+        "question_text": "Who do Aragorn, Legolas, and Gimli meet in Rohan?",
+        "option_a": "Theoden",
+        "option_b": "Treebeard",
+        "option_c": "Eomer and the Riders of Rohan",
+        "option_d": "Faramir",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 4,
+        "question_text": "What is the name of the kingdom of horse-lords?",
+        "option_a": "Arnor",
+        "option_b": "Rivendell",
+        "option_c": "Rohan",
+        "option_d": "Gondor",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 5,
+        "question_text": "Who is the king of Rohan who is under Saruman's influence?",
+        "option_a": "Eowyn",
+        "option_b": "Wormtongue",
+        "option_c": "Eomer",
+        "option_d": "Theoden",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who is the evil wizard who has aligned himself with Sauron?",
+        "option_a": "Saruman",
+        "option_b": "Gandalf",
+        "option_c": "Palantir",
+        "option_d": "Radagast",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What are the tree-like creatures called?",
+        "option_a": "Ents",
+        "option_b": "Treants",
+        "option_c": "Oaks",
+        "option_d": "Huorns",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 8,
+        "question_text": "Who is the leader of the Ents?",
+        "option_a": "Quickbeam",
+        "option_b": "Old Man Willow",
+        "option_c": "Fangorn",
+        "option_d": "Treebeard",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 9,
+        "question_text": "Who guides Frodo and Sam through the Dead Marshes?",
+        "option_a": "Faramir",
+        "option_b": "Boromir",
+        "option_c": "Aragorn",
+        "option_d": "Gollum",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 10,
+        "question_text": "What does Frodo offer Gollum to help them?",
+        "option_a": "A promise and his trust",
+        "option_b": "The Ring",
+        "option_c": "Food",
+        "option_d": "Money",
+        "correct_answer": "a"
+      }
+    ]
+  },
+  {
+    "title": "The Return of the King",
+    "questions": [
+      {
+        "question_order": 1,
+        "question_text": "What does Denethor, steward of Gondor, do to himself?",
+        "option_a": "He surrenders to Sauron",
+        "option_b": "He flees the city",
+        "option_c": "He tries to burn himself and his son Faramir alive",
+        "option_d": "He joins the enemy",
+        "correct_answer": "c"
+      },
+      {
+        "question_order": 2,
+        "question_text": "Who slays the Witch-king of Angmar (the Lord of the Nazgul)?",
+        "option_a": "Eowyn",
+        "option_b": "Theoden",
+        "option_c": "Aragorn",
+        "option_d": "Gandalf",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 3,
+        "question_text": "What does Eowyn say to the Witch-king before killing him?",
+        "option_a": "My sword is ready",
+        "option_b": "I am no man",
+        "option_c": "I am death",
+        "option_d": "You shall fall",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 4,
+        "question_text": "Who leads the Army of the Dead to victory?",
+        "option_a": "Eomer",
+        "option_b": "Legolas",
+        "option_c": "Gandalf",
+        "option_d": "Aragorn",
+        "correct_answer": "d"
+      },
+      {
+        "question_order": 5,
+        "question_text": "What happens to Gollum at Mount Doom?",
+        "option_a": "He bites off Frodo's finger and falls into the lava with the Ring",
+        "option_b": "He repents",
+        "option_c": "He is killed by Sam",
+        "option_d": "He escapes",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 6,
+        "question_text": "Who carries Frodo up Mount Doom after he collapses?",
+        "option_a": "Sam",
+        "option_b": "Gandalf",
+        "option_c": "Aragorn",
+        "option_d": "Gollum",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 7,
+        "question_text": "What happens to the Eagles at the final battle?",
+        "option_a": "They attack Mordor",
+        "option_b": "They rescue Frodo and Sam from the erupting Mount Doom",
+        "option_c": "They carry messages",
+        "option_d": "They fight the Nazgul",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 8,
+        "question_text": "Who becomes king of Gondor after the fall of Sauron?",
+        "option_a": "Aragorn",
+        "option_b": "Gandalf",
+        "option_c": "Eomer",
+        "option_d": "Faramir",
+        "correct_answer": "a"
+      },
+      {
+        "question_order": 9,
+        "question_text": "What does Frodo struggle with after returning to the Shire?",
+        "option_a": "He cannot find his home",
+        "option_b": "He is wounded and scarred, both physically and emotionally",
+        "option_c": "He is angry at the Shire",
+        "option_d": "He has lost his memory",
+        "correct_answer": "b"
+      },
+      {
+        "question_order": 10,
+        "question_text": "Where does Frodo go at the end of the novel?",
+        "option_a": "He travels to Rohan",
+        "option_b": "He sails to the Undying Lands with the Elves",
+        "option_c": "He stays in the Shire",
+        "option_d": "He becomes mayor of the Shire",
+        "correct_answer": "b"
+      }
+    ]
+  }
+]

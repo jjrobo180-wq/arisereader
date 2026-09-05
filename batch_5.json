@@ -1,0 +1,128 @@
+[
+  {
+    "title": "The Chronicles of Narnia: The Lion the Witch and the Wardrobe",
+    "author": "C.S. Lewis",
+    "points_value": 30,
+    "description": "Four siblings discover a magical land trapped in eternal winter by an evil witch."
+  },
+  {
+    "title": "The Chronicles of Narnia: Prince Caspian",
+    "author": "C.S. Lewis",
+    "points_value": 30,
+    "description": "The Pevensie children return to Narnia to help Prince Caspian reclaim his throne."
+  },
+  {
+    "title": "The Chronicles of Narnia: The Voyage of the Dawn Treader",
+    "author": "C.S. Lewis",
+    "points_value": 30,
+    "description": "Edmund, Lucy, and their cousin Eustace sail to the edge of the world."
+  },
+  {
+    "title": "The Chronicles of Narnia: The Silver Chair",
+    "author": "C.S. Lewis",
+    "points_value": 30,
+    "description": "Eustace and Jill search for Prince Rilian in the underworld of Narnia."
+  },
+  {
+    "title": "The Golden Compass",
+    "author": "Philip Pullman",
+    "points_value": 30,
+    "description": "Lyra journeys to the Arctic to save kidnapped children and discover the truth about Dust."
+  },
+  {
+    "title": "The Subtle Knife",
+    "author": "Philip Pullman",
+    "points_value": 30,
+    "description": "Will and Lyra travel between worlds seeking Will's father and the truth about Dust."
+  },
+  {
+    "title": "The Amber Spyglass",
+    "author": "Philip Pullman",
+    "points_value": 30,
+    "description": "The final battle between authority and freedom as Lyra and Will fight to save all worlds."
+  },
+  {
+    "title": "Artemis Fowl",
+    "author": "Eoin Colfer",
+    "points_value": 30,
+    "description": "A teenage criminal mastermind kidnaps a fairy to restore his family fortune."
+  },
+  {
+    "title": "The Arctic Incident",
+    "author": "Eoin Colfer",
+    "points_value": 30,
+    "description": "Artemis Fowl joins forces with the fairy police to rescue his father."
+  },
+  {
+    "title": "The Eternity Code",
+    "author": "Eoin Colfer",
+    "points_value": 30,
+    "description": "Artemis must recover his stolen fairy technology from a dangerous businessman."
+  },
+  {
+    "title": "The Opal Deception",
+    "author": "Eoin Colfer",
+    "points_value": 30,
+    "description": "Artemis must save the fairy world after a powerful villain seeks revenge."
+  },
+  {
+    "title": "The Lost Colony",
+    "author": "Eoin Colfer",
+    "points_value": 30,
+    "description": "Artemis discovers a hidden demon island and battles time itself."
+  },
+  {
+    "title": "Inkheart",
+    "author": "Cornelia Funke",
+    "points_value": 30,
+    "description": "A man who can bring book characters to life by reading aloud must save his daughter."
+  },
+  {
+    "title": "Inkspell",
+    "author": "Cornelia Funke",
+    "points_value": 30,
+    "description": "Characters are drawn back into the world of Inkheart, where fiction becomes dangerous reality."
+  },
+  {
+    "title": "Inkdeath",
+    "author": "Cornelia Funke",
+    "points_value": 30,
+    "description": "The conclusion to the Inkheart trilogy as Meggie fights to save the world of books."
+  },
+  {
+    "title": "Dragon Rider",
+    "author": "Cornelia Funke",
+    "points_value": 30,
+    "description": "A dragon and a boy search for the Rim of Heaven, a mythical dragon sanctuary."
+  },
+  {
+    "title": "The Thief Lord",
+    "author": "Cornelia Funke",
+    "points_value": 30,
+    "description": "Two runaway orphans in Venice join a gang led by the mysterious Thief Lord."
+  },
+  {
+    "title": "Gregor the Overlander",
+    "author": "Suzanne Collins",
+    "points_value": 30,
+    "description": "A boy falls through a grate in his laundry room into the Underland, a world of giant creatures."
+  },
+  {
+    "title": "Gregor and the Prophecy of Bane",
+    "author": "Suzanne Collins",
+    "points_value": 30,
+    "description": "Gregor returns to the Underland to defeat a giant white rat threatening the underground world."
+  },
+  {
+    "title": "Gregor and the Curse of the Warmbloods",
+    "author": "Suzanne Collins",
+    "points_value": 30,
+    "description": "Gregor must find a cure for a plague sweeping through the warm-blooded creatures of the Underland."
+  },
+  {
+    "title": "Gregor and the Marks of Secret",
+    "author": "Suzanne Collins",
+    "points_value": 30,
+    "description": "Gregor uncovers a plot by the rats to destroy the human city in the Underland."
+  }
+]

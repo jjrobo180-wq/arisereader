@@ -1,0 +1,282 @@
+[
+  {
+    "title": "Farm Friends",
+    "description": "Look at the farm animal and choose its name",
+    "level": 1,
+    "cover_visual": "🐄",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What farm animal is this?", "visual": "🐄", "option_a": "Cow", "option_b": "Pig", "option_c": "Chicken", "option_d": "Sheep", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What farm animal is this?", "visual": "🐷", "option_a": "Cow", "option_b": "Pig", "option_c": "Chicken", "option_d": "Sheep", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What farm animal is this?", "visual": "🐔", "option_a": "Cow", "option_b": "Pig", "option_c": "Chicken", "option_d": "Sheep", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What farm animal is this?", "visual": "🐑", "option_a": "Cow", "option_b": "Pig", "option_c": "Chicken", "option_d": "Sheep", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which animal gives us milk?", "visual": "🐄", "option_a": "Cow", "option_b": "Pig", "option_c": "Chicken", "option_d": "Sheep", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Yummy Fruits",
+    "description": "Look at the fruit and choose its name",
+    "level": 1,
+    "cover_visual": "🍎",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What fruit is this?", "visual": "🍎", "option_a": "Apple", "option_b": "Banana", "option_c": "Grape", "option_d": "Orange", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What fruit is this?", "visual": "🍌", "option_a": "Apple", "option_b": "Banana", "option_c": "Grape", "option_d": "Orange", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What fruit is this?", "visual": "🍇", "option_a": "Apple", "option_b": "Banana", "option_c": "Grape", "option_d": "Orange", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What fruit is this?", "visual": "🍊", "option_a": "Apple", "option_b": "Banana", "option_c": "Grape", "option_d": "Orange", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which fruit is yellow?", "visual": "🍌", "option_a": "Apple", "option_b": "Banana", "option_c": "Grape", "option_d": "Orange", "correct_answer": "B", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Body Parts",
+    "description": "Look and choose the correct body part",
+    "level": 1,
+    "cover_visual": "👁️",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What do we see with?", "visual": "👁️", "option_a": "Eyes", "option_b": "Ears", "option_c": "Nose", "option_d": "Mouth", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What do we hear with?", "visual": "👂", "option_a": "Eyes", "option_b": "Ears", "option_c": "Nose", "option_d": "Mouth", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What do we smell with?", "visual": "👃", "option_a": "Eyes", "option_b": "Ears", "option_c": "Nose", "option_d": "Mouth", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What do we eat with?", "visual": "👄", "option_a": "Eyes", "option_b": "Ears", "option_c": "Nose", "option_d": "Mouth", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "What do we clap with?", "visual": "👏", "option_a": "Feet", "option_b": "Hands", "option_c": "Head", "option_d": "Knees", "correct_answer": "B", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Weather Watch",
+    "description": "Look at the weather and choose what it is",
+    "level": 1,
+    "cover_visual": "🌤️",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What weather is this?", "visual": "☀️", "option_a": "Sunny", "option_b": "Rainy", "option_c": "Snowy", "option_d": "Cloudy", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What weather is this?", "visual": "🌧️", "option_a": "Sunny", "option_b": "Rainy", "option_c": "Snowy", "option_d": "Cloudy", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What weather is this?", "visual": "❄️", "option_a": "Sunny", "option_b": "Rainy", "option_c": "Snowy", "option_d": "Cloudy", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What weather is this?", "visual": "☁️", "option_a": "Sunny", "option_b": "Rainy", "option_c": "Snowy", "option_d": "Cloudy", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "What do you use when it rains?", "visual": "☔", "option_a": "Umbrella", "option_b": "Hat", "option_c": "Sunglasses", "option_d": "Boots", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Vehicle Fun",
+    "description": "Look at the vehicle and choose its name",
+    "level": 2,
+    "cover_visual": "🚗",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What vehicle is this?", "visual": "🚗", "option_a": "Car", "option_b": "Bus", "option_c": "Train", "option_d": "Bike", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What vehicle is this?", "visual": "🚌", "option_a": "Car", "option_b": "Bus", "option_c": "Train", "option_d": "Bike", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What vehicle is this?", "visual": "🚂", "option_a": "Car", "option_b": "Bus", "option_c": "Train", "option_d": "Bike", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What vehicle is this?", "visual": "🚲", "option_a": "Car", "option_b": "Bus", "option_c": "Train", "option_d": "Bike", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which vehicle flies in the sky?", "visual": "✈️", "option_a": "Car", "option_b": "Airplane", "option_c": "Boat", "option_d": "Train", "correct_answer": "B", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Happy Faces",
+    "description": "Look at the face and choose the feeling",
+    "level": 2,
+    "cover_visual": "😊",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "How does this face feel?", "visual": "😊", "option_a": "Happy", "option_b": "Sad", "option_c": "Angry", "option_d": "Scared", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "How does this face feel?", "visual": "😢", "option_a": "Happy", "option_b": "Sad", "option_c": "Angry", "option_d": "Scared", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "How does this face feel?", "visual": "😠", "option_a": "Happy", "option_b": "Sad", "option_c": "Angry", "option_d": "Scared", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "How does this face feel?", "visual": "😱", "option_a": "Happy", "option_b": "Sad", "option_c": "Angry", "option_d": "Scared", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "How do you feel when you get a gift?", "visual": "🎁", "option_a": "Happy", "option_b": "Sad", "option_c": "Angry", "option_d": "Scared", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Counting Fun",
+    "description": "Count the items and choose the right number",
+    "level": 2,
+    "cover_visual": "🔢",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "How many apples do you see?", "visual": "🍎", "option_a": "One", "option_b": "Two", "option_c": "Three", "option_d": "Four", "correct_answer": "A", "skill_type": "counting", "question_order": 1 },
+      { "prompt": "How many stars do you see?", "visual": "⭐⭐", "option_a": "One", "option_b": "Two", "option_c": "Three", "option_d": "Four", "correct_answer": "B", "skill_type": "counting", "question_order": 2 },
+      { "prompt": "How many hearts do you see?", "visual": "❤️❤️❤️", "option_a": "One", "option_b": "Two", "option_c": "Three", "option_d": "Four", "correct_answer": "C", "skill_type": "counting", "question_order": 3 },
+      { "prompt": "How many balloons do you see?", "visual": "🎈🎈🎈🎈", "option_a": "One", "option_b": "Two", "option_c": "Three", "option_d": "Four", "correct_answer": "D", "skill_type": "counting", "question_order": 4 },
+      { "prompt": "How many fingers on one hand?", "visual": "✋", "option_a": "Three", "option_b": "Four", "option_c": "Five", "option_d": "Six", "correct_answer": "C", "skill_type": "counting", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Nature Walk",
+    "description": "Look at nature and choose what it is",
+    "level": 2,
+    "cover_visual": "🌳",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What is this?", "visual": "🌳", "option_a": "Tree", "option_b": "Flower", "option_c": "Mountain", "option_d": "River", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What is this?", "visual": "🌸", "option_a": "Tree", "option_b": "Flower", "option_c": "Mountain", "option_d": "River", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What is this?", "visual": "⛰️", "option_a": "Tree", "option_b": "Flower", "option_c": "Mountain", "option_d": "River", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What is this?", "visual": "🌊", "option_a": "Tree", "option_b": "Flower", "option_c": "Mountain", "option_d": "River", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Where do fish live?", "visual": "🐟", "option_a": "Tree", "option_b": "Flower", "option_c": "Mountain", "option_d": "River", "correct_answer": "D", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Clothing Time",
+    "description": "Look at the clothing and choose its name",
+    "level": 2,
+    "cover_visual": "👕",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What clothing is this?", "visual": "👕", "option_a": "Shirt", "option_b": "Pants", "option_c": "Hat", "option_d": "Shoes", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What clothing is this?", "visual": "👖", "option_a": "Shirt", "option_b": "Pants", "option_c": "Hat", "option_d": "Shoes", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What clothing is this?", "visual": "🎩", "option_a": "Shirt", "option_b": "Pants", "option_c": "Hat", "option_d": "Shoes", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What clothing is this?", "visual": "👟", "option_a": "Shirt", "option_b": "Pants", "option_c": "Hat", "option_d": "Shoes", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "What do you wear on your feet?", "visual": "👟", "option_a": "Shirt", "option_b": "Pants", "option_c": "Hat", "option_d": "Shoes", "correct_answer": "D", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Yummy Vegetables",
+    "description": "Look at the vegetable and choose its name",
+    "level": 1,
+    "cover_visual": "🥕",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What vegetable is this?", "visual": "🥕", "option_a": "Carrot", "option_b": "Potato", "option_c": "Tomato", "option_d": "Corn", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What vegetable is this?", "visual": "🥔", "option_a": "Carrot", "option_b": "Potato", "option_c": "Tomato", "option_d": "Corn", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What vegetable is this?", "visual": "🍅", "option_a": "Carrot", "option_b": "Potato", "option_c": "Tomato", "option_d": "Corn", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What vegetable is this?", "visual": "🌽", "option_a": "Carrot", "option_b": "Potato", "option_c": "Tomato", "option_d": "Corn", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which vegetable is orange?", "visual": "🥕", "option_a": "Carrot", "option_b": "Potato", "option_c": "Tomato", "option_d": "Corn", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Animal Sounds",
+    "description": "Match the animal to its sound",
+    "level": 3,
+    "cover_visual": "🔊",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "Which animal says 'Moo'?", "visual": "🐄", "option_a": "Cow", "option_b": "Duck", "option_c": "Sheep", "option_d": "Dog", "correct_answer": "A", "skill_type": "matching", "question_order": 1 },
+      { "prompt": "Which animal says 'Quack'?", "visual": "🦆", "option_a": "Cow", "option_b": "Duck", "option_c": "Sheep", "option_d": "Dog", "correct_answer": "B", "skill_type": "matching", "question_order": 2 },
+      { "prompt": "Which animal says 'Baa'?", "visual": "🐑", "option_a": "Cow", "option_b": "Duck", "option_c": "Sheep", "option_d": "Dog", "correct_answer": "C", "skill_type": "matching", "question_order": 3 },
+      { "prompt": "Which animal says 'Woof'?", "visual": "🐶", "option_a": "Cow", "option_b": "Duck", "option_c": "Sheep", "option_d": "Dog", "correct_answer": "D", "skill_type": "matching", "question_order": 4 },
+      { "prompt": "Which animal says 'Meow'?", "visual": "🐱", "option_a": "Cat", "option_b": "Duck", "option_c": "Sheep", "option_d": "Cow", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Toy Box",
+    "description": "Look at the toy and choose its name",
+    "level": 2,
+    "cover_visual": "🧸",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What toy is this?", "visual": "🧸", "option_a": "Teddy Bear", "option_b": "Ball", "option_c": "Block", "option_d": "Doll", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What toy is this?", "visual": "⚽", "option_a": "Teddy Bear", "option_b": "Ball", "option_c": "Block", "option_d": "Doll", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What toy is this?", "visual": "🧩", "option_a": "Teddy Bear", "option_b": "Ball", "option_c": "Puzzle", "option_d": "Doll", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What toy is this?", "visual": "🎀", "option_a": "Teddy Bear", "option_b": "Ball", "option_c": "Puzzle", "option_d": "Doll", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "What do you build with?", "visual": "🧱", "option_a": "Blocks", "option_b": "Ball", "option_c": "Puzzle", "option_d": "Doll", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "School Time",
+    "description": "Look at the school item and choose its name",
+    "level": 2,
+    "cover_visual": "✏️",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What school item is this?", "visual": "✏️", "option_a": "Pencil", "option_b": "Book", "option_c": "Ruler", "option_d": "Scissors", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What school item is this?", "visual": "📖", "option_a": "Pencil", "option_b": "Book", "option_c": "Ruler", "option_d": "Scissors", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What school item is this?", "visual": "📏", "option_a": "Pencil", "option_b": "Book", "option_c": "Ruler", "option_d": "Scissors", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What school item is this?", "visual": "✂️", "option_a": "Pencil", "option_b": "Book", "option_c": "Ruler", "option_d": "Scissors", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "What do you write on?", "visual": "📝", "option_a": "Paper", "option_b": "Desk", "option_c": "Chair", "option_d": "Wall", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Day and Night",
+    "description": "Look and choose if it is day or night",
+    "level": 2,
+    "cover_visual": "🌅",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "Is this day or night?", "visual": "☀️", "option_a": "Day", "option_b": "Night", "option_c": "Morning", "option_d": "Evening", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "Is this day or night?", "visual": "🌙", "option_a": "Day", "option_b": "Night", "option_c": "Morning", "option_d": "Evening", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "When does the sun rise?", "visual": "🌅", "option_a": "Day", "option_b": "Night", "option_c": "Morning", "option_d": "Evening", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "When do the stars come out?", "visual": "⭐", "option_a": "Day", "option_b": "Night", "option_c": "Morning", "option_d": "Evening", "correct_answer": "B", "skill_type": "matching", "question_order": 4 },
+      { "prompt": "When do you go to sleep?", "visual": "😴", "option_a": "Day", "option_b": "Night", "option_c": "Morning", "option_d": "Evening", "correct_answer": "B", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Big and Small",
+    "description": "Choose which is big or small",
+    "level": 3,
+    "cover_visual": "🐘",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "Which animal is big?", "visual": "🐘", "option_a": "Elephant", "option_b": "Mouse", "option_c": "Bird", "option_d": "Fish", "correct_answer": "A", "skill_type": "comparison", "question_order": 1 },
+      { "prompt": "Which animal is small?", "visual": "🐭", "option_a": "Elephant", "option_b": "Mouse", "option_c": "Whale", "option_d": "Bear", "correct_answer": "B", "skill_type": "comparison", "question_order": 2 },
+      { "prompt": "Which is bigger?", "visual": "🐳", "option_a": "Whale", "option_b": "Fish", "option_c": "Bird", "option_d": "Mouse", "correct_answer": "A", "skill_type": "comparison", "question_order": 3 },
+      { "prompt": "Which is smaller?", "visual": "🐦", "option_a": "Whale", "option_b": "Bird", "option_c": "Elephant", "option_d": "Bear", "correct_answer": "B", "skill_type": "comparison", "question_order": 4 },
+      { "prompt": "Which is the biggest?", "visual": "🐘", "option_a": "Elephant", "option_b": "Mouse", "option_c": "Bird", "option_d": "Fish", "correct_answer": "A", "skill_type": "comparison", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Food Time",
+    "description": "Look at the food and choose its name",
+    "level": 1,
+    "cover_visual": "🍕",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What food is this?", "visual": "🍕", "option_a": "Pizza", "option_b": "Burger", "option_c": "Taco", "option_d": "Sandwich", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What food is this?", "visual": "🍔", "option_a": "Pizza", "option_b": "Burger", "option_c": "Taco", "option_d": "Sandwich", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What food is this?", "visual": "🌮", "option_a": "Pizza", "option_b": "Burger", "option_c": "Taco", "option_d": "Sandwich", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What food is this?", "visual": "🥪", "option_a": "Pizza", "option_b": "Burger", "option_c": "Taco", "option_d": "Sandwich", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which food is sweet?", "visual": "🍦", "option_a": "Ice Cream", "option_b": "Burger", "option_c": "Taco", "option_d": "Sandwich", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Action Words",
+    "description": "Look at the picture and choose the action",
+    "level": 3,
+    "cover_visual": "🏃",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What is this person doing?", "visual": "🏃", "option_a": "Running", "option_b": "Sitting", "option_c": "Sleeping", "option_d": "Jumping", "correct_answer": "A", "skill_type": "comprehension", "question_order": 1 },
+      { "prompt": "What is this person doing?", "visual": "🧘", "option_a": "Running", "option_b": "Sitting", "option_c": "Sleeping", "option_d": "Jumping", "correct_answer": "B", "skill_type": "comprehension", "question_order": 2 },
+      { "prompt": "What is this person doing?", "visual": "😴", "option_a": "Running", "option_b": "Sitting", "option_c": "Sleeping", "option_d": "Jumping", "correct_answer": "C", "skill_type": "comprehension", "question_order": 3 },
+      { "prompt": "What is this person doing?", "visual": "🤸", "option_a": "Running", "option_b": "Sitting", "option_c": "Sleeping", "option_d": "Jumping", "correct_answer": "D", "skill_type": "comprehension", "question_order": 4 },
+      { "prompt": "What do you do with a book?", "visual": "📖", "option_a": "Read", "option_b": "Eat", "option_c": "Throw", "option_d": "Sleep", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Music Time",
+    "description": "Look at the instrument and choose its name",
+    "level": 3,
+    "cover_visual": "🎵",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What instrument is this?", "visual": "🎸", "option_a": "Guitar", "option_b": "Piano", "option_c": "Drum", "option_d": "Trumpet", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What instrument is this?", "visual": "🎹", "option_a": "Guitar", "option_b": "Piano", "option_c": "Drum", "option_d": "Trumpet", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What instrument is this?", "visual": "🥁", "option_a": "Guitar", "option_b": "Piano", "option_c": "Drum", "option_d": "Trumpet", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What instrument is this?", "visual": "🎺", "option_a": "Guitar", "option_b": "Piano", "option_c": "Drum", "option_d": "Trumpet", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which instrument has strings?", "visual": "🎻", "option_a": "Violin", "option_b": "Drum", "option_c": "Trumpet", "option_d": "Piano", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Sports Fun",
+    "description": "Look at the sport and choose its name",
+    "level": 3,
+    "cover_visual": "⚽",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What sport is this?", "visual": "⚽", "option_a": "Soccer", "option_b": "Basketball", "option_c": "Baseball", "option_d": "Tennis", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What sport is this?", "visual": "🏀", "option_a": "Soccer", "option_b": "Basketball", "option_c": "Baseball", "option_d": "Tennis", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What sport is this?", "visual": "⚾", "option_a": "Soccer", "option_b": "Basketball", "option_c": "Baseball", "option_d": "Tennis", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What sport is this?", "visual": "🎾", "option_a": "Soccer", "option_b": "Basketball", "option_c": "Baseball", "option_d": "Tennis", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which sport uses a bat?", "visual": "🏏", "option_a": "Cricket", "option_b": "Soccer", "option_c": "Tennis", "option_d": "Golf", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Family Faces",
+    "description": "Look and choose the family member",
+    "level": 3,
+    "cover_visual": "👨‍👩‍👧‍👦",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "Who is this?", "visual": "👨", "option_a": "Dad", "option_b": "Mom", "option_c": "Baby", "option_d": "Grandma", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "Who is this?", "visual": "👩", "option_a": "Dad", "option_b": "Mom", "option_c": "Baby", "option_d": "Grandma", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "Who is this?", "visual": "👶", "option_a": "Dad", "option_b": "Mom", "option_c": "Baby", "option_d": "Grandma", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "Who is this?", "visual": "👵", "option_a": "Dad", "option_b": "Mom", "option_c": "Baby", "option_d": "Grandma", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Who is this?", "visual": "👴", "option_a": "Grandpa", "option_b": "Mom", "option_c": "Baby", "option_d": "Dad", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  }
+]

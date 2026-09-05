@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Animal Friends",
+    "description": "Look at the animal and choose its name",
+    "level": 1,
+    "cover_visual": "🐶",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What animal is this?", "visual": "🐶", "option_a": "Dog", "option_b": "Cat", "option_c": "Rabbit", "option_d": "Fish", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What animal is this?", "visual": "🐱", "option_a": "Dog", "option_b": "Cat", "option_c": "Rabbit", "option_d": "Fish", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What animal is this?", "visual": "🐰", "option_a": "Dog", "option_b": "Cat", "option_c": "Rabbit", "option_d": "Fish", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What animal is this?", "visual": "🐟", "option_a": "Dog", "option_b": "Cat", "option_c": "Rabbit", "option_d": "Fish", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which animal says 'Woof'?", "visual": "🐶", "option_a": "Dog", "option_b": "Cat", "option_c": "Rabbit", "option_d": "Fish", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Colors All Around",
+    "description": "Look at the color and choose its name",
+    "level": 1,
+    "cover_visual": "🌈",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What color is this?", "visual": "🔴", "option_a": "Red", "option_b": "Blue", "option_c": "Green", "option_d": "Yellow", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What color is this?", "visual": "🔵", "option_a": "Red", "option_b": "Blue", "option_c": "Green", "option_d": "Yellow", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What color is this?", "visual": "🟢", "option_a": "Red", "option_b": "Blue", "option_c": "Green", "option_d": "Yellow", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What color is this?", "visual": "🟡", "option_a": "Red", "option_b": "Blue", "option_c": "Green", "option_d": "Yellow", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "What color is the sky?", "visual": "🔵", "option_a": "Red", "option_b": "Blue", "option_c": "Green", "option_d": "Yellow", "correct_answer": "B", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "What Do You See?",
+    "description": "Look at the picture and choose what it is",
+    "level": 2,
+    "cover_visual": "👀",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What is this?", "visual": "🍎", "option_a": "Apple", "option_b": "Banana", "option_c": "Car", "option_d": "House", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What is this?", "visual": "🚗", "option_a": "Apple", "option_b": "Banana", "option_c": "Car", "option_d": "House", "correct_answer": "C", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What is this?", "visual": "🏠", "option_a": "Apple", "option_b": "Banana", "option_c": "Car", "option_d": "House", "correct_answer": "D", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What is this?", "visual": "🌙", "option_a": "Star", "option_b": "Moon", "option_c": "Sun", "option_d": "Cloud", "correct_answer": "B", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "What is this?", "visual": "☀️", "option_a": "Star", "option_b": "Moon", "option_c": "Sun", "option_d": "Cloud", "correct_answer": "C", "skill_type": "identification", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Shape Hunt",
+    "description": "Look at the shape and choose its name",
+    "level": 2,
+    "cover_visual": "⭐",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "What shape is this?", "visual": "⭕", "option_a": "Circle", "option_b": "Square", "option_c": "Triangle", "option_d": "Star", "correct_answer": "A", "skill_type": "identification", "question_order": 1 },
+      { "prompt": "What shape is this?", "visual": "🟦", "option_a": "Circle", "option_b": "Square", "option_c": "Triangle", "option_d": "Star", "correct_answer": "B", "skill_type": "identification", "question_order": 2 },
+      { "prompt": "What shape is this?", "visual": "🔺", "option_a": "Circle", "option_b": "Square", "option_c": "Triangle", "option_d": "Star", "correct_answer": "C", "skill_type": "identification", "question_order": 3 },
+      { "prompt": "What shape is this?", "visual": "⭐", "option_a": "Circle", "option_b": "Square", "option_c": "Triangle", "option_d": "Star", "correct_answer": "D", "skill_type": "identification", "question_order": 4 },
+      { "prompt": "Which shape is round?", "visual": "⭕", "option_a": "Circle", "option_b": "Square", "option_c": "Triangle", "option_d": "Star", "correct_answer": "A", "skill_type": "matching", "question_order": 5 }
+    ]
+  },
+  {
+    "title": "Story Time",
+    "description": "Answer simple questions about pictures",
+    "level": 3,
+    "cover_visual": "📚",
+    "cover_visual_type": "emoji",
+    "questions": [
+      { "prompt": "The cat sat on the mat. Where did the cat sit?", "visual": "🐱", "option_a": "Mat", "option_b": "Chair", "option_c": "Bed", "option_d": "Table", "correct_answer": "A", "skill_type": "comprehension", "question_order": 1 },
+      { "prompt": "The sun is in the sky. Where is the sun?", "visual": "☀️", "option_a": "Sky", "option_b": "Water", "option_c": "Ground", "option_d": "Tree", "correct_answer": "A", "skill_type": "comprehension", "question_order": 2 },
+      { "prompt": "The dog is happy. How does the dog feel?", "visual": "🐶", "option_a": "Happy", "option_b": "Sad", "option_c": "Angry", "option_d": "Scared", "correct_answer": "A", "skill_type": "comprehension", "question_order": 3 },
+      { "prompt": "The baby is sleeping. What is the baby doing?", "visual": "😴", "option_a": "Sleeping", "option_b": "Running", "option_c": "Eating", "option_d": "Playing", "correct_answer": "A", "skill_type": "comprehension", "question_order": 4 },
+      { "prompt": "The flower is pretty. What is the flower?", "visual": "🌸", "option_a": "Pretty", "option_b": "Ugly", "option_c": "Big", "option_d": "Small", "correct_answer": "A", "skill_type": "comprehension", "question_order": 5 }
+    ]
+  }
+]

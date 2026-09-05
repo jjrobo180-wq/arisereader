@@ -1,0 +1,1997 @@
+[
+  {
+    "title": "Walk Two Moons",
+    "questions": [
+      {
+        "question_text": "What is the full name of the main character in Walk Two Moons?",
+        "option_a": "Salamanca Leaf Hiddle",
+        "option_b": "Samanca Moon Hiddle",
+        "option_c": "Sal Tree Hiddle",
+        "option_d": "Salamanca Tree Hiddle",
+        "correct_answer": "d",
+        "question_order": 1
+      },
+      {
+        "question_text": "Why does Sal travel with her grandparents from Ohio to Idaho?",
+        "option_a": "To move to a new house",
+        "option_b": "To attend a family wedding",
+        "option_c": "To visit a national park",
+        "option_d": "To find her mother, who left home",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "What does Phoebe, Sal's friend, claim to see in her neighborhood?",
+        "option_a": "A potential lunatic",
+        "option_b": "A shooting star",
+        "option_c": "A runaway dog",
+        "option_d": "A ghost",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "What is the name of Sal's father?",
+        "option_b": "Thomas Hiddle",
+        "option_a": "John Hiddle",
+        "option_c": "Gram Hiddle",
+        "option_d": "James Hiddle",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "What does Sal's mother do before she leaves home?",
+        "option_a": "She leaves a note and kisses Sal goodbye",
+        "option_b": "She argues with Sal's father",
+        "option_c": "She packs all her belongings",
+        "option_d": "She writes a letter",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "What happens to Gram Hiddle during the road trip?",
+        "option_a": "She is bitten by a snake",
+        "option_b": "She wins a prize",
+        "option_c": "She loses her wallet",
+        "option_d": "She gets lost in a city",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "Where does Sal's mother go when she leaves home?",
+        "option_a": "Euclid, Ohio",
+        "option_b": "Bybanks, Kentucky",
+        "option_c": "Lewiston, Idaho",
+        "option_d": "Chicago, Illinois",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "What is the significance of the title 'Walk Two Moons'?",
+        "option_a": "It refers to a Native American proverb about walking in someone else's moccasins",
+        "option_b": "The road trip takes two months",
+        "option_c": "Sal walks by moonlight twice",
+        "option_d": "Sal sees two moons in the sky",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Sal do when she finally reaches Lewiston, Idaho?",
+        "option_a": "She finds her mother alive and well",
+        "option_b": "She meets her mother at a hospital",
+        "option_c": "She learns her mother died in a bus accident",
+        "option_d": "She decides to go home without looking",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Sal's friend Phoebe believe about her mother's disappearance?",
+        "option_a": "That her mother left voluntarily",
+        "option_b": "That her mother moved to Europe",
+        "option_c": "That her mother was kidnapped",
+        "option_d": "That her mother went shopping",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Wanderer",
+    "questions": [
+      {
+        "question_text": "What is the name of the boat in The Wanderer?",
+        "option_a": "The Voyager",
+        "option_b": "The Wanderer",
+        "option_c": "The Adventurer",
+        "option_d": "The Seeker",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who is the main character that sails across the Atlantic?",
+        "option_a": "Dock",
+        "option_b": "Brian",
+        "option_c": "Cody",
+        "option_d": "Sophie",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who are the adults on the sailing trip with Sophie?",
+        "option_b": "Her three uncles: Dock, Mo, and Stew",
+        "option_a": "Her neighbors and family friends",
+        "option_c": "Her parents and grandparents",
+        "option_d": "Her teachers and coaches",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "What is Sophie's relationship to the uncles on the boat?",
+        "option_a": "She is their cousin",
+        "option_b": "She is their granddaughter",
+        "option_c": "She is their daughter",
+        "option_d": "She is their niece",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What does Sophie discover about her own past during the journey?",
+        "option_a": "She was adopted and her real parents died",
+        "option_b": "She was a champion sailor",
+        "option_c": "She is afraid of water",
+        "option_d": "She has a twin brother",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is Cody, one of Sophie's cousins on the trip?",
+        "option_a": "An experienced sailor",
+        "option_b": "A serious and studious boy",
+        "option_c": "A shy boy who stays below deck",
+        "option_d": "A prankster who likes to joke around",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "What is the destination of the boat's voyage?",
+        "option_a": "France",
+        "option_b": "Spain",
+        "option_c": "Ireland",
+        "option_d": "England",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Sophie tell the others about her childhood?",
+        "option_a": "She says her parents died in a car accident and she was adopted",
+        "option_b": "She was raised by her grandmother",
+        "option_c": "She grew up in England",
+        "option_d": "She lived on a boat her whole life",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What major challenge does the crew face during the voyage?",
+        "option_a": "Getting lost at sea",
+        "option_b": "Running out of food",
+        "option_c": "A massive storm that nearly destroys the boat",
+        "option_d": "A pirate attack",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is Sophie's uncle Dock's profession?",
+        "option_a": "He is a fisherman",
+        "option_b": "He is a carpenter",
+        "option_c": "He is a doctor",
+        "option_d": "He is a teacher",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Love That Dog",
+    "questions": [
+      {
+        "question_text": "Who is the main character of Love That Dog?",
+        "option_a": "Jack",
+        "option_b": "Sky",
+        "option_c": "Dean",
+        "option_d": "Walter",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is the name of Jack's dog?",
+        "option_a": "Blue",
+        "option_b": "Leaf",
+        "option_c": "Yellow",
+        "option_d": "Sky",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "What happens to Jack's dog Sky?",
+        "option_a": "Sky gets lost",
+        "option_b": "Sky is given away",
+        "option_c": "Sky is killed by a car",
+        "option_d": "Sky runs away",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "Which famous poet does Jack come to admire through his teacher's lessons?",
+        "option_a": "Shel Silverstein",
+        "option_b": "Emily Dickinson",
+        "option_c": "Robert Frost",
+        "option_d": "Walter Dean Myers",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What is Jack's initial attitude toward writing poetry?",
+        "option_a": "He finds it boring",
+        "option_b": "He loves it immediately",
+        "option_c": "He thinks boys don't write poetry",
+        "option_d": "He is afraid to try",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Jack's teacher, Miss Stretchberry, do to encourage him?",
+        "option_a": "She types up his poems and shares them with the class",
+        "option_b": "She enters his poems in a contest",
+        "option_c": "She forces him to read aloud",
+        "option_d": "She gives him extra homework",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What poem does Jack model his poem about Sky after?",
+        "option_a": "A poem by William Carlos Williams",
+        "option_b": "A poem by Shel Silverstein",
+        "option_c": "A poem by Walter Dean Myers called 'Love That Boy'",
+        "option_d": "A poem by Robert Frost about nature",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "How does the book Love That Dog present its story?",
+        "option_a": "As a series of poems written by Jack over the school year",
+        "option_b": "As a traditional narrative",
+        "option_c": "As a series of diary entries",
+        "option_d": "As letters to a pen pal",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Jack eventually want to do that shows his growth as a writer?",
+        "option_a": "Teach poetry to younger kids",
+        "option_b": "Invite Walter Dean Myers to visit his school",
+        "option_c": "Write a novel",
+        "option_d": "Publish his own book",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What color is Jack's dog Sky?",
+        "option_a": "Black",
+        "option_b": "White",
+        "option_c": "Brown",
+        "option_d": "Golden",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Bloomability",
+    "questions": [
+      {
+        "question_text": "What is the name of the main character in Bloomability?",
+        "option_a": "Stella",
+        "option_b": "Dinnie",
+        "option_c": "Gretchen",
+        "option_d": "Sophie",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is Dinnie's full name?",
+        "option_a": "Donna Doone",
+        "option_b": "Daphne Doone",
+        "option_c": "Dinah Doone",
+        "option_d": "Dinnie Doone",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Where do Dinnie's aunt and uncle take her?",
+        "option_a": "France",
+        "option_b": "Italy",
+        "option_c": "Switzerland",
+        "option_d": "England",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "What do Dinnie's aunt and uncle do for a living?",
+        "option_a": "They work at an international school in Switzerland",
+        "option_b": "They are scientists",
+        "option_c": "They run a hotel",
+        "option_d": "They are diplomats",
+        "correct_answer": "a",
+        "question_order": 4
+      },
+      {
+        "question_text": "Why does Dinnie call her time in Switzerland a 'kidnapping'?",
+        "option_a": "Because her parents sold her",
+        "option_b": "Because she was literally abducted",
+        "option_c": "Because she was taken against her will",
+        "option_d": "Because she got lost",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the boy Dinnie befriends at the school?",
+        "option_a": "Guthrie",
+        "option_b": "Keisuke",
+        "option_c": "Bella",
+        "option_d": "Lila",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What natural event does Dinnie witness in Switzerland?",
+        "option_a": "An avalanche",
+        "option_b": "An earthquake",
+        "option_c": "A volcanic eruption",
+        "option_d": "A tornado",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does the word 'bloomability' represent in the story?",
+        "option_a": "The ability to grow and bloom as a person",
+        "option_b": "A school subject",
+        "option_c": "A type of flower in Switzerland",
+        "option_d": "A nickname for Dinnie",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "Where does Dinnie live before going to Switzerland?",
+        "option_a": "She moves constantly because her family follows opportunities around the US",
+        "option_b": "New York City",
+        "option_c": "A farm in Texas",
+        "option_d": "A small town in Ohio",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Dinnie ultimately realize about her time in Switzerland?",
+        "option_a": "That she wasted her time",
+        "option_b": "That it was a wonderful opportunity that helped her grow",
+        "option_c": "That she never wants to return",
+        "option_d": "That she wants to stay forever",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The School for Good and Evil",
+    "questions": [
+      {
+        "question_text": "Who are the two main characters kidnapped to the School for Good and Evil?",
+        "option_a": "Cecilia and Dot",
+        "option_b": "Rosalind and Emma",
+        "option_c": "Sophie and Agatha",
+        "option_d": "Beatrix and Hortensia",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "Which girl is beautiful and dreams of being a princess?",
+        "option_a": "Hester",
+        "option_b": "Sophie",
+        "option_c": "Agatha",
+        "option_d": "Dot",
+        "correct_answer": "b",
+        "question_order": 2
+      },
+      {
+        "question_text": "Which girl is dark and gloomy, living in a graveyard?",
+        "option_a": "Milly",
+        "option_b": "Agatha",
+        "option_c": "Beatrix",
+        "option_d": "Sophie",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "What happens when Sophie and Agatha arrive at the school?",
+        "option_a": "They are sent home",
+        "option_b": "They are both placed in the School for Good",
+        "option_c": "They are both placed in the School for Evil",
+        "option_d": "Sophie is placed in the School for Evil and Agatha in the School for Good",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What are students at the School for Good called?",
+        "option_a": "Evers",
+        "option_b": "Princes",
+        "option_c": "Glows",
+        "option_d": "Heroes",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "What are students at the School for Evil called?",
+        "option_a": "Shadows",
+        "option_b": "Nevers",
+        "option_c": "Curseds",
+        "option_d": "Villains",
+        "correct_answer": "b",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who is the schoolmaster of the School for Good and Evil?",
+        "option_a": "Lady Lesso",
+        "option_b": "Leonora Lesso",
+        "option_c": "The School Master, a mysterious masked figure",
+        "option_d": "Professor Dovey",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "What is the main competition the students must prepare for?",
+        "option_a": "The Snow Ball, where Evers and Nevers are paired",
+        "option_b": "A written exam",
+        "option_c": "A magical duel",
+        "option_d": "A talent show",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is the prince that Sophie is determined to win?",
+        "option_a": "Tristan",
+        "option_b": "Tedros",
+        "option_c": "Chaddick",
+        "option_d": "Hort",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is the ultimate twist about Sophie's true nature?",
+        "option_a": "She becomes the most powerful villain, proving she truly belongs in Evil",
+        "option_b": "She is revealed to be a princess",
+        "option_c": "She is a fairy in disguise",
+        "option_d": "She is actually a witch",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Tiger Rising",
+    "questions": [
+      {
+        "question_text": "What is the name of the main character in The Tiger Rising?",
+        "option_a": "Willie Mae",
+        "option_b": "Sistine Bailey",
+        "option_c": "Beauchamp",
+        "option_d": "Rob Horton",
+        "correct_answer": "d",
+        "question_order": 1
+      },
+      {
+        "question_text": "What does Rob discover in the woods near the motel?",
+        "option_a": "A caged tiger",
+        "option_b": "A hidden treasure",
+        "option_c": "A lost dog",
+        "option_d": "A dead deer",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is the girl that Rob befriends at school?",
+        "option_a": "Sistine Bailey",
+        "option_b": "Maisie",
+        "option_c": "Caroline",
+        "option_d": "Nattie",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "What physical condition does Rob suffer from on his legs?",
+        "option_a": "A rash",
+        "option_b": "Burns",
+        "option_c": "Bruises",
+        "option_d": "He has a mysterious skin condition that won't go away",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who owns the tiger in the story?",
+        "option_a": "The sheriff",
+        "option_b": "Rob's father",
+        "option_c": "Sistine's father",
+        "option_d": "Beauchamp, the motel owner",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Rob do to cope with his problems?",
+        "option_a": "He writes in a journal",
+        "option_b": "He talks to his father",
+        "option_c": "He makes a suitcase of 'not-thoughts' to keep painful feelings locked away",
+        "option_d": "He runs away",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Sistine want to do with the tiger?",
+        "option_a": "Keep it as a pet",
+        "option_b": "Free it",
+        "option_c": "Sell it",
+        "option_d": "Tell the police",
+        "correct_answer": "b",
+        "question_order": 7
+      },
+      {
+        "question_text": "What happened to Rob's mother?",
+        "option_a": "She died of cancer",
+        "option_b": "She moved away",
+        "option_c": "She is in prison",
+        "option_d": "She left the family",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Rob's father give him to help with his legs?",
+        "option_a": "A special cream",
+        "option_b": "New shoes",
+        "option_c": "A prayer or faith healing, which clears up the condition",
+        "option_d": "Medicine",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What ultimately happens to the tiger?",
+        "option_a": "Sistine frees it",
+        "option_b": "It escapes on its own",
+        "option_c": "It is taken to a zoo",
+        "option_d": "Rob's father shoots it",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Miraculous Journey of Edward Tulane",
+    "questions": [
+      {
+        "question_text": "What kind of toy is Edward Tulane?",
+        "option_a": "A china rabbit",
+        "option_b": "A wooden doll",
+        "option_c": "A porcelain cat",
+        "option_d": "A teddy bear",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who is Edward's first and most devoted owner?",
+        "option_a": "Sarah Ruth",
+        "option_b": "Bryce",
+        "option_c": "Abilene Tulane",
+        "option_d": "Nellie",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "What happens to Edward during a sea voyage?",
+        "option_a": "He is thrown overboard by boys who annoy Abilene",
+        "option_b": "He falls from a deck",
+        "option_c": "He gets lost in the ship",
+        "option_d": "He is stolen by a passenger",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who rescues Edward from the ocean?",
+        "option_a": "A fisherman",
+        "option_b": "A sailor",
+        "option_c": "A dolphin",
+        "option_d": "A little girl",
+        "correct_answer": "a",
+        "question_order": 4
+      },
+      {
+        "question_text": "What is Edward's main character flaw at the beginning of the story?",
+        "option_a": "He is lazy",
+        "option_b": "He is cowardly",
+        "option_c": "He is mean",
+        "option_d": "He is vain and does not love anyone",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Edward learn through his various owners?",
+        "option_a": "How to find his way home",
+        "option_b": "How to love and open his heart",
+        "option_c": "How to speak",
+        "option_d": "How to be brave",
+        "correct_answer": "b",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who is the old woman who tells Edward she has been waiting for him?",
+        "option_a": "A witch",
+        "option_b": "An old doll in a doll shop",
+        "option_c": "Nellie",
+        "option_d": "Abilene's grandmother",
+        "correct_answer": "b",
+        "question_order": 7
+      },
+      {
+        "question_text": "Who is Bryce, one of Edward's owners?",
+        "option_a": "A street musician",
+        "option_b": "A fisherman's son",
+        "option_c": "A rich boy",
+        "option_d": "A boy who carries Edward and makes him dance like a puppet",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is Sarah Ruth, another of Edward's owners?",
+        "option_a": "A princess",
+        "option_b": "An old woman",
+        "option_c": "A little girl who is sick and dies",
+        "option_d": "A doll maker",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "How does Edward's journey end?",
+        "option_a": "He is repaired and bought by Abilene, now grown, reuniting with his original owner",
+        "option_b": "He is put in a museum",
+        "option_c": "He stays in the doll shop",
+        "option_d": "He is given to a museum",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Flora and Ulysses",
+    "questions": [
+      {
+        "question_text": "What kind of animal is Ulysses?",
+        "option_a": "A dog",
+        "option_b": "A squirrel",
+        "option_c": "A rabbit",
+        "option_d": "A cat",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "How does Ulysses gain superpowers?",
+        "option_a": "He is sucked into a vacuum cleaner",
+        "option_b": "He is bitten by a radioactive bug",
+        "option_c": "He is struck by lightning",
+        "option_d": "He drinks a magic potion",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is the full name of the girl who rescues Ulysses?",
+        "option_a": "Flora Jane Buckman",
+        "option_b": "Flora Mae Buckman",
+        "option_c": "Flora Belle Buckman",
+        "option_d": "Flora Rose Buckman",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "What does Flora's mother want her to do about Ulysses?",
+        "option_a": "Take him to the vet",
+        "option_b": "Keep him as a pet",
+        "option_c": "Enter him in a contest",
+        "option_d": "Get rid of him",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What kind of stories does Flora read that help her understand Ulysses?",
+        "option_a": "Mystery novels",
+        "option_b": "Fairy tales",
+        "option_c": "Comic books, especially about a superhero called the Illuminated Adventures",
+        "option_d": "Science fiction novels",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Ulysses demonstrate he can do that proves his powers?",
+        "option_a": "Talk to humans",
+        "option_b": "Turn invisible",
+        "option_c": "Write poetry and demonstrate super strength",
+        "option_d": "Fly",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who is William Spiver, the boy who helps Flora?",
+        "option_a": "A neighbor boy who is temporarily living with his great-aunt",
+        "option_b": "A boy from a comic book",
+        "option_c": "Her classmate",
+        "option_d": "Her cousin",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Flora's mother try to do to Ulysses?",
+        "option_a": "Kill him with a shovel",
+        "option_b": "Give him to a zoo",
+        "option_c": "Take him to a shelter",
+        "option_d": "Sell him",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What is the name of the vacuum cleaner that gave Ulysses his powers?",
+        "option_a": "Ulysses 2000X",
+        "option_b": "The Tornado",
+        "option_c": "The Dyson",
+        "option_d": "The Super Sucker",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is Flora's parents' relationship like?",
+        "option_a": "They are separated",
+        "option_b": "They are happily married",
+        "option_c": "They are remarried to others",
+        "option_d": "They are divorced",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Raymie Nightingale",
+    "questions": [
+      {
+        "question_text": "What is the full name of the main character?",
+        "option_a": "Raymie Harrison",
+        "option_b": "Raymie Clarke",
+        "option_c": "Raymie Bennett",
+        "option_d": "Raymie Nightingale",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Why does Raymie enter the Little Miss Central Florida Tire contest?",
+        "option_a": "To become famous",
+        "option_b": "To win money",
+        "option_c": "So her father, who left, will see her picture in the paper and come home",
+        "option_d": "Because her mother wants her to",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "What are the names of the two other girls Raymie befriends?",
+        "option_a": "Beverly Tapinski and Louisiana Elefante",
+        "option_b": "Brenda Tapp and Lola Elsworth",
+        "option_c": "Beverly Hill and Louise Grant",
+        "option_d": "Betty Tapinski and Lucy Elefante",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "What is Louisiana Elefante known for?",
+        "option_a": "Being a talented singer",
+        "option_b": "Being very wealthy",
+        "option_c": "Being a great swimmer",
+        "option_d": "Having a mysterious past and being kidnapped by her grandmother",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What does Beverly Tapinski want to do?",
+        "option_a": "Become a nurse",
+        "option_b": "Run away",
+        "option_c": "Win the contest",
+        "option_d": "Sabotage the contest",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Raymie plan to do as her talent for the contest?",
+        "option_a": "Twirl a baton",
+        "option_b": "Recite a poem",
+        "option_c": "Sing a song",
+        "option_d": "Dance",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who teaches Raymie to twirl the baton?",
+        "option_a": "Ida Nee, a former baton twirling champion",
+        "option_b": "Her mother",
+        "option_c": "Her grandmother",
+        "option_d": "Beverly",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "What happens at the Golden Acres nursing home?",
+        "option_a": "Raymie reads to an old woman who dies, and she realizes she can save people",
+        "option_b": "They perform their baton routine",
+        "option_c": "They find Raymie's father there",
+        "option_d": "The girls volunteer there",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "Why does Raymie call herself 'Raymie Nightingale'?",
+        "option_a": "Her grandmother gave her the nickname",
+        "option_b": "It is her stage name",
+        "option_c": "Her last name is Nightingale",
+        "option_d": "She compares herself to Florence Nightingale, deciding she can save people",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is the name of the cat that Louisiana cares for?",
+        "option_a": "Whiskers",
+        "option_b": "Archie",
+        "option_c": "Swanky",
+        "option_d": "Bunny",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Louisiana's Way Home",
+    "questions": [
+      {
+        "question_text": "Who is the main character of Louisiana's Way Home?",
+        "option_a": "Louisiana Nightingale",
+        "option_b": "Louisiana Elefante",
+        "option_c": "Beverly Tapinski",
+        "option_d": "Raymie Clarke",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Where does Louisiana's grandmother take her in the middle of the night?",
+        "option_a": "To Texas",
+        "option_b": "To Tennessee",
+        "option_c": "To Georgia",
+        "option_d": "To Florida",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "Why does Louisiana's grandmother take her away from Florida?",
+        "option_a": "Because of a family emergency",
+        "option_b": "Because the date of destiny has arrived and they must leave",
+        "option_c": "Because they are moving",
+        "option_d": "Because they are being evicted",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "What happens to Louisiana's grandmother's toothache?",
+        "option_a": "It gets better",
+        "option_b": "She goes to a dentist",
+        "option_c": "She ignores it",
+        "option_d": "She pulls her own tooth with pliers and gets an infection",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "Where does Louisiana end up when her grandmother is hospitalized?",
+        "option_a": "At a motel run by a kind couple",
+        "option_b": "With distant relatives",
+        "option_c": "At a children's shelter",
+        "option_d": "On the streets",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who are the couple that take Louisiana in?",
+        "option_a": "Allen and Bertha Pinkney",
+        "option_b": "Burke and his wife",
+        "option_c": "Jerry and Betty",
+        "option_d": "Clarence and Ethel",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Louisiana do for the Pinkneys to earn her keep?",
+        "option_a": "She cleans the motel rooms",
+        "option_b": "She works in their store",
+        "option_c": "She does laundry and helps around the house",
+        "option_d": "She cooks meals",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Louisiana discover about her parents?",
+        "option_a": "They died when she was young",
+        "option_b": "She was abandoned",
+        "option_c": "Her parents were trapeze artists who died",
+        "option_d": "They are alive and looking for her",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Louisiana's grandmother reveal about Louisiana's life?",
+        "option_a": "That Louisiana has siblings",
+        "option_b": "That Louisiana is a princess",
+        "option_c": "That Louisiana was adopted and her real parents are unknown",
+        "option_d": "That Louisiana has a trust fund",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Louisiana ultimately decide about her identity?",
+        "option_a": "She changes her name",
+        "option_b": "She accepts that she is Louisiana Elefante and that her life is what she makes of it",
+        "option_c": "She returns to Florida",
+        "option_d": "She decides to find her real parents",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Lemonade War",
+    "questions": [
+      {
+        "question_text": "Who are the two main sibling characters in The Lemonade War?",
+        "option_a": "Evan and Jessie Morton",
+        "option_b": "Evan and Megan Treski",
+        "option_c": "Evan and Jessie Treski",
+        "option_d": "Evan and Julie Treski",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "Why is Evan upset with Jessie at the start of the story?",
+        "option_a": "She is being moved up to his grade level, and he feels embarrassed",
+        "option_b": "She broke his toy",
+        "option_c": "She got better grades",
+        "option_d": "She told on him",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "How old is Jessie?",
+        "option_a": "Nine",
+        "option_b": "Eight",
+        "option_c": "Seven",
+        "option_d": "Ten",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "What do Evan and Jessie compete to see who can do?",
+        "option_a": "Get the best grades",
+        "option_b": "Run the fastest",
+        "option_c": "Sell the most cookies",
+        "option_d": "Make the most money selling lemonade",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "How long do they have for the lemonade war?",
+        "option_a": "Three days",
+        "option_b": "A week",
+        "option_c": "Five days",
+        "option_d": "One day",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Jessie do to gain an advantage?",
+        "option_a": "She advertises on TV",
+        "option_b": "She lowers her prices",
+        "option_c": "She teams up with Megan and has a better location",
+        "option_d": "She adds extra sugar",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Evan do to try to win?",
+        "option_a": "He cheats",
+        "option_b": "He steals Jessie's money",
+        "option_c": "He adds frills like lemon zest and a snack stand",
+        "option_d": "He gives up",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "What happens to the lemonade money at one point?",
+        "option_a": "It gets rained on",
+        "option_b": "It gets stolen",
+        "option_c": "Jessie hides it and Evan takes it",
+        "option_d": "It gets lost",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "What is the prize the winner expects?",
+        "option_a": "A trip",
+        "option_b": "All the lemonade money",
+        "option_c": "A trophy",
+        "option_d": "A new bike",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is the resolution of the lemonade war?",
+        "option_a": "Jessie wins, and they reconcile and put the money together",
+        "option_b": "Their parents take the money",
+        "option_c": "Evan wins and keeps the money",
+        "option_d": "They both lose the money",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Candymakers",
+    "questions": [
+      {
+        "question_text": "How many children are competing in the candy-making contest?",
+        "option_a": "Six",
+        "option_b": "Four",
+        "option_c": "Three",
+        "option_d": "Five",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "What are the names of the four children in the contest?",
+        "option_a": "Logan, Miles, Daisy, and Philip",
+        "option_b": "Logan, Miles, Darcy, and Philip",
+        "option_c": "Luke, Miles, Daisy, and Philip",
+        "option_d": "Logan, Mason, Daisy, and Philip",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is Logan Sweet?",
+        "option_a": "A boy who hates candy",
+        "option_b": "The son of the candy factory owner",
+        "option_c": "A new kid in town",
+        "option_d": "A candy expert",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "Where is the candy-making contest held?",
+        "option_a": "At a school",
+        "option_b": "At a museum",
+        "option_c": "At a shopping mall",
+        "option_d": "At the Life Is Sweet candy factory",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What is Philip's secret?",
+        "option_a": "He cannot taste anything",
+        "option_b": "He is afraid of sugar",
+        "option_c": "He is actually the son of the factory's rival",
+        "option_d": "He is a candy spy from a rival company",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "What is Miles known for?",
+        "option_a": "He is a boy who was raised by wolves",
+        "option_b": "He is allergic to chocolate",
+        "option_c": "He can taste any ingredient blindfolded",
+        "option_d": "He has a photographic memory",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What is Daisy's secret?",
+        "option_a": "She is a boy",
+        "option_b": "She is a princess in disguise",
+        "option_c": "She is a spy",
+        "option_d": "She has magical powers",
+        "correct_answer": "b",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does each contestant need to do for the contest?",
+        "option_a": "Create a new candy to be judged",
+        "option_b": "Guess the ingredients in a candy",
+        "option_c": "Eat the most candy",
+        "option_d": "Sell the most candy",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "How is the story structured?",
+        "option_a": "As letters",
+        "option_b": "In reverse order",
+        "option_c": "Each section is told from a different contestant's perspective",
+        "option_d": "Chronologically",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Logan create for his candy?",
+        "option_a": "A lollipop",
+        "option_b": "A gummy bear",
+        "option_c": "A chocolate bar",
+        "option_d": "A candy that changes flavor as you eat it",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "A Mango-Shaped Space",
+    "questions": [
+      {
+        "question_text": "What is the name of the main character in A Mango-Shaped Space?",
+        "option_a": "Maya Winchell",
+        "option_b": "Mia Winchell",
+        "option_c": "Mia Shapiro",
+        "option_d": "Mia Rodriguez",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "What condition does Mia have?",
+        "option_a": "Color blindness",
+        "option_b": "Dyslexia",
+        "option_c": "Autism",
+        "option_d": "Synesthesia, where she sees colors when she hears sounds or sees letters and numbers",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "How old is Mia when she discovers her synesthesia has a name?",
+        "option_a": "Thirteen",
+        "option_b": "Eight",
+        "option_c": "Ten",
+        "option_d": "Sixteen",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is Mia's cat?",
+        "option_a": "Peaches",
+        "option_b": "Pumpkin",
+        "option_c": "Mango",
+        "option_d": "Marmalade",
+        "correct_answer": "c",
+        "question_order": 4
+      },
+      {
+        "question_text": "Why is Mia's cat named Mango?",
+        "option_a": "Because it loves mangoes",
+        "option_b": "Because the sound of its purr produces the color mango in Mia's mind",
+        "option_c": "Because of its orange fur",
+        "option_d": "Because Mia found it under a mango tree",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the boy Mia meets who also has synesthesia?",
+        "option_a": "Jenna",
+        "option_b": "Roger",
+        "option_c": "Adam",
+        "option_d": "Billy",
+        "correct_answer": "c",
+        "question_order": 6
+      },
+      {
+        "question_text": "What happens to Mango near the end of the story?",
+        "option_a": "Mango has kittens",
+        "option_b": "Mango runs away",
+        "option_c": "Mango dies",
+        "option_d": "Mango gets sick but recovers",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "How does Mia feel about her synesthesia at the beginning of the story?",
+        "option_a": "She tells everyone about it",
+        "option_b": "She doesn't know she has it",
+        "option_c": "She is proud of it",
+        "option_d": "She has kept it a secret because she thinks something is wrong with her",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is Mia's best friend?",
+        "option_a": "Jenna",
+        "option_b": "Adam",
+        "option_c": "Sarah",
+        "option_d": "Rosa",
+        "correct_answer": "a",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Mia learn about her condition?",
+        "option_a": "That she needs medication",
+        "option_b": "That it will go away",
+        "option_c": "That it is a neurological condition called synesthesia that is not harmful",
+        "option_d": "That it is a disease",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Every Soul a Star",
+    "questions": [
+      {
+        "question_text": "Where do the three main characters meet?",
+        "option_a": "At a summer camp",
+        "option_b": "At Moon Shadow Campground to witness a total solar eclipse",
+        "option_c": "At a science fair",
+        "option_d": "At a school field trip",
+        "correct_answer": "b",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who are the three main characters?",
+        "option_a": "Alice, Bree, and Jack",
+        "option_b": "Ally, Beth, and Jake",
+        "option_c": "Ally, Bree, and James",
+        "option_d": "Ally, Bree, and Jack",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who has lived at Moon Shadow Campground her whole life?",
+        "option_a": "Bree",
+        "option_b": "Mr. Silver",
+        "option_c": "Ally",
+        "option_d": "Jack",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "Why is Bree at Moon Shadow?",
+        "option_a": "She is visiting relatives",
+        "option_b": "Her family is taking over the campground and she must move there",
+        "option_c": "She is lost",
+        "option_d": "She is on vacation",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "Why is Jack at Moon Shadow?",
+        "option_a": "He is on vacation with his family",
+        "option_b": "He was invited by his science teacher to help with an eclipse experiment as an alternative to summer school",
+        "option_c": "He works there",
+        "option_d": "He is camping with friends",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "What is Ally's special interest?",
+        "option_a": "Astronomy, she knows all about stars and the eclipse",
+        "option_b": "Art",
+        "option_c": "Music",
+        "option_d": "Writing",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What does Bree want to be?",
+        "option_a": "A model",
+        "option_b": "An actress",
+        "option_c": "A scientist",
+        "option_d": "A singer",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "How does the story change perspectives?",
+        "option_a": "It is told in letters",
+        "option_b": "It alternates between the three main characters' points of view",
+        "option_c": "It is told in first person",
+        "option_d": "It is told by a narrator",
+        "correct_answer": "b",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Ally discover about her parents?",
+        "option_a": "They are moving away",
+        "option_b": "They have a secret",
+        "option_c": "They are getting divorced",
+        "option_d": "They are not her real parents",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "What do the three friends do during the eclipse?",
+        "option_a": "They run away",
+        "option_b": "They sleep through it",
+        "option_c": "They watch it together and it changes their lives",
+        "option_d": "They take photographs",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Jeremy Fink and the Meaning of Life",
+    "questions": [
+      {
+        "question_text": "Who is the main character of the story?",
+        "option_a": "Jeremy Fink",
+        "option_b": "Jeremy Park",
+        "option_c": "Jeremy Clark",
+        "option_d": "Jeremy Lark",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "What does Jeremy receive for his birthday?",
+        "option_a": "A video game",
+        "option_b": "A locked wooden box inscribed with 'The Meaning of Life'",
+        "option_c": "A book",
+        "option_d": "A bicycle",
+        "correct_answer": "b",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who sent Jeremy the box?",
+        "option_a": "His father, who has died",
+        "option_b": "His mother",
+        "option_c": "A stranger",
+        "option_d": "His grandfather",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "What is the problem with the box?",
+        "option_a": "It is broken",
+        "option_b": "It is too heavy",
+        "option_c": "The four keys needed to open it are missing",
+        "option_d": "It has no lock",
+        "correct_answer": "c",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is Jeremy's best friend?",
+        "option_a": "Ricky",
+        "option_b": "Sam",
+        "option_c": "Lizzy",
+        "option_d": "Alice",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "When must the box be opened by?",
+        "option_a": "Jeremy's thirteenth birthday",
+        "option_b": "Christmas",
+        "option_c": "New Year's Day",
+        "option_d": "The end of summer",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What do Jeremy and Lizzy do to find the keys?",
+        "option_a": "They give up",
+        "option_b": "They search the internet",
+        "option_c": "They go on a scavenger hunt across New York City",
+        "option_d": "They hire a detective",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "Who helps Jeremy and Lizzy with their search?",
+        "option_a": "A librarian",
+        "option_b": "A pawn shop owner named Oswald",
+        "option_c": "A police officer",
+        "option_d": "A teacher",
+        "correct_answer": "b",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Jeremy learn about the meaning of life?",
+        "option_a": "That it is a secret",
+        "option_b": "That it cannot be found in a box but is discovered through experiences and relationships",
+        "option_c": "That it is written in the box",
+        "option_d": "That it is different for everyone",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "Where does the story take place?",
+        "option_a": "Los Angeles",
+        "option_b": "Chicago",
+        "option_c": "New York City",
+        "option_d": "Boston",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "So B. It",
+    "questions": [
+      {
+        "question_text": "What is the name of the main character in So B. It?",
+        "option_a": "Heidi",
+        "option_b": "Mama",
+        "option_c": "Bernadette",
+        "option_d": "So B. It",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is Heidi's mother's mental condition?",
+        "option_a": "She is paralyzed",
+        "option_b": "She is blind",
+        "option_c": "She is deaf",
+        "option_d": "She is mentally disabled and can only say a limited number of words",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "What is Heidi's mother's name?",
+        "option_a": "So B. It",
+        "option_b": "Bernadette",
+        "option_c": "Mama",
+        "option_d": "Sarah",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who takes care of Heidi and her mother?",
+        "option_a": "Heidi's grandmother",
+        "option_b": "A social worker",
+        "option_c": "A foster parent",
+        "option_d": "A neighbor named Bernadette",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What does Bernadette suffer from?",
+        "option_a": "Blindness",
+        "option_b": "Arthritis",
+        "option_c": "A heart condition",
+        "option_d": "Agoraphobia, a fear of leaving the apartment",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "What word does Heidi find that helps her discover her past?",
+        "option_a": "Liberty",
+        "option_b": "Hill",
+        "option_c": "Home",
+        "option_d": "Soof",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "Where does Heidi go to find out about her past?",
+        "option_a": "Liberty, New York",
+        "option_b": "New York",
+        "option_c": "Chicago",
+        "option_d": "Hilltop, New York",
+        "correct_answer": "a",
+        "question_order": 7
+      },
+      {
+        "question_text": "How does Heidi travel to find her past?",
+        "option_a": "By car",
+        "option_b": "By train",
+        "option_c": "By bus",
+        "option_d": "By plane",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "What does Heidi discover about her father?",
+        "option_a": "He is dead",
+        "option_b": "He abandoned her",
+        "option_c": "He is a man named Elias who knew her mother at a home for the mentally disabled",
+        "option_d": "He is a stranger",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Heidi learn about her mother's past?",
+        "option_a": "That her mother had another child",
+        "option_b": "That her mother was adopted",
+        "option_c": "That her mother was a famous person",
+        "option_d": "That her mother was abused and Heidi was the result of that abuse",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Ella Enchanted",
+    "questions": [
+      {
+        "question_text": "What is the curse placed on Ella at birth?",
+        "option_a": "She will fall asleep forever",
+        "option_b": "She cannot speak",
+        "option_c": "She must be obedient to every command given to her",
+        "option_d": "She will die young",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "Who places the curse on Ella?",
+        "option_a": "A fairy named Lucinda",
+        "option_b": "Her stepmother",
+        "option_c": "A sorcerer",
+        "option_d": "An evil witch",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "Who is Ella's fairy godmother?",
+        "option_a": "Mandy, her cook and house fairy",
+        "option_b": "A stranger",
+        "option_c": "Her aunt",
+        "option_d": "Lucinda",
+        "correct_answer": "a",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the prince that Ella falls in love with?",
+        "option_a": "Prince Henry",
+        "option_b": "Prince William",
+        "option_c": "Prince Arthur",
+        "option_d": "Prince Charmont",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "Why does Ella go to finishing school?",
+        "option_a": "Her father sends her",
+        "option_b": "Her stepmother orders her to go",
+        "option_c": "She wants to learn",
+        "option_d": "The prince sends her",
+        "correct_answer": "b",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who are Ella's wicked stepsisters?",
+        "option_a": "Hattie and Olive",
+        "option_b": "Margaret and Olive",
+        "option_c": "Hattie and Rose",
+        "option_d": "Olive and Daisy",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "What language can Ella speak that is important to the story?",
+        "option_a": "Ogre",
+        "option_b": "Gnomish",
+        "option_c": "Elvish",
+        "option_d": "All of the above",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "What does Ella do to try to break her curse?",
+        "option_a": "She drinks a potion",
+        "option_b": "She searches for Lucinda",
+        "option_c": "She goes on a quest to find Lucinda to undo the curse",
+        "option_d": "She goes to a wizard",
+        "correct_answer": "c",
+        "question_order": 8
+      },
+      {
+        "question_text": "How does Ella finally break the curse?",
+        "option_a": "Lucinda undoes it",
+        "option_b": "When the prince proposes, she says no out of love for him, breaking the curse through her own will",
+        "option_c": "Her fairy godmother breaks it",
+        "option_d": "A wizard lifts it",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "Who is Char?",
+        "option_a": "Ella's brother",
+        "option_b": "Ella's father",
+        "option_c": "A fairy",
+        "option_d": "Prince Charmont, Ella's love interest",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "The Two Princesses of Bamarre",
+    "questions": [
+      {
+        "question_text": "Who are the two princesses of Bamarre?",
+        "option_a": "Addie and Mary",
+        "option_b": "Addie and Meredith",
+        "option_c": "Anna and Meryl",
+        "option_d": "Addie and Meryl",
+        "correct_answer": "d",
+        "question_order": 1
+      },
+      {
+        "question_text": "Which princess is brave and adventurous?",
+        "option_a": "Addie",
+        "option_b": "Both",
+        "option_c": "Neither",
+        "option_d": "Meryl",
+        "correct_answer": "d",
+        "question_order": 2
+      },
+      {
+        "question_text": "Which princess is shy and fearful?",
+        "option_a": "Meryl",
+        "option_b": "Addie",
+        "option_c": "Neither",
+        "option_d": "Both",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "What illness strikes Meryl?",
+        "option_a": "A curse",
+        "option_b": "A fever",
+        "option_c": "A cold",
+        "option_d": "The Gray Death, a deadly and incurable disease",
+        "correct_answer": "d",
+        "question_order": 4
+      },
+      {
+        "question_text": "What must Addie do to save her sister?",
+        "option_a": "Go on a quest to find the cure for the Gray Death",
+        "option_b": "Find a doctor",
+        "option_c": "Ask the king for help",
+        "option_d": "Pray",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "What does Addie take with her on her quest?",
+        "option_a": "A magic wand",
+        "option_b": "Nothing",
+        "option_c": "A sword",
+        "option_d": "Seven-league boots, a cloak of invisibility, and a map",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "What creatures does Addie encounter on her quest?",
+        "option_a": "Dragons",
+        "option_b": "Witches",
+        "option_c": "Ogres, dragons, and specters",
+        "option_d": "Trolls",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "Who is Rhys?",
+        "option_a": "A sorcerer who helps Addie",
+        "option_b": "A prince",
+        "option_c": "A dragon",
+        "option_d": "A knight",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What is the cure for the Gray Death?",
+        "option_a": "A special herb",
+        "option_b": "A magic potion",
+        "option_c": "A drop of dragon's blood, or a cure made from the flowers that grow where dragons are slain",
+        "option_d": "A fairy's blessing",
+        "correct_answer": "c",
+        "question_order": 9
+      },
+      {
+        "question_text": "What does Addie discover about herself during her quest?",
+        "option_a": "That she does not love her sister",
+        "option_b": "That she is not brave",
+        "option_c": "That she has courage within her, proving that even the fearful can be heroes",
+        "option_d": "That she is a witch",
+        "correct_answer": "c",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "A Wind in the Door",
+    "questions": [
+      {
+        "question_text": "Who is the main character of A Wind in the Door?",
+        "option_a": "Meg Murry",
+        "option_b": "Sandy Murry",
+        "option_c": "Charles Wallace",
+        "option_d": "Calvin O'Keefe",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "What is wrong with Charles Wallace?",
+        "option_a": "He is suffering from a mysterious illness caused by creatures called Echthroi",
+        "option_b": "He has a broken leg",
+        "option_c": "He has a fever",
+        "option_d": "He is cursed",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "What must Meg do to save Charles Wallace?",
+        "option_a": "Find a magical cure",
+        "option_b": "Travel inside Charles Wallace's cells to fight the Echthroi",
+        "option_c": "Find a doctor",
+        "option_d": "Go to another planet",
+        "correct_answer": "b",
+        "question_order": 3
+      },
+      {
+        "question_text": "Who is the cherubim who helps Meg?",
+        "option_a": "Mr. Jenkins",
+        "option_b": "Proginoskes",
+        "option_c": "Blajeny",
+        "option_d": "Calvin",
+        "correct_answer": "b",
+        "question_order": 4
+      },
+      {
+        "question_text": "What are the Echthroi?",
+        "option_a": "Aliens",
+        "option_b": "Bacteria",
+        "option_c": "Evil beings that seek to destroy the universe by X-ing things out",
+        "option_d": "Viruses",
+        "correct_answer": "c",
+        "question_order": 5
+      },
+      {
+        "question_text": "Who is the teacher who helps Meg on her journey?",
+        "option_a": "Mrs. Whatsit",
+        "option_b": "Mr. Jenkins",
+        "option_c": "Calvin",
+        "option_d": "Blajeny, a Teacher from the stars",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "What must Meg do inside Charles Wallace?",
+        "option_a": "Find the Echthroi",
+        "option_b": "Destroy the Echthroi",
+        "option_c": "Name the things inside him correctly, as naming is powerful",
+        "option_d": "Fight the Echthroi",
+        "correct_answer": "c",
+        "question_order": 7
+      },
+      {
+        "question_text": "What is the concept of 'kything' in the story?",
+        "option_a": "A type of healing",
+        "option_b": "A form of teleportation",
+        "option_c": "A magical spell",
+        "option_d": "A type of communication without words",
+        "correct_answer": "d",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is Calvin O'Keefe in relation to Meg?",
+        "option_a": "Her teacher",
+        "option_b": "Her brother",
+        "option_c": "Her cousin",
+        "option_d": "Her friend and love interest",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is the overarching theme of A Wind in the Door?",
+        "option_a": "The value of friendship",
+        "option_b": "The danger of technology",
+        "option_c": "The importance of science",
+        "option_d": "The power of love and naming",
+        "correct_answer": "d",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "A Swiftly Tilting Planet",
+    "questions": [
+      {
+        "question_text": "Who is the main character of A Swiftly Tilting Planet?",
+        "option_a": "Sandy Murry",
+        "option_b": "Meg Murry",
+        "option_c": "Charles Wallace Murry",
+        "option_d": "Calvin O'Keefe",
+        "correct_answer": "c",
+        "question_order": 1
+      },
+      {
+        "question_text": "What threatens the world in this story?",
+        "option_a": "A natural disaster",
+        "option_b": "A plague",
+        "option_c": "A nuclear threat from a dictator named Mad Dog Branzillo",
+        "option_d": "An alien invasion",
+        "correct_answer": "c",
+        "question_order": 2
+      },
+      {
+        "question_text": "How does Charles Wallace travel through time?",
+        "option_a": "In a time machine",
+        "option_b": "In a dream",
+        "option_c": "Through a unicorn named Gaudior",
+        "option_d": "Through a portal",
+        "correct_answer": "c",
+        "question_order": 3
+      },
+      {
+        "question_text": "What must Charles Wallace do to save the world?",
+        "option_a": "Find a weapon",
+        "option_b": "Warn the president",
+        "option_c": "Change the past by influencing historical events through 'going within' people",
+        "option_d": "Defeat Branzillo",
+        "correct_answer": "c",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is the unicorn that helps Charles Wallace?",
+        "option_a": "Blajeny",
+        "option_b": "Mr. Jenkins",
+        "option_c": "Proginoskes",
+        "option_d": "Gaudior",
+        "correct_answer": "d",
+        "question_order": 5
+      },
+      {
+        "question_text": "What is the concept of 'going within' in the story?",
+        "option_a": "Charles Wallace enters the consciousness of people in the past to influence their decisions",
+        "option_b": "Mind reading",
+        "option_c": "Time travel",
+        "option_d": "Entering someone's body",
+        "correct_answer": "a",
+        "question_order": 6
+      },
+      {
+        "question_text": "Who is Mad Dog Branzillo?",
+        "option_a": "A criminal",
+        "option_b": "A general",
+        "option_c": "A scientist",
+        "option_d": "A dictator in South America who threatens nuclear war",
+        "correct_answer": "d",
+        "question_order": 7
+      },
+      {
+        "question_text": "What is the significance of the rune 'I conjure thee by the day and the night'?",
+        "option_a": "It is a rune used by Mrs. Murry to help Charles Wallace, passed down through generations",
+        "option_b": "It is a prayer",
+        "option_c": "It is a curse",
+        "option_d": "It is a spell to time travel",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "What is the ultimate goal of Charles Wallace's journey?",
+        "option_a": "To find his father",
+        "option_b": "To save Meg",
+        "option_c": "To become a hero",
+        "option_d": "To change the timeline so that Branzillo becomes a good leader instead of a dictator",
+        "correct_answer": "d",
+        "question_order": 9
+      },
+      {
+        "question_text": "Who recites the rune at the beginning of the story?",
+        "option_a": "Mrs. Murry",
+        "option_b": "Calvin",
+        "option_c": "Charles Wallace",
+        "option_d": "Meg",
+        "correct_answer": "a",
+        "question_order": 10
+      }
+    ]
+  },
+  {
+    "title": "Many Waters",
+    "questions": [
+      {
+        "question_text": "Who are the main characters of Many Waters?",
+        "option_a": "Sandy and Dennys Murry",
+        "option_b": "Meg and Charles Wallace",
+        "option_c": "Calvin and Meg",
+        "option_d": "Sandy and Calvin",
+        "correct_answer": "a",
+        "question_order": 1
+      },
+      {
+        "question_text": "How do Sandy and Dennys travel back in time?",
+        "option_a": "They accidentally type something into their father's computer experiment",
+        "option_b": "In a dream",
+        "option_c": "In a time machine",
+        "option_d": "Through a portal",
+        "correct_answer": "a",
+        "question_order": 2
+      },
+      {
+        "question_text": "What time period do they travel to?",
+        "option_a": "The Middle Ages",
+        "option_b": "Ancient Egypt",
+        "option_c": "Prehistoric times",
+        "option_d": "The time of Noah and the biblical flood",
+        "correct_answer": "d",
+        "question_order": 3
+      },
+      {
+        "question_text": "What is the environment like where Sandy and Dennys arrive?",
+        "option_a": "A frozen tundra",
+        "option_b": "A tropical island",
+        "option_c": "A desert where it has not rained for many years",
+        "option_d": "A lush forest",
+        "correct_answer": "c",
+        "question_order": 4
+      },
+      {
+        "question_text": "Who is Noah in the story?",
+        "option_a": "A patriarch who is building an ark before the flood comes",
+        "option_b": "A king",
+        "option_c": "A farmer",
+        "option_d": "A prophet",
+        "correct_answer": "a",
+        "question_order": 5
+      },
+      {
+        "question_text": "What are the seraphim and nephilim in the story?",
+        "option_a": "Aliens",
+        "option_b": "Tribes",
+        "option_c": "Mythical creatures",
+        "option_d": "Angels and fallen angels who interact with humans",
+        "correct_answer": "d",
+        "question_order": 6
+      },
+      {
+        "question_text": "What is the relationship between Sandy and Dennys?",
+        "option_a": "They are friends",
+        "option_b": "They are twins",
+        "option_c": "They are cousins",
+        "option_d": "They are enemies",
+        "correct_answer": "b",
+        "question_order": 7
+      },
+      {
+        "question_text": "What must happen for Sandy and Dennys to return home?",
+        "option_a": "They must survive until the flood comes and be on the ark",
+        "option_b": "They must defeat a villain",
+        "option_c": "They must find a portal",
+        "option_d": "They must complete a quest",
+        "correct_answer": "a",
+        "question_order": 8
+      },
+      {
+        "question_text": "Who is Yalith in the story?",
+        "option_a": "Noah's wife",
+        "option_b": "Noah's daughter who befriends the twins",
+        "option_c": "A nephilim",
+        "option_d": "A seraph",
+        "correct_answer": "b",
+        "question_order": 9
+      },
+      {
+        "question_text": "What is the overarching theme of Many Waters?",
+        "option_a": "The importance of family",
+        "option_b": "Love, sacrifice, and faith, as the twins learn about love and the biblical flood",
+        "option_c": "The power of science",
+        "option_d": "The danger of technology",
+        "correct_answer": "b",
+        "question_order": 10
+      }
+    ]
+  }
+]

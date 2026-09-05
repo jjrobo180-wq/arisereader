@@ -1,0 +1,287 @@
+[
+  {
+    "title": "Out of My Mind",
+    "author": "Sharon Draper",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the name of Melody Brooks's beloved dog?",
+        "options": ["Buddy", "Butterscotch", "Goldie", "Ollie"],
+        "correct": "B"
+      },
+      {
+        "question": "What assistive device does Melody receive that finally lets her speak?",
+        "options": ["Elvira, the Medi-Talker", "A sign language interpreter", "An iPad with text-to-speech", "A voice synthesizer donated by the school"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of Melody's younger sister?",
+        "options": ["Rose", "Penny", "Catherine", "Molly"],
+        "correct": "B"
+      },
+      {
+        "question": "Which neighbor has cared for Melody after school and helped expand her communication board?",
+        "options": ["Mrs. Shannon", "Mrs. V (Violet Valencia)", "Mrs. Lovelace", "Miss Gordon"],
+        "correct": "B"
+      },
+      {
+        "question": "What academic competition does Melody try out for in fifth grade?",
+        "options": ["Spelling Bee", "Whiz Kids Quiz Competition", "Math Olympiad", "Science Fair"],
+        "correct": "B"
+      },
+      {
+        "question": "Which of these students is one of Melody's main bullies along with Claire?",
+        "options": ["Rose", "Connor", "Molly", "Catherine"],
+        "correct": "C"
+      },
+      {
+        "question": "Who is the teacher who leads the quiz team and wrongly doubts Melody's intelligence?",
+        "options": ["Mr. Dimming", "Mrs. Shannon", "Miss Gordon", "Mr. Lovelace"],
+        "correct": "A"
+      },
+      {
+        "question": "Why does Melody miss the national Whiz Kids competition in Washington, D.C.?",
+        "options": ["She gets sick", "The team takes an earlier flight without her", "Her flight was canceled due to weather", "Her Medi-Talker breaks"],
+        "correct": "B"
+      },
+      {
+        "question": "After her Medi-Talker lets her speak, who does Melody tell she loves them for the first time?",
+        "options": ["Her teacher", "Rose", "Her parents", "Mrs. V"],
+        "correct": "C"
+      },
+      {
+        "question": "What happens to Penny on the way to school after the competition?",
+        "options": ["She gets lost", "She is hit by her mother's car", "She faints", "She falls off her bike"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Counting by 7s",
+    "author": "Holly Goldberg Sloan",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What does Willow do to calm herself when she feels anxious?",
+        "options": ["She hums", "She counts by sevens", "She gardens", "She recites poetry"],
+        "correct": "B"
+      },
+      {
+        "question": "How do Willow's parents die?",
+        "options": ["In a car accident", "From illness", "In a fire", "From a plane crash"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the school counselor Willow is required to see after being accused of cheating?",
+        "options": ["Mr. Hewitt", "Dell Duke", "Dr. Graham", "Fred Grimes"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of Willow's Vietnamese friend who becomes her best friend?",
+        "options": ["Mai Nguyen", "Pattie Nguyen", "Linh", "Trang"],
+        "correct": "A"
+      },
+      {
+        "question": "Where does Willow secretly live with the Nguyen family after losing her parents?",
+        "options": ["In Dell's apartment", "In the Nguyen family's garage", "At the salon", "In a foster home"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Willow plant in a common area outside Dell's apartment?",
+        "options": ["Vegetables", "Sunflowers", "An herb garden", "Oak trees"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the taxi driver who, inspired by Willow, enrolls in community college to become a medical technician?",
+        "options": ["Fred", "Jairo Hernandez", "Dell", "Henry"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Willow name as her primary passion and focus of her self-study?",
+        "options": ["Astronomy", "Medical conditions and plants", "Mathematics", "Languages"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the final lucky number reference at the end, when Willow's life is secure with a new family?",
+        "options": ["The 7th of the month", "She turned 7", "Seven colors in her garden", "Seven new friends"],
+        "correct": "A"
+      },
+      {
+        "question": "Who ultimately legally adopts Willow at the end of the story?",
+        "options": ["Dell Duke", "Pattie and Jairo", "Mai and Quang-ha's parents", "A foster family"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "Number the Stars",
+    "author": "Lois Lowry",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the name of Annemarie's best friend who is Jewish?",
+        "options": ["Ellen Rosen", "Lise Johansen", "Kirsti", "Birte"],
+        "correct": "A"
+      },
+      {
+        "question": "Where is the main setting for most of the story's events?",
+        "options": ["Sweden", "Copenhagen, Denmark", "Berlin, Germany", "Amsterdam"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Annemarie do with Ellen's Star of David necklace when soldiers search the house?",
+        "options": ["She hides it in the floor", "She throws it out the window", "She wears it and tears the clasp", "She buries it in the garden"],
+        "correct": "C"
+      },
+      {
+        "question": "Whose home do the Johansens travel to on the coast of Denmark?",
+        "options": ["Uncle Henrik's", "Peter Nielsen's", "Mrs. Hirsch's", "King Christian X's"],
+        "correct": "A"
+      },
+      {
+        "question": "What object, carried to the boat for Henrik, helps hide the Jews by numbing the dogs' sense of smell?",
+        "options": ["A drugged handkerchief", "A bottle of perfume", "A loaf of bread with herbs", "A wool blanket"],
+        "correct": "A"
+      },
+      {
+        "question": "What story does Annemarie think of while running through the dark woods?",
+        "options": ["The Snow Queen", "Little Red Riding Hood", "The Emperor's New Clothes", "Hansel and Gretel"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the Resistance fighter engaged to Annemarie's late sister Lise?",
+        "options": ["Uncle Henrik", "Peter Nielsen", "Mr. Rosen", "King Christian X"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the cow that Annemarie milks at Henrik's house?",
+        "options": ["Blossom", "Buttercup", "Daisy", "Clover"],
+        "correct": "A"
+      },
+      {
+        "question": "What happens to Peter at the end of the story?",
+        "options": ["He escapes to Sweden", "He is captured and executed by the Nazis", "He joins the army", "He marries Mrs. Johansen"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the fate of the Jewish Danes hidden on Henrik's boat?",
+        "options": ["They are sent to a camp", "They escape safely to Sweden", "They are captured by soldiers", "They hide in the woods"],
+        "correct": "B"
+      }
+    ]
+  },
+  {
+    "title": "The War That Saved My Life",
+    "author": "Kimberly Brubaker Bradley",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the physical condition that Ada has lived with since birth?",
+        "options": ["A broken leg", "An untreated clubfoot", "A weak heart", "A missing arm"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is the woman who reluctantly takes Ada and Jamie into her home in Kent?",
+        "options": ["Mrs. Thorton", "Susan Smith", "Mrs. Grimes", "Lady Thorton"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the pony that Ada learns to ride?",
+        "options": ["Butter", "Blossom", "Bovril", "Sugar"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Ada do during the war that helps save lives and captures a spy?",
+        "options": ["She is a spy herself", "She helps soldiers evacuate from Dunkirk and identifies a spy", "She discovers a hidden bomb", "She protects the village"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of the horse expert who helps Ada learn to care for Butter?",
+        "options": ["Stephen White", "Grimes (Fred)", "The Colonel", "Dr. Graham"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Ada's mother (Mam) do to Ada that keeps her from leaving the flat for years?",
+        "options": ["She locks Ada in a closet", "She shames Ada for her clubfoot and keeps her confined", "She tells Ada she will be sent to an institution", "She takes Ada's shoes"],
+        "correct": "B"
+      },
+      {
+        "question": "What does Jamie find and adopt, which eventually stops his bed-wetting?",
+        "options": ["A dog", "A cat named Bovril", "A rabbit", "A bird"],
+        "correct": "B"
+      },
+      {
+        "question": "When Mam finally comes for the children, where does she take them?",
+        "options": ["Back to London", "To a new countryside cottage", "To a boarding school", "To a hospital"],
+        "correct": "A"
+      },
+      {
+        "question": "What does Susan discover when she returns to her home village after retrieving Ada and Jamie?",
+        "options": ["Her house was destroyed by a bomb", "Her pony ran away", "Soldiers occupied the village", "Nothing changed"],
+        "correct": "A"
+      },
+      {
+        "question": "How does Ada's relationship with Susan evolve by the end of the story?",
+        "options": ["She becomes deeply attached and views Susan as family", "She leaves to live with the Colonel", "She moves to a boarding school", "She returns to Mam permanently"],
+        "correct": "A"
+      }
+    ]
+  },
+  {
+    "title": "Hello, Universe",
+    "author": "Erin Entrada Kelly",
+    "points_value": 20,
+    "questions": [
+      {
+        "question": "What is the name of Virgil's guinea pig, who is also trapped with him in the well?",
+        "options": ["Gulliver", "Sacred", "Smaug", "Ruby"],
+        "correct": "A"
+      },
+      {
+        "question": "Which character is deaf and keeps a zoological journal about wildlife in the woods?",
+        "options": ["Kaori Tanaka", "Valencia Somerset", "Chet Bullens", "Gen Tanaka"],
+        "correct": "B"
+      },
+      {
+        "question": "What role does Kaori Tanaka claim for herself, helping Virgil arrange meetings and read the future?",
+        "options": ["A psychic", "A life coach", "A fortune teller", "A mystic guide"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the bully who throws Virgil's backpack (containing his guinea pig) down the well?",
+        "options": ["Chet Bullens", "Stephen White", "Henry Somerset", "Gen Tanaka"],
+        "correct": "A"
+      },
+      {
+        "question": "Who is the character from Lola's folk tales who guides Virgil while he is trapped in the well?",
+        "options": ["Pah", "Ruby San Salvador", "Bali", "Smaug"],
+        "correct": "B"
+      },
+      {
+        "question": "What warning does Lola give Virgil before he heads out that day, based on a dream she had?",
+        "options": ["Beware the color red", "Avoid the woods", "Stay away from water", "Don't talk to strangers"],
+        "correct": "A"
+      },
+      {
+        "question": "What is the name of the mythical giant bird that terrifies Virgil while trapped in the well?",
+        "options": ["Pah", "Ruby", "Smaug", "Bali"],
+        "correct": "A"
+      },
+      {
+        "question": "What recurring dream has been troubling Valencia, leading her to seek Kaori's help?",
+        "options": ["A nightmare about drowning", "A recurring solar eclipse dream", "A dream about snakes", "A dream about falling"],
+        "correct": "B"
+      },
+      {
+        "question": "Who is Lola, a key supportive figure in Virgil's life?",
+        "options": ["His mother", "His grandmother", "His older sister", "His teacher"],
+        "correct": "B"
+      },
+      {
+        "question": "What is the name of Valencia's dog, whom she feeds in the woods?",
+        "options": ["Gulliver", "Sacred", "Ruby", "Smaug"],
+        "correct": "B"
+      }
+    ]
+  }
+]
