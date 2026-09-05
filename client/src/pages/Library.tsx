@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3 } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -90,6 +90,7 @@ export default function Library() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [announcement, setAnnouncement] = useState(libraryCache.announcement);
   const [iAriseBookIds, setIAriseBookIds] = useState<number[]>([]);
+  const [iAriseEstTimes, setIAriseEstTimes] = useState<Record<string, string>>({});
 
   const [showRequest, setShowRequest] = useState(false);
   const [requestBook, setRequestBook] = useState("");
@@ -137,12 +138,18 @@ export default function Library() {
         setBooks(booksArr);
         libraryCache.books = booksArr;
       }
-      // Fetch I ARISE book IDs
+      // Fetch I ARISE book IDs and estimated times
       try {
-        const iAriseRes = await fetch(`${API_BASE}/api/i-arise-book-ids`);
+        const [iAriseRes, estTimesRes] = await Promise.all([
+          fetch(`${API_BASE}/api/i-arise-book-ids`),
+          fetch(`${API_BASE}/api/i-arise-est-times`)
+        ]);
         if (iAriseRes.ok) {
           const iAriseData = await iAriseRes.json();
           setIAriseBookIds(Array.isArray(iAriseData.bookIds) ? iAriseData.bookIds : []);
+        }
+        if (estTimesRes.ok) {
+          setIAriseEstTimes(await estTimesRes.json());
         }
       } catch {}
       // Fetch quiz count from public stats (no auth needed)
@@ -930,10 +937,15 @@ export default function Library() {
                         <div className="p-3">
                           <h3 className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</h3>
                           <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
-                          <div className="mt-2">
+                          <div className="mt-2 flex items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
                               <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
                             </span>
+                            {iAriseEstTimes[String(book.id)] && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-muted text-muted-foreground">
+                                <Clock className="w-3 h-3" />{iAriseEstTimes[String(book.id)]}
+                              </span>
+                            )}
                           </div>
                           {result && (
                             <p className="text-xs text-primary font-semibold mt-1">{result.score}/{result.total} correct</p>

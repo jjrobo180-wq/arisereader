@@ -824,6 +824,20 @@ export async function registerRoutes(
     }
   });
 
+  // Public endpoint - get I ARISE estimated times
+  app.get("/api/i-arise-est-times", async (_req, res) => {
+    try {
+      const raw = await storage.getSetting('iarise_est_times');
+      let times: Record<string, string> = {};
+      if (raw) {
+        try { times = JSON.parse(raw); } catch {}
+      }
+      res.json(times);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/admin/schools", authMiddleware, adminMiddleware, async (_req, res) => {
     const schools = await storage.getAllSchools();
     res.json(schools);
