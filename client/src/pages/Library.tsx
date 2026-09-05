@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -89,6 +89,7 @@ export default function Library() {
   const [messageText, setMessageText] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
   const [announcement, setAnnouncement] = useState(libraryCache.announcement);
+  const [iAriseBookIds, setIAriseBookIds] = useState<number[]>([]);
 
   const [showRequest, setShowRequest] = useState(false);
   const [requestBook, setRequestBook] = useState("");
@@ -134,6 +135,14 @@ export default function Library() {
         setBooks(booksArr);
         libraryCache.books = booksArr;
       }
+      // Fetch I ARISE book IDs
+      try {
+        const iAriseRes = await fetch(`${API_BASE}/api/i-arise-book-ids`);
+        if (iAriseRes.ok) {
+          const iAriseData = await iAriseRes.json();
+          setIAriseBookIds(Array.isArray(iAriseData.bookIds) ? iAriseData.bookIds : []);
+        }
+      } catch {}
       // Fetch quiz count from public stats (no auth needed)
       try {
         const statsRes = await fetch(`${API_BASE}/api/public/stats`);
@@ -387,9 +396,10 @@ export default function Library() {
     return 0;
   });
 
-  // Separate curriculum books from the rest
-  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id));
+  // Separate I ARISE books, curriculum books, and the rest
+  const iAriseBooks = sortedBooks.filter(b => iAriseBookIds.includes(b.id));
+  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
 
   // Group by points value (only when sorting by points)
   const pointsGroups: Record<string, Book[]> = {};
@@ -848,6 +858,72 @@ export default function Library() {
           </div>
         ) : (
           <>
+            {/* I ARISE Section */}
+            <div className="mb-10">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">I ARISE</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4 ml-7">Read. Learn. Rise.</p>
+              {iAriseBooks.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {iAriseBooks.map((book) => {
+                    const result = results.find(r => r.bookId === book.id);
+                    const isDone = completedIds.has(book.id);
+                    return (
+                      <Card
+                        key={book.id}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 ring-2 ring-primary/30"
+                        onClick={() => { if (!(user?.role === 'teacher' || user?.isAdmin)) navigate(`/quiz/${book.id}`); }}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
+                              <span className="font-bold text-sm">{book.title}</span>
+                            </div>
+                          )}
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">✓ Done</div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
+                          <div className="mt-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
+                            </span>
+                          </div>
+                          {result && (
+                            <p className="text-xs text-primary font-semibold mt-1">{result.score}/{result.total} correct</p>
+                          )}
+                          <div className="flex gap-1.5 mt-2">
+                            {book.readUrl && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate(`/read/${book.id}`); }}>
+                                <BookOpen className="w-3 h-3 mr-1" />Read
+                              </Button>
+                            )}
+                            {!(user?.role === 'teacher' || user?.isAdmin) && (
+                              <Button size="sm" variant="default" className="h-7 text-xs flex-1" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${book.id}`); }}>
+                                Quiz
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
+                  <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Coming soon: quick reads about current events, hobbies, sports, and life skills.</p>
+                </div>
+              )}
+            </div>
+
             {/* Curriculum Section */}
             {curriculumBooks.length > 0 && (
               <div className="mb-10">

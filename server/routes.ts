@@ -800,6 +800,20 @@ export async function registerRoutes(
     }
   });
 
+  // Public endpoint - get I ARISE book IDs
+  app.get("/api/i-arise-book-ids", async (_req, res) => {
+    try {
+      const raw = await storage.getSetting('i_arise_book_ids');
+      let ids: number[] = [];
+      if (raw) {
+        try { ids = JSON.parse(raw); } catch {}
+      }
+      res.json({ bookIds: Array.isArray(ids) ? ids : [] });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/admin/schools", authMiddleware, adminMiddleware, async (_req, res) => {
     const schools = await storage.getAllSchools();
     res.json(schools);
