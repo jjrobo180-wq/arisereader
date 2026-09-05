@@ -9,7 +9,7 @@ import {
   BookOpen, ArrowLeft, ArrowRight, CheckCircle2, XCircle, Award, Trophy,
   Users, ClipboardList, GraduationCap, Bell, Inbox, Search, ChevronDown,
   Lock, MessageSquarePlus, BookPlus, UserPlus, X, ShieldCheck, Settings,
-  Sparkles, ChevronLeft, BookUser, UserCog, PlayCircle, Eye
+  Sparkles, ChevronLeft, ChevronRight, BookUser, UserCog, PlayCircle, Eye
 } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import { generateCertificate } from "@/lib/certificate";
@@ -144,6 +144,8 @@ export default function Tutorial() {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [libSearch, setLibSearch] = useState("");
+  const [libPage, setLibPage] = useState(0);
+  const BOOKS_PER_PAGE = 10;
   const [realBooks, setRealBooks] = useState<Book[]>([]);
   const [tutorialQuiz, setTutorialQuiz] = useState<QuizData | null>(null);
   const [booksLoading, setBooksLoading] = useState(true);
@@ -405,39 +407,68 @@ export default function Tutorial() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Showing {displayBooks.filter(b =>
+                      {(() => {
+                        const filtered = displayBooks.filter(b =>
                           (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                        ).length} of {displayBooks.length} quizzes available
-                      </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                        {displayBooks.filter(b =>
-                          (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                        ).map((book) => (
-                          <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
-                            <div className="aspect-[2/3] overflow-hidden bg-muted">
-                              {book.coverUrl ? (
-                                <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <BookOpen className="w-6 h-6 text-muted-foreground" />
+                        );
+                        const totalPages = Math.ceil(filtered.length / BOOKS_PER_PAGE);
+                        const currentPage = Math.min(libPage, totalPages - 1);
+                        const pageBooks = filtered.slice(currentPage * BOOKS_PER_PAGE, (currentPage + 1) * BOOKS_PER_PAGE);
+                        return (
+                          <>
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-xs text-muted-foreground">
+                                Page {currentPage + 1} of {totalPages} — {filtered.length} quizzes available
+                              </p>
+                              {totalPages > 1 && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setLibPage(Math.max(0, currentPage - 1))}
+                                    disabled={currentPage === 0}
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                  >
+                                    <ChevronLeft className="w-3 h-3 inline" /> Prev
+                                  </button>
+                                  <span className="text-xs text-muted-foreground">{currentPage + 1} / {totalPages}</span>
+                                  <button
+                                    onClick={() => setLibPage(Math.min(totalPages - 1, currentPage + 1))}
+                                    disabled={currentPage >= totalPages - 1}
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                  >
+                                    Next <ChevronRight className="w-3 h-3 inline" />
+                                  </button>
                                 </div>
                               )}
                             </div>
-                            <div className="p-2">
-                              <p className="text-xs font-semibold truncate">{book.title}</p>
-                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
-                                book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
-                                book.pointsValue === 20 ? "bg-primary/20 text-primary" :
-                                "bg-red-500/20 text-red-400"
-                              }`}>
-                                <Trophy className="w-2.5 h-2.5" />
-                                {book.pointsValue} pts
-                              </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                              {pageBooks.map((book) => (
+                                <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
+                                  <div className="aspect-[2/3] overflow-hidden bg-muted">
+                                    {book.coverUrl ? (
+                                      <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <BookOpen className="w-6 h-6 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="p-2">
+                                    <p className="text-xs font-semibold truncate">{book.title}</p>
+                                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
+                                      book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
+                                      book.pointsValue === 20 ? "bg-primary/20 text-primary" :
+                                      "bg-red-500/20 text-red-400"
+                                    }`}>
+                                      <Trophy className="w-2.5 h-2.5" />
+                                      {book.pointsValue} pts
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </div>
@@ -1428,39 +1459,68 @@ export default function Tutorial() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Showing {displayBooks.filter(b =>
+                      {(() => {
+                        const filtered = displayBooks.filter(b =>
                           (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                        ).length} of {displayBooks.length} quizzes available
-                      </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                        {displayBooks.filter(b =>
-                          (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                        ).map((book) => (
-                          <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
-                            <div className="aspect-[2/3] overflow-hidden bg-muted">
-                              {book.coverUrl ? (
-                                <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <BookOpen className="w-6 h-6 text-muted-foreground" />
+                        );
+                        const totalPages = Math.ceil(filtered.length / BOOKS_PER_PAGE);
+                        const currentPage = Math.min(libPage, totalPages - 1);
+                        const pageBooks = filtered.slice(currentPage * BOOKS_PER_PAGE, (currentPage + 1) * BOOKS_PER_PAGE);
+                        return (
+                          <>
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-xs text-muted-foreground">
+                                Page {currentPage + 1} of {totalPages} — {filtered.length} quizzes available
+                              </p>
+                              {totalPages > 1 && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setLibPage(Math.max(0, currentPage - 1))}
+                                    disabled={currentPage === 0}
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                  >
+                                    <ChevronLeft className="w-3 h-3 inline" /> Prev
+                                  </button>
+                                  <span className="text-xs text-muted-foreground">{currentPage + 1} / {totalPages}</span>
+                                  <button
+                                    onClick={() => setLibPage(Math.min(totalPages - 1, currentPage + 1))}
+                                    disabled={currentPage >= totalPages - 1}
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                  >
+                                    Next <ChevronRight className="w-3 h-3 inline" />
+                                  </button>
                                 </div>
                               )}
                             </div>
-                            <div className="p-2">
-                              <p className="text-xs font-semibold truncate">{book.title}</p>
-                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
-                                book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
-                                book.pointsValue === 20 ? "bg-primary/20 text-primary" :
-                                "bg-red-500/20 text-red-400"
-                              }`}>
-                                <Trophy className="w-2.5 h-2.5" />
-                                {book.pointsValue} pts
-                              </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                              {pageBooks.map((book) => (
+                                <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
+                                  <div className="aspect-[2/3] overflow-hidden bg-muted">
+                                    {book.coverUrl ? (
+                                      <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <BookOpen className="w-6 h-6 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="p-2">
+                                    <p className="text-xs font-semibold truncate">{book.title}</p>
+                                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
+                                      book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
+                                      book.pointsValue === 20 ? "bg-primary/20 text-primary" :
+                                      "bg-red-500/20 text-red-400"
+                                    }`}>
+                                      <Trophy className="w-2.5 h-2.5" />
+                                      {book.pointsValue} pts
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </div>
