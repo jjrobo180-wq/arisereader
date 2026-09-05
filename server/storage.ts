@@ -838,6 +838,7 @@ export class DatabaseStorage implements IStorage {
   async upsertSetting(key: string, value: string): Promise<void> {
     const { error } = await supabase.from("settings").upsert({ key, value }, { onConflict: "key" });
     if (error) throw new Error(error.message);
+    clearCache(`setting_${key}`);
   }
 
   // ─── Schools & Classes ────────────────────────────────────────────────
