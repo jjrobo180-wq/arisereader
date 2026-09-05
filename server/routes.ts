@@ -792,6 +792,7 @@ export async function registerRoutes(
         mascotName: themes[String(s.id)]?.mascotName || 'Reader',
         primaryHsl: themes[String(s.id)]?.primaryHsl || '21 100% 50%',
         primaryForegroundHsl: themes[String(s.id)]?.primaryForegroundHsl || '0 0% 100%',
+        mascotEmoji: themes[String(s.id)]?.mascotEmoji || '',
       }));
       res.json(result);
     } catch (err: any) {
