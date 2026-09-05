@@ -2058,6 +2058,19 @@ export async function registerRoutes(
       });
       
       await storage.upsertSetting('grade_change_requests', JSON.stringify(requests));
+      
+      // Notify all admins
+      const admins = await storage.getAllUsers();
+      const adminUsers = admins.filter((u: any) => u.is_admin);
+      for (const admin of adminUsers) {
+        await storage.createMessage(
+          admin.id,
+          'system',
+          `${req.user.display_name || req.user.username} requested to change from Grade ${request.oldGrade || 'N/A'} (${request.oldBand || 'N/A'} Band) to Grade ${newGrade} (${newBand} Band). Review and approve or deny in the Admin panel.`,
+          '/admin'
+        );
+      }
+      
       res.json({ success: true, message: 'Grade change request submitted' });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

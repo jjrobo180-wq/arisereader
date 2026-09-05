@@ -53,14 +53,22 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuth();
   const [showSetup, setShowSetup] = useState(false);
   const [bandInfo, setBandInfo] = useState<{ grade: string; band: string; bookCount: number } | null>(null);
+  const [checked, setChecked] = useState(false);
 
+  // Check sessionStorage synchronously on first render
   useEffect(() => {
     if (user && user.role === 'student' && !user.isAdmin) {
       const flag = sessionStorage.getItem('show_profile_setup');
       if (flag === 'true') {
-        sessionStorage.removeItem('show_profile_setup');
+        // Don't remove the flag yet - remove it when overlay completes
         const authToken = token || getTokenFromCookie();
-        if (!authToken) { setShowSetup(true); setBandInfo({ grade: '0', band: 'K-2', bookCount: 0 }); return; }
+        if (!authToken) {
+          // No token yet, show overlay with default info
+          setBandInfo({ grade: '0', band: 'K-2', bookCount: 0 });
+          setShowSetup(true);
+          setChecked(true);
+          return;
+        }
         // Fetch grade band info
         fetch(`${API_BASE}/api/grade-band-info`, {
           headers: { Authorization: `Bearer ${authToken}` }
@@ -69,22 +77,24 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
           .then(data => {
             if (data && data.band) {
               setBandInfo({ grade: data.grade, band: data.band, bookCount: data.bookCount });
-              setShowSetup(true);
             } else {
-              // Fallback - still show the overlay even if API fails
               setBandInfo({ grade: '0', band: 'K-2', bookCount: 0 });
-              setShowSetup(true);
             }
+            setShowSetup(true);
+            setChecked(true);
           })
           .catch(() => {
-            // Show overlay even on error
             setBandInfo({ grade: '0', band: 'K-2', bookCount: 0 });
             setShowSetup(true);
+            setChecked(true);
           });
+        return;
       }
     }
+    setChecked(true);
   }, [user, token]);
 
+  // Show overlay
   if (showSetup && bandInfo) {
     return (
       <ProfileSetupOverlay
@@ -92,10 +102,21 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
         band={bandInfo.band}
         bookCount={bandInfo.bookCount}
         onComplete={() => {
+          sessionStorage.removeItem('show_profile_setup');
           setShowSetup(false);
           setBandInfo(null);
+          setChecked(true);
         }}
       />
+    );
+  }
+
+  // While checking, show a loading spinner (prevents redirect before overlay appears)
+  if (!checked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
     );
   }
 

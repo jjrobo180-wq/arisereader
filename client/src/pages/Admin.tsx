@@ -161,6 +161,7 @@ export default function Admin() {
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
   const [proctorMsg, setProctorMsg] = useState("");
+  const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
   const [quizForm, setQuizForm] = useState({
     title: "",
     author: "",
@@ -578,6 +579,7 @@ export default function Admin() {
     fetchAnnouncement();
     fetchBanners();
     fetchProctorPassword();
+    fetchGradeChangeRequests();
     fetchSchools();
     fetchTeachers();
   }, [token, user]);
@@ -727,6 +729,36 @@ export default function Admin() {
         setTimeout(() => setProctorMsg(""), 4000);
       }
     } catch {}
+  };
+
+  const fetchGradeChangeRequests = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/grade-change-requests`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setGradeChangeRequests(data.requests || []);
+      }
+    } catch {}
+  };
+
+  const handleGradeChange = async (requestId: number, action: 'approve' | 'deny') => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/grade-change-requests/${requestId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      if (res.ok) {
+        await fetchGradeChangeRequests();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to process request');
+      }
+    } catch (err) {
+      alert('Error processing request');
+    }
   };
 
   const handleResetPassword = async () => {
@@ -1538,6 +1570,43 @@ Generate exactly 10 questions.`;
             {proctorMsg && <span className="text-xs text-green-400">{proctorMsg}</span>}
           </div>
         </div>
+
+        {/* Grade Change Requests */}
+        {gradeChangeRequests.length > 0 && (
+        <Card className="shadow-md border-amber-500/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.836 5.253 9.5 4.5 8 4.5c-1.5 0-2.836.753-4 1.753v13c1.164-.991 2.5-1.753 4-1.753 1.5 0 2.836.753 4 1.753 1.164-.991 2.5-1.753 4-1.753 1.5 0 2.836.753 4 1.753v-13c-1.164-.991-2.5-1.753-4-1.753-1.5 0-2.836.753-4 1.753z" />
+              </svg>
+              Grade Change Requests ({gradeChangeRequests.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {gradeChangeRequests.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                <div>
+                  <p className="font-semibold text-sm">{r.displayName || r.username}</p>
+                  <p className="text-xs text-muted-foreground">@{r.username}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Grade {r.oldGrade || 'N/A'} ({r.oldBand || 'N/A'} Band) → Grade {r.newGrade} ({r.newBand} Band)
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleGradeChange(r.id, 'approve')}
+                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700"
+                  >Approve</button>
+                  <button
+                    onClick={() => handleGradeChange(r.id, 'deny')}
+                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  >Deny</button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        )}
 
         {/* Teachers Section */}
         <div ref={teachersRef}>
