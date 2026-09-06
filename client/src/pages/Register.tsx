@@ -283,6 +283,15 @@ export default function Register() {
             Are you a teacher? Sign up here
           </button>
         </div>
+        <div className="text-center mt-2">
+          <button
+            type="button"
+            onClick={() => navigate("/parent-signup")}
+            className="text-sm text-primary font-medium hover:underline"
+          >
+            Are you a parent? Sign up here
+          </button>
+        </div>
       </div>
     </div>
   );

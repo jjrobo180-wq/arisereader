@@ -163,6 +163,7 @@ export default function Admin() {
   const [announcementMsg, setAnnouncementMsg] = useState("");
   const [studentBanner, setStudentBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
   const [teacherBanner, setTeacherBanner] = useState({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true });
+  const [loginBanner, setLoginBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
   const [bannerMsg, setBannerMsg] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
@@ -664,6 +665,7 @@ export default function Admin() {
         const data = await res.json();
         if (data.studentBanner) setStudentBanner(data.studentBanner);
         if (data.teacherBanner) setTeacherBanner(data.teacherBanner);
+        if (data.loginBanner) setLoginBanner(data.loginBanner);
       }
     } catch {}
   };
@@ -693,6 +695,21 @@ export default function Admin() {
       });
       if (res.ok) {
         setBannerMsg("Teacher banner updated!");
+        setTimeout(() => setBannerMsg(""), 3000);
+      }
+    } catch {}
+  };
+
+  const handleUpdateLoginBanner = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/banners/login`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(loginBanner),
+      });
+      if (res.ok) {
+        setBannerMsg("Login banner updated!");
         setTimeout(() => setBannerMsg(""), 3000);
       }
     } catch {}
@@ -1586,6 +1603,32 @@ Generate exactly 10 questions.`;
               </Button>
             </div>
             {bannerMsg && <span className="text-xs text-green-400">{bannerMsg}</span>}
+          </div>
+
+          {/* Login Banner */}
+          <div className="space-y-2 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Login Page Banner (visible on the login page to everyone)</Label>
+            <Input
+              value={loginBanner.text}
+              onChange={(e) => setLoginBanner({ ...loginBanner, text: e.target.value })}
+              placeholder="e.g. Site maintenance tonight at 9 PM. Expect brief downtime."
+              className="bg-muted/30 border-border text-foreground"
+            />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">BG</span>
+                <input type="color" value={loginBanner.bgColor} onChange={(e) => setLoginBanner({ ...loginBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Text</span>
+                <input type="color" value={loginBanner.textColor} onChange={(e) => setLoginBanner({ ...loginBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex items-center gap-1">
+                <input type="checkbox" checked={loginBanner.active} onChange={(e) => setLoginBanner({ ...loginBanner, active: e.target.checked })} />
+                <span className="text-xs text-muted-foreground">Active</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={handleUpdateLoginBanner}>Update</Button>
+            </div>
           </div>
 
           {/* Proctor Password */}

@@ -28,6 +28,7 @@ function getTokenFromCookie(): string | null {
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
+import ParentSignup from "./pages/ParentSignup";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import Library from "./pages/Library";
 import Quiz from "./pages/Quiz";
@@ -149,13 +150,16 @@ function AppRoutes() {
   return (
     <Switch>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/library" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Register />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/library" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />
+      </Route>
+      <Route path="/parent-signup">
+        <ParentSignup />
       </Route>
       <Route path="/teacher-dashboard">
         <ProtectedRoute><TeacherDashboard /></ProtectedRoute>

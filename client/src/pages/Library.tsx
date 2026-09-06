@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, Info } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, Info, GraduationCap } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -82,6 +82,8 @@ export default function Library() {
   const [searchQuery, setSearchQuery] = useState("");
   const [adminBandFilter, setAdminBandFilter] = useState("");
   const [bookBands, setBookBands] = useState<Record<string, string>>({});
+  const [userBand, setUserBand] = useState("");
+  const [showBandInfo, setShowBandInfo] = useState(false);
   const [sortBy, setSortBy] = useState<"points" | "popular" | "recent" | "classics" | "new">("points");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
@@ -190,6 +192,14 @@ export default function Library() {
       } catch (e) {
         console.error("Failed to fetch profile:", e);
       }
+      // Fetch user's grade band
+      try {
+        const bandRes = await fetch(`${API_BASE}/api/grade-band-info`, { headers: { Authorization: `Bearer ${authToken}` } });
+        if (bandRes.ok) {
+          const bandData = await bandRes.json();
+          if (bandData?.band) setUserBand(bandData.band);
+        }
+      } catch {}
     } catch (err) {
       console.error("Failed to fetch:", err);
     } finally {
@@ -462,6 +472,34 @@ export default function Library() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between h-16">
           <div className="flex items-center gap-2 min-w-0">
             <BrandText />
+            {userBand && !user?.isAdmin && (
+              <button
+                onClick={() => setShowBandInfo(!showBandInfo)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/25 transition-colors"
+                title="Click to learn about grade bands"
+                data-testid="band-badge"
+              >
+                <GraduationCap className="w-3 h-3" />
+                {userBand} Band
+              </button>
+            )}
+            {showBandInfo && userBand && (
+              <div className="absolute top-16 left-3 z-50 max-w-xs rounded-xl bg-card border border-border shadow-lg p-4 text-left">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold text-primary">Your Grade Band: {userBand}</span>
+                  <button onClick={() => setShowBandInfo(false)} className="text-muted-foreground hover:text-foreground">×</button>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Grade bands group students by reading level so you compete with peers at your level.
+                  <br /><br />
+                  <strong className="text-foreground">K-2:</strong> Kindergarten–2nd grade (Early Readers)<br />
+                  <strong className="text-foreground">3-5:</strong> 3rd–5th grade (Elementary)<br />
+                  <strong className="text-foreground">6-8:</strong> 6th–8th grade (Middle School)<br />
+                  <strong className="text-foreground">9-12:</strong> 9th–12th grade (High School)<br /><br />
+                  Your library, leaderboard, and quizzes are all filtered to your band. You can request a band change from your Profile page.
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
             <NotificationBell onNavigate={(type, id) => {
@@ -1060,7 +1098,7 @@ export default function Library() {
                       <Card
                         key={book.id}
                         className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 ring-2 ring-primary/30"
-                        onClick={() => { if (!(user?.role === 'teacher' || user?.isAdmin)) navigate(`/quiz/${book.id}`); }}
+                        onClick={() => navigate(`/quiz/${book.id}`)}
                         data-testid={`card-book-${book.id}`}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
@@ -1154,7 +1192,7 @@ export default function Library() {
                     <Card
                       key={book.id}
                       className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1"
-                      onClick={() => { if (!(user?.role === 'teacher' || user?.isAdmin)) navigate(`/quiz/${book.id}`); }}
+                      onClick={() => navigate(`/quiz/${book.id}`)}
                       data-testid={`card-book-${book.id}`}
                     >
                       <div className="aspect-[2/3] relative overflow-hidden bg-muted">
@@ -1213,7 +1251,6 @@ export default function Library() {
                               Read
                             </Button>
                           )}
-                          {!(user?.role === 'teacher' || user?.isAdmin) && (
                           <Button
                             size="sm"
                             variant="default"
@@ -1224,9 +1261,8 @@ export default function Library() {
                             }}
                             data-testid={`button-quiz-${book.id}`}
                           >
-                            Quiz
+                            {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
                           </Button>
-                          )}
                         </div>
                       </div>
                     </Card>
@@ -1246,7 +1282,7 @@ export default function Library() {
                   <Card
                     key={book.id}
                     className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1"
-                    onClick={() => { if (!(user?.role === 'teacher' || user?.isAdmin)) navigate(`/quiz/${book.id}`); }}
+                    onClick={() => navigate(`/quiz/${book.id}`)}
                   >
                     <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                       {book.coverUrl ? (
@@ -1301,7 +1337,6 @@ export default function Library() {
                             Read
                           </Button>
                         )}
-                        {!(user?.role === 'teacher' || user?.isAdmin) && (
                         <Button
                           size="sm"
                           variant="default"
@@ -1311,9 +1346,8 @@ export default function Library() {
                             navigate(`/quiz/${book.id}`);
                           }}
                         >
-                          Quiz
+                          {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
                         </Button>
-                        )}
                       </div>
                     </div>
                   </Card>

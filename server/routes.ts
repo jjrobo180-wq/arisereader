@@ -287,6 +287,72 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/register-parent", async (req, res) => {
+    try {
+      const { username, password, displayName, email, schoolId, studentUsername } = req.body;
+      if (!username || !password || !displayName) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      if (username.length < 3) {
+        return res.status(400).json({ message: "Username must be at least 3 characters" });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      if (!studentUsername) {
+        return res.status(400).json({ message: "Please enter your student's username" });
+      }
+
+      const existing = await storage.getUserByUsername(username.toLowerCase());
+      if (existing) {
+        return res.status(409).json({ message: "Username already taken" });
+      }
+
+      // Verify student exists
+      const student = await storage.getUserByUsername(studentUsername.toLowerCase());
+      if (!student) {
+        return res.status(404).json({ message: `Student "${studentUsername}" not found. Please check the username.` });
+      }
+      if (student.role !== 'student') {
+        return res.status(400).json({ message: `"${studentUsername}" is not a student account.` });
+      }
+
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      const user = await storage.createUser({
+        username: username.toLowerCase(),
+        password: hashedPassword,
+        displayName,
+        role: 'parent',
+        accountApproved: false,
+        email: email || null,
+        schoolId: schoolId ? parseInt(schoolId) : null,
+        teacherId: student.teacherId || null,
+      });
+
+      // Link parent to student by storing parent_id in a setting
+      const rawLinks = await storage.getSetting('parent_student_links');
+      let parentLinks: Record<string, number> = {};
+      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
+      parentLinks[String(user.id)] = student.id;
+      await storage.upsertSetting('parent_student_links', JSON.stringify(parentLinks));
+
+      res.status(201).json({
+        success: true,
+        message: "Your request has been submitted! The admin will review your account and link you to your student.",
+      });
+      setImmediate(() => {
+        try { clearCache('teachers'); } catch {}
+        sendEmail(
+          ADMIN_NOTIFY_EMAIL,
+          "New parent signup - A.R.I.S.E Reader",
+          `Parent signup request from ${displayName} (@${username.toLowerCase()}). Email: ${email || 'N/A'}. Linked student: ${studentUsername}.`
+        ).catch(() => {});
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -299,9 +365,9 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid username or password" });
       }
 
-      // Teachers must be approved by admin
-      if (user.role === 'teacher' && !user.accountApproved) {
-        return res.status(403).json({ message: "Your teacher account is pending approval. The administrator will review it shortly." });
+      // Teachers and parents must be approved by admin
+      if ((user.role === 'teacher' || user.role === 'parent') && !user.accountApproved) {
+        return res.status(403).json({ message: `Your ${user.role} account is pending approval. The administrator will review it shortly.` });
       }
 
       const session = await storage.createSession(user.id);
@@ -1994,6 +2060,33 @@ export async function registerRoutes(
   // ─── BANNER SYSTEM ───────────────────────────────────────────────
 
   // Get banners (student banner visible to all, teacher banner visible to teachers+admin)
+  // Public: Get login banner (no auth required)
+  app.get("/api/banners/login", async (req, res) => {
+    try {
+      const raw = await storage.getSetting('login_banner');
+      if (raw) {
+        const banner = JSON.parse(raw);
+        if (banner.active) return res.json(banner);
+      }
+      res.json(null);
+    } catch {
+      res.json(null);
+    }
+  });
+
+  // Admin: Update login banner
+  app.put("/api/admin/banners/login", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { text, bgColor, textColor, active } = req.body;
+      const banner = { text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false };
+      await storage.upsertSetting('login_banner', JSON.stringify(banner));
+      res.json({ success: true, banner });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public: Get banners for logged-in users
   app.get("/api/banners", authMiddleware, async (req, res) => {
     try {
       const rawStudent = await storage.getSetting('student_banner');
@@ -2005,6 +2098,9 @@ export async function registerRoutes(
           result.teacherBanner = JSON.parse(rawTeacher);
         } catch {}
       }
+      // Also return login banner for admin editing
+      const rawLogin = await storage.getSetting('login_banner');
+      if (rawLogin) { try { result.loginBanner = JSON.parse(rawLogin); } catch {} }
       // Only show teacher banner to teachers and admins
       if (req.user.role !== 'teacher' && !req.user.isAdmin) {
         delete result.teacherBanner;
@@ -2759,10 +2855,23 @@ export async function registerRoutes(
   async function savePolls(polls: any[]): Promise<boolean> {
     try {
       const json = JSON.stringify(polls);
-      const { error: updateErr } = await supabase.from("settings").update({ value: json }).eq("key", "polls");
-      if (updateErr) {
-        const { error: insertErr } = await supabase.from("settings").insert({ key: "polls", value: json });
-        if (insertErr) return false;
+      // Use upsert with onConflict to handle both insert and update cases
+      const { error } = await supabase
+        .from("settings")
+        .upsert({ key: "polls", value: json }, { onConflict: "key" });
+      if (error) {
+        // Fallback: try update, then insert
+        const { data: updateData, error: updateErr } = await supabase
+          .from("settings")
+          .update({ value: json })
+          .eq("key", "polls")
+          .select();
+        if (updateErr || !updateData || updateData.length === 0) {
+          const { error: insertErr } = await supabase
+            .from("settings")
+            .insert({ key: "polls", value: json });
+          if (insertErr) return false;
+        }
       }
       return true;
     } catch { return false; }

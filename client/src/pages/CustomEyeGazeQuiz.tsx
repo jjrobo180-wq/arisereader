@@ -62,6 +62,67 @@ export default function CustomEyeGazeQuiz() {
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Spectator mode for teachers/admins
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
+  const [spectatorQuestions, setSpectatorQuestions] = useState<any[]>([]);
+  const [spectatorLoading, setSpectatorLoading] = useState(false);
+
+  // Fetch spectator data for teachers/admins
+  useEffect(() => {
+    if (!isTeacherOrAdmin || !quizId) return;
+    setSpectatorLoading(true);
+    const token = getTokenFromCookie();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    fetch(`${API_BASE}/api/custom-quizzes/${quizId}`, { headers })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.questions) setSpectatorQuestions(d.questions); })
+      .catch(() => {})
+      .finally(() => setSpectatorLoading(false));
+  }, [isTeacherOrAdmin, quizId]);
+
+  // Spectator mode render for teachers/admins
+  if (isTeacherOrAdmin && (spectatorLoading || spectatorQuestions.length > 0)) {
+    if (spectatorLoading) {
+      return (
+        <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "hsl(0 0% 10%)", color: "hsl(0 0% 96%)" }}>
+          <p>Loading quiz (Spectator Mode)...</p>
+        </div>
+      );
+    }
+    return (
+      <div style={{ minHeight: "100vh", padding: 16, background: "hsl(0 0% 10%)", color: "hsl(0 0% 96%)", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <button onClick={() => navigate("/library")} style={{ background: "none", border: 0, color: "hsl(0 0% 60%)", cursor: "pointer", fontSize: 16 }}>← Back</button>
+            <span style={{ padding: "4px 10px", borderRadius: 6, background: "hsl(200 80% 40% / 0.2)", color: "hsl(200 80% 70%)", fontSize: 13, fontWeight: 700 }}>Spectator Mode (Read-Only)</span>
+          </div>
+          {spectatorQuestions.map((q: any, i: number) => (
+            <div key={i} style={{ background: "hsl(0 0% 14%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 10, padding: 16, marginBottom: 12 }}>
+              <p style={{ fontWeight: 600, marginBottom: 12 }}><span style={{ color: "hsl(21 100% 50%)" }}>Q{i + 1}.</span> {q.prompt}</p>
+              {q.question_image && <img src={q.question_image} alt="Question" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 8, marginBottom: 8 }} />}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {['a', 'b', 'c', 'd'].map(opt => {
+                  const text = q[`option_${opt}_text`];
+                  const img = q[`option_${opt}_image`];
+                  if (!text && !img) return null;
+                  return (
+                    <div key={opt} style={{ display: "flex", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, background: "hsl(0 0% 10%)" }}>
+                      <span style={{ width: 24, height: 24, borderRadius: "50%", background: "hsl(0 0% 20%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{opt.toUpperCase()}</span>
+                      {img && <img src={img} alt="Option" style={{ width: 40, height: 40, borderRadius: 6 }} />}
+                      {text && <span style={{ fontSize: 14 }}>{text}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <button onClick={() => navigate("/library")} style={{ background: "none", border: "1px solid hsl(0 0% 30%)", borderRadius: 8, color: "hsl(0 0% 80%)", padding: "8px 16px", cursor: "pointer", marginTop: 8 }}>Back to Library</button>
+        </div>
+      </div>
+    );
+  }
+
   // Initialize voices
   useEffect(() => {
     initVoices();

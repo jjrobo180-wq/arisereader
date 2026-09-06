@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info } from "lucide-react";
+import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info, Megaphone } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 
 export default function Login() {
@@ -17,6 +17,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<{ booksAvailable: number; quizzesAvailable: number; totalPoints: number } | null>(null);
   const [donationExpanded, setDonationExpanded] = useState(false);
+  const [loginBanner, setLoginBanner] = useState<{ text: string; bgColor: string; textColor: string } | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/banners/login`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data && data.text) setLoginBanner(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/public/stats`)
@@ -117,6 +125,16 @@ export default function Login() {
             </div>
           )}
         </div>
+
+        {loginBanner && (
+          <div
+            className="rounded-lg p-3 mb-3 flex items-start gap-2"
+            style={{ background: loginBanner.bgColor, color: loginBanner.textColor }}
+          >
+            <Megaphone className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-medium leading-relaxed">{loginBanner.text}</p>
+          </div>
+        )}
 
         <Card className="shadow-xl bg-card">
           <CardHeader>
