@@ -44,11 +44,11 @@ type QuizData = {
 // ─── Sample data (for teacher tutorial & fallback) ────────────────────
 
 const SAMPLE_LEADERBOARD = [
-  { rank: 1, name: "Maya R.", points: 120, quizzes: 8 },
-  { rank: 2, name: "Devon K.", points: 100, quizzes: 7 },
-  { rank: 3, name: "Aaliyah J.", points: 90, quizzes: 6 },
-  { rank: 4, name: "Marcus T.", points: 70, quizzes: 5 },
-  { rank: 5, name: "Sophia L.", points: 60, quizzes: 4 },
+  { rank: 1, name: "Maya R.", points: 120, quizzes: 8, eg: false },
+  { rank: 2, name: "Devon K.", points: 100, quizzes: 7, eg: true },
+  { rank: 3, name: "Aaliyah J.", points: 90, quizzes: 6, eg: false },
+  { rank: 4, name: "Marcus T.", points: 70, quizzes: 5, eg: true },
+  { rank: 5, name: "Sophia L.", points: 60, quizzes: 4, eg: false },
 ];
 
 const EASY_QUIZ = {
@@ -1086,6 +1086,17 @@ export default function Tutorial() {
                   <p className="text-sm text-muted-foreground">
                     Eye gaze and non-verbal students compete on the same leaderboard as their grade band. A 6th grade eye gaze student is grouped with other 6th graders — not separated. This keeps competition inclusive and fair.
                   </p>
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                    <div className="flex items-start gap-2">
+                      <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm text-primary">Equitable Points System</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          We recognize that eye gaze students often navigate reading and comprehension differently. That's why their quiz points are curved higher to ensure they're never at a disadvantage on the shared leaderboard. We regularly review performance statistics and scientific data to adjust point values — so you may notice a slight increase on your leaderboard score from time to time (never a decrease). This ensures every student competes on a level playing field, aligned with our commitment to inclusive education.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                   <div className="p-4 rounded-xl bg-card border border-border">
                     <div className="space-y-2">
                       {SAMPLE_LEADERBOARD.map((entry) => (
@@ -1094,7 +1105,12 @@ export default function Tutorial() {
                             {entry.rank}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{entry.name}</p>
+                            <p className="font-medium text-sm truncate flex items-center gap-1">
+                              {entry.name}
+                              {entry.eg && (
+                                <span className="text-xs px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-semibold">!EG</span>
+                              )}
+                            </p>
                             <p className="text-xs text-muted-foreground">{entry.quizzes} quizzes</p>
                           </div>
                           <div className="text-right">

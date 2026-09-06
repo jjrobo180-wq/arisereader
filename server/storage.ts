@@ -428,6 +428,12 @@ export class DatabaseStorage implements IStorage {
       }).select().single()
     );
     if (!data) throw new Error("Failed to create attempt");
+    // Update user's total_points
+    if (passed && pointsEarned > 0) {
+      const { data: userData } = await supabase.from("users").select("total_points").eq("id", userId).single();
+      const currentPoints = userData?.total_points || 0;
+      await supabase.from("users").update({ total_points: currentPoints + pointsEarned }).eq("id", userId).then(() => {}, () => {});
+    }
     clearCache("leaderboard");
     clearCache("allUsers");
     clearCache("monthlyLeaderboard_");
@@ -569,14 +575,17 @@ export class DatabaseStorage implements IStorage {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
         }, 0);
-        // Use users.total_points as authoritative source (it's updated by all submission functions)
-        const totalPoints = user.total_points || 0;
+        // Use the higher of calculated points or stored total_points (total_points may include curved bonus points)
+        const calculatedPoints = regularPoints + eyeGazePoints;
+        const totalPoints = Math.max(user.total_points || 0, calculatedPoints);
+        // Only count completed/passed quizzes, not in_progress ones
+        const completedEyeGaze = eyeGazeAttempts.filter((a: any) => a.total > 0).length;
         return {
           id: user.id,
           username: user.username,
           displayName: user.display_name,
           totalPoints,
-          quizzesTaken: attempts.length + eyeGazeAttempts.length,
+          quizzesTaken: attempts.length + completedEyeGaze,
           totalBooks,
         };
       });
@@ -595,15 +604,19 @@ export class DatabaseStorage implements IStorage {
       if (allUsers.length === 0) return [];
       const result = allUsers.map((user) => {
         const attempts = user.eye_gaze_attempts || [];
-        const totalScore = attempts.reduce((sum: number, a: any) => sum + (a.score || 0), 0);
-        const totalQuestions = attempts.reduce((sum: number, a: any) => sum + (a.total || 0), 0);
+        // Only count completed eye gaze attempts (total > 0 means it was submitted)
+        const completed = attempts.filter((a: any) => a.total > 0);
+        // 10 points per passed quiz
+        const totalScore = completed.reduce((sum: number, a: any) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
         return {
           id: user.id,
           username: user.username,
           displayName: user.display_name,
           totalPoints: totalScore,
-          quizzesTaken: attempts.length,
-          totalQuestions,
+          quizzesTaken: completed.length,
         };
       });
       return result.sort((a: any, b: any) => b.totalPoints - a.totalPoints);
@@ -622,9 +635,12 @@ export class DatabaseStorage implements IStorage {
       const result = allUsers.map((user) => {
         const attempts = (user.eye_gaze_attempts || []).filter((a: any) => {
           const d = a.completed_at || a.created_at;
-          return d && d.startsWith(yearMonth);
+          return d && d.startsWith(yearMonth) && a.total > 0;
         });
-        const totalScore = attempts.reduce((sum: number, a: any) => sum + (a.score || 0), 0);
+        const totalScore = attempts.reduce((sum: number, a: any) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
         return {
           id: user.id,
           username: user.username,
@@ -1009,11 +1025,11 @@ export class DatabaseStorage implements IStorage {
         });
         const monthlyPoints = monthlyAttempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
 
-        // Filter eye gaze attempts by date and add their points
+        // Filter eye gaze attempts by date — only count completed ones (total > 0)
         const eyeGazeAttempts = user.eye_gaze_attempts || [];
         const monthlyEyeGaze = eyeGazeAttempts.filter(a => {
           const d = a.completed_at;
-          return d && d >= startDate && d < nextMonth;
+          return d && d >= startDate && d < nextMonth && a.total > 0;
         });
         const eyeGazePoints = monthlyEyeGaze.reduce((sum, a) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
