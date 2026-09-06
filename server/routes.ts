@@ -426,6 +426,30 @@ export async function registerRoutes(
       if (rawIAriseIds) { try { iAriseIds = JSON.parse(rawIAriseIds); } catch {} }
       const idSet = new Set(iAriseIds.map(String));
       const filtered = books.filter((b: any) => idSet.has(String(b.id)));
+
+      // Also filter by grade band (same logic as regular students)
+      const userBand = userGrade ? gradeToBand(userGrade) : null;
+      if (userBand) {
+        const band = userBand;
+        const bandFiltered = filtered.filter((b: any) => {
+          const bid = String(b.id);
+          const bookBand = bookBands[bid];
+          // Include if no band assigned, primary band matches, or overlap includes this band
+          if (!bookBand || bookBand === band) return true;
+          const overlaps = bookOverlaps[bid];
+          if (overlaps && overlaps.includes(band)) return true;
+          return false;
+        }).map((b: any) => {
+          const bid = String(b.id);
+          const overrides = pointOverrides[bid];
+          if (overrides && overrides[band]) {
+            return { ...b, points_value: overrides[band], original_points_value: b.points_value };
+          }
+          return b;
+        });
+        return res.json(bandFiltered);
+      }
+
       return res.json(filtered);
     }
 

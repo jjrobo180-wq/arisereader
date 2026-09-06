@@ -110,8 +110,8 @@ export default function Library() {
   const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
   const [regularCustomQuizzes, setRegularCustomQuizzes] = useState<any[]>([]);
   const [showEyeGaze, setShowEyeGaze] = useState(false);
-  const [eyeGazePage, setEyeGazePage] = useState(1);
-  const EYE_GAZE_PAGE_SIZE = 5;
+  const [eyeGazeSortBy, setEyeGazeSortBy] = useState<"new" | "title" | "level">("new");
+  const [eyeGazeSearch, setEyeGazeSearch] = useState("");
 
   // Reset eye gaze state when user changes (handles login/logout switching)
   useEffect(() => {
@@ -754,18 +754,60 @@ export default function Library() {
                 Create Quiz
               </button>
             </div>
+            {/* Eye Gaze search + sort bar */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search quizzes..."
+                  value={eyeGazeSearch}
+                  onChange={(e) => setEyeGazeSearch(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <select
+                value={eyeGazeSortBy}
+                onChange={(e) => setEyeGazeSortBy(e.target.value as any)}
+                className="px-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+              >
+                <option value="new">Newest</option>
+                <option value="title">Title A-Z</option>
+                <option value="level">By Level</option>
+              </select>
+            </div>
             {(() => {
               const allEyeGazeItems = [
                 ...eyeGazeQuizzes.map(q => ({ ...q, _builtin: true, _key: `b-${q.id}` })),
                 ...customQuizzes.map(q => ({ ...q, _builtin: false, _key: `c-${q.id}` })),
               ];
-              const totalPages = Math.ceil(allEyeGazeItems.length / EYE_GAZE_PAGE_SIZE);
-              const startIdx = (eyeGazePage - 1) * EYE_GAZE_PAGE_SIZE;
-              const pageItems = allEyeGazeItems.slice(startIdx, startIdx + EYE_GAZE_PAGE_SIZE);
+              // Filter by search
+              const searched = eyeGazeSearch.trim()
+                ? allEyeGazeItems.filter(q =>
+                    (q.title || "").toLowerCase().includes(eyeGazeSearch.toLowerCase()) ||
+                    (q.description || "").toLowerCase().includes(eyeGazeSearch.toLowerCase())
+                  )
+                : allEyeGazeItems;
+              // Sort
+              const sorted = [...searched].sort((a, b) => {
+                if (eyeGazeSortBy === "title") return (a.title || "").localeCompare(b.title || "");
+                if (eyeGazeSortBy === "level") return (a.level || 1) - (b.level || 1);
+                // newest: by created_at desc, fallback to id desc
+                const da = a.created_at || "";
+                const db = b.created_at || "";
+                if (da !== db) return db.localeCompare(da);
+                return (b.id || 0) - (a.id || 0);
+              });
+              if (sorted.length === 0) {
+                return (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">No quizzes found for "{eyeGazeSearch}".</p>
+                  </div>
+                );
+              }
               return (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pageItems.map((quiz) => quiz._builtin ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sorted.map((quiz) => quiz._builtin ? (
                 <button
                   key={quiz.id}
                   onClick={() => navigate(`/eye-gaze-quiz/${quiz.id}`)}
@@ -814,7 +856,8 @@ export default function Library() {
                   <div className="flex items-center gap-4 p-5">
                     <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />\n                      </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
                     </div>
                     <div className="flex-1 text-left">
                       <h3 className="font-bold text-base">{quiz.title}</h3>
@@ -861,27 +904,7 @@ export default function Library() {
                   )}
                 </button>
               ))}
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-3 mt-4">
-                      <button
-                        onClick={() => setEyeGazePage(p => Math.max(1, p - 1))}
-                        disabled={eyeGazePage === 1}
-                        className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        ← Previous
-                      </button>
-                      <span className="text-sm text-muted-foreground">Page {eyeGazePage} of {totalPages}</span>
-                      <button
-                        onClick={() => setEyeGazePage(p => Math.min(totalPages, p + 1))}
-                        disabled={eyeGazePage === totalPages}
-                        className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        Next →
-                      </button>
-                    </div>
-                  )}
-                </>
+                </div>
               );
             })()}
           </div>
@@ -1083,7 +1106,7 @@ export default function Library() {
             </div>
 
             {/* Curriculum Section - hidden for eye gaze students */}
-            {curriculumBooks.length > 0 && !showEyeGaze && (
+            {curriculumBooks.length > 0 && !showEyeGaze && !user?.isAdmin && (
               <div className="mb-10">
                 <div className="flex items-center gap-2 mb-4">
                   <BookOpen className="w-5 h-5 text-primary" />
@@ -1178,7 +1201,7 @@ export default function Library() {
               </div>
             )}
             {/* Regular book sections - hidden for eye gaze students */}
-            {!showEyeGaze && sortBy === "points" ? (
+            {(!showEyeGaze || user?.isAdmin) && sortBy === "points" ? (
           pointsOrder.filter(k => pointsGroups[k]).map((pts) => {
             const groupBooks = pointsGroups[pts];
             return (
@@ -1272,7 +1295,7 @@ export default function Library() {
             </div>
           );
           })
-        ) : showEyeGaze ? null : (
+        ) : (showEyeGaze && !user?.isAdmin) ? null : (
           <div className="mb-10">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {nonCurriculumBooks.map((book) => {
