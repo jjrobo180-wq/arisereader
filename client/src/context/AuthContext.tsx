@@ -82,10 +82,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionValidated, setSessionValidated] = useState(false);
 
-  // No validation useEffect — if the token is invalid, the API will return 401
-  // and the component's fetch handler will deal with it. This prevents the
-  // session from being cleared due to a temporary network/API error.
+  // Validate session on app load — if the token is expired, clear the cookie
+  // and redirect to login. This prevents blank pages from stale cookies.
+  useEffect(() => {
+    if (!sessionRef.current.token || sessionValidated) return;
+    setIsLoading(true);
+    fetch(`${API_BASE}/api/me`, {
+      headers: { Authorization: `Bearer ${sessionRef.current.token}` },
+    })
+      .then(res => {
+        if (!res.ok) {
+          // Session expired — clear everything
+          persistSession(null, null);
+        }
+      })
+      .catch(() => {
+        // Network error — keep the session (don't log out on network issues)
+      })
+      .finally(() => {
+        setIsLoading(false);
+        setSessionValidated(true);
+      });
+  }, []);
 
   // Apply school theme on page load if user is already logged in (from cookie)
   useEffect(() => {
