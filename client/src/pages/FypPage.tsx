@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, forwardRef } from "react";
 import { useLocation } from "wouter";
 import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark, Gift } from "lucide-react";
 
@@ -87,30 +87,8 @@ export default function FypPage() {
     fetchFeed();
   }, [fetchFeed]);
 
-  // Check for easter eggs after 3 swipes
-  const [eggActive, setEggActive] = useState(false);
-  const [eggAlreadyClaimed, setEggAlreadyClaimed] = useState(false);
-
-  useEffect(() => {
-    if (eggCheckDone.current) return;
-    eggCheckDone.current = true;
-    const checkEasterEggs = async () => {
-      try {
-        const token = getTokenFromCookie();
-        if (!token) return;
-        const res = await fetch(`${API_BASE}/api/easter-eggs/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.active && !data.alreadyClaimed && data.remaining > 0) {
-          setEggActive(true);
-          setEggAlreadyClaimed(false);
-        }
-      } catch {}
-    };
-    checkEasterEggs();
-  }, []);
+  // Easter egg: check status and trigger after 3 swipes
+  // No mount-time check — we check the API directly when swipe count hits 3
 
   // Trigger easter egg after 3 swipes
   const prevIndex = useRef(0);
@@ -122,12 +100,27 @@ export default function FypPage() {
       prevIndex.current = currentIndex;
     }
     // Check if we should show the easter egg
-    if (!eggActive || eggTriggered.current || eggAlreadyClaimed) return;
+    if (eggTriggered.current) return;
     if (swipeCount.current >= 3) {
       eggTriggered.current = true;
-      setEasterEgg({ visible: true, claimed: false, points: 2, message: "You found an Easter Egg!" });
+      // Check API status at this moment (not on mount) to avoid race conditions
+      const checkAndShow = async () => {
+        try {
+          const token = getTokenFromCookie();
+          if (!token) return;
+          const res = await fetch(`${API_BASE}/api/easter-eggs/status`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.active && !data.alreadyClaimed && data.remaining > 0) {
+            setEasterEgg({ visible: true, claimed: false, points: 2, message: "You found an Easter Egg!" });
+          }
+        } catch {}
+      };
+      checkAndShow();
     }
-  }, [currentIndex, eggActive, eggAlreadyClaimed]);
+  }, [currentIndex]);
 
   const claimEasterEgg = async () => {
     try {
@@ -178,7 +171,7 @@ export default function FypPage() {
           }
         });
       },
-      { threshold: 0.6 }
+      { threshold: 0.6, root: containerRef.current }
     );
     itemRefs.current.forEach((ref) => {
       if (ref) observer.observe(ref);
@@ -672,11 +665,12 @@ interface CardProps {
   onSave: (saved: boolean) => void;
 }
 
-const FypBookCard = ({ item, index, onLike, onDislike, onShare, onReadMore, onReadBook, onTakeQuiz, onSave }: CardProps & { ref?: (el: HTMLDivElement | null) => void }) => {
+const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike, onDislike, onShare, onReadMore, onReadBook, onTakeQuiz, onSave }, ref) => {
   const [showActions, setShowActions] = useState(false);
 
   return (
     <div
+      ref={ref}
       data-index={index}
       style={{
         height: "100vh",
@@ -987,7 +981,7 @@ const FypBookCard = ({ item, index, onLike, onDislike, onShare, onReadMore, onRe
       </div>
     </div>
   );
-};
+});
 
 function getMoodColor(mood: string): string {
   const colors: Record<string, string> = {

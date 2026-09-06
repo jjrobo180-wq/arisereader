@@ -32,7 +32,7 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
       setLoading(false);
       return;
     }
-    if (localStorage.getItem("fyp_announcement_shown") === "true") {
+    if (localStorage.getItem("fyp_announcement_shown_" + user.id) === "true") {
       setLoading(false);
       return;
     }
@@ -58,13 +58,13 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
   }, [currentStep]);
 
   const dismiss = () => {
-    localStorage.setItem("fyp_announcement_shown", "true");
+    if (user) localStorage.setItem("fyp_announcement_shown_" + user.id, "true");
     localStorage.setItem("fyp_announcement_dismissed_at", Date.now().toString());
     setShow(false);
   };
 
   const goToFeature = (path: string) => {
-    localStorage.setItem("fyp_announcement_shown", "true");
+    if (user) localStorage.setItem("fyp_announcement_shown_" + user.id, "true");
     localStorage.setItem("fyp_announcement_dismissed_at", Date.now().toString());
     setShow(false);
     onNavigate(path);
