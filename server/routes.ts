@@ -95,6 +95,26 @@ function teacherSignupNotifyEmail(displayName: string, username: string, email: 
   `;
 }
 
+function teacherSignupConfirmEmail(displayName: string, username: string): string {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
+      </div>
+      <h2 style="color: #FF5900; font-size: 22px;">Teacher Account Request Received</h2>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">We received your teacher account request for A.R.I.S.E Reader. Your account is now pending administrator approval.</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">You will receive another email once your account has been approved, at which point you can log in and start managing your students.</p>
+      <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
+        <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
+      </div>
+      <p style="color: #666; font-size: 14px; margin-top: 30px;">If you didn't create this account, please ignore this email.</p>
+    </div>
+  `;
+}
+
 function teacherCreatedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
@@ -281,6 +301,14 @@ export async function registerRoutes(
           "New teacher signup - A.R.I.S.E Reader",
           teacherSignupNotifyEmail(displayName, username.toLowerCase(), email || 'No email provided')
         ).catch(() => {});
+        // Send confirmation email to the teacher
+        if (email) {
+          sendEmail(
+            email,
+            "Teacher account request received - A.R.I.S.E Reader",
+            teacherSignupConfirmEmail(displayName, username.toLowerCase())
+          ).catch(() => {});
+        }
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
