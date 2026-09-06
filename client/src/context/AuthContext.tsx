@@ -16,6 +16,7 @@ interface AuthUser {
   email?: string | null;
   schoolId?: number | null;
   totalPoints?: number;
+  loginCount?: number;
 }
 
 interface AuthContextType {

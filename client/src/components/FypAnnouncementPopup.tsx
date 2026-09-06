@@ -22,7 +22,10 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
   const [animIn, setAnimIn] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const stepRef = useRef(0);
+  const tutorialChecked = useRef(false);
+  const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
+  // Check server-side if tutorial was already shown for this user
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -32,22 +35,44 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
       setLoading(false);
       return;
     }
-    if (localStorage.getItem("fyp_announcement_shown_" + user.id) === "true") {
-      setLoading(false);
-      return;
-    }
+    if (tutorialChecked.current) return;
+    tutorialChecked.current = true;
 
-    const checkReady = () => {
-      const setupInProgress = sessionStorage.getItem("show_profile_setup") === "true";
-      if (setupInProgress) {
-        setTimeout(checkReady, 500);
-        return;
+    const checkServer = async () => {
+      try {
+        const cookie = document.cookie.split(';').find(c => c.trim().startsWith('arise_session'));
+        if (!cookie) { setLoading(false); return; }
+        const raw = cookie.trim().substring('arise_session='.length);
+        const session = JSON.parse(atob(raw));
+        const token = session.token;
+        if (!token) { setLoading(false); return; }
+
+        const res = await fetch(`${API_BASE}/api/easter-eggs/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) { setLoading(false); return; }
+        const data = await res.json();
+        if (data.tutorialShown) {
+          setLoading(false);
+          return;
+        }
+        // Tutorial not shown yet — wait for profile setup to finish
+        const checkReady = () => {
+          const setupInProgress = sessionStorage.getItem("show_profile_setup") === "true";
+          if (setupInProgress) {
+            setTimeout(checkReady, 500);
+            return;
+          }
+          setShow(true);
+          setLoading(false);
+          setTimeout(() => setAnimIn(true), 50);
+        };
+        checkReady();
+      } catch {
+        setLoading(false);
       }
-      setShow(true);
-      setLoading(false);
-      setTimeout(() => setAnimIn(true), 50);
     };
-    checkReady();
+    checkServer();
   }, [user]);
 
   useEffect(() => {
@@ -57,15 +82,28 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
     return () => clearTimeout(t);
   }, [currentStep]);
 
+  const dismissServer = async () => {
+    try {
+      const cookie = document.cookie.split(';').find(c => c.trim().startsWith('arise_session'));
+      if (!cookie) return;
+      const raw = cookie.trim().substring('arise_session='.length);
+      const session = JSON.parse(atob(raw));
+      const token = session.token;
+      if (!token) return;
+      await fetch(`${API_BASE}/api/tutorial/dismiss`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+    } catch {}
+  };
+
   const dismiss = () => {
-    if (user) localStorage.setItem("fyp_announcement_shown_" + user.id, "true");
-    localStorage.setItem("fyp_announcement_dismissed_at", Date.now().toString());
+    dismissServer();
     setShow(false);
   };
 
   const goToFeature = (path: string) => {
-    if (user) localStorage.setItem("fyp_announcement_shown_" + user.id, "true");
-    localStorage.setItem("fyp_announcement_dismissed_at", Date.now().toString());
+    dismissServer();
     setShow(false);
     onNavigate(path);
   };

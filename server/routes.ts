@@ -438,9 +438,22 @@ export async function registerRoutes(
 
       const session = await storage.createSession(user.id);
       const popupShown = !!(user as any).assessment_prompt_seen_at;
+
+      // Track login count for students (for leaderboard popup)
+      let loginCount = 0;
+      if (!user.isAdmin && user.role !== 'teacher' && user.role !== 'parent') {
+        const rawCounts = await storage.getSetting('login_counts');
+        let counts: Record<string, number> = {};
+        if (rawCounts) { try { counts = JSON.parse(rawCounts); } catch {} }
+        counts[String(user.id)] = (counts[String(user.id)] || 0) + 1;
+        loginCount = counts[String(user.id)];
+        await storage.upsertSetting('login_counts', JSON.stringify(counts));
+        clearCache('setting_login_counts');
+      }
+
       res.json({
         token: session.token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0 },
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0, loginCount },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -1331,6 +1344,91 @@ export async function registerRoutes(
     });
 
     res.json(enriched);
+  });
+
+  // Student: Get their leaderboard standing + recommendations
+  app.get("/api/leaderboard/my-standing", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.isAdmin || req.user.role === 'teacher' || req.user.role === 'parent') {
+        return res.json({ show: false });
+      }
+
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      const myGrade = userGrades[String(req.user.id)];
+      const myBand = myGrade ? gradeToBand(myGrade) : null;
+
+      const fullLeaderboard = await storage.getLeaderboard();
+
+      // Filter to user's band (or all if no band)
+      const bandLeaderboard = myBand
+        ? fullLeaderboard.filter((entry: any) => {
+            const g = userGrades[String(entry.userId)] || userGrades[String(entry.id)];
+            return g && gradeToBand(g) === myBand;
+          })
+        : fullLeaderboard;
+
+      // Sort by points desc
+      bandLeaderboard.sort((a: any, b: any) => (b.totalPoints || 0) - (a.totalPoints || 0));
+
+      const myRank = bandLeaderboard.findIndex((e: any) =>
+        (e.userId || e.id) === req.user.id
+      ) + 1;
+      const totalInBand = bandLeaderboard.length;
+      const myPoints = bandLeaderboard.find((e: any) => (e.userId || e.id) === req.user.id)?.totalPoints || 0;
+
+      // Person above
+      const personAbove = myRank > 1 ? bandLeaderboard[myRank - 2] : null;
+      const pointsBehind = personAbove ? (personAbove.totalPoints || 0) - myPoints : 0;
+
+      // Count quizzes available that they haven't taken
+      const allBooks = await storage.getAllBooks();
+      const booksWithQuizzes = allBooks.filter((b: any) => b.pointsValue > 0);
+      const myAttempts = await storage.getUserAttempts(req.user.id);
+      const takenBookIds = new Set(myAttempts.map((a: any) => a.bookId));
+      const availableQuizzes = booksWithQuizzes.filter((b: any) => !takenBookIds.has(b.id));
+
+      // Easter egg status
+      const eggSettings = await storage.getSetting('easter_eggs');
+      let eggActive = false;
+      if (eggSettings) { try { eggActive = JSON.parse(eggSettings).active; } catch {} }
+      const { data: eggClaim } = await supabase.from('easter_egg_claims').select('id').eq('user_id', req.user.id).maybeSingle();
+
+      // Recommendations
+      const recommendations: string[] = [];
+      if (availableQuizzes.length > 0) {
+        const sample = availableQuizzes.slice(0, 3).map((b: any) => b.title);
+        recommendations.push(`Take ${Math.min(availableQuizzes.length, 3)} more quiz${availableQuizzes.length > 1 ? 'zes' : ''} to earn ${availableQuizzes.slice(0, 3).reduce((s: number, b: any) => s + (b.pointsValue || 10), 0)} points. Start with "${sample[0]}".`);
+      }
+      if (eggActive && !eggClaim) {
+        recommendations.push('Find the hidden Easter Egg in the FYP feed for +2 bonus points!');
+      }
+      if (personAbove && pointsBehind > 0) {
+        recommendations.push(`You're only ${pointsBehind} point${pointsBehind > 1 ? 's' : ''} behind ${personAbove.displayName || personAbove.username}. Pass them to climb to rank #${myRank - 1}!`);
+      }
+      if (recommendations.length === 0) {
+        recommendations.push('You\'re at the top of your band. Keep reading to stay ahead!');
+      }
+
+      res.json({
+        show: true,
+        rank: myRank || totalInBand,
+        totalInBand,
+        myPoints,
+        band: myBand,
+        personAbove: personAbove ? {
+          name: personAbove.displayName || personAbove.username,
+          points: personAbove.totalPoints || 0,
+        } : null,
+        pointsBehind,
+        availableQuizzes: availableQuizzes.length,
+        eggAvailable: eggActive && !eggClaim,
+        recommendations,
+      });
+    } catch (e: any) {
+      res.json({ show: false });
+    }
   });
 
   // Eye Gaze student ranking within their band (inclusive leaderboard)
@@ -3956,10 +4054,15 @@ export async function registerRoutes(
   // Student: Check if easter eggs are active
   app.get("/api/easter-eggs/status", authMiddleware, async (req: any, res) => {
     try {
+      // Also check tutorial status in the same call to reduce API round-trips
+      const tutorialShownUsers = await storage.getSetting('tutorial_shown_users');
+      let tutorialShown: Record<string, boolean> = {};
+      if (tutorialShownUsers) { try { tutorialShown = JSON.parse(tutorialShownUsers); } catch {} }
+
       const { data: settings } = await supabase.from('easter_eggs').select('*').limit(1).single();
 
       if (!settings?.active || settings.remaining_eggs <= 0) {
-        return res.json({ active: false, remaining: 0 });
+        return res.json({ active: false, remaining: 0, tutorialShown: !!tutorialShown[String(req.user.id)] });
       }
 
       // Check if this user already claimed
@@ -3970,12 +4073,26 @@ export async function registerRoutes(
         .maybeSingle();
 
       if (claim) {
-        return res.json({ active: true, remaining: settings.remaining_eggs, alreadyClaimed: true });
+        return res.json({ active: true, remaining: settings.remaining_eggs, alreadyClaimed: true, tutorialShown: !!tutorialShown[String(req.user.id)] });
       }
 
-      res.json({ active: true, remaining: settings.remaining_eggs, alreadyClaimed: false });
+      res.json({ active: true, remaining: settings.remaining_eggs, alreadyClaimed: false, tutorialShown: !!tutorialShown[String(req.user.id)] });
     } catch (e) {
-      res.json({ active: false, remaining: 0 });
+      res.json({ active: false, remaining: 0, tutorialShown: false });
+    }
+  });
+
+  // Student: Dismiss tutorial (server-side, persists across devices)
+  app.post("/api/tutorial/dismiss", authMiddleware, async (req: any, res) => {
+    try {
+      const raw = await storage.getSetting('tutorial_shown_users');
+      let shown: Record<string, boolean> = {};
+      if (raw) { try { shown = JSON.parse(raw); } catch {} }
+      shown[String(req.user.id)] = true;
+      await storage.upsertSetting('tutorial_shown_users', JSON.stringify(shown));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to dismiss tutorial' });
     }
   });
 

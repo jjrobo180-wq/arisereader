@@ -55,7 +55,7 @@ export default function PointsSideTab() {
       style={{
         position: "fixed",
         right: 0,
-        top: "50%",
+        top: "calc(50% - 120px)",
         transform: "translateY(-50%)",
         zIndex: 100,
         display: "flex",
