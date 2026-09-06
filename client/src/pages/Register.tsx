@@ -80,6 +80,18 @@ export default function Register() {
       setError("Password must be at least 4 characters");
       return;
     }
+    if (!selectedSchoolId) {
+      setError("Please select your school");
+      return;
+    }
+    if (!selectedGrade) {
+      setError("Please select your grade");
+      return;
+    }
+    if (!selectedTeacherId) {
+      setError("Please select your teacher");
+      return;
+    }
 
     const finalDisplayName = displayName || `${firstName} ${lastName}`;
 
@@ -253,7 +265,7 @@ export default function Register() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="teacher">Select Your Teacher (optional)</Label>
+                <Label htmlFor="teacher">Select Your Teacher <span className="text-destructive">*</span></Label>
                 <select
                   id="teacher"
                   value={selectedTeacherId}
@@ -262,13 +274,13 @@ export default function Register() {
                   className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm disabled:opacity-50"
                   data-testid="select-teacher"
                 >
-                  <option value="">{!selectedSchoolId || !selectedGrade ? "Select school and grade first..." : "No teacher selected"}</option>
+                  <option value="">{!selectedSchoolId || !selectedGrade ? "Select school and grade first..." : "Select your teacher..."}</option>
                   {teachers.map((t: any) => (
                     <option key={t.id} value={t.id}>{t.display_name}</option>
                   ))}
                 </select>
                 {selectedSchoolId && selectedGrade && teachers.length === 0 && (
-                  <p className="text-xs text-amber-500 mt-1">No teachers found for this school and grade. You can still sign up without a teacher.</p>
+                  <p className="text-xs text-amber-500 mt-1">No teachers found for this school and grade. Please contact your school administrator.</p>
                 )}
                 {selectedTeacherId && (
                   <p className="text-xs text-muted-foreground mt-1">You can start reading and taking quizzes right away. Your teacher will approve you to appear under their profile.</p>

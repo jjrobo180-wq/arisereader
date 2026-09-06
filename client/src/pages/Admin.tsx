@@ -200,6 +200,12 @@ export default function Admin() {
   // Quiz review requests state
   const [reviewRequests, setReviewRequests] = useState<any[]>([]);
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState(false);
+  // Eye gaze requests state
+  const [eyeGazeRequests, setEyeGazeRequests] = useState<any[]>([]);
+  // Admin leaderboard state
+  const [adminLeaderboard, setAdminLeaderboard] = useState<any[]>([]);
+  const [adminLbLoading, setAdminLbLoading] = useState(false);
+  const [adminLbBand, setAdminLbBand] = useState("");
   const [activeReview, setActiveReview] = useState<any>(null);
   const [reviewDetail, setReviewDetail] = useState<any>(null);
   const [reviewDetailLoading, setReviewDetailLoading] = useState(false);
