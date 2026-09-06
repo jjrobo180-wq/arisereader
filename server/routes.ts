@@ -293,21 +293,31 @@ export async function registerRoutes(
         success: true,
         message: "Your request has been submitted! The admin will review your account and notify you when it's approved.",
       });
-      setImmediate(() => {
+      setImmediate(async () => {
         try { clearCache('teachers'); } catch {}
         // Notify admin about the new teacher signup
-        sendEmail(
-          ADMIN_NOTIFY_EMAIL,
-          "New teacher signup - A.R.I.S.E Reader",
-          teacherSignupNotifyEmail(displayName, username.toLowerCase(), email || 'No email provided')
-        ).catch(() => {});
+        try {
+          const result = await sendEmail(
+            ADMIN_NOTIFY_EMAIL,
+            "New teacher signup - A.R.I.S.E Reader",
+            teacherSignupNotifyEmail(displayName, username.toLowerCase(), email || 'No email provided')
+          );
+          console.log('[teacher-signup] Admin email result:', JSON.stringify(result));
+        } catch (e: any) {
+          console.error('[teacher-signup] Admin email FAILED:', e.message);
+        }
         // Send confirmation email to the teacher
         if (email) {
-          sendEmail(
-            email,
-            "Teacher account request received - A.R.I.S.E Reader",
-            teacherSignupConfirmEmail(displayName, username.toLowerCase())
-          ).catch(() => {});
+          try {
+            const result = await sendEmail(
+              email,
+              "Teacher account request received - A.R.I.S.E Reader",
+              teacherSignupConfirmEmail(displayName, username.toLowerCase())
+            );
+            console.log('[teacher-signup] Teacher email result:', JSON.stringify(result));
+          } catch (e: any) {
+            console.error('[teacher-signup] Teacher email FAILED:', e.message);
+          }
         }
       });
     } catch (err: any) {
@@ -2882,6 +2892,29 @@ export async function registerRoutes(
   });
 
   // ─── TEACHER ROUTES ────────────────────────────────────────────────
+
+  // DEBUG: Test email endpoint
+  app.get("/api/debug/test-email", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const result = await sendEmail(
+        ADMIN_NOTIFY_EMAIL,
+        "DEBUG: Email system test from A.R.I.S.E Reader",
+        "<p>This is a debug test email. If you received this, the email system is working.</p>"
+      );
+      res.json({
+        result,
+        envCheck: {
+          PROXY_URL: process.env.CUSTOM_CRED_API_RESEND_COM_URL ? 'SET' : 'NOT SET',
+          PROXY_TOKEN: process.env.CUSTOM_CRED_API_RESEND_COM_TOKEN ? 'SET' : 'NOT SET',
+          RESEND_API_KEY: process.env.RESEND_API_KEY ? 'SET' : 'NOT SET',
+          ADMIN_NOTIFY_EMAIL,
+          EMAIL_FROM,
+        }
+      });
+    } catch (e: any) {
+      res.json({ error: e.message });
+    }
+  });
 
   // Get the logged-in teacher's grade band
   app.get("/api/teacher/my-band", authMiddleware, async (req: any, res) => {
