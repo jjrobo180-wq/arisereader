@@ -348,19 +348,12 @@ export default function EyeGazeQuiz() {
     speakOption(text, (sub) => setSubtitle(sub));
   };
 
-  // Handle mouse leave - stop speaking and replay question
+  // Handle mouse leave - just stop speaking (don't replay the question)
   const handleOptionLeave = () => {
     if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
     setHoveredOption(null);
     stopSpeaking();
-    // Replay the question after a short delay
-    if (quiz.questions[currentIdx]) {
-      const q = quiz.questions[currentIdx];
-      const correctAnswer = q.correct_answer || q.correctAnswer || "";
-      setTimeout(() => {
-        speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
-      }, 200);
-    }
+    setSubtitle("");
   };
 
   return (
@@ -379,10 +372,6 @@ export default function EyeGazeQuiz() {
               if (!next) {
                 stopSpeaking();
                 setSubtitle("");
-              } else if (quiz?.questions?.[currentIdx]) {
-                const q = quiz.questions[currentIdx];
-                const correctAnswer = q.correct_answer || q.correctAnswer || "";
-                speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
               }
             }}
             title={ttsEnabled ? "Turn off voice" : "Turn on voice"}

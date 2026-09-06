@@ -309,10 +309,6 @@ export default function CustomEyeGazeQuiz() {
               if (!next) {
                 stopSpeaking();
                 setSubtitle("");
-              } else if (quiz?.questions?.[currentIdx]) {
-                const q = quiz.questions[currentIdx];
-                const correctAnswer = q.correct_answer || q.correctAnswer || "";
-                speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
               }
             }}
             title={ttsEnabled ? "Turn off voice" : "Turn on voice"}
@@ -417,11 +413,7 @@ export default function CustomEyeGazeQuiz() {
                 if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
                 setHoveredOption(null);
                 stopSpeaking();
-                if (quiz.questions[currentIdx]) {
-                  const q = quiz.questions[currentIdx];
-                  const correctAnswer = q.correct_answer || q.correctAnswer || "";
-                  setTimeout(() => speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text)), 200);
-                }
+                setSubtitle("");
               }}
               disabled={!!selectedAnswer}
               style={{
