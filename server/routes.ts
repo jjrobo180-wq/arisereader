@@ -3700,5 +3700,182 @@ export async function registerRoutes(
     }
   });
 
+  // ===== EASTER EGGS =====
+
+  // Admin: Get easter egg settings + claims
+  app.get("/api/admin/easter-eggs", authMiddleware, async (req: any, res) => {
+    try {
+      const { data: settings } = await supabase.from('easter_eggs').select('*').limit(1).single();
+      const { data: claims } = await supabase
+        .from('easter_egg_claims')
+        .select('id, user_id, points_awarded, claimed_at')
+        .order('claimed_at', { ascending: false });
+
+      // Get user names for claims
+      const userIds = (claims || []).map((c: any) => c.user_id);
+      let userMap: Record<number, any> = {};
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, username, display_name, total_points')
+          .in('id', userIds);
+        (users || []).forEach((u: any) => { userMap[u.id] = u; });
+      }
+
+      const claimsWithUsers = (claims || []).map((c: any) => ({
+        ...c,
+        username: userMap[c.user_id]?.username || 'Unknown',
+        displayName: userMap[c.user_id]?.display_name || 'Unknown',
+        totalPoints: userMap[c.user_id]?.total_points || 0,
+      }));
+
+      res.json({
+        active: settings?.active || false,
+        totalEggs: settings?.total_eggs || 0,
+        remainingEggs: settings?.remaining_eggs || 0,
+        pointsPerEgg: settings?.points_per_egg || 2,
+        claims: claimsWithUsers,
+      });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to fetch easter egg data' });
+    }
+  });
+
+  // Admin: Set/update easter egg campaign
+  app.post("/api/admin/easter-eggs", authMiddleware, async (req: any, res) => {
+    if (!req.user?.isAdmin) return res.status(403).json({ message: 'Admin only' });
+    try {
+      const { totalEggs, active } = req.body;
+      if (typeof totalEggs !== 'number' || totalEggs < 0) {
+        return res.status(400).json({ message: 'Invalid egg count' });
+      }
+
+      // Get current settings
+      const { data: existing } = await supabase.from('easter_eggs').select('*').limit(1).single();
+
+      if (existing) {
+        // Update existing - reset remaining to new total if increasing or resetting
+        const newRemaining = totalEggs > (existing.remaining_eggs || 0) ? totalEggs : (active ? existing.remaining_eggs : totalEggs);
+        await supabase
+          .from('easter_eggs')
+          .update({
+            total_eggs: totalEggs,
+            remaining_eggs: active ? totalEggs : existing.remaining_eggs,
+            active: active,
+          })
+          .eq('id', existing.id);
+
+        // If activating fresh, clear old claims
+        if (active && totalEggs > 0) {
+          await supabase.from('easter_egg_claims').delete().neq('id', 0);
+        }
+      } else {
+        await supabase.from('easter_eggs').insert({
+          active: active,
+          total_eggs: totalEggs,
+          remaining_eggs: totalEggs,
+          points_per_egg: 2,
+        });
+      }
+
+      res.json({ success: true, message: `Easter eggs ${active ? 'activated' : 'updated'} with ${totalEggs} eggs` });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to update easter eggs' });
+    }
+  });
+
+  // Student: Check if easter eggs are active
+  app.get("/api/easter-eggs/status", authMiddleware, async (req: any, res) => {
+    try {
+      const { data: settings } = await supabase.from('easter_eggs').select('*').limit(1).single();
+
+      if (!settings?.active || settings.remaining_eggs <= 0) {
+        return res.json({ active: false, remaining: 0 });
+      }
+
+      // Check if this user already claimed
+      const { data: claim } = await supabase
+        .from('easter_egg_claims')
+        .select('id')
+        .eq('user_id', req.user.id)
+        .maybeSingle();
+
+      if (claim) {
+        return res.json({ active: true, remaining: settings.remaining_eggs, alreadyClaimed: true });
+      }
+
+      res.json({ active: true, remaining: settings.remaining_eggs, alreadyClaimed: false });
+    } catch (e) {
+      res.json({ active: false, remaining: 0 });
+    }
+  });
+
+  // Student: Claim an easter egg
+  app.post("/api/easter-eggs/claim", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.isAdmin || req.user.role === 'teacher') {
+        return res.status(403).json({ message: 'Teachers and admins cannot claim easter eggs' });
+      }
+
+      // Get settings
+      const { data: settings } = await supabase.from('easter_eggs').select('*').limit(1).single();
+
+      if (!settings?.active || settings.remaining_eggs <= 0) {
+        return res.status(400).json({ message: 'No easter eggs available' });
+      }
+
+      // Check if already claimed (unique constraint on user_id)
+      const { data: existingClaim } = await supabase
+        .from('easter_egg_claims')
+        .select('id')
+        .eq('user_id', req.user.id)
+        .maybeSingle();
+
+      if (existingClaim) {
+        return res.status(400).json({ message: 'You already claimed an easter egg!' });
+      }
+
+      // Atomic: insert claim with unique user_id constraint
+      const { error: claimError } = await supabase
+        .from('easter_egg_claims')
+        .insert({
+          user_id: req.user.id,
+          points_awarded: settings.points_per_egg,
+        });
+
+      if (claimError) {
+        // Unique constraint violation = already claimed
+        if (claimError.code === '23505') {
+          return res.status(400).json({ message: 'You already claimed an easter egg!' });
+        }
+        throw claimError;
+      }
+
+      // Decrement remaining count atomically
+      await supabase.rpc('decrement_eggs', {}).then(async () => {
+        // Fallback if RPC doesn't exist
+      }).catch(async () => {
+        // Manual decrement
+        const { data: current } = await supabase.from('easter_eggs').select('remaining_eggs').limit(1).single();
+        if (current && current.remaining_eggs > 0) {
+          await supabase.from('easter_eggs').update({ remaining_eggs: current.remaining_eggs - 1 }).eq('id', settings.id);
+        }
+      });
+
+      // Add points to user's total_points
+      await supabase.from('users')
+        .update({ total_points: (await supabase.from('users').select('total_points').eq('id', req.user.id).single()).data.total_points + settings.points_per_egg })
+        .eq('id', req.user.id);
+
+      res.json({
+        success: true,
+        points: settings.points_per_egg,
+        message: `You found an easter egg! +${settings.points_per_egg} points!`,
+      });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to claim easter egg' });
+    }
+  });
+
   return httpServer;
 }

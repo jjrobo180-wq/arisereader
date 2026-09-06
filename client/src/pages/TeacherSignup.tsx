@@ -84,37 +84,73 @@ export default function TeacherSignup() {
               </select>
             </div>
             <div>
-              <label style={{ ...styles.label, display: "block", marginBottom: 6 }}>Grades You Teach</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <label style={{ ...styles.label, display: "block", marginBottom: 8 }}>Grades You Teach</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {GRADES.map((g) => {
                   const band = ["K","1","2"].includes(g) ? "K-2" : ["3","4","5"].includes(g) ? "3-5" : ["6","7","8"].includes(g) ? "6-8" : "9-12";
+                  const bandColors: Record<string, string> = {
+                    "K-2": "hsl(142 62% 45%)",
+                    "3-5": "hsl(21 100% 50%)",
+                    "6-8": "hsl(200 80% 50%)",
+                    "9-12": "hsl(280 60% 55%)",
+                  };
+                  const isSelected = selectedGrades.includes(g);
+                  const bandColor = bandColors[band];
                   return (
                     <button
                       key={g}
                       type="button"
-                      onClick={() => setSelectedGrades((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g].sort((a, b) => parseInt(a) - parseInt(b)))}
+                      onClick={() => setSelectedGrades((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g].sort((a, b) => parseInt(a || "0") - parseInt(b || "0")))}
                       style={{
-                        ...styles.input,
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        minHeight: 40,
-                        width: "auto",
-                        padding: "6px 14px",
-                        fontSize: 14,
-                        fontWeight: 700,
-                        background: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 10%)",
-                        color: selectedGrades.includes(g) ? "hsl(0 0% 8%)" : "hsl(0 0% 92%)",
-                        borderColor: selectedGrades.includes(g) ? "hsl(21 100% 50%)" : "hsl(0 0% 28%)",
+                        minHeight: 44,
+                        minWidth: 44,
+                        padding: "6px 10px",
+                        fontSize: 15,
+                        fontWeight: 800,
+                        borderRadius: 10,
+                        border: `2px solid ${isSelected ? bandColor : "hsl(0 0% 25%)"}`,
+                        background: isSelected ? bandColor : "hsl(0 0% 12%)",
+                        color: isSelected ? "#fff" : "hsl(0 0% 65%)",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
                       }}
                       title={`Grade ${g} — ${band} Band`}
                     >
-                      {g} <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>{band}</span>
+                      {g}
                     </button>
                   );
                 })}
               </div>
-              <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 4 }}>Select all grades you teach. Grades are grouped by band: K-2, 3-5, 6-8, 9-12. Students will find you by selecting their grade at signup.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                {["K-2", "3-5", "6-8", "9-12"].map(b => {
+                  const colors: Record<string, string> = {
+                    "K-2": "hsl(142 62% 45%)",
+                    "3-5": "hsl(21 100% 50%)",
+                    "6-8": "hsl(200 80% 50%)",
+                    "9-12": "hsl(280 60% 55%)",
+                  };
+                  const count = selectedGrades.filter(g => {
+                    const band = ["K","1","2"].includes(g) ? "K-2" : ["3","4","5"].includes(g) ? "3-5" : ["6","7","8"].includes(g) ? "6-8" : "9-12";
+                    return band === b;
+                  }).length;
+                  return (
+                    <span key={b} style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      fontSize: 12, padding: "2px 8px", borderRadius: 6,
+                      background: count > 0 ? colors[b] + "30" : "hsl(0 0% 12%)",
+                      color: count > 0 ? colors[b] : "hsl(0 0% 45%)",
+                      fontWeight: 600,
+                    }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: colors[b], display: "inline-block" }} />
+                      {b}{count > 0 ? ` (${count})` : ""}
+                    </span>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 6 }}>Tap each grade you teach. Colors show grade bands. Students select their grade at signup to find their teacher.</p>
             </div>
             {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-teacher-account">

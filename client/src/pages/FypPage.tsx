@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark } from "lucide-react";
+import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark, Gift } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -51,6 +51,8 @@ export default function FypPage() {
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dwellTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const loggedView = useRef<Set<number>>(new Set());
+  const [easterEgg, setEasterEgg] = useState<{ visible: boolean; claimed: boolean; points: number; message: string }>({ visible: false, claimed: false, points: 0, message: "" });
+  const eggCheckDone = useRef(false);
 
   const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
@@ -82,6 +84,51 @@ export default function FypPage() {
   useEffect(() => {
     fetchFeed();
   }, [fetchFeed]);
+
+  // Check for easter eggs
+  useEffect(() => {
+    if (eggCheckDone.current) return;
+    eggCheckDone.current = true;
+    const checkEasterEggs = async () => {
+      try {
+        const token = getTokenFromCookie();
+        if (!token) return;
+        const res = await fetch(`${API_BASE}/api/easter-eggs/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.active && !data.alreadyClaimed && data.remaining > 0) {
+          // Show easter egg after a random delay (3-8 seconds)
+          const delay = Math.random() * 5000 + 3000;
+          setTimeout(() => {
+            setEasterEgg({ visible: true, claimed: false, points: 2, message: "You found an Easter Egg!" });
+          }, delay);
+        }
+      } catch {}
+    };
+    checkEasterEggs();
+  }, []);
+
+  const claimEasterEgg = async () => {
+    try {
+      const token = getTokenFromCookie();
+      if (!token) return;
+      const res = await fetch(`${API_BASE}/api/easter-eggs/claim`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEasterEgg({ visible: true, claimed: true, points: data.points, message: data.message });
+        setTimeout(() => setEasterEgg({ visible: false, claimed: false, points: 0, message: "" }), 4000);
+      } else {
+        setEasterEgg({ visible: false, claimed: false, points: 0, message: "" });
+      }
+    } catch {
+      setEasterEgg({ visible: false, claimed: false, points: 0, message: "" });
+    }
+  };
 
   // Track which card is in view using IntersectionObserver
   useEffect(() => {
@@ -357,12 +404,12 @@ export default function FypPage() {
               onClick={() => fetchFeed()}
               style={{
                 marginTop: "20px",
-                padding: "10px 24px",
-                background: "var(--accent-color, #f59e0b)",
+                padding: "10px 20px",
+                background: "#f59e0b",
+                color: "black",
                 border: "none",
-                borderRadius: "8px",
-                color: "white",
-                fontWeight: 600,
+                borderRadius: 8,
+                fontWeight: 700,
                 cursor: "pointer",
               }}
             >
@@ -371,6 +418,66 @@ export default function FypPage() {
           </div>
         </div>
       </div>
+
+      {/* Easter Egg Popup */}
+      {easterEgg.visible && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "fypFadeIn 0.3s ease",
+          }}
+          onClick={() => !easterEgg.claimed && claimEasterEgg()}
+        >
+          <div
+            style={{
+              background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+              border: "2px solid #f59e0b",
+              borderRadius: 20,
+              padding: "40px",
+              textAlign: "center",
+              maxWidth: 360,
+              boxShadow: "0 0 60px rgba(245, 158, 11, 0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {!easterEgg.claimed ? (
+              <>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🥚</div>
+                <h2 style={{ color: "#f59e0b", fontSize: 24, fontWeight: 800, marginBottom: 8 }}>You Found an Easter Egg!</h2>
+                <p style={{ color: "#ccc", fontSize: 15, marginBottom: 20 }}>Tap to claim your +2 leaderboard points!</p>
+                <button
+                  onClick={claimEasterEgg}
+                  style={{
+                    background: "linear-gradient(135deg, #f59e0b, #f97316)",
+                    color: "#000",
+                    border: "none",
+                    borderRadius: 12,
+                    padding: "12px 32px",
+                    fontSize: 18,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Gift size={20} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                  Claim +2 Points
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+                <h2 style={{ color: "#f59e0b", fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{easterEgg.message}</h2>
+                <p style={{ color: "#4ade80", fontSize: 32, fontWeight: 800 }}>+{easterEgg.points}</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Expanded summary modal */}
       {expanded && items[currentIndex] && (

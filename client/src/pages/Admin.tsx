@@ -168,6 +168,9 @@ export default function Admin() {
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
   const [proctorMsg, setProctorMsg] = useState("");
+  const [easterEggs, setEasterEggs] = useState({ active: false, totalEggs: 0, remainingEggs: 0, pointsPerEgg: 2, claims: [] as any[] });
+  const [eggCount, setEggCount] = useState(0);
+  const [eggMsg, setEggMsg] = useState("");
   const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
   const [quizForm, setQuizForm] = useState({
     title: "",
@@ -602,6 +605,7 @@ export default function Admin() {
     fetchAnnouncement();
     fetchBanners();
     fetchProctorPassword();
+    fetchEasterEggs();
     fetchGradeChangeRequests();
     fetchEyeGazeRequests();
     fetchAdminLeaderboard();
@@ -768,6 +772,33 @@ export default function Admin() {
         const data = await res.json();
         setProctorMsg(data.message || "Failed to update");
         setTimeout(() => setProctorMsg(""), 4000);
+      }
+    } catch {}
+  };
+
+  const fetchEasterEggs = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/easter-eggs`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setEasterEggs(data);
+        setEggCount(data.totalEggs || 0);
+      }
+    } catch {}
+  };
+
+  const handleUpdateEasterEggs = async (activate: boolean) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/easter-eggs`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ totalEggs: eggCount, active: activate }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEggMsg(data.message || "Updated!");
+        setTimeout(() => setEggMsg(""), 3000);
+        fetchEasterEggs();
       }
     } catch {}
   };
@@ -1718,6 +1749,60 @@ Generate exactly 10 questions.`;
             </div>
             <p className="text-xs text-muted-foreground">Updating the proctor password sends a notification to all teachers with a direct link to view it.</p>
             {proctorMsg && <span className="text-xs text-green-400">{proctorMsg}</span>}
+          </div>
+
+          {/* Easter Eggs */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🥚</span>
+              <Label className="text-sm font-bold">FYP Easter Eggs</Label>
+              <span className={`ml-auto px-2 py-0.5 rounded text-xs font-bold ${easterEggs.active ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"}`}>
+                {easterEggs.active ? "ACTIVE" : "INACTIVE"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <div className="text-xs text-muted-foreground">Total</div>
+                <div className="text-lg font-bold">{easterEggs.totalEggs}</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <div className="text-xs text-muted-foreground">Remaining</div>
+                <div className="text-lg font-bold text-amber-500">{easterEggs.remainingEggs}</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <div className="text-xs text-muted-foreground">Claimed</div>
+                <div className="text-lg font-bold text-green-400">{easterEggs.claims.length}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                placeholder="Number of eggs..."
+                value={eggCount}
+                onChange={(e) => setEggCount(parseInt(e.target.value) || 0)}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm"
+              />
+              <Button size="sm" variant="outline" onClick={() => handleUpdateEasterEggs(false)}>Save</Button>
+              <Button size="sm" onClick={() => handleUpdateEasterEggs(true)} className="bg-amber-500 hover:bg-amber-600 text-black">
+                {easterEggs.active ? "Reset & Reactivate" : "Activate"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Each egg gives {easterEggs.pointsPerEgg} leaderboard points. Students find them randomly while scrolling the FYP. Each student can only claim once.</p>
+            {eggMsg && <span className="text-xs text-green-400">{eggMsg}</span>}
+            {easterEggs.claims.length > 0 && (
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-semibold text-muted-foreground">Claims:</div>
+                {easterEggs.claims.map((c: any) => (
+                  <div key={c.id} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-muted/20">
+                    <span className="font-medium">{c.displayName}</span>
+                    <span className="text-muted-foreground">@{c.username}</span>
+                    <span className="text-amber-500 font-bold">+{c.points_awarded}</span>
+                    <span className="text-muted-foreground">{new Date(c.claimed_at).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
