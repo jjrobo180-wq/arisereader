@@ -224,28 +224,21 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
         <div className="px-5 pb-5">
           {/* Icon with glow */}
           <div
-            className="relative mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl relative mb-4"
             style={{
+              background: `linear-gradient(135deg, ${currentFeature.color}25, ${currentFeature.color}08)`,
+              border: `1px solid ${currentFeature.color}30`,
               transform: animIn ? "scale(1)" : "scale(0.5)",
               opacity: animIn ? 1 : 0,
               transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s",
             }}
           >
+            <currentFeature.icon size={30} style={{ color: currentFeature.color }} />
+            {/* Glow */}
             <div
-              className="inline-flex items-center justify-center w-16 h-16 rounded-2xl relative"
-              style={{
-                background: `linear-gradient(135deg, ${currentFeature.color}25, ${currentFeature.color}08)`,
-                border: `1px solid ${currentFeature.color}30`,
-              }}
-            >
-              <currentFeature.icon size={30} style={{ color: currentFeature.color }} />
-              {/* Glow */}
-              <div
-                className="absolute inset-0 rounded-2xl blur-xl -z-10"
-                style={{ background: currentFeature.color + "30" }}
-              />
-            </div>
-            <span className="absolute -top-2 -right-2 text-lg">{currentFeature.emoji}</span>
+              className="absolute inset-0 rounded-2xl blur-xl -z-10"
+              style={{ background: currentFeature.color + "30" }}
+            />
           </div>
 
           {/* Title and tagline */}
@@ -293,38 +286,27 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
             </span>
           </div>
 
-          {/* Navigation */}
-          <div className="flex items-center gap-2">
-            {!isFirstStep && (
+          {/* Navigation - hidden on last step */}
+          {!isLastStep && (
+            <div className="flex items-center gap-2 mt-5">
+              {!isFirstStep ? (
+                <button
+                  onClick={prevStep}
+                  className="px-3 py-2.5 rounded-xl text-sm font-bold text-white/50 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1"
+                >
+                  <ArrowLeft size={16} />
+                  Back
+                </button>
+              ) : (
+                <div />
+              )}
+              <div className="flex-1" />
               <button
-                onClick={prevStep}
-                className="px-3 py-2.5 rounded-xl text-sm font-bold text-white/50 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1"
+                onClick={dismiss}
+                className="px-3 py-2.5 text-sm text-white/40 hover:text-white/70 transition-colors font-semibold"
               >
-                <ArrowLeft size={16} />
-                Back
+                Skip
               </button>
-            )}
-            <div className="flex-1" />
-            <button
-              onClick={dismiss}
-              className="px-3 py-2.5 text-sm text-white/40 hover:text-white/70 transition-colors font-semibold"
-            >
-              Skip
-            </button>
-            {isLastStep ? (
-              <button
-                onClick={() => goToFeature(currentFeature.path)}
-                className="px-5 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
-                style={{
-                  background: `linear-gradient(135deg, ${currentFeature.color}, ${currentFeature.accent})`,
-                  color: "#000",
-                  boxShadow: `0 4px 20px ${currentFeature.color}40`,
-                }}
-              >
-                {currentFeature.action}
-                <ArrowRight size={16} />
-              </button>
-            ) : (
               <button
                 onClick={nextStep}
                 className="px-5 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
@@ -337,30 +319,14 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
                 Next
                 <ArrowRight size={16} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Step dots */}
-        <div className="px-5 pb-5 flex justify-center gap-2">
-          {features.map((f, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrentStep(i)}
-              className="transition-all duration-300 rounded-full"
-              style={{
-                width: i === currentStep ? "24px" : "8px",
-                height: "8px",
-                background: i === currentStep ? f.color : i < currentStep ? f.color + "50" : "rgba(255,255,255,0.15)",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Final step CTA */}
+        {/* Final step CTA (shown above dots on last step) */}
         {isLastStep && (
           <div
-            className="px-5 pb-5"
+            className="px-5 pb-4"
             style={{
               transform: animIn ? "translateY(0)" : "translateY(10px)",
               opacity: animIn ? 1 : 0,
@@ -368,17 +334,17 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
             }}
           >
             <div
-              className="rounded-2xl p-4 mb-3"
+              className="rounded-2xl p-3 mb-3"
               style={{
-                background: `linear-gradient(135deg, ${currentFeature.color}15, transparent)`,
-                border: `1px solid ${currentFeature.color}25`,
+                background: `linear-gradient(135deg, ${currentFeature.color}12, transparent)`,
+                border: `1px solid ${currentFeature.color}20`,
               }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Gift size={16} style={{ color: currentFeature.color }} />
-                <span className="text-xs font-bold text-white">Quick tip</span>
+              <div className="flex items-center gap-2 mb-1">
+                <Gift size={14} style={{ color: currentFeature.color }} />
+                <span className="text-xs font-bold text-white/70">Quick tip</span>
               </div>
-              <p className="text-xs text-white/50 leading-relaxed">
+              <p className="text-xs text-white/40 leading-relaxed">
                 Look for Easter Eggs hidden in the FYP feed while scrolling. Each one gives you bonus leaderboard points.
               </p>
             </div>
@@ -396,6 +362,22 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
             </button>
           </div>
         )}
+
+        {/* Step dots - always at bottom */}
+        <div className="px-5 pb-5 flex justify-center gap-2">
+          {features.map((f, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentStep(i)}
+              className="transition-all duration-300 rounded-full"
+              style={{
+                width: i === currentStep ? "24px" : "8px",
+                height: "8px",
+                background: i === currentStep ? f.color : i < currentStep ? f.color + "50" : "rgba(255,255,255,0.15)",
+              }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

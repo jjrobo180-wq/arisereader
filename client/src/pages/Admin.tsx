@@ -171,6 +171,7 @@ export default function Admin() {
   const [easterEggs, setEasterEggs] = useState({ active: false, totalEggs: 0, remainingEggs: 0, pointsPerEgg: 2, claims: [] as any[] });
   const [eggCount, setEggCount] = useState(0);
   const [eggMsg, setEggMsg] = useState("");
+  const [pendingParents, setPendingParents] = useState<any[]>([]);
   const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
   const [quizForm, setQuizForm] = useState({
     title: "",
@@ -606,6 +607,7 @@ export default function Admin() {
     fetchBanners();
     fetchProctorPassword();
     fetchEasterEggs();
+    fetchPendingParents();
     fetchGradeChangeRequests();
     fetchEyeGazeRequests();
     fetchAdminLeaderboard();
@@ -801,6 +803,58 @@ export default function Admin() {
         fetchEasterEggs();
       }
     } catch {}
+  };
+
+  const fetchPendingParents = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/pending-parents`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingParents(data);
+      }
+    } catch {}
+  };
+
+  const handleApproveParent = async (userId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/parent-approve/${userId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hasEmail) {
+          alert("Parent approved! A confirmation email has been sent.");
+        } else {
+          alert("Parent approved! (No email on file - please notify them manually)");
+        }
+        fetchPendingParents();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || "Failed to approve parent");
+      }
+    } catch {
+      alert("Failed to approve parent");
+    }
+  };
+
+  const handleRejectParent = async (userId: number) => {
+    if (!window.confirm("Reject this parent account? This will delete their account.")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/parent-reject/${userId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) {
+        alert("Parent account rejected.");
+        fetchPendingParents();
+      } else {
+        alert("Failed to reject parent");
+      }
+    } catch {
+      alert("Failed to reject parent");
+    }
   };
 
   const fetchGradeChangeRequests = async () => {
@@ -2115,6 +2169,42 @@ Generate exactly 10 questions.`;
                     <Button size="sm" onClick={() => handleApproveStudent(s.id, s.displayName)} className="bg-green-600 hover:bg-green-700 text-white">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline ml-1">Approve</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pending Parent Approvals */}
+        {pendingParents.length > 0 && (
+          <Card className="shadow-md border-blue-500/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-400">
+                <Users className="w-5 h-5" />
+                Pending Parent Approvals ({pendingParents.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-4">Parents who signed up and are waiting for approval. They will be linked to their student once approved.</p>
+              <div className="space-y-2">
+                {pendingParents.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {p.display_name?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{p.display_name}</p>
+                      <p className="text-xs text-muted-foreground">@{p.username}{p.email ? ` — ${p.email}` : ""}</p>
+                      {p.studentName && <p className="text-xs text-blue-400">Linked student: {p.studentName}</p>}
+                    </div>
+                    <Button size="sm" onClick={() => handleApproveParent(p.id)} className="bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Approve</span>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleRejectParent(p.id)} className="text-red-500 border-red-500/30 hover:bg-red-500/10">
+                      <X className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 ))}

@@ -57,6 +57,26 @@ async function sendEmail(to: string, subject: string, html: string): Promise<{ s
   }
 }
 
+function parentApprovedEmail(displayName: string, username: string): string {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
+      </div>
+      <h2 style="color: #FF5900; font-size: 22px;">Your Parent Account is Approved!</h2>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your parent account on A.R.I.S.E Reader has been approved. You can now log in and view your student's progress, print certificates, and message their teacher.</p>
+      <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
+        <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
+      </div>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 20px 0;">Log In Now</a>
+      <p style="color: #666; font-size: 14px; margin-top: 30px;">If you didn't create this account, please ignore this email.</p>
+    </div>
+  `;
+}
+
 function teacherApprovedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
@@ -383,7 +403,14 @@ export async function registerRoutes(
         sendEmail(
           ADMIN_NOTIFY_EMAIL,
           "New parent signup - A.R.I.S.E Reader",
-          `Parent signup request from ${displayName} (@${username.toLowerCase()}). Email: ${email || 'N/A'}. Linked student: ${studentUsername}.`
+          `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
+            <h1 style="color: #FF5900; font-size: 28px;">New Parent Signup</h1>
+            <p style="color: #ccc; font-size: 16px;"><strong>Name:</strong> ${displayName}</p>
+            <p style="color: #ccc; font-size: 16px;"><strong>Username:</strong> @${username.toLowerCase()}</p>
+            <p style="color: #ccc; font-size: 16px;"><strong>Email:</strong> ${email || 'N/A'}</p>
+            <p style="color: #ccc; font-size: 16px;"><strong>Linked Student:</strong> ${studentUsername}</p>
+            <p style="color: #999; font-size: 14px; margin-top: 20px;">Log in to the admin panel to approve or reject this parent.</p>
+          </div>`
         ).catch(() => {});
       });
     } catch (err: any) {
@@ -1093,12 +1120,22 @@ export async function registerRoutes(
       const pendingTeachersList = (allTeacherRows || []).filter((t: any) =>
         !t.account_approved && (!teachersSeenAt || new Date(t.created_at) > new Date(teachersSeenAt))
       );
+      // Pending parents
+      const { data: allParentRows } = await supabase
+        .from("users")
+        .select("id, display_name, username, role, account_approved, email, created_at")
+        .eq("role", 'parent')
+        .order("created_at", { ascending: false });
+      const pendingParentsList = (allParentRows || []).filter((p: any) =>
+        !p.account_approved
+      );
       res.json({
-        unreadCount: pendingReqs.length + newUsersList.length + pendingTeachersList.length,
+        unreadCount: pendingReqs.length + newUsersList.length + pendingTeachersList.length + pendingParentsList.length,
         type: "admin",
         pendingRequests: pendingReqs.length,
         newUsers: newUsersList.length,
         pendingTeachers: pendingTeachersList.length,
+        pendingParents: pendingParentsList.length,
         pendingRequestItems: pendingReqs.map((r: any) => ({
           id: r.id,
           bookTitle: r.bookTitle,
@@ -3183,6 +3220,83 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("[teacher-approve] Error:", error);
       res.status(500).json({ message: error.message || "Failed to approve teacher" });
+    }
+  });
+
+  // Admin: list pending parents
+  app.get("/api/admin/pending-parents", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { data: parents } = await supabase
+        .from("users")
+        .select("id, display_name, username, email, created_at, school_id")
+        .eq("role", "parent")
+        .eq("account_approved", false)
+        .order("created_at", { ascending: false });
+
+      // Get linked student info
+      const rawLinks = await storage.getSetting('parent_student_links');
+      let parentLinks: Record<string, number> = {};
+      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
+
+      const parentsWithStudents = await Promise.all((parents || []).map(async (p: any) => {
+        const studentId = parentLinks[String(p.id)];
+        let studentName = "Unknown";
+        if (studentId) {
+          const { data: student } = await supabase.from("users").select("display_name, username").eq("id", studentId).single();
+          if (student) studentName = student.display_name || student.username;
+        }
+        return { ...p, studentName };
+      }));
+
+      res.json(parentsWithStudents);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch pending parents" });
+    }
+  });
+
+  // Admin: approve parent account
+  app.post("/api/admin/parent-approve/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { data: parent } = await supabase.from("users").select("*").eq("id", userId).single();
+      const { error } = await supabase.from("users").update({ account_approved: true }).eq("id", userId);
+      if (error) throw new Error(error.message);
+      const hasEmail = !!parent?.email;
+      res.json({ success: true, hasEmail });
+      setImmediate(() => {
+        try { clearCache('allUsers'); } catch {}
+        if (hasEmail) {
+          sendEmail(
+            parent.email,
+            "Your A.R.I.S.E Reader parent account is approved!",
+            parentApprovedEmail(parent.display_name || parent.username, parent.username)
+          ).catch(() => {});
+        }
+      });
+    } catch (error: any) {
+      console.error("[parent-approve] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to approve parent" });
+    }
+  });
+
+  // Admin: reject parent account
+  app.delete("/api/admin/parent-reject/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { error } = await supabase.from("users").delete().eq("id", userId);
+      if (error) throw new Error(error.message);
+      // Remove from parent_student_links
+      const rawLinks = await storage.getSetting('parent_student_links');
+      if (rawLinks) {
+        try {
+          const parentLinks = JSON.parse(rawLinks);
+          delete parentLinks[String(userId)];
+          await storage.upsertSetting('parent_student_links', JSON.stringify(parentLinks));
+        } catch {}
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to reject parent" });
     }
   });
 
