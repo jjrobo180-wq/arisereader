@@ -2205,6 +2205,259 @@ export class DatabaseStorage implements IStorage {
     if (error) throw new Error(error.message);
     return data || [];
   }
+
+  // ─── A.R.I.S.E F.Y.P ───────────────────────────────────────────────
+
+  async getFypFeed(userId: number, userGrade: string | null, teacherBands: Set<string> | null, limit: number = 10, cursor?: number): Promise<any[]> {
+    // 1. Determine eligible grade bands
+    let eligibleBands: string[] = [];
+    if (teacherBands) {
+      eligibleBands = Array.from(teacherBands);
+    } else if (userGrade) {
+      eligibleBands = [this.gradeToBand(userGrade)];
+    }
+    if (eligibleBands.length === 0) {
+      // No grade info — return all
+      eligibleBands = ['K-2', '3-5', '6-8', '9-12'];
+    }
+
+    // 2. Fetch book IDs in the user's bands
+    const bookBandsRaw = await this.getSetting('book_grade_bands');
+    const overlapsRaw = await this.getSetting('book_grade_overlaps');
+    let bookBands: Record<string, string> = {};
+    let bookOverlaps: Record<string, string[]> = {};
+    if (bookBandsRaw) { try { bookBands = JSON.parse(bookBandsRaw); } catch {} }
+    if (overlapsRaw) { try { bookOverlaps = JSON.parse(overlapsRaw); } catch {} }
+
+    const eligibleBookIds = new Set<number>();
+    for (const [bid, band] of Object.entries(bookBands)) {
+      if (eligibleBands.includes(band)) eligibleBookIds.add(parseInt(bid));
+    }
+    for (const [bid, bands] of Object.entries(bookOverlaps)) {
+      if (bands.some(b => eligibleBands.includes(b))) eligibleBookIds.add(parseInt(bid));
+    }
+
+    if (eligibleBookIds.size === 0) return [];
+
+    // 3. Fetch feed cards for eligible books
+    const { data: cards, error: cardError } = await supabase
+      .from('book_feed_cards')
+      .select('book_id, hook_text, short_summary, expanded_summary, tags, mood')
+      .eq('is_active', true)
+      .eq('safety_status', 'approved')
+      .in('book_id', Array.from(eligibleBookIds).slice(0, 500));
+    if (cardError || !cards) return [];
+
+    // 4. Fetch book data
+    const bookIds = cards.map(c => c.book_id);
+    const { data: books } = await supabase
+      .from('books')
+      .select('id, title, author, points_value, cover_url, read_url')
+      .in('id', bookIds);
+    const bookMap = new Map((books || []).map((b: any) => [b.id, b]));
+
+    // 5. Fetch like/dislike counts
+    const { data: reactionCounts } = await supabase
+      .from('book_feed_reactions')
+      .select('book_id, reaction')
+      .in('book_id', bookIds);
+    const likeCounts: Record<number, number> = {};
+    const dislikeCounts: Record<number, number> = {};
+    for (const r of (reactionCounts || [])) {
+      if (r.reaction === 'like') likeCounts[r.book_id] = (likeCounts[r.book_id] || 0) + 1;
+      else dislikeCounts[r.book_id] = (dislikeCounts[r.book_id] || 0) + 1;
+    }
+
+    // 6. Fetch user's reactions
+    const { data: userReactions } = await supabase
+      .from('book_feed_reactions')
+      .select('book_id, reaction')
+      .eq('user_id', userId);
+    const userReactionMap: Record<number, string> = {};
+    for (const r of (userReactions || [])) {
+      userReactionMap[r.book_id] = r.reaction;
+    }
+
+    // 7. Fetch share counts
+    const { data: shareCounts } = await supabase
+      .from('book_feed_shares')
+      .select('book_id')
+      .in('book_id', bookIds);
+    const shareCountMap: Record<number, number> = {};
+    for (const s of (shareCounts || [])) {
+      shareCountMap[s.book_id] = (shareCountMap[s.book_id] || 0) + 1;
+    }
+
+    // 8. Fetch user's interaction history for personalization
+    const { data: events } = await supabase
+      .from('book_feed_events')
+      .select('book_id, event_type')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    
+    // Build user interest tags from liked/expanded/shared books
+    const likedBookIds = new Set<number>();
+    const dislikedBookIds = new Set<number>();
+    const seenBookIds = new Set<number>();
+    const tagScores: Record<string, number> = {};
+    
+    for (const e of (events || [])) {
+      seenBookIds.add(e.book_id);
+      if (e.event_type === 'like' || e.event_type === 'expand' || e.event_type === 'share' || e.event_type === 'read_click') {
+        const card = cards.find(c => c.book_id === e.book_id);
+        if (card && card.tags) {
+          for (const tag of card.tags) {
+            tagScores[tag] = (tagScores[tag] || 0) + 1;
+          }
+        }
+      }
+    }
+    
+    // Get disliked books
+    for (const [bid, reaction] of Object.entries(userReactionMap)) {
+      if (reaction === 'like') likedBookIds.add(parseInt(bid));
+      if (reaction === 'dislike') dislikedBookIds.add(parseInt(bid));
+    }
+
+    // 9. Score and sort books
+    const scored = cards.map(card => {
+      const book = bookMap.get(card.book_id);
+      if (!book) return null;
+      
+      let score = 40; // Base band fit score
+      
+      // Personal tag match
+      if (card.tags) {
+        for (const tag of card.tags) {
+          score += (tagScores[tag] || 0) * 5;
+        }
+      }
+      
+      // Popularity (likes)
+      score += (likeCounts[card.book_id] || 0) * 3;
+      
+      // Freshness (books with read_url or quizzes get priority)
+      if (book.read_url) score += 10;
+      if (book.points_value > 0) score += 5;
+      
+      // Diversity (randomization for cold start)
+      score += Math.random() * 10;
+      
+      // Dislike penalty
+      if (dislikedBookIds.has(card.book_id)) score -= 50;
+      
+      // Already seen penalty (lighter)
+      if (seenBookIds.has(card.book_id)) score -= 5;
+      
+      // Already read/attempted penalty
+      if (likedBookIds.has(card.book_id)) score += 2; // Slight boost for liked books
+      
+      return { card, book, score };
+    }).filter(Boolean).sort((a: any, b: any) => b.score - a.score);
+
+    // 10. Return formatted results
+    const results = scored.slice(0, limit).map((item: any) => ({
+      bookId: item.book.id,
+      title: item.book.title,
+      author: item.book.author,
+      pointsValue: item.book.points_value,
+      coverUrl: item.book.cover_url || '',
+      readUrl: item.book.read_url || '',
+      hookText: item.card.hook_text,
+      shortSummary: item.card.short_summary,
+      expandedSummary: item.card.expanded_summary,
+      tags: item.card.tags || [],
+      mood: item.card.mood || 'story',
+      likeCount: likeCounts[item.book.id] || 0,
+      dislikeCount: dislikeCounts[item.book.id] || 0,
+      userReaction: userReactionMap[item.book.id] || null,
+      shareCount: shareCountMap[item.book.id] || 0,
+    }));
+
+    return results;
+  }
+
+  async setFypReaction(userId: number, bookId: number, reaction: string | null): Promise<any> {
+    // Remove existing reaction
+    await supabase.from('book_feed_reactions').delete().eq('user_id', userId).eq('book_id', bookId);
+    
+    if (reaction) {
+      const { data, error } = await supabase.from('book_feed_reactions').insert({
+        user_id: userId,
+        book_id: bookId,
+        reaction,
+      }).select().single();
+      if (error) throw new Error(error.message);
+    }
+    
+    // Return updated counts
+    const { data: likes } = await supabase.from('book_feed_reactions').select('user_id').eq('book_id', bookId).eq('reaction', 'like');
+    const { data: dislikes } = await supabase.from('book_feed_reactions').select('user_id').eq('book_id', bookId).eq('reaction', 'dislike');
+    return {
+      likeCount: likes?.length || 0,
+      dislikeCount: dislikes?.length || 0,
+    };
+  }
+
+  async logFypEvent(userId: number, bookId: number, eventType: string, dwellMs?: number, feedSessionId?: string, metadata?: any): Promise<void> {
+    const { error } = await supabase.from('book_feed_events').insert({
+      user_id: userId,
+      book_id: bookId,
+      event_type: eventType,
+      dwell_ms: dwellMs || null,
+      feed_session_id: feedSessionId || null,
+      metadata: metadata || {},
+    });
+    if (error) console.error('FYP event log error:', error.message);
+  }
+
+  async createFypShareLink(userId: number, bookId: number): Promise<string> {
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(12).toString('hex');
+    const { error } = await supabase.from('book_feed_shares').insert({
+      token,
+      book_id: bookId,
+      user_id: userId,
+    });
+    if (error) throw new Error(error.message);
+    return token;
+  }
+
+  async getFypShareData(token: string): Promise<any> {
+    // Increment click count
+    await supabase.from('book_feed_shares').update({ click_count: 1, last_clicked_at: new Date().toISOString() }).eq('token', token);
+    
+    const { data: share } = await supabase.from('book_feed_shares').select('book_id').eq('token', token).single();
+    if (!share) return null;
+    
+    const { data: card } = await supabase.from('book_feed_cards').select('hook_text, short_summary, expanded_summary, tags, mood').eq('book_id', share.book_id).single();
+    const { data: book } = await supabase.from('books').select('id, title, author, cover_url, read_url, points_value').eq('id', share.book_id).single();
+    
+    if (!book) return null;
+    return {
+      bookId: book.id,
+      title: book.title,
+      author: book.author,
+      coverUrl: book.cover_url || '',
+      readUrl: book.read_url || '',
+      pointsValue: book.points_value || 0,
+      hookText: card?.hook_text || '',
+      shortSummary: card?.short_summary || '',
+      expandedSummary: card?.expanded_summary || '',
+      tags: card?.tags || [],
+      mood: card?.mood || 'story',
+    };
+  }
+
+  private gradeToBand(grade: string): string {
+    const g = grade.toUpperCase();
+    if (['K', '1', '2'].includes(g)) return 'K-2';
+    if (['3', '4', '5'].includes(g)) return '3-5';
+    if (['6', '7', '8'].includes(g)) return '6-8';
+    if (['9', '10', '11', '12'].includes(g)) return '9-12';
+    return 'K-2';
+  }
 }
 
 export const storage = new DatabaseStorage();

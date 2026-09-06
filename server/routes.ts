@@ -3489,5 +3489,107 @@ export async function registerRoutes(
     }
   });
 
+  // ─── A.R.I.S.E F.Y.P ROUTES ─────────────────────────────────────
+
+  // GET /api/fyp/feed - Get personalized book feed
+  app.get("/api/fyp/feed", authMiddleware, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const user = req.user;
+      
+      // Get user grade from user_grades setting
+      let userGrade: string | null = null;
+      const rawGrades = await storage.getSetting('user_grades');
+      if (rawGrades) {
+        try {
+          const grades = JSON.parse(rawGrades);
+          userGrade = grades[String(user.id)] || null;
+        } catch {}
+      }
+      
+      // Check teacher bands
+      let teacherBands: Set<string> | null = null;
+      if (user.role === 'teacher' || user.role === 'admin') {
+        const teacherGradesSetting = await storage.getSetting('teacher_grades');
+        if (teacherGradesSetting) {
+          try {
+            const teacherGrades = JSON.parse(teacherGradesSetting);
+            const myGrades = teacherGrades[String(user.id)];
+            if (myGrades) {
+              const bands = new Set<string>();
+              for (const g of myGrades) {
+                const band = gradeToBand(g);
+                if (band) bands.add(band);
+              }
+              if (bands.size > 0) teacherBands = bands;
+            }
+          } catch {}
+        }
+      }
+      
+      const feed = await storage.getFypFeed(user.id, userGrade, teacherBands, limit);
+      res.json({ items: feed, nextCursor: null });
+    } catch (error: any) {
+      console.error('FYP feed error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/fyp/reaction - Like or dislike a book
+  app.post("/api/fyp/reaction", authMiddleware, async (req: any, res) => {
+    try {
+      const { bookId, reaction } = req.body;
+      if (!bookId) return res.status(400).json({ message: 'bookId is required' });
+      if (reaction && !['like', 'dislike'].includes(reaction)) {
+        return res.status(400).json({ message: 'Invalid reaction' });
+      }
+      const counts = await storage.setFypReaction(req.user.id, parseInt(bookId), reaction);
+      res.json(counts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/fyp/event - Log feed interaction
+  app.post("/api/fyp/event", authMiddleware, async (req: any, res) => {
+    try {
+      const { bookId, eventType, dwellMs, feedSessionId, metadata } = req.body;
+      if (!bookId || !eventType) return res.status(400).json({ message: 'bookId and eventType required' });
+      const validEvents = ['view', 'dwell', 'expand', 'read_click', 'quiz_click', 'share', 'skip', 'like', 'dislike'];
+      if (!validEvents.includes(eventType)) {
+        return res.status(400).json({ message: 'Invalid event type' });
+      }
+      await storage.logFypEvent(req.user.id, parseInt(bookId), eventType, dwellMs, feedSessionId, metadata);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/fyp/share - Create share link
+  app.post("/api/fyp/share", authMiddleware, async (req: any, res) => {
+    try {
+      const { bookId } = req.body;
+      if (!bookId) return res.status(400).json({ message: 'bookId is required' });
+      const token = await storage.createFypShareLink(req.user.id, parseInt(bookId));
+      const shareUrl = `${process.env.APP_URL || 'https://arisereader.pplx.app'}/fyp/share/${token}`;
+      res.json({ shareUrl });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/fyp/share/:token - Public share data (no auth)
+  app.get("/api/fyp/share/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const data = await storage.getFypShareData(token);
+      if (!data) return res.status(404).json({ message: 'Share link not found' });
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }

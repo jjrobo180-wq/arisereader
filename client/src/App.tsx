@@ -48,6 +48,8 @@ import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import AssessmentPopup from "./components/AssessmentPopup";
 import About from "./pages/About";
+import FypPage from "./pages/FypPage";
+import FypSharePage from "./pages/FypSharePage";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -223,6 +225,12 @@ function AppRoutes() {
       </Route>
       <Route path="/student-certificates/:id">
         <ProtectedRoute><StudentCertificates /></ProtectedRoute>
+      </Route>
+      <Route path="/fyp">
+        <ProtectedRoute><FypPage /></ProtectedRoute>
+      </Route>
+      <Route path="/fyp/share/:token">
+        {(params) => <FypSharePage token={params.token} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

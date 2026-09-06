@@ -527,6 +527,10 @@ export default function Library() {
               <Trophy className="w-4 h-4" />
               {totalPoints} pts
             </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/fyp")} className="hidden sm:flex" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))", border: "1px solid rgba(245,158,11,0.3)" }}>
+              <Sparkles className="w-4 h-4 mr-1" />
+              <span className="hidden md:inline">F.Y.P</span>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/progress")} className="hidden sm:flex">
               <Brain className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Progress</span>
@@ -562,6 +566,9 @@ export default function Library() {
                   <div className="px-3 py-2 border-b border-border">
                     <span className="text-sm font-semibold text-primary">{totalPoints} pts</span>
                   </div>
+                  <button onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                    <Sparkles className="w-4 h-4" /> A.R.I.S.E F.Y.P
+                  </button>
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Progress
                   </button>
