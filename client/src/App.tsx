@@ -46,6 +46,7 @@ import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
 import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
+import ParentDashboard from "./pages/ParentDashboard";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import About from "./pages/About";
@@ -139,6 +140,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <Redirect to="/" />;
+  // Parents can only access the parent dashboard
+  if (user.role === 'parent' && !user.isAdmin) {
+    return <Redirect to="/parent-dashboard" />;
+  }
   return <>{children}</>;
 }
 
@@ -157,16 +162,19 @@ function AppRoutes() {
         <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>
       </Route>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/library" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/library" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Register />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />
       </Route>
       <Route path="/parent-signup">
         <ParentSignup />
+      </Route>
+      <Route path="/parent-dashboard">
+        <ProtectedRoute><ParentDashboard /></ProtectedRoute>
       </Route>
       <Route path="/teacher-dashboard">
         <ProtectedRoute><TeacherDashboard /></ProtectedRoute>

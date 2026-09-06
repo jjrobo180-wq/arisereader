@@ -172,6 +172,7 @@ export default function Admin() {
   const [eggCount, setEggCount] = useState(0);
   const [eggMsg, setEggMsg] = useState("");
   const [pendingParents, setPendingParents] = useState<any[]>([]);
+  const [allParents, setAllParents] = useState<any[]>([]);
   const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
   const [quizForm, setQuizForm] = useState({
     title: "",
@@ -608,6 +609,7 @@ export default function Admin() {
     fetchProctorPassword();
     fetchEasterEggs();
     fetchPendingParents();
+    fetchAllParents();
     fetchGradeChangeRequests();
     fetchEyeGazeRequests();
     fetchAdminLeaderboard();
@@ -854,6 +856,85 @@ export default function Admin() {
       }
     } catch {
       alert("Failed to reject parent");
+    }
+  };
+
+  const fetchAllParents = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/pending-parents`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      const pending = res.ok ? await res.json() : [];
+      // Also fetch approved parents from all users
+      const res2 = await fetch(`${API_BASE}/api/admin/users`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      const allUsers = res2.ok ? await res2.json() : [];
+      const approved = allUsers.filter((u: any) => u.role === 'parent' && u.accountApproved);
+      const pendingApproved = pending.map((p: any) => ({ ...p, accountApproved: false }));
+      setAllParents([...approved, ...pendingApproved]);
+    } catch {}
+  };
+
+  const handleResetParentPassword = async (parentId: number, parentName: string) => {
+    const newPassword = prompt(`Enter new password for ${parentName} (min 4 characters):`);
+    if (!newPassword) return;
+    if (newPassword.length < 4) {
+      alert("Password must be at least 4 characters.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${parentId}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || getTokenFromCookie()}` },
+        body: JSON.stringify({ newPassword }),
+      });
+      if (res.ok) {
+        alert(`Password reset successfully! New password: ${newPassword}`);
+      } else {
+        alert("Failed to reset password.");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    }
+  };
+
+  const handleDeleteParent = async (parentId: number, parentName: string) => {
+    if (!confirm(`Are you sure? This deletes ${parentName}'s account permanently.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users/${parentId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) {
+        alert("Parent account deleted.");
+        fetchAllParents();
+        fetchPendingParents();
+      } else {
+        alert("Failed to delete parent.");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    }
+  };
+
+  const handleApproveParentParent = async (userId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/parent-approve/${userId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hasEmail) {
+          alert("Parent approved! A confirmation email has been sent.");
+        } else {
+          alert("Parent approved! (No email on file)");
+        }
+        fetchAllParents();
+        fetchPendingParents();
+      } else {
+        alert("Failed to approve parent.");
+      }
+    } catch {
+      alert("Failed to approve parent.");
     }
   };
 
@@ -2212,6 +2293,53 @@ Generate exactly 10 questions.`;
             </CardContent>
           </Card>
         )}
+
+        {/* All Parents Management */}
+        <Card className="shadow-md border-purple-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-purple-400">
+              <Users className="w-5 h-5" />
+              Parents ({allParents.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {allParents.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No parent accounts yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {allParents.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-purple-500/30 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {p.display_name?.charAt(0).toUpperCase() || p.displayName?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{p.display_name || p.displayName}</p>
+                      <p className="text-xs text-muted-foreground">@{p.username}{p.email ? ` — ${p.email}` : ""}</p>
+                      {p.studentName && <p className="text-xs text-purple-400">Student: {p.studentName}</p>}
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${p.accountApproved ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                      {p.accountApproved ? "ACTIVE" : "PENDING"}
+                    </span>
+                    {!p.accountApproved && (
+                      <Button size="sm" onClick={() => handleApproveParentParent(p.id)} className="bg-green-600 hover:bg-green-700 text-white">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline ml-1">Approve</span>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => handleResetParentPassword(p.id, p.display_name || p.displayName || "this parent")} className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10">
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Reset</span>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleDeleteParent(p.id, p.display_name || p.displayName || "this parent")} className="text-red-500 border-red-500/30 hover:bg-red-500/10">
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Delete</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Students table */}
         <Card className="shadow-md" ref={studentsRef}>

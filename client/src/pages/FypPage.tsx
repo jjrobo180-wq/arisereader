@@ -53,6 +53,8 @@ export default function FypPage() {
   const loggedView = useRef<Set<number>>(new Set());
   const [easterEgg, setEasterEgg] = useState<{ visible: boolean; claimed: boolean; points: number; message: string }>({ visible: false, claimed: false, points: 0, message: "" });
   const eggCheckDone = useRef(false);
+  const eggTriggered = useRef(false);
+  const swipeCount = useRef(0);
 
   const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
@@ -85,7 +87,10 @@ export default function FypPage() {
     fetchFeed();
   }, [fetchFeed]);
 
-  // Check for easter eggs
+  // Check for easter eggs after 3 swipes
+  const [eggActive, setEggActive] = useState(false);
+  const [eggAlreadyClaimed, setEggAlreadyClaimed] = useState(false);
+
   useEffect(() => {
     if (eggCheckDone.current) return;
     eggCheckDone.current = true;
@@ -99,16 +104,30 @@ export default function FypPage() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.active && !data.alreadyClaimed && data.remaining > 0) {
-          // Show easter egg after a random delay (3-8 seconds)
-          const delay = Math.random() * 5000 + 3000;
-          setTimeout(() => {
-            setEasterEgg({ visible: true, claimed: false, points: 2, message: "You found an Easter Egg!" });
-          }, delay);
+          setEggActive(true);
+          setEggAlreadyClaimed(false);
         }
       } catch {}
     };
     checkEasterEggs();
   }, []);
+
+  // Trigger easter egg after 3 swipes
+  const prevIndex = useRef(0);
+
+  useEffect(() => {
+    // Increment swipe count when index changes (user swiped to a new card)
+    if (currentIndex !== prevIndex.current) {
+      swipeCount.current++;
+      prevIndex.current = currentIndex;
+    }
+    // Check if we should show the easter egg
+    if (!eggActive || eggTriggered.current || eggAlreadyClaimed) return;
+    if (swipeCount.current >= 3) {
+      eggTriggered.current = true;
+      setEasterEgg({ visible: true, claimed: false, points: 2, message: "You found an Easter Egg!" });
+    }
+  }, [currentIndex, eggActive, eggAlreadyClaimed]);
 
   const claimEasterEgg = async () => {
     try {

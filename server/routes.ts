@@ -3300,6 +3300,60 @@ export async function registerRoutes(
     }
   });
 
+  // Parent: get their linked student's profile
+  app.get("/api/parent/student-profile", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'parent') {
+        return res.status(403).json({ message: "Only parents can access this endpoint" });
+      }
+      const rawLinks = await storage.getSetting('parent_student_links');
+      if (!rawLinks) return res.status(404).json({ message: "No student linked to your account" });
+      const parentLinks = JSON.parse(rawLinks);
+      const studentId = parentLinks[String(req.user.id)];
+      if (!studentId) return res.status(404).json({ message: "No student linked to your account" });
+      const student = await storage.getUser(studentId);
+      if (!student) return res.status(404).json({ message: "Student not found" });
+      const attempts = await storage.getUserAttempts(studentId);
+      const books = await storage.getAllBooks();
+      const bookMap = new Map(books.map(b => [b.id, b]));
+      const quizResults = attempts.map(a => {
+        const book = bookMap.get(a.bookId);
+        const passingScore = Math.ceil((a.totalQuestions || 10) * 0.7);
+        const passed = a.score >= passingScore;
+        return {
+          bookId: a.bookId,
+          title: book?.title || "Unknown",
+          author: book?.author || "",
+          coverUrl: book?.coverUrl,
+          readUrl: book?.readUrl,
+          pointsValue: book?.pointsValue || 10,
+          score: a.score,
+          total: a.totalQuestions,
+          pointsEarned: a.pointsEarned ?? 0,
+          passed,
+          passingScore,
+          completedAt: a.completedAt,
+        };
+      });
+      const totalPoints = attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0);
+      res.json({
+        student: {
+          id: student.id,
+          displayName: student.displayName,
+          username: student.username,
+          isEyeGazeUser: student.is_eye_gaze_user || false,
+          teacherId: student.teacherId || null,
+        },
+        totalPoints,
+        quizzesTaken: attempts.length,
+        totalBooks: books.length,
+        quizResults,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to load student profile" });
+    }
+  });
+
   // Admin: manually create teacher account (pre-approved)
   app.post("/api/admin/teachers", authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
