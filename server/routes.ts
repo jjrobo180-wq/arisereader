@@ -287,38 +287,38 @@ export async function registerRoutes(
         await storage.upsertSetting('teacher_grades', JSON.stringify(teacherGrades));
       }
 
-      // Don't create a session - teacher must be approved first
-      // Clear teachers cache so admin sees the new pending teacher immediately
+      // Clear teachers cache
+      try { clearCache('teachers'); } catch {}
+
+      // Send emails BEFORE responding so they actually execute
+      let emailSent = false;
+      let emailError = '';
+      try {
+        const result = await sendEmail(
+          ADMIN_NOTIFY_EMAIL,
+          "New teacher signup - A.R.I.S.E Reader",
+          teacherSignupNotifyEmail(displayName, username.toLowerCase(), email || 'No email provided')
+        );
+        emailSent = result.sent;
+        if (!result.sent) emailError = result.error || 'Unknown error';
+      } catch (e: any) {
+        emailError = e.message;
+      }
+
+      // Send confirmation email to the teacher (non-blocking - failure is OK)
+      if (email) {
+        sendEmail(
+          email,
+          "Teacher account request received - A.R.I.S.E Reader",
+          teacherSignupConfirmEmail(displayName, username.toLowerCase())
+        ).catch(() => {});
+      }
+
       res.status(201).json({
         success: true,
+        emailSent,
+        emailError,
         message: "Your request has been submitted! The admin will review your account and notify you when it's approved.",
-      });
-      setImmediate(async () => {
-        try { clearCache('teachers'); } catch {}
-        // Notify admin about the new teacher signup
-        try {
-          const result = await sendEmail(
-            ADMIN_NOTIFY_EMAIL,
-            "New teacher signup - A.R.I.S.E Reader",
-            teacherSignupNotifyEmail(displayName, username.toLowerCase(), email || 'No email provided')
-          );
-          console.log('[teacher-signup] Admin email result:', JSON.stringify(result));
-        } catch (e: any) {
-          console.error('[teacher-signup] Admin email FAILED:', e.message);
-        }
-        // Send confirmation email to the teacher
-        if (email) {
-          try {
-            const result = await sendEmail(
-              email,
-              "Teacher account request received - A.R.I.S.E Reader",
-              teacherSignupConfirmEmail(displayName, username.toLowerCase())
-            );
-            console.log('[teacher-signup] Teacher email result:', JSON.stringify(result));
-          } catch (e: any) {
-            console.error('[teacher-signup] Teacher email FAILED:', e.message);
-          }
-        }
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
