@@ -43,6 +43,7 @@ export default function LeaderboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [userBand, setUserBand] = useState<string | null>(null);
   const [selectedBand, setSelectedBand] = useState<string | null>(null);
+  const [showEGInfo, setShowEGInfo] = useState(false);
   const recentMonths = getRecentMonths(6);
 
   // Fetch user's grade band
@@ -240,10 +241,14 @@ export default function LeaderboardPage() {
                           <Icon className={`w-6 h-6 ${colors.text}`} />
                         </div>
                         <p className={`text-lg font-bold ${colors.text}`}>#{entry.rank}</p>
-                        <p className="font-bold text-sm text-white mt-1 truncate">
+                        <p className="font-bold text-sm text-white mt-1 truncate flex items-center gap-1 justify-center">
                           {entry.displayName}
                           {entry.isEyeGazeUser && (
-                            <span className="ml-1 text-xs px-1 py-0.5 rounded bg-yellow-500/30 text-yellow-300 font-semibold" title="Eye Gaze / Non-Verbal user">!EG</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setShowEGInfo(!showEGInfo); }}
+                              className="ml-1 text-xs px-1 py-0.5 rounded bg-yellow-500/30 text-yellow-300 font-semibold cursor-pointer hover:bg-yellow-500/50 transition-colors"
+                            >!EG</button>
                           )}
                         </p>
                       </div>
@@ -281,7 +286,11 @@ export default function LeaderboardPage() {
                             <p className="font-medium text-sm truncate flex items-center gap-1">
                               {entry.displayName}
                               {entry.isEyeGazeUser && (
-                                <span className="text-xs px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-semibold flex-shrink-0" title="Eye Gaze / Non-Verbal user">!EG</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setShowEGInfo(!showEGInfo); }}
+                                  className="text-xs px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-semibold flex-shrink-0 cursor-pointer hover:bg-yellow-500/40 transition-colors"
+                                >!EG</button>
                               )}
                             </p>
                             <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
@@ -308,6 +317,52 @@ export default function LeaderboardPage() {
               </Button>
             </div>
           </>
+        )}
+
+        {/* !EG Info Popup */}
+        {showEGInfo && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setShowEGInfo(false)}
+          >
+            <div
+              className="max-w-md w-full bg-card border border-border rounded-2xl p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 font-bold">!EG</span>
+                  <h3 className="font-bold text-base">What does !EG mean?</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEGInfo(false)}
+                  className="text-muted-foreground hover:text-foreground text-lg leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  <strong className="text-foreground">!EG</strong> stands for <strong className="text-foreground">Eye Gaze</strong>. Students with this badge use eye-tracking technology or alternative access methods to take their quizzes.
+                </p>
+                <p>
+                  These students compete on the <strong className="text-foreground">same leaderboard</strong> as everyone else in their grade band. We recognize that they navigate reading and comprehension differently, so their quiz points are <strong className="text-foreground">curved higher</strong> to ensure they're never at a disadvantage.
+                </p>
+                <p>
+                  We regularly review performance data to adjust point values. You may notice a slight increase on an EG student's leaderboard score from time to time (never a decrease) to keep competition fair and inclusive.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="w-full mt-5"
+                onClick={() => setShowEGInfo(false)}
+              >
+                Got it
+              </Button>
+            </div>
+          </div>
         )}
       </main>
     </div>
