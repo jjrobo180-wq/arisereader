@@ -3706,28 +3706,28 @@ export async function registerRoutes(
   app.get("/api/admin/easter-eggs", authMiddleware, async (req: any, res) => {
     try {
       const { data: settings } = await supabase.from('easter_eggs').select('*').limit(1).single();
+      
+      let claimsWithUsers: any[] = [];
       const { data: claims } = await supabase
         .from('easter_egg_claims')
         .select('id, user_id, points_awarded, claimed_at')
         .order('claimed_at', { ascending: false });
 
-      // Get user names for claims
-      const userIds = (claims || []).map((c: any) => c.user_id);
-      let userMap: Record<number, any> = {};
-      if (userIds.length > 0) {
+      if (claims && claims.length > 0) {
+        const userIds = claims.map((c: any) => c.user_id);
         const { data: users } = await supabase
           .from('users')
           .select('id, username, display_name, total_points')
           .in('id', userIds);
+        const userMap: Record<number, any> = {};
         (users || []).forEach((u: any) => { userMap[u.id] = u; });
+        claimsWithUsers = claims.map((c: any) => ({
+          ...c,
+          username: userMap[c.user_id]?.username || 'Unknown',
+          displayName: userMap[c.user_id]?.display_name || 'Unknown',
+          totalPoints: userMap[c.user_id]?.total_points || 0,
+        }));
       }
-
-      const claimsWithUsers = (claims || []).map((c: any) => ({
-        ...c,
-        username: userMap[c.user_id]?.username || 'Unknown',
-        displayName: userMap[c.user_id]?.display_name || 'Unknown',
-        totalPoints: userMap[c.user_id]?.total_points || 0,
-      }));
 
       res.json({
         active: settings?.active || false,
@@ -3851,21 +3851,14 @@ export async function registerRoutes(
         throw claimError;
       }
 
-      // Decrement remaining count atomically
-      await supabase.rpc('decrement_eggs', {}).then(async () => {
-        // Fallback if RPC doesn't exist
-      }).catch(async () => {
-        // Manual decrement
-        const { data: current } = await supabase.from('easter_eggs').select('remaining_eggs').limit(1).single();
-        if (current && current.remaining_eggs > 0) {
-          await supabase.from('easter_eggs').update({ remaining_eggs: current.remaining_eggs - 1 }).eq('id', settings.id);
-        }
-      });
+      // Decrement remaining count
+      const newRemaining = settings.remaining_eggs - 1;
+      await supabase.from('easter_eggs').update({ remaining_eggs: newRemaining }).eq('id', settings.id);
 
       // Add points to user's total_points
-      await supabase.from('users')
-        .update({ total_points: (await supabase.from('users').select('total_points').eq('id', req.user.id).single()).data.total_points + settings.points_per_egg })
-        .eq('id', req.user.id);
+      const { data: userData } = await supabase.from('users').select('total_points').eq('id', req.user.id).single();
+      const currentPoints = userData?.total_points || 0;
+      await supabase.from('users').update({ total_points: currentPoints + settings.points_per_egg }).eq('id', req.user.id);
 
       res.json({
         success: true,
