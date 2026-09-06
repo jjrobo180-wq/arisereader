@@ -9,7 +9,8 @@ import {
   BookOpen, ArrowLeft, ArrowRight, CheckCircle2, XCircle, Award, Trophy,
   Users, ClipboardList, GraduationCap, Bell, Inbox, Search, ChevronDown,
   Lock, MessageSquarePlus, BookPlus, UserPlus, X, ShieldCheck, Settings,
-  Sparkles, ChevronLeft, ChevronRight, BookUser, UserCog, PlayCircle, Eye
+  Sparkles, ChevronLeft, ChevronRight, BookUser, UserCog, PlayCircle, Eye,
+  Volume2
 } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import { generateCertificate } from "@/lib/certificate";
@@ -122,7 +123,7 @@ const EYE_GAZE_STEPS = [
   "Score & Results",
   "Progress Monitoring",
   "Leaderboard",
-  "Settings & Toggle",
+  "Text-to-Speech & Sample Quiz",
   "You're Ready!",
 ];
 
@@ -883,7 +884,7 @@ export default function Tutorial() {
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-3">Eye Gaze / Non-Verbal Tutorial</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  This tutorial is designed for eye gaze users and non-verbal students. Learn how to navigate the library, take visual quizzes, track progress, and use the eye gaze leaderboard.
+                  This tutorial is designed for eye gaze users and non-verbal students. Learn how to navigate the library, take visual quizzes with text-to-speech, track progress, and compete on the leaderboard.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
                   <div className="p-4 rounded-xl bg-card border border-border text-left">
@@ -893,13 +894,13 @@ export default function Tutorial() {
                   </div>
                   <div className="p-4 rounded-xl bg-card border border-border text-left">
                     <Trophy className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Eye Gaze Leaderboard</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Compete with other eye gaze users on a separate leaderboard</p>
+                    <h3 className="font-semibold text-sm">Shared Leaderboard</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Compete with your grade band on the same leaderboard</p>
                   </div>
                   <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Settings className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Profile Toggle</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Switch eye gaze mode on or off in settings anytime</p>
+                    <Volume2 className="w-6 h-6 text-primary mb-2" />
+                    <h3 className="font-semibold text-sm">Text-to-Speech</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Questions read aloud automatically with replay button</p>
                   </div>
                 </div>
                 <Button size="lg" onClick={() => setStep(1)} className="gap-2">
@@ -969,6 +970,21 @@ export default function Tutorial() {
                           <p className="text-xs font-semibold">Option {letter}</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Volume2 className="w-4 h-4 text-primary" />
+                      <p className="text-sm font-semibold text-primary">Text-to-Speech (TTS)</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Each question is read aloud automatically when it appears. The TTS reads the question prompt once. If the student needs to hear it again, they press the Replay button. For animal quizzes, the animal sound plays immediately after the question — for example: "What animal is this? Moo."
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/40 text-primary text-xs font-medium flex items-center gap-1">
+                        <Volume2 className="w-3 h-3" /> Replay
+                      </button>
+                      <p className="text-xs text-muted-foreground">Press to hear the question again</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
@@ -1063,12 +1079,12 @@ export default function Tutorial() {
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Trophy className="w-5 h-5 text-primary" />
-                    Eye Gaze Leaderboard
+                    Shared Leaderboard
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Eye gaze students have their own separate leaderboard. This keeps competition fair between eye gaze users and regular students.
+                    Eye gaze and non-verbal students compete on the same leaderboard as their grade band. A 6th grade eye gaze student is grouped with other 6th graders — not separated. This keeps competition inclusive and fair.
                   </p>
                   <div className="p-4 rounded-xl bg-card border border-border">
                     <div className="space-y-2">
@@ -1097,35 +1113,70 @@ export default function Tutorial() {
               </Card>
             )}
 
-            {/* Step 6: Settings & Toggle */}
+            {/* Step 6: Text-to-Speech & Sample Quiz */}
             {step === 6 && (
               <Card className="p-6">
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <Settings className="w-5 h-5 text-primary" />
-                    Settings & Toggle
+                    <Volume2 className="w-5 h-5 text-primary" />
+                    Text-to-Speech & Sample Quiz
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Eye gaze mode can be toggled on or off in settings at any time. When on, the student sees only eye gaze books and quizzes. When off, they see the regular library.
+                    Eye gaze quizzes include text-to-speech (TTS) that reads each question aloud. Here's what to expect during a real quiz:
                   </p>
-                  <div className="p-4 rounded-xl bg-card border border-border">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                      <div className="flex items-center gap-2">
-                        <Eye className="w-5 h-5 text-primary" />
-                        <div>
-                          <p className="text-sm font-semibold">Eye Gaze Mode</p>
-                          <p className="text-xs text-muted-foreground">Show eye gaze quizzes and books</p>
+                  <div className="p-4 rounded-xl bg-card border border-border space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-5 h-5 text-primary" />
+                      <p className="text-sm font-semibold">How TTS Works</p>
+                    </div>
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <p><strong className="text-foreground">1. Question read once:</strong> When a question appears, the TTS automatically reads the prompt aloud. Example: "What animal is this?"</p>
+                      <p><strong className="text-foreground">2. Animal sound:</strong> For animal quizzes, the animal's sound plays immediately after the question. Example: "What animal is this? Moo."</p>
+                      <p><strong className="text-foreground">3. Replay button:</strong> If the student needs to hear it again, they press the Replay button. The question and sound are only repeated when Replay is pressed.</p>
+                      <p><strong className="text-foreground">4. No right/wrong feedback:</strong> TTS does not reveal correct or incorrect answers. It only reads the question and animal sound.</p>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                    <p className="text-sm font-semibold text-primary mb-2">Sample Quiz Walkthrough</p>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">🐶</span>
+                          <span className="text-sm font-medium">Question 1: What animal is this?</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐕 Dog</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐱 Cat</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐰 Rabbit</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐟 Fish</div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Volume2 className="w-3 h-3 text-primary" />
+                          <p className="text-xs text-muted-foreground">TTS says: "What animal is this? Woof woof."</p>
                         </div>
                       </div>
-                      <div className="w-12 h-6 rounded-full bg-primary flex items-center justify-end pr-1">
-                        <div className="w-4 h-4 rounded-full bg-white" />
+                      <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">🐮</span>
+                          <span className="text-sm font-medium">Question 2: What animal is this?</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐶 Dog</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐮 Cow</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐷 Pig</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐴 Horse</div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Volume2 className="w-3 h-3 text-primary" />
+                          <p className="text-xs text-muted-foreground">TTS says: "What animal is this? Moo."</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    During signup, students can check a box to enable eye gaze mode. This can be changed later in settings.
+                    TTS uses the Web Speech API with natural voices. It works in Chrome, Edge, and Safari. The voice can be customized in the browser settings.
                   </p>
                   <div className="flex justify-between">
                     <Button variant="outline" size="sm" onClick={() => setStep(5)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
@@ -1143,14 +1194,14 @@ export default function Tutorial() {
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-3">You're Ready!</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  You now know how to navigate the eye gaze library, take visual quizzes, track progress, and use the eye gaze leaderboard. Create an account to get started!
+                  You now know how to navigate the eye gaze library, take visual quizzes with text-to-speech, track progress, and compete on the shared leaderboard. Create an account to get started!
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button size="lg" onClick={() => navigate("/register")} className="gap-2">
                     <UserPlus className="w-5 h-5" /> Create Account
                   </Button>
                   <Button size="lg" variant="outline" onClick={() => navigate("/leaderboard")} className="gap-2">
-                    <Trophy className="w-5 h-5" /> View Eye Gaze Leaderboard
+                    <Trophy className="w-5 h-5" /> View Leaderboard
                   </Button>
                 </div>
               </div>

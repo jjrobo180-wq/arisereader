@@ -15,6 +15,7 @@ interface AuthUser {
   is_eye_gaze_user?: boolean;
   email?: string | null;
   schoolId?: number | null;
+  totalPoints?: number;
 }
 
 interface AuthContextType {
@@ -24,6 +25,7 @@ interface AuthContextType {
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -160,6 +162,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistSession(data.user, data.token);
   }, [persistSession]);
 
+  const refreshUser = useCallback(async () => {
+    if (!sessionRef.current.token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/me`, {
+        headers: { Authorization: `Bearer ${sessionRef.current.token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const updatedUser = { ...sessionRef.current.user, ...data } as AuthUser;
+        persistSession(updatedUser, sessionRef.current.token);
+      }
+    } catch {}
+  }, [persistSession]);
+
   const logout = useCallback(() => {
     if (sessionRef.current.token) {
       fetch(`${API_BASE}/api/logout`, {
@@ -174,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persistSession]);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

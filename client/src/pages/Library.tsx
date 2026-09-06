@@ -72,7 +72,7 @@ let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; 
 };
 
 export default function Library() {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, refreshUser } = useAuth();
   const [, navigate] = useLocation();
   // Initialize from cache so data shows instantly on remount
   const [books, setBooks] = useState<Book[]>(libraryCache.books);
@@ -260,6 +260,11 @@ export default function Library() {
     return () => clearInterval(interval);
   }, [fetchBooks, fetchAnnouncement, token, user?.is_eye_gaze_user]);
 
+  // Refresh user points when library loads (catches quiz completions)
+  useEffect(() => {
+    refreshUser();
+  }, []);
+
   // Clear caches on global logout event
   useEffect(() => {
     const clearCaches = () => {
@@ -400,7 +405,7 @@ export default function Library() {
   };
 
   const completedIds = new Set((results || []).map(r => r.bookId));
-  const totalPoints = (results || []).reduce((sum, r) => sum + (r.pointsEarned ?? r.score ?? 0), 0);
+  const totalPoints = user?.totalPoints ?? (results || []).reduce((sum, r) => sum + (r.pointsEarned ?? r.score ?? 0), 0);
 
   // Filter books by search and admin band filter
   const filteredBooks = (searchQuery.trim()

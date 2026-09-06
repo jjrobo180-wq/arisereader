@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
-import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 
 interface LeaderboardEntry {
@@ -42,6 +42,7 @@ export default function LeaderboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [boardType, setBoardType] = useState<"regular" | "eye-gaze">("regular");
   const [userBand, setUserBand] = useState<string | null>(null);
+  const [selectedBand, setSelectedBand] = useState<string | null>(null);
   const recentMonths = getRecentMonths(6);
 
   // Fetch user's grade band
@@ -57,19 +58,27 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     setLoading(true);
-    const base = boardType === "eye-gaze" ? `${API_BASE}/api/tutorial/eye-gaze-leaderboard` : `${API_BASE}/api/tutorial/leaderboard`;
+    const token = document.cookie.split('; ').find(c => c.startsWith('token='))?.split('=')[1];
+    // Use authenticated endpoint when logged in (respects teacher band filtering),
+    // fall back to public tutorial endpoint when not logged in
+    const isAuthed = !!token;
+    const base = boardType === "eye-gaze"
+      ? (isAuthed ? `${API_BASE}/api/eye-gaze-leaderboard` : `${API_BASE}/api/tutorial/eye-gaze-leaderboard`)
+      : (isAuthed ? `${API_BASE}/api/leaderboard` : `${API_BASE}/api/tutorial/leaderboard`);
     const params = new URLSearchParams();
     if (period === "monthly") params.set("month", selectedMonth);
-    if (userBand) params.set("band", userBand);
+    if (selectedBand) params.set("band", selectedBand);
+    else if (userBand) params.set("band", userBand);
     const url = `${base}${params.toString() ? `?${params.toString()}` : ""}`;
-    fetch(url)
+    const headers: Record<string, string> = isAuthed ? { Authorization: `Bearer ${token}` } : {};
+    fetch(url, { headers })
       .then(res => { if (!res.ok) throw new Error('Failed'); return res.json(); })
       .then(data => {
         if (Array.isArray(data)) setLeaderboard(data);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [period, selectedMonth, boardType, userBand]);
+  }, [period, selectedMonth, boardType, userBand, selectedBand]);
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
@@ -142,6 +151,34 @@ export default function LeaderboardPage() {
           >
             Eye Gaze / Non-Verbal
           </button>
+        </div>
+
+        {/* Band Filter Buttons */}
+        <div className="flex items-center justify-center gap-2 mb-6 flex-wrap">
+          <button
+            onClick={() => setSelectedBand(null)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              !selectedBand
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+            }`}
+          >
+            <Users className="w-3 h-3 inline mr-1" />
+            All Bands
+          </button>
+          {["K-2", "3-5", "6-8", "9-12"].map((band) => (
+            <button
+              key={band}
+              onClick={() => setSelectedBand(band)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedBand === band
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+              }`}
+            >
+              Grades {band}
+            </button>
+          ))}
         </div>
 
         {/* Period Toggle */}

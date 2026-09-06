@@ -431,6 +431,7 @@ export class DatabaseStorage implements IStorage {
     clearCache("leaderboard");
     clearCache("allUsers");
     clearCache("monthlyLeaderboard_");
+    clearCache("session_");
     return { ...mapAttempt(data), passed, passingScore, bookPoints };
   }
 
@@ -1741,6 +1742,7 @@ export class DatabaseStorage implements IStorage {
     clearCache("allUsers");
     clearCache("eye_gaze_leaderboard");
     clearCache("monthlyLeaderboard_");
+    clearCache("session_");
     return { ...data, skill_scores: skillScores, pct, passed, pointsEarned };
   }
 
@@ -2159,6 +2161,7 @@ export class DatabaseStorage implements IStorage {
     clearCache("allUsers");
     clearCache("eye_gaze_leaderboard");
     clearCache("monthlyLeaderboard_");
+    clearCache("session_");
     return { ...data, pct, score, total, passed, pointsEarned };
   }
 

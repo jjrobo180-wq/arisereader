@@ -221,7 +221,7 @@ export async function registerRoutes(
       const session = await storage.createSession(user.id);
       res.status(201).json({
         token: session.token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, schoolId: user.school_id },
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, schoolId: user.school_id, totalPoints: user.totalPoints || 0 },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -374,7 +374,7 @@ export async function registerRoutes(
       const popupShown = !!(user as any).assessment_prompt_seen_at;
       res.json({
         token: session.token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id },
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0 },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -392,6 +392,7 @@ export async function registerRoutes(
       username: req.user.username,
       displayName: req.user.displayName,
       isAdmin: req.user.isAdmin,
+      totalPoints: req.user.totalPoints || 0,
     });
   });
 
@@ -451,6 +452,41 @@ export async function registerRoutes(
       }
 
       return res.json(filtered);
+    }
+
+    // ── Teacher band filtering ──
+    // Teachers only see books in their assigned grade bands
+    if (req.user.role === 'teacher' && !req.user.isAdmin) {
+      const rawTeacherGrades = await storage.getSetting('teacher_grades');
+      let teacherGrades: Record<string, string[]> = {};
+      if (rawTeacherGrades) { try { teacherGrades = JSON.parse(rawTeacherGrades); } catch {} }
+      const myGrades = teacherGrades[String(req.user.id)] || [];
+      const myBands = new Set(myGrades.map((g: string) => gradeToBand(g)).filter(Boolean));
+
+      if (myBands.size > 0) {
+        const filtered = books.filter((b: any) => {
+          const bid = String(b.id);
+          const bookBand = bookBands[bid];
+          // Include if no band assigned, primary band matches, or overlap includes one of teacher's bands
+          if (!bookBand || myBands.has(bookBand)) return true;
+          const overlaps = bookOverlaps[bid];
+          if (overlaps && overlaps.some((o: string) => myBands.has(o))) return true;
+          return false;
+        }).map((b: any) => {
+          const bid = String(b.id);
+          // Apply point override for the first matching band
+          const overrides = pointOverrides[bid];
+          if (overrides) {
+            for (const band of myBands) {
+              if (overrides[band]) {
+                return { ...b, points_value: overrides[band], original_points_value: b.points_value };
+              }
+            }
+          }
+          return b;
+        });
+        return res.json(filtered);
+      }
     }
 
     // ── Admin band simulation ──
