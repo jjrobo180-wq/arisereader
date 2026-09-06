@@ -53,49 +53,6 @@ export default function Quiz() {
 
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
 
-  // Spectator mode: teachers/admins can view quizzes but not take them
-  if (isTeacherOrAdmin && !loading && book && questions.length > 0) {
-    return (
-      <div className="min-h-screen p-4 bg-background">
-        <div className="max-w-3xl mx-auto">
-          <Card className="shadow-xl mb-4">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-16 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                {book.coverUrl ? <img src={book.coverUrl} alt="Cover" className="w-full h-full object-cover" /> : <BookOpen className="w-8 h-8 m-auto mt-6" />}
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">{book.title}</h1>
-                <p className="text-sm text-muted-foreground">by {book.author}</p>
-                <span className="inline-block mt-1 px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">Spectator Mode (Read-Only)</span>
-              </div>
-            </CardContent>
-          </Card>
-          <div className="space-y-3">
-            {questions.map((q, i) => (
-              <Card key={q.id} className="shadow-md">
-                <CardContent className="p-4">
-                  <p className="font-medium mb-3"><span className="text-primary font-bold">Q{i + 1}.</span> {q.questionText}</p>
-                  <div className="space-y-2">
-                    {['A', 'B', 'C', 'D'].map(opt => (
-                      <div key={opt} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
-                        <span className="w-6 h-6 rounded-full bg-muted text-xs flex items-center justify-center font-bold">{opt}</span>
-                        <span className="text-sm">{q[`option${opt}` as keyof SafeQuestion] as string}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Button variant="ghost" className="mt-4" onClick={() => navigate("/library")}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Library
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const handleRequestReview = async () => {
     if (!token || !result?.attemptId) return;
     setReviewSubmitting(true);
@@ -198,6 +155,49 @@ export default function Quiz() {
       setSubmitting(false);
     }
   };
+
+  // Spectator mode: teachers/admins can view quizzes but not take them
+  if (isTeacherOrAdmin && !loading && book && questions.length > 0) {
+    return (
+      <div className="min-h-screen p-4 bg-background">
+        <div className="max-w-3xl mx-auto">
+          <Card className="shadow-xl mb-4">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-16 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                {book.coverUrl ? <img src={book.coverUrl} alt="Cover" className="w-full h-full object-cover" /> : <BookOpen className="w-8 h-8 m-auto mt-6" />}
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">{book.title}</h1>
+                <p className="text-sm text-muted-foreground">by {book.author}</p>
+                <span className="inline-block mt-1 px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">Spectator Mode (Read-Only)</span>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="space-y-3">
+            {questions.map((q, i) => (
+              <Card key={q.id} className="shadow-md">
+                <CardContent className="p-4">
+                  <p className="font-medium mb-3"><span className="text-primary font-bold">Q{i + 1}.</span> {q.questionText}</p>
+                  <div className="space-y-2">
+                    {['A', 'B', 'C', 'D'].map(opt => (
+                      <div key={opt} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+                        <span className="w-6 h-6 rounded-full bg-muted text-xs flex items-center justify-center font-bold">{opt}</span>
+                        <span className="text-sm">{q[`option${opt}` as keyof SafeQuestion] as string}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Button variant="ghost" className="mt-4" onClick={() => navigate("/library")}>
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back to Library
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

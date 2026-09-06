@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info, Megaphone } from "lucide-react";
+import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info, Megaphone, Sparkles } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 
 export default function Login() {
@@ -177,6 +177,25 @@ export default function Login() {
               <Button type="submit" className="w-full bg-primary" disabled={loading} data-testid="button-login">
                 {loading ? "Logging in..." : "Log In"}
               </Button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setError("");
+                  setLoading(true);
+                  try {
+                    await login("sample", "sample1234");
+                  } catch (err: any) {
+                    setError(err.message);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4" />
+                Try Sample Account
+              </button>
               <div className="text-center text-sm text-muted-foreground">
                 New here?{" "}
                 <button
