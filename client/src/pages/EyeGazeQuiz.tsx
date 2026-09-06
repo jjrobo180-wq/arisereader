@@ -114,7 +114,7 @@ export default function EyeGazeQuiz() {
         }
       })
       .catch(() => setError("Failed to load quiz"));
-  }, [quizId, user]);
+  }, [quizId, user, phase]);
 
   const handleSelectAnswer = (answer: string) => {
     if (selectedAnswer || autoAdvancing) return;
