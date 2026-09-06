@@ -138,8 +138,8 @@ export default function CustomEyeGazeQuiz() {
   useEffect(() => {
     if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
       const q = quiz.questions[currentIdx];
-      const correctAnswer = q.correct_answer || q.correctAnswer || "";
-      speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
+      const visual = q.visual || "";
+      speakQuestion(q.prompt, visual, (text) => setSubtitle(text));
     }
     return () => {
       stopSpeaking();
@@ -340,8 +340,8 @@ export default function CustomEyeGazeQuiz() {
           <button
             onClick={() => {
               const q = quiz.questions[currentIdx];
-              const correctAnswer = q.correct_answer || q.correctAnswer || "";
-              speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
+              const visual = q.visual || "";
+              speakQuestion(q.prompt, visual, (text) => setSubtitle(text));
             }}
             style={{ marginTop: "0.5rem", background: "none", border: "1px solid hsl(0 0% 30%)", borderRadius: "0.5rem", padding: "0.3rem 0.75rem", color: "hsl(0 0% 66%)", fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
             title="Hear question again"

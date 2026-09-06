@@ -60,6 +60,43 @@ const SOUND_MAP: Record<string, string> = {
   door: "knock knock",
 };
 
+// Emoji-to-sound mapping - used to play animal/vehicle sounds from the quiz visual
+const EMOJI_SOUND_MAP: Record<string, string> = {
+  "🐶": "woof woof", "🐕": "woof woof", "🐩": "woof woof",
+  "🐱": "meow", "🐈": "meow",
+  "🐰": "squeak squeak", "🐇": "squeak squeak",
+  "🐮": "mooo", "🐂": "mooo", " calf": "mooo",
+  "🐷": "oink oink", "🐖": "oink oink", "🐗": "oink oink",
+  "🐴": "neigh", "🐎": "neigh",
+  "🐑": "baa baa", "🐐": "maa maa", "🐏": "baa baa",
+  "🦆": "quack quack",
+  "🐔": "cluck cluck", "🐓": "cock a doodle doo", " henne": "cluck cluck", " chick": "cheep cheep",
+  "🦃": "gobble gobble",
+  "🦢": "honk honk", "🦉": "hoot hoot", "🦅": "screech",
+  "🦇": "squeak",
+  "🐺": "awoooo", "🦊": "ring ding ding",
+  "🦝": "hiss",
+  "🦁": "roar", "🐯": "roar", "🐅": "roar",
+  "🐻": "grrr", "🐼": "grrr", "🐨": "grrr",
+  "🐵": "ooh ooh aah aah", "🐒": "ooh ooh aah aah", "🦍": "ooh ooh aah aah",
+  "🐘": "pawooo", "🦣": "pawooo", "🦏": "pawooo", "🦛": "grunt grunt",
+  "🐭": "squeak squeak", "🐁": "squeak squeak", "🐀": "squeak squeak", "🐹": "squeak squeak",
+  "🐿": "chatter chatter", "🦫": "slap slap", "🦔": "sniff sniff",
+  "🦎": "hiss", "🐊": "snap snap", "🐢": "slow and steady",
+  "🐍": "hiss",
+  "🐲": "roar", "🐉": "roar", "🦕": "roar", "🦖": "roar",
+  "🐳": "woooosh", "🐋": "woooosh", "🐬": "click click click",
+  "🐟": "blub blub", "🐠": "blub blub", "🐡": "blub blub",
+  "🦈": "dun dun dun dun",
+  "🐙": "squish squish", "🦑": "squish squish",
+  "🦐": "snap snap", "🦞": "snap snap", "🦀": "snap snap",
+  "🐚": "whoosh", "🪼": "bloop bloop",
+  "🐝": "buzz buzz", "🐛": "crunch crunch", "🦋": "flutter flutter",
+  "🐌": "slime slime", "🐞": "tap tap", "🐜": "tap tap",
+  "🪲": "click click", "🦟": "buzz buzz", "🪰": "buzz buzz",
+  "🪱": "slither slither",
+};
+
 let selectedVoice: SpeechSynthesisVoice | null = null;
 let currentSubtitle: string = "";
 
@@ -202,10 +239,22 @@ function findSoundForAnswer(answerText: string): string | null {
   return null;
 }
 
+// Find sound from emoji visual
+function findSoundFromEmoji(visual: string): string | null {
+  if (!visual) return null;
+  // Check each character in the visual string against the emoji map
+  for (const char of visual) {
+    if (EMOJI_SOUND_MAP[char]) {
+      return EMOJI_SOUND_MAP[char];
+    }
+  }
+  return null;
+}
+
 // Speak a question, then play the animal sound if the question is about animals
 export function speakQuestion(
   prompt: string,
-  correctAnswer: string,
+  visual: string,
   onSubtitle?: (text: string) => void,
   onDone?: () => void
 ) {
@@ -222,7 +271,8 @@ export function speakQuestion(
     onEnd: () => {
       // Only play animal sound if the question is about animals/sounds
       if (isSoundQuestion(prompt)) {
-        const sound = findSoundForAnswer(correctAnswer);
+        // Use the emoji visual to find the sound
+        const sound = findSoundFromEmoji(visual);
         if (sound) {
           setTimeout(() => {
             speak(sound, {
@@ -231,10 +281,22 @@ export function speakQuestion(
               onSubtitle,
               onEnd: () => onDone?.(),
             });
-          }, 400);
+          }, 300);
         } else {
-          // No sound mapping, just speak the answer
-          onDone?.();
+          // No emoji sound found, try text-based lookup
+          const textSound = findSoundForAnswer(visual);
+          if (textSound) {
+            setTimeout(() => {
+              speak(textSound, {
+                rate: 0.7,
+                pitch: 1.3,
+                onSubtitle,
+                onEnd: () => onDone?.(),
+              });
+            }, 300);
+          } else {
+            onDone?.();
+          }
         }
       } else {
         onDone?.();
@@ -255,10 +317,10 @@ export function speakOption(text: string, onSubtitle?: (text: string) => void) {
 // Speak the question prompt again (replay)
 export function replayQuestion(
   prompt: string,
-  correctAnswer: string,
+  visual: string,
   onSubtitle?: (text: string) => void
 ) {
-  speakQuestion(prompt, correctAnswer, onSubtitle);
+  speakQuestion(prompt, visual, onSubtitle);
 }
 
 // Stop any ongoing speech

@@ -428,6 +428,9 @@ export class DatabaseStorage implements IStorage {
       }).select().single()
     );
     if (!data) throw new Error("Failed to create attempt");
+    clearCache("leaderboard");
+    clearCache("allUsers");
+    clearCache("monthlyLeaderboard_");
     return { ...mapAttempt(data), passed, passingScore, bookPoints };
   }
 
@@ -545,9 +548,9 @@ export class DatabaseStorage implements IStorage {
 
   async getLeaderboard() {
     return cached('leaderboard', 300000, async () => {
-      // Use embedded resources to fetch users with their attempts in a single query
+      // Fetch users with regular attempts AND eye gaze attempts AND total_points
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, attempts(points_earned)").eq("is_admin", false)
+        supabase.from("users").select("id, username, display_name, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false)
       );
       if (allUsers.length === 0) return [];
 
@@ -556,13 +559,22 @@ export class DatabaseStorage implements IStorage {
 
       const result = allUsers.map((user) => {
         const attempts = user.attempts || [];
-        const totalPoints = attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
+        const eyeGazeAttempts = user.eye_gaze_attempts || [];
+        // Points from regular quiz attempts
+        const regularPoints = attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
+        // Points from eye gaze attempts (10 points each if passed at 70%+)
+        const eyeGazePoints = eyeGazeAttempts.reduce((sum, a) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
+        // Use users.total_points as authoritative source (it's updated by all submission functions)
+        const totalPoints = user.total_points || 0;
         return {
           id: user.id,
           username: user.username,
           displayName: user.display_name,
           totalPoints,
-          quizzesTaken: attempts.length,
+          quizzesTaken: attempts.length + eyeGazeAttempts.length,
           totalBooks,
         };
       });
@@ -976,9 +988,9 @@ export class DatabaseStorage implements IStorage {
       const [year, month] = yearMonth.split("-").map(Number);
       const nextMonth = month === 12 ? `${year + 1}-01-01T00:00:00Z` : `${year}-${String(month + 1).padStart(2, "0")}-01T00:00:00Z`;
 
-      // Use embedded resources to fetch users with their attempts in a single query
+      // Fetch users with regular attempts AND eye gaze attempts
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, attempts(points_earned, completed_at)").eq("is_admin", false)
+        supabase.from("users").select("id, username, display_name, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false)
       );
       if (allUsers.length === 0) return [];
 
@@ -988,19 +1000,33 @@ export class DatabaseStorage implements IStorage {
       const result = [];
       for (const user of allUsers) {
         const allAttempts = user.attempts || [];
-        // Filter by date in JavaScript (single query vs N queries)
+        // Filter regular attempts by date
         const monthlyAttempts = allAttempts.filter(a => {
           const d = a.completed_at;
           return d && d >= startDate && d < nextMonth;
         });
         const monthlyPoints = monthlyAttempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
-        if (monthlyAttempts.length > 0) {
+
+        // Filter eye gaze attempts by date and add their points
+        const eyeGazeAttempts = user.eye_gaze_attempts || [];
+        const monthlyEyeGaze = eyeGazeAttempts.filter(a => {
+          const d = a.completed_at;
+          return d && d >= startDate && d < nextMonth;
+        });
+        const eyeGazePoints = monthlyEyeGaze.reduce((sum, a) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
+
+        const totalMonthlyPoints = monthlyPoints + eyeGazePoints;
+        const totalMonthlyQuizzes = monthlyAttempts.length + monthlyEyeGaze.length;
+        if (totalMonthlyQuizzes > 0) {
           result.push({
             id: user.id,
             username: user.username,
             displayName: user.display_name,
-            totalPoints: monthlyPoints,
-            quizzesTaken: monthlyAttempts.length,
+            totalPoints: totalMonthlyPoints,
+            quizzesTaken: totalMonthlyQuizzes,
             totalBooks,
           });
         }
@@ -1711,6 +1737,10 @@ export class DatabaseStorage implements IStorage {
     }
     await this.updateEyeGazeProfile(attempt.user_id, pct, skillScores);
     clearCache("eye_gaze_quizzes");
+    clearCache("leaderboard");
+    clearCache("allUsers");
+    clearCache("eye_gaze_leaderboard");
+    clearCache("monthlyLeaderboard_");
     return { ...data, skill_scores: skillScores, pct, passed, pointsEarned };
   }
 
@@ -2125,6 +2155,10 @@ export class DatabaseStorage implements IStorage {
       }).then(() => {}, () => {});
     }
     clearCache("custom_eye_gaze_quizzes");
+    clearCache("leaderboard");
+    clearCache("allUsers");
+    clearCache("eye_gaze_leaderboard");
+    clearCache("monthlyLeaderboard_");
     return { ...data, pct, score, total, passed, pointsEarned };
   }
 
