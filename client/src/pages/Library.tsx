@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, Info, GraduationCap } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -535,10 +535,6 @@ export default function Library() {
               <BarChart3 className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Polls</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/about")} className="hidden sm:flex">
-              <Info className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">About</span>
-            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} data-testid="button-profile" className="hidden sm:flex">
               <User className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">{user?.displayName}</span>
@@ -571,9 +567,6 @@ export default function Library() {
                   </button>
                   <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" /> Polls
-                  </button>
-                  <button onClick={() => { navigate("/about"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <Info className="w-4 h-4" /> About
                   </button>
                   <button onClick={() => { navigate("/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <User className="w-4 h-4" /> {user?.displayName || "Profile"}
