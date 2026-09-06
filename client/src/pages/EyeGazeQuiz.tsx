@@ -1,55 +1,96 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation, useParams } from "wouter";
-import { CheckCircle2, Trophy, RotateCcw, ArrowLeft, Volume2, VolumeX } from "lucide-react";
+import { useParams } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { ProctorGate } from "@/components/ProctorGate";
-import { speakQuestion, stopSpeaking, initVoices } from "@/lib/tts";
-
 import { API_BASE } from "@/lib/queryClient";
+import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye } from "lucide-react";
+import { initVoices, speakQuestion, speakOption, stopSpeaking, speak } from "@/lib/tts";
 
 function getTokenFromCookie(): string | null {
+  const match = document.cookie.match(/arise_session=([^;]+)/);
+  if (!match) return null;
   try {
-    const cookies = document.cookie.split(";");
-    for (let i = 0; i < cookies.length; i++) {
-      const c = cookies[i].trim();
-      if (c.startsWith("arise_session=")) {
-        const raw = c.substring("arise_session".length + 1);
-        const data = JSON.parse(atob(raw));
-        return data.token || null;
-      }
-    }
-  } catch {}
-  return null;
-}
-
-interface Question {
-  id: number;
-  prompt: string;
-  visual: string;
-  visual_type: string;
-  option_a: string;
-  option_b: string;
-  option_c: string;
-  option_d: string;
-  question_order: number;
-}
-
-interface Quiz {
-  id: number;
-  title: string;
-  description: string;
-  level: number;
-  cover_visual: string;
-  questions: Question[];
+    const decoded = JSON.parse(atob(match[1]));
+    return decoded.token || null;
+  } catch {
+    return null;
+  }
 }
 
 const LEVEL_LABELS: Record<number, string> = {
-  1: "Level 1: Look and Choose",
-  2: "Level 2: Match and Identify",
-  3: "Level 3: Simple Story Questions",
+  1: "Level 1: Identification",
+  2: "Level 2: Matching",
+  3: "Level 3: Discrimination",
   4: "Level 4: Comprehension",
   5: "Level 5: Advanced",
 };
+
+interface Quiz {
+  questions: any[];
+  attemptId: number;
+}
+
+interface ProctorGateProps {
+  quizTitle: string;
+  onAuthorized: () => void;
+}
+
+function ProctorGate({ quizTitle, onAuthorized }: ProctorGateProps) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) return;
+    setChecking(true);
+    setError("");
+    try {
+      const token = getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/eye-gaze/verify-proctor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.verified) {
+        onAuthorized();
+      } else {
+        setError(data.message || "Incorrect proctor password");
+      }
+    } catch {
+      setError("Failed to verify. Please try again.");
+    }
+    setChecking(false);
+  };
+
+  return (
+    <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
+      <Eye size={48} color="hsl(21 100% 50%)" />
+      <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "hsl(0 0% 100%)" }}>{quizTitle}</h2>
+      <p style={{ color: "hsl(0 0% 66%)", fontSize: "0.9rem" }}>Enter the proctor password to begin.</p>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 300, width: "100%" }}>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Proctor password"
+          autoFocus
+          style={{ padding: "0.75rem 1rem", borderRadius: "0.5rem", border: "1px solid hsl(0 0% 30%)", background: "hsl(0 0% 10%)", color: "white", fontSize: "1rem", outline: "none" }}
+        />
+        {error && <p style={{ color: "hsl(0 80% 60%)", fontSize: "0.85rem" }}>{error}</p>}
+        <button
+          type="submit"
+          disabled={checking}
+          className="btn btn-primary"
+          style={{ padding: "0.75rem 1.5rem", borderRadius: "0.5rem", border: "none", background: "hsl(21 100% 50%)", color: "hsl(0 0% 0%)", fontWeight: 700, cursor: "pointer", fontSize: "1rem" }}
+        >
+          {checking ? "Checking..." : "Start Quiz"}
+        </button>
+      </form>
+    </div>
+  );
+}
 
 export default function EyeGazeQuiz() {
   const { id } = useParams<{ id: string }>();
@@ -65,6 +106,8 @@ export default function EyeGazeQuiz() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [subtitle, setSubtitle] = useState("");
+  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize voices
@@ -76,17 +119,7 @@ export default function EyeGazeQuiz() {
     return () => stopSpeaking();
   }, []);
 
-  // Speak question when it changes
-  useEffect(() => {
-    if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
-      const q = quiz.questions[currentIdx];
-      // Check all options for animal/sound keywords
-      const options = [q.option_a, q.option_b, q.option_c, q.option_d];
-      speakQuestion(q.prompt, options.join(" "));
-    }
-    return () => stopSpeaking();
-  }, [currentIdx, phase, quiz, ttsEnabled]);
-
+  // Load quiz data when phase is loading
   useEffect(() => {
     if (!user) return;
     if (phase !== "loading") return;
@@ -116,64 +149,18 @@ export default function EyeGazeQuiz() {
       .catch(() => setError("Failed to load quiz"));
   }, [quizId, user, phase]);
 
-  const handleSelectAnswer = (answer: string) => {
-    if (selectedAnswer || autoAdvancing) return;
-    const currentQ = quiz?.questions[currentIdx];
-    if (!currentQ) return;
-    setSelectedAnswer(answer);
-    setAutoAdvancing(true);
-
-    const newAnswers = { ...answers, [currentQ.id]: answer };
-    setAnswers(newAnswers);
-
-    // Auto-advance after 1.5s so user sees their selection
-    advanceTimer.current = setTimeout(() => {
-      if (currentIdx < (quiz?.questions?.length || 0) - 1) {
-        setCurrentIdx((idx) => idx + 1);
-        setSelectedAnswer(null);
-        setAutoAdvancing(false);
-      } else {
-        // Submit
-        submitQuiz(newAnswers);
-      }
-    }, 1500);
-  };
-
-  const submitQuiz = (finalAnswers: Record<number, string>) => {
-    const token = getTokenFromCookie();
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-
-    fetch(`${API_BASE}/api/eye-gaze/quizzes/${quiz.attemptId}/submit`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ answers: finalAnswers }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        setResult(data);
-        setPhase("results");
-      })
-      .catch(() => setError("Failed to submit quiz"));
-  };
-
+  // Speak question when it changes
   useEffect(() => {
+    if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
+      const q = quiz.questions[currentIdx];
+      const correctAnswer = q.correct_answer || q.correctAnswer || "";
+      speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
+    }
     return () => {
-      if (advanceTimer.current) clearTimeout(advanceTimer.current);
+      stopSpeaking();
+      setSubtitle("");
     };
-  }, []);
-
-  if (error) {
-    return (
-      <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem", padding: "2rem" }}>
-        <div style={{ fontSize: "3rem" }}>⚠️</div>
-        <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 66%)" }}>{error}</p>
-        <button onClick={() => navigate("/library")} className="btn btn-primary" style={{ fontSize: "1.25rem", padding: "1rem 2rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50%)", color: "hsl(0 0% 0%)", border: "none", borderRadius: "0.5rem", cursor: "pointer", textDecoration: "none" }}>
-          <ArrowLeft size={24} /> Back to Quizzes
-        </button>
-      </div>
-    );
-  }
+  }, [currentIdx, phase, quiz, ttsEnabled]);
 
   // Spectator mode for teachers/admins
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
@@ -268,27 +255,81 @@ export default function EyeGazeQuiz() {
             <RotateCcw size={80} color="hsl(0 0% 66%)" />
           </div>
         )}
-        <h1 style={{ fontSize: "2.5rem", fontWeight: 800 }}>
-          {passed ? "Great Job!" : "Nice Try!"}
-        </h1>
-        <div style={{ fontSize: "3rem", fontWeight: 700, color: passed ? "hsl(21 100% 50%)" : "hsl(0 0% 66%)" }}>
-          {result.score}/{result.total}
+        <div style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: passed ? "hsl(21 100% 50%)" : "hsl(0 0% 100%)" }}>
+            {passed ? "Great Job!" : "Try Again!"}
+          </h1>
+          <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 66%)" }}>
+            You scored {result.score} out of {result.total} correct
+          </p>
+          <p style={{ fontSize: "1.25rem", color: "hsl(0 0% 66%)" }}>
+            ({result.pct}%)
+          </p>
+          {result.pointsEarned ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50% / 0.15)", padding: "0.75rem 1.5rem", borderRadius: "0.75rem", marginTop: "1rem" }}>
+              <Trophy size={24} color="hsl(21 100% 50%)" />
+              <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "hsl(21 100% 50%)" }}>+{result.pointsEarned} points earned!</span>
+            </div>
+          ) : null}
+          <button onClick={() => navigate("/library")} className="btn btn-primary" style={{ fontSize: "1.5rem", padding: "1.25rem 2.5rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50%)", color: "hsl(0 0% 0%)", border: "none", borderRadius: "0.5rem", cursor: "pointer", textDecoration: "none", marginTop: "1rem" }}>
+            <ArrowLeft size={28} /> Back to Quizzes
+          </button>
         </div>
-        <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 66%)" }}>
-          {Math.round(result.pct)}% correct
-        </p>
-        {result.passed && result.pointsEarned ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50% / 0.15)", padding: "0.75rem 1.5rem", borderRadius: "0.75rem" }}>
-            <Trophy size={24} color="hsl(21 100% 50%)" />
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "hsl(21 100% 50%)" }}>+{result.pointsEarned} points earned!</span>
-          </div>
-        ) : null}
-        <button onClick={() => navigate("/library")} className="btn btn-primary" style={{ fontSize: "1.5rem", padding: "1.25rem 2.5rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50%)", color: "hsl(0 0% 0%)", border: "none", borderRadius: "0.5rem", cursor: "pointer", textDecoration: "none" }}>
-          <ArrowLeft size={28} /> Back to Quizzes
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
+        <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 66%)" }}>{error}</p>
+        <button onClick={() => navigate("/library")} className="btn btn-primary" style={{ fontSize: "1.25rem", padding: "1rem 2rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "hsl(21 100% 50%)", color: "hsl(0 0% 0%)", border: "none", borderRadius: "0.5rem", cursor: "pointer" }}>
+          <ArrowLeft size={24} /> Back to Quizzes
         </button>
       </div>
     );
   }
+
+  const handleSelectAnswer = (answer: string) => {
+    if (selectedAnswer || autoAdvancing) return;
+    const currentQ = quiz.questions[currentIdx];
+    if (!currentQ) return;
+    setSelectedAnswer(answer);
+    setAutoAdvancing(true);
+    stopSpeaking();
+    setSubtitle("");
+
+    const newAnswers = { ...answers, [currentQ.id]: answer };
+    setAnswers(newAnswers);
+
+    advanceTimer.current = setTimeout(() => {
+      if (currentIdx < (quiz.questions?.length || 0) - 1) {
+        setCurrentIdx((idx) => idx + 1);
+        setSelectedAnswer(null);
+        setAutoAdvancing(false);
+      } else {
+        submitQuiz(newAnswers);
+      }
+    }, 1500);
+  };
+
+  const submitQuiz = (finalAnswers: Record<number, string>) => {
+    const token = getTokenFromCookie();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    fetch(`${API_BASE}/api/eye-gaze/quizzes/${quiz.attemptId}/submit`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ answers: finalAnswers }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setResult(data);
+        setPhase("results");
+      })
+      .catch(() => setError("Failed to submit quiz"));
+  };
 
   // Quiz screen
   const currentQ = quiz.questions[currentIdx];
@@ -300,11 +341,33 @@ export default function EyeGazeQuiz() {
     { letter: "D", text: currentQ.option_d },
   ];
 
+  // Handle hover on an option - speak it
+  const handleOptionHover = (text: string) => {
+    if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
+    setHoveredOption(text);
+    speakOption(text, (sub) => setSubtitle(sub));
+  };
+
+  // Handle mouse leave - stop speaking and replay question
+  const handleOptionLeave = () => {
+    if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
+    setHoveredOption(null);
+    stopSpeaking();
+    // Replay the question after a short delay
+    if (quiz.questions[currentIdx]) {
+      const q = quiz.questions[currentIdx];
+      const correctAnswer = q.correct_answer || q.correctAnswer || "";
+      setTimeout(() => {
+        speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
+      }, 200);
+    }
+  };
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "1rem" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-        <button onClick={() => navigate("/library")} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "hsl(0 0% 66%)", fontSize: "1rem", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}>
+        <button onClick={() => { stopSpeaking(); navigate("/library"); }} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "hsl(0 0% 66%)", fontSize: "1rem", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}>
           <ArrowLeft size={20} /> Exit
         </button>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -313,11 +376,13 @@ export default function EyeGazeQuiz() {
             onClick={() => {
               const next = !ttsEnabled;
               setTtsEnabled(next);
-              if (!next) stopSpeaking();
-              else if (quiz?.questions?.[currentIdx]) {
+              if (!next) {
+                stopSpeaking();
+                setSubtitle("");
+              } else if (quiz?.questions?.[currentIdx]) {
                 const q = quiz.questions[currentIdx];
-                const opts = [q.option_a, q.option_b, q.option_c, q.option_d];
-                speakQuestion(q.prompt, opts.join(" "));
+                const correctAnswer = q.correct_answer || q.correctAnswer || "";
+                speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
               }
             }}
             title={ttsEnabled ? "Turn off voice" : "Turn on voice"}
@@ -345,6 +410,20 @@ export default function EyeGazeQuiz() {
         <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "hsl(0 0% 100%)" }}>
           {currentQ.prompt}
         </h2>
+        {/* Replay button */}
+        {ttsEnabled && (
+          <button
+            onClick={() => {
+              const q = quiz.questions[currentIdx];
+              const correctAnswer = q.correct_answer || q.correctAnswer || "";
+              speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
+            }}
+            style={{ marginTop: "0.5rem", background: "none", border: "1px solid hsl(0 0% 30%)", borderRadius: "0.5rem", padding: "0.3rem 0.75rem", color: "hsl(0 0% 66%)", fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+            title="Hear question again"
+          >
+            <Volume2 size={14} /> Replay
+          </button>
+        )}
       </div>
 
       {/* Large visual */}
@@ -366,7 +445,7 @@ export default function EyeGazeQuiz() {
         </div>
       </div>
 
-      {/* Large answer buttons - 2x2 grid */}
+      {/* Large answer buttons - 2x2 grid with hover-to-read */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr",
@@ -378,18 +457,23 @@ export default function EyeGazeQuiz() {
       }}>
         {options.map((opt) => {
           const isSelected = selectedAnswer === opt.letter;
+          const isHovered = hoveredOption === opt.text;
           return (
             <button
               key={opt.letter}
               onClick={() => handleSelectAnswer(opt.letter)}
+              onMouseEnter={() => handleOptionHover(opt.text)}
+              onMouseLeave={() => handleOptionLeave()}
+              onFocus={() => handleOptionHover(opt.text)}
+              onBlur={() => handleOptionLeave()}
               disabled={!!selectedAnswer}
               style={{
                 padding: "2rem 1rem",
                 fontSize: "1.5rem",
                 fontWeight: 600,
                 borderRadius: "1rem",
-                border: isSelected ? "3px solid hsl(21 100% 50%)" : "2px solid hsl(0 0% 20%)",
-                background: isSelected ? "hsl(21 100% 50%)" : "hsl(0 0% 14%)",
+                border: isSelected ? "3px solid hsl(21 100% 50%)" : isHovered ? "2px solid hsl(21 100% 50% / 0.5)" : "2px solid hsl(0 0% 20%)",
+                background: isSelected ? "hsl(21 100% 50%)" : isHovered ? "hsl(21 100% 50% / 0.08)" : "hsl(0 0% 14%)",
                 color: isSelected ? "hsl(0 0% 0%)" : "hsl(0 0% 100%)",
                 cursor: selectedAnswer ? "default" : "pointer",
                 transition: "all 0.2s ease",
@@ -406,6 +490,30 @@ export default function EyeGazeQuiz() {
           );
         })}
       </div>
+
+      {/* Subtitles bar - shows what's being spoken */}
+      {ttsEnabled && subtitle && (
+        <div style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "hsl(0 0% 8% / 0.95)",
+          borderTop: "2px solid hsl(21 100% 50%)",
+          padding: "0.75rem 1rem",
+          textAlign: "center",
+          zIndex: 100,
+        }}>
+          <p style={{
+            fontSize: "1.1rem",
+            color: "hsl(0 0% 100%)",
+            fontWeight: 500,
+            lineHeight: 1.4,
+          }}>
+            {subtitle}
+          </p>
+        </div>
+      )}
 
       {/* Auto-advance indicator */}
       {autoAdvancing && (

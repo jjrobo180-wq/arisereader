@@ -3,7 +3,7 @@ import { useLocation, useParams } from "wouter";
 import { CheckCircle2, Trophy, RotateCcw, ArrowLeft, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ProctorGate } from "@/components/ProctorGate";
-import { speakQuestion, stopSpeaking, initVoices } from "@/lib/tts";
+import { speakQuestion, speakOption, stopSpeaking, initVoices } from "@/lib/tts";
 
 import { API_BASE } from "@/lib/queryClient";
 
@@ -60,6 +60,8 @@ export default function CustomEyeGazeQuiz() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [subtitle, setSubtitle] = useState("");
+  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Spectator mode for teachers/admins
@@ -136,10 +138,13 @@ export default function CustomEyeGazeQuiz() {
   useEffect(() => {
     if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
       const q = quiz.questions[currentIdx];
-      const options = [q.option_a_text, q.option_b_text, q.option_c_text, q.option_d_text].filter(Boolean);
-      speakQuestion(q.prompt, options.join(" "));
+      const correctAnswer = q.correct_answer || q.correctAnswer || "";
+      speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
     }
-    return () => stopSpeaking();
+    return () => {
+      stopSpeaking();
+      setSubtitle("");
+    };
   }, [currentIdx, phase, quiz, ttsEnabled]);
 
   useEffect(() => {
@@ -301,11 +306,13 @@ export default function CustomEyeGazeQuiz() {
             onClick={() => {
               const next = !ttsEnabled;
               setTtsEnabled(next);
-              if (!next) stopSpeaking();
-              else if (quiz?.questions?.[currentIdx]) {
+              if (!next) {
+                stopSpeaking();
+                setSubtitle("");
+              } else if (quiz?.questions?.[currentIdx]) {
                 const q = quiz.questions[currentIdx];
-                const opts = [q.option_a_text, q.option_b_text, q.option_c_text, q.option_d_text].filter(Boolean);
-                speakQuestion(q.prompt, opts.join(" "));
+                const correctAnswer = q.correct_answer || q.correctAnswer || "";
+                speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
               }
             }}
             title={ttsEnabled ? "Turn off voice" : "Turn on voice"}
@@ -333,6 +340,19 @@ export default function CustomEyeGazeQuiz() {
         <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "hsl(0 0% 100%)" }}>
           {currentQ.prompt}
         </h2>
+        {ttsEnabled && (
+          <button
+            onClick={() => {
+              const q = quiz.questions[currentIdx];
+              const correctAnswer = q.correct_answer || q.correctAnswer || "";
+              speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text));
+            }}
+            style={{ marginTop: "0.5rem", background: "none", border: "1px solid hsl(0 0% 30%)", borderRadius: "0.5rem", padding: "0.3rem 0.75rem", color: "hsl(0 0% 66%)", fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+            title="Hear question again"
+          >
+            <Volume2 size={14} /> Replay
+          </button>
+        )}
       </div>
 
       {/* Large visual - question image or emoji */}
@@ -383,18 +403,34 @@ export default function CustomEyeGazeQuiz() {
           const isSelected = selectedAnswer === opt.letter;
           const hasContent = opt.text || opt.image;
           if (!hasContent) return null;
+          const isHovered = hoveredOption === opt.letter;
           return (
             <button
               key={opt.letter}
               onClick={() => handleSelectAnswer(opt.letter)}
+              onMouseEnter={() => {
+                if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
+                setHoveredOption(opt.letter);
+                if (opt.text) speakOption(opt.text, (sub) => setSubtitle(sub));
+              }}
+              onMouseLeave={() => {
+                if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
+                setHoveredOption(null);
+                stopSpeaking();
+                if (quiz.questions[currentIdx]) {
+                  const q = quiz.questions[currentIdx];
+                  const correctAnswer = q.correct_answer || q.correctAnswer || "";
+                  setTimeout(() => speakQuestion(q.prompt, correctAnswer, (text) => setSubtitle(text)), 200);
+                }
+              }}
               disabled={!!selectedAnswer}
               style={{
                 padding: opt.image ? "1rem" : "2rem 1rem",
                 fontSize: "1.5rem",
                 fontWeight: 600,
                 borderRadius: "1rem",
-                border: isSelected ? "3px solid hsl(21 100% 50%)" : "2px solid hsl(0 0% 20%)",
-                background: isSelected ? "hsl(21 100% 50%)" : "hsl(0 0% 14%)",
+                border: isSelected ? "3px solid hsl(21 100% 50%)" : isHovered ? "2px solid hsl(21 100% 50% / 0.5)" : "2px solid hsl(0 0% 20%)",
+                background: isSelected ? "hsl(21 100% 50%)" : isHovered ? "hsl(21 100% 50% / 0.08)" : "hsl(0 0% 14%)",
                 color: isSelected ? "hsl(0 0% 0%)" : "hsl(0 0% 100%)",
                 cursor: selectedAnswer ? "default" : "pointer",
                 transition: "all 0.2s ease",
@@ -424,6 +460,30 @@ export default function CustomEyeGazeQuiz() {
           );
         })}
       </div>
+
+      {/* Subtitles bar - shows what's being spoken */}
+      {ttsEnabled && subtitle && (
+        <div style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "hsl(0 0% 8% / 0.95)",
+          borderTop: "2px solid hsl(21 100% 50%)",
+          padding: "0.75rem 1rem",
+          textAlign: "center",
+          zIndex: 100,
+        }}>
+          <p style={{
+            fontSize: "1.1rem",
+            color: "hsl(0 0% 100%)",
+            fontWeight: 500,
+            lineHeight: 1.4,
+          }}>
+            {subtitle}
+          </p>
+        </div>
+      )}
 
       {/* Auto-advance indicator */}
       {autoAdvancing && (
