@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye } from "lucide-react";
-import { initVoices, speakQuestion, speakOption, stopSpeaking, speak } from "@/lib/tts";
+import { initVoices, speakQuestion, speak, stopSpeaking } from "@/lib/tts";
 
 function getTokenFromCookie(): string | null {
   const match = document.cookie.match(/arise_session=([^;]+)/);
@@ -30,85 +30,27 @@ interface Quiz {
   attemptId: number;
 }
 
-interface ProctorGateProps {
-  quizTitle: string;
-  onAuthorized: () => void;
-}
-
-function ProctorGate({ quizTitle, onAuthorized }: ProctorGateProps) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [checking, setChecking] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!password) return;
-    setChecking(true);
-    setError("");
-    try {
-      const token = getTokenFromCookie();
-      const res = await fetch(`${API_BASE}/api/eye-gaze/verify-proctor`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ password }),
-      });
-      const data = await res.json();
-      if (res.ok && data.verified) {
-        onAuthorized();
-      } else {
-        setError(data.message || "Incorrect proctor password");
-      }
-    } catch {
-      setError("Failed to verify. Please try again.");
-    }
-    setChecking(false);
-  };
-
-  return (
-    <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
-      <Eye size={48} color="hsl(21 100% 50%)" />
-      <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "hsl(0 0% 100%)" }}>{quizTitle}</h2>
-      <p style={{ color: "hsl(0 0% 66%)", fontSize: "0.9rem" }}>Enter the proctor password to begin.</p>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 300, width: "100%" }}>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Proctor password"
-          autoFocus
-          style={{ padding: "0.75rem 1rem", borderRadius: "0.5rem", border: "1px solid hsl(0 0% 30%)", background: "hsl(0 0% 10%)", color: "white", fontSize: "1rem", outline: "none" }}
-        />
-        {error && <p style={{ color: "hsl(0 80% 60%)", fontSize: "0.85rem" }}>{error}</p>}
-        <button
-          type="submit"
-          disabled={checking}
-          className="btn btn-primary"
-          style={{ padding: "0.75rem 1.5rem", borderRadius: "0.5rem", border: "none", background: "hsl(21 100% 50%)", color: "hsl(0 0% 0%)", fontWeight: 700, cursor: "pointer", fontSize: "1rem" }}
-        >
-          {checking ? "Checking..." : "Start Quiz"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
 export default function EyeGazeQuiz() {
   const { id } = useParams<{ id: string }>();
   const quizId = parseInt(id || "0");
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [phase, setPhase] = useState<"proctor" | "loading" | "quiz" | "results">("proctor");
+  // No proctor phase - eye gaze quizzes don't require a password
+  const [phase, setPhase] = useState<"loading" | "quiz" | "results">("loading");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [autoAdvancing, setAutoAdvancing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [subtitle, setSubtitle] = useState("");
-  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
-  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [answersRead, setAnswersRead] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [countdownAnswer, setCountdownAnswer] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const countdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Initialize voices
   useEffect(() => {
@@ -149,18 +91,71 @@ export default function EyeGazeQuiz() {
       .catch(() => setError("Failed to load quiz"));
   }, [quizId, user, phase]);
 
-  // Speak question when it changes
+  // Speak question, then read all answer options back-to-back
   useEffect(() => {
     if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
       const q = quiz.questions[currentIdx];
       const visual = q.visual || "";
-      speakQuestion(q.prompt, visual, (text) => setSubtitle(text));
+      setAnswersRead(false);
+      setSelectedAnswer(null);
+      setCountdown(null);
+      setCountdownAnswer(null);
+
+      speakQuestion(q.prompt, visual, (text) => setSubtitle(text), () => {
+        // After question is read, read all answer options back-to-back
+        const options = [
+          { letter: "A", text: q.option_a },
+          { letter: "B", text: q.option_b },
+          { letter: "C", text: q.option_c },
+          { letter: "D", text: q.option_d },
+        ].filter(o => o.text);
+
+        const optionsText = options.map(o => `${o.letter}. ${o.text}`).join(". ");
+        speak(optionsText, {
+          rate: 0.9,
+          onSubtitle: (sub) => setSubtitle(sub),
+          onEnd: () => {
+            setAnswersRead(true);
+            setSubtitle("");
+          },
+        });
+      });
     }
     return () => {
       stopSpeaking();
       setSubtitle("");
     };
   }, [currentIdx, phase, quiz, ttsEnabled]);
+
+  // Countdown timer logic
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      // Time's up - confirm the answer
+      if (countdownTimer.current) clearTimeout(countdownTimer.current);
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+      setCountdown(null);
+      confirmAnswer(countdownAnswer || "");
+      return;
+    }
+    // Tick down every second
+    if (countdownInterval.current) clearInterval(countdownInterval.current);
+    countdownInterval.current = setInterval(() => {
+      setCountdown((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => {
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+    };
+  }, [countdown]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownTimer.current) clearTimeout(countdownTimer.current);
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+      stopSpeaking();
+    };
+  }, []);
 
   // Spectator mode for teachers/admins
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
@@ -223,15 +218,6 @@ export default function EyeGazeQuiz() {
     );
   }
 
-  if (phase === "proctor") {
-    return (
-      <ProctorGate
-        quizTitle={"Eye Gaze Assessment"}
-        onAuthorized={() => setPhase("loading")}
-      />
-    );
-  }
-
   if (phase === "loading" || !quiz) {
     return (
       <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
@@ -291,26 +277,51 @@ export default function EyeGazeQuiz() {
   }
 
   const handleSelectAnswer = (answer: string) => {
-    if (selectedAnswer || autoAdvancing) return;
+    if (submitting) return;
     const currentQ = quiz.questions[currentIdx];
     if (!currentQ) return;
-    setSelectedAnswer(answer);
-    setAutoAdvancing(true);
-    stopSpeaking();
-    setSubtitle("");
 
+    // Stop any ongoing TTS and say "You chose A. Cat"
+    stopSpeaking();
+    setSelectedAnswer(answer);
+    setCountdownAnswer(answer);
+
+    // Find the answer text
+    const optMap: Record<string, string> = {
+      A: currentQ.option_a,
+      B: currentQ.option_b,
+      C: currentQ.option_c,
+      D: currentQ.option_d,
+    };
+    const answerText = optMap[answer] || "";
+    speak(`You chose ${answer}. ${answerText}`, {
+      rate: 0.9,
+      onSubtitle: (sub) => setSubtitle(sub),
+      onEnd: () => {
+        setSubtitle("");
+        // Start 5-second countdown
+        setCountdown(5);
+      },
+    });
+  };
+
+  const confirmAnswer = (answer: string) => {
+    if (!answer) return;
+    const currentQ = quiz.questions[currentIdx];
+    if (!currentQ) return;
+
+    setSubmitting(true);
+    stopSpeaking();
     const newAnswers = { ...answers, [currentQ.id]: answer };
     setAnswers(newAnswers);
 
-    advanceTimer.current = setTimeout(() => {
-      if (currentIdx < (quiz.questions?.length || 0) - 1) {
-        setCurrentIdx((idx) => idx + 1);
-        setSelectedAnswer(null);
-        setAutoAdvancing(false);
-      } else {
-        submitQuiz(newAnswers);
-      }
-    }, 1500);
+    if (currentIdx < (quiz.questions?.length || 0) - 1) {
+      setCurrentIdx((idx) => idx + 1);
+      setSelectedAnswer(null);
+      setSubmitting(false);
+    } else {
+      submitQuiz(newAnswers);
+    }
   };
 
   const submitQuiz = (finalAnswers: Record<number, string>) => {
@@ -331,6 +342,31 @@ export default function EyeGazeQuiz() {
       .catch(() => setError("Failed to submit quiz"));
   };
 
+  // Replay question + answers
+  const handleReplay = () => {
+    if (!quiz || !quiz.questions[currentIdx]) return;
+    const q = quiz.questions[currentIdx];
+    const visual = q.visual || "";
+    setAnswersRead(false);
+    speakQuestion(q.prompt, visual, (text) => setSubtitle(text), () => {
+      const options = [
+        { letter: "A", text: q.option_a },
+        { letter: "B", text: q.option_b },
+        { letter: "C", text: q.option_c },
+        { letter: "D", text: q.option_d },
+      ].filter(o => o.text);
+      const optionsText = options.map(o => `${o.letter}. ${o.text}`).join(". ");
+      speak(optionsText, {
+        rate: 0.9,
+        onSubtitle: (sub) => setSubtitle(sub),
+        onEnd: () => {
+          setAnswersRead(true);
+          setSubtitle("");
+        },
+      });
+    });
+  };
+
   // Quiz screen
   const currentQ = quiz.questions[currentIdx];
   if (!currentQ) return null;
@@ -340,21 +376,6 @@ export default function EyeGazeQuiz() {
     { letter: "C", text: currentQ.option_c },
     { letter: "D", text: currentQ.option_d },
   ];
-
-  // Handle hover on an option - speak it
-  const handleOptionHover = (text: string) => {
-    if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
-    setHoveredOption(text);
-    speakOption(text, (sub) => setSubtitle(sub));
-  };
-
-  // Handle mouse leave - just stop speaking (don't replay the question)
-  const handleOptionLeave = () => {
-    if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
-    setHoveredOption(null);
-    stopSpeaking();
-    setSubtitle("");
-  };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "1rem" }}>
@@ -399,16 +420,12 @@ export default function EyeGazeQuiz() {
         <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "hsl(0 0% 100%)" }}>
           {currentQ.prompt}
         </h2>
-        {/* Replay button */}
+        {/* Replay button - replays question + all answers */}
         {ttsEnabled && (
           <button
-            onClick={() => {
-              const q = quiz.questions[currentIdx];
-              const visual = q.visual || "";
-              speakQuestion(q.prompt, visual, (text) => setSubtitle(text));
-            }}
+            onClick={handleReplay}
             style={{ marginTop: "0.5rem", background: "none", border: "1px solid hsl(0 0% 30%)", borderRadius: "0.5rem", padding: "0.3rem 0.75rem", color: "hsl(0 0% 66%)", fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
-            title="Hear question again"
+            title="Hear question and answers again"
           >
             <Volume2 size={14} /> Replay
           </button>
@@ -434,7 +451,7 @@ export default function EyeGazeQuiz() {
         </div>
       </div>
 
-      {/* Large answer buttons - 2x2 grid with hover-to-read */}
+      {/* Answer options - highlight each as it's being read */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr",
@@ -446,39 +463,104 @@ export default function EyeGazeQuiz() {
       }}>
         {options.map((opt) => {
           const isSelected = selectedAnswer === opt.letter;
-          const isHovered = hoveredOption === opt.text;
+          // Highlight the option currently being spoken
+          const isHighlighted = subtitle && subtitle.includes(opt.letter + ".") && !answersRead;
           return (
             <button
               key={opt.letter}
-              onClick={() => handleSelectAnswer(opt.letter)}
-              onMouseEnter={() => handleOptionHover(opt.text)}
-              onMouseLeave={() => handleOptionLeave()}
-              onFocus={() => handleOptionHover(opt.text)}
-              onBlur={() => handleOptionLeave()}
-              disabled={!!selectedAnswer}
+              onClick={() => answersRead && handleSelectAnswer(opt.letter)}
+              disabled={!answersRead || !!countdown || submitting}
               style={{
                 padding: "2rem 1rem",
                 fontSize: "1.5rem",
                 fontWeight: 600,
                 borderRadius: "1rem",
-                border: isSelected ? "3px solid hsl(21 100% 50%)" : isHovered ? "2px solid hsl(21 100% 50% / 0.5)" : "2px solid hsl(0 0% 20%)",
-                background: isSelected ? "hsl(21 100% 50%)" : isHovered ? "hsl(21 100% 50% / 0.08)" : "hsl(0 0% 14%)",
+                border: isSelected ? "3px solid hsl(21 100% 50%)" : isHighlighted ? "2px solid hsl(21 100% 50% / 0.5)" : "2px solid hsl(0 0% 20%)",
+                background: isSelected ? "hsl(21 100% 50%)" : isHighlighted ? "hsl(21 100% 50% / 0.08)" : "hsl(0 0% 14%)",
                 color: isSelected ? "hsl(0 0% 0%)" : "hsl(0 0% 100%)",
-                cursor: selectedAnswer ? "default" : "pointer",
+                cursor: !answersRead || countdown ? "default" : "pointer",
                 transition: "all 0.2s ease",
                 minHeight: "120px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "0.75rem",
+                opacity: !answersRead ? 0.7 : 1,
               }}
             >
               {isSelected && <CheckCircle2 size={28} />}
-              {opt.text}
+              <span style={{ fontWeight: 800 }}>{opt.letter}.</span> {opt.text}
             </button>
           );
         })}
       </div>
+
+      {/* Countdown overlay - shows when user has selected an answer */}
+      {countdown !== null && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0, 0, 0, 0.85)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "1.5rem",
+          zIndex: 200,
+        }}>
+          <div style={{
+            width: "120px",
+            height: "120px",
+            borderRadius: "50%",
+            border: "4px solid hsl(21 100% 50%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "3.5rem",
+            fontWeight: 800,
+            color: "hsl(21 100% 50%)",
+          }}>
+            {countdown}
+          </div>
+          <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 100%)", fontWeight: 700, textAlign: "center" }}>
+            Submitting your answer...
+          </p>
+          <p style={{ fontSize: "1rem", color: "hsl(0 0% 66%)", textAlign: "center" }}>
+            Tap a different answer to change your selection
+          </p>
+          {/* Show answer options during countdown */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", maxWidth: "400px", width: "100%" }}>
+            {options.map((opt) => {
+              const isSelected = countdownAnswer === opt.letter;
+              return (
+                <button
+                  key={opt.letter}
+                  onClick={() => {
+                    // Reset countdown with new answer
+                    if (countdownInterval.current) clearInterval(countdownInterval.current);
+                    setCountdownAnswer(opt.letter);
+                    setSelectedAnswer(opt.letter);
+                    setCountdown(5);
+                  }}
+                  style={{
+                    padding: "1rem",
+                    fontSize: "1.1rem",
+                    fontWeight: 600,
+                    borderRadius: "0.75rem",
+                    border: isSelected ? "3px solid hsl(21 100% 50%)" : "2px solid hsl(0 0% 20%)",
+                    background: isSelected ? "hsl(21 100% 50%)" : "hsl(0 0% 14%)",
+                    color: isSelected ? "hsl(0 0% 0%)" : "hsl(0 0% 100%)",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {opt.letter}. {opt.text}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Subtitles bar - shows what's being spoken */}
       {ttsEnabled && subtitle && (
@@ -501,18 +583,6 @@ export default function EyeGazeQuiz() {
           }}>
             {subtitle}
           </p>
-        </div>
-      )}
-
-      {/* Auto-advance indicator */}
-      {autoAdvancing && (
-        <div style={{
-          textAlign: "center",
-          padding: "0.5rem",
-          color: "hsl(0 0% 66%)",
-          fontSize: "1rem",
-        }}>
-          {currentIdx < quiz.questions.length - 1 ? "Moving to next question..." : "Submitting..."}
         </div>
       )}
     </div>

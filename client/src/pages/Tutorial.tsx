@@ -978,7 +978,7 @@ export default function Tutorial() {
                       <p className="text-sm font-semibold text-primary">Text-to-Speech (TTS)</p>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Each question is read aloud automatically when it appears. The TTS reads the question prompt once. If the student needs to hear it again, they press the Replay button. For animal quizzes, the animal sound plays immediately after the question — for example: "What animal is this? Moo."
+                      Each question is read aloud automatically when it appears. After the question is read, the TTS reads all four answer options back-to-back: "A. Dog. B. Cat. C. Fish. D. Bird." The currently-read option is highlighted on screen. The question and answers play once — press Replay to hear them again. When the student selects an answer, the TTS says "You chose A. Dog," then a 5-second countdown appears so they can change their answer before it's submitted.
                     </p>
                     <div className="mt-2 flex items-center gap-2">
                       <button className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/40 text-primary text-xs font-medium flex items-center gap-1">
@@ -987,9 +987,9 @@ export default function Tutorial() {
                       <p className="text-xs text-muted-foreground">Press to hear the question again</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
-                    <Lock className="w-4 h-4 text-yellow-500" />
-                    <p className="text-xs text-muted-foreground">A proctor password is required before starting any quiz.</p>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                    <Eye className="w-4 h-4 text-green-500" />
+                    <p className="text-xs text-muted-foreground">Eye gaze quizzes don't require a password — students and parents can get started right away with no hurdles. Just select a quiz and begin.</p>
                   </div>
                   <div className="flex justify-between">
                     <Button variant="outline" size="sm" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>

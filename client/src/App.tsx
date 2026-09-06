@@ -47,6 +47,7 @@ import StudentProfileView from "./pages/StudentProfileView";
 import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import AssessmentPopup from "./components/AssessmentPopup";
+import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import About from "./pages/About";
 import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
@@ -245,6 +246,7 @@ function AppInner() {
   const { user } = useAuth();
   return (
     <>
+      <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />
       <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />
       <Router hook={useHashLocation}>
         <AppRoutes />

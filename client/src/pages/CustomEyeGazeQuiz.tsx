@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { CheckCircle2, Trophy, RotateCcw, ArrowLeft, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { ProctorGate } from "@/components/ProctorGate";
 import { speakQuestion, speakOption, stopSpeaking, initVoices } from "@/lib/tts";
 
 import { API_BASE } from "@/lib/queryClient";
@@ -51,7 +50,7 @@ export default function CustomEyeGazeQuiz() {
   const quizId = parseInt(id || "0");
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [phase, setPhase] = useState<"proctor" | "loading" | "quiz" | "results">("proctor");
+  const [phase, setPhase] = useState<"loading" | "quiz" | "results">("loading");
   const [quiz, setQuiz] = useState<CustomQuiz | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -230,15 +229,6 @@ export default function CustomEyeGazeQuiz() {
           <ArrowLeft size={24} /> Back to Quizzes
         </button>
       </div>
-    );
-  }
-
-  if (phase === "proctor") {
-    return (
-      <ProctorGate
-        quizTitle={"Eye Gaze Assessment"}
-        onAuthorized={() => setPhase("loading")}
-      />
     );
   }
 

@@ -40,8 +40,9 @@ export default function AssessmentPopup({ onNavigate }: { onNavigate: (path: str
     // (prevents the popup from appearing during the loading screen)
     const checkReady = () => {
       const setupInProgress = sessionStorage.getItem('show_profile_setup') === 'true';
-      if (setupInProgress) {
-        // Setup still running, check again in 500ms
+      const fypAnnouncementPending = sessionStorage.getItem('fyp_announcement_shown') !== 'true';
+      if (setupInProgress || fypAnnouncementPending) {
+        // Setup or FYP announcement still running, check again in 500ms
         setTimeout(checkReady, 500);
         return;
       }

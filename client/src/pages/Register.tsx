@@ -10,8 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export default function Register() {
   const { register } = useAuth();
   const [, navigate] = useLocation();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
+  const [usernameEdited, setUsernameEdited] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -46,10 +49,25 @@ export default function Register() {
     }
   }, [selectedSchoolId, selectedGrade]);
 
+  // Auto-generate suggested username from first + last name
+  useEffect(() => {
+    if (!usernameEdited && firstName && lastName) {
+      const suggested = (firstName + lastName).replace(/\s+/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      setUsername(suggested);
+      setDisplayName(`${firstName} ${lastName}`);
+    } else if (!usernameEdited && firstName && !lastName) {
+      setDisplayName(firstName);
+    }
+  }, [firstName, lastName, usernameEdited]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Please enter your first and last name");
+      return;
+    }
     if (password !== confirm) {
       setError("Passwords don't match");
       return;
@@ -63,10 +81,12 @@ export default function Register() {
       return;
     }
 
+    const finalDisplayName = displayName || `${firstName} ${lastName}`;
+
     setLoading(true);
     try {
       sessionStorage.setItem('show_profile_setup', 'true');
-      await register(username, password, displayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null, selectedSchoolId ? parseInt(selectedSchoolId) : null, selectedGrade);
+      await register(username, password, finalDisplayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null, selectedSchoolId ? parseInt(selectedSchoolId) : null, selectedGrade);
       // Navigation is handled by AppRouter redirects based on isAdmin
     } catch (err: any) {
       setError(err.message);
@@ -90,31 +110,49 @@ export default function Register() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="displayName">Your Name</Label>
-                <Input
-                  id="displayName"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="First name and last initial (e.g., Alex M.)"
-                  required
-                  className="bg-input text-white border-border"
-                  data-testid="input-displayname"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Alex"
+                    required
+                    className="bg-input text-white border-border"
+                    data-testid="input-firstname"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Martinez"
+                    required
+                    className="bg-input text-white border-border"
+                    data-testid="input-lastname"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">Username {firstName && lastName && !usernameEdited && <span className="text-muted-foreground text-xs">(suggested from your name)</span>}</Label>
                 <Input
                   id="username"
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Choose a unique username"
+                  onChange={(e) => { setUsername(e.target.value); setUsernameEdited(true); }}
+                  placeholder="Enter your username"
                   required
                   className="bg-input text-white border-border"
                   data-testid="input-username"
                 />
+                {firstName && lastName && !usernameEdited && (
+                  <p className="text-xs text-muted-foreground">We suggest using your first and last name as your username. You can change it if you'd like.</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>

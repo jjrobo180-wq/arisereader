@@ -539,6 +539,10 @@ export default function Library() {
               <Brain className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Progress</span>
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/leaderboard")} className="hidden sm:flex">
+              <Trophy className="w-4 h-4 mr-1" />
+              <span className="hidden md:inline">Leaderboard</span>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/polls")} className="hidden sm:flex">
               <BarChart3 className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Polls</span>
@@ -578,6 +582,9 @@ export default function Library() {
                   </button>
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Progress
+                  </button>
+                  <button onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                    <Trophy className="w-4 h-4" /> Leaderboard
                   </button>
                   <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" /> Polls
