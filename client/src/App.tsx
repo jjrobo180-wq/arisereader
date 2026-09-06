@@ -49,6 +49,7 @@ import StudentCertificates from "./pages/StudentCertificates";
 import ParentDashboard from "./pages/ParentDashboard";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
+import FypSideTab from "./components/FypSideTab";
 import About from "./pages/About";
 import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
@@ -255,6 +256,7 @@ function AppInner() {
   return (
     <>
       <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />
+      <FypSideTab />
       <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />
       <Router hook={useHashLocation}>
         <AppRoutes />
