@@ -597,6 +597,8 @@ export default function Admin() {
     fetchBanners();
     fetchProctorPassword();
     fetchGradeChangeRequests();
+    fetchEyeGazeRequests();
+    fetchAdminLeaderboard();
     fetchSchools();
     fetchTeachers();
   }, [token, user]);
@@ -792,6 +794,61 @@ export default function Admin() {
     } catch (err) {
       alert('Error processing request');
     }
+  };
+
+  // Fetch eye gaze change requests
+  const fetchEyeGazeRequests = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/eye-gaze-requests`, {
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const reqs = Array.isArray(data) ? data : (data.requests || []);
+        setEyeGazeRequests(reqs);
+      }
+    } catch {}
+  };
+
+  // Handle eye gaze request approval/denial
+  const handleEyeGazeRequest = async (requestId: number, approved: boolean) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/eye-gaze-approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, approved })
+      });
+      if (res.ok) {
+        await fetchEyeGazeRequests();
+        await fetchStudents();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to process request');
+      }
+    } catch (err) {
+      alert('Error processing request');
+    }
+  };
+
+  // Fetch admin leaderboard with optional band filter
+  const fetchAdminLeaderboard = async (band?: string) => {
+    if (!token) return;
+    setAdminLbLoading(true);
+    try {
+      const url = band
+        ? `${API_BASE}/api/leaderboard?band=${band}`
+        : `${API_BASE}/api/leaderboard`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminLeaderboard(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+    setAdminLbLoading(false);
   };
 
   const handleResetPassword = async () => {
@@ -1657,6 +1714,102 @@ Generate exactly 10 questions.`;
             {proctorMsg && <span className="text-xs text-green-400">{proctorMsg}</span>}
           </div>
         </div>
+
+        {/* Eye Gaze Change Requests */}
+        {eyeGazeRequests.length > 0 && (
+        <Card className="shadow-md border-blue-500/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-blue-500" />
+              Eye Gaze Change Requests ({eyeGazeRequests.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {eyeGazeRequests.map((r) => (
+              <div key={r.id || r.userId} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                <div>
+                  <p className="font-semibold text-sm">{r.displayName || r.username}</p>
+                  <p className="text-xs text-muted-foreground">@{r.username}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {r.currentStatus ? 'Enable' : 'Disable'} Eye Gaze access
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleEyeGazeRequest(r.id, true)}
+                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700"
+                  >Approve</button>
+                  <button
+                    onClick={() => handleEyeGazeRequest(r.id, false)}
+                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  >Deny</button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        )}
+
+        {/* Admin Leaderboard with Band Switching */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" />
+              Leaderboard (Admin View)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium">View Band:</span>
+              <select
+                value={adminLbBand}
+                onChange={(e) => {
+                  setAdminLbBand(e.target.value);
+                  fetchAdminLeaderboard(e.target.value);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm"
+              >
+                <option value="">All Bands</option>
+                <option value="K-2">K-2 Band</option>
+                <option value="3-5">3-5 Band</option>
+                <option value="6-8">6-8 Band</option>
+                <option value="9-12">9-12 Band</option>
+              </select>
+            </div>
+            {adminLbLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
+            ) : adminLeaderboard.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No students in this band yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {adminLeaderboard.slice(0, 20).map((entry: any, idx: number) => (
+                  <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-muted text-muted-foreground">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {entry.displayName}
+                        {entry.isEyeGaze || entry.isEyeGazeUser ? (
+                          <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">EG</span>
+                        ) : null}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {entry.quizzesTaken} quizzes
+                        {entry.schoolName && <span className="ml-1">· {entry.schoolName}</span>}
+                        {entry.grade && <span className="ml-1">· Gr {entry.grade}</span>}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
+                      <div className="text-xs text-muted-foreground">pts</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Grade Change Requests */}
         {gradeChangeRequests.length > 0 && (

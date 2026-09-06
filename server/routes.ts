@@ -398,47 +398,64 @@ export async function registerRoutes(
   // Book routes
   app.get("/api/books", authMiddleware, async (req: any, res) => {
     const books = await storage.getAllBooks();
-    
-    // Filter by grade band if user has a grade
+
+    // Fetch all settings needed for filtering
     const rawGrades = await storage.getSetting('user_grades');
     let userGrades: Record<string, string> = {};
     if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
     const userGrade = userGrades[String(req.user.id)];
-    if (userGrade) {
-      const band = gradeToBand(userGrade);
-      if (band) {
-        // Fetch book grade bands and overlaps
-        const rawBands = await storage.getSetting('book_grade_bands');
-        let bookBands: Record<string, string> = {};
-        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-        const rawOverlaps = await storage.getSetting('book_grade_overlaps');
-        let bookOverlaps: Record<string, string[]> = {};
-        if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
-        const rawOverrides = await storage.getSetting('book_point_overrides');
-        let pointOverrides: Record<string, Record<string, number>> = {};
-        if (rawOverrides) { try { pointOverrides = JSON.parse(rawOverrides); } catch {} }
-        
-        const filtered = books.filter((b: any) => {
-          const bid = String(b.id);
-          const bookBand = bookBands[bid];
-          // Include if primary band matches, or if overlap includes this band
-          if (!bookBand || bookBand === band) return true;
-          const overlaps = bookOverlaps[bid];
-          if (overlaps && overlaps.includes(band)) return true;
-          return false;
-        }).map((b: any) => {
-          const bid = String(b.id);
-          // Apply point override if this book is an overlap for this band
-          const overrides = pointOverrides[bid];
-          if (overrides && overrides[band]) {
-            return { ...b, points_value: overrides[band], original_points_value: b.points_value };
-          }
-          return b;
-        });
-        return res.json(filtered);
-      }
+
+    const rawBands = await storage.getSetting('book_grade_bands');
+    let bookBands: Record<string, string> = {};
+    if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+
+    const rawOverlaps = await storage.getSetting('book_grade_overlaps');
+    let bookOverlaps: Record<string, string[]> = {};
+    if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
+
+    const rawOverrides = await storage.getSetting('book_point_overrides');
+    let pointOverrides: Record<string, Record<string, number>> = {};
+    if (rawOverrides) { try { pointOverrides = JSON.parse(rawOverrides); } catch {} }
+
+    // ── Eye gaze student library filtering ──
+    // Eye gaze students (is_eye_gaze_user=true AND role='student') see ONLY iArise books
+    const isEyeGazeStudent = req.user.is_eye_gaze_user === true && req.user.role === 'student';
+    if (isEyeGazeStudent) {
+      const rawIAriseIds = await storage.getSetting('i_arise_book_ids');
+      let iAriseIds: number[] = [];
+      if (rawIAriseIds) { try { iAriseIds = JSON.parse(rawIAriseIds); } catch {} }
+      const idSet = new Set(iAriseIds.map(String));
+      const filtered = books.filter((b: any) => idSet.has(String(b.id)));
+      return res.json(filtered);
     }
-    
+
+    // ── Admin band simulation ──
+    // Admin can pass ?band=X to view books as if from that band
+    const adminBandOverride = req.user.isAdmin ? req.query.band as string : null;
+    const effectiveBand = adminBandOverride || (userGrade ? gradeToBand(userGrade) : null);
+
+    if (effectiveBand) {
+      const band = effectiveBand;
+      const filtered = books.filter((b: any) => {
+        const bid = String(b.id);
+        const bookBand = bookBands[bid];
+        // Include if primary band matches, or if overlap includes this band
+        if (!bookBand || bookBand === band) return true;
+        const overlaps = bookOverlaps[bid];
+        if (overlaps && overlaps.includes(band)) return true;
+        return false;
+      }).map((b: any) => {
+        const bid = String(b.id);
+        // Apply point override if this book is an overlap for this band
+        const overrides = pointOverrides[bid];
+        if (overrides && overrides[band]) {
+          return { ...b, points_value: overrides[band], original_points_value: b.points_value };
+        }
+        return b;
+      });
+      return res.json(filtered);
+    }
+
     res.json(books);
   });
 
@@ -752,6 +769,114 @@ export async function registerRoutes(
     });
   });
 
+  // Profile stats endpoint — reflects band if specified (for admin band simulation)
+  app.get("/api/profile/stats", authMiddleware, async (req: any, res) => {
+    try {
+      const attempts = await storage.getUserAttempts(req.user.id);
+      const books = await storage.getAllBooks();
+      const bookMap = new Map(books.map(b => [b.id, b]));
+
+      const quizResults = attempts.map(a => {
+        const book = bookMap.get(a.bookId);
+        const passingScore = Math.ceil((a.totalQuestions || 10) * 0.7);
+        const passed = a.score >= passingScore;
+        return {
+          bookId: a.bookId,
+          title: book?.title || "Unknown",
+          author: book?.author || "",
+          coverUrl: book?.coverUrl,
+          readUrl: book?.readUrl,
+          pointsValue: book?.pointsValue || 10,
+          score: a.score,
+          total: a.totalQuestions,
+          pointsEarned: a.pointsEarned ?? 0,
+          passed,
+          passingScore,
+          completedAt: a.completedAt,
+        };
+      });
+
+      const totalPoints = attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0);
+      const quizzesTaken = attempts.length;
+
+      // ── Band-aware book count ──
+      // Admin can pass ?band=X to simulate viewing as that band
+      const bandParam = req.query.band as string;
+      let totalBooks = books.length;
+
+      // Fetch user grade and band info
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      const userGrade = userGrades[String(req.user.id)];
+      const userBand = userGrade ? gradeToBand(userGrade) : null;
+
+      // Determine effective band
+      let effectiveBand: string | null = null;
+      if (req.user.isAdmin && bandParam) {
+        effectiveBand = bandParam;
+      } else if (req.user.is_eye_gaze_user === true && req.user.role === 'student') {
+        // Eye gaze students see only iArise books
+        const rawIAriseIds = await storage.getSetting('i_arise_book_ids');
+        let iAriseIds: number[] = [];
+        if (rawIAriseIds) { try { iAriseIds = JSON.parse(rawIAriseIds); } catch {} }
+        const idSet = new Set(iAriseIds.map(String));
+        totalBooks = books.filter((b: any) => idSet.has(String(b.id))).length;
+      } else if (userBand) {
+        effectiveBand = userBand;
+      }
+
+      if (effectiveBand) {
+        const rawBands = await storage.getSetting('book_grade_bands');
+        let bookBands: Record<string, string> = {};
+        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+        const rawOverlaps = await storage.getSetting('book_grade_overlaps');
+        let bookOverlaps: Record<string, string[]> = {};
+        if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
+        totalBooks = books.filter((b: any) => {
+          const bid = String(b.id);
+          const bookBand = bookBands[bid];
+          if (!bookBand || bookBand === effectiveBand) return true;
+          const overlaps = bookOverlaps[bid];
+          if (overlaps && overlaps.includes(effectiveBand)) return true;
+          return false;
+        }).length;
+      }
+
+      // Fetch teacher info if student has a teacher assigned
+      let teacherInfo = null;
+      if (req.user.teacherId) {
+        const teacher = await storage.getUser(req.user.teacherId);
+        if (teacher) {
+          teacherInfo = {
+            id: teacher.id,
+            displayName: teacher.displayName,
+            approved: req.user.approvedByTeacher !== false,
+          };
+        }
+      }
+
+      res.json({
+        user: {
+          id: req.user.id,
+          username: req.user.username,
+          displayName: req.user.displayName,
+          isEyeGazeUser: req.user.is_eye_gaze_user || false,
+          role: req.user.role,
+        },
+        teacher: teacherInfo,
+        totalPoints,
+        quizzesTaken,
+        totalBooks,
+        quizResults,
+        grade: userGrade,
+        band: effectiveBand || userBand,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Message routes
   app.get("/api/messages", authMiddleware, async (req: any, res) => {
     const msgs = await storage.getUserMessages(req.user.id);
@@ -977,23 +1102,82 @@ export async function registerRoutes(
   // Authenticated leaderboard (supports monthly filtering)
   app.get("/api/leaderboard", authMiddleware, async (req: any, res) => {
     const month = req.query.month as string;
-    const band = req.query.band as string;
+    const bandParam = req.query.band as string;
     let leaderboard = month
       ? await storage.getMonthlyLeaderboard(month)
       : await storage.getLeaderboard();
-    
-    // Filter by grade band if requested
-    if (band) {
-      const rawGrades = await storage.getSetting('user_grades');
-      let userGrades: Record<string, string> = {};
-      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+
+    // Fetch enrichment data: user grades, eye gaze flags, schools
+    const rawGrades = await storage.getSetting('user_grades');
+    let userGrades: Record<string, string> = {};
+    if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+
+    // Fetch all users with eye gaze flag and school_id
+    const allUsers = await storage.getAllUsers();
+    const userMap = new Map(allUsers.map((u: any) => [u.id, u]));
+
+    // Fetch all schools for name lookup
+    const schools = await storage.getAllSchools();
+    const schoolMap = new Map(schools.map((s: any) => [s.id, s.name]));
+
+    // Determine the effective band for filtering
+    let effectiveBand: string | null = null;
+
+    if (req.user.isAdmin) {
+      // Admin can pass ?band=X to see a different band's leaderboard
+      effectiveBand = bandParam || null;
+    } else if (req.user.role === 'teacher') {
+      // Teachers see students in their assigned grades/bands
+      const rawTeacherGrades = await storage.getSetting('teacher_grades');
+      let teacherGrades: Record<string, string[]> = {};
+      if (rawTeacherGrades) { try { teacherGrades = JSON.parse(rawTeacherGrades); } catch {} }
+      const myGrades = teacherGrades[String(req.user.id)] || [];
+      const myBands = new Set(myGrades.map((g: string) => gradeToBand(g)).filter(Boolean));
+
+      // Filter leaderboard to students in teacher's bands
       leaderboard = leaderboard.filter((entry: any) => {
-        const userGrade = userGrades[String(entry.userId)] || userGrades[String(entry.id)];
-        return userGrade && gradeToBand(userGrade) === band;
+        const uid = entry.userId || entry.id;
+        const grade = userGrades[String(uid)];
+        const band = grade ? gradeToBand(grade) : null;
+        // Include students with no grade (they show in all bands) or in teacher's bands
+        return !band || myBands.has(band);
+      });
+    } else {
+      // Students only see their own band's leaderboard
+      const myGrade = userGrades[String(req.user.id)];
+      effectiveBand = myGrade ? gradeToBand(myGrade) : null;
+    }
+
+    // Filter by grade band if determined
+    if (effectiveBand) {
+      const band = effectiveBand;
+      leaderboard = leaderboard.filter((entry: any) => {
+        const uid = entry.userId || entry.id;
+        const grade = userGrades[String(uid)];
+        return grade && gradeToBand(grade) === band;
       });
     }
-    
-    res.json(leaderboard);
+
+    // Enrich each entry with school name, is_eye_gaze_user, grade, and band
+    const enriched = leaderboard.map((entry: any, idx: number) => {
+      const uid = entry.userId || entry.id;
+      const user = userMap.get(uid);
+      const grade = userGrades[String(uid)] || null;
+      const band = grade ? gradeToBand(grade) : null;
+      const schoolId = user?.school_id || user?.schoolId || null;
+      const schoolName = schoolId ? (schoolMap.get(schoolId) || null) : null;
+      const isEyeGazeUser = user?.is_eye_gaze_user || user?.isEyeGazeUser || false;
+      return {
+        rank: idx + 1,
+        ...entry,
+        schoolName,
+        isEyeGazeUser,
+        grade,
+        band,
+      };
+    });
+
+    res.json(enriched);
   });
 
   // Eye Gaze student ranking within their band (inclusive leaderboard)
@@ -2046,12 +2230,214 @@ export async function registerRoutes(
     }
   });
 
+  // ─── EYE GAZE APPROVAL WORKFLOW ────────────────────────────────────
+
+  // Student: Request eye gaze toggle (creates a pending request, does NOT toggle directly)
+  app.post("/api/eye-gaze-toggle-request", authMiddleware, async (req: any, res) => {
+    try {
+      const { requestedStatus } = req.body; // true or false
+      if (requestedStatus === undefined || requestedStatus === null) {
+        return res.status(400).json({ message: "requestedStatus (true/false) is required" });
+      }
+
+      // Fetch current user to get current status
+      const user = await storage.getUser(req.user.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const currentStatus = !!user.is_eye_gaze_user;
+      const requested = !!requestedStatus;
+
+      // No-op if already in the requested state
+      if (currentStatus === requested) {
+        return res.json({ success: true, message: `Eye gaze status is already ${requested ? "enabled" : "disabled"}` });
+      }
+
+      // Load existing requests
+      const rawRequests = await storage.getSetting('eye_gaze_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+
+      // Remove any existing pending request for this user
+      requests = requests.filter((r: any) => r.userId !== req.user.id || r.status !== 'pending');
+
+      // Add new request
+      const newRequest = {
+        id: Date.now(),
+        userId: req.user.id,
+        username: req.user.username,
+        displayName: req.user.displayName || req.user.username,
+        currentStatus,
+        requestedStatus: requested,
+        createdAt: new Date().toISOString(),
+        status: 'pending' as const,
+      };
+      requests.push(newRequest);
+
+      await storage.upsertSetting('eye_gaze_change_requests', JSON.stringify(requests));
+
+      // Notify admins
+      const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
+      for (const admin of (adminRows || [])) {
+        await storage.createMessage(
+          admin.id,
+          'system',
+          `${req.user.displayName || req.user.username} requested to ${requested ? "enable" : "disable"} eye gaze mode. Review and approve or deny in the Admin panel.`,
+          '/admin'
+        );
+      }
+
+      res.json({ success: true, message: `Your request to ${requested ? "enable" : "disable"} eye gaze mode has been submitted for approval.` });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Student: Check their own eye gaze request status
+  app.get("/api/eye-gaze-toggle-request", authMiddleware, async (req: any, res) => {
+    try {
+      const rawRequests = await storage.getSetting('eye_gaze_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+
+      const myRequest = requests.find((r: any) => r.userId === req.user.id && r.status === 'pending');
+      res.json({ request: myRequest || null });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin/Teacher: List pending eye gaze toggle requests
+  app.get("/api/eye-gaze-requests", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'teacher' && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Teacher or admin access required" });
+      }
+
+      const rawRequests = await storage.getSetting('eye_gaze_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+
+      let pending = requests.filter((r: any) => r.status === 'pending');
+
+      // Teachers only see their own students' requests
+      if (req.user.role === 'teacher' && !req.user.isAdmin) {
+        const teacherStudents = await storage.getTeacherStudents(req.user.id);
+        const studentIds = new Set(teacherStudents.map((s: any) => s.id));
+        pending = pending.filter((r: any) => studentIds.has(r.userId));
+      }
+
+      res.json({ requests: pending });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Approve or deny eye gaze toggle request
+  app.post("/api/admin/eye-gaze-approve", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const { requestId, approved } = req.body;
+      if (!requestId) return res.status(400).json({ message: "requestId is required" });
+      if (approved === undefined || approved === null) return res.status(400).json({ message: "approved (true/false) is required" });
+
+      const rawRequests = await storage.getSetting('eye_gaze_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+
+      const request = requests.find((r: any) => r.id === requestId);
+      if (!request) return res.status(404).json({ message: "Request not found" });
+      if (request.status !== 'pending') return res.status(400).json({ message: "Request already processed" });
+
+      if (approved) {
+        // Update the user's is_eye_gaze_user in the users table
+        const { error } = await supabase
+          .from("users")
+          .update({ is_eye_gaze_user: request.requestedStatus })
+          .eq("id", request.userId);
+        if (error) throw new Error(error.message);
+
+        request.status = 'approved';
+        request.processedAt = new Date().toISOString();
+        request.processedBy = req.user.id;
+
+        // Clear caches (including session cache so authMiddleware returns fresh user data)
+        try { clearCache('allUsers'); clearCache('leaderboard'); clearCache('session_'); } catch {}
+
+        // Notify the student
+        await storage.createMessage(
+          request.userId,
+          'admin',
+          `Your eye gaze mode request has been ${request.requestedStatus ? "enabled" : "disabled"}.`,
+          '/profile'
+        );
+      } else {
+        request.status = 'denied';
+        request.processedAt = new Date().toISOString();
+        request.processedBy = req.user.id;
+
+        // Notify the student
+        await storage.createMessage(
+          request.userId,
+          'admin',
+          `Your eye gaze mode request was not approved at this time.`,
+          '/profile'
+        );
+      }
+
+      await storage.upsertSetting('eye_gaze_change_requests', JSON.stringify(requests));
+      res.json({ success: true, request });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Legacy endpoint — now creates a request instead of directly toggling
   app.put("/api/settings/eye-gaze", authMiddleware, async (req, res) => {
     try {
       const { isEyeGaze } = req.body;
-      await storage.setEyeGazeUser(req.user.id, isEyeGaze);
+      // Redirect to the request workflow
       const user = await storage.getUser(req.user.id);
-      res.json({ success: true, user });
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const currentStatus = !!user.is_eye_gaze_user;
+      const requested = !!isEyeGaze;
+
+      if (currentStatus === requested) {
+        return res.json({ success: true, message: `Eye gaze status is already ${requested ? "enabled" : "disabled"}` });
+      }
+
+      // Load existing requests
+      const rawRequests = await storage.getSetting('eye_gaze_change_requests');
+      let requests: any[] = [];
+      if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
+
+      // Remove any existing pending request for this user
+      requests = requests.filter((r: any) => r.userId !== req.user.id || r.status !== 'pending');
+
+      requests.push({
+        id: Date.now(),
+        userId: req.user.id,
+        username: user.username,
+        displayName: user.displayName || user.username,
+        currentStatus,
+        requestedStatus: requested,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      });
+
+      await storage.upsertSetting('eye_gaze_change_requests', JSON.stringify(requests));
+
+      // Notify admins
+      const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
+      for (const admin of (adminRows || [])) {
+        await storage.createMessage(
+          admin.id,
+          'system',
+          `${user.displayName || user.username} requested to ${requested ? "enable" : "disable"} eye gaze mode. Review and approve or deny in the Admin panel.`,
+          '/admin'
+        );
+      }
+
+      res.json({ success: true, message: `Your request to ${requested ? "enable" : "disable"} eye gaze mode has been submitted for approval.` });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

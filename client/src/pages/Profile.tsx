@@ -507,28 +507,28 @@ export default function Profile() {
     }
   };
 
+  const [eyeGazeRequestPending, setEyeGazeRequestPending] = useState(false);
+
   const handleToggleEyeGaze = async () => {
     const newVal = !eyeGazeEnabled;
-    setEyeGazeEnabled(newVal);
     setEyeGazeLoading(true);
     try {
       const authToken = token || getTokenFromCookie();
-      const res = await fetch(`${API_BASE}/api/settings/eye-gaze`, {
-        method: "PUT",
+      // Create a request for teacher/admin approval instead of directly toggling
+      const res = await fetch(`${API_BASE}/api/eye-gaze-toggle-request`, {
+        method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ isEyeGaze: newVal }),
+        body: JSON.stringify({ requestedStatus: newVal }),
       });
-      const data = await res.json();
-      // Update the cookie with the new user data so Library reflects the change after reload
-      if (data && data.user) {
-        const cookieData = btoa(JSON.stringify({ user: data.user, token: authToken }));
-        const d = new Date();
-        d.setTime(d.getTime() + 7 * 24 * 60 * 60 * 1000);
-        document.cookie = "arise_session=" + cookieData + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+      if (res.ok) {
+        setEyeGazeRequestPending(true);
+        setEyeGazeEnabled(!newVal); // revert UI, the change happens when approved
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to submit request');
       }
-      window.location.reload();
     } catch (err) {
-      setEyeGazeEnabled(!newVal);
+      alert('Error submitting eye gaze change request');
     } finally {
       setEyeGazeLoading(false);
     }
@@ -974,10 +974,13 @@ export default function Profile() {
                     : "Enable to see accessible quizzes with large buttons and visual choices in your Library."
                   }
                 </p>
+                {eyeGazeRequestPending && (
+                  <p className="text-xs text-amber-500 mt-1 font-medium">⏳ Change request submitted - awaiting teacher/admin approval</p>
+                )}
               </div>
               <button
                 onClick={handleToggleEyeGaze}
-                disabled={eyeGazeLoading}
+                disabled={eyeGazeLoading || eyeGazeRequestPending}
                 className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
                   eyeGazeEnabled ? "bg-primary" : "bg-muted"
                 }`}
@@ -1109,8 +1112,9 @@ export default function Profile() {
                   <Card key={entry.id} className={`shadow-lg ${colors.border} border-2 overflow-hidden ${idx === 0 ? "sm:scale-105" : ""}`}>
                     <div className={`${colors.bg} p-3 sm:p-4 text-center`}>
                       <p className={`text-lg font-bold ${colors.text}`}>#{idx + 1}</p>
-                      <p className="font-bold text-xs sm:text-sm text-white mt-1 truncate">{entry.displayName}</p>
+                      <p className="font-bold text-xs sm:text-sm text-white mt-1 truncate">{entry.displayName}{(entry.isEyeGaze || entry.isEyeGazeUser) && <span className="text-blue-300 ml-0.5">!</span>}</p>
                       {entry.id === user?.id && <span className="text-primary text-[10px] ml-0.5">(You)</span>}
+                      {entry.schoolName && <p className="text-[9px] text-muted-foreground truncate">{entry.schoolName}</p>}
                     </div>
                     <CardContent className="p-2 sm:p-3 text-center">
                       <div className="text-xl sm:text-2xl font-bold text-primary">{entry.totalPoints}</div>
@@ -1155,8 +1159,22 @@ export default function Profile() {
                         <p className="font-medium text-sm truncate">
                           {entry.displayName}
                           {entry.id === user?.id && <span className="text-primary ml-1">(You)</span>}
+                          {(entry.isEyeGaze || entry.isEyeGazeUser) && (
+                            <button
+                              onClick={() => setShowEyeGazeRank(!showEyeGazeRank)}
+                              className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/30"
+                              title="Eye Gaze / Non-Verbal student"
+                            >
+                              <Info className="w-3 h-3" />
+                              EG
+                            </button>
+                          )}
                         </p>
-                        <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                        <p className="text-xs text-muted-foreground">
+                          {entry.quizzesTaken} quizzes passed
+                          {entry.schoolName && <span className="ml-1">· {entry.schoolName}</span>}
+                          {entry.grade && <span className="ml-1">· Gr {entry.grade}</span>}
+                        </p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>

@@ -1082,8 +1082,8 @@ export default function Library() {
               )}
             </div>
 
-            {/* Curriculum Section */}
-            {curriculumBooks.length > 0 && (
+            {/* Curriculum Section - hidden for eye gaze students */}
+            {curriculumBooks.length > 0 && !showEyeGaze && (
               <div className="mb-10">
                 <div className="flex items-center gap-2 mb-4">
                   <BookOpen className="w-5 h-5 text-primary" />
@@ -1177,8 +1177,8 @@ export default function Library() {
                 </div>
               </div>
             )}
-            {/* Regular book sections */}
-            {sortBy === "points" ? (
+            {/* Regular book sections - hidden for eye gaze students */}
+            {!showEyeGaze && sortBy === "points" ? (
           pointsOrder.filter(k => pointsGroups[k]).map((pts) => {
             const groupBooks = pointsGroups[pts];
             return (
@@ -1272,7 +1272,7 @@ export default function Library() {
             </div>
           );
           })
-        ) : (
+        ) : showEyeGaze ? null : (
           <div className="mb-10">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {nonCurriculumBooks.map((book) => {
