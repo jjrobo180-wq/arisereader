@@ -537,49 +537,20 @@ export default function Library() {
                 <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Books</span>
               </button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/progress")} className="hidden sm:flex">
-              <Brain className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">Progress</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/leaderboard")} className="hidden sm:flex">
-              <Trophy className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">Leaderboard</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/polls")} className="hidden sm:flex">
-              <BarChart3 className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">Polls</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} data-testid="button-profile" className="hidden sm:flex">
-              <User className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">{user?.displayName}</span>
-            </Button>
-            {user?.isAdmin && (
-              <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} data-testid="button-admin" className="hidden sm:flex">
-                <Settings className="w-4 h-4" />
-                <span className="hidden md:inline">Admin</span>
-              </Button>
-            )}
-            {user?.role === 'teacher' && (
-              <Button variant="ghost" size="sm" onClick={() => navigate("/teacher-dashboard")} data-testid="button-teacher" className="hidden sm:flex">
-                <Settings className="w-4 h-4" />
-                <span className="hidden md:inline">Teacher</span>
-              </Button>
-            )}
-            <div className="hidden sm:flex"><ReportProblemButton variant="ghost" size="sm" /></div>
-            {/* Mobile more menu */}
-            <div className="sm:hidden relative" ref={(el) => { mobileMenuRef.current = el; }}>
+            {/* More dropdown - works on both desktop and mobile */}
+            <div className="relative" ref={(el) => { mobileMenuRef.current = el; }}>
               <Button variant="ghost" size="sm" onClick={() => setShowMobileMenu(!showMobileMenu)}>
                 <MoreVertical className="w-4 h-4" />
               </Button>
               {showMobileMenu && (
                 <div className="absolute right-0 mt-2 w-48 rounded-xl bg-card border border-border shadow-lg z-50 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-border">
+                  <div className="px-3 py-2 border-b border-border sm:hidden">
                     <span className="text-sm font-semibold text-primary">{totalPoints} pts</span>
                   </div>
-                  <button onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                  <button onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2 sm:hidden" style={{ color: "#f59e0b", fontWeight: 600 }}>
                     <Sparkles className="w-4 h-4" /> A.R.I.S.E F.Y.P
                   </button>
-                  <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
+                  <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2 sm:hidden" style={{ color: "#f59e0b" }}>
                     <Bookmark className="w-4 h-4" /> My Books
                   </button>
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
@@ -599,6 +570,11 @@ export default function Library() {
                       <Settings className="w-4 h-4" /> Admin
                     </button>
                   )}
+                  {user?.role === 'teacher' && (
+                    <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                      <Settings className="w-4 h-4" /> Teacher
+                    </button>
+                  )}
                   <div className="px-2 py-1">
                     <ReportProblemButton variant="ghost" size="sm" />
                   </div>
@@ -608,10 +584,6 @@ export default function Library() {
                 </div>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout" className="hidden sm:flex">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden md:inline">Logout</span>
-            </Button>
           </div>
         </div>
       </header>
