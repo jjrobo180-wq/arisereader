@@ -1672,6 +1672,16 @@ export async function registerRoutes(
     return res.json({ band: "K-2" });
   });
 
+  // Admin: Get ALL books (including those without quizzes) for management
+  app.get("/api/admin/books", authMiddleware, adminMiddleware, async (_req, res) => {
+    try {
+      const allBooks = await storage.getAllBooks();
+      res.json(allBooks);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/admin/books", authMiddleware, adminMiddleware, async (req, res) => {
     const { title, author, coverUrl, description, questions: quizQuestions, pointsValue, readUrl, gradeBand } = req.body;
     if (!title || !author) {

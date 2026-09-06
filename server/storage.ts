@@ -121,7 +121,7 @@ function mapBook(row: any) {
     ageGroup: row.age_group,
     coverUrl: row.cover_url,
     description: row.description,
-    pointsValue: row.points_value || 10,
+    pointsValue: row.points_value ?? 0,
     readUrl: row.read_url || null,
   };
 }

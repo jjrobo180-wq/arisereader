@@ -363,7 +363,7 @@ export default function Admin() {
   const fetchBooks = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE}/api/books`, {
+      const res = await fetch(`${API_BASE}/api/admin/books`, {
         headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
       });
       if (!res.ok) { console.error("Books fetch failed:", res.status); return; }
