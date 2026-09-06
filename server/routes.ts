@@ -19,7 +19,7 @@ function gradeToBand(grade: string): string | null {
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const PROXY_URL = process.env.CUSTOM_CRED_API_RESEND_COM_URL || "";
 const PROXY_TOKEN = process.env.CUSTOM_CRED_API_RESEND_COM_TOKEN || "";
-const EMAIL_FROM = process.env.EMAIL_FROM || "A.R.I.S.E Reader <onboarding@resend.dev>";
+const EMAIL_FROM = process.env.EMAIL_FROM || "A.R.I.S.E Reader <noreply@arisereader.com>";
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "jjrobo180@gmail.com";
 const APP_URL = process.env.APP_URL || "https://arisereader.pplx.app";
 
@@ -2894,28 +2894,6 @@ export async function registerRoutes(
   // ─── TEACHER ROUTES ────────────────────────────────────────────────
 
   // DEBUG: Test email endpoint
-  app.get("/api/debug/test-email", authMiddleware, adminMiddleware, async (req: any, res) => {
-    try {
-      const result = await sendEmail(
-        ADMIN_NOTIFY_EMAIL,
-        "DEBUG: Email system test from A.R.I.S.E Reader",
-        "<p>This is a debug test email. If you received this, the email system is working.</p>"
-      );
-      res.json({
-        result,
-        envCheck: {
-          PROXY_URL: process.env.CUSTOM_CRED_API_RESEND_COM_URL ? 'SET' : 'NOT SET',
-          PROXY_TOKEN: process.env.CUSTOM_CRED_API_RESEND_COM_TOKEN ? 'SET' : 'NOT SET',
-          RESEND_API_KEY: process.env.RESEND_API_KEY ? 'SET' : 'NOT SET',
-          ADMIN_NOTIFY_EMAIL,
-          EMAIL_FROM,
-        }
-      });
-    } catch (e: any) {
-      res.json({ error: e.message });
-    }
-  });
-
   // Get the logged-in teacher's grade band
   app.get("/api/teacher/my-band", authMiddleware, async (req: any, res) => {
     try {
