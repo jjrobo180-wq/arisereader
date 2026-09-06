@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -531,6 +531,10 @@ export default function Library() {
               <Sparkles className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">F.Y.P</span>
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => { window.location.hash = '/saved'; }} className="hidden sm:flex" style={{ color: "#f59e0b" }}>
+              <Bookmark className="w-4 h-4 mr-1" />
+              <span className="hidden md:inline">My Books</span>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/progress")} className="hidden sm:flex">
               <Brain className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Progress</span>
@@ -568,6 +572,9 @@ export default function Library() {
                   </div>
                   <button onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
                     <Sparkles className="w-4 h-4" /> A.R.I.S.E F.Y.P
+                  </button>
+                  <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
+                    <Bookmark className="w-4 h-4" /> My Books
                   </button>
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Progress

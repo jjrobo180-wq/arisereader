@@ -3579,6 +3579,28 @@ export async function registerRoutes(
     }
   });
 
+  // POST /api/fyp/save - Save or unsave a book
+  app.post("/api/fyp/save", authMiddleware, async (req: any, res) => {
+    try {
+      const { bookId, saved } = req.body;
+      if (!bookId) return res.status(400).json({ message: 'bookId is required' });
+      await storage.setFypSave(req.user.id, parseInt(bookId), saved);
+      res.json({ success: true, saved });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/fyp/my-books - Get saved and liked books
+  app.get("/api/fyp/my-books", authMiddleware, async (req: any, res) => {
+    try {
+      const data = await storage.getFypMyBooks(req.user.id);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // GET /api/fyp/share/:token - Public share data (no auth)
   app.get("/api/fyp/share/:token", async (req, res) => {
     try {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown } from "lucide-react";
+import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -33,6 +33,7 @@ interface FeedItem {
   likeCount: number;
   dislikeCount: number;
   userReaction: string | null;
+  userSaved: boolean;
   shareCount: number;
 }
 
@@ -217,6 +218,27 @@ export default function FypPage() {
     navigate(`/quiz/${bookId}`);
   };
 
+  const handleSave = async (bookId: number, saved: boolean) => {
+    try {
+      const token = getTokenFromCookie();
+      if (!token) return;
+      // Optimistic update
+      setItems((prev) =>
+        prev.map((item) =>
+          item.bookId === bookId ? { ...item, userSaved: saved } : item
+        )
+      );
+      await fetch(`${API_BASE}/api/fyp/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookId, saved }),
+      });
+    } catch {}
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#0a0a0a", color: "white" }}>
@@ -280,7 +302,13 @@ export default function FypPage() {
         <div style={{ color: "white", fontWeight: 700, fontSize: "1.1rem", letterSpacing: "-0.02em" }}>
           A.R.I.S.E F.Y.P
         </div>
-        <div style={{ width: "24px" }} />
+        <button
+          onClick={() => { window.location.hash = '/saved'; }}
+          style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", cursor: "pointer", padding: "6px 12px", borderRadius: 8, fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}
+        >
+          <Bookmark size={16} fill="white" />
+          My Books
+        </button>
       </div>
 
       {/* Scroll container */}
@@ -307,6 +335,7 @@ export default function FypPage() {
             onReadMore={() => handleReadMore(item.bookId)}
             onReadBook={() => handleReadBook(item.bookId)}
             onTakeQuiz={() => handleTakeQuiz(item.bookId)}
+            onSave={(saved) => handleSave(item.bookId, saved)}
           />
         ))}
 
@@ -514,9 +543,10 @@ interface CardProps {
   onReadMore: () => void;
   onReadBook: () => void;
   onTakeQuiz: () => void;
+  onSave: (saved: boolean) => void;
 }
 
-const FypBookCard = ({ item, index, onLike, onDislike, onShare, onReadMore, onReadBook, onTakeQuiz }: CardProps & { ref?: (el: HTMLDivElement | null) => void }) => {
+const FypBookCard = ({ item, index, onLike, onDislike, onShare, onReadMore, onReadBook, onTakeQuiz, onSave }: CardProps & { ref?: (el: HTMLDivElement | null) => void }) => {
   const [showActions, setShowActions] = useState(false);
 
   return (
@@ -765,11 +795,42 @@ const FypBookCard = ({ item, index, onLike, onDislike, onShare, onReadMore, onRe
           <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>Share</span>
         </button>
 
-        {/* Read book / Take quiz */}
+        {/* Save for later button */}
+        <button
+          onClick={() => onSave(!item.userSaved)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "2px",
+          }}
+        >
+          <div
+            style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "50%",
+              background: item.userSaved ? "var(--accent-color, #f59e0b)" : "rgba(255,255,255,0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backdropFilter: "blur(8px)",
+              transition: "all 0.2s",
+            }}
+          >
+            <Bookmark size={22} color="white" fill={item.userSaved ? "white" : "none"} />
+          </div>
+          <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>Save</span>
+        </button>
+
+        {/* Read book / Take quiz / Info */}
         <button
           onClick={() => {
             if (item.readUrl) onReadBook();
-            else onTakeQuiz();
+            else if (item.pointsValue > 0) onTakeQuiz();
           }}
           style={{
             background: "none",
@@ -795,7 +856,7 @@ const FypBookCard = ({ item, index, onLike, onDislike, onShare, onReadMore, onRe
           >
             <BookOpen size={22} color="white" />
           </div>
-          <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>{item.readUrl ? "Read" : "Quiz"}</span>
+          <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>{item.readUrl ? "Read" : item.pointsValue > 0 ? "Quiz" : "Info"}</span>
         </button>
       </div>
     </div>

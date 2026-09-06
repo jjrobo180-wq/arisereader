@@ -50,6 +50,7 @@ import AssessmentPopup from "./components/AssessmentPopup";
 import About from "./pages/About";
 import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
+import FypMyBooksPage from "./pages/FypMyBooksPage";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -151,6 +152,9 @@ function AppRoutes() {
   }
   return (
     <Switch>
+      <Route path="/saved">
+        <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>
+      </Route>
       <Route path="/">
         {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/library" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
       </Route>

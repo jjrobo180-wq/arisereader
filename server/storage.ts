@@ -2278,6 +2278,13 @@ export class DatabaseStorage implements IStorage {
       userReactionMap[r.book_id] = r.reaction;
     }
 
+    // 6b. Fetch user's saved books
+    const { data: userSaves } = await supabase
+      .from('book_feed_saves')
+      .select('book_id')
+      .eq('user_id', userId);
+    const savedBookIds = new Set<number>((userSaves || []).map((s: any) => s.book_id));
+
     // 7. Fetch share counts
     const { data: shareCounts } = await supabase
       .from('book_feed_shares')
@@ -2372,6 +2379,7 @@ export class DatabaseStorage implements IStorage {
       likeCount: likeCounts[item.book.id] || 0,
       dislikeCount: dislikeCounts[item.book.id] || 0,
       userReaction: userReactionMap[item.book.id] || null,
+      userSaved: savedBookIds.has(item.book.id),
       shareCount: shareCountMap[item.book.id] || 0,
     }));
 
@@ -2398,6 +2406,79 @@ export class DatabaseStorage implements IStorage {
       likeCount: likes?.length || 0,
       dislikeCount: dislikes?.length || 0,
     };
+  }
+
+  async setFypSave(userId: number, bookId: number, saved: boolean): Promise<void> {
+    if (saved) {
+      const { error } = await supabase.from('book_feed_saves').upsert({
+        user_id: userId,
+        book_id: bookId,
+      });
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from('book_feed_saves').delete().eq('user_id', userId).eq('book_id', bookId);
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  async getFypMyBooks(userId: number): Promise<{ savedBooks: any[]; likedBooks: any[] }> {
+    // Fetch saved books
+    const { data: saves } = await supabase
+      .from('book_feed_saves')
+      .select('book_id, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    // Fetch liked books
+    const { data: likes } = await supabase
+      .from('book_feed_reactions')
+      .select('book_id')
+      .eq('user_id', userId)
+      .eq('reaction', 'like');
+    
+    const saveIds = (saves || []).map((s: any) => s.book_id);
+    const likeIds = (likes || []).map((l: any) => l.book_id);
+    const allIds = [...new Set([...saveIds, ...likeIds])];
+    
+    if (allIds.length === 0) return { savedBooks: [], likedBooks: [] };
+    
+    // Fetch book data
+    const { data: books } = await supabase
+      .from('books')
+      .select('id, title, author, points_value, cover_url, read_url')
+      .in('id', allIds);
+    
+    // Fetch feed cards
+    const { data: cards } = await supabase
+      .from('book_feed_cards')
+      .select('book_id, hook_text, short_summary, expanded_summary, tags, mood')
+      .in('book_id', allIds);
+    
+    const cardMap = new Map((cards || []).map((c: any) => [c.book_id, c]));
+    
+    const formatBook = (bookId: number) => {
+      const book = (books || []).find((b: any) => b.id === bookId);
+      const card = cardMap.get(bookId);
+      if (!book) return null;
+      return {
+        bookId: book.id,
+        title: book.title,
+        author: book.author,
+        pointsValue: book.points_value || 0,
+        coverUrl: book.cover_url || '',
+        readUrl: book.read_url || '',
+        hookText: card?.hook_text || '',
+        shortSummary: card?.short_summary || '',
+        expandedSummary: card?.expanded_summary || '',
+        tags: card?.tags || [],
+        mood: card?.mood || 'story',
+      };
+    };
+    
+    const savedBooks = saveIds.map(formatBook).filter(Boolean);
+    const likedBooks = likeIds.map(formatBook).filter(Boolean);
+    
+    return { savedBooks, likedBooks };
   }
 
   async logFypEvent(userId: number, bookId: number, eventType: string, dwellMs?: number, feedSessionId?: string, metadata?: any): Promise<void> {
