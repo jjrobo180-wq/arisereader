@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { API_BASE } from "@/lib/queryClient";
-import { setSchoolTheme } from "@/lib/schoolTheme";
+import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 
 interface AuthUser {
   id: number;
@@ -104,6 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => {});
     }
+    // Fetch teacher band on page load
+    if (token && user && (user.role === 'teacher' || user.role === 'admin' || (user as any).isAdmin)) {
+      fetch(`${API_BASE}/api/teacher/my-band`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : { bandsText: '' })
+        .then(data => setTeacherBand(data.bandsText || ''))
+        .catch(() => setTeacherBand(''));
+    } else {
+      setTeacherBand('');
+    }
   }, []);
 
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
@@ -129,6 +140,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch(() => {});
     } else {
       setSchoolTheme(null);
+    }
+    // Fetch teacher's grade band
+    if (u && (u.role === 'teacher' || u.role === 'admin' || (u as any).isAdmin)) {
+      fetch(`${API_BASE}/api/teacher/my-band`, {
+        headers: { Authorization: `Bearer ${t}` },
+      })
+        .then(r => r.ok ? r.json() : { bandsText: '' })
+        .then(data => setTeacherBand(data.bandsText || ''))
+        .catch(() => setTeacherBand(''));
+    } else {
+      setTeacherBand('');
     }
   }, []);
 

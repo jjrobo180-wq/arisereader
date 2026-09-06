@@ -2855,6 +2855,35 @@ export async function registerRoutes(
 
   // ─── TEACHER ROUTES ────────────────────────────────────────────────
 
+  // Get the logged-in teacher's grade band
+  app.get("/api/teacher/my-band", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+        return res.json({ bands: [], bandsText: '' });
+      }
+      const rawGrades = await storage.getSetting('teacher_grades');
+      let teacherGrades: Record<string, string[]> = {};
+      if (rawGrades) { try { teacherGrades = JSON.parse(rawGrades); } catch {} }
+      const grades = teacherGrades[String(req.user.id)] || [];
+      
+      // Convert grade strings to band names
+      const gradeToBand = (g: string): string => {
+        const n = parseInt(g);
+        if (g === 'K' || n === 1 || n === 2) return 'K-2';
+        if (n === 3 || n === 4 || n === 5) return '3-5';
+        if (n === 6 || n === 7 || n === 8) return '6-8';
+        if (n >= 9) return '9-12';
+        return '';
+      };
+      
+      const bands = [...new Set(grades.map(gradeToBand).filter(Boolean))];
+      const bandsText = bands.join(' / ');
+      res.json({ bands, bandsText });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // List approved teachers for student signup dropdown
   app.get("/api/teachers", async (_req, res) => {
     try {

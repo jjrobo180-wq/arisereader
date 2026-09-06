@@ -15,12 +15,17 @@ const DEFAULT_THEME: SchoolTheme = {
 };
 
 let currentTheme: SchoolTheme = DEFAULT_THEME;
+let teacherBand: string = '';
 
 export function setSchoolTheme(theme: SchoolTheme | null | undefined) {
   currentTheme = theme || DEFAULT_THEME;
   const root = document.documentElement;
   root.style.setProperty("--primary", currentTheme.primaryHsl);
   root.style.setProperty("--primary-foreground", currentTheme.primaryForegroundHsl);
+}
+
+export function setTeacherBand(band: string) {
+  teacherBand = band || '';
 }
 
 export function getMascotEmoji(): string {
@@ -40,4 +45,8 @@ export function getBrandSuffix(): string {
 
 export function getSchoolTheme(): SchoolTheme {
   return currentTheme;
+}
+
+export function getTeacherBand(): string {
+  return teacherBand;
 }
