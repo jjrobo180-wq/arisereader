@@ -613,9 +613,15 @@ export async function registerRoutes(
     }
     const quizzesAvailable = books.filter(b => bookIdsWithQuiz.has(b.id)).length;
     const booksAvailable = books.filter(b => b.readUrl).length;
+    // Also count eye gaze quizzes
+    let eyeGazeCount = 0;
+    try {
+      const egRes = await supabase.from('eye_gaze_quizzes').select('id', { count: 'exact', head: true });
+      eyeGazeCount = egRes.count || 0;
+    } catch {}
     const stats = {
       booksAvailable,
-      quizzesAvailable,
+      quizzesAvailable: quizzesAvailable + eyeGazeCount,
       totalPoints: books.reduce((sum, b) => sum + b.pointsValue, 0),
     };
     // Save as last-known-good

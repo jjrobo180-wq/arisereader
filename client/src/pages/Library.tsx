@@ -527,14 +527,16 @@ export default function Library() {
               <Trophy className="w-4 h-4" />
               {totalPoints} pts
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/fyp")} className="hidden sm:flex" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))", border: "1px solid rgba(245,158,11,0.3)" }}>
-              <Sparkles className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">F.Y.P</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => { window.location.hash = '/saved'; }} className="hidden sm:flex" style={{ color: "#f59e0b" }}>
-              <Bookmark className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">My Books</span>
-            </Button>
+            <div className="hidden sm:flex items-center relative" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "0.5rem" }}>
+              <button onClick={() => navigate("/fyp")} className="flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-primary/10 rounded-l-lg">
+                <Sparkles className="w-4 h-4 mr-1" style={{ color: "#f59e0b" }} />
+                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>F.Y.P</span>
+              </button>
+              <button onClick={() => { window.location.hash = '/saved'; }} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-r-lg border-l border-primary/20">
+                <Bookmark className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
+                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Books</span>
+              </button>
+            </div>
             <Button variant="ghost" size="sm" onClick={() => navigate("/progress")} className="hidden sm:flex">
               <Brain className="w-4 h-4 mr-1" />
               <span className="hidden md:inline">Progress</span>
@@ -678,7 +680,7 @@ export default function Library() {
               <div className="text-sm text-white/80">Books to read</div>
             </div>
             <div>
-              <div className="text-3xl font-bold">{books.length}</div>
+              <div className="text-3xl font-bold">{books.length + (showEyeGaze ? eyeGazeQuizzes.length + customQuizzes.length + regularCustomQuizzes.length : 0)}</div>
               <div className="text-sm text-white/80">Quizzes available</div>
             </div>
           </div>

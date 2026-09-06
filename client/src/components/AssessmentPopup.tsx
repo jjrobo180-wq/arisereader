@@ -46,6 +46,15 @@ export default function AssessmentPopup({ onNavigate }: { onNavigate: (path: str
         setTimeout(checkReady, 500);
         return;
       }
+      // Wait 45 seconds after FYP announcement is dismissed before showing progress popup
+      const fypDismissedAt = sessionStorage.getItem('fyp_announcement_dismissed_at');
+      if (fypDismissedAt) {
+        const elapsed = Date.now() - parseInt(fypDismissedAt);
+        if (elapsed < 45000) {
+          setTimeout(checkReady, 500);
+          return;
+        }
+      }
       // Setup is done (or was never needed), proceed with popup check
       if (user.assessmentPromptShown === undefined) {
         const token = getTokenFromCookie();

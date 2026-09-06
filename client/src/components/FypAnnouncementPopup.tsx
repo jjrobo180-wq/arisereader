@@ -39,11 +39,14 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
 
   const dismiss = () => {
     sessionStorage.setItem('fyp_announcement_shown', 'true');
+    // Delay the assessment popup by 30 seconds so the user can explore FYP first
+    sessionStorage.setItem('fyp_announcement_dismissed_at', Date.now().toString());
     setShow(false);
   };
 
   const goToFyp = () => {
     sessionStorage.setItem('fyp_announcement_shown', 'true');
+    sessionStorage.setItem('fyp_announcement_dismissed_at', Date.now().toString());
     setShow(false);
     onNavigate("/fyp");
   };
