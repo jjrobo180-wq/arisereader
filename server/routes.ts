@@ -1149,13 +1149,21 @@ export async function registerRoutes(
       });
     }
     
-    // Only expose display name, points, quizzes — no usernames or IDs
-    const safe = leaderboard.map((entry: any, idx: number) => ({
-      rank: idx + 1,
-      displayName: entry.displayName,
-      totalPoints: entry.totalPoints,
-      quizzesTaken: entry.quizzesTaken,
-    }));
+    // Only expose display name, points, quizzes, eye gaze flag — no usernames or IDs
+    const allUsers = await storage.getAllUsers();
+    const userMap = new Map(allUsers.map((u: any) => [u.id, u]));
+    const safe = leaderboard.map((entry: any, idx: number) => {
+      const uid = entry.userId || entry.id;
+      const user = userMap.get(uid);
+      const isEyeGazeUser = user?.is_eye_gaze_user || user?.isEyeGazeUser || false;
+      return {
+        rank: idx + 1,
+        displayName: entry.displayName,
+        totalPoints: entry.totalPoints,
+        quizzesTaken: entry.quizzesTaken,
+        isEyeGazeUser,
+      };
+    });
     res.json(safe);
   });
 

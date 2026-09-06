@@ -11,6 +11,7 @@ interface LeaderboardEntry {
   displayName: string;
   totalPoints: number;
   quizzesTaken: number;
+  isEyeGazeUser?: boolean;
 }
 
 function getMonthLabel(ym: string): string {
@@ -40,7 +41,6 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<"all-time" | "monthly">("all-time");
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-  const [boardType, setBoardType] = useState<"regular" | "eye-gaze">("regular");
   const [userBand, setUserBand] = useState<string | null>(null);
   const [selectedBand, setSelectedBand] = useState<string | null>(null);
   const recentMonths = getRecentMonths(6);
@@ -62,9 +62,7 @@ export default function LeaderboardPage() {
     // Use authenticated endpoint when logged in (respects teacher band filtering),
     // fall back to public tutorial endpoint when not logged in
     const isAuthed = !!token;
-    const base = boardType === "eye-gaze"
-      ? (isAuthed ? `${API_BASE}/api/eye-gaze-leaderboard` : `${API_BASE}/api/tutorial/eye-gaze-leaderboard`)
-      : (isAuthed ? `${API_BASE}/api/leaderboard` : `${API_BASE}/api/tutorial/leaderboard`);
+    const base = isAuthed ? `${API_BASE}/api/leaderboard` : `${API_BASE}/api/tutorial/leaderboard`;
     const params = new URLSearchParams();
     if (period === "monthly") params.set("month", selectedMonth);
     if (selectedBand) params.set("band", selectedBand);
@@ -78,7 +76,7 @@ export default function LeaderboardPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [period, selectedMonth, boardType, userBand, selectedBand]);
+  }, [period, selectedMonth, userBand, selectedBand]);
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
@@ -120,37 +118,13 @@ export default function LeaderboardPage() {
             </div>
           ) : null}
           <p className="text-sm text-muted-foreground">
-            {boardType === "eye-gaze" ? "Eye Gaze / Non-Verbal leaderboard" : "Top readers ranked by points earned"}
+            Top readers ranked by points earned
           </p>
           {userBand && (
             <p className="text-xs text-muted-foreground mt-1">
               You are competing only with students in your grade band.
             </p>
           )}
-        </div>
-
-        {/* Board Type Toggle */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <button
-            onClick={() => setBoardType("regular")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              boardType === "regular"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
-            }`}
-          >
-            Regular
-          </button>
-          <button
-            onClick={() => setBoardType("eye-gaze")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              boardType === "eye-gaze"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
-            }`}
-          >
-            Eye Gaze / Non-Verbal
-          </button>
         </div>
 
         {/* Band Filter Buttons */}
@@ -242,9 +216,7 @@ export default function LeaderboardPage() {
               <p className="text-sm text-muted-foreground">
                 {period === "monthly"
                   ? `No quizzes completed in ${getMonthLabel(selectedMonth)} yet. Check back soon!`
-                  : boardType === "eye-gaze"
-                    ? "No eye gaze quizzes completed yet. Check back soon!"
-                    : "No students have taken quizzes yet. Check back soon!"}
+                  : "No students have taken quizzes yet. Check back soon!"}
               </p>
             </CardContent>
           </Card>
@@ -268,7 +240,12 @@ export default function LeaderboardPage() {
                           <Icon className={`w-6 h-6 ${colors.text}`} />
                         </div>
                         <p className={`text-lg font-bold ${colors.text}`}>#{entry.rank}</p>
-                        <p className="font-bold text-sm text-white mt-1 truncate">{entry.displayName}</p>
+                        <p className="font-bold text-sm text-white mt-1 truncate">
+                          {entry.displayName}
+                          {entry.isEyeGazeUser && (
+                            <span className="ml-1 text-xs px-1 py-0.5 rounded bg-yellow-500/30 text-yellow-300 font-semibold" title="Eye Gaze / Non-Verbal user">!EG</span>
+                          )}
+                        </p>
                       </div>
                       <CardContent className="p-3 text-center">
                         <div className="text-2xl font-bold text-primary">{entry.totalPoints}</div>
@@ -300,10 +277,15 @@ export default function LeaderboardPage() {
                         <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center font-bold text-sm text-muted-foreground flex-shrink-0">
                           {entry.rank}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{entry.displayName}</p>
-                          <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate flex items-center gap-1">
+                              {entry.displayName}
+                              {entry.isEyeGazeUser && (
+                                <span className="text-xs px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-semibold flex-shrink-0" title="Eye Gaze / Non-Verbal user">!EG</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                          </div>
                         <div className="text-right flex-shrink-0">
                           <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
                           <div className="text-xs text-muted-foreground">pts</div>

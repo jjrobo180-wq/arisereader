@@ -431,6 +431,7 @@ export class DatabaseStorage implements IStorage {
     clearCache("leaderboard");
     clearCache("allUsers");
     clearCache("monthlyLeaderboard_");
+    clearCache("eye_gaze_leaderboard");
     clearCache("session_");
     return { ...mapAttempt(data), passed, passingScore, bookPoints };
   }
