@@ -398,7 +398,10 @@ export async function registerRoutes(
 
   // Book routes
   app.get("/api/books", authMiddleware, async (req: any, res) => {
-    const books = await storage.getAllBooks();
+    const allBooks = await storage.getAllBooks();
+    // Regular library only shows books WITH quizzes (points_value > 0)
+    // FYP feed uses a separate endpoint and shows ALL books
+    const books = allBooks.filter((b: any) => b.pointsValue > 0);
 
     // Fetch all settings needed for filtering
     const rawGrades = await storage.getSetting('user_grades');

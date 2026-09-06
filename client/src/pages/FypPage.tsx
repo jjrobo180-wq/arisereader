@@ -62,7 +62,7 @@ export default function FypPage() {
         navigate("/");
         return;
       }
-      const res = await fetch(`${API_BASE}/api/fyp/feed?limit=20`, {
+      const res = await fetch(`${API_BASE}/api/fyp/feed?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to load feed");

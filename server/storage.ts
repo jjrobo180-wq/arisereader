@@ -2245,7 +2245,7 @@ export class DatabaseStorage implements IStorage {
       .select('book_id, hook_text, short_summary, expanded_summary, tags, mood')
       .eq('is_active', true)
       .eq('safety_status', 'approved')
-      .in('book_id', Array.from(eligibleBookIds).slice(0, 500));
+      .in('book_id', Array.from(eligibleBookIds));
     if (cardError || !cards) return [];
 
     // 4. Fetch book data
