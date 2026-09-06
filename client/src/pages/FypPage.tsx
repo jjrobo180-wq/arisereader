@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, forwardRef } from "react";
+import { useState, useEffect, useRef, useCallback, forwardRef, Fragment } from "react";
 import { useLocation } from "wouter";
 import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark, Gift } from "lucide-react";
 
@@ -51,10 +51,12 @@ export default function FypPage() {
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dwellTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const loggedView = useRef<Set<number>>(new Set());
-  const [easterEgg, setEasterEgg] = useState<{ visible: boolean; claimed: boolean; points: number; message: string }>({ visible: false, claimed: false, points: 0, message: "" });
-  const eggCheckDone = useRef(false);
+  const [easterEgg, setEasterEgg] = useState<{ claimed: boolean; points: number; message: string }>({ claimed: false, points: 0, message: "" });
   const eggTriggered = useRef(false);
   const swipeCount = useRef(0);
+  const [eggCardIdx, setEggCardIdx] = useState(-1); // index in feed where egg card appears
+  const [eggClaimed, setEggClaimed] = useState(false);
+  const [eggAvailable, setEggAvailable] = useState(false);
 
   const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
@@ -87,23 +89,17 @@ export default function FypPage() {
     fetchFeed();
   }, [fetchFeed]);
 
-  // Easter egg: check status and trigger after 3 swipes
-  // No mount-time check — we check the API directly when swipe count hits 3
-
-  // Trigger easter egg after 3 swipes
+  // Easter egg: after 3 swipes, insert an egg card into the feed
   const prevIndex = useRef(0);
 
   useEffect(() => {
-    // Increment swipe count when index changes (user swiped to a new card)
     if (currentIndex !== prevIndex.current) {
       swipeCount.current++;
       prevIndex.current = currentIndex;
     }
-    // Check if we should show the easter egg
     if (eggTriggered.current) return;
     if (swipeCount.current >= 3) {
       eggTriggered.current = true;
-      // Check API status at this moment (not on mount) to avoid race conditions
       const checkAndShow = async () => {
         try {
           const token = getTokenFromCookie();
@@ -114,7 +110,8 @@ export default function FypPage() {
           if (!res.ok) return;
           const data = await res.json();
           if (data.active && !data.alreadyClaimed && data.remaining > 0) {
-            setEasterEgg({ visible: true, claimed: false, points: 2, message: "You found an Easter Egg!" });
+            setEggAvailable(true);
+            setEggCardIdx(currentIndex); // insert egg card at current position
           }
         } catch {}
       };
@@ -123,6 +120,7 @@ export default function FypPage() {
   }, [currentIndex]);
 
   const claimEasterEgg = async () => {
+    if (eggClaimed) return;
     try {
       const token = getTokenFromCookie();
       if (!token) return;
@@ -132,14 +130,29 @@ export default function FypPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setEasterEgg({ visible: true, claimed: true, points: data.points, message: data.message });
-        setTimeout(() => setEasterEgg({ visible: false, claimed: false, points: 0, message: "" }), 4000);
-      } else {
-        setEasterEgg({ visible: false, claimed: false, points: 0, message: "" });
+        setEggClaimed(true);
+        setEasterEgg({ claimed: true, points: data.points, message: data.message });
+        // Refresh user points in auth context
+        try {
+          const meRes = await fetch(`${API_BASE}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            // Update the auth context by updating the cookie
+            const cookie = document.cookie.split(';').find(c => c.trim().startsWith('arise_session'));
+            if (cookie) {
+              const raw = cookie.trim().substring('arise_session='.length);
+              const session = JSON.parse(atob(raw));
+              if (session.user) {
+                session.user.totalPoints = meData.totalPoints ?? session.user.totalPoints;
+                document.cookie = `arise_session=${btoa(JSON.stringify(session))}; path=/; max-age=604800`;
+              }
+            }
+          }
+        } catch {}
+        // Notify other components (PointsSideTab, header, etc.) that points changed
+        window.dispatchEvent(new CustomEvent('arise:points-updated', { detail: { points: data.points } }));
       }
-    } catch {
-      setEasterEgg({ visible: false, claimed: false, points: 0, message: "" });
-    }
+    } catch {}
   };
 
   // Track which card is in view using IntersectionObserver
@@ -383,19 +396,124 @@ export default function FypPage() {
         className="fyp-scroll"
       >
         {items.map((item, idx) => (
-          <FypBookCard
-            key={item.bookId}
-            item={item}
-            index={idx}
-            ref={(el) => (itemRefs.current[idx] = el)}
-            onLike={() => handleReaction(item.bookId, "like")}
-            onDislike={() => handleReaction(item.bookId, "dislike")}
-            onShare={() => handleShare(item.bookId)}
-            onReadMore={() => handleReadMore(item.bookId)}
-            onReadBook={() => handleReadBook(item.bookId)}
-            onTakeQuiz={() => handleTakeQuiz(item.bookId)}
-            onSave={(saved) => handleSave(item.bookId, saved)}
-          />
+          <Fragment key={item.bookId}>
+            <FypBookCard
+              item={item}
+              index={idx}
+              ref={(el) => (itemRefs.current[idx] = el)}
+              onLike={() => handleReaction(item.bookId, "like")}
+              onDislike={() => handleReaction(item.bookId, "dislike")}
+              onShare={() => handleShare(item.bookId)}
+              onReadMore={() => handleReadMore(item.bookId)}
+              onReadBook={() => handleReadBook(item.bookId)}
+              onSave={(saved) => handleSave(item.bookId, saved)}
+            />
+            {eggAvailable && idx === eggCardIdx && (
+              <div
+                data-index={idx + 1}
+                style={{
+                  height: "100vh",
+                  scrollSnapAlign: "start",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Glowing orbs */}
+                <div style={{
+                  position: "absolute", top: "15%", left: "10%", width: 100, height: 100,
+                  borderRadius: "50%", background: "rgba(245, 158, 11, 0.08)", filter: "blur(40px)",
+                }} />
+                <div style={{
+                  position: "absolute", bottom: "15%", right: "10%", width: 120, height: 120,
+                  borderRadius: "50%", background: "rgba(234, 179, 8, 0.06)", filter: "blur(50px)",
+                }} />
+
+                {/* Egg visual */}
+                <div style={{
+                  width: 140, height: 180, marginBottom: 24, position: "relative",
+                  animation: "fypFloat 3s ease-in-out infinite",
+                }}>
+                  <div style={{
+                    width: "100%", height: "100%", borderRadius: "50% 50% 45% 45%",
+                    background: "linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ea580c 100%)",
+                    boxShadow: "0 0 60px rgba(245, 158, 11, 0.4), inset -8px -12px 20px rgba(0,0,0,0.2), inset 8px 8px 16px rgba(255,255,255,0.15)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    position: "relative",
+                  }}>
+                    {/* Egg shine */}
+                    <div style={{
+                      position: "absolute", top: "18%", left: "22%", width: 28, height: 40,
+                      borderRadius: "50%", background: "rgba(255,255,255,0.35)", filter: "blur(6px)",
+                    }} />
+                    {/* Egg pattern dots */}
+                    <div style={{
+                      position: "absolute", top: "45%", left: "50%", transform: "translateX(-50%)",
+                      display: "flex", gap: 6,
+                    }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.3)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.3)" }} />
+                    </div>
+                    <div style={{
+                      position: "absolute", top: "60%", left: "50%", transform: "translateX(-50%)",
+                      display: "flex", gap: 8,
+                    }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.3)" }} />
+                    </div>
+                  </div>
+                </div>
+
+                {!eggClaimed ? (
+                  <>
+                    <h2 style={{ color: "#f59e0b", fontSize: 28, fontWeight: 800, marginBottom: 8, textShadow: "0 2px 20px rgba(245,158,11,0.3)" }}>
+                      You Found an Easter Egg!
+                    </h2>
+                    <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, marginBottom: 24, maxWidth: 320, textAlign: "center" }}>
+                      Tap to claim your +2 leaderboard points!
+                    </p>
+                    <button
+                      onClick={claimEasterEgg}
+                      style={{
+                        background: "linear-gradient(135deg, #f59e0b, #f97316)",
+                        color: "#000",
+                        border: "none",
+                        borderRadius: 12,
+                        padding: "14px 36px",
+                        fontSize: 18,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        boxShadow: "0 4px 24px rgba(245,158,11,0.4)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <Gift size={20} /> Claim +2 Points
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+                    <h2 style={{ color: "#f59e0b", fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
+                      {easterEgg.message}
+                    </h2>
+                    <p style={{ color: "#4ade80", fontSize: 36, fontWeight: 800 }}>
+                      +{easterEgg.points}
+                    </p>
+                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginTop: 12 }}>
+                      Swipe to continue discovering books
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </Fragment>
         ))}
 
         {/* End card */}
@@ -430,66 +548,6 @@ export default function FypPage() {
           </div>
         </div>
       </div>
-
-      {/* Easter Egg Popup */}
-      {easterEgg.visible && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 200,
-            background: "rgba(0,0,0,0.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: "fypFadeIn 0.3s ease",
-          }}
-          onClick={() => !easterEgg.claimed && claimEasterEgg()}
-        >
-          <div
-            style={{
-              background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-              border: "2px solid #f59e0b",
-              borderRadius: 20,
-              padding: "40px",
-              textAlign: "center",
-              maxWidth: 360,
-              boxShadow: "0 0 60px rgba(245, 158, 11, 0.3)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {!easterEgg.claimed ? (
-              <>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🥚</div>
-                <h2 style={{ color: "#f59e0b", fontSize: 24, fontWeight: 800, marginBottom: 8 }}>You Found an Easter Egg!</h2>
-                <p style={{ color: "#ccc", fontSize: 15, marginBottom: 20 }}>Tap to claim your +2 leaderboard points!</p>
-                <button
-                  onClick={claimEasterEgg}
-                  style={{
-                    background: "linear-gradient(135deg, #f59e0b, #f97316)",
-                    color: "#000",
-                    border: "none",
-                    borderRadius: 12,
-                    padding: "12px 32px",
-                    fontSize: 18,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Gift size={20} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                  Claim +2 Points
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-                <h2 style={{ color: "#f59e0b", fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{easterEgg.message}</h2>
-                <p style={{ color: "#4ade80", fontSize: 32, fontWeight: 800 }}>+{easterEgg.points}</p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Expanded summary modal */}
       {expanded && items[currentIndex] && (
@@ -547,7 +605,7 @@ export default function FypPage() {
             )}
             {items[currentIndex].pointsValue > 0 && (
               <div style={{ color: "var(--accent-color, #f59e0b)", fontWeight: 600, marginBottom: "16px" }}>
-                Earn {items[currentIndex].pointsValue} points by taking the quiz!
+                Discover this book — then take the quiz from the Library!
               </div>
             )}
             <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
@@ -567,20 +625,6 @@ export default function FypPage() {
                   Read Book
                 </button>
               )}
-              <button
-                onClick={() => handleTakeQuiz(items[currentIndex].bookId)}
-                style={{
-                  padding: "10px 24px",
-                  background: "rgba(255,255,255,0.15)",
-                  border: "none",
-                  borderRadius: "8px",
-                  color: "white",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Take Quiz
-              </button>
             </div>
           </div>
         </div>
@@ -648,6 +692,7 @@ export default function FypPage() {
       <style>{`
         .fyp-scroll::-webkit-scrollbar { display: none; }
         @keyframes fypFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fypFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
       `}</style>
     </div>
   );
@@ -661,11 +706,10 @@ interface CardProps {
   onShare: () => void;
   onReadMore: () => void;
   onReadBook: () => void;
-  onTakeQuiz: () => void;
   onSave: (saved: boolean) => void;
 }
 
-const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike, onDislike, onShare, onReadMore, onReadBook, onTakeQuiz, onSave }, ref) => {
+const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike, onDislike, onShare, onReadMore, onReadBook, onSave }, ref) => {
   const [showActions, setShowActions] = useState(false);
 
   return (
@@ -946,38 +990,37 @@ const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike
           <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>Save</span>
         </button>
 
-        {/* Read book / Take quiz / Info */}
-        <button
-          onClick={() => {
-            if (item.readUrl) onReadBook();
-            else if (item.pointsValue > 0) onTakeQuiz();
-          }}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "2px",
-          }}
-        >
-          <div
+        {/* Read book */}
+        {item.readUrl && (
+          <button
+            onClick={() => onReadBook()}
             style={{
-              width: "48px",
-              height: "48px",
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.1)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
-              backdropFilter: "blur(8px)",
+              gap: "2px",
             }}
           >
-            <BookOpen size={22} color="white" />
-          </div>
-          <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>{item.readUrl ? "Read" : item.pointsValue > 0 ? "Quiz" : "Info"}</span>
-        </button>
+            <div
+              style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <BookOpen size={22} color="white" />
+            </div>
+            <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>Read</span>
+          </button>
+        )}
       </div>
     </div>
   );

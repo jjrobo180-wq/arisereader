@@ -50,6 +50,7 @@ import ParentDashboard from "./pages/ParentDashboard";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import FypSideTab from "./components/FypSideTab";
+import PointsSideTab from "./components/PointsSideTab";
 import About from "./pages/About";
 import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
@@ -257,6 +258,7 @@ function AppInner() {
     <>
       <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />
       <FypSideTab />
+      <PointsSideTab />
       <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />
       <Router hook={useHashLocation}>
         <AppRoutes />

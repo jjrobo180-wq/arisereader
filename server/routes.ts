@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage } from "./storage";
 import { seedData } from "./storage";
+import { clearCache } from "./storage";
 import { supabase } from "./supabase";
 import bcrypt from "bcryptjs";
 
@@ -4027,6 +4028,13 @@ export async function registerRoutes(
       const { data: userData } = await supabase.from('users').select('total_points').eq('id', req.user.id).single();
       const currentPoints = userData?.total_points || 0;
       await supabase.from('users').update({ total_points: currentPoints + settings.points_per_egg }).eq('id', req.user.id);
+
+      // Invalidate leaderboard cache so points show immediately
+      clearCache('leaderboard');
+      clearCache('allUsers');
+      clearCache('monthlyLeaderboard');
+      // Clear this user's session cache so /api/me returns fresh points
+      clearCache('session_');
 
       res.json({
         success: true,

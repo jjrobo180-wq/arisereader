@@ -36,7 +36,7 @@ async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Prom
 }
 
 // Clear cache entries matching a prefix
-function clearCache(prefix: string) {
+export function clearCache(prefix: string) {
   for (const key of cache.keys()) {
     if (key.startsWith(prefix)) cache.delete(key);
   }
