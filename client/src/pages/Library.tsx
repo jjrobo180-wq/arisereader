@@ -643,7 +643,7 @@ export default function Library() {
             <p className="mt-1 text-white/90">Pick a book you've read and take the quiz to earn points.</p>
           )}
           <div className="flex gap-4 sm:gap-6 mt-4 flex-wrap">
-            <div>
+            <div data-tour="points-trophy">
               <div className="text-3xl font-bold">{totalPoints}</div>
               <div className="text-sm text-white/80">Points earned</div>
             </div>
@@ -1212,7 +1212,7 @@ export default function Library() {
           pointsOrder.filter(k => pointsGroups[k]).map((pts) => {
             const groupBooks = pointsGroups[pts];
             return (
-            <div key={pts} className="mb-10">
+            <div key={pts} className="mb-10" data-tour={pts === pointsOrder.filter(k => pointsGroups[k])[0] ? "point-books" : undefined}>
               <h2 className="text-lg font-bold mb-4 text-foreground">{pts} Point Books</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {groupBooks.map((book) => {

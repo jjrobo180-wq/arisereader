@@ -34,6 +34,18 @@ const TOUR_STEPS: TourStep[] = [
     position: "bottom",
   },
   {
+    selector: '[data-tour="point-books"]',
+    title: "Point Books",
+    desc: "Books are grouped by points — 10, 15, 20, 25 points. The higher the points, the bigger the reward! Take quizzes to climb the leaderboard.",
+    position: "bottom",
+  },
+  {
+    selector: '[data-tour="points-trophy"]',
+    title: "Your Points",
+    desc: "This shows your total points earned. Every quiz you complete adds points here. Compete with classmates on the leaderboard!",
+    position: "bottom",
+  },
+  {
     selector: '[data-tour="fyp-side-tab"]',
     title: "FYP Feed",
     desc: "Swipe through book recommendations like TikTok. Find hidden easter eggs for bonus points! This is where reading gets fun.",
