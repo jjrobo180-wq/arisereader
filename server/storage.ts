@@ -558,7 +558,7 @@ export class DatabaseStorage implements IStorage {
     return cached('leaderboard', 300000, async () => {
       // Fetch users with regular attempts AND eye gaze attempts AND total_points
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false)
+        supabase.from("users").select("id, username, display_name, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false).eq("role", "student")
       );
       if (allUsers.length === 0) return [];
 
@@ -1008,7 +1008,7 @@ export class DatabaseStorage implements IStorage {
 
       // Fetch users with regular attempts AND eye gaze attempts
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false)
+        supabase.from("users").select("id, username, display_name, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false).eq("role", "student")
       );
       if (allUsers.length === 0) return [];
 
