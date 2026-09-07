@@ -382,6 +382,7 @@ export default function Library() {
     setInstantLoading(true);
     setShowGenerating(true);
     setShowInstant(false);
+    setPendingBookId(null);
     try {
       const authToken = token || getTokenFromCookie();
       const res = await fetch(`${API_BASE}/api/instant-quiz`, {
@@ -394,7 +395,6 @@ export default function Library() {
       });
       const data = await res.json();
       if (res.ok) {
-        // Store bookId for navigation after loading screen finishes
         if (data.bookId) setPendingBookId(data.bookId);
         setInstantMsg(data.message || "Quiz generated!");
         fetchBooks();
@@ -415,10 +415,7 @@ export default function Library() {
     setInstantBook("");
     setInstantAuthor("");
     setInstantMsg("");
-    // Navigate to the most recently created book's quiz
-    // The instant-quiz endpoint returns bookId in the response
-    // We stored the response in instantMsg, but we need the bookId
-    // Let's fetch the latest books and navigate to the newest one
+    // Auto-launch the quiz so students don't have to search for the book
     if (pendingBookId) {
       navigate(`/quiz/${pendingBookId}`);
     } else {
@@ -850,7 +847,7 @@ export default function Library() {
                       />
                     </div>
                     <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
-                      A 10-question quiz will be created instantly. We use premium AI technology trained by educators — not ChatGPT or Google — following responsible AI policies for schools.
+                      A 10-question quiz will be created instantly. We use premium AI technology — not ChatGPT or Google — with guidelines set by educators. After students complete quizzes, educators review questions and adjust scoring as needed.
                     </div>
                     <div className="flex gap-2">
                       <Button onClick={handleInstantQuiz} disabled={!instantBook.trim() || !instantAuthor.trim() || instantLoading} className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
@@ -1587,6 +1584,7 @@ export default function Library() {
         <QuizGeneratingOverlay
           bookTitle={instantBook}
           author={instantAuthor}
+          ready={!!pendingBookId}
           onComplete={handleGeneratingComplete}
         />
       )}

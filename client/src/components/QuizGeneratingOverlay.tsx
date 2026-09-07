@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { BrandText } from "@/components/BrandText";
-import { BookOpen, Brain, ShieldCheck, GraduationCap, Sparkles, CheckCircle2 } from "lucide-react";
+import { BookOpen, Brain, ShieldCheck, GraduationCap, Sparkles, CheckCircle2, ClipboardCheck, Eye } from "lucide-react";
 
 interface Props {
   bookTitle: string;
   author: string;
+  ready: boolean;
   onComplete: () => void;
 }
 
@@ -14,22 +15,24 @@ interface Step {
   detail: string;
 }
 
-export default function QuizGeneratingOverlay({ bookTitle, author, onComplete }: Props) {
+export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComplete }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [stepComplete, setStepComplete] = useState<number[]>([]);
+  const [allStepsDone, setAllStepsDone] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const steps: Step[] = [
     { label: "Analyzing book content", icon: BookOpen, detail: `Reading "${bookTitle}" by ${author}` },
-    { label: "Applying educator guidelines", icon: GraduationCap, detail: "Questions shaped by real teachers' standards" },
-    { label: "Generating with premium AI", icon: Brain, detail: "Not ChatGPT or Google — a premium model trained by educators" },
-    { label: "Checking responsible AI policies", icon: ShieldCheck, detail: "Following school AI responsibility guidelines" },
-    { label: "Preparing for educator review", icon: Sparkles, detail: "Every quiz is eligible for review by a real educator" },
+    { label: "Applying educator guidelines", icon: GraduationCap, detail: "Questions shaped by standards set by real teachers in the admin panel" },
+    { label: "Generating with premium AI", icon: Brain, detail: "Not ChatGPT or Google — a premium model trained by actual educators" },
+    { label: "Checking responsible AI policies", icon: ShieldCheck, detail: "Following school AI responsibility guidelines set by your educators" },
+    { label: "Verifying fairness and accuracy", icon: ClipboardCheck, detail: "Questions checked for grade-level appropriateness and clarity" },
+    { label: "Queueing for educator review", icon: Eye, detail: "Educators can review quiz questions and adjust scoring after students complete quizzes" },
   ];
 
   useEffect(() => {
-    const stepDuration = 2000; // ms per step
+    const stepDuration = 4000; // 4 seconds per step = 24 seconds total
     const totalDuration = steps.length * stepDuration;
     const startTime = Date.now();
 
@@ -49,7 +52,7 @@ export default function QuizGeneratingOverlay({ bookTitle, author, onComplete }:
       if (elapsed >= totalDuration) {
         if (timerRef.current) clearInterval(timerRef.current);
         setStepComplete(Array.from({ length: steps.length }, (_, i) => i));
-        setTimeout(() => onComplete(), 600);
+        setAllStepsDone(true);
       }
     }, 50);
 
@@ -57,6 +60,14 @@ export default function QuizGeneratingOverlay({ bookTitle, author, onComplete }:
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  // Only complete when both the animation is done AND the API response is ready
+  useEffect(() => {
+    if (allStepsDone && ready) {
+      const t = setTimeout(() => onComplete(), 800);
+      return () => clearTimeout(t);
+    }
+  }, [allStepsDone, ready, onComplete]);
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex items-center justify-center">
@@ -71,14 +82,14 @@ export default function QuizGeneratingOverlay({ bookTitle, author, onComplete }:
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground">
-              Generating quiz for "{bookTitle}"...
+              {allStepsDone && !ready ? "Finalizing your quiz..." : `Generating quiz for "${bookTitle}"...`}
             </span>
             <span className="text-xs font-bold text-primary">{Math.round(progress)}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all duration-100 ease-out"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${allStepsDone && !ready ? 100 : progress}%` }}
             />
           </div>
         </div>
@@ -131,10 +142,13 @@ export default function QuizGeneratingOverlay({ bookTitle, author, onComplete }:
           })}
         </div>
 
-        {/* Footer message */}
-        <div className="text-center mt-8">
+        {/* Footer message — emphasize educator guidelines and review */}
+        <div className="text-center mt-8 space-y-2">
           <p className="text-xs text-muted-foreground">
-            A.R.I.S.E Reader uses premium AI technology — not ChatGPT or Google — trained by actual educators to create fair, accurate quizzes that follow responsible AI policies in schools.
+            Every quiz is created using premium AI technology — not ChatGPT or Google — with guidelines set by real educators in the admin panel before a single question is written.
+          </p>
+          <p className="text-xs font-medium text-primary">
+            After students complete a quiz, educators review the questions, verify accuracy, and adjust scoring as needed. This is our commitment to responsible AI in schools.
           </p>
         </div>
       </div>
