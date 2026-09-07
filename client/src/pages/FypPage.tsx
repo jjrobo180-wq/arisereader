@@ -126,7 +126,7 @@ export default function FypPage() {
   useEffect(() => {
     if (!loading && items.length > 0) {
       setShowDisclaimer(true);
-      const timer = setTimeout(() => setShowDisclaimer(false), 6000);
+      const timer = setTimeout(() => setShowDisclaimer(false), 10000);
       return () => clearTimeout(timer);
     }
   }, [loading, items.length]);
