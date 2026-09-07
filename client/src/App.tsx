@@ -1,4 +1,4 @@
-import { Switch, Route, Router, Redirect } from "wouter";
+import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -137,6 +137,7 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
@@ -145,8 +146,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <Redirect to="/" />;
-  // Parents can only access the parent dashboard
-  if (user.role === 'parent' && !user.isAdmin) {
+  // Parents can only access the parent dashboard — redirect if they try elsewhere
+  if (user.role === 'parent' && !user.isAdmin && location !== '/parent-dashboard') {
     return <Redirect to="/parent-dashboard" />;
   }
   return <>{children}</>;
