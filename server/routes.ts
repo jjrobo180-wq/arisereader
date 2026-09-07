@@ -2071,10 +2071,17 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only students can generate instant quizzes" });
       }
 
+      // Fix spelling and capitalization
+      const fixTitle = (raw: string): string => {
+        return raw.trim().toLowerCase().replace(/(^|[\s&-])(\w)/g, (_, sep, char) => sep + char.toUpperCase());
+      };
+      const cleanTitle = fixTitle(bookTitle);
+      const cleanAuthor = fixTitle(author);
+
       // Check if this book already exists with a quiz
       const allBooks = await storage.getAllBooks();
       const existing = allBooks.find((b: any) =>
-        b.title.toLowerCase().trim() === bookTitle.trim().toLowerCase()
+        b.title.toLowerCase().trim() === cleanTitle.toLowerCase()
       );
       if (existing && existing.pointsValue > 0) {
         // Book already has a quiz, redirect to it
@@ -2089,18 +2096,18 @@ export async function registerRoutes(
       const ageGroup = studentGrade <= "2" ? "K-2" : studentGrade <= "5" ? "3-5" : studentGrade <= "8" ? "6-8" : "9-12";
 
       // Generate quiz with AI
-      const result = await generateQuizWithAI(bookTitle.trim(), author.trim(), ageGroup);
+      const result = await generateQuizWithAI(cleanTitle, cleanAuthor, ageGroup);
       if ("error" in result) {
         return res.status(500).json({ message: result.error });
       }
 
       // Create the book with AI-generated questions
       const book = await storage.createBookWithQuestions({
-        title: bookTitle.trim(),
-        author: author.trim(),
+        title: cleanTitle,
+        author: cleanAuthor,
         ageGroup,
         coverUrl: null,
-        description: `AI-generated quiz for "${bookTitle.trim()}" by ${author.trim()}`,
+        description: `AI-generated quiz for "${cleanTitle}" by ${cleanAuthor}`,
         pointsValue: 10,
         readUrl: null,
       }, result.questions);

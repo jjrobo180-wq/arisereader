@@ -12,6 +12,7 @@ import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -108,6 +109,8 @@ export default function Library() {
 
   // Instant AI quiz state
   const [showInstant, setShowInstant] = useState(false);
+  const [showGenerating, setShowGenerating] = useState(false);
+  const [pendingBookId, setPendingBookId] = useState<number | null>(null);
   const [instantBook, setInstantBook] = useState("");
   const [instantAuthor, setInstantAuthor] = useState("");
   const [instantMsg, setInstantMsg] = useState("");
@@ -377,6 +380,8 @@ export default function Library() {
     setInstantMsg("");
     if (!instantBook.trim() || !instantAuthor.trim()) return;
     setInstantLoading(true);
+    setShowGenerating(true);
+    setShowInstant(false);
     try {
       const authToken = token || getTokenFromCookie();
       const res = await fetch(`${API_BASE}/api/instant-quiz`, {
@@ -389,26 +394,35 @@ export default function Library() {
       });
       const data = await res.json();
       if (res.ok) {
+        // Store bookId for navigation after loading screen finishes
+        if (data.bookId) setPendingBookId(data.bookId);
         setInstantMsg(data.message || "Quiz generated!");
-        // Refresh library to show the new book
         fetchBooks();
-        // Wait a moment then navigate to the quiz
-        setTimeout(() => {
-          setShowInstant(false);
-          setInstantBook("");
-          setInstantAuthor("");
-          setInstantMsg("");
-          if (data.bookId) {
-            navigate(`/quiz/${data.bookId}`);
-          }
-        }, 1500);
       } else {
         setInstantError(data.message || "Failed to generate quiz.");
+        setShowGenerating(false);
       }
     } catch {
       setInstantError("Failed to generate quiz. Please try again.");
+      setShowGenerating(false);
     } finally {
       setInstantLoading(false);
+    }
+  };
+
+  const handleGeneratingComplete = () => {
+    setShowGenerating(false);
+    setInstantBook("");
+    setInstantAuthor("");
+    setInstantMsg("");
+    // Navigate to the most recently created book's quiz
+    // The instant-quiz endpoint returns bookId in the response
+    // We stored the response in instantMsg, but we need the bookId
+    // Let's fetch the latest books and navigate to the newest one
+    if (pendingBookId) {
+      navigate(`/quiz/${pendingBookId}`);
+    } else {
+      navigate("/library");
     }
   };
 
@@ -722,23 +736,15 @@ export default function Library() {
           </div>
         </div>
 
-        {/* Request a quiz / Instant quiz - students only */}
+        {/* Create a Quiz - students only */}
         {!(user?.role === 'teacher' || user?.isAdmin) && (
-          <div className="mb-8 flex flex-wrap gap-3" data-tour="request-quiz">
-            <Button
-              variant="outline"
-              onClick={() => { setShowRequest(true); setRequestError(""); setRequestMsg(""); }}
-              data-testid="button-request-quiz"
-            >
-              <PlusCircle className="w-4 h-4 mr-1" />
-              Request a Quiz
-            </Button>
+          <div className="mb-8" data-tour="request-quiz">
             <Button
               onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
             >
               <Sparkles className="w-4 h-4 mr-1" />
-              Instant AI Quiz
+              Create a Quiz
             </Button>
           </div>
         )}
@@ -797,7 +803,7 @@ export default function Library() {
           </div>
         )}
 
-        {/* Instant AI Quiz modal */}
+        {/* Create a Quiz modal */}
         {showInstant && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !instantLoading && setShowInstant(false)}>
             <Card className="w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -805,7 +811,7 @@ export default function Library() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-lg flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-purple-500" />
-                    Instant AI Quiz
+                    Create a Quiz
                   </h3>
                   {!instantLoading && (
                     <Button variant="ghost" size="sm" onClick={() => setShowInstant(false)}>
@@ -817,12 +823,6 @@ export default function Library() {
                   <div className="text-center py-6">
                     <Sparkles className="w-10 h-10 text-green-400 mx-auto mb-3" />
                     <p className="text-sm text-green-400 font-medium">{instantMsg}</p>
-                  </div>
-                ) : instantLoading ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-sm font-medium text-purple-400">Generating your quiz with AI...</p>
-                    <p className="text-xs text-muted-foreground mt-1">This takes about 10-15 seconds</p>
                   </div>
                 ) : (
                   <>
@@ -850,12 +850,12 @@ export default function Library() {
                       />
                     </div>
                     <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
-                      AI will instantly create a 10-question quiz about your book. Questions are generated based on the book's content and themes.
+                      A 10-question quiz will be created instantly. We use premium AI technology trained by educators — not ChatGPT or Google — following responsible AI policies for schools.
                     </div>
                     <div className="flex gap-2">
                       <Button onClick={handleInstantQuiz} disabled={!instantBook.trim() || !instantAuthor.trim() || instantLoading} className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
                         <Sparkles className="w-4 h-4 mr-1" />
-                        Generate Quiz
+                        Create Quiz
                       </Button>
                       <Button variant="outline" onClick={() => setShowInstant(false)} className="flex-1">
                         Cancel
@@ -1581,6 +1581,15 @@ export default function Library() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Quiz Generating Loading Screen */}
+      {showGenerating && (
+        <QuizGeneratingOverlay
+          bookTitle={instantBook}
+          author={instantAuthor}
+          onComplete={handleGeneratingComplete}
+        />
+      )}
     </div>
   );
 }
