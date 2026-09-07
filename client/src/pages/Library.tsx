@@ -400,6 +400,11 @@ export default function Library() {
         if (data.bookId) setPendingBookId(data.bookId);
         setInstantMsg(data.message || "Quiz generated!");
         fetchBooks();
+      } else if (data.needsManualReview) {
+        // Quiz requires manual review — show the message, stop loading
+        setShowGenerating(false);
+        setInstantError(data.message);
+        setShowInstant(true);
       } else {
         setInstantError(data.message || "Failed to generate quiz.");
         setShowGenerating(false);

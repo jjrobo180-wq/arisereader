@@ -46,7 +46,7 @@ async function getPerplexityApiKey(): Promise<string> {
   return "";
 }
 
-async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }> } | { error: string }> {
+async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }>; bookGradeLevel: string; pointsValue: number } | { error: string; needsManualReview?: boolean; reviewReason?: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -60,8 +60,15 @@ async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: 
 
     const prompt = `You are an expert reading comprehension quiz creator for students. Create exactly 10 multiple-choice questions for the book "${bookTitle}" by ${author}.
 
-Return ONLY a JSON array (no markdown, no explanation, no code blocks). Each question must have this exact format:
-[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A"}]
+First, analyze the book and determine:
+1. The estimated US grade level of this book (e.g., "3", "5", "8", "10")
+2. The vocabulary complexity (1=simple, 2=moderate, 3=advanced)
+3. The book length category (1=short/picture book, 2=chapter book, 3=full novel)
+
+Then create 10 multiple-choice questions appropriate for ${ageGroup || "middle school"} students.
+
+Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
+{"bookGradeLevel":"5","vocabComplexity":2,"lengthCategory":2,"questions":[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A"}]}
 
 Rules:
 - Questions should test reading comprehension, plot details, character understanding, and themes
@@ -70,7 +77,7 @@ Rules:
 - Make questions appropriate for ${ageGroup || "middle school"} students
 - Do NOT make questions about the author's life or publication details
 - Focus on the story content, characters, plot, and themes
-- Return exactly 10 questions as a JSON array${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
+- Return exactly 10 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
 
     const res = await fetch(PERPLEXITY_API_URL, {
       method: "POST",
@@ -103,13 +110,47 @@ Rules:
 
     // Extract JSON from response (handles markdown code blocks)
     let jsonStr = content.trim();
-    const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
     if (jsonMatch) jsonStr = jsonMatch[0];
 
-    const questions = JSON.parse(jsonStr);
+    const parsed = JSON.parse(jsonStr);
+    const questions = parsed.questions || parsed;
+    const bookGradeLevel = parsed.bookGradeLevel || studentGrade || "5";
+    const vocabComplexity = parsed.vocabComplexity || 2;
+    const lengthCategory = parsed.lengthCategory || 2;
 
     if (!Array.isArray(questions) || questions.length === 0) {
       return { error: "AI generated invalid questions" };
+    }
+
+    // Grade level mismatch check
+    const studentGradeNum = parseInt(studentGrade || "5");
+    const bookGradeNum = parseInt(bookGradeLevel);
+    const gradeDiff = studentGradeNum - bookGradeNum; // positive = book is below student grade
+
+    // If book is 3+ grades below student's level, require manual review
+    if (gradeDiff >= 3) {
+      return {
+        error: `This book appears to be at a grade ${bookGradeLevel} reading level, which is well below your grade ${studentGrade} level. This quiz requires manual review by an educator before it can be granted.`,
+        needsManualReview: true,
+        reviewReason: `Book "${bookTitle}" is estimated at grade ${bookGradeLevel} level, but student is in grade ${studentGrade}. Difference of ${gradeDiff} grades.`,
+      };
+    }
+
+    // Calculate points based on grade level, vocab, and length
+    let pointsValue = 10; // base
+    if (gradeDiff <= -2) {
+      // Book is 2+ grades above student → harder, more points
+      pointsValue = 30;
+    } else if (gradeDiff <= -1) {
+      // Book is 1 grade above → moderately harder
+      pointsValue = 20;
+    } else {
+      // Book is at or near grade level
+      // Adjust for vocab and length
+      if (vocabComplexity >= 3 && lengthCategory >= 3) pointsValue = 20;
+      else if (vocabComplexity >= 3 || lengthCategory >= 3) pointsValue = 15;
+      else pointsValue = 10;
     }
 
     // Validate and clean up questions
@@ -128,7 +169,7 @@ Rules:
       return { error: "AI generated too few valid questions" };
     }
 
-    return { questions: validQuestions };
+    return { questions: validQuestions, bookGradeLevel, pointsValue };
   } catch (e: any) {
     return { error: `AI generation failed: ${e.message}` };
   }
@@ -2096,8 +2137,23 @@ export async function registerRoutes(
       const ageGroup = studentGrade <= "2" ? "K-2" : studentGrade <= "5" ? "3-5" : studentGrade <= "8" ? "6-8" : "9-12";
 
       // Generate quiz with AI
-      const result = await generateQuizWithAI(cleanTitle, cleanAuthor, ageGroup);
+      const result = await generateQuizWithAI(cleanTitle, cleanAuthor, ageGroup, studentGrade);
       if ("error" in result) {
+        if (result.needsManualReview) {
+          // Create a quiz request notification for the admin
+          try {
+            const { pool } = require("./storage.js");
+            await pool.query(
+              "INSERT INTO quiz_requests (student_id, book_title, author, status, reason) VALUES ($1, $2, $3, $4, $5)",
+              [req.user.id, cleanTitle, cleanAuthor, "pending", result.reviewReason || ""]
+            );
+            await pool.query(
+              "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, $2, $3, $4)",
+              [1, "info", "Manual review needed", `A student requested a quiz for "${cleanTitle}" but it appears to be below their grade level. Review needed.`]
+            );
+          } catch {}
+          return res.status(403).json({ message: result.error, needsManualReview: true });
+        }
         return res.status(500).json({ message: result.error });
       }
 
@@ -2138,7 +2194,7 @@ export async function registerRoutes(
         ageGroup,
         coverUrl,
         description: `Quiz for "${cleanTitle}" by ${cleanAuthor}`,
-        pointsValue: 10,
+        pointsValue: result.pointsValue || 10,
         readUrl: null,
       }, result.questions);
 
