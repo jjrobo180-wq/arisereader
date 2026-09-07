@@ -9,6 +9,14 @@ export default function PointsSideTab() {
   const [hovered, setHovered] = useState(false);
   const [show, setShow] = useState(false);
   const [points, setPoints] = useState(user?.totalPoints ?? 0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!user) { setShow(false); return; }
@@ -55,7 +63,7 @@ export default function PointsSideTab() {
       style={{
         position: "fixed",
         right: 0,
-        top: "calc(50% - 120px)",
+        top: isMobile ? "140px" : "calc(50% - 120px)",
         transform: "translateY(-50%)",
         zIndex: 100,
         display: "flex",
