@@ -25,40 +25,91 @@ const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "jjrobo180@gmail.co
 const APP_URL = process.env.APP_URL || "https://arisereader.pplx.app";
 
 // LLM API for instant quiz generation
-// Uses a Python script with pplx_sdk to generate quiz questions
-import { execFile } from 'child_process';
-import path from 'path';
-
-const QUIZ_SCRIPT = path.join(process.cwd(), 'scripts', 'generate_quiz.py');
+// Uses Perplexity API (sonar model) to generate quiz questions via HTTP
+// API key is injected via custom credential: custom-cred:api.perplexity.ai
+const PERPLEXITY_TOKEN = process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || process.env.PERPLEXITY_API_KEY || "";
+const PERPLEXITY_BASE_URL = process.env.CUSTOM_CRED_API_PERPLEXITY_AI_URL || "https://api.perplexity.ai";
+const PERPLEXITY_API_URL = PERPLEXITY_BASE_URL.replace(/\/$/, "") + "/chat/completions";
 
 async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }> } | { error: string }> {
-  return new Promise((resolve) => {
-    const args = [QUIZ_SCRIPT, bookTitle, author, ageGroup || 'middle school'];
-    execFile('python3', args, {
-      timeout: 90000,
-      maxBuffer: 1024 * 1024,
-      env: { ...process.env },
-    }, (err, stdout, stderr) => {
-      if (err) {
-        resolve({ error: `AI generation failed: ${err.message}` });
-        return;
-      }
-      try {
-        const result = JSON.parse(stdout.trim());
-        if (result.error) {
-          resolve({ error: result.error });
-          return;
-        }
-        if (!result.questions || result.questions.length < 5) {
-          resolve({ error: 'AI generated too few questions' });
-          return;
-        }
-        resolve({ questions: result.questions });
-      } catch (e: any) {
-        resolve({ error: `Failed to parse AI response: ${e.message}` });
-      }
+  if (!PERPLEXITY_TOKEN) {
+    return { error: "AI quiz generation is not configured. Please contact support." };
+  }
+  try {
+    const prompt = `You are an expert reading comprehension quiz creator for students. Create exactly 10 multiple-choice questions for the book "${bookTitle}" by ${author}.
+
+Return ONLY a JSON array (no markdown, no explanation, no code blocks). Each question must have this exact format:
+[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A"}]
+
+Rules:
+- Questions should test reading comprehension, plot details, character understanding, and themes
+- Each question has exactly 4 options labeled A, B, C, D
+- The "correct" field is a single letter: "A", "B", "C", or "D"
+- Make questions appropriate for ${ageGroup || "middle school"} students
+- Do NOT make questions about the author's life or publication details
+- Focus on the story content, characters, plot, and themes
+- Return exactly 10 questions as a JSON array`;
+
+    const res = await fetch(PERPLEXITY_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${PERPLEXITY_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          { role: "system", content: "You are a quiz generator. Return ONLY valid JSON arrays, no markdown or explanation." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(60000),
     });
-  });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return { error: `AI API error ${res.status}: ${errText.slice(0, 200)}` };
+    }
+
+    const data = await res.json() as any;
+    const content = data.choices?.[0]?.message?.content || "";
+
+    if (!content) {
+      return { error: "AI returned empty response" };
+    }
+
+    // Extract JSON from response (handles markdown code blocks)
+    let jsonStr = content.trim();
+    const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const questions = JSON.parse(jsonStr);
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return { error: "AI generated invalid questions" };
+    }
+
+    // Validate and clean up questions
+    const validQuestions = questions.slice(0, 10).map((q: any) => {
+      const correctLetter = (q.correct || "A").toUpperCase().charAt(0);
+      const options = (q.options || []).slice(0, 4);
+      while (options.length < 4) options.push("None of the above");
+      return {
+        question: q.question || "What is this book about?",
+        options,
+        correct: correctLetter,
+      };
+    }).filter((q: any) => q.options.length === 4);
+
+    if (validQuestions.length < 5) {
+      return { error: "AI generated too few valid questions" };
+    }
+
+    return { questions: validQuestions };
+  } catch (e: any) {
+    return { error: `AI generation failed: ${e.message}` };
+  }
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
