@@ -4154,6 +4154,16 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Reset tutorial for all students (so they see the new GuidedTour)
+  app.post("/api/admin/reset-tutorial", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      await storage.upsertSetting('tutorial_shown_users', '{}');
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to reset tutorial' });
+    }
+  });
+
   // Student: Claim an easter egg
   app.post("/api/easter-eggs/claim", authMiddleware, async (req: any, res) => {
     try {

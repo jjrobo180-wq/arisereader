@@ -78,7 +78,7 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-export default function GuidedTour({ onComplete }: { onComplete?: () => void }) {
+export default function GuidedTour({ onComplete, onActiveChange }: { onComplete?: () => void; onActiveChange?: (active: boolean) => void }) {
   const { user } = useAuth();
   const [active, setActive] = useState(false);
   const [step, setStep] = useState(0);
@@ -94,17 +94,21 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    if (!user || user.username !== "sample") return;
+    if (!user) return;
     if (startedRef.current) return;
     startedRef.current = true;
 
-    if (sessionStorage.getItem("guided_tour_dismissed") === "true") {
+    // For non-sample students, check sessionStorage dismissal
+    if (user.username !== "sample" && sessionStorage.getItem("guided_tour_dismissed") === "true") {
       if (onCompleteRef.current) onCompleteRef.current();
       return;
     }
 
     // Wait for page to load, then start tour
-    timerRef.current = setTimeout(() => setActive(true), 3000);
+    timerRef.current = setTimeout(() => {
+      setActive(true);
+      if (onActiveChange) onActiveChange(true);
+    }, 3000);
     // No cleanup - startedRef prevents duplicate timeouts, 
     // and we want the timeout to survive re-renders
   }, [user]);
@@ -236,6 +240,7 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
     if (completedRef.current) return;
     completedRef.current = true;
     setActive(false);
+    if (onActiveChange) onActiveChange(false);
     sessionStorage.setItem("guided_tour_dismissed", "true");
     if (onCompleteRef.current) onCompleteRef.current();
   };

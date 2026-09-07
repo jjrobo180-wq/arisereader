@@ -265,6 +265,7 @@ function AppInner() {
   const isSampleStudent = isStudent && user?.username === 'sample';
   const [sampleTourDone, setSampleTourDone] = useState(false);
   const [tourShown, setTourShown] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
 
   // Check server-side if tutorial was already shown for this student
   useEffect(() => {
@@ -291,6 +292,8 @@ function AppInner() {
 
   const handleTourComplete = async () => {
     setSampleTourDone(true);
+    setTourActive(false);
+    setTourShown(true);
     // Mark tutorial as shown server-side for non-sample students
     if (!isSampleStudent && token) {
       try {
@@ -305,11 +308,11 @@ function AppInner() {
   return (
     <>
       {/* All students get GuidedTour (replaces old FypAnnouncementPopup) */}
-      {isStudent && !tourShown && <GuidedTour onComplete={handleTourComplete} />}
+      {isStudent && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
       {isStudent && <FypSideTab />}
       {isStudent && <PointsSideTab />}
-      {isStudent && !isSampleStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
       <Router hook={useHashLocation}>
         <AppRoutes />
