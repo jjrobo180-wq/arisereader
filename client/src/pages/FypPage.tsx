@@ -59,6 +59,7 @@ export default function FypPage() {
   const [eggCardIdx, setEggCardIdx] = useState(-1); // index in feed where egg card appears
   const [eggClaimed, setEggClaimed] = useState(false);
   const [eggAvailable, setEggAvailable] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
@@ -120,6 +121,15 @@ export default function FypPage() {
       checkAndShow();
     }
   }, [currentIndex]);
+
+  // Show disclaimer briefly when FYP loads
+  useEffect(() => {
+    if (!loading && items.length > 0) {
+      setShowDisclaimer(true);
+      const timer = setTimeout(() => setShowDisclaimer(false), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, items.length]);
 
   const claimEasterEgg = async () => {
     if (eggClaimed) return;
@@ -393,6 +403,61 @@ export default function FypPage() {
         </button>
       </div>
 
+      {/* FYP Disclaimer Toast */}
+      {showDisclaimer && (
+        <div
+          style={{
+            position: "fixed",
+            top: "60px",
+            left: "16px",
+            right: "16px",
+            zIndex: 150,
+            background: "linear-gradient(135deg, rgba(26,26,46,0.97), rgba(22,33,62,0.97))",
+            border: "1px solid rgba(245,158,11,0.3)",
+            borderRadius: "12px",
+            padding: "14px 16px",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(12px)",
+            animation: "fypDisclaimerIn 0.4s ease-out",
+            display: "flex",
+            gap: "10px",
+            alignItems: "flex-start",
+          }}
+        >
+          <div style={{ fontSize: "1.5rem", lineHeight: 1, flexShrink: 0 }}>
+            📚
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: "#fbbf24", fontWeight: 700, fontSize: "0.85rem", marginBottom: "4px" }}>
+              Welcome to your FYP!
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.75rem", lineHeight: 1.5 }}>
+              We do our best to suggest books matched to your reading level — sometimes we miss! Some books are free to download (public domain), while newer titles link to Amazon, Kindle, or Apple Books. Can't read it yet? Hit the heart to save it for later or share with your parents!
+            </div>
+          </div>
+          <button
+            onClick={() => setShowDisclaimer(false)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "rgba(255,255,255,0.5)",
+              cursor: "pointer",
+              padding: "0",
+              flexShrink: 0,
+              marginTop: "-2px",
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      <style>{`
+        @keyframes fypDisclaimerIn {
+          from { opacity: 0; transform: translateY(-12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
       {/* Scroll container */}
       <div
         ref={containerRef}
@@ -632,7 +697,7 @@ export default function FypPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Read Book
+                  Download Book
                 </button>
               )}
             </div>
@@ -1028,7 +1093,7 @@ const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike
             >
               <BookOpen size={22} color="white" />
             </div>
-            <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>Read</span>
+            <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>Download</span>
           </button>
         )}
       </div>
