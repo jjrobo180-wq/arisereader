@@ -31,7 +31,14 @@ export default function CoursePage() {
       const res = await fetch(`${API_BASE}/api/iarise-course/${bookId}`);
       if (res.ok) {
         const data = await res.json();
-        setCourse(data);
+        // Handle both formats: { title, lessons: [...] } or [...lessons]
+        if (Array.isArray(data)) {
+          setCourse({ title: 'iArise Course', lessons: data });
+        } else if (data.lessons) {
+          setCourse(data);
+        } else {
+          setError("Course format not recognized");
+        }
         // Load progress from localStorage (fallback to in-memory if blocked)
         try {
           const saved = localStorage.getItem(`iarise_progress_${bookId}`);
