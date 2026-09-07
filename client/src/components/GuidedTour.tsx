@@ -142,7 +142,9 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
         return;
       }
 
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Scroll up a bit more so there's room for the tooltip below
+      setTimeout(() => window.scrollBy({ top: -80, behavior: "smooth" }), 100);
 
       setTimeout(() => {
         const rect = el.getBoundingClientRect();
@@ -156,7 +158,7 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
 
   const positionTooltip = (rect: DOMRect, position: string) => {
     const tw = 320;
-    const th = 160;
+    const th = 200; // taller estimate for longer descriptions
     const gap = 20;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -165,14 +167,29 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
     let left = 0;
     let dir: "top" | "bottom" | "left" | "right" = "bottom";
 
+    // Calculate both positions and pick the one that fits better
+    const bottomTop = rect.bottom + gap;
+    const topTop = rect.top - th - gap;
+
     if (position === "bottom") {
-      top = rect.bottom + gap;
+      // If tooltip would go past 65% of viewport, flip to top
+      if (bottomTop + th > vh * 0.65 && topTop > 16) {
+        top = topTop;
+        dir = "bottom";
+      } else {
+        top = bottomTop;
+        dir = "top";
+      }
       left = rect.left + rect.width / 2 - tw / 2;
-      dir = "top";
     } else if (position === "top") {
-      top = rect.top - th - gap;
+      if (topTop < 16 && bottomTop + th < vh - 16) {
+        top = bottomTop;
+        dir = "top";
+      } else {
+        top = topTop;
+        dir = "bottom";
+      }
       left = rect.left + rect.width / 2 - tw / 2;
-      dir = "bottom";
     } else if (position === "right") {
       top = rect.top + rect.height / 2 - th / 2;
       left = rect.right + gap;
@@ -183,6 +200,7 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
       dir = "right";
     }
 
+    // Clamp to viewport with safe margins
     left = Math.max(16, Math.min(left, vw - tw - 16));
     top = Math.max(16, Math.min(top, vh - th - 16));
 
@@ -194,7 +212,7 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
       arrowTop = -20;
       arrowLeft = rect.left + rect.width / 2 - left;
     } else if (dir === "bottom") {
-      arrowTop = th;
+      arrowTop = 200;
       arrowLeft = rect.left + rect.width / 2 - left;
     } else if (dir === "left") {
       arrowTop = th / 2 - 10;
@@ -263,7 +281,7 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
   const arrowStyle: React.CSSProperties = (() => {
     const base: React.CSSProperties = { position: "absolute", width: 0, height: 0 };
     if (arrowDir === "top") return { ...base, top: -20, left: arrowPos.left, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderBottom: "20px solid #f97316" };
-    if (arrowDir === "bottom") return { ...base, top: 160, left: arrowPos.left, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "20px solid #f97316" };
+    if (arrowDir === "bottom") return { ...base, top: 200, left: arrowPos.left, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "20px solid #f97316" };
     if (arrowDir === "left") return { ...base, top: arrowPos.top, left: -20, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderRight: "20px solid #f97316" };
     return { ...base, top: arrowPos.top, left: 320, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderLeft: "20px solid #f97316" };
   })();
