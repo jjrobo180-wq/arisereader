@@ -1125,7 +1125,7 @@ export default function Library() {
             </div>
 
             {/* Curriculum Section - hidden for eye gaze students */}
-            {curriculumBooks.length > 0 && !showEyeGaze && !user?.isAdmin && (
+            {curriculumBooks.length > 0 && (!showEyeGaze || isSampleStudent) && !user?.isAdmin && (
               <div data-tour="book-quizzes" className="mb-10">
                 <div className="flex items-center gap-2 mb-4">
                   <BookOpen className="w-5 h-5 text-primary" />
@@ -1220,7 +1220,7 @@ export default function Library() {
               </div>
             )}
             {/* Regular book sections - hidden for eye gaze students */}
-            {(!showEyeGaze || user?.isAdmin) && sortBy === "points" ? (
+            {(!showEyeGaze || isSampleStudent || user?.isAdmin) && sortBy === "points" ? (
           pointsOrder.filter(k => pointsGroups[k]).map((pts) => {
             const groupBooks = pointsGroups[pts];
             return (
@@ -1314,7 +1314,7 @@ export default function Library() {
             </div>
           );
           })
-        ) : (showEyeGaze && !user?.isAdmin) ? null : (
+        ) : (showEyeGaze && !isSampleStudent && !user?.isAdmin) ? null : (
           <div className="mb-10">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {nonCurriculumBooks.map((book) => {

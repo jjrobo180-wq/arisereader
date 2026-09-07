@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, Fragment } from "react";
 import { useLocation } from "wouter";
 import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark, Gift } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -39,6 +40,7 @@ interface FeedItem {
 
 export default function FypPage() {
   const [, navigate] = useLocation();
+  const { token: authToken } = useAuth();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export default function FypPage() {
   const fetchFeed = useCallback(async () => {
     try {
       setLoading(true);
-      const token = getTokenFromCookie();
+      const token = authToken || getTokenFromCookie();
       if (!token) {
         navigate("/");
         return;
@@ -83,7 +85,7 @@ export default function FypPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authToken]);
 
   useEffect(() => {
     fetchFeed();
