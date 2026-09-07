@@ -167,6 +167,10 @@ export default function Admin() {
   const [bannerMsg, setBannerMsg] = useState("");
   const [donationSettings, setDonationSettings] = useState({ goalAmount: 1000, currentAmount: 0, title: "Support Our Readers", description: "Help us keep A.R.I.S.E Reader free for students", donateUrl: "", milestonesText: "", active: false });
   const [donationMsg, setDonationMsg] = useState("");
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiKeyPreview, setAiKeyPreview] = useState("");
+  const [aiKeyConfigured, setAiKeyConfigured] = useState(false);
+  const [aiKeyMsg, setAiKeyMsg] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
   const [proctorMsg, setProctorMsg] = useState("");
@@ -609,6 +613,7 @@ export default function Admin() {
     fetchAnnouncement();
     fetchBanners();
     fetchDonationSettings();
+    fetchAiSettings();
     fetchProctorPassword();
     fetchEasterEggs();
     fetchPendingParents();
@@ -708,6 +713,43 @@ export default function Admin() {
         }
       }
     } catch {}
+  };
+
+  const fetchAiSettings = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/ai-settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiKeyConfigured(data.configured);
+        setAiKeyPreview(data.keyPreview || "");
+      }
+    } catch {}
+  };
+
+  const handleSaveAiKey = async () => {
+    if (!token || !aiApiKey.trim()) return;
+    setAiKeyMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/ai-settings`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ perplexityApiKey: aiApiKey.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAiKeyMsg("API key saved! Instant AI Quiz is now ready.");
+        setAiApiKey("");
+        fetchAiSettings();
+        setTimeout(() => setAiKeyMsg(""), 4000);
+      } else {
+        setAiKeyMsg(data.message || "Failed to save API key.");
+      }
+    } catch {
+      setAiKeyMsg("Failed to save API key.");
+    }
   };
 
   const handleUpdateDonation = async () => {
@@ -1908,6 +1950,36 @@ Generate exactly 10 questions.`;
                 <span className="text-xs text-muted-foreground">Active</span>
               </div>
               <Button size="sm" variant="outline" onClick={handleUpdateLoginBanner}>Update</Button>
+            </div>
+          </div>
+
+          {/* AI Quiz Settings */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Instant AI Quiz — Perplexity API Key</Label>
+            <p className="text-xs text-muted-foreground">Students can generate 10-question quizzes for any book. Get a key from docs.perplexity.ai → API Keys.</p>
+            {aiKeyConfigured ? (
+              <div className="flex items-center gap-2 text-sm text-green-400">
+                <span className="w-2 h-2 rounded-full bg-green-400" />
+                Configured ({aiKeyPreview})
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-yellow-400">
+                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                Not configured — students will see an error message
+              </div>
+            )}
+            {aiKeyMsg && <p className="text-sm text-green-400">{aiKeyMsg}</p>}
+            <div className="flex gap-2">
+              <Input
+                type="password"
+                value={aiApiKey}
+                onChange={(e) => setAiApiKey(e.target.value)}
+                placeholder="Paste your Perplexity API key (pplx-...)"
+                className="bg-muted/30 border-border text-foreground"
+              />
+              <Button size="sm" variant="outline" onClick={handleSaveAiKey} disabled={!aiApiKey.trim()}>
+                Save Key
+              </Button>
             </div>
           </div>
 

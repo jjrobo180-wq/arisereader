@@ -26,14 +26,30 @@ const APP_URL = process.env.APP_URL || "https://arisereader.pplx.app";
 
 // LLM API for instant quiz generation
 // Uses Perplexity API (sonar model) to generate quiz questions via HTTP
-// API key is injected via custom credential: custom-cred:api.perplexity.ai
-const PERPLEXITY_TOKEN = process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || process.env.PERPLEXITY_API_KEY || "";
-const PERPLEXITY_BASE_URL = process.env.CUSTOM_CRED_API_PERPLEXITY_AI_URL || "https://api.perplexity.ai";
-const PERPLEXITY_API_URL = PERPLEXITY_BASE_URL.replace(/\/$/, "") + "/chat/completions";
+// API key is read from database settings (set in admin panel) or env vars
+const PERPLEXITY_BASE_URL = "https://api.perplexity.ai";
+const PERPLEXITY_API_URL = PERPLEXITY_BASE_URL + "/chat/completions";
+
+async function getPerplexityApiKey(): Promise<string> {
+  // First try database settings (works on ALL domains)
+  try {
+    const dbKey = await storage.getSetting("perplexity_api_key");
+    if (dbKey) return dbKey;
+  } catch {}
+  // Then try env vars (for pplx.app deployment)
+  const envKey = process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || process.env.PERPLEXITY_API_KEY || "";
+  if (envKey) {
+    // Auto-save to database so it works on all domains
+    try { await storage.upsertSetting("perplexity_api_key", envKey); } catch {}
+    return envKey;
+  }
+  return "";
+}
 
 async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }> } | { error: string }> {
-  if (!PERPLEXITY_TOKEN) {
-    return { error: "AI quiz generation is not configured. Please contact support." };
+  const apiKey = await getPerplexityApiKey();
+  if (!apiKey) {
+    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
   }
   try {
     const prompt = `You are an expert reading comprehension quiz creator for students. Create exactly 10 multiple-choice questions for the book "${bookTitle}" by ${author}.
@@ -53,7 +69,7 @@ Rules:
     const res = await fetch(PERPLEXITY_API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${PERPLEXITY_TOKEN}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -2007,6 +2023,22 @@ export async function registerRoutes(
     }
     await storage.updateBookCover(bookId, coverUrl);
     res.json({ message: "Cover updated successfully" });
+  });
+
+  // Admin: set Perplexity API key for instant quiz generation
+  app.post("/api/admin/ai-settings", authMiddleware, adminMiddleware, async (req, res) => {
+    const { perplexityApiKey } = req.body;
+    if (!perplexityApiKey || perplexityApiKey.trim().length < 10) {
+      return res.status(400).json({ message: "A valid API key is required" });
+    }
+    await storage.upsertSetting("perplexity_api_key", perplexityApiKey.trim());
+    res.json({ message: "AI settings saved successfully" });
+  });
+
+  // Admin: get AI settings status (does NOT return the key)
+  app.get("/api/admin/ai-settings", authMiddleware, adminMiddleware, async (req, res) => {
+    const key = await storage.getSetting("perplexity_api_key");
+    res.json({ configured: !!key, keyPreview: key ? key.slice(0, 8) + "..." + key.slice(-4) : null });
   });
 
   // Student: generate an instant AI quiz for a book
