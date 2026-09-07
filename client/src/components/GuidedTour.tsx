@@ -104,12 +104,33 @@ export default function GuidedTour({ onComplete, onActiveChange }: { onComplete?
       return;
     }
 
-    // Wait for page to load, then start tour
-    timerRef.current = setTimeout(() => {
-      setActive(true);
-      if (onActiveChange) onActiveChange(true);
-    }, 3000);
-    // No cleanup - startedRef prevents duplicate timeouts, 
+    // Wait for profile setup overlay to finish (if active), then start tour
+    const startTour = () => {
+      timerRef.current = setTimeout(() => {
+        setActive(true);
+        if (onActiveChange) onActiveChange(true);
+      }, 1500);
+    };
+
+    // Check if profile setup overlay is showing
+    if (sessionStorage.getItem("show_profile_setup") === "true") {
+      // Poll until the overlay is done
+      const checkInterval = setInterval(() => {
+        if (sessionStorage.getItem("show_profile_setup") !== "true") {
+          clearInterval(checkInterval);
+          startTour();
+        }
+      }, 500);
+      // Safety timeout: start after 20 seconds no matter what
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        startTour();
+      }, 20000);
+    } else {
+      // No setup overlay, start after page loads
+      startTour();
+    }
+    // No cleanup - startedRef prevents duplicate timeouts,
     // and we want the timeout to survive re-renders
   }, [user]);
 
