@@ -58,7 +58,8 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
         }
         // If user has logged in 2+ times, skip tutorial (LeaderboardPopup handles 2nd+ login)
         const sessionData = JSON.parse(atob(raw));
-        if (sessionData.loginCount && sessionData.loginCount >= 2) {
+        const lc = sessionData.user?.loginCount || 0;
+        if (lc >= 2) {
           // Mark tutorial as shown to prevent future checks
           try {
             await fetch(`${API_BASE}/api/tutorial/dismiss`, {
