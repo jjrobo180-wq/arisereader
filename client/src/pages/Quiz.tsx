@@ -32,7 +32,7 @@ interface Book {
 
 export default function Quiz() {
   const { id } = useParams();
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [book, setBook] = useState<Book | null>(null);
   const [questions, setQuestions] = useState<SafeQuestion[]>([]);
@@ -278,7 +278,7 @@ export default function Quiz() {
                 <p className="text-sm font-bold text-primary mb-1">Want to earn real points?</p>
                 <p className="text-xs text-muted-foreground">Create a free account to take the full 10-question quiz, earn points, climb the leaderboard, and win certificates!</p>
               </div>
-              <Button onClick={() => navigate("/register")} className="w-full bg-primary mb-2" size="lg">
+              <Button onClick={() => { logout(); navigate("/register"); }} className="w-full bg-primary mb-2" size="lg">
                 <Sparkles className="w-4 h-4 mr-2" />Create Free Account
               </Button>
               <Button onClick={() => navigate("/library")} variant="outline" className="w-full">
