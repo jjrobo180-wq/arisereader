@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info, Megaphone, Sparkles, PlayCircle } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
+import DonationGoal from "@/components/DonationGoal";
 
 export default function Login() {
   const { login } = useAuth();
@@ -76,7 +77,10 @@ export default function Login() {
           )}
         </div>
 
-        {/* Donation section — expandable, at top */}
+        {/* Donation goal — admin controlled */}
+        <DonationGoal />
+
+        {/* Mission statement — expandable */}
         <div className="mb-6 rounded-2xl border border-primary/30 bg-card p-4 shadow-lg overflow-hidden">
           <button
             type="button"
@@ -84,7 +88,7 @@ export default function Login() {
             className="w-full flex items-center gap-2"
           >
             <Heart className="w-5 h-5 text-primary flex-shrink-0" />
-            <h2 className="text-base font-bold text-white text-left flex-1">Support A.R.I.S.E Reader — Free for Schools</h2>
+            <h2 className="text-base font-bold text-white text-left flex-1">Why A.R.I.S.E Reader is Free</h2>
             {donationExpanded ? (
               <ChevronUp className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             ) : (
@@ -93,7 +97,7 @@ export default function Login() {
           </button>
           {!donationExpanded && (
             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              I'm a teacher who built this free alternative to Accelerated Reader — a program that costs schools $2,000 to $10,000+ per year. Click to learn more and support our mission.
+              I'm a teacher who built this free alternative to Accelerated Reader — a program that costs schools $2,000 to $10,000+ per year. Click to learn more.
             </p>
           )}
           {donationExpanded && (
@@ -110,15 +114,6 @@ export default function Login() {
                 helps us keep the platform running, add more books and quizzes, and
                 reach schools that can't afford expensive reading programs.
               </p>
-              <a
-                href="https://buy.stripe.com/7sY6oHbUD7qrfwf3UFcIE04"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-all"
-              >
-                <Heart className="w-4 h-4" />
-                Donate with Stripe
-              </a>
               <p className="text-xs text-muted-foreground text-center">
                 Every contribution, big or small, makes a difference
               </p>
