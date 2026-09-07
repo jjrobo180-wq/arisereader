@@ -32,12 +32,14 @@ export default function CoursePage() {
       if (res.ok) {
         const data = await res.json();
         setCourse(data);
-        // Load progress from localStorage
-        const saved = localStorage.getItem(`iarise_progress_${bookId}`);
-        if (saved) {
-          const arr = JSON.parse(saved) as number[];
-          setCompletedLessons(new Set(arr));
-        }
+        // Load progress from localStorage (fallback to in-memory if blocked)
+        try {
+          const saved = localStorage.getItem(`iarise_progress_${bookId}`);
+          if (saved) {
+            const arr = JSON.parse(saved) as number[];
+            setCompletedLessons(new Set(arr));
+          }
+        } catch {}
       } else {
         setError("Course not found");
       }
@@ -57,7 +59,9 @@ export default function CoursePage() {
     newSet.add(lessonIndex);
     setCompletedLessons(newSet);
     if (bookId) {
-      localStorage.setItem(`iarise_progress_${bookId}`, JSON.stringify([...newSet]));
+      try {
+        localStorage.setItem(`iarise_progress_${bookId}`, JSON.stringify([...newSet]));
+      } catch {}
     }
   };
 

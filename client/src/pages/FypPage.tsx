@@ -284,7 +284,15 @@ export default function FypPage() {
 
   const handleReadBook = (bookId: number) => {
     logEvent(bookId, "read_click");
-    navigate(`/read/${bookId}`);
+    // Open readUrl directly if available (direct download)
+    const item = items.find(i => i.bookId === bookId);
+    if (item?.readUrl) {
+      window.open(item.readUrl, "_blank");
+    } else if (item) {
+      // No direct link — search Amazon for the book
+      const query = encodeURIComponent(`${item.title} ${item.author}`);
+      window.open(`https://www.amazon.com/s?k=${query}`, "_blank");
+    }
   };
 
   const handleTakeQuiz = (bookId: number) => {
