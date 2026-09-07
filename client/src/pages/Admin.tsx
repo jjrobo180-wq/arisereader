@@ -864,14 +864,9 @@ export default function Admin() {
   const fetchAllParents = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE}/api/admin/pending-parents`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
-      const pending = res.ok ? await res.json() : [];
-      // Also fetch approved parents from all users
-      const res2 = await fetch(`${API_BASE}/api/admin/users`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
-      const allUsers = res2.ok ? await res2.json() : [];
-      const approved = allUsers.filter((u: any) => u.role === 'parent' && u.accountApproved);
-      const pendingApproved = pending.map((p: any) => ({ ...p, accountApproved: false }));
-      setAllParents([...approved, ...pendingApproved]);
+      const res = await fetch(`${API_BASE}/api/admin/all-parents`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      const data = res.ok ? await res.json() : [];
+      setAllParents(data);
     } catch {}
   };
 

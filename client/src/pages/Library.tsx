@@ -527,12 +527,12 @@ export default function Library() {
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
               )}
             </Button>
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/20 text-primary font-semibold text-sm">
+            <div data-tour="points" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/20 text-primary font-semibold text-sm">
               <Trophy className="w-4 h-4" />
               {totalPoints} pts
             </div>
             <div className="hidden sm:flex items-center relative" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "0.5rem" }}>
-              <button onClick={() => navigate("/fyp")} className="flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-primary/10 rounded-l-lg">
+              <button data-tour="fyp" onClick={() => navigate("/fyp")} className="flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-primary/10 rounded-l-lg">
                 <Sparkles className="w-4 h-4 mr-1" style={{ color: "#f59e0b" }} />
                 <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>F.Y.P</span>
               </button>
@@ -636,7 +636,7 @@ export default function Library() {
 
         {/* Welcome banner */}
         <div className="mb-8 rounded-2xl bg-primary text-white p-6 sm:p-8 shadow-lg">
-          <h1 className="text-2xl sm:text-3xl font-bold">{getMascotEmoji() && <span className="mr-2">{getMascotEmoji()}</span>}Hi, {user?.displayName}!</h1>
+          <h1 data-tour="welcome" className="text-2xl sm:text-3xl font-bold">{getMascotEmoji() && <span className="mr-2">{getMascotEmoji()}</span>}Hi, {user?.displayName}!</h1>
           {user?.role === 'teacher' || user?.isAdmin ? (
             <p className="mt-1 text-white/90">Browse the library and view student stats below.</p>
           ) : (
@@ -1039,7 +1039,7 @@ export default function Library() {
         ) : (
           <>
             {/* iArise Section */}
-            <div className="mb-10">
+            <div className="mb-10" data-tour="iarise-section">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles className="w-5 h-5 text-primary" />
                 <h2 className="text-lg font-bold text-foreground">iArise</h2>
@@ -1048,12 +1048,13 @@ export default function Library() {
               {iAriseBooks.length > 0 ? (
                 <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {displayedIAriseBooks.map((book) => {
+                  {displayedIAriseBooks.map((book, index) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
                     return (
                       <Card
                         key={book.id}
+                        data-tour={index === 0 ? "first-book" : undefined}
                         className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 ring-2 ring-primary/30"
                         onClick={() => navigate(`/course/${book.id}`)}
                       >

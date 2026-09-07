@@ -84,7 +84,7 @@ function injectStyles() {
 }
 
 export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const { user } = useAuth();
+  const { user, token: authToken } = useAuth();
   const fetched = useRef(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const healIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -94,29 +94,35 @@ export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: st
     if (fetched.current) return;
     if (!user) return;
 
-    // Read everything from cookie
-    const cookie = document.cookie.split(";").find(c => c.trim().startsWith("arise_session"));
-    if (!cookie) return;
-    try {
-      const raw = cookie.trim().substring("arise_session=".length);
-      const session = JSON.parse(atob(raw));
-      const loginCount = session.user?.loginCount || 0;
-      const isAdmin = session.user?.isAdmin;
-      const role = session.user?.role;
-      const token = session.token;
-
-      if (!token || isAdmin || role === "teacher" || role === "parent" || loginCount < 2) return;
-
-      fetched.current = true;
-
-      const doFetch = async () => {
+    // Use token from AuthContext, fall back to cookie
+    let token = authToken;
+    if (!token) {
+      const cookie = document.cookie.split(";").find(c => c.trim().startsWith("arise_session"));
+      if (cookie) {
         try {
-          const res = await fetch(`${API_BASE}/api/leaderboard/my-standing`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok) return;
-          const data: StandingData = await res.json();
-          if (!data.show) return;
+          const raw = cookie.trim().substring("arise_session=".length);
+          const session = JSON.parse(atob(raw));
+          token = session.token;
+        } catch {}
+      }
+    }
+
+    const loginCount = user.loginCount || 0;
+    const isAdmin = user.isAdmin;
+    const role = user.role;
+
+    if (!token || isAdmin || role === "teacher" || role === "parent" || loginCount < 2) return;
+
+    fetched.current = true;
+
+    const doFetch = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/leaderboard/my-standing`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data: StandingData = await res.json();
+        if (!data.show) return;
 
           // Wait for tutorial to finish
           setTimeout(() => {
@@ -138,8 +144,7 @@ export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: st
         } catch {}
       };
       doFetch();
-    } catch {}
-  }, [user]);
+  }, [user, authToken]);
 
   function getRankInfo(rank: number, total: number) {
     if (rank === 1) return { title: "You're #1!", subtitle: "The champion of your band. Defend your throne.", emoji: "👑", color: "#fbbf24" };

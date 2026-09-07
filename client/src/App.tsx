@@ -48,6 +48,7 @@ import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import ParentDashboard from "./pages/ParentDashboard";
 import ParentTutorialPopup from "./components/ParentTutorialPopup";
+import GuidedTour from "./components/GuidedTour";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import FypSideTab from "./components/FypSideTab";
@@ -258,14 +259,20 @@ function AppInner() {
   const { user } = useAuth();
   const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
   const isParent = user && user.role === 'parent';
+  const isSampleStudent = isStudent && user?.username === 'sample';
+  const [sampleTourDone, setSampleTourDone] = useState(false);
   return (
     <>
-      {isStudent && <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {/* Regular students get tutorial popup; sample student gets guided tour instead */}
+      {isStudent && !isSampleStudent && <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && <FypSideTab />}
       {isStudent && <PointsSideTab />}
-      {isStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {/* Sample student: leaderboard popup only shows after guided tour completes */}
+      {isStudent && !isSampleStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isSampleStudent && sampleTourDone && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
+      {isSampleStudent && <GuidedTour onComplete={() => setSampleTourDone(true)} />}
       <Router hook={useHashLocation}>
         <AppRoutes />
       </Router>

@@ -66,6 +66,11 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
     const raw = getCookie(COOKIE_NAME);
     if (!raw) return { user: null, token: null };
     const data = JSON.parse(atob(raw));
+    // Sample account: always reset to login page on fresh page load
+    if (data.user?.username === 'sample') {
+      deleteCookie(COOKIE_NAME);
+      return { user: null, token: null };
+    }
     return { user: data.user || null, token: data.token || null };
   } catch {
     return { user: null, token: null };

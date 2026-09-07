@@ -3354,6 +3354,37 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: get ALL parents (approved + pending)
+  app.get("/api/admin/all-parents", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { data: parents, error } = await supabase
+        .from("users")
+        .select("id, display_name, username, email, created_at, school_id, account_approved, role")
+        .eq("role", "parent")
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+
+      // Get linked student info
+      const rawLinks = await storage.getSetting('parent_student_links');
+      let parentLinks: Record<string, number> = {};
+      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
+
+      const parentsWithStudents = await Promise.all((parents || []).map(async (p: any) => {
+        const studentId = parentLinks[String(p.id)];
+        let studentName = "Unknown";
+        if (studentId) {
+          const { data: student } = await supabase.from("users").select("display_name, username").eq("id", studentId).single();
+          if (student) studentName = student.display_name || student.username;
+        }
+        return { ...p, studentName };
+      }));
+
+      res.json(parentsWithStudents);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch parents" });
+    }
+  });
+
   // Admin: approve parent account
   app.post("/api/admin/parent-approve/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
