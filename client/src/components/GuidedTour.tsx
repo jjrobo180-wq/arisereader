@@ -61,9 +61,8 @@ const TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="eye-gaze-section"]',
     title: "Eye Gazer & Non-Verbal Quizzes",
-    desc: "This section has special eye gaze quizzes for non-verbal learners. Teachers and parents can create custom quizzes with pictures. If you're an eye gaze user, your quizzes will appear here!",
+    desc: "These are special eye gaze quizzes for non-verbal learners. Students look at pictures to answer — no clicking needed! Teachers and parents can create custom quizzes with their own images. Create a free account to unlock this feature!",
     position: "bottom",
-    noTarget: true,
   },
   {
     selector: '[data-tour="fyp-side-tab"]',

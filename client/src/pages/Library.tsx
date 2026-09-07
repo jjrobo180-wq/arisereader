@@ -121,6 +121,17 @@ export default function Library() {
       setCustomQuizzes([]);
       setRegularCustomQuizzes([]);
       setShowEyeGaze(false);
+    } else if (user.username === 'sample') {
+      // Sample student: show eye gaze section with 5 example quizzes for tutorial
+      setShowEyeGaze(true);
+      setEyeGazeQuizzes([
+        { id: 'sample-eg-1', title: 'Animals — What Do You See?', description: 'Look at the picture and pick the right animal', level: 'K-2', pointsValue: 5, cover_visual: '🐶', coverUrl: '', _sample: true, hasCompleted: false },
+        { id: 'sample-eg-2', title: 'Colors — Find the Red One', description: 'Eye gaze to the correct color', level: 'K-2', pointsValue: 5, cover_visual: '🔴', coverUrl: '', _sample: true, hasCompleted: false },
+        { id: 'sample-eg-3', title: 'Shapes — Circle, Square, Triangle', description: 'Identify shapes by looking', level: 'K-2', pointsValue: 5, cover_visual: '⭕', coverUrl: '', _sample: true, hasCompleted: false },
+        { id: 'sample-eg-4', title: 'Everyday Objects — What Is This?', description: 'Look at common objects and identify them', level: '3-5', pointsValue: 10, cover_visual: '🎒', coverUrl: '', _sample: true, hasCompleted: false },
+        { id: 'sample-eg-5', title: 'Actions — What Are They Doing?', description: 'Identify actions by gazing at the right picture', level: '3-5', pointsValue: 10, cover_visual: '🏃', coverUrl: '', _sample: true, hasCompleted: false },
+      ]);
+      setCustomQuizzes([]);
     } else {
       // Only show eye gaze section for eye gaze users
       setShowEyeGaze(!!user.is_eye_gaze_user);
@@ -129,7 +140,7 @@ export default function Library() {
         setCustomQuizzes([]);
       }
     }
-  }, [user?.id, user?.is_eye_gaze_user]);
+  }, [user?.id, user?.is_eye_gaze_user, user?.username]);
 
   const fetchBooks = useCallback(async () => {
     // Use context token, or fall back to cookie token
