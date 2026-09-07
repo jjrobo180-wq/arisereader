@@ -471,6 +471,13 @@ export async function registerRoutes(
       username: req.user.username,
       displayName: req.user.displayName,
       isAdmin: req.user.isAdmin,
+      role: req.user.role || 'student',
+      teacherId: req.user.teacherId || null,
+      approvedByTeacher: req.user.approvedByTeacher,
+      accountApproved: req.user.accountApproved,
+      is_eye_gaze_user: req.user.is_eye_gaze_user || false,
+      email: req.user.email || null,
+      schoolId: req.user.school_id || null,
       totalPoints: req.user.totalPoints || 0,
     });
   });
@@ -3414,7 +3421,7 @@ export async function registerRoutes(
           const { data: student } = await supabase.from("users").select("display_name, username").eq("id", studentId).single();
           if (student) studentName = student.display_name || student.username;
         }
-        return { ...p, studentName };
+        return { ...p, accountApproved: p.account_approved, displayName: p.display_name, schoolId: p.school_id };
       }));
 
       res.json(parentsWithStudents);
