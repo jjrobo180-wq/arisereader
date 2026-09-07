@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -81,6 +81,7 @@ export default function Library() {
   const [results, setResults] = useState<QuizResult[]>(libraryCache.results);
   const [loading, setLoading] = useState(libraryCache.books.length === 0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [adminBandFilter, setAdminBandFilter] = useState("");
   const [bookBands, setBookBands] = useState<Record<string, string>>({});
   const [userBand, setUserBand] = useState("");
@@ -111,6 +112,7 @@ export default function Library() {
   const [showInstant, setShowInstant] = useState(false);
   const [showGenerating, setShowGenerating] = useState(false);
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
+  const [showQuizDisclaimer, setShowQuizDisclaimer] = useState(false);
   const [instantBook, setInstantBook] = useState("");
   const [instantAuthor, setInstantAuthor] = useState("");
   const [instantMsg, setInstantMsg] = useState("");
@@ -415,7 +417,16 @@ export default function Library() {
     setInstantBook("");
     setInstantAuthor("");
     setInstantMsg("");
-    // Auto-launch the quiz so students don't have to search for the book
+    // Show disclaimer before launching the quiz
+    if (pendingBookId) {
+      setShowQuizDisclaimer(true);
+    } else {
+      navigate("/library");
+    }
+  };
+
+  const handleDisclaimerProceed = () => {
+    setShowQuizDisclaimer(false);
     if (pendingBookId) {
       navigate(`/quiz/${pendingBookId}`);
     } else {
@@ -532,6 +543,11 @@ export default function Library() {
   const displayedIAriseBooks = isSampleStudent && !iAriseExpanded ? iAriseBooks.slice(0, 5) : iAriseBooks;
   const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
   const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
+
+  // Pagination — 10 books per page
+  const booksPerPage = 10;
+  const totalPages = Math.ceil(nonCurriculumBooks.length / booksPerPage);
+  const pagedBooks = nonCurriculumBooks.slice((currentPage - 1) * booksPerPage, currentPage * booksPerPage);
 
   // Group by points value (only when sorting by points)
   const pointsGroups: Record<string, Book[]> = {};
@@ -722,14 +738,6 @@ export default function Library() {
               <div className="text-3xl font-bold">{results.length}</div>
               <div className="text-sm text-white/80">Quizzes done</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold">{books.filter(b => b.readUrl).length}</div>
-              <div className="text-sm text-white/80">Books to read</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">{books.length + (showEyeGaze ? eyeGazeQuizzes.length + customQuizzes.length + regularCustomQuizzes.length : 0)}</div>
-              <div className="text-sm text-white/80">Quizzes available</div>
-            </div>
           </div>
         </div>
 
@@ -743,60 +751,6 @@ export default function Library() {
               <Sparkles className="w-4 h-4 mr-1" />
               Create a Quiz
             </Button>
-          </div>
-        )}
-
-        {showRequest && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowRequest(false)}>
-            <Card className="w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-lg">Request a Quiz</h3>
-                  <Button variant="ghost" size="sm" onClick={() => setShowRequest(false)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                {requestMsg ? (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-green-400 font-medium">{requestMsg}</p>
-                  </div>
-                ) : (
-                  <>
-                    {requestError && (
-                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
-                        {requestError}
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="request-title">Book Title *</Label>
-                      <Input
-                        id="request-title"
-                        value={requestBook}
-                        onChange={(e) => setRequestBook(e.target.value)}
-                        placeholder="The book you want a quiz for"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="request-author">Author *</Label>
-                      <Input
-                        id="request-author"
-                        value={requestAuthor}
-                        onChange={(e) => setRequestAuthor(e.target.value)}
-                        placeholder="Author name"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={handleSubmitRequest} disabled={!requestBook.trim() || !requestAuthor.trim() || submittingRequest} className="flex-1">
-                        {submittingRequest ? "Submitting..." : "Submit Request"}
-                      </Button>
-                      <Button variant="outline" onClick={() => setShowRequest(false)} className="flex-1">
-                        Cancel
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
           </div>
         )}
 
@@ -1439,8 +1393,24 @@ export default function Library() {
           })
         ) : (showEyeGaze && !isSampleStudent && !user?.isAdmin) ? null : (
           <div className="mb-10">
+            {searchQuery.trim() && nonCurriculumBooks.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-lg font-semibold mb-2">No quiz found for "{searchQuery}"</p>
+                <p className="text-sm text-muted-foreground mb-6">We couldn't find that book in the library. Create a quiz for it instantly!</p>
+                {!(user?.role === 'teacher' || user?.isAdmin) && (
+                  <Button
+                    onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); setInstantBook(searchQuery.trim()); }}
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Create a Quiz for "{searchQuery.trim()}"
+                  </Button>
+                )}
+              </div>
+            ) : (
+            <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {nonCurriculumBooks.map((book) => {
+              {pagedBooks.map((book) => {
                 const result = results.find(r => r.bookId === book.id);
                 const isDone = completedIds.has(book.id);
                 return (
@@ -1519,6 +1489,33 @@ export default function Library() {
                 );
               })}
             </div>
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground px-3">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+            </>
+            )}
           </div>
         )}
         </>
@@ -1587,6 +1584,33 @@ export default function Library() {
           ready={!!pendingBookId}
           onComplete={handleGeneratingComplete}
         />
+      )}
+
+      {/* Pre-Quiz Disclaimer Modal */}
+      {showQuizDisclaimer && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-md shadow-xl">
+            <CardContent className="p-6 space-y-4">
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-primary/15 flex items-center justify-center mx-auto mb-4">
+                  <ShieldCheck className="w-7 h-7 text-primary" />
+                </div>
+                <h3 className="font-bold text-lg mb-2">Before You Begin</h3>
+              </div>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Educators actively review quiz questions and do not fully rely on AI. AI is a tool — not the end-all-be-all. Our teachers verify quiz content, check for accuracy, and adjust questions as needed.
+                </p>
+                <p>
+                  If you feel a question is unfair or incorrect, you can request a full educator review at any time. A real teacher will review the quiz and your answers, and adjust your score if needed.
+                </p>
+              </div>
+              <Button onClick={handleDisclaimerProceed} className="w-full" size="lg">
+                I Understand — Start Quiz
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

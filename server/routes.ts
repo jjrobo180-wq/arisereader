@@ -2101,13 +2101,43 @@ export async function registerRoutes(
         return res.status(500).json({ message: result.error });
       }
 
-      // Create the book with AI-generated questions
+      // Create the book with generated questions
+      // Auto-fetch book cover from Open Library Covers API
+      let coverUrl: string | null = null;
+      try {
+        const coverRes = await fetch(
+          `https://covers.openlibrary.org/b/title/${encodeURIComponent(cleanTitle)}?format=json&limit=1`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (coverRes.ok) {
+          const coverData = await coverRes.json() as any;
+          if (coverData.covers && coverData.covers.length > 0) {
+            coverUrl = `https://covers.openlibrary.org/b/id/${coverData.covers[0].id}-L.jpg`;
+          }
+        }
+      } catch {}
+      // Fallback: try by author + title search
+      if (!coverUrl) {
+        try {
+          const searchRes = await fetch(
+            `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}&author=${encodeURIComponent(cleanAuthor)}&limit=1`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          if (searchRes.ok) {
+            const searchData = await searchRes.json() as any;
+            if (searchData.docs && searchData.docs.length > 0 && searchData.docs[0].cover_i) {
+              coverUrl = `https://covers.openlibrary.org/b/id/${searchData.docs[0].cover_i}-L.jpg`;
+            }
+          }
+        } catch {}
+      }
+
       const book = await storage.createBookWithQuestions({
         title: cleanTitle,
         author: cleanAuthor,
         ageGroup,
-        coverUrl: null,
-        description: `AI-generated quiz for "${cleanTitle}" by ${cleanAuthor}`,
+        coverUrl,
+        description: `Quiz for "${cleanTitle}" by ${cleanAuthor}`,
         pointsValue: 10,
         readUrl: null,
       }, result.questions);

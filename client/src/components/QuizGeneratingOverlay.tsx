@@ -128,7 +128,7 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
                   <p className={`text-sm font-semibold ${isCurrent ? "text-primary" : "text-foreground"}`}>
                     {step.label}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground">
                     {step.detail}
                   </p>
                 </div>
