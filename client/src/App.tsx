@@ -267,9 +267,8 @@ function AppInner() {
       {isStudent && !isSampleStudent && <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && <FypSideTab />}
       {isStudent && <PointsSideTab />}
-      {/* Sample student: leaderboard popup only shows after guided tour completes */}
+      {/* Sample student: no leaderboard popup, guided tour only */}
       {isStudent && !isSampleStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isSampleStudent && sampleTourDone && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
       {isSampleStudent && <GuidedTour onComplete={() => setSampleTourDone(true)} />}

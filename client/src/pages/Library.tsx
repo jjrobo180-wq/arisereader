@@ -1114,7 +1114,7 @@ export default function Library() {
 
             {/* Curriculum Section - hidden for eye gaze students */}
             {curriculumBooks.length > 0 && !showEyeGaze && !user?.isAdmin && (
-              <div className="mb-10">
+              <div data-tour="book-quizzes" className="mb-10">
                 <div className="flex items-center gap-2 mb-4">
                   <BookOpen className="w-5 h-5 text-primary" />
                   <h2 className="text-lg font-bold text-foreground">Books in Your School Curriculum</h2>

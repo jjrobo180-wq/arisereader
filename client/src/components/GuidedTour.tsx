@@ -28,16 +28,16 @@ const TOUR_STEPS: TourStep[] = [
     position: "right",
   },
   {
-    selector: '[data-tour="points"]',
-    title: "Your Points",
-    desc: "Earn points by taking quizzes, finding easter eggs on the FYP, and completing iArise lessons. Compete on the leaderboard!",
+    selector: '[data-tour="book-quizzes"]',
+    title: "Book Quizzes",
+    desc: "These are full book quizzes! You can take them to test your knowledge and earn points. Create a free account to unlock all quizzes.",
     position: "bottom",
   },
   {
-    selector: '[data-tour="fyp"]',
+    selector: '[data-tour="fyp-side-tab"]',
     title: "FYP Feed",
     desc: "Swipe through book recommendations like TikTok. Find hidden easter eggs for bonus points! This is where reading gets fun.",
-    position: "bottom",
+    position: "left",
   },
 ];
 

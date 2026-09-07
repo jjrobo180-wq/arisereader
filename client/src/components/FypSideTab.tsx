@@ -43,6 +43,7 @@ export default function FypSideTab() {
 
   return (
     <div
+      data-tour="fyp-side-tab"
       className="fixed right-0 top-1/2 -translate-y-1/2 z-40"
       style={{
         transform: hovered || expanded
