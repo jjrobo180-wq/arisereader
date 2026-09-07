@@ -1236,6 +1236,9 @@ export async function registerRoutes(
       ? await storage.getMonthlyLeaderboard(month)
       : await storage.getLeaderboard();
     
+    // Exclude sample/demo account from leaderboard
+    leaderboard = leaderboard.filter((entry: any) => entry.username !== 'sample');
+    
     // Filter by grade band if requested
     if (band) {
       const rawGrades = await storage.getSetting('user_grades');
@@ -1272,6 +1275,9 @@ export async function registerRoutes(
     let leaderboard = month
       ? await storage.getMonthlyLeaderboard(month)
       : await storage.getLeaderboard();
+
+    // Exclude sample/demo account from leaderboard
+    leaderboard = leaderboard.filter((entry: any) => entry.username !== 'sample');
 
     // Fetch enrichment data: user grades, eye gaze flags, schools
     const rawGrades = await storage.getSetting('user_grades');
@@ -1361,13 +1367,16 @@ export async function registerRoutes(
 
       const fullLeaderboard = await storage.getLeaderboard();
 
+      // Exclude sample/demo account
+      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => entry.username !== 'sample');
+
       // Filter to user's band (or all if no band)
       const bandLeaderboard = myBand
-        ? fullLeaderboard.filter((entry: any) => {
+        ? filteredLeaderboard.filter((entry: any) => {
             const g = userGrades[String(entry.userId)] || userGrades[String(entry.id)];
             return g && gradeToBand(g) === myBand;
           })
-        : fullLeaderboard;
+        : filteredLeaderboard;
 
       // Sort by points desc
       bandLeaderboard.sort((a: any, b: any) => (b.totalPoints || 0) - (a.totalPoints || 0));
@@ -1444,9 +1453,12 @@ export async function registerRoutes(
       
       // Get full leaderboard (all-time)
       const fullLeaderboard = await storage.getLeaderboard();
+
+      // Exclude sample/demo account
+      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => entry.username !== 'sample');
       
       // Filter to user's band
-      const bandLeaderboard = fullLeaderboard.filter((entry: any) => {
+      const bandLeaderboard = filteredLeaderboard.filter((entry: any) => {
         const g = userGrades[String(entry.userId)] || userGrades[String(entry.id)];
         return g && gradeToBand(g) === userBand;
       });
