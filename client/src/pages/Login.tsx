@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info, Megaphone, Sparkles } from "lucide-react";
+import { GraduationCap, BookUser, UserCog, Trophy, BookOpen, FileQuestion, Star, Heart, ChevronDown, ChevronUp, Eye, Info, Megaphone, Sparkles, PlayCircle } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 
 export default function Login() {
@@ -211,27 +211,11 @@ export default function Login() {
               <div className="grid grid-cols-1 gap-2">
                 <button
                   type="button"
-                  onClick={() => navigate("/tutorial/student")}
+                  onClick={() => navigate("/tutorial")}
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border text-sm font-medium text-white hover:bg-muted hover:border-primary/50 transition-all"
                 >
-                  <BookUser className="w-4 h-4 text-primary" />
-                  Student & Parent Tutorial
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/tutorial/teacher")}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border text-sm font-medium text-white hover:bg-muted hover:border-primary/50 transition-all"
-                >
-                  <UserCog className="w-4 h-4 text-primary" />
-                  Teacher Tutorial
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/tutorial/eye-gaze")}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border text-sm font-medium text-white hover:bg-muted hover:border-primary/50 transition-all"
-                >
-                  <Eye className="w-4 h-4 text-primary" />
-                  Eye Gaze / Non-Verbal Tutorial
+                  <PlayCircle className="w-4 h-4 text-primary" />
+                  Tutorial
                 </button>
               </div>
               <button

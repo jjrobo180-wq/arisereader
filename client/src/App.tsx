@@ -184,6 +184,9 @@ function AppRoutes() {
       <Route path="/teacher-dashboard">
         <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
       </Route>
+      <Route path="/tutorial">
+        <Tutorial />
+      </Route>
       <Route path="/tutorial/student">
         <Tutorial />
       </Route>

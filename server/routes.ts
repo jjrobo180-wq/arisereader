@@ -2733,6 +2733,32 @@ export async function registerRoutes(
     }
   });
 
+  // Public: Get donation goal settings
+  app.get("/api/donation-settings", async (_req, res) => {
+    try {
+      const raw = await storage.getSetting('donation_settings');
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.active) return res.json(data);
+      }
+      res.json(null);
+    } catch {
+      res.json(null);
+    }
+  });
+
+  // Admin: Update donation settings
+  app.put("/api/admin/donation-settings", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { goalAmount, currentAmount, title, description, donateUrl, milestones, active } = req.body;
+      const data = { goalAmount, currentAmount, title, description, donateUrl, milestones, active };
+      await storage.upsertSetting('donation_settings', JSON.stringify(data));
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Public: Get banners for logged-in users
   app.get("/api/banners", authMiddleware, async (req, res) => {
     try {

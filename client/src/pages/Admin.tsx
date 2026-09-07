@@ -165,6 +165,8 @@ export default function Admin() {
   const [teacherBanner, setTeacherBanner] = useState({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true });
   const [loginBanner, setLoginBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
   const [bannerMsg, setBannerMsg] = useState("");
+  const [donationSettings, setDonationSettings] = useState({ goalAmount: 1000, currentAmount: 0, title: "Support Our Readers", description: "Help us keep A.R.I.S.E Reader free for students", donateUrl: "", milestonesText: "", active: false });
+  const [donationMsg, setDonationMsg] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
   const [proctorMsg, setProctorMsg] = useState("");
@@ -606,6 +608,7 @@ export default function Admin() {
     fetchReviewRequests();
     fetchAnnouncement();
     fetchBanners();
+    fetchDonationSettings();
     fetchProctorPassword();
     fetchEasterEggs();
     fetchPendingParents();
@@ -682,6 +685,57 @@ export default function Admin() {
         if (data.studentBanner) setStudentBanner(data.studentBanner);
         if (data.teacherBanner) setTeacherBanner(data.teacherBanner);
         if (data.loginBanner) setLoginBanner(data.loginBanner);
+      }
+    } catch {}
+  };
+
+  const fetchDonationSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/donation-settings`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          const milestonesText = (data.milestones || []).map((m: any) => `${m.amount}|${m.label}`).join("\n");
+          setDonationSettings({
+            goalAmount: data.goalAmount || 1000,
+            currentAmount: data.currentAmount || 0,
+            title: data.title || "Support Our Readers",
+            description: data.description || "",
+            donateUrl: data.donateUrl || "",
+            milestonesText,
+            active: data.active !== false,
+          });
+        }
+      }
+    } catch {}
+  };
+
+  const handleUpdateDonation = async () => {
+    if (!token) return;
+    try {
+      const milestones = donationSettings.milestonesText
+        .split("\n")
+        .filter(Boolean)
+        .map(line => {
+          const [amount, ...labelParts] = line.split("|");
+          return { amount: Number(amount), label: labelParts.join("|") || `Goal ${amount}` };
+        });
+      const res = await fetch(`${API_BASE}/api/admin/donation-settings`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          goalAmount: donationSettings.goalAmount,
+          currentAmount: donationSettings.currentAmount,
+          title: donationSettings.title,
+          description: donationSettings.description,
+          donateUrl: donationSettings.donateUrl,
+          milestones,
+          active: donationSettings.active,
+        }),
+      });
+      if (res.ok) {
+        setDonationMsg("Donation settings saved!");
+        setTimeout(() => setDonationMsg(""), 3000);
       }
     } catch {}
   };
@@ -1855,6 +1909,81 @@ Generate exactly 10 questions.`;
               </div>
               <Button size="sm" variant="outline" onClick={handleUpdateLoginBanner}>Update</Button>
             </div>
+          </div>
+
+          {/* Donation Goal Settings */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Donation Goal (shows on student library page)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="text-xs text-muted-foreground">Goal Amount ($)</span>
+                <Input
+                  type="number"
+                  value={donationSettings.goalAmount}
+                  onChange={(e) => setDonationSettings({ ...donationSettings, goalAmount: Number(e.target.value) })}
+                  className="bg-muted/30 border-border text-foreground"
+                />
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Current Amount ($)</span>
+                <Input
+                  type="number"
+                  value={donationSettings.currentAmount}
+                  onChange={(e) => setDonationSettings({ ...donationSettings, currentAmount: Number(e.target.value) })}
+                  className="bg-muted/30 border-border text-foreground"
+                />
+              </div>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Title</span>
+              <Input
+                value={donationSettings.title}
+                onChange={(e) => setDonationSettings({ ...donationSettings, title: e.target.value })}
+                placeholder="Support Our Readers"
+                className="bg-muted/30 border-border text-foreground"
+              />
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Description</span>
+              <Input
+                value={donationSettings.description}
+                onChange={(e) => setDonationSettings({ ...donationSettings, description: e.target.value })}
+                placeholder="Help us keep A.R.I.S.E Reader free for students"
+                className="bg-muted/30 border-border text-foreground"
+              />
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Donation Link (URL)</span>
+              <Input
+                value={donationSettings.donateUrl}
+                onChange={(e) => setDonationSettings({ ...donationSettings, donateUrl: e.target.value })}
+                placeholder="https://donate.stripe.com/..."
+                className="bg-muted/30 border-border text-foreground"
+              />
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Milestones (one per line, format: amount|label)</span>
+              <textarea
+                value={donationSettings.milestonesText}
+                onChange={(e) => setDonationSettings({ ...donationSettings, milestonesText: e.target.value })}
+                placeholder={"250|First Goal\n500|Halfway\n1000|Fully Funded"}
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg bg-muted/30 border border-border text-foreground text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={donationSettings.active}
+                  onChange={(e) => setDonationSettings({ ...donationSettings, active: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-muted-foreground">Active (show on library page)</span>
+              </label>
+              <Button size="sm" variant="outline" onClick={handleUpdateDonation}>Save Donation Settings</Button>
+            </div>
+            {donationMsg && <span className="text-xs text-green-400">{donationMsg}</span>}
           </div>
 
           {/* Proctor Password */}

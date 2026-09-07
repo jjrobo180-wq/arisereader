@@ -6,6 +6,7 @@ interface TourStep {
   title: string;
   desc: string;
   position: "top" | "bottom" | "left" | "right";
+  noTarget?: boolean;
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -13,6 +14,12 @@ const TOUR_STEPS: TourStep[] = [
     selector: '[data-tour="welcome"]',
     title: "Welcome to A.R.I.S.E Reader!",
     desc: "This is your library. Browse books, take quizzes, and earn points. Let me show you around — click Next to start.",
+    position: "bottom",
+  },
+  {
+    selector: '[data-tour="band-badge"]',
+    title: "Your Grade Band",
+    desc: "This shows your reading level band. Your quizzes and leaderboard are filtered to your band so you compete with peers at your level. Click it anytime to learn more!",
     position: "bottom",
   },
   {
@@ -44,6 +51,19 @@ const TOUR_STEPS: TourStep[] = [
     title: "Your Points",
     desc: "This shows your total points earned. Every quiz you complete adds points here. Compete with classmates on the leaderboard!",
     position: "bottom",
+  },
+  {
+    selector: '[data-tour="leaderboard-link"]',
+    title: "Leaderboard",
+    desc: "Click here to see the leaderboard! You'll see your rank, top readers in your band, and tips to climb higher. The more you read, the higher you go!",
+    position: "bottom",
+  },
+  {
+    selector: '[data-tour="eye-gaze-section"]',
+    title: "Eye Gazer & Non-Verbal Quizzes",
+    desc: "This section has special eye gaze quizzes for non-verbal learners. Teachers and parents can create custom quizzes with pictures. If you're an eye gaze user, your quizzes will appear here!",
+    position: "bottom",
+    noTarget: true,
   },
   {
     selector: '[data-tour="fyp-side-tab"]',
@@ -95,9 +115,20 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
         return;
       }
 
-      const el = document.querySelector(tourStep.selector);
-      if (!el) {
-        // Skip step if target not found
+      // No-target step: show centered tooltip without spotlight
+      if (tourStep.noTarget) {
+        setTargetRect(null);
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        setTooltipPos({ top: vh / 2 - 80, left: vw / 2 - 160 });
+        setArrowDir("bottom");
+        setArrowPos({ top: 0, left: 0 });
+        return;
+      }
+
+      const el = document.querySelector(tourStep.selector) as HTMLElement | null;
+      if (!el || el.offsetWidth === 0) {
+        // Skip step if target not found or invisible
         if (step < TOUR_STEPS.length - 1) {
           setStep(step + 1);
         } else {
@@ -207,19 +238,21 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
     };
   }, [active, step, targetRect]);
 
-  if (!active || !targetRect) return null;
+  if (!active) return null;
 
   const currentStep = TOUR_STEPS[step];
   const isLast = step === TOUR_STEPS.length - 1;
   const pad = 8;
+  const hasTarget = !!targetRect && !currentStep?.noTarget;
 
-  const spotlightStyle: React.CSSProperties = {
+  // Full-screen click blocker — prevents clicking outside the tour
+  const blockerStyle: React.CSSProperties = {
     position: "fixed",
     inset: 0,
     zIndex: 200,
-    pointerEvents: "none",
-    background: "rgba(0,0,0,0.85)",
-    clipPath: `polygon(0 0,100% 0,100% 100%,0 100%,0 ${targetRect.top - pad}px,${targetRect.right + pad}px ${targetRect.top - pad}px,${targetRect.right + pad}px ${targetRect.bottom + pad}px,${targetRect.left - pad}px ${targetRect.bottom + pad}px,${targetRect.left - pad}px ${targetRect.top - pad}px,0 ${targetRect.top - pad}px)`,
+    pointerEvents: "auto",
+    background: hasTarget ? "rgba(0,0,0,0.85)" : "rgba(0,0,0,0.9)",
+    clipPath: hasTarget ? `polygon(0 0,100% 0,100% 100%,0 100%,0 ${targetRect!.top - pad}px,${targetRect!.right + pad}px ${targetRect!.top - pad}px,${targetRect!.right + pad}px ${targetRect!.bottom + pad}px,${targetRect!.left - pad}px ${targetRect!.bottom + pad}px,${targetRect!.left - pad}px ${targetRect!.top - pad}px,0 ${targetRect!.top - pad}px)` : undefined,
   };
 
   const arrowStyle: React.CSSProperties = (() => {
@@ -232,21 +265,23 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
 
   return (
     <>
-      <div style={spotlightStyle} />
-      <div
-        style={{
-          position: "fixed",
-          top: targetRect.top - pad,
-          left: targetRect.left - pad,
-          width: targetRect.width + pad * 2,
-          height: targetRect.height + pad * 2,
-          borderRadius: 12,
-          border: "3px solid #f97316",
-          zIndex: 201,
-          pointerEvents: "none",
-          animation: "tourPulse 1.5s ease-in-out infinite",
-        }}
-      />
+      <div style={blockerStyle} />
+      {hasTarget && targetRect && (
+        <div
+          style={{
+            position: "fixed",
+            top: targetRect.top - pad,
+            left: targetRect.left - pad,
+            width: targetRect.width + pad * 2,
+            height: targetRect.height + pad * 2,
+            borderRadius: 12,
+            border: "3px solid #f97316",
+            zIndex: 201,
+            pointerEvents: "none",
+            animation: "tourPulse 1.5s ease-in-out infinite",
+          }}
+        />
+      )}
       <div style={{ position: "fixed", top: tooltipPos.top, left: tooltipPos.left, width: 320, zIndex: 202 }}>
         <div style={arrowStyle} />
         <div
@@ -262,7 +297,7 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 20 }}>
-              {step === 0 ? "👋" : step === 1 ? "🎯" : step === 2 ? "📖" : step === 3 ? "⭐" : "📱"}
+              {step === 0 ? "👋" : step === 1 ? "🎓" : step === 2 ? "🎯" : step === 3 ? "📖" : step === 4 ? "📚" : step === 5 ? "🏆" : step === 6 ? "⭐" : step === 7 ? "📊" : step === 8 ? "👁️" : "📱"}
             </span>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: "white", margin: 0 }}>{currentStep.title}</h3>
           </div>

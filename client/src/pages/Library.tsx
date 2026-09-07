@@ -12,6 +12,7 @@ import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import DonationGoal from "@/components/DonationGoal";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -487,6 +488,7 @@ export default function Library() {
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/25 transition-colors"
                 title="Click to learn about grade bands"
                 data-testid="band-badge"
+                data-tour="band-badge"
               >
                 <GraduationCap className="w-3 h-3" />
                 {userBand} Band
@@ -560,7 +562,7 @@ export default function Library() {
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Progress
                   </button>
-                  <button onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                  <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Trophy className="w-4 h-4" /> Leaderboard
                   </button>
                   <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
@@ -676,6 +678,8 @@ export default function Library() {
           </div>
         )}
 
+        <DonationGoal />
+
         {showRequest && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowRequest(false)}>
             <Card className="w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -732,7 +736,7 @@ export default function Library() {
 
         {/* Eye Gaze Testing Section */}
         {showEyeGaze && (eyeGazeQuizzes.length > 0 || customQuizzes.length > 0) && (
-          <div className="mb-10">
+          <div data-tour="eye-gaze-section" className="mb-10">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                 <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
