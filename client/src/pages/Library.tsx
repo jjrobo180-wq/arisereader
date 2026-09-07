@@ -666,7 +666,7 @@ export default function Library() {
 
         {/* Request a quiz - students only */}
         {!(user?.role === 'teacher' || user?.isAdmin) && (
-          <div className="mb-8">
+          <div className="mb-8" data-tour="request-quiz">
             <Button
               variant="outline"
               onClick={() => { setShowRequest(true); setRequestError(""); setRequestMsg(""); }}

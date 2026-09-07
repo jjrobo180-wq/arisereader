@@ -71,6 +71,12 @@ const TOUR_STEPS: TourStep[] = [
     desc: "Swipe through book recommendations like TikTok. Find hidden easter eggs for bonus points! This is where reading gets fun.",
     position: "left",
   },
+  {
+    selector: '[data-tour="request-quiz"]',
+    title: "Request a Quiz — Unlimited Books!",
+    desc: "We have close to 1,000 quizzes and counting! Don't see a book you want? Click here to request a quiz. Most requests are created in less than 24 hours. Create a free account to start requesting!",
+    position: "bottom",
+  },
 ];
 
 export default function GuidedTour({ onComplete }: { onComplete?: () => void }) {
@@ -297,7 +303,7 @@ export default function GuidedTour({ onComplete }: { onComplete?: () => void }) 
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 20 }}>
-              {step === 0 ? "👋" : step === 1 ? "🎓" : step === 2 ? "🎯" : step === 3 ? "📖" : step === 4 ? "📚" : step === 5 ? "🏆" : step === 6 ? "⭐" : step === 7 ? "📊" : step === 8 ? "👁️" : "📱"}
+              {step === 0 ? "👋" : step === 1 ? "🎓" : step === 2 ? "🎯" : step === 3 ? "📖" : step === 4 ? "📚" : step === 5 ? "🏆" : step === 6 ? "⭐" : step === 7 ? "📊" : step === 8 ? "👁️" : step === 9 ? "📱" : "✨"}
             </span>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: "white", margin: 0 }}>{currentStep.title}</h3>
           </div>
