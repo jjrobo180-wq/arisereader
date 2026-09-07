@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, Lock, KeyRound, FileSearch } from "lucide-react";
+import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, Lock, KeyRound, FileSearch, Sparkles } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -52,6 +52,7 @@ export default function Quiz() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
+  const isSampleStudent = user?.username === 'sample';
 
   const handleRequestReview = async () => {
     if (!token || !result?.attemptId) return;
@@ -95,7 +96,9 @@ export default function Quiz() {
         }
         setBook(data.book || null);
         const qs = Array.isArray(data.questions) ? data.questions : [];
-        setQuestions(qs.sort((a: SafeQuestion, b: SafeQuestion) => a.questionOrder - b.questionOrder));
+        const sorted = qs.sort((a: SafeQuestion, b: SafeQuestion) => a.questionOrder - b.questionOrder);
+        // Sample student: only show 3 questions
+        setQuestions(isSampleStudent ? sorted.slice(0, 3) : sorted);
       } catch (err) {
         setError("Failed to load quiz");
       } finally {
@@ -136,6 +139,23 @@ export default function Quiz() {
 
   const handleSubmit = async () => {
     if (!token || !id) return;
+    // Sample student: don't submit to server, show sample result
+    if (isSampleStudent) {
+      let correct = 0;
+      questions.forEach(q => {
+        const ans = answers[String(q.id)];
+        if (ans === 'A') correct++; // Just count A answers for sample
+      });
+      setResult({
+        score: correct,
+        total: questions.length,
+        passed: true,
+        points: 0,
+        isSample: true,
+      });
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`${API_BASE}/api/books/${id}/quiz`, {
@@ -239,6 +259,36 @@ export default function Quiz() {
   }
 
   if (result) {
+    // Sample student: show special result screen
+    if (result.isSample) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+          <Card className="max-w-md w-full shadow-xl">
+            <CardContent className="p-8 text-center">
+              <div className="w-20 h-20 rounded-full bg-amber-500 flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Sparkles className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Sample Quiz Complete!</h2>
+              <p className="text-muted-foreground mb-6">{book?.title}</p>
+              <div className="rounded-2xl p-6 mb-6 bg-amber-500/20">
+                <div className="text-5xl font-bold text-amber-400">{result.score}/{result.total}</div>
+                <div className="text-sm text-muted-foreground mt-1">questions correct</div>
+              </div>
+              <div className="rounded-xl border-2 border-primary/40 bg-primary/10 p-4 mb-6">
+                <p className="text-sm font-bold text-primary mb-1">Want to earn real points?</p>
+                <p className="text-xs text-muted-foreground">Create a free account to take the full 10-question quiz, earn points, climb the leaderboard, and win certificates!</p>
+              </div>
+              <Button onClick={() => navigate("/register")} className="w-full bg-primary mb-2" size="lg">
+                <Sparkles className="w-4 h-4 mr-2" />Create Free Account
+              </Button>
+              <Button onClick={() => navigate("/library")} variant="outline" className="w-full">
+                <ArrowLeft className="w-4 h-4 mr-2" />Back to Library
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     const percentage = Math.round((result.score / result.total) * 100);
     const passed = result.passed !== undefined ? result.passed : result.score >= Math.ceil(result.total * 0.7);
     const passingScore = result.passingScore || Math.ceil(result.total * 0.7);
@@ -360,7 +410,7 @@ export default function Quiz() {
     );
   }
 
-  if (!proctorVerified && !user?.isAdmin && !result && !alreadyTaken && book) {
+  if (!proctorVerified && !isSampleStudent && !user?.isAdmin && !result && !alreadyTaken && book) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <Card className="max-w-md w-full shadow-xl">
@@ -437,6 +487,12 @@ export default function Quiz() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
+        {isSampleStudent && (
+          <div className="mb-6 rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 text-center">
+            <p className="text-sm font-bold text-amber-400">🎯 Sample Quiz Mode</p>
+            <p className="text-xs text-muted-foreground mt-1">You're taking a 3-question sample quiz. Create a free account to take the full 10-question quiz and earn points!</p>
+          </div>
+        )}
         {/* Book cover and info */}
         <div className="flex gap-4 mb-8 items-start">
           <div className="w-24 sm:w-32 flex-shrink-0">

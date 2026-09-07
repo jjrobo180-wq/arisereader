@@ -45,6 +45,14 @@
     </style>
   </head>
   <body>
+    <script>
+      // Fix double-slash URLs (e.g. arisereader.com// → arisereader.com/)
+      if (location.pathname.includes('//')) {
+        var clean = location.pathname.replace(/\/+/g, '/');
+        var newUrl = clean + location.search + location.hash;
+        history.replaceState(null, '', newUrl);
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

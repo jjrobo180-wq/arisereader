@@ -455,7 +455,11 @@ export default function Library() {
   });
 
   // Separate iArise books, curriculum books, and the rest
+  const isSampleStudent = user?.username === 'sample';
+  const [iAriseExpanded, setIAriseExpanded] = useState(false);
   const iAriseBooks = sortedBooks.filter(b => iAriseBookIds.includes(b.id));
+  // For sample student, limit iArise to 5 books unless expanded
+  const displayedIAriseBooks = isSampleStudent && !iAriseExpanded ? iAriseBooks.slice(0, 5) : iAriseBooks;
   const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
   const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
 
@@ -1042,8 +1046,9 @@ export default function Library() {
               </div>
               <p className="text-sm text-muted-foreground mb-4 ml-7">Read. Learn. Rise.</p>
               {iAriseBooks.length > 0 ? (
+                <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {iAriseBooks.map((book) => {
+                  {displayedIAriseBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
                     return (
@@ -1090,6 +1095,14 @@ export default function Library() {
                     );
                   })}
                 </div>
+                {isSampleStudent && iAriseBooks.length > 5 && (
+                  <div className="mt-3 text-center">
+                    <Button variant="outline" size="sm" onClick={() => setIAriseExpanded(!iAriseExpanded)}>
+                      {iAriseExpanded ? "Show Less" : `See All ${iAriseBooks.length} iArise Books`}
+                    </Button>
+                  </div>
+                )}
+                </>
               ) : (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
                   <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />

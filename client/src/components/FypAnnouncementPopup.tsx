@@ -31,7 +31,7 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
       setLoading(false);
       return;
     }
-    if (user.isAdmin || user.role === "teacher") {
+    if (user.isAdmin || user.role === "teacher" || user.role === "parent") {
       setLoading(false);
       return;
     }
@@ -53,6 +53,19 @@ export default function FypAnnouncementPopup({ onNavigate }: { onNavigate: (path
         if (!res.ok) { setLoading(false); return; }
         const data = await res.json();
         if (data.tutorialShown) {
+          setLoading(false);
+          return;
+        }
+        // If user has logged in 2+ times, skip tutorial (LeaderboardPopup handles 2nd+ login)
+        const sessionData = JSON.parse(atob(raw));
+        if (sessionData.loginCount && sessionData.loginCount >= 2) {
+          // Mark tutorial as shown to prevent future checks
+          try {
+            await fetch(`${API_BASE}/api/tutorial/dismiss`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            });
+          } catch {}
           setLoading(false);
           return;
         }

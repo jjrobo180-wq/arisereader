@@ -47,6 +47,7 @@ import StudentProfileView from "./pages/StudentProfileView";
 import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import ParentDashboard from "./pages/ParentDashboard";
+import ParentTutorialPopup from "./components/ParentTutorialPopup";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import FypSideTab from "./components/FypSideTab";
@@ -255,13 +256,16 @@ function AppRoutes() {
 
 function AppInner() {
   const { user } = useAuth();
+  const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
+  const isParent = user && user.role === 'parent';
   return (
     <>
-      <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />
-      <FypSideTab />
-      <PointsSideTab />
-      <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />
-      <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />
+      {isStudent && <FypAnnouncementPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && <FypSideTab />}
+      {isStudent && <PointsSideTab />}
+      {isStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isParent && <ParentTutorialPopup />}
       <Router hook={useHashLocation}>
         <AppRoutes />
       </Router>

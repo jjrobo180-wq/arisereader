@@ -832,6 +832,7 @@ export default function Admin() {
           alert("Parent approved! (No email on file - please notify them manually)");
         }
         fetchPendingParents();
+        fetchAllParents();
       } else {
         const data = await res.json().catch(() => ({}));
         alert(data.message || "Failed to approve parent");
@@ -851,6 +852,7 @@ export default function Admin() {
       if (res.ok) {
         alert("Parent account rejected.");
         fetchPendingParents();
+        fetchAllParents();
       } else {
         alert("Failed to reject parent");
       }

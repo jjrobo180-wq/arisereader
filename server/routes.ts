@@ -3122,6 +3122,7 @@ export async function registerRoutes(
         const teacherName = student?.teacherId ? ((await storage.getUser(student.teacherId))?.displayName || "your teacher") : "your teacher";
         await storage.createMessage(studentId, "teacher", `Welcome! You've been approved by an admin and are now in ${teacherName}'s class.`);
       }
+      try { clearCache('allUsers'); } catch {}
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
