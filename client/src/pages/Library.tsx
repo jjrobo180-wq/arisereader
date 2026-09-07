@@ -106,6 +106,14 @@ export default function Library() {
   const [requestError, setRequestError] = useState("");
   const [submittingRequest, setSubmittingRequest] = useState(false);
 
+  // Instant AI quiz state
+  const [showInstant, setShowInstant] = useState(false);
+  const [instantBook, setInstantBook] = useState("");
+  const [instantAuthor, setInstantAuthor] = useState("");
+  const [instantMsg, setInstantMsg] = useState("");
+  const [instantError, setInstantError] = useState("");
+  const [instantLoading, setInstantLoading] = useState(false);
+
   const [eyeGazeQuizzes, setEyeGazeQuizzes] = useState<any[]>([]);
   const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
   const [regularCustomQuizzes, setRegularCustomQuizzes] = useState<any[]>([]);
@@ -361,6 +369,46 @@ export default function Library() {
       setRequestError("Failed to submit request.");
     } finally {
       setSubmittingRequest(false);
+    }
+  };
+
+  const handleInstantQuiz = async () => {
+    setInstantError("");
+    setInstantMsg("");
+    if (!instantBook.trim() || !instantAuthor.trim()) return;
+    setInstantLoading(true);
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/instant-quiz`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ bookTitle: instantBook.trim(), author: instantAuthor.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setInstantMsg(data.message || "Quiz generated!");
+        // Refresh library to show the new book
+        fetchBooks();
+        // Wait a moment then navigate to the quiz
+        setTimeout(() => {
+          setShowInstant(false);
+          setInstantBook("");
+          setInstantAuthor("");
+          setInstantMsg("");
+          if (data.bookId) {
+            navigate(`/quiz/${data.bookId}`);
+          }
+        }, 1500);
+      } else {
+        setInstantError(data.message || "Failed to generate quiz.");
+      }
+    } catch {
+      setInstantError("Failed to generate quiz. Please try again.");
+    } finally {
+      setInstantLoading(false);
     }
   };
 
@@ -674,9 +722,9 @@ export default function Library() {
           </div>
         </div>
 
-        {/* Request a quiz - students only */}
+        {/* Request a quiz / Instant quiz - students only */}
         {!(user?.role === 'teacher' || user?.isAdmin) && (
-          <div className="mb-8" data-tour="request-quiz">
+          <div className="mb-8 flex flex-wrap gap-3" data-tour="request-quiz">
             <Button
               variant="outline"
               onClick={() => { setShowRequest(true); setRequestError(""); setRequestMsg(""); }}
@@ -684,6 +732,13 @@ export default function Library() {
             >
               <PlusCircle className="w-4 h-4 mr-1" />
               Request a Quiz
+            </Button>
+            <Button
+              onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+            >
+              <Sparkles className="w-4 h-4 mr-1" />
+              Instant AI Quiz
             </Button>
           </div>
         )}
@@ -732,6 +787,77 @@ export default function Library() {
                         {submittingRequest ? "Submitting..." : "Submit Request"}
                       </Button>
                       <Button variant="outline" onClick={() => setShowRequest(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Instant AI Quiz modal */}
+        {showInstant && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !instantLoading && setShowInstant(false)}>
+            <Card className="w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-purple-500" />
+                    Instant AI Quiz
+                  </h3>
+                  {!instantLoading && (
+                    <Button variant="ghost" size="sm" onClick={() => setShowInstant(false)}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                {instantMsg ? (
+                  <div className="text-center py-6">
+                    <Sparkles className="w-10 h-10 text-green-400 mx-auto mb-3" />
+                    <p className="text-sm text-green-400 font-medium">{instantMsg}</p>
+                  </div>
+                ) : instantLoading ? (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-sm font-medium text-purple-400">Generating your quiz with AI...</p>
+                    <p className="text-xs text-muted-foreground mt-1">This takes about 10-15 seconds</p>
+                  </div>
+                ) : (
+                  <>
+                    {instantError && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+                        {instantError}
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="instant-title">Book Title *</Label>
+                      <Input
+                        id="instant-title"
+                        value={instantBook}
+                        onChange={(e) => setInstantBook(e.target.value)}
+                        placeholder="e.g., Charlotte's Web"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="instant-author">Author *</Label>
+                      <Input
+                        id="instant-author"
+                        value={instantAuthor}
+                        onChange={(e) => setInstantAuthor(e.target.value)}
+                        placeholder="e.g., E.B. White"
+                      />
+                    </div>
+                    <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
+                      AI will instantly create a 10-question quiz about your book. Questions are generated based on the book's content and themes.
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleInstantQuiz} disabled={!instantBook.trim() || !instantAuthor.trim() || instantLoading} className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        Generate Quiz
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowInstant(false)} className="flex-1">
                         Cancel
                       </Button>
                     </div>

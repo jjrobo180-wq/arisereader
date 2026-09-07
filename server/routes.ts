@@ -24,6 +24,43 @@ const EMAIL_FROM = process.env.EMAIL_FROM || "A.R.I.S.E Reader <noreply@ariserea
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "jjrobo180@gmail.com";
 const APP_URL = process.env.APP_URL || "https://arisereader.pplx.app";
 
+// LLM API for instant quiz generation
+// Uses a Python script with pplx_sdk to generate quiz questions
+import { execFile } from 'child_process';
+import path from 'path';
+
+const QUIZ_SCRIPT = path.join(process.cwd(), 'scripts', 'generate_quiz.py');
+
+async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }> } | { error: string }> {
+  return new Promise((resolve) => {
+    const args = [QUIZ_SCRIPT, bookTitle, author, ageGroup || 'middle school'];
+    execFile('python3', args, {
+      timeout: 90000,
+      maxBuffer: 1024 * 1024,
+      env: { ...process.env },
+    }, (err, stdout, stderr) => {
+      if (err) {
+        resolve({ error: `AI generation failed: ${err.message}` });
+        return;
+      }
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (result.error) {
+          resolve({ error: result.error });
+          return;
+        }
+        if (!result.questions || result.questions.length < 5) {
+          resolve({ error: 'AI generated too few questions' });
+          return;
+        }
+        resolve({ questions: result.questions });
+      } catch (e: any) {
+        resolve({ error: `Failed to parse AI response: ${e.message}` });
+      }
+    });
+  });
+}
+
 async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
   const hasProxy = PROXY_URL && PROXY_TOKEN;
   const hasDirect = RESEND_API_KEY;
@@ -1919,6 +1956,71 @@ export async function registerRoutes(
     }
     await storage.updateBookCover(bookId, coverUrl);
     res.json({ message: "Cover updated successfully" });
+  });
+
+  // Student: generate an instant AI quiz for a book
+  app.post("/api/instant-quiz", authMiddleware, async (req: any, res) => {
+    try {
+      const { bookTitle, author } = req.body;
+      if (!bookTitle || bookTitle.trim().length < 2) {
+        return res.status(400).json({ message: "Book title is required" });
+      }
+      if (!author || author.trim().length < 2) {
+        return res.status(400).json({ message: "Author is required" });
+      }
+
+      // Only students can use instant quiz
+      if (req.user.role === 'teacher' || req.user.role === 'parent' || req.user.isAdmin) {
+        return res.status(403).json({ message: "Only students can generate instant quizzes" });
+      }
+
+      // Check if this book already exists with a quiz
+      const allBooks = await storage.getAllBooks();
+      const existing = allBooks.find((b: any) =>
+        b.title.toLowerCase().trim() === bookTitle.trim().toLowerCase()
+      );
+      if (existing && existing.pointsValue > 0) {
+        // Book already has a quiz, redirect to it
+        return res.json({ bookId: existing.id, message: "A quiz for this book already exists!", existing: true });
+      }
+
+      // Get student's grade band for appropriate question difficulty
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      const studentGrade = userGrades[String(req.user.id)] || "5";
+      const ageGroup = studentGrade <= "2" ? "K-2" : studentGrade <= "5" ? "3-5" : studentGrade <= "8" ? "6-8" : "9-12";
+
+      // Generate quiz with AI
+      const result = await generateQuizWithAI(bookTitle.trim(), author.trim(), ageGroup);
+      if ("error" in result) {
+        return res.status(500).json({ message: result.error });
+      }
+
+      // Create the book with AI-generated questions
+      const book = await storage.createBookWithQuestions({
+        title: bookTitle.trim(),
+        author: author.trim(),
+        ageGroup,
+        coverUrl: null,
+        description: `AI-generated quiz for "${bookTitle.trim()}" by ${author.trim()}`,
+        pointsValue: 10,
+        readUrl: null,
+      }, result.questions);
+
+      // Assign the book to the student's grade band
+      try {
+        const rawBands = await storage.getSetting('book_grade_bands');
+        let bookBands: Record<string, string> = {};
+        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+        bookBands[String(book.id)] = ageGroup;
+        await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+      } catch {}
+
+      res.status(201).json({ bookId: book.id, message: "Quiz generated! Ready to take.", generated: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to generate quiz" });
+    }
   });
 
   // Student: request a quiz
