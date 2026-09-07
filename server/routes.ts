@@ -52,6 +52,12 @@ async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: 
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
   }
   try {
+    // Load admin-configured quiz guidelines
+    let guidelines = "";
+    try {
+      guidelines = await storage.getSetting("quiz_generation_guidelines") || "";
+    } catch {}
+
     const prompt = `You are an expert reading comprehension quiz creator for students. Create exactly 10 multiple-choice questions for the book "${bookTitle}" by ${author}.
 
 Return ONLY a JSON array (no markdown, no explanation, no code blocks). Each question must have this exact format:
@@ -64,7 +70,7 @@ Rules:
 - Make questions appropriate for ${ageGroup || "middle school"} students
 - Do NOT make questions about the author's life or publication details
 - Focus on the story content, characters, plot, and themes
-- Return exactly 10 questions as a JSON array`;
+- Return exactly 10 questions as a JSON array${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
 
     const res = await fetch(PERPLEXITY_API_URL, {
       method: "POST",
@@ -2038,7 +2044,15 @@ export async function registerRoutes(
   // Admin: get AI settings status (does NOT return the key)
   app.get("/api/admin/ai-settings", authMiddleware, adminMiddleware, async (req, res) => {
     const key = await storage.getSetting("perplexity_api_key");
-    res.json({ configured: !!key, keyPreview: key ? key.slice(0, 8) + "..." + key.slice(-4) : null });
+    const guidelines = await storage.getSetting("quiz_generation_guidelines");
+    res.json({ configured: !!key, keyPreview: key ? key.slice(0, 8) + "..." + key.slice(-4) : null, guidelines: guidelines || "" });
+  });
+
+  // Admin: set quiz generation guidelines
+  app.post("/api/admin/quiz-guidelines", authMiddleware, adminMiddleware, async (req, res) => {
+    const { guidelines } = req.body;
+    await storage.upsertSetting("quiz_generation_guidelines", guidelines || "");
+    res.json({ message: "Quiz guidelines saved successfully" });
   });
 
   // Student: generate an instant AI quiz for a book

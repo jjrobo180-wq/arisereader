@@ -171,6 +171,8 @@ export default function Admin() {
   const [aiKeyPreview, setAiKeyPreview] = useState("");
   const [aiKeyConfigured, setAiKeyConfigured] = useState(false);
   const [aiKeyMsg, setAiKeyMsg] = useState("");
+  const [quizGuidelines, setQuizGuidelines] = useState("");
+  const [guidelinesMsg, setGuidelinesMsg] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
   const [proctorMsg, setProctorMsg] = useState("");
@@ -725,6 +727,7 @@ export default function Admin() {
         const data = await res.json();
         setAiKeyConfigured(data.configured);
         setAiKeyPreview(data.keyPreview || "");
+        setQuizGuidelines(data.guidelines || "");
       }
     } catch {}
   };
@@ -749,6 +752,27 @@ export default function Admin() {
       }
     } catch {
       setAiKeyMsg("Failed to save API key.");
+    }
+  };
+
+  const handleSaveGuidelines = async () => {
+    if (!token) return;
+    setGuidelinesMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/quiz-guidelines`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ guidelines: quizGuidelines }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGuidelinesMsg("Guidelines saved! All new AI quizzes will follow these.");
+        setTimeout(() => setGuidelinesMsg(""), 4000);
+      } else {
+        setGuidelinesMsg(data.message || "Failed to save guidelines.");
+      }
+    } catch {
+      setGuidelinesMsg("Failed to save guidelines.");
     }
   };
 
@@ -1981,6 +2005,23 @@ Generate exactly 10 questions.`;
                 Save Key
               </Button>
             </div>
+          </div>
+
+          {/* Quiz Generation Guidelines */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">AI Quiz Guidelines</Label>
+            <p className="text-xs text-muted-foreground">Control how the AI generates quizzes. Leave empty for defaults. These instructions are added to every AI-generated quiz.</p>
+            {guidelinesMsg && <p className="text-sm text-green-400">{guidelinesMsg}</p>}
+            <textarea
+              value={quizGuidelines}
+              onChange={(e) => setQuizGuidelines(e.target.value)}
+              placeholder={"Examples:\n- Focus on character motivation and plot twists\n- Include 2 vocabulary questions\n- Make questions challenging but fair\n- Avoid questions about minor details"}
+              rows={5}
+              className="w-full rounded-md bg-muted/30 border border-border text-foreground text-sm p-2 resize-y"
+            />
+            <Button size="sm" variant="outline" onClick={handleSaveGuidelines}>
+              Save Guidelines
+            </Button>
           </div>
 
           {/* Donation Goal Settings */}
