@@ -87,6 +87,8 @@ export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: st
   const { user } = useAuth();
   const fetched = useRef(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const healIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dismissedRef = useRef(false);
 
   useEffect(() => {
     if (fetched.current) return;
@@ -122,14 +124,16 @@ export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: st
             renderPopup(data);
             
             // Self-heal: if popup gets removed by React re-renders, re-add it
-            const healInterval = setInterval(() => {
+            // BUT only if it hasn't been dismissed by the user
+            healIntervalRef.current = setInterval(() => {
+              if (dismissedRef.current) return;
               const existing = document.getElementById('lb-popup-root');
               if (!existing) {
                 renderPopup(data);
               }
             }, 500);
             // Stop healing after 30 seconds
-            setTimeout(() => clearInterval(healInterval), 30000);
+            setTimeout(() => clearInterval(healIntervalRef.current), 30000);
           }, 2000);
         } catch {}
       };
@@ -303,6 +307,11 @@ export default function LeaderboardPopup({ onNavigate }: { onNavigate: (path: st
     }
 
     function close() {
+      dismissedRef.current = true;
+      if (healIntervalRef.current) {
+        clearInterval(healIntervalRef.current);
+        healIntervalRef.current = null;
+      }
       overlay.remove();
       overlayRef.current = null;
     }

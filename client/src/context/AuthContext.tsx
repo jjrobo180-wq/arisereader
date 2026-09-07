@@ -81,7 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize state from ref (already has cookie data)
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
-  const [isLoading, setIsLoading] = useState(false);
+  // Start in loading state if there's a session to validate — prevents premature routing
+  const [isLoading, setIsLoading] = useState(!!sessionRef.current.token);
   const [sessionValidated, setSessionValidated] = useState(false);
 
   // Validate session on app load — if the token is expired, clear the cookie
@@ -91,15 +92,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: `Bearer ${sessionRef.current.token}` },
+      signal: AbortSignal.timeout(8000),
     })
       .then(res => {
         if (!res.ok) {
           // Session expired — clear everything
+          setUser(null);
+          setToken(null);
           persistSession(null, null);
+        } else {
+          // Session valid — refresh user data from server
+          return res.json();
+        }
+      })
+      .then(userData => {
+        if (userData) {
+          setUser(userData);
+          sessionRef.current.user = userData;
+          // Update cookie with fresh user data
+          persistSession(userData, sessionRef.current.token);
         }
       })
       .catch(() => {
-        // Network error — keep the session (don't log out on network issues)
+        // Network error — if we can't reach the server, the session is useless
+        // Clear it so the user sees the login page instead of a blank dashboard
+        setUser(null);
+        setToken(null);
+        persistSession(null, null);
       })
       .finally(() => {
         setIsLoading(false);
