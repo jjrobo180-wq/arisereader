@@ -72,8 +72,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     selector: '[data-tour="request-quiz"]',
-    title: "Request a Quiz — Unlimited Books!",
-    desc: "We have close to 1,000 quizzes and counting! Don't see a book you want? Click here to request a quiz. Most requests are created in less than 24 hours. Create a free account to start requesting!",
+    title: "Request or Instant AI Quiz — Unlimited Books!",
+    desc: "We have close to 1,000 quizzes and counting! Don't see a book you want? Click 'Request a Quiz' and your teacher will create one. Or click 'Instant AI Quiz' to have AI generate a 10-question quiz for ANY book instantly — ready to take right away!",
     position: "bottom",
   },
 ];
