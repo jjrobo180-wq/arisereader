@@ -881,6 +881,16 @@ export async function registerRoutes(
   // Last-known-good stats cache (survives transient failures)
   let lastGoodStats: any = null;
 
+  // Public setting lookup (for anime/comic book IDs etc.)
+  app.get("/api/settings/:key", async (req, res) => {
+    try {
+      const value = await storage.getSetting(req.params.key);
+      res.json({ value });
+    } catch {
+      res.json({ value: null });
+    }
+  });
+
   app.get("/api/public/stats", async (_req, res) => {
     try {
       const books = await storage.getAllBooks();
@@ -4053,6 +4063,221 @@ export async function registerRoutes(
 
   // ─── CUSTOM EYE GAZE QUIZZES (Teacher/Parent created) ──────────────
 
+  // Seed anime & comic book quizzes
+  app.post("/api/admin/seed-anime-comics", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const animeComicBooks = [
+        {
+          title: "Naruto: The First Test",
+          author: "Masashi Kishimoto",
+          ageGroup: "6-8",
+          description: "A young ninja begins his journey at the ninja academy.",
+          questions: [
+            { question: "What is Naruto's dream?", options: ["To become Hokage", "To become a chef", "To leave the village", "To become a farmer"], correct: "A" },
+            { question: "What animal is Naruto associated with?", options: ["Fox", "Cat", "Wolf", "Eagle"], correct: "A" },
+            { question: "What is a ninja school called in Naruto?", options: ["Academy", "Dojo", "Temple", "Castle"], correct: "A" },
+            { question: "What color is Naruto's jacket?", options: ["Orange", "Blue", "Green", "Purple"], correct: "A" },
+            { question: "What does Naruto say before eating?", options: ["Itadakimasu", "Hello", "Goodbye", "Thanks"], correct: "A" },
+            { question: "What is Naruto's signature attack?", options: ["Shadow Clone Jutsu", "Fire Ball", "Water Sword", "Wind Slash"], correct: "A" },
+            { question: "Who is Naruto's rival?", options: ["Sasuke", "Sakura", "Kakashi", "Gaara"], correct: "A" },
+            { question: "What village is Naruto from?", options: ["Hidden Leaf Village", "Sand Village", "Mist Village", "Cloud Village"], correct: "A" },
+            { question: "What is a ninja's headband called?", options: ["Forehead Protector", "Hat", "Helmet", "Crown"], correct: "A" },
+            { question: "What does Hokage mean?", options: ["Fire Shadow / Village Leader", "Water King", "Wind Master", "Earth Chief"], correct: "A" },
+          ],
+        },
+        {
+          title: "My Hero Academia: The Entrance Exam",
+          author: "Kohei Horikoshi",
+          ageGroup: "6-8",
+          description: "A boy born without powers tries to get into hero school.",
+          questions: [
+            { question: "What are superpowers called in this world?", options: ["Quirks", "Magic", "Spells", "Talents"], correct: "A" },
+            { question: "What is the main character's name?", options: ["Izuku Midoriya", "Bakugo", "Todoroki", "All Might"], correct: "A" },
+            { question: "What is Izuku's nickname?", options: ["Deku", "Hero", "Zero", "Might"], correct: "A" },
+            { question: "Who is the number one hero?", options: ["All Might", "Endeavor", "Best Jeanist", "Hawks"], correct: "A" },
+            { question: "What is the hero school called?", options: ["U.A. High School", "Hero Academy", "Might School", "Plus Ultra"], correct: "A" },
+            { question: "What is All Might's catchphrase?", options: ["Plus Ultra", "Go Beyond", "Hero Time", "I am here"], correct: "A" },
+            { question: "What color is Izuku's hair?", options: ["Green", "Red", "Blue", "Black"], correct: "A" },
+            { question: "What is Bakugo's quirk?", options: ["Explosion", "Fire", "Ice", "Lightning"], correct: "A" },
+            { question: "What does Izuku want to become?", options: ["A hero", "A villain", "A teacher", "A doctor"], correct: "A" },
+            { question: "What does U.A. stand for in the story?", options: ["A hero academy", "A sports school", "A music school", "A science lab"], correct: "A" },
+          ],
+        },
+        {
+          title: "Pokemon Adventures: The Journey Begins",
+          author: "Hidenori Kusaka",
+          ageGroup: "3-5",
+          description: "A trainer sets out to catch Pokemon and earn badges.",
+          questions: [
+            { question: "What do trainers catch?", options: ["Pokemon", "Bugs", "Fish", "Stars"], correct: "A" },
+            { question: "What color is Pikachu?", options: ["Yellow", "Red", "Blue", "Green"], correct: "A" },
+            { question: "What does Pikachu say?", options: ["Pika Pika", "Meow", "Woof", "Bzz"], correct: "A" },
+            { question: "What do you use to catch a Pokemon?", options: ["A Pokeball", "A net", "A rope", "Your hands"], correct: "A" },
+            { question: "What is the starting Pokemon region?", options: ["Kanto", "Johto", "Hoenn", "Sinnoh"], correct: "A" },
+            { question: "What type is Pikachu?", options: ["Electric", "Fire", "Water", "Grass"], correct: "A" },
+            { question: "What is Ash's goal?", options: ["To be a Pokemon Master", "To be a chef", "To be a pilot", "To be a doctor"], correct: "A" },
+            { question: "What does a Pokemon Center do?", options: ["Heals Pokemon", "Sells food", "Trains Pokemon", "Catches Pokemon"], correct: "A" },
+            { question: "What are the three starter types?", options: ["Fire, Water, Grass", "Earth, Wind, Fire", "Ice, Rock, Steel", "Dark, Psychic, Ghost"], correct: "A" },
+            { question: "What is the Pokemon motto?", options: ["Gotta catch em all", "Be the best", "Train hard", "Catch and release"], correct: "A" },
+          ],
+        },
+        {
+          title: "Dragon Ball: The Search for the Dragon Balls",
+          author: "Akira Toriyama",
+          ageGroup: "6-8",
+          description: "A young fighter searches for magical dragon balls.",
+          questions: [
+            { question: "What is the main character's name?", options: ["Goku", "Vegeta", "Gohan", "Piccolo"], correct: "A" },
+            { question: "How many dragon balls are there?", options: ["Seven", "Five", "Three", "Ten"], correct: "A" },
+            { question: "What does Goku love to do?", options: ["Eat and fight", "Sleep", "Read", "Swim"], correct: "A" },
+            { question: "What does Shenron do?", options: ["Grants wishes", "Breathes fire", "Flies", "Roars"], correct: "A" },
+            { question: "What is Goku's signature move?", options: ["Kamehameha", "Fireball", "Lightning Strike", "Ice Beam"], correct: "A" },
+            { question: "What does Goku turn into during a full moon?", options: ["A giant ape", "A wolf", "A dragon", "A bird"], correct: "A" },
+            { question: "Who is Goku's rival?", options: ["Vegeta", "Krillin", "Yamcha", "Tien"], correct: "A" },
+            { question: "What is a Saiyan?", options: ["A warrior race", "A type of food", "A dragon", "A planet"], correct: "A" },
+            { question: "What does Goku use to fly?", options: ["Ki energy", "Wings", "A jet pack", "Magic dust"], correct: "A" },
+            { question: "What color is Goku's outfit?", options: ["Orange", "Blue", "Green", "Red"], correct: "A" },
+          ],
+        },
+        {
+          title: "Avatar: The Last Airbender (Graphic Novel)",
+          author: "Gene Luen Yang",
+          ageGroup: "9-12",
+          description: "The Avatar continues their journey to restore balance to the world.",
+          questions: [
+            { question: "What are the four nations?", options: ["Water, Earth, Fire, Air", "North, South, East, West", "Fire, Ice, Stone, Wind", "River, Mountain, Sun, Sky"], correct: "A" },
+            { question: "Who is the Avatar?", options: ["A person who can bend all four elements", "A king", "A warrior", "A spirit"], correct: "A" },
+            { question: "What does Aang have on his body?", options: ["Arrow tattoos", "Dragon scales", "Fire marks", "Water symbols"], correct: "A" },
+            { question: "What element does Katara bend?", options: ["Water", "Fire", "Earth", "Air"], correct: "A" },
+            { question: "What nation did the Fire Nation attack?", options: ["The Air Nomads", "The Water Tribe", "The Earth Kingdom", "The Sun Warriors"], correct: "A" },
+            { question: "What is Aang's animal companion?", options: ["A flying bison named Appa", "A dragon", "A wolf", "An eagle"], correct: "A" },
+            { question: "What does the Avatar cycle follow?", options: ["Water, Earth, Fire, Air", "Fire, Air, Water, Earth", "Earth, Water, Air, Fire", "Air, Fire, Earth, Water"], correct: "A" },
+            { question: "What is the goal of the Avatar?", options: ["To bring balance to the world", "To conquer nations", "To find treasure", "To win battles"], correct: "A" },
+            { question: "Who is Zuko's uncle?", options: ["Iroh", "Ozai", "Azulon", "Sozin"], correct: "A" },
+            { question: "What does Zuko eventually do?", options: ["Joins Aang to restore balance", "Becomes Fire Lord immediately", "Leaves the Fire Nation", "Becomes a monk"], correct: "A" },
+          ],
+        },
+        {
+          title: "One Piece: The Pirate Journey",
+          author: "Eiichiro Oda",
+          ageGroup: "6-8",
+          description: "A young pirate sets sail to find the greatest treasure.",
+          questions: [
+            { question: "What is the main character's name?", options: ["Luffy", "Zoro", "Nami", "Sanji"], correct: "A" },
+            { question: "What treasure is Luffy searching for?", options: ["One Piece", "The Crown", "The Map", "The Sword"], correct: "A" },
+            { question: "What can Luffy do?", options: ["Stretch his body like rubber", "Breathe fire", "Turn invisible", "Fly"], correct: "A" },
+            { question: "What is Luffy's dream?", options: ["To become King of the Pirates", "To be rich", "To be a chef", "To be a sailor"], correct: "A" },
+            { question: "What is Luffy's ship called?", options: ["The Going Merry", "The Black Pearl", "The Flying Dutchman", "The Nautilus"], correct: "A" },
+            { question: "Who is the swordsman in Luffy's crew?", options: ["Zoro", "Sanji", "Usopp", "Chopper"], correct: "A" },
+            { question: "What does Luffy love to eat?", options: ["Meat", "Vegetables", "Fish", "Fruit"], correct: "A" },
+            { question: "What is the name of Luffy's crew?", options: ["Straw Hat Pirates", "Skull Pirates", "Fire Pirates", "Sea Pirates"], correct: "A" },
+            { question: "What ocean did Luffy come from?", options: ["East Blue", "North Blue", "West Blue", "South Blue"], correct: "A" },
+            { question: "What does Luffy wear on his head?", options: ["A straw hat", "A helmet", "A crown", "A bandana"], correct: "A" },
+          ],
+        },
+        {
+          title: "Spider-Man: The Origin Story",
+          author: "Stan Lee",
+          ageGroup: "9-12",
+          description: "A teenager gains spider powers and becomes a hero.",
+          questions: [
+            { question: "What is Spider-Man's real name?", options: ["Peter Parker", "Bruce Wayne", "Clark Kent", "Tony Stark"], correct: "A" },
+            { question: "How did Spider-Man get his powers?", options: ["A radioactive spider bit him", "He was born with them", "A wizard gave them", "He built a suit"], correct: "A" },
+            { question: "What can Spider-Man shoot from his wrists?", options: ["Webs", "Fire", "Water", "Lightning"], correct: "A" },
+            { question: "What is Spider-Man's famous saying?", options: ["With great power comes great responsibility", "With great wealth comes great power", "With great speed comes great victory", "With great knowledge comes great wisdom"], correct: "A" },
+            { question: "Who is Spider-Man's uncle?", options: ["Uncle Ben", "Uncle Joe", "Uncle Sam", "Uncle Tom"], correct: "A" },
+            { question: "Where does Peter Parker live?", options: ["New York City", "Los Angeles", "Chicago", "Miami"], correct: "A" },
+            { question: "What color is Spider-Man's suit?", options: ["Red and blue", "Green and yellow", "Black and white", "Purple and gold"], correct: "A" },
+            { question: "What can Spider-Man climb?", options: ["Walls", "Trees only", "Mountains only", "Nothing"], correct: "A" },
+            { question: "What is Spider-Man's sixth sense called?", options: ["Spider-Sense", "Danger Sense", "Hero Sense", "Web Sense"], correct: "A" },
+            { question: "What newspaper does Peter Parker work for?", options: ["The Daily Bugle", "The Daily Planet", "The New York Times", "The Daily News"], correct: "A" },
+          ],
+        },
+        {
+          title: "Batman: The Dark Knight Returns",
+          author: "Frank Miller",
+          ageGroup: "9-12",
+          description: "An aging hero comes out of retirement to protect Gotham.",
+          questions: [
+            { question: "What is Batman's real name?", options: ["Bruce Wayne", "Clark Kent", "Peter Parker", "Tony Stark"], correct: "A" },
+            { question: "What city does Batman protect?", options: ["Gotham City", "Metropolis", "New York", "Star City"], correct: "A" },
+            { question: "What is Batman's secret base called?", options: ["The Batcave", "The Fortress", "The Lair", "The Cave"], correct: "A" },
+            { question: "Who is Batman's loyal butler?", options: ["Alfred", "James", "Thomas", "Henry"], correct: "A" },
+            { question: "What signal does the police use to call Batman?", options: ["The Bat-Signal", "A phone call", "A radio", "A flare"], correct: "A" },
+            { question: "What is Batman's main weapon against criminals?", options: ["His mind and gadgets", "Guns", "Magic", "Super strength"], correct: "A" },
+            { question: "What animal is Batman's symbol?", options: ["A bat", "A cat", "A wolf", "An eagle"], correct: "A" },
+            { question: "What color is Batman's suit?", options: ["Black", "Blue", "Red", "Green"], correct: "A" },
+            { question: "Who is Batman's famous villain?", options: ["The Joker", "The Riddler", "Two-Face", "All of the above"], correct: "A" },
+            { question: "Why is Batman called the Dark Knight?", options: ["He works at night", "He wears gold armor", "He lives in a castle", "He rides a horse"], correct: "A" },
+          ],
+        },
+        {
+          title: "Sailor Moon: The Guardian Awakens",
+          author: "Naoko Takeuchi",
+          ageGroup: "3-5",
+          description: "A girl discovers she is a magical guardian who protects the world.",
+          questions: [
+            { question: "What is Sailor Moon's real name?", options: ["Usagi", "Rei", "Ami", "Mina"], correct: "A" },
+            { question: "What animal is Sailor Moon's companion?", options: ["A cat named Luna", "A dog", "A bird", "A rabbit"], correct: "A" },
+            { question: "What does Sailor Moon fight for?", options: ["Love and justice", "Money", "Fame", "Power"], correct: "A" },
+            { question: "What is Sailor Moon's transformation item?", options: ["A brooch", "A ring", "A necklace", "A wand"], correct: "A" },
+            { question: "What color is Sailor Moon's outfit?", options: ["Blue and white", "Red and black", "Green and yellow", "Purple and gold"], correct: "A" },
+            { question: "What does Sailor Moon say before transforming?", options: ["Moon Prism Power", "Star Power", "Sun Power", "Earth Power"], correct: "A" },
+            { question: "What is Usagi's favorite thing to do?", options: ["Eat and sleep", "Run", "Swim", "Read"], correct: "A" },
+            { question: "What is Sailor Moon's weapon?", options: ["A magic wand", "A sword", "A bow", "A shield"], correct: "A" },
+            { question: "How many Sailor Guardians are there?", options: ["Five main ones", "Three", "Seven", "Ten"], correct: "A" },
+            { question: "What planet is Sailor Moon named after?", options: ["The Moon", "The Sun", "Mars", "Venus"], correct: "A" },
+          ],
+        },
+        {
+          title: "Captain Underpants: The First Adventure",
+          author: "Dav Pilkey",
+          ageGroup: "3-5",
+          description: "Two pranksters turn their principal into a superhero.",
+          questions: [
+            { question: "Who are the two main characters?", options: ["George and Harold", "Tom and Jerry", "Mike and Ike", "Ben and Jerry"], correct: "A" },
+            { question: "What do George and Harold love to make?", options: ["Comic books", "Movies", "Music", "Food"], correct: "A" },
+            { question: "Who is Captain Underpants?", options: ["Their principal Mr. Krupp", "A teacher", "A police officer", "A firefighter"], correct: "A" },
+            { question: "How do they turn Mr. Krupp into Captain Underpants?", options: ["By snapping their fingers", "By clapping", "By whistling", "By stomping"], correct: "A" },
+            { question: "What does Captain Underpants wear?", options: ["Underwear and a cape", "A suit", "A costume", "Pajamas"], correct: "A" },
+            { question: "What do George and Harold do at school?", options: ["Pull pranks", "Play sports", "Sing songs", "Dance"], correct: "A" },
+            { question: "What is Captain Underpants' catchphrase?", options: ["Tra-La-Laaa", "Ta-Da", "Woohoo", "Yippee"], correct: "A" },
+            { question: "What is the boys' favorite thing to draw?", options: ["Superheroes", "Animals", "Cars", "Houses"], correct: "A" },
+            { question: "What happens when you snap your fingers again?", options: ["He turns back to normal", "He flies", "He disappears", "He shrinks"], correct: "A" },
+            { question: "What kind of book is Captain Underpants?", options: ["A comic book", "A textbook", "A cookbook", "A history book"], correct: "A" },
+          ],
+        },
+      ];
+
+      const createdIds: number[] = [];
+      for (const bookData of animeComicBooks) {
+        // Check if already exists
+        const { data: existing } = await supabase.from("books").select("id").ilike("title", bookData.title).limit(1);
+        if (existing && existing.length > 0) {
+          createdIds.push(existing[0].id);
+          continue;
+        }
+        const book = await storage.createBookWithQuestions({
+          title: bookData.title,
+          author: bookData.author,
+          ageGroup: bookData.ageGroup,
+          coverUrl: null,
+          description: bookData.description,
+          pointsValue: 5,
+          readUrl: null,
+        }, bookData.questions);
+        createdIds.push(book.id);
+      }
+
+      // Save anime/comic book IDs to settings for filtering
+      await storage.upsertSetting("anime_comic_book_ids", JSON.stringify(createdIds));
+
+      res.json({ success: true, count: createdIds.length, bookIds: createdIds });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/custom-quizzes", authMiddleware, async (req: any, res) => {
     try {
       // For students: show global quizzes + their teacher's quizzes
@@ -4691,6 +4916,219 @@ export async function registerRoutes(
       res.status(500).json({ message: 'Failed to claim easter egg' });
     }
   });
+
+  // Auto-seed anime/comic books on startup if not already present
+  try {
+    const existing = await storage.getSetting("anime_comic_book_ids");
+    if (!existing) {
+      console.log("Seeding anime & comic book quizzes...");
+      const animeComicBooks = [
+        {
+          title: "Naruto: The First Test",
+          author: "Masashi Kishimoto",
+          ageGroup: "6-8",
+          description: "A young ninja begins his journey at the ninja academy.",
+          questions: [
+            { question: "What is Naruto's dream?", options: ["To become Hokage", "To become a chef", "To leave the village", "To become a farmer"], correct: "A" },
+            { question: "What animal is Naruto associated with?", options: ["Fox", "Cat", "Wolf", "Eagle"], correct: "A" },
+            { question: "What is a ninja school called in Naruto?", options: ["Academy", "Dojo", "Temple", "Castle"], correct: "A" },
+            { question: "What color is Naruto's jacket?", options: ["Orange", "Blue", "Green", "Purple"], correct: "A" },
+            { question: "What does Naruto say before eating?", options: ["Itadakimasu", "Hello", "Goodbye", "Thanks"], correct: "A" },
+            { question: "What is Naruto's signature attack?", options: ["Shadow Clone Jutsu", "Fire Ball", "Water Sword", "Wind Slash"], correct: "A" },
+            { question: "Who is Naruto's rival?", options: ["Sasuke", "Sakura", "Kakashi", "Gaara"], correct: "A" },
+            { question: "What village is Naruto from?", options: ["Hidden Leaf Village", "Sand Village", "Mist Village", "Cloud Village"], correct: "A" },
+            { question: "What is a ninja's headband called?", options: ["Forehead Protector", "Hat", "Helmet", "Crown"], correct: "A" },
+            { question: "What does Hokage mean?", options: ["Fire Shadow / Village Leader", "Water King", "Wind Master", "Earth Chief"], correct: "A" },
+          ],
+        },
+        {
+          title: "My Hero Academia: The Entrance Exam",
+          author: "Kohei Horikoshi",
+          ageGroup: "6-8",
+          description: "A boy born without powers tries to get into hero school.",
+          questions: [
+            { question: "What are superpowers called in this world?", options: ["Quirks", "Magic", "Spells", "Talents"], correct: "A" },
+            { question: "What is the main character's name?", options: ["Izuku Midoriya", "Bakugo", "Todoroki", "All Might"], correct: "A" },
+            { question: "What is Izuku's nickname?", options: ["Deku", "Hero", "Zero", "Might"], correct: "A" },
+            { question: "Who is the number one hero?", options: ["All Might", "Endeavor", "Best Jeanist", "Hawks"], correct: "A" },
+            { question: "What is the hero school called?", options: ["U.A. High School", "Hero Academy", "Might School", "Plus Ultra"], correct: "A" },
+            { question: "What is All Might's catchphrase?", options: ["Plus Ultra", "Go Beyond", "Hero Time", "I am here"], correct: "A" },
+            { question: "What color is Izuku's hair?", options: ["Green", "Red", "Blue", "Black"], correct: "A" },
+            { question: "What is Bakugo's quirk?", options: ["Explosion", "Fire", "Ice", "Lightning"], correct: "A" },
+            { question: "What does Izuku want to become?", options: ["A hero", "A villain", "A teacher", "A doctor"], correct: "A" },
+            { question: "What does U.A. stand for in the story?", options: ["A hero academy", "A sports school", "A music school", "A science lab"], correct: "A" },
+          ],
+        },
+        {
+          title: "Pokemon Adventures: The Journey Begins",
+          author: "Hidenori Kusaka",
+          ageGroup: "3-5",
+          description: "A trainer sets out to catch Pokemon and earn badges.",
+          questions: [
+            { question: "What do trainers catch?", options: ["Pokemon", "Bugs", "Fish", "Stars"], correct: "A" },
+            { question: "What color is Pikachu?", options: ["Yellow", "Red", "Blue", "Green"], correct: "A" },
+            { question: "What does Pikachu say?", options: ["Pika Pika", "Meow", "Woof", "Bzz"], correct: "A" },
+            { question: "What do you use to catch a Pokemon?", options: ["A Pokeball", "A net", "A rope", "Your hands"], correct: "A" },
+            { question: "What is the starting Pokemon region?", options: ["Kanto", "Johto", "Hoenn", "Sinnoh"], correct: "A" },
+            { question: "What type is Pikachu?", options: ["Electric", "Fire", "Water", "Grass"], correct: "A" },
+            { question: "What is Ash's goal?", options: ["To be a Pokemon Master", "To be a chef", "To be a pilot", "To be a doctor"], correct: "A" },
+            { question: "What does a Pokemon Center do?", options: ["Heals Pokemon", "Sells food", "Trains Pokemon", "Catches Pokemon"], correct: "A" },
+            { question: "What are the three starter types?", options: ["Fire, Water, Grass", "Earth, Wind, Fire", "Ice, Rock, Steel", "Dark, Psychic, Ghost"], correct: "A" },
+            { question: "What is the Pokemon motto?", options: ["Gotta catch em all", "Be the best", "Train hard", "Catch and release"], correct: "A" },
+          ],
+        },
+        {
+          title: "Dragon Ball: The Search for the Dragon Balls",
+          author: "Akira Toriyama",
+          ageGroup: "6-8",
+          description: "A young fighter searches for magical dragon balls.",
+          questions: [
+            { question: "What is the main character's name?", options: ["Goku", "Vegeta", "Gohan", "Piccolo"], correct: "A" },
+            { question: "How many dragon balls are there?", options: ["Seven", "Five", "Three", "Ten"], correct: "A" },
+            { question: "What does Goku love to do?", options: ["Eat and fight", "Sleep", "Read", "Swim"], correct: "A" },
+            { question: "What does Shenron do?", options: ["Grants wishes", "Breathes fire", "Flies", "Roars"], correct: "A" },
+            { question: "What is Goku's signature move?", options: ["Kamehameha", "Fireball", "Lightning Strike", "Ice Beam"], correct: "A" },
+            { question: "What does Goku turn into during a full moon?", options: ["A giant ape", "A wolf", "A dragon", "A bird"], correct: "A" },
+            { question: "Who is Goku's rival?", options: ["Vegeta", "Krillin", "Yamcha", "Tien"], correct: "A" },
+            { question: "What is a Saiyan?", options: ["A warrior race", "A type of food", "A dragon", "A planet"], correct: "A" },
+            { question: "What does Goku use to fly?", options: ["Ki energy", "Wings", "A jet pack", "Magic dust"], correct: "A" },
+            { question: "What color is Goku's outfit?", options: ["Orange", "Blue", "Green", "Red"], correct: "A" },
+          ],
+        },
+        {
+          title: "Avatar: The Last Airbender (Graphic Novel)",
+          author: "Gene Luen Yang",
+          ageGroup: "9-12",
+          description: "The Avatar continues their journey to restore balance to the world.",
+          questions: [
+            { question: "What are the four nations?", options: ["Water, Earth, Fire, Air", "North, South, East, West", "Fire, Ice, Stone, Wind", "River, Mountain, Sun, Sky"], correct: "A" },
+            { question: "Who is the Avatar?", options: ["A person who can bend all four elements", "A king", "A warrior", "A spirit"], correct: "A" },
+            { question: "What does Aang have on his body?", options: ["Arrow tattoos", "Dragon scales", "Fire marks", "Water symbols"], correct: "A" },
+            { question: "What element does Katara bend?", options: ["Water", "Fire", "Earth", "Air"], correct: "A" },
+            { question: "What nation did the Fire Nation attack?", options: ["The Air Nomads", "The Water Tribe", "The Earth Kingdom", "The Sun Warriors"], correct: "A" },
+            { question: "What is Aang's animal companion?", options: ["A flying bison named Appa", "A dragon", "A wolf", "An eagle"], correct: "A" },
+            { question: "What does the Avatar cycle follow?", options: ["Water, Earth, Fire, Air", "Fire, Air, Water, Earth", "Earth, Water, Air, Fire", "Air, Fire, Earth, Water"], correct: "A" },
+            { question: "What is the goal of the Avatar?", options: ["To bring balance to the world", "To conquer nations", "To find treasure", "To win battles"], correct: "A" },
+            { question: "Who is Zuko's uncle?", options: ["Iroh", "Ozai", "Azulon", "Sozin"], correct: "A" },
+            { question: "What does Zuko eventually do?", options: ["Joins Aang to restore balance", "Becomes Fire Lord immediately", "Leaves the Fire Nation", "Becomes a monk"], correct: "A" },
+          ],
+        },
+        {
+          title: "One Piece: The Pirate Journey",
+          author: "Eiichiro Oda",
+          ageGroup: "6-8",
+          description: "A young pirate sets sail to find the greatest treasure.",
+          questions: [
+            { question: "What is the main character's name?", options: ["Luffy", "Zoro", "Nami", "Sanji"], correct: "A" },
+            { question: "What treasure is Luffy searching for?", options: ["One Piece", "The Crown", "The Map", "The Sword"], correct: "A" },
+            { question: "What can Luffy do?", options: ["Stretch his body like rubber", "Breathe fire", "Turn invisible", "Fly"], correct: "A" },
+            { question: "What is Luffy's dream?", options: ["To become King of the Pirates", "To be rich", "To be a chef", "To be a sailor"], correct: "A" },
+            { question: "What is Luffy's ship called?", options: ["The Going Merry", "The Black Pearl", "The Flying Dutchman", "The Nautilus"], correct: "A" },
+            { question: "Who is the swordsman in Luffy's crew?", options: ["Zoro", "Sanji", "Usopp", "Chopper"], correct: "A" },
+            { question: "What does Luffy love to eat?", options: ["Meat", "Vegetables", "Fish", "Fruit"], correct: "A" },
+            { question: "What is the name of Luffy's crew?", options: ["Straw Hat Pirates", "Skull Pirates", "Fire Pirates", "Sea Pirates"], correct: "A" },
+            { question: "What ocean did Luffy come from?", options: ["East Blue", "North Blue", "West Blue", "South Blue"], correct: "A" },
+            { question: "What does Luffy wear on his head?", options: ["A straw hat", "A helmet", "A crown", "A bandana"], correct: "A" },
+          ],
+        },
+        {
+          title: "Spider-Man: The Origin Story",
+          author: "Stan Lee",
+          ageGroup: "9-12",
+          description: "A teenager gains spider powers and becomes a hero.",
+          questions: [
+            { question: "What is Spider-Man's real name?", options: ["Peter Parker", "Bruce Wayne", "Clark Kent", "Tony Stark"], correct: "A" },
+            { question: "How did Spider-Man get his powers?", options: ["A radioactive spider bit him", "He was born with them", "A wizard gave them", "He built a suit"], correct: "A" },
+            { question: "What can Spider-Man shoot from his wrists?", options: ["Webs", "Fire", "Water", "Lightning"], correct: "A" },
+            { question: "What is Spider-Man's famous saying?", options: ["With great power comes great responsibility", "With great wealth comes great power", "With great speed comes great victory", "With great knowledge comes great wisdom"], correct: "A" },
+            { question: "Who is Spider-Man's uncle?", options: ["Uncle Ben", "Uncle Joe", "Uncle Sam", "Uncle Tom"], correct: "A" },
+            { question: "Where does Peter Parker live?", options: ["New York City", "Los Angeles", "Chicago", "Miami"], correct: "A" },
+            { question: "What color is Spider-Man's suit?", options: ["Red and blue", "Green and yellow", "Black and white", "Purple and gold"], correct: "A" },
+            { question: "What can Spider-Man climb?", options: ["Walls", "Trees only", "Mountains only", "Nothing"], correct: "A" },
+            { question: "What is Spider-Man's sixth sense called?", options: ["Spider-Sense", "Danger Sense", "Hero Sense", "Web Sense"], correct: "A" },
+            { question: "What newspaper does Peter Parker work for?", options: ["The Daily Bugle", "The Daily Planet", "The New York Times", "The Daily News"], correct: "A" },
+          ],
+        },
+        {
+          title: "Batman: The Dark Knight Returns",
+          author: "Frank Miller",
+          ageGroup: "9-12",
+          description: "An aging hero comes out of retirement to protect Gotham.",
+          questions: [
+            { question: "What is Batman's real name?", options: ["Bruce Wayne", "Clark Kent", "Peter Parker", "Tony Stark"], correct: "A" },
+            { question: "What city does Batman protect?", options: ["Gotham City", "Metropolis", "New York", "Star City"], correct: "A" },
+            { question: "What is Batman's secret base called?", options: ["The Batcave", "The Fortress", "The Lair", "The Cave"], correct: "A" },
+            { question: "Who is Batman's loyal butler?", options: ["Alfred", "James", "Thomas", "Henry"], correct: "A" },
+            { question: "What signal does the police use to call Batman?", options: ["The Bat-Signal", "A phone call", "A radio", "A flare"], correct: "A" },
+            { question: "What is Batman's main weapon against criminals?", options: ["His mind and gadgets", "Guns", "Magic", "Super strength"], correct: "A" },
+            { question: "What animal is Batman's symbol?", options: ["A bat", "A cat", "A wolf", "An eagle"], correct: "A" },
+            { question: "What color is Batman's suit?", options: ["Black", "Blue", "Red", "Green"], correct: "A" },
+            { question: "Who is Batman's famous villain?", options: ["The Joker", "The Riddler", "Two-Face", "All of the above"], correct: "A" },
+            { question: "Why is Batman called the Dark Knight?", options: ["He works at night", "He wears gold armor", "He lives in a castle", "He rides a horse"], correct: "A" },
+          ],
+        },
+        {
+          title: "Sailor Moon: The Guardian Awakens",
+          author: "Naoko Takeuchi",
+          ageGroup: "3-5",
+          description: "A girl discovers she is a magical guardian who protects the world.",
+          questions: [
+            { question: "What is Sailor Moon's real name?", options: ["Usagi", "Rei", "Ami", "Mina"], correct: "A" },
+            { question: "What animal is Sailor Moon's companion?", options: ["A cat named Luna", "A dog", "A bird", "A rabbit"], correct: "A" },
+            { question: "What does Sailor Moon fight for?", options: ["Love and justice", "Money", "Fame", "Power"], correct: "A" },
+            { question: "What is Sailor Moon's transformation item?", options: ["A brooch", "A ring", "A necklace", "A wand"], correct: "A" },
+            { question: "What color is Sailor Moon's outfit?", options: ["Blue and white", "Red and black", "Green and yellow", "Purple and gold"], correct: "A" },
+            { question: "What does Sailor Moon say before transforming?", options: ["Moon Prism Power", "Star Power", "Sun Power", "Earth Power"], correct: "A" },
+            { question: "What is Usagi's favorite thing to do?", options: ["Eat and sleep", "Run", "Swim", "Read"], correct: "A" },
+            { question: "What is Sailor Moon's weapon?", options: ["A magic wand", "A sword", "A bow", "A shield"], correct: "A" },
+            { question: "How many Sailor Guardians are there?", options: ["Five main ones", "Three", "Seven", "Ten"], correct: "A" },
+            { question: "What planet is Sailor Moon named after?", options: ["The Moon", "The Sun", "Mars", "Venus"], correct: "A" },
+          ],
+        },
+        {
+          title: "Captain Underpants: The First Adventure",
+          author: "Dav Pilkey",
+          ageGroup: "3-5",
+          description: "Two pranksters turn their principal into a superhero.",
+          questions: [
+            { question: "Who are the two main characters?", options: ["George and Harold", "Tom and Jerry", "Mike and Ike", "Ben and Jerry"], correct: "A" },
+            { question: "What do George and Harold love to make?", options: ["Comic books", "Movies", "Music", "Food"], correct: "A" },
+            { question: "Who is Captain Underpants?", options: ["Their principal Mr. Krupp", "A teacher", "A police officer", "A firefighter"], correct: "A" },
+            { question: "How do they turn Mr. Krupp into Captain Underpants?", options: ["By snapping their fingers", "By clapping", "By whistling", "By stomping"], correct: "A" },
+            { question: "What does Captain Underpants wear?", options: ["Underwear and a cape", "A suit", "A costume", "Pajamas"], correct: "A" },
+            { question: "What do George and Harold do at school?", options: ["Pull pranks", "Play sports", "Sing songs", "Dance"], correct: "A" },
+            { question: "What is Captain Underpants' catchphrase?", options: ["Tra-La-Laaa", "Ta-Da", "Woohoo", "Yippee"], correct: "A" },
+            { question: "What is the boys' favorite thing to draw?", options: ["Superheroes", "Animals", "Cars", "Houses"], correct: "A" },
+            { question: "What happens when you snap your fingers again?", options: ["He turns back to normal", "He flies", "He disappears", "He shrinks"], correct: "A" },
+            { question: "What kind of book is Captain Underpants?", options: ["A comic book", "A textbook", "A cookbook", "A history book"], correct: "A" },
+          ],
+        },
+      ];
+
+      const createdIds: number[] = [];
+      for (const bookData of animeComicBooks) {
+        const { data: existingBook } = await supabase.from("books").select("id").ilike("title", bookData.title).limit(1);
+        if (existingBook && existingBook.length > 0) {
+          createdIds.push(existingBook[0].id);
+          continue;
+        }
+        const book = await storage.createBookWithQuestions({
+          title: bookData.title,
+          author: bookData.author,
+          ageGroup: bookData.ageGroup,
+          coverUrl: null,
+          description: bookData.description,
+          pointsValue: 5,
+          readUrl: null,
+        }, bookData.questions);
+        createdIds.push(book.id);
+      }
+      await storage.upsertSetting("anime_comic_book_ids", JSON.stringify(createdIds));
+      console.log(`Seeded ${createdIds.length} anime & comic book quizzes.`);
+    }
+  } catch (e) {
+    console.error("Failed to seed anime/comic books:", (e as Error).message);
+  }
 
   return httpServer;
 }

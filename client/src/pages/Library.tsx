@@ -114,6 +114,8 @@ export default function Library() {
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
   const [showQuizDisclaimer, setShowQuizDisclaimer] = useState(false);
   const [showEyeGazeInstant, setShowEyeGazeInstant] = useState(false);
+  const [animeComicFilter, setAnimeComicFilter] = useState(false);
+  const [animeComicIds, setAnimeComicIds] = useState<number[]>([]);
   const [eyeGazeTopic, setEyeGazeTopic] = useState("");
   const [eyeGazeError, setEyeGazeError] = useState("");
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
@@ -283,6 +285,15 @@ export default function Library() {
           })
           .catch(() => {});
       }
+      // Fetch anime/comic book IDs for filtering
+      fetch(`${API_BASE}/api/settings/anime_comic_book_ids`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.value) {
+            try { setAnimeComicIds(JSON.parse(data.value)); } catch {}
+          }
+        })
+        .catch(() => {});
     }
     const interval = setInterval(fetchUnreadCount, 20000);
     return () => clearInterval(interval);
@@ -551,6 +562,7 @@ export default function Library() {
       const band = bookBands[String(b.id)];
       if (band !== adminBandFilter) return false;
     }
+    if (animeComicFilter && !animeComicIds.includes(b.id)) return false;
     return true;
   });
 
@@ -1144,6 +1156,15 @@ export default function Library() {
               </div>
             )}
           </div>
+          {/* Anime & Comics filter */}
+          {animeComicIds.length > 0 && (
+            <button
+              onClick={() => setAnimeComicFilter(!animeComicFilter)}
+              className={`flex items-center gap-1.5 px-4 py-3 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap ${animeComicFilter ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground hover:bg-muted"}`}
+            >
+              Anime & Comics
+            </button>
+          )}
         </div>
 
         {loading ? (
