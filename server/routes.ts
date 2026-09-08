@@ -4006,6 +4006,40 @@ export async function registerRoutes(
   app.delete("/api/admin/users/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
       const userId = parseInt(req.params.userId);
+
+      // Delete all related records first to avoid foreign key constraint errors
+      const tables = [
+        { table: "quiz_results", column: "user_id" },
+        { table: "quiz_attempts", column: "user_id" },
+        { table: "custom_quiz_attempts", column: "user_id" },
+        { table: "messages", column: "sender_id" },
+        { table: "messages", column: "recipient_id" },
+        { table: "notifications", column: "user_id" },
+        { table: "quiz_requests", column: "student_id" },
+        { table: "user_sessions", column: "user_id" },
+        { table: "parent_student_links", column: "student_id" },
+        { table: "parent_student_links", column: "parent_id" },
+        { table: "custom_quizzes", column: "creator_id" },
+        { table: "student_progress", column: "user_id" },
+        { table: "eye_gaze_quiz_attempts", column: "user_id" },
+        { table: "book_grade_bands", column: "user_id" },
+      ];
+
+      for (const { table, column } of tables) {
+        await supabase.from(table).delete().eq(column, userId);
+      }
+
+      // Also clean up any settings referencing this user
+      try {
+        const { data: grades } = await supabase.from("settings").select("key, value").eq("key", "user_grades").single();
+        if (grades?.value) {
+          const parsed = JSON.parse(grades.value);
+          delete parsed[String(userId)];
+          await supabase.from("settings").update({ value: JSON.stringify(parsed) }).eq("key", "user_grades");
+        }
+      } catch {}
+
+      // Finally delete the user
       const { error } = await supabase.from("users").delete().eq("id", userId);
       if (error) throw new Error(error.message);
       res.json({ success: true });

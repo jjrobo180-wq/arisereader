@@ -1209,7 +1209,6 @@ export default function Admin() {
   };
 
   const handleDeleteUser = async (userId: number) => {
-    if (!confirm("Are you sure? This deletes the user permanently.")) return;
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
     // Optimistically remove from UI immediately
@@ -1219,9 +1218,10 @@ export default function Admin() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${authToken}` } });
       if (res.ok) {
-        alert("User deleted.");
+        // Silently success — already removed from UI
       } else {
-        alert("Failed to delete user. Please refresh and try again.");
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || "Failed to delete user. Please refresh and try again.");
       }
     } catch {
       alert("Network error. Please refresh and try again.");
