@@ -1104,6 +1104,12 @@ export default function Library() {
                   )}
                 </button>
               )}
+              {studentRewards.length === 0 && !user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
+                <button onClick={() => setShowRewardsPage(true)} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
+                  <Gift className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
+                  <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Rewards</span>
+                </button>
+              )}
               <button onClick={() => navigate("/competition")} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
                 <Trophy className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
                 <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>Competition</span>
@@ -1125,12 +1131,16 @@ export default function Library() {
                   <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2 sm:hidden" style={{ color: "#f59e0b" }}>
                     <Bookmark className="w-4 h-4" /> My Books
                   </button>
-                  {studentRewards.length > 0 && (
+                  {studentRewards.length > 0 ? (
                     <button onClick={() => { setShowRewardsPage(true); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
                       <Gift className="w-4 h-4" /> My Rewards
                       {studentRewards.some(r => r.claimStatus === "approved") && <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />}
                     </button>
-                  )}
+                  ) : !user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' ? (
+                    <button onClick={() => { setShowRewardsPage(true); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
+                      <Gift className="w-4 h-4" /> My Rewards
+                    </button>
+                  ) : null}
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Progress
                   </button>

@@ -1580,6 +1580,44 @@ export async function registerRoutes(
     res.json({ reward: rewards[idx], message: `Reward ${claimStatus}!` });
   });
 
+  // === Competition Settings ===
+  // Public GET — anyone can read competition settings
+  app.get("/api/competition-settings", async (req, res) => {
+    const raw = await storage.getSetting("competition_settings");
+    let settings: any = {};
+    if (raw) { try { settings = JSON.parse(raw); } catch {} }
+    res.json({ settings });
+  });
+
+  // Admin POST — update competition settings
+  app.post("/api/admin/competition-settings", authMiddleware, adminMiddleware, async (req: any, res) => {
+    const {
+      monthlyPrize, monthlyDesc,
+      yearly1stPrize, yearly1stAmount,
+      yearly2ndPrize, yearly2ndAmount,
+      yearly3rdPrize, yearly3rdAmount,
+      donationNote,
+    } = req.body;
+    const settings: any = {};
+    if (monthlyPrize !== undefined) settings.monthlyPrize = monthlyPrize.trim();
+    if (monthlyDesc !== undefined) settings.monthlyDesc = monthlyDesc.trim();
+    if (yearly1stPrize !== undefined) settings.yearly1stPrize = yearly1stPrize.trim();
+    if (yearly1stAmount !== undefined) settings.yearly1stAmount = yearly1stAmount.trim();
+    if (yearly2ndPrize !== undefined) settings.yearly2ndPrize = yearly2ndPrize.trim();
+    if (yearly2ndAmount !== undefined) settings.yearly2ndAmount = yearly2ndAmount.trim();
+    if (yearly3rdPrize !== undefined) settings.yearly3rdPrize = yearly3rdPrize.trim();
+    if (yearly3rdAmount !== undefined) settings.yearly3rdAmount = yearly3rdAmount.trim();
+    if (donationNote !== undefined) settings.donationNote = donationNote.trim();
+
+    // Merge with existing
+    const raw = await storage.getSetting("competition_settings");
+    let existing: any = {};
+    if (raw) { try { existing = JSON.parse(raw); } catch {} }
+    const merged = { ...existing, ...settings };
+    await storage.upsertSetting("competition_settings", JSON.stringify(merged));
+    res.json({ settings: merged, message: "Competition settings updated!" });
+  });
+
   // Notification endpoints
   app.get("/api/notifications", authMiddleware, async (req: any, res) => {
     if (req.user.isAdmin) {

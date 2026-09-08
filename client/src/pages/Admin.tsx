@@ -188,6 +188,19 @@ export default function Admin() {
   const [easterEggs, setEasterEggs] = useState({ active: false, totalEggs: 0, remainingEggs: 0, pointsPerEgg: 2, claims: [] as any[] });
   const [eggCount, setEggCount] = useState(0);
   const [eggMsg, setEggMsg] = useState("");
+  // Competition settings state
+  const [compSettings, setCompSettings] = useState({
+    monthlyPrize: "Free Lunch",
+    monthlyDesc: "The #1 reader from each band every month wins a free lunch!",
+    yearly1stPrize: "Ultimate Prize",
+    yearly1stAmount: "$300",
+    yearly2ndPrize: "Prize TBD",
+    yearly2ndAmount: "$100",
+    yearly3rdPrize: "Prize TBD",
+    yearly3rdAmount: "$50",
+    donationNote: "100% of all donations go directly to student prizes. Prize amounts are goals based on donations received.",
+  });
+  const [compMsg, setCompMsg] = useState("");
   const [pendingParents, setPendingParents] = useState<any[]>([]);
   const [allParents, setAllParents] = useState<any[]>([]);
   const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
@@ -627,6 +640,7 @@ export default function Admin() {
     fetchAiSettings();
     fetchProctorPassword();
     fetchEasterEggs();
+    fetchCompetitionSettings();
     fetchPendingParents();
     fetchAllParents();
     fetchGradeChangeRequests();
@@ -932,6 +946,34 @@ export default function Admin() {
         setEggMsg(data.message || "Updated!");
         setTimeout(() => setEggMsg(""), 3000);
         fetchEasterEggs();
+      }
+    } catch {}
+  };
+
+  // === Competition Settings ===
+  const fetchCompetitionSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/competition-settings`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.settings) {
+          setCompSettings(prev => ({ ...prev, ...data.settings }));
+        }
+      }
+    } catch {}
+  };
+
+  const handleSaveCompSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/competition-settings`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(compSettings),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCompMsg("Competition settings saved!");
+        setTimeout(() => setCompMsg(""), 3000);
       }
     } catch {}
   };
@@ -2261,6 +2303,75 @@ Generate exactly 10 questions.`;
             )}
           </div>
         </div>
+
+        {/* Competition Settings */}
+        <Card className="shadow-md border-yellow-500/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-400" />
+              Competition Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {compMsg && <span className="text-xs text-green-400">{compMsg}</span>}
+
+            {/* Monthly */}
+            <div className="space-y-2 pt-2 border-t border-border">
+              <Label className="text-sm font-bold text-yellow-400">Monthly Competition</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-xs text-muted-foreground">Monthly Prize Name</span>
+                  <input value={compSettings.monthlyPrize} onChange={(e) => setCompSettings(s => ({ ...s, monthlyPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Monthly Description</span>
+                  <input value={compSettings.monthlyDesc} onChange={(e) => setCompSettings(s => ({ ...s, monthlyDesc: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+              </div>
+            </div>
+
+            {/* Yearly */}
+            <div className="space-y-2 pt-2 border-t border-border">
+              <Label className="text-sm font-bold text-primary">Reader of the Year Prizes</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-xs text-muted-foreground">1st Place Prize</span>
+                  <input value={compSettings.yearly1stPrize} onChange={(e) => setCompSettings(s => ({ ...s, yearly1stPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">1st Place Amount</span>
+                  <input value={compSettings.yearly1stAmount} onChange={(e) => setCompSettings(s => ({ ...s, yearly1stAmount: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">2nd Place Prize</span>
+                  <input value={compSettings.yearly2ndPrize} onChange={(e) => setCompSettings(s => ({ ...s, yearly2ndPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">2nd Place Amount</span>
+                  <input value={compSettings.yearly2ndAmount} onChange={(e) => setCompSettings(s => ({ ...s, yearly2ndAmount: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">3rd Place Prize</span>
+                  <input value={compSettings.yearly3rdPrize} onChange={(e) => setCompSettings(s => ({ ...s, yearly3rdPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">3rd Place Amount</span>
+                  <input value={compSettings.yearly3rdAmount} onChange={(e) => setCompSettings(s => ({ ...s, yearly3rdAmount: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+              </div>
+            </div>
+
+            {/* Donation Note */}
+            <div className="space-y-2 pt-2 border-t border-border">
+              <Label className="text-sm font-bold">Donation Note</Label>
+              <textarea value={compSettings.donationNote} onChange={(e) => setCompSettings(s => ({ ...s, donationNote: e.target.value }))} rows={2} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+            </div>
+
+            <Button onClick={handleSaveCompSettings} className="w-full bg-yellow-600 hover:bg-yellow-700">
+              <Trophy className="w-4 h-4 mr-1" /> Save Competition Settings
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Eye Gaze Change Requests */}
         {eyeGazeRequests.length > 0 && (
