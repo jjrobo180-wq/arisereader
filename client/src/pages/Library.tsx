@@ -1328,8 +1328,10 @@ export default function Library() {
                           <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
                           <p className="text-xs text-muted-foreground">{book.author}</p>
                           <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="secondary" className="text-[10px]">{book.ageGroup}</Badge>
-                            <span className="text-[10px] text-muted-foreground">{book.pointsValue || 10} pts</span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
                             {isDone && result && (
                               <span className="text-[10px] text-muted-foreground ml-auto">{score}/{total}</span>
                             )}
