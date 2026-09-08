@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -150,6 +150,7 @@ export default function Library() {
   const [instantMsg, setInstantMsg] = useState("");
   const [instantError, setInstantError] = useState("");
   const [instantLoading, setInstantLoading] = useState(false);
+  const [studentRewards, setStudentRewards] = useState<any[]>([]);
 
   const [eyeGazeQuizzes, setEyeGazeQuizzes] = useState<any[]>([]);
   const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
@@ -364,6 +365,15 @@ export default function Library() {
           .then(data => {
             if (data && data.books) {
               setSuggestedBooks(data.books);
+            }
+          })
+          .catch(() => {});
+        // Fetch student rewards (admin-assigned)
+        fetch(`${API_BASE}/api/student/rewards`, { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && data.rewards) {
+              setStudentRewards(data.rewards);
             }
           })
           .catch(() => {});
@@ -1150,6 +1160,44 @@ export default function Library() {
             <div className="flex-1">
               <p className="text-sm text-foreground">{announcement}</p>
             </div>
+          </div>
+        )}
+
+        {/* Student Rewards banner (admin-assigned) */}
+        {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && studentRewards.length > 0 && (
+          <div className="mb-6 space-y-3">
+            {studentRewards.map((reward) => (
+              <div
+                key={reward.id}
+                className={`rounded-xl px-4 py-4 flex items-start gap-3 ${reward.completed ? "bg-emerald-500/15 border border-emerald-500/30" : "bg-amber-500/15 border border-amber-500/30"}`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${reward.completed ? "bg-emerald-500/30" : "bg-amber-500/30"}`}>
+                  {reward.completed ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  ) : (
+                    <Sparkles className="w-5 h-5 text-amber-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm text-foreground">{reward.title}</p>
+                    {reward.completed && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">EARNED</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-foreground/80 mt-1">{reward.message}</p>
+                  {reward.progress && (
+                    <p className="text-xs text-primary font-medium mt-2">
+                      Progress: {reward.progress} quizzes completed
+                      {reward.completed ? " — Reward earned! Show this to your teacher." : ""}
+                    </p>
+                  )}
+                  {reward.expiresAt && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Expires: {new Date(reward.expiresAt).toLocaleDateString()}</p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

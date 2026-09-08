@@ -19,7 +19,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
-  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3
+  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -133,6 +133,15 @@ export default function Admin() {
   const [messageText, setMessageText] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [sendSuccess, setSendSuccess] = useState("");
+  // Reward state
+  const [rewardStudent, setRewardStudent] = useState<Student | null>(null);
+  const [rewardTitle, setRewardTitle] = useState("");
+  const [rewardMessage, setRewardMessage] = useState("");
+  const [rewardQuizCount, setRewardQuizCount] = useState("");
+  const [rewardExpiresAt, setRewardExpiresAt] = useState("");
+  const [rewardList, setRewardList] = useState<any[]>([]);
+  const [rewardSaving, setRewardSaving] = useState(false);
+  const [rewardSuccess, setRewardSuccess] = useState("");
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [studentDetail, setStudentDetail] = useState<StudentDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -1332,6 +1341,68 @@ export default function Admin() {
     } catch (err) {
       console.error("Failed to send message:", err);
     }
+  };
+
+  // === Reward handlers ===
+  const fetchRewards = async (studentId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${studentId}/rewards`, {
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRewardList(data.rewards || []);
+      }
+    } catch (e) {}
+  };
+
+  const handleAddReward = async () => {
+    if (!rewardStudent || !rewardTitle.trim() || !rewardMessage.trim()) return;
+    setRewardSaving(true);
+    setRewardSuccess("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${rewardStudent.id}/rewards`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: rewardTitle,
+          message: rewardMessage,
+          requiredQuizCount: rewardQuizCount || undefined,
+          expiresAt: rewardExpiresAt || undefined,
+        }),
+      });
+      if (res.ok) {
+        setRewardTitle("");
+        setRewardMessage("");
+        setRewardQuizCount("");
+        setRewardExpiresAt("");
+        setRewardSuccess("Reward added!");
+        await fetchRewards(rewardStudent.id);
+        setTimeout(() => setRewardSuccess(""), 2500);
+      }
+    } catch (e) {}
+    setRewardSaving(false);
+  };
+
+  const handleToggleReward = async (studentId: number, rewardId: number, currentActive: boolean) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${studentId}/rewards/${rewardId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !currentActive }),
+      });
+      if (res.ok) await fetchRewards(studentId);
+    } catch (e) {}
+  };
+
+  const handleDeleteReward = async (studentId: number, rewardId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${studentId}/rewards/${rewardId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) await fetchRewards(studentId);
+    } catch (e) {}
   };
 
   const handleViewStudent = async (student: Student) => {
@@ -2776,6 +2847,123 @@ Generate exactly 10 questions.`;
                               </Button>
                             </div>
                           )}
+                        </DialogContent>
+                      </Dialog>
+
+                      {/* Drop Reward */}
+                      <Dialog open={rewardStudent?.id === s.id} onOpenChange={(open) => {
+                        if (open) {
+                          setRewardStudent(s);
+                          setRewardTitle(""); setRewardMessage(""); setRewardQuizCount(""); setRewardExpiresAt("");
+                          setRewardSuccess("");
+                          fetchRewards(s.id);
+                        } else {
+                          setRewardStudent(null); setRewardList([]); setRewardSuccess("");
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Gift className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline ml-1">Reward</span>
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>Drop a Reward for {s.displayName}</DialogTitle>
+                          </DialogHeader>
+                          {rewardSuccess ? (
+                            <div className="text-center py-4">
+                              <CheckCircle2 className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                              <p className="text-sm text-green-400 font-medium">{rewardSuccess}</p>
+                            </div>
+                          ) : null}
+                          <div className="space-y-4">
+                            {/* Create new reward */}
+                            <div className="space-y-3 p-4 rounded-lg bg-muted/30">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase">Create New Reward</p>
+                              <div className="space-y-2">
+                                <Label className="text-xs">Reward Title</Label>
+                                <Input
+                                  value={rewardTitle}
+                                  onChange={(e) => setRewardTitle(e.target.value)}
+                                  placeholder="e.g., Snack Reward"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs">Message (shown on student profile)</Label>
+                                <Textarea
+                                  value={rewardMessage}
+                                  onChange={(e) => setRewardMessage(e.target.value)}
+                                  placeholder="e.g., Complete 1 quiz this week and show this to get your snack!"
+                                  rows={3}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Required Quizzes (optional)</Label>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={rewardQuizCount}
+                                    onChange={(e) => setRewardQuizCount(e.target.value)}
+                                    placeholder="e.g., 1"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Expires (optional)</Label>
+                                  <Input
+                                    type="date"
+                                    value={rewardExpiresAt}
+                                    onChange={(e) => setRewardExpiresAt(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <Button onClick={handleAddReward} disabled={!rewardTitle.trim() || !rewardMessage.trim() || rewardSaving} className="w-full">
+                                <Gift className="w-4 h-4 mr-1" />
+                                {rewardSaving ? "Adding..." : "Drop Reward"}
+                              </Button>
+                            </div>
+                            {/* Existing rewards */}
+                            {rewardList.length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase">Active Rewards</p>
+                                {rewardList.map((r) => (
+                                  <div key={r.id} className={`p-3 rounded-lg border ${r.active ? "border-primary/30 bg-primary/5" : "border-border bg-muted/20 opacity-60"}`}>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium">{r.title}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{r.message}</p>
+                                        {r.requiredQuizCount > 0 && (
+                                          <p className="text-[10px] text-primary font-medium mt-1">Requires {r.requiredQuizCount} quiz{r.requiredQuizCount > 1 ? "es" : ""}</p>
+                                        )}
+                                        {r.expiresAt && (
+                                          <p className="text-[10px] text-muted-foreground">Expires: {new Date(r.expiresAt).toLocaleDateString()}</p>
+                                        )}
+                                      </div>
+                                      <div className="flex gap-1 flex-shrink-0">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleToggleReward(s.id, r.id, r.active)}
+                                          className="text-xs"
+                                        >
+                                          {r.active ? "Deactivate" : "Activate"}
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleDeleteReward(s.id, r.id)}
+                                          className="text-red-500 hover:text-red-400"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </DialogContent>
                       </Dialog>
 

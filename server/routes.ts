@@ -1428,6 +1428,97 @@ export async function registerRoutes(
     res.status(201).json(msg);
   });
 
+  // === Student Rewards (admin-assigned) ===
+  // GET: list rewards for a student
+  app.get("/api/admin/students/:id/rewards", authMiddleware, adminMiddleware, async (req, res) => {
+    const studentId = parseInt(req.params.id);
+    const key = `student_rewards_${studentId}`;
+    const raw = await storage.getSetting(key);
+    let rewards: any[] = [];
+    if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+    res.json({ rewards });
+  });
+
+  // POST: create a reward for a student
+  app.post("/api/admin/students/:id/rewards", authMiddleware, adminMiddleware, async (req: any, res) => {
+    const studentId = parseInt(req.params.id);
+    const { title, message, requiredQuizCount, expiresAt } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({ message: "Title and message are required" });
+    }
+    const key = `student_rewards_${studentId}`;
+    const raw = await storage.getSetting(key);
+    let rewards: any[] = [];
+    if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+    const reward = {
+      id: Date.now(),
+      title: title.trim(),
+      message: message.trim(),
+      requiredQuizCount: requiredQuizCount ? parseInt(requiredQuizCount) : 0,
+      expiresAt: expiresAt || null,
+      active: true,
+      createdAt: new Date().toISOString(),
+      createdByAdminId: req.user.id,
+    };
+    rewards.push(reward);
+    await storage.upsertSetting(key, JSON.stringify(rewards));
+    res.status(201).json({ reward, message: "Reward added!" });
+  });
+
+  // PATCH: update a reward (toggle active, edit text, etc.)
+  app.patch("/api/admin/students/:id/rewards/:rewardId", authMiddleware, adminMiddleware, async (req, res) => {
+    const studentId = parseInt(req.params.id);
+    const rewardId = parseInt(req.params.rewardId);
+    const key = `student_rewards_${studentId}`;
+    const raw = await storage.getSetting(key);
+    let rewards: any[] = [];
+    if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+    const idx = rewards.findIndex(r => r.id === rewardId);
+    if (idx === -1) return res.status(404).json({ message: "Reward not found" });
+    const { title, message, requiredQuizCount, expiresAt, active } = req.body;
+    if (title !== undefined) rewards[idx].title = title.trim();
+    if (message !== undefined) rewards[idx].message = message.trim();
+    if (requiredQuizCount !== undefined) rewards[idx].requiredQuizCount = parseInt(requiredQuizCount);
+    if (expiresAt !== undefined) rewards[idx].expiresAt = expiresAt;
+    if (active !== undefined) rewards[idx].active = active;
+    await storage.upsertSetting(key, JSON.stringify(rewards));
+    res.json({ reward: rewards[idx], message: "Reward updated!" });
+  });
+
+  // DELETE: remove a reward
+  app.delete("/api/admin/students/:id/rewards/:rewardId", authMiddleware, adminMiddleware, async (req, res) => {
+    const studentId = parseInt(req.params.id);
+    const rewardId = parseInt(req.params.rewardId);
+    const key = `student_rewards_${studentId}`;
+    const raw = await storage.getSetting(key);
+    let rewards: any[] = [];
+    if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+    rewards = rewards.filter(r => r.id !== rewardId);
+    await storage.upsertSetting(key, JSON.stringify(rewards));
+    res.json({ message: "Reward deleted" });
+  });
+
+  // Student-facing: get their active rewards
+  app.get("/api/student/rewards", authMiddleware, async (req: any, res) => {
+    const key = `student_rewards_${req.user.id}`;
+    const raw = await storage.getSetting(key);
+    let rewards: any[] = [];
+    if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+    // Filter to active, non-expired
+    const now = new Date().toISOString();
+    const active = rewards.filter(r => r.active && (!r.expiresAt || r.expiresAt > now));
+    // Count completed quizzes by this student for progress tracking
+    const attempts = await storage.getUserAttempts(req.user.id);
+    const quizzesCompleted = attempts ? attempts.length : 0;
+    const enriched = active.map(r => ({
+      ...r,
+      progress: r.requiredQuizCount ? `${Math.min(quizzesCompleted, r.requiredQuizCount)}/${r.requiredQuizCount}` : null,
+      quizzesCompleted,
+      completed: r.requiredQuizCount ? quizzesCompleted >= r.requiredQuizCount : false,
+    }));
+    res.json({ rewards: enriched });
+  });
+
   // Notification endpoints
   app.get("/api/notifications", authMiddleware, async (req: any, res) => {
     if (req.user.isAdmin) {
