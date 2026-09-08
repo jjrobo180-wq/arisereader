@@ -175,6 +175,90 @@ Rules:
   }
 }
 
+// Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
+async function generateEyeGazeQuizWithAI(topic: string): Promise<{ questions: Array<{ prompt: string; visual: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_answer: string }> } | { error: string }> {
+  const apiKey = await getPerplexityApiKey();
+  if (!apiKey) {
+    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
+  }
+  try {
+    let guidelines = "";
+    try {
+      guidelines = await storage.getSetting("quiz_generation_guidelines") || "";
+    } catch {}
+
+    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students. Create exactly 10 multiple-choice questions about: "${topic}".
+
+These quizzes are for students who use eye gaze technology or are non-verbal. Questions should be visual, simple, and accessible. Each question must have a visual element (an emoji that represents the concept).
+
+Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
+{"questions":[{"prompt":"What color is the sky?","visual":"☁️","option_a":"Red","option_b":"Blue","option_c":"Green","option_d":"Yellow","correct_answer":"B"}]}
+
+Rules:
+- Questions should be simple, visual, and appropriate for eye gaze / non-verbal students
+- The "visual" field should be a single emoji that represents the question topic
+- Each question has exactly 4 options (option_a through option_d)
+- The "correct_answer" is a single letter: "A", "B", "C", or "D"
+- Make questions about identification, matching, and simple comprehension
+- Use clear, simple language
+- Return exactly 10 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
+
+    const res = await fetch(PERPLEXITY_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          { role: "system", content: "You are a quiz generator for eye gaze students. Return ONLY valid JSON, no markdown or explanation." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return { error: `AI API error ${res.status}: ${errText.slice(0, 200)}` };
+    }
+
+    const data = await res.json() as any;
+    const content = data.choices?.[0]?.message?.content || "";
+    if (!content) return { error: "AI returned empty response" };
+
+    let jsonStr = content.trim();
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+    const parsed = JSON.parse(jsonStr);
+    const questions = parsed.questions || parsed;
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return { error: "AI generated invalid questions" };
+    }
+
+    const validQuestions = questions.slice(0, 10).map((q: any) => ({
+      prompt: q.prompt || "What is this?",
+      visual: q.visual || "❓",
+      option_a: q.option_a || q.options?.[0] || "",
+      option_b: q.option_b || q.options?.[1] || "",
+      option_c: q.option_c || q.options?.[2] || "",
+      option_d: q.option_d || q.options?.[3] || "",
+      correct_answer: (q.correct_answer || q.correct || "A").toUpperCase().charAt(0),
+    })).filter((q: any) => q.option_a && q.option_b && q.option_c && q.option_d);
+
+    if (validQuestions.length < 5) {
+      return { error: "AI generated too few valid questions" };
+    }
+
+    return { questions: validQuestions };
+  } catch (e: any) {
+    return { error: `AI generation failed: ${e.message}` };
+  }
+}
+
 async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
   const hasProxy = PROXY_URL && PROXY_TOKEN;
   const hasDirect = RESEND_API_KEY;
@@ -2210,6 +2294,38 @@ export async function registerRoutes(
       res.status(201).json({ bookId: book.id, message: "Quiz generated! Ready to take.", generated: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to generate quiz" });
+    }
+  });
+
+  // Student: generate an instant AI eye gaze quiz
+  app.post("/api/instant-quiz-eye-gaze", authMiddleware, async (req: any, res) => {
+    try {
+      const { topic } = req.body;
+      if (!topic || topic.trim().length < 2) {
+        return res.status(400).json({ message: "Topic is required" });
+      }
+
+      // Generate eye gaze quiz with AI
+      const result = await generateEyeGazeQuizWithAI(topic.trim());
+      if ("error" in result) {
+        return res.status(500).json({ message: result.error });
+      }
+
+      // Create as a custom eye gaze quiz
+      const quiz = await storage.createCustomEyeGazeQuiz(
+        req.user.id,
+        topic.trim(),
+        `AI-generated eye gaze quiz about ${topic.trim()}`,
+        "Custom",
+        result.questions,
+        "global",
+        null,
+        "eye_gaze"
+      );
+
+      res.status(201).json({ quizId: quiz.id, message: "Quiz generated! Ready to take.", generated: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to generate eye gaze quiz" });
     }
   });
 

@@ -113,6 +113,10 @@ export default function Library() {
   const [showGenerating, setShowGenerating] = useState(false);
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
   const [showQuizDisclaimer, setShowQuizDisclaimer] = useState(false);
+  const [showEyeGazeInstant, setShowEyeGazeInstant] = useState(false);
+  const [eyeGazeTopic, setEyeGazeTopic] = useState("");
+  const [eyeGazeError, setEyeGazeError] = useState("");
+  const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
   const [instantBook, setInstantBook] = useState("");
   const [instantAuthor, setInstantAuthor] = useState("");
   const [instantMsg, setInstantMsg] = useState("");
@@ -433,6 +437,49 @@ export default function Library() {
     setShowQuizDisclaimer(false);
     if (pendingBookId) {
       navigate(`/quiz/${pendingBookId}`);
+    } else {
+      navigate("/library");
+    }
+  };
+
+  // Eye Gaze instant AI quiz
+  const handleEyeGazeInstant = async () => {
+    setEyeGazeError("");
+    if (!eyeGazeTopic.trim()) return;
+    setShowEyeGazeInstant(false);
+    setShowGenerating(true);
+    setPendingEyeGazeQuizId(null);
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/instant-quiz-eye-gaze`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ topic: eyeGazeTopic.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.quizId) setPendingEyeGazeQuizId(data.quizId);
+        // Refresh custom quizzes so the new one shows in the list
+        fetchCustomQuizzes();
+      } else {
+        setEyeGazeError(data.message || "Failed to generate quiz.");
+        setShowGenerating(false);
+      }
+    } catch {
+      setEyeGazeError("Failed to generate quiz. Please try again.");
+      setShowGenerating(false);
+    }
+  };
+
+  const handleEyeGazeGeneratingComplete = () => {
+    setShowGenerating(false);
+    setEyeGazeTopic("");
+    setEyeGazeError("");
+    if (pendingEyeGazeQuizId) {
+      navigate(`/eye-gaze-quiz/${pendingEyeGazeQuizId}`);
     } else {
       navigate("/library");
     }
@@ -835,7 +882,7 @@ export default function Library() {
               </div>
               <h2 className="text-xl font-bold">Eye Gazer &amp; Non-Verbal</h2>
               <button
-                onClick={() => navigate("/quiz-builder")}
+                onClick={() => { setShowEyeGazeInstant(true); setEyeGazeError(""); setEyeGazeTopic(""); }}
                 className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -1583,11 +1630,47 @@ export default function Library() {
       {/* Quiz Generating Loading Screen */}
       {showGenerating && (
         <QuizGeneratingOverlay
-          bookTitle={instantBook}
-          author={instantAuthor}
-          ready={!!pendingBookId}
-          onComplete={handleGeneratingComplete}
+          bookTitle={showEyeGazeInstant ? eyeGazeTopic : instantBook}
+          author={showEyeGazeInstant ? "" : instantAuthor}
+          ready={showEyeGazeInstant ? !!pendingEyeGazeQuizId : !!pendingBookId}
+          onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : handleGeneratingComplete}
+          isEyeGaze={showEyeGazeInstant}
         />
+      )}
+
+      {/* Eye Gaze Create Quiz modal */}
+      {showEyeGazeInstant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card className="w-full max-w-md shadow-xl">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg">Create Eye Gaze Quiz</h3>
+                <Button variant="ghost" size="sm" onClick={() => setShowEyeGazeInstant(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              {eyeGazeError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+                  {eyeGazeError}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="eyegaze-topic">Topic *</Label>
+                <Input
+                  id="eyegaze-topic"
+                  value={eyeGazeTopic}
+                  onChange={(e) => setEyeGazeTopic(e.target.value)}
+                  placeholder="e.g., Animals, Colors, Shapes"
+                />
+                <p className="text-xs text-muted-foreground">Type any topic and a 10-question eye gaze quiz will be created instantly with visual prompts.</p>
+              </div>
+              <Button onClick={handleEyeGazeInstant} disabled={!eyeGazeTopic.trim()} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
+                <Sparkles className="w-4 h-4 mr-1" />
+                Create Quiz
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Pre-Quiz Disclaimer Modal */}

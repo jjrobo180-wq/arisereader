@@ -7,6 +7,7 @@ interface Props {
   author: string;
   ready: boolean;
   onComplete: () => void;
+  isEyeGaze?: boolean;
 }
 
 interface Step {
@@ -15,7 +16,7 @@ interface Step {
   detail: string;
 }
 
-export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComplete }: Props) {
+export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComplete, isEyeGaze }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [stepComplete, setStepComplete] = useState<number[]>([]);
@@ -23,7 +24,7 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const steps: Step[] = [
-    { label: "Analyzing book content", icon: BookOpen, detail: `Reading "${bookTitle}" by ${author}` },
+    { label: isEyeGaze ? "Analyzing topic" : "Analyzing book content", icon: BookOpen, detail: isEyeGaze ? `Creating visual quiz about "${bookTitle}"` : `Reading "${bookTitle}" by ${author}` },
     { label: "Applying educator guidelines", icon: GraduationCap, detail: "Questions shaped by standards set by real teachers in the admin panel" },
     { label: "Generating with premium AI", icon: Brain, detail: "Not ChatGPT or Google — a premium model trained by actual educators" },
     { label: "Checking responsible AI policies", icon: ShieldCheck, detail: "Following school AI responsibility guidelines set by your educators" },
