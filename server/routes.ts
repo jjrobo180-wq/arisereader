@@ -2413,6 +2413,74 @@ export async function registerRoutes(
     }
   });
 
+  // Student: get suggested REAL books from Open Library based on favorite topics
+  app.get("/api/student/suggested-books", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role === 'teacher' || req.user.role === 'parent') {
+        return res.status(403).json({ message: "Only students can get suggestions" });
+      }
+      const favKey = `student_favorites_${req.user.id}`;
+      const favRaw = await storage.getSetting(favKey);
+      let topics: string[] = [];
+      if (favRaw) { try { topics = JSON.parse(favRaw); } catch {} }
+      if (topics.length === 0) return res.json({ books: [] });
+
+      // Check cache — stored in student_suggested_books_<userId>
+      const cacheKey = `student_suggested_books_${req.user.id}`;
+      const cacheRaw = await storage.getSetting(cacheKey);
+      let cached: { topic: string; title: string; author: string; coverUrl: string; }[] = [];
+      if (cacheRaw) { try { cached = JSON.parse(cacheRaw); } catch {} }
+      // If cache covers all topics, return it
+      const cachedTopics = new Set(cached.map(c => c.topic));
+      if (topics.every(t => cachedTopics.has(t)) && cached.length >= topics.length) {
+        const filtered = cached.filter(c => topics.includes(c.topic));
+        return res.json({ books: filtered });
+      }
+
+      // Search Open Library for each topic
+      const suggestions: { topic: string; title: string; author: string; coverUrl: string; }[] = [];
+      for (const topic of topics) {
+        try {
+          const searchUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(topic)}&limit=3&sort=rating`;
+          const searchRes = await fetch(searchUrl);
+          const searchData = await searchRes.json();
+          if (searchData.docs && searchData.docs.length > 0) {
+            // Pick the first result that has a cover
+            for (const doc of searchData.docs) {
+              if (doc.cover_i) {
+                suggestions.push({
+                  topic,
+                  title: doc.title,
+                  author: doc.author_name ? doc.author_name[0] : "Unknown",
+                  coverUrl: `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`,
+                });
+                break;
+              }
+            }
+            // If no cover found, use first result without cover
+            if (!suggestions.find(s => s.topic === topic)) {
+              const doc = searchData.docs[0];
+              suggestions.push({
+                topic,
+                title: doc.title,
+                author: doc.author_name ? doc.author_name[0] : "Unknown",
+                coverUrl: "",
+              });
+            }
+          }
+        } catch (e) {
+          // Skip on error
+        }
+      }
+
+      // Cache the results
+      await storage.upsertSetting(cacheKey, JSON.stringify(suggestions));
+      res.json({ books: suggestions });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Student: create an AI quiz for one of their favorite topics
   app.post("/api/student/favorite-quiz", authMiddleware, async (req: any, res) => {
     try {

@@ -119,6 +119,7 @@ export default function Library() {
   const [classReadingIds, setClassReadingIds] = useState<number[]>([]);
   const [favTopics, setFavTopics] = useState<string[]>([]);
   const [favBookIds, setFavBookIds] = useState<number[]>([]);
+  const [suggestedBooks, setSuggestedBooks] = useState<{topic: string; title: string; author: string; coverUrl: string}[]>([]);
   const [favOnboarded, setFavOnboarded] = useState(false);
   const [showFavOnboarding, setShowFavOnboarding] = useState(false);
   const [favSearch, setFavSearch] = useState("");
@@ -354,6 +355,15 @@ export default function Library() {
             if (data) {
               setIariseTopics(data.topics || []);
               setIariseBookIds(data.bookIds || []);
+            }
+          })
+          .catch(() => {});
+        // Fetch suggested real books from Open Library based on favorites
+        fetch(`${API_BASE}/api/student/suggested-books`, { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && data.books) {
+              setSuggestedBooks(data.books);
             }
           })
           .catch(() => {});
@@ -599,6 +609,11 @@ export default function Library() {
         setFavOnboarded(true);
         setShowFavOnboarding(false);
         setFavPicks([]);
+        // Fetch fresh book suggestions based on new favorites
+        fetch(`${API_BASE}/api/student/suggested-books`, { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data && data.books) setSuggestedBooks(data.books); })
+          .catch(() => {});
       } else {
         setFavError(data.message || "Failed to save favorites.");
       }
@@ -716,10 +731,10 @@ export default function Library() {
     if (!selectedBookForAction) return;
     const book = selectedBookForAction;
     setShowBookAction(false);
-    // Check if quiz already exists for this book
-    const existingQuiz = sortedBooks.find(b => b.id === book.id);
+    // Check if quiz already exists for this book (by ID or title)
+    const existingQuiz = sortedBooks.find(b => b.id === book.id || b.title.toLowerCase() === (book.title || "").toLowerCase());
     if (existingQuiz) {
-      navigate(`/quiz/${book.id}`);
+      navigate(`/quiz/${existingQuiz.id}`);
       return;
     }
     // Generate quiz using the instant quiz endpoint
@@ -1879,8 +1894,49 @@ export default function Library() {
                     className="ml-auto text-xs text-primary hover:underline font-medium"
                   >Change Favorites</button>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Quizzes made just for you, based on your favorite topics.</p>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Books picked just for you, based on your favorite topics. Tap a book to ask your parents or take a quiz!</p>
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                  {/* Show suggested REAL books from Open Library based on favorites */}
+                  {suggestedBooks.map((sbook, idx) => {
+                    const existingQuiz = sortedBooks.find(b => b.title.toLowerCase() === sbook.title.toLowerCase());
+                    const isDone = existingQuiz && completedIds.has(existingQuiz.id);
+                    return (
+                      <Card
+                        key={`sugg-${idx}`}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
+                        style={{ scrollSnapAlign: 'start' }}
+                        onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {sbook.coverUrl ? (
+                            <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-4">
+                              <span className="text-sm font-medium text-center text-muted-foreground">{sbook.title}</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{sbook.title}</p>
+                            <p className="text-white/70 text-[10px]">{sbook.author}</p>
+                          </div>
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{sbook.title}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-[10px] text-primary font-medium">{existingQuiz ? 'Quiz ready!' : 'Tap for options'}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                   {/* Show AI-generated quiz books for favorites */}
                   {favoriteBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
