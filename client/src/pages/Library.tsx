@@ -2450,7 +2450,7 @@ export default function Library() {
       {/* Quiz Generating Loading Screen */}
       {showGenerating && (
         <QuizGeneratingOverlay
-          bookTitle={showEyeGazeInstant ? eyeGazeTopic : showFavOnboarding ? "" : favQuizTopic || instantBook}
+          bookTitle={showEyeGazeInstant ? eyeGazeTopic : showFavOnboarding ? "" : favQuizTopic || iariseQuizTopic || instantBook}
           author={showEyeGazeInstant ? "" : showFavOnboarding ? "" : instantAuthor}
           ready={showEyeGazeInstant ? !!pendingEyeGazeQuizId : pendingIariseBookId ? !!pendingIariseBookId : pendingFavBookId ? !!pendingFavBookId : !!pendingBookId}
           onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : pendingIariseBookId ? handleIariseQuizComplete : pendingFavBookId ? handleFavQuizComplete : handleGeneratingComplete}
