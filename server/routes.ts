@@ -2407,6 +2407,9 @@ export async function registerRoutes(
       }
       const favKey = `student_favorites_${req.user.id}`;
       await storage.upsertSetting(favKey, JSON.stringify(cleanTopics));
+      // Clear old suggested books cache so fresh results are fetched
+      const cacheKey = `student_suggested_books_${req.user.id}`;
+      await storage.upsertSetting(cacheKey, JSON.stringify([]));
       res.json({ topics: cleanTopics, message: "Favorites saved!" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -2441,7 +2444,7 @@ export async function registerRoutes(
       const suggestions: { topic: string; title: string; author: string; coverUrl: string; }[] = [];
       for (const topic of topics) {
         try {
-          const searchUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(topic)}&limit=3&sort=rating`;
+          const searchUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(topic)}&limit=5&sort=rating&language=eng&subject=kids`;
           const searchRes = await fetch(searchUrl);
           const searchData = await searchRes.json();
           if (searchData.docs && searchData.docs.length > 0) {
