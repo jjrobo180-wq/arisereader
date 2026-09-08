@@ -117,6 +117,17 @@ export default function Library() {
   const [animeComicFilter, setAnimeComicFilter] = useState(false);
   const [animeComicIds, setAnimeComicIds] = useState<number[]>([]);
   const [classReadingIds, setClassReadingIds] = useState<number[]>([]);
+  const [favTopics, setFavTopics] = useState<string[]>([]);
+  const [favBookIds, setFavBookIds] = useState<number[]>([]);
+  const [favOnboarded, setFavOnboarded] = useState(false);
+  const [showFavOnboarding, setShowFavOnboarding] = useState(false);
+  const [favSearch, setFavSearch] = useState("");
+  const [favPicks, setFavPicks] = useState<string[]>([]);
+  const [favError, setFavError] = useState("");
+  const [favSaving, setFavSaving] = useState(false);
+  const [favQuizTopic, setFavQuizTopic] = useState("");
+  const [favQuizError, setFavQuizError] = useState("");
+  const [pendingFavBookId, setPendingFavBookId] = useState<number | null>(null);
   const [eyeGazeTopic, setEyeGazeTopic] = useState("");
   const [eyeGazeError, setEyeGazeError] = useState("");
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
@@ -305,6 +316,26 @@ export default function Library() {
         }
       })
       .catch(() => {});
+    // Fetch student favorites (students only, not admin/teacher/parent)
+    if (!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent') {
+      const authToken = token || getTokenFromCookie();
+      if (authToken) {
+        fetch(`${API_BASE}/api/student/favorites`, { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              setFavTopics(data.topics || []);
+              setFavBookIds(data.bookIds || []);
+              setFavOnboarded(data.onboarded || false);
+              if (!data.onboarded) {
+                setShowFavOnboarding(true);
+                setFavPicks(data.topics || []);
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
     const interval = setInterval(fetchUnreadCount, 20000);
     return () => clearInterval(interval);
   }, [fetchBooks, fetchAnnouncement, token, user?.is_eye_gaze_user]);
@@ -504,6 +535,118 @@ export default function Library() {
     }
   };
 
+  // --- Favorites handlers ---
+  const SUGGESTED_TOPICS = [
+    "Real Pigeons", "Basketball", "Soccer", "Football", "Science Fiction", "Fantasy",
+    "Adventure", "Mystery", "Animals", "Space", "Dinosaurs", "Superheroes",
+    "History", "Nature", "Technology", "Art", "Music", "Cooking", "Video Games",
+    "Greek Mythology", "Robots", "Spy Stories", "Ocean Life", "Weather",
+    "Fairy Tales", "Detective Stories", "Cars", "Aviation", "Winter Sports",
+  ];
+
+  const handleSaveFavorites = async () => {
+    if (favPicks.length < 1) {
+      setFavError("Pick at least 1 favorite!");
+      return;
+    }
+    setFavSaving(true);
+    setFavError("");
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/student/favorites`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ topics: favPicks }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFavTopics(favPicks);
+        setFavOnboarded(true);
+        setShowFavOnboarding(false);
+        setFavPicks([]);
+      } else {
+        setFavError(data.message || "Failed to save favorites.");
+      }
+    } catch {
+      setFavError("Failed to save favorites. Please try again.");
+    }
+    setFavSaving(false);
+  };
+
+  const handleOpenChangeFavorites = () => {
+    setFavPicks([...favTopics]);
+    setFavSearch("");
+    setFavError("");
+    setShowFavOnboarding(true);
+  };
+
+  const handleTogglePick = (topic: string) => {
+    if (favPicks.includes(topic)) {
+      setFavPicks(favPicks.filter(t => t !== topic));
+    } else {
+      if (favPicks.length >= 5) {
+        setFavError("You can pick up to 5 favorites.");
+        return;
+      }
+      setFavPicks([...favPicks, topic]);
+      setFavError("");
+    }
+  };
+
+  const handleAddCustomPick = () => {
+    const term = favSearch.trim();
+    if (!term) return;
+    if (favPicks.some(t => t.toLowerCase() === term.toLowerCase())) {
+      setFavError("You already picked that!");
+      return;
+    }
+    if (favPicks.length >= 5) {
+      setFavError("You can pick up to 5 favorites.");
+      return;
+    }
+    setFavPicks([...favPicks, term]);
+    setFavSearch("");
+    setFavError("");
+  };
+
+  const handleCreateFavQuiz = async (topic: string) => {
+    setFavQuizError("");
+    setFavQuizTopic(topic);
+    setShowGenerating(true);
+    setPendingFavBookId(null);
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/student/favorite-quiz`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ topic }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.bookId) setPendingFavBookId(data.bookId);
+        // Refresh books so the new quiz shows up
+        fetchBooks();
+      } else {
+        setFavQuizError(data.message || "Failed to generate quiz.");
+        setShowGenerating(false);
+      }
+    } catch {
+      setFavQuizError("Failed to generate quiz. Please try again.");
+      setShowGenerating(false);
+    }
+  };
+
+  const handleFavQuizComplete = () => {
+    setShowGenerating(false);
+    setFavQuizTopic("");
+    setFavQuizError("");
+    if (pendingFavBookId) {
+      navigate(`/quiz/${pendingFavBookId}`);
+    } else {
+      navigate("/library");
+    }
+  };
+
   const fetchMessages = async () => {
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
@@ -615,6 +758,7 @@ export default function Library() {
   const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
   const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
   const classReadingBooks = sortedBooks.filter(b => classReadingIds.includes(b.id));
+  const favoriteBooks = sortedBooks.filter(b => favBookIds.includes(b.id));
 
   // Pagination — 10 books per page
   const booksPerPage = 10;
@@ -1344,6 +1488,94 @@ export default function Library() {
               </div>
             )}
 
+            {/* Your Picks Section (students only) */}
+            {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && favOnboarded && favTopics.length > 0 && (
+              <div className="mb-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">Your Picks</h2>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{favTopics.length} picks</span>
+                  <button
+                    onClick={handleOpenChangeFavorites}
+                    className="ml-auto text-xs text-primary hover:underline font-medium"
+                  >Change Favorites</button>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Quizzes made just for you, based on your favorite topics.</p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                  {/* Show created quiz books first */}
+                  {favoriteBooks.map((book) => {
+                    const result = results.find(r => r.bookId === book.id);
+                    const isDone = completedIds.has(book.id);
+                    return (
+                      <Card
+                        key={book.id}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px]"
+                        style={{ scrollSnapAlign: 'start' }}
+                        onClick={() => navigate(`/quiz/${book.id}`)}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-4">
+                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
+                            <p className="text-white/70 text-[10px]">{book.author}</p>
+                          </div>
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
+                            {result && (
+                              <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {/* Show topic cards that don't have quizzes yet */}
+                  {favTopics.filter(t => !favoriteBooks.some(b => b.title.toLowerCase() === t.toLowerCase())).map((topic) => (
+                    <Card
+                      key={topic}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
+                        style={{ scrollSnapAlign: 'start' }}
+                        onClick={() => handleCreateFavQuiz(topic)}
+                      >
+                      <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center p-4">
+                        <div className="text-center">
+                          <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
+                          <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Tap to create quiz</p>
+                        </div>
+                      </div>
+                      <CardContent className="p-3">
+                        <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[10px] text-primary font-medium">Ready to generate</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Anime & Comics Section */}
             {animeComicBooks.length > 0 && (
               <div className="mb-10">
@@ -1783,12 +2015,101 @@ export default function Library() {
       {/* Quiz Generating Loading Screen */}
       {showGenerating && (
         <QuizGeneratingOverlay
-          bookTitle={showEyeGazeInstant ? eyeGazeTopic : instantBook}
-          author={showEyeGazeInstant ? "" : instantAuthor}
-          ready={showEyeGazeInstant ? !!pendingEyeGazeQuizId : !!pendingBookId}
-          onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : handleGeneratingComplete}
+          bookTitle={showEyeGazeInstant ? eyeGazeTopic : showFavOnboarding ? "" : favQuizTopic || instantBook}
+          author={showEyeGazeInstant ? "" : showFavOnboarding ? "" : instantAuthor}
+          ready={showEyeGazeInstant ? !!pendingEyeGazeQuizId : !!pendingFavBookId || !!pendingBookId}
+          onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : pendingFavBookId ? handleFavQuizComplete : handleGeneratingComplete}
           isEyeGaze={showEyeGazeInstant}
         />
+      )}
+
+      {/* Favorites Onboarding Modal */}
+      {showFavOnboarding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
+          <Card className="w-full max-w-lg shadow-xl my-8">
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-6 h-6 text-primary" />
+                <h2 className="text-xl font-bold">Pick Your Favorites</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Choose 1 to 5 topics you love. We'll create quizzes just for you based on your picks!
+              </p>
+
+              {/* Search bar */}
+              <div className="flex gap-2 mb-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search or type a topic..."
+                    value={favSearch}
+                    onChange={(e) => setFavSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomPick(); } }}
+                    className="w-full pl-10 pr-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <Button size="sm" onClick={handleAddCustomPick} disabled={!favSearch.trim() || favPicks.length >= 5}>Add</Button>
+              </div>
+
+              {/* Selected picks */}
+              {favPicks.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {favPicks.map((pick) => (
+                    <div key={pick} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary text-sm font-medium">
+                      {pick}
+                      <button onClick={() => handleTogglePick(pick)} className="hover:text-destructive">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Suggested topics */}
+              <div className="flex flex-wrap gap-2 mb-4 max-h-48 overflow-y-auto">
+                {SUGGESTED_TOPICS.filter(t =>
+                  favSearch.trim() ? t.toLowerCase().includes(favSearch.toLowerCase()) : true
+                ).map((topic) => {
+                  const selected = favPicks.includes(topic);
+                  return (
+                    <button
+                      key={topic}
+                      onClick={() => handleTogglePick(topic)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        selected
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                      }`}
+                    >
+                      {selected ? "✓ " : ""}{topic}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {favError && (
+                <p className="text-sm text-destructive mb-3">{favError}</p>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{favPicks.length}/5 selected {favPicks.length < 1 && "(pick at least 1)"}</span>
+                <div className="flex gap-2">
+                  {favOnboarded && (
+                    <Button variant="outline" size="sm" onClick={() => setShowFavOnboarding(false)}>Cancel</Button>
+                  )}
+                  <Button
+                    onClick={handleSaveFavorites}
+                    disabled={favPicks.length < 1 || favSaving}
+                    className="bg-gradient-to-r from-primary to-orange-600 text-white"
+                  >
+                    {favSaving ? "Saving..." : favOnboarded ? "Update Favorites" : "Save My Picks"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Eye Gaze Create Quiz modal */}

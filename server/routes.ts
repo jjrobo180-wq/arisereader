@@ -2371,6 +2371,191 @@ export async function registerRoutes(
     }
   });
 
+  // Student: get their favorites (topics + created quiz book IDs)
+  app.get("/api/student/favorites", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role === 'teacher' || req.user.role === 'parent') {
+        return res.status(403).json({ message: "Only students and admins can access favorites" });
+      }
+      const favKey = `student_favorites_${req.user.id}`;
+      const booksKey = `student_favorite_books_${req.user.id}`;
+      const favRaw = await storage.getSetting(favKey);
+      const booksRaw = await storage.getSetting(booksKey);
+      let topics: string[] = [];
+      let bookIds: number[] = [];
+      if (favRaw) { try { topics = JSON.parse(favRaw); } catch {} }
+      if (booksRaw) { try { bookIds = JSON.parse(booksRaw); } catch {} }
+      res.json({ topics, bookIds, onboarded: !!favRaw });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Student: save their favorites (1-5 topics)
+  app.post("/api/student/favorites", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role === 'teacher' || req.user.role === 'parent') {
+        return res.status(403).json({ message: "Only students can save favorites" });
+      }
+      const { topics } = req.body;
+      if (!Array.isArray(topics) || topics.length < 1 || topics.length > 5) {
+        return res.status(400).json({ message: "Select 1 to 5 favorites" });
+      }
+      const cleanTopics = topics.map((t: string) => t.trim()).filter((t: string) => t.length > 0).slice(0, 5);
+      if (cleanTopics.length < 1) {
+        return res.status(400).json({ message: "Select at least 1 favorite" });
+      }
+      const favKey = `student_favorites_${req.user.id}`;
+      await storage.upsertSetting(favKey, JSON.stringify(cleanTopics));
+      res.json({ topics: cleanTopics, message: "Favorites saved!" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Student: create an AI quiz for one of their favorite topics
+  app.post("/api/student/favorite-quiz", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role === 'teacher' || req.user.role === 'parent' || req.user.isAdmin) {
+        return res.status(403).json({ message: "Only students can create favorite quizzes" });
+      }
+      const { topic } = req.body;
+      if (!topic || topic.trim().length < 2) {
+        return res.status(400).json({ message: "Topic is required" });
+      }
+      // Verify topic is in student's favorites
+      const favKey = `student_favorites_${req.user.id}`;
+      const favRaw = await storage.getSetting(favKey);
+      let topics: string[] = [];
+      if (favRaw) { try { topics = JSON.parse(favRaw); } catch {} }
+      const matched = topics.find(t => t.toLowerCase() === topic.trim().toLowerCase());
+      if (!matched) {
+        return res.status(403).json({ message: "This topic is not in your favorites" });
+      }
+      const cleanTopic = matched; // Use the stored version
+
+      // Get student grade
+      const rawGrades = await storage.getSetting('user_grades');
+      let userGrades: Record<string, string> = {};
+      if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
+      const studentGrade = userGrades[String(req.user.id)] || "5";
+      const ageGroup = studentGrade <= "2" ? "K-2" : studentGrade <= "5" ? "3-5" : studentGrade <= "8" ? "6-8" : "9-12";
+
+      // Check if quiz already exists for this topic for this student
+      const booksKey = `student_favorite_books_${req.user.id}`;
+      const booksRaw = await storage.getSetting(booksKey);
+      let existingBookIds: number[] = [];
+      if (booksRaw) { try { existingBookIds = JSON.parse(booksRaw); } catch {} }
+      const allBooks = await storage.getAllBooks();
+      const existingBook = allBooks.find((b: any) =>
+        b.title.toLowerCase().trim() === cleanTopic.toLowerCase() &&
+        existingBookIds.includes(b.id)
+      );
+      if (existingBook) {
+        return res.json({ bookId: existingBook.id, message: "Quiz already exists!", existing: true });
+      }
+
+      // Generate quiz with AI
+      const result = await generateQuizWithAI(cleanTopic, "Favorite Topic", ageGroup, studentGrade);
+      if ("error" in result) {
+        return res.status(500).json({ message: result.error });
+      }
+
+      // Fetch cover
+      let coverUrl: string | null = null;
+      try {
+        const coverRes = await fetch(
+          `https://covers.openlibrary.org/b/title/${encodeURIComponent(cleanTopic)}?format=json&limit=1`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (coverRes.ok) {
+          const coverData = await coverRes.json() as any;
+          if (coverData.covers && coverData.covers.length > 0) {
+            coverUrl = `https://covers.openlibrary.org/b/id/${coverData.covers[0].id}-L.jpg`;
+          }
+        }
+      } catch {}
+      if (!coverUrl) {
+        try {
+          const searchRes = await fetch(
+            `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTopic)}&limit=1`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          if (searchRes.ok) {
+            const searchData = await searchRes.json() as any;
+            if (searchData.docs && searchData.docs.length > 0 && searchData.docs[0].cover_i) {
+              coverUrl = `https://covers.openlibrary.org/b/id/${searchData.docs[0].cover_i}-L.jpg`;
+            }
+          }
+        } catch {}
+      }
+
+      const book = await storage.createBookWithQuestions({
+        title: cleanTopic,
+        author: "Favorite Topic",
+        ageGroup,
+        coverUrl,
+        description: `Quiz about ${cleanTopic}`,
+        pointsValue: result.pointsValue || 10,
+        readUrl: null,
+      }, result.questions);
+
+      // Assign grade band
+      try {
+        const rawBands = await storage.getSetting('book_grade_bands');
+        let bookBands: Record<string, string> = {};
+        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+        bookBands[String(book.id)] = ageGroup;
+        await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+      } catch {}
+
+      // Store book ID in student's favorite books
+      existingBookIds.push(book.id);
+      await storage.upsertSetting(booksKey, JSON.stringify(existingBookIds));
+
+      res.status(201).json({ bookId: book.id, message: "Quiz generated! Ready to take.", generated: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to generate quiz" });
+    }
+  });
+
+  // Admin: get any student's favorites
+  app.get("/api/admin/student-favorites/:userId", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const userId = parseInt(req.params.userId);
+      const favKey = `student_favorites_${userId}`;
+      const booksKey = `student_favorite_books_${userId}`;
+      const favRaw = await storage.getSetting(favKey);
+      const booksRaw = await storage.getSetting(booksKey);
+      let topics: string[] = [];
+      let bookIds: number[] = [];
+      if (favRaw) { try { topics = JSON.parse(favRaw); } catch {} }
+      if (booksRaw) { try { bookIds = JSON.parse(booksRaw); } catch {} }
+      res.json({ topics, bookIds, onboarded: !!favRaw });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: override a student's favorites
+  app.post("/api/admin/student-favorites/:userId", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const userId = parseInt(req.params.userId);
+      const { topics } = req.body;
+      if (!Array.isArray(topics) || topics.length < 1 || topics.length > 5) {
+        return res.status(400).json({ message: "Select 1 to 5 favorites" });
+      }
+      const cleanTopics = topics.map((t: string) => t.trim()).filter((t: string) => t.length > 0).slice(0, 5);
+      const favKey = `student_favorites_${userId}`;
+      await storage.upsertSetting(favKey, JSON.stringify(cleanTopics));
+      res.json({ topics: cleanTopics, message: "Favorites updated!" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Student: generate an instant AI eye gaze quiz
   app.post("/api/instant-quiz-eye-gaze", authMiddleware, async (req: any, res) => {
     try {
