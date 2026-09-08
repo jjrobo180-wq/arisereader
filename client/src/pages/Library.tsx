@@ -566,6 +566,18 @@ export default function Library() {
     "Fairy Tales", "Detective Stories", "Cars", "Aviation", "Winter Sports",
   ];
 
+  // iArise topics — school-age appropriate learning, hobbies, and life skills
+  const IARISE_TOPICS = [
+    "Being a Good Friend", "All About Feelings", "Bullying Prevention", "Conflict Resolution",
+    "Study Skills", "Time Management", "Healthy Habits", "Sports and Fitness",
+    "Cooking Basics", "Music Appreciation", "Art and Creativity", "Digital Citizenship",
+    "Money Management", "Leadership", "Teamwork", "Environmental Awareness",
+    "Community Service", "Career Exploration", "Cultural Diversity", "Stress Management",
+    "Goal Setting", "Public Speaking", "Critical Thinking", "Problem Solving",
+    "Reading Habits", "Writing Stories", "Science Experiments", "Math in Real Life",
+    "Gardening", "Photography", "Drawing", "Coding Basics",
+  ];
+
   const handleSaveFavorites = async () => {
     if (favPicks.length < 1) {
       setFavError("Pick at least 1 favorite!");
@@ -2662,7 +2674,7 @@ export default function Library() {
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">Pick 1 to 5 topics you want iArise lessons about. Search or pick from suggestions.</p>
+              <p className="text-sm text-muted-foreground mb-4">Pick 1 to 5 topics you want to learn about. These are iArise lessons — short reads about hobbies, life skills, and interesting topics.</p>
 
               {/* Search bar */}
               <div className="flex gap-2 mb-3">
@@ -2695,7 +2707,7 @@ export default function Library() {
               <div className="mb-4">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">Suggestions:</p>
                 <div className="flex flex-wrap gap-2">
-                  {SUGGESTED_TOPICS.filter(t => !iarisePicks.includes(t)).slice(0, 12).map((topic) => (
+                  {IARISE_TOPICS.filter(t => !iarisePicks.includes(t)).slice(0, 16).map((topic) => (
                     <button
                       key={topic}
                       onClick={() => handleToggleIarisePick(topic)}
