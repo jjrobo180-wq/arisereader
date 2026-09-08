@@ -140,6 +140,7 @@ export default function Library() {
   const [showBookAction, setShowBookAction] = useState(false);
   const [selectedBookForAction, setSelectedBookForAction] = useState<any>(null);
   const [bookActionMsg, setBookActionMsg] = useState("");
+  const [bookActionStep, setBookActionStep] = useState<"options" | "confirm-quiz">("options");
   const [eyeGazeTopic, setEyeGazeTopic] = useState("");
   const [eyeGazeError, setEyeGazeError] = useState("");
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
@@ -685,6 +686,7 @@ export default function Library() {
   const handleBookTap = (book: any) => {
     setSelectedBookForAction(book);
     setBookActionMsg("");
+    setBookActionStep("options");
     setShowBookAction(true);
   };
 
@@ -2621,7 +2623,7 @@ export default function Library() {
         </div>
       )}
 
-      {/* Book Action Modal — Ask parents / Generate quiz */}
+      {/* Book Action Modal — Ask parents / Take quiz */}
       {showBookAction && selectedBookForAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <Card className="w-full max-w-md shadow-xl">
@@ -2631,7 +2633,7 @@ export default function Library() {
                   <h3 className="font-bold text-lg text-foreground">{selectedBookForAction.title}</h3>
                   <p className="text-sm text-muted-foreground">by {selectedBookForAction.author || "Unknown"}</p>
                 </div>
-                <button onClick={() => { setShowBookAction(false); setBookActionMsg(""); }} className="text-muted-foreground hover:text-foreground">
+                <button onClick={() => { setShowBookAction(false); setBookActionMsg(""); setBookActionStep("options"); }} className="text-muted-foreground hover:text-foreground">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
@@ -2641,18 +2643,37 @@ export default function Library() {
               {bookActionMsg ? (
                 <div className="space-y-3">
                   <p className="text-sm text-emerald-600 font-medium text-center">{bookActionMsg}</p>
-                  <Button onClick={() => { setShowBookAction(false); setBookActionMsg(""); }} className="w-full" variant="outline">Close</Button>
+                  <Button onClick={() => { setShowBookAction(false); setBookActionMsg(""); setBookActionStep("options"); }} className="w-full" variant="outline">Close</Button>
                 </div>
-              ) : (
+              ) : bookActionStep === "options" ? (
                 <div className="space-y-3">
-                  <Button onClick={handleAskParents} className="w-full" variant="outline">
+                  <div className="rounded-lg bg-muted p-3 text-center">
+                    <p className="text-sm text-muted-foreground">Want to read this book? Ask your parents to get it for you first!</p>
+                  </div>
+                  <Button onClick={handleAskParents} className="w-full">
                     <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                     Ask Parents for This Book
                   </Button>
-                  <Button onClick={handleGenerateQuizFromBook} className="w-full">
-                    <PlusCircle className="w-4 h-4 mr-2" />
-                    I've Read This Book — Generate Quiz
+                  <Button onClick={() => setBookActionStep("confirm-quiz")} className="w-full" variant="outline">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    I've Finished Reading — Take Quiz
                   </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 text-center">
+                    <BookOpen className="w-8 h-8 text-primary mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-foreground mb-1">Have you finished reading this book?</p>
+                    <p className="text-xs text-muted-foreground">Only take the quiz after you've read the whole book. If you haven't read it yet, ask your parents first!</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => setBookActionStep("options")} className="flex-1" variant="outline">
+                      Not Yet
+                    </Button>
+                    <Button onClick={handleGenerateQuizFromBook} className="flex-1">
+                      Yes, I've Read It
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
