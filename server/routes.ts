@@ -5236,6 +5236,129 @@ export async function registerRoutes(
     console.error("Failed to seed anime/comic books:", (e as Error).message);
   }
 
+  // Update anime/comic book covers with real cover art
+  try {
+    const animeCovers: Record<string, string> = {
+      "Naruto: The First Test": "https://upload.wikimedia.org/wikipedia/en/9/94/NarutoCoverTankobon1.jpg",
+      "My Hero Academia: The Entrance Exam": "https://upload.wikimedia.org/wikipedia/en/5/5a/Boku_no_Hero_Academia_Volume_1.png",
+      "Pokemon Adventures: The Journey Begins": "https://upload.wikimedia.org/wikipedia/en/1/1b/Wikipokespe_poster.jpg",
+      "Dragon Ball: The Search for the Dragon Balls": "https://covers.openlibrary.org/b/id/1787375-L.jpg",
+      "Avatar: The Last Airbender (Graphic Novel)": "https://upload.wikimedia.org/wikipedia/en/2/2a/The_Promise_Hardcover_Collection.jpg",
+      "One Piece: The Pirate Journey": "https://upload.wikimedia.org/wikipedia/en/9/90/One_Piece%2C_Volume_61_Cover_%28Japanese%29.jpg",
+      "Spider-Man: The Origin Story": "https://upload.wikimedia.org/wikipedia/en/2/21/Web_of_Spider-Man_Vol_1_129-1.png",
+      "Batman: The Dark Knight Returns": "https://upload.wikimedia.org/wikipedia/en/b/b2/Batman_The_Dark_Knight_Returns_1_%28February_1986%29.jpg",
+      "Sailor Moon: The Guardian Awakens": "https://upload.wikimedia.org/wikipedia/en/e/e5/SMVolume1.jpg",
+      "Captain Underpants: The First Adventure": "https://upload.wikimedia.org/wikipedia/en/c/ca/Cunderpants.png",
+    };
+    const allBooks = await storage.getAllBooks();
+    for (const book of allBooks) {
+      const cover = animeCovers[book.title];
+      if (cover && book.coverUrl !== cover) {
+        await storage.updateBookCover(book.id, cover);
+        console.log(`Updated cover for: ${book.title}`);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to update anime/comic covers:", (e as Error).message);
+  }
+
+  // Seed "What You're Reading in Class" books (Shadowshaper + The Outsiders)
+  try {
+    const existingClassReading = await storage.getSetting("class_reading_book_ids");
+    if (!existingClassReading) {
+      console.log("Seeding class reading books (Shadowshaper, The Outsiders)...");
+      const classBooks = [
+        {
+          title: "Shadowshaper",
+          author: "Daniel Jose Older",
+          ageGroup: "9-12",
+          description: "A Brooklyn teen discovers she can infuse ancestral spirits into art.",
+          questions: [
+            { question: "What is the main character's name?", options: ["Sierra", "Maria", "Lucia", "Rosa"], correct: "A" },
+            { question: "What city does Shadowshaper take place in?", options: ["Brooklyn", "Manhattan", "Queens", "Bronx"], correct: "A" },
+            { question: "What can Sierra do with art?", options: ["Infuse ancestral spirits into it", "Sell it for money", "Make it move", "Paint perfectly"], correct: "A" },
+            { question: "What is Sierra's grandfather known as?", options: ["Lazaro", "Carlos", "Manny", "Tomas"], correct: "A" },
+            { question: "What does Shadowshaping connect Sierra to?", options: ["Her ancestors", "Her teachers", "Strangers", "Animals"], correct: "A" },
+            { question: "What danger threatens the shadowshapers?", options: ["A corrupt spirit named Stroke", "A fire", "A flood", "A drought"], correct: "A" },
+            { question: "What does Sierra use to fight back?", options: ["Murals and art", "Guns", "Magic wands", "Technology"], correct: "A" },
+            { question: "What culture is Shadowshaping rooted in?", options: ["Afro-Caribbean", "European", "Asian", "Native American"], correct: "A" },
+            { question: "Who helps Sierra understand her powers?", options: ["Robbie", "James", "David", "Michael"], correct: "A" },
+            { question: "What theme is central to Shadowshaper?", options: ["The power of community and heritage", "The danger of technology", "The importance of sports", "The value of money"], correct: "A" },
+          ],
+        },
+        {
+          title: "The Outsiders",
+          author: "S.E. Hinton",
+          ageGroup: "6-8",
+          description: "Rival teen groups, the Greasers and Socs, clash in 1960s Oklahoma.",
+          questions: [
+            { question: "Who is the narrator of The Outsiders?", options: ["Ponyboy Curtis", "Johnny Cade", "Darry Curtis", "Two-Bit"], correct: "A" },
+            { question: "What are the two rival groups called?", options: ["Greasers and Socs", "Sharks and Jets", "Bloods and Crips", "Bears and Wolves"], correct: "A" },
+            { question: "What does Ponyboy's name come from?", options: ["A horse his father owned", "A comic book", "A movie", "A song"], correct: "A" },
+            { question: "Who is Ponyboy's oldest brother?", options: ["Darry", "Sodapop", "Dally", "Steve"], correct: "A" },
+            { question: "What poem does Ponyboy recite?", options: ["Nothing Gold Can Stay by Robert Frost", "The Raven by Poe", "Ozymandias by Shelley", "The Road Not Taken by Frost"], correct: "A" },
+            { question: "What happens to Johnny in the church fire?", options: ["He is badly burned saving children", "He escapes unharmed", "He breaks his leg", "He loses his sight"], correct: "A" },
+            { question: "What does Johnny tell Ponyboy before he dies?", options: ["Stay gold", "Run away", "Get revenge", "Forget me"], correct: "A" },
+            { question: "What state does The Outsiders take place in?", options: ["Oklahoma", "Texas", "California", "New York"], correct: "A" },
+            { question: "Who is the tough Greaser from New York?", options: ["Dallas Winston", "Keith Matthews", "Steve Randle", "Tim Shepard"], correct: "A" },
+            { question: "What does Ponyboy do at the end of the story?", options: ["Writes his English essay about the events", "Joins the Socs", "Moves away", "Becomes a Soc"], correct: "A" },
+          ],
+        },
+      ];
+
+      const classBookIds: number[] = [];
+      for (const bookData of classBooks) {
+        const { data: existing } = await supabase.from("books").select("id").ilike("title", bookData.title).limit(1);
+        if (existing && existing.length > 0) {
+          classBookIds.push(existing[0].id);
+          continue;
+        }
+        // Fetch cover from Open Library
+        let coverUrl: string | null = null;
+        try {
+          const coverRes = await fetch(
+            `https://covers.openlibrary.org/b/title/${encodeURIComponent(bookData.title)}?format=json&limit=1`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          if (coverRes.ok) {
+            const coverData = await coverRes.json() as any;
+            if (coverData.covers && coverData.covers.length > 0) {
+              coverUrl = `https://covers.openlibrary.org/b/id/${coverData.covers[0].id}-L.jpg`;
+            }
+          }
+        } catch {}
+        if (!coverUrl) {
+          try {
+            const searchRes = await fetch(
+              `https://openlibrary.org/search.json?title=${encodeURIComponent(bookData.title)}&author=${encodeURIComponent(bookData.author)}&limit=1`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (searchRes.ok) {
+              const searchData = await searchRes.json() as any;
+              if (searchData.docs && searchData.docs.length > 0 && searchData.docs[0].cover_i) {
+                coverUrl = `https://covers.openlibrary.org/b/id/${searchData.docs[0].cover_i}-L.jpg`;
+              }
+            }
+          } catch {}
+        }
+        const book = await storage.createBookWithQuestions({
+          title: bookData.title,
+          author: bookData.author,
+          ageGroup: bookData.ageGroup,
+          coverUrl,
+          description: bookData.description,
+          pointsValue: 10,
+          readUrl: null,
+        }, bookData.questions);
+        classBookIds.push(book.id);
+      }
+      await storage.upsertSetting("class_reading_book_ids", JSON.stringify(classBookIds));
+      console.log(`Seeded ${classBookIds.length} class reading book quizzes.`);
+    }
+  } catch (e) {
+    console.error("Failed to seed class reading books:", (e as Error).message);
+  }
+
   // Auto-fetch covers for any books missing them (especially anime/comic books)
   try {
     const allBooks = await storage.getAllBooks();

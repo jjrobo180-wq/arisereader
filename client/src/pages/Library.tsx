@@ -116,6 +116,7 @@ export default function Library() {
   const [showEyeGazeInstant, setShowEyeGazeInstant] = useState(false);
   const [animeComicFilter, setAnimeComicFilter] = useState(false);
   const [animeComicIds, setAnimeComicIds] = useState<number[]>([]);
+  const [classReadingIds, setClassReadingIds] = useState<number[]>([]);
   const [eyeGazeTopic, setEyeGazeTopic] = useState("");
   const [eyeGazeError, setEyeGazeError] = useState("");
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
@@ -292,6 +293,15 @@ export default function Library() {
       .then(data => {
         if (data?.value) {
           try { setAnimeComicIds(JSON.parse(data.value)); } catch {}
+        }
+      })
+      .catch(() => {});
+    // Fetch class reading book IDs (all users)
+    fetch(`${API_BASE}/api/settings/class_reading_book_ids`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.value) {
+          try { setClassReadingIds(JSON.parse(data.value)); } catch {}
         }
       })
       .catch(() => {});
@@ -598,12 +608,13 @@ export default function Library() {
   // Separate iArise books, curriculum books, and the rest
   const isSampleStudent = user?.username === 'sample';
   const [iAriseExpanded, setIAriseExpanded] = useState(false);
-  const iAriseBooks = sortedBooks.filter(b => iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id));
+  const iAriseBooks = sortedBooks.filter(b => iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
   // For sample student, limit iArise to 5 books unless expanded
   const displayedIAriseBooks = isSampleStudent && !iAriseExpanded ? iAriseBooks.slice(0, 5) : iAriseBooks;
-  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id));
+  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
   const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
+  const classReadingBooks = sortedBooks.filter(b => classReadingIds.includes(b.id));
 
   // Pagination — 10 books per page
   const booksPerPage = 10;
@@ -1263,6 +1274,73 @@ export default function Library() {
                 </div>
               )}
             </div>
+
+            {/* What You're Reading in Class Section */}
+            {classReadingBooks.length > 0 && (
+              <div className="mb-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">What You're Reading in Class</h2>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{classReadingBooks.length} quizzes</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Books assigned for your class.</p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                  {classReadingBooks.map((book) => {
+                    const result = results.find(r => r.bookId === book.id);
+                    const isDone = completedIds.has(book.id);
+                    const passed = result?.passed;
+                    const score = result?.score;
+                    const total = result?.total;
+                    return (
+                      <Card
+                        key={book.id}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px]"
+                        style={{ scrollSnapAlign: 'start' }}
+                        onClick={() => navigate(`/quiz/${book.id}`)}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-4">
+                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
+                            <p className="text-white/70 text-[10px]">{book.author}</p>
+                          </div>
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                          {passed && (
+                            <div className="absolute top-2 left-2 bg-blue-500 rounded-full px-2 py-0.5">
+                              <span className="text-white text-[10px] font-bold">PASSED</span>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
+                          <p className="text-xs text-muted-foreground">{book.author}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="secondary" className="text-[10px]">{book.ageGroup}</Badge>
+                            <span className="text-[10px] text-muted-foreground">{book.pointsValue || 10} pts</span>
+                            {isDone && result && (
+                              <span className="text-[10px] text-muted-foreground ml-auto">{score}/{total}</span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Anime & Comics Section */}
             {animeComicBooks.length > 0 && (
