@@ -337,7 +337,6 @@ export default function Library() {
   }, []);
 
   const handleLogout = () => {
-    if (!window.confirm("Are you sure you want to log out?")) return;
     // Clear module-level caches to prevent stale data on next login
     libraryCache.books = [];
     libraryCache.results = [];
