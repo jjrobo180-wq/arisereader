@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -151,6 +151,9 @@ export default function Library() {
   const [instantError, setInstantError] = useState("");
   const [instantLoading, setInstantLoading] = useState(false);
   const [studentRewards, setStudentRewards] = useState<any[]>([]);
+  const [showRewardsPage, setShowRewardsPage] = useState(false);
+  const [claimingRewardId, setClaimingRewardId] = useState<number | null>(null);
+  const [claimMsg, setClaimMsg] = useState("");
 
   const [eyeGazeQuizzes, setEyeGazeQuizzes] = useState<any[]>([]);
   const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
@@ -472,6 +475,29 @@ export default function Library() {
       setRequestError("Failed to submit request.");
     } finally {
       setSubmittingRequest(false);
+    }
+  };
+
+  const handleClaimReward = async (rewardId: number) => {
+    setClaimingRewardId(rewardId);
+    setClaimMsg("");
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/student/rewards/${rewardId}/claim`, {
+        method: "POST",
+ headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to claim reward");
+      setClaimMsg(data.message || "Reward request sent!");
+      // Refresh rewards
+      const res2 = await fetch(`${API_BASE}/api/student/rewards`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const data2 = await res2.json();
+      if (data2 && data2.rewards) setStudentRewards(data2.rewards);
+    } catch (err: any) {
+      setClaimMsg(err.message);
+    } finally {
+      setClaimingRewardId(null);
     }
   };
 
@@ -1069,6 +1095,15 @@ export default function Library() {
                 <Bookmark className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
                 <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Books</span>
               </button>
+              {studentRewards.length > 0 && (
+                <button onClick={() => setShowRewardsPage(true)} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
+                  <Gift className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
+                  <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Rewards</span>
+                  {studentRewards.some(r => r.claimStatus === "approved") && (
+                    <span className="ml-0.5 w-2 h-2 rounded-full bg-green-500" />
+                  )}
+                </button>
+              )}
             </div>
             {/* More dropdown - works on both desktop and mobile */}
             <div className="relative" ref={(el) => { mobileMenuRef.current = el; }}>
@@ -1086,6 +1121,12 @@ export default function Library() {
                   <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2 sm:hidden" style={{ color: "#f59e0b" }}>
                     <Bookmark className="w-4 h-4" /> My Books
                   </button>
+                  {studentRewards.length > 0 && (
+                    <button onClick={() => { setShowRewardsPage(true); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
+                      <Gift className="w-4 h-4" /> My Rewards
+                      {studentRewards.some(r => r.claimStatus === "approved") && <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />}
+                    </button>
+                  )}
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Progress
                   </button>
@@ -1166,22 +1207,34 @@ export default function Library() {
         {/* Student Rewards banner (admin-assigned) */}
         {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && studentRewards.length > 0 && (
           <div className="mb-6 space-y-3">
-            {studentRewards.map((reward) => (
+            {studentRewards.map((reward) => {
+              const status = reward.claimStatus;
+              return (
               <div
                 key={reward.id}
-                className={`rounded-xl px-4 py-4 flex items-start gap-3 ${reward.completed ? "bg-emerald-500/15 border border-emerald-500/30" : "bg-amber-500/15 border border-amber-500/30"}`}
+                className={`rounded-xl px-4 py-4 flex items-start gap-3 ${status === "approved" ? "bg-green-500/15 border border-green-500/30" : status === "requested" ? "bg-blue-500/15 border border-blue-500/30" : reward.completed ? "bg-emerald-500/15 border border-emerald-500/30" : "bg-amber-500/15 border border-amber-500/30"}`}
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${reward.completed ? "bg-emerald-500/30" : "bg-amber-500/30"}`}>
-                  {reward.completed ? (
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${status === "approved" ? "bg-green-500/30" : status === "requested" ? "bg-blue-500/30" : reward.completed ? "bg-emerald-500/30" : "bg-amber-500/30"}`}>
+                  {status === "approved" ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  ) : status === "requested" ? (
+                    <Clock className="w-5 h-5 text-blue-400" />
+                  ) : reward.completed ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   ) : (
                     <Sparkles className="w-5 h-5 text-amber-400" />
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-sm text-foreground">{reward.title}</p>
-                    {reward.completed && (
+                    {status === "approved" && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500 text-white">APPROVED</span>
+                    )}
+                    {status === "requested" && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500 text-white">PENDING</span>
+                    )}
+                    {reward.completed && !status && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">EARNED</span>
                     )}
                   </div>
@@ -1189,15 +1242,25 @@ export default function Library() {
                   {reward.progress && (
                     <p className="text-xs text-primary font-medium mt-2">
                       Progress: {reward.progress} quizzes completed
-                      {reward.completed ? " — Reward earned! Show this to your teacher." : ""}
+                      {reward.completed && !status ? " — You earned it! Tap View My Rewards to claim." : ""}
                     </p>
                   )}
                   {reward.expiresAt && (
                     <p className="text-[10px] text-muted-foreground mt-1">Expires: {new Date(reward.expiresAt).toLocaleDateString()}</p>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 text-xs"
+                    onClick={() => setShowRewardsPage(true)}
+                  >
+                    <Gift className="w-3.5 h-3.5 mr-1" />
+                    {status === "approved" ? "Show Approved Reward" : status === "requested" ? "View Status" : "View My Rewards"}
+                  </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -2763,6 +2826,105 @@ export default function Library() {
           </Card>
         </div>
       )}
+
+      {/* My Rewards Dialog */}
+      <Dialog open={showRewardsPage} onOpenChange={(v) => { setShowRewardsPage(v); if (!v) setClaimMsg(""); }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-primary" />
+              My Rewards
+            </DialogTitle>
+          </DialogHeader>
+          {studentRewards.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-2xl mb-3">🎁</p>
+              <p className="text-muted-foreground">No rewards yet. Complete quizzes and check back!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {claimMsg && (
+                <div className={`rounded-lg p-3 text-sm ${claimMsg.includes("sent") || claimMsg.includes("approved") ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-red-500/15 text-red-600 dark:text-red-400"}`}>
+                  {claimMsg}
+                </div>
+              )}
+              {studentRewards.map((reward) => {
+                const canClaim = reward.completed && !reward.claimStatus;
+                const status = reward.claimStatus;
+                return (
+                  <div
+                    key={reward.id}
+                    className={`rounded-xl p-4 border ${status === "approved" ? "bg-green-500/10 border-green-500/30" : status === "requested" ? "bg-blue-500/10 border-blue-500/30" : status === "used" ? "bg-gray-500/10 border-gray-500/30" : reward.completed ? "bg-amber-500/10 border-amber-500/30" : "bg-card border-border"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-foreground">{reward.title}</p>
+                        <p className="text-sm text-foreground/80 mt-1">{reward.message}</p>
+                      </div>
+                      {status === "approved" && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500 text-white whitespace-nowrap">APPROVED</span>
+                      )}
+                      {status === "requested" && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500 text-white whitespace-nowrap">PENDING</span>
+                      )}
+                      {status === "used" && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-500 text-white whitespace-nowrap">USED</span>
+                      )}
+                    </div>
+                    {reward.progress && (
+                      <p className="text-xs text-primary font-medium mt-2">
+                        Progress: {reward.progress} quizzes completed
+                        {reward.completed ? " — You earned it!" : ""}
+                      </p>
+                    )}
+                    {reward.expiresAt && (
+                      <p className="text-[10px] text-muted-foreground mt-1">Expires: {new Date(reward.expiresAt).toLocaleDateString()}</p>
+                    )}
+                    {/* Claim button */}
+                    {canClaim && (
+                      <Button
+                        size="sm"
+                        className="mt-3 w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                        disabled={claimingRewardId === reward.id}
+                        onClick={() => handleClaimReward(reward.id)}
+                      >
+                        <Gift className="w-4 h-4 mr-1" />
+                        {claimingRewardId === reward.id ? "Sending..." : "Claim This Reward"}
+                      </Button>
+                    )}
+                    {status === "requested" && (
+                      <div className="mt-3 text-center text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        Request sent to your admin — waiting for approval.
+                      </div>
+                    )}
+                    {status === "approved" && (
+                      <div className="mt-3 text-center text-xs text-green-600 dark:text-green-400 font-medium">
+                        Approved! Show this screen to your teacher to use your reward.
+                      </div>
+                    )}
+                    {status === "used" && (
+                      <div className="mt-3 text-center text-xs text-gray-500 font-medium">
+                        Reward used. Great job!
+                      </div>
+                    )}
+                    {status === "denied" && (
+                      <div className="mt-3 text-center text-xs text-red-500 font-medium">
+                        Not approved yet — please ask your teacher.
+                      </div>
+                    )}
+                    {!reward.completed && !status && (
+                      <div className="mt-3 text-center text-xs text-muted-foreground">
+                        Complete {reward.requiredQuizCount} quiz to unlock this reward.
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

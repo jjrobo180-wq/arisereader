@@ -19,7 +19,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
-  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift
+  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -1400,6 +1400,17 @@ export default function Admin() {
       const res = await fetch(`${API_BASE}/api/admin/students/${studentId}/rewards/${rewardId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
+      });
+      if (res.ok) await fetchRewards(studentId);
+    } catch (e) {}
+  };
+
+  const handleRewardClaim = async (studentId: number, rewardId: number, claimStatus: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${studentId}/rewards/${rewardId}/claim`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || getTokenFromCookie()}` },
+        body: JSON.stringify({ claimStatus }),
       });
       if (res.ok) await fetchRewards(studentId);
     } catch (e) {}
@@ -2931,7 +2942,18 @@ Generate exactly 10 questions.`;
                                   <div key={r.id} className={`p-3 rounded-lg border ${r.active ? "border-primary/30 bg-primary/5" : "border-border bg-muted/20 opacity-60"}`}>
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium">{r.title}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-sm font-medium">{r.title}</p>
+                                          {r.claimStatus === "requested" && (
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500 text-white">CLAIMED</span>
+                                          )}
+                                          {r.claimStatus === "approved" && (
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500 text-white">APPROVED</span>
+                                          )}
+                                          {r.claimStatus === "used" && (
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-500 text-white">USED</span>
+                                          )}
+                                        </div>
                                         <p className="text-xs text-muted-foreground mt-1">{r.message}</p>
                                         {r.requiredQuizCount > 0 && (
                                           <p className="text-[10px] text-primary font-medium mt-1">Requires {r.requiredQuizCount} quiz{r.requiredQuizCount > 1 ? "es" : ""}</p>
@@ -2939,8 +2961,41 @@ Generate exactly 10 questions.`;
                                         {r.expiresAt && (
                                           <p className="text-[10px] text-muted-foreground">Expires: {new Date(r.expiresAt).toLocaleDateString()}</p>
                                         )}
+                                        {r.claimStatus === "requested" && (
+                                          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium mt-1">Student requested to claim this reward on {r.claimedAt ? new Date(r.claimedAt).toLocaleDateString() : ""}</p>
+                                        )}
                                       </div>
-                                      <div className="flex gap-1 flex-shrink-0">
+                                      <div className="flex flex-col gap-1 flex-shrink-0">
+                                        {r.claimStatus === "requested" && (
+                                          <>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleRewardClaim(s.id, r.id, "approved")}
+                                              className="text-xs text-green-600 hover:text-green-400"
+                                            >
+                                              <Check className="w-3.5 h-3.5 mr-1" /> Approve
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleRewardClaim(s.id, r.id, "denied")}
+                                              className="text-xs text-red-500 hover:text-red-400"
+                                            >
+                                              <X className="w-3.5 h-3.5 mr-1" /> Deny
+                                            </Button>
+                                          </>
+                                        )}
+                                        {r.claimStatus === "approved" && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleRewardClaim(s.id, r.id, "used")}
+                                            className="text-xs text-gray-600 dark:text-gray-400"
+                                          >
+                                            Mark Used
+                                          </Button>
+                                        )}
                                         <Button
                                           variant="ghost"
                                           size="sm"

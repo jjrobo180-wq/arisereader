@@ -1519,6 +1519,67 @@ export async function registerRoutes(
     res.json({ rewards: enriched });
   });
 
+  // Student-facing: claim a reward (sends request to admin)
+  app.post("/api/student/rewards/:rewardId/claim", authMiddleware, async (req: any, res) => {
+    const key = `student_rewards_${req.user.id}`;
+    const raw = await storage.getSetting(key);
+    let rewards: any[] = [];
+    if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+    const idx = rewards.findIndex((r: any) => r.id === parseInt(req.params.rewardId));
+    if (idx === -1) return res.status(404).json({ message: "Reward not found" });
+    const reward = rewards[idx];
+    if (!reward.active) return res.status(400).json({ message: "This reward is not active" });
+    if (reward.expiresAt && reward.expiresAt < new Date().toISOString()) return res.status(400).json({ message: "This reward has expired" });
+    if (reward.claimStatus === "requested") return res.status(400).json({ message: "You already requested this reward" });
+    if (reward.claimStatus === "approved" || reward.claimStatus === "used") return res.status(400).json({ message: "This reward has already been processed" });
+    // Check quiz requirement met
+    if (reward.requiredQuizCount && reward.requiredQuizCount > 0) {
+      const attempts = await storage.getUserAttempts(req.user.id);
+      const quizzesCompleted = attempts ? attempts.length : 0;
+      if (quizzesCompleted < reward.requiredQuizCount) {
+        return res.status(400).json({ message: `You need to complete ${reward.requiredQuizCount} quiz(zes) first. You have completed ${quizzesCompleted}.` });
+      }
+    }
+    // Mark as requested
+    rewards[idx].claimStatus = "requested";
+    rewards[idx].claimedAt = new Date().toISOString();
+    await storage.upsertSetting(key, JSON.stringify(rewards));
+    // Notify admin (user ID 1 = admin)
+    const studentName = req.user.displayName || req.user.username || `Student #${req.user.id}`;
+    try {
+      await storage.createMessage(1, "system", `Reward Request: ${studentName} is requesting to claim "${reward.title}" — ${reward.message}`);
+    } catch {}
+    res.json({ reward: rewards[idx], message: "Reward request sent to your admin!" });
+  });
+
+  // Admin: approve / deny / mark-used a reward claim
+  app.patch("/api/admin/students/:id/rewards/:rewardId/claim", authMiddleware, adminMiddleware, async (req: any, res) => {
+    const studentId = parseInt(req.params.id);
+    const rewardId = parseInt(req.params.rewardId);
+    const { claimStatus } = req.body; // "approved" | "denied" | "used"
+    if (!["approved", "denied", "used"].includes(claimStatus)) {
+      return res.status(400).json({ message: "Invalid claim status" });
+    }
+    const key = `student_rewards_${studentId}`;
+    const raw = await storage.getSetting(key);
+    let rewards: any[] = [];
+    if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+    const idx = rewards.findIndex((r: any) => r.id === rewardId);
+    if (idx === -1) return res.status(404).json({ message: "Reward not found" });
+    rewards[idx].claimStatus = claimStatus;
+    rewards[idx].adminReviewedAt = new Date().toISOString();
+    rewards[idx].adminReviewedBy = req.user.id;
+    await storage.upsertSetting(key, JSON.stringify(rewards));
+    // Notify student of the decision
+    const studentMsg = claimStatus === "approved"
+      ? `Your reward "${rewards[idx].title}" has been approved! Show this to your teacher to use it.`
+      : claimStatus === "used"
+      ? `Your reward "${rewards[idx].title}" has been marked as used. Great job!`
+      : `Your reward request for "${rewards[idx].title}" was not approved yet. Please ask your teacher.`;
+    try { await storage.createMessage(studentId, "system", studentMsg); } catch {}
+    res.json({ reward: rewards[idx], message: `Reward ${claimStatus}!` });
+  });
+
   // Notification endpoints
   app.get("/api/notifications", authMiddleware, async (req: any, res) => {
     if (req.user.isAdmin) {
