@@ -1514,7 +1514,7 @@ export async function registerRoutes(
       ...r,
       progress: r.requiredQuizCount ? `${Math.min(quizzesCompleted, r.requiredQuizCount)}/${r.requiredQuizCount}` : null,
       quizzesCompleted,
-      completed: r.requiredQuizCount ? quizzesCompleted >= r.requiredQuizCount : false,
+      completed: !r.requiredQuizCount || r.requiredQuizCount === 0 ? true : quizzesCompleted >= r.requiredQuizCount,
     }));
     res.json({ rewards: enriched });
   });

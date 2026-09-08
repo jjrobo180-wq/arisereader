@@ -2912,7 +2912,7 @@ export default function Library() {
                         Not approved yet — please ask your teacher.
                       </div>
                     )}
-                    {!reward.completed && !status && (
+                    {!reward.completed && !status && reward.requiredQuizCount > 0 && (
                       <div className="mt-3 text-center text-xs text-muted-foreground">
                         Complete {reward.requiredQuizCount} quiz to unlock this reward.
                       </div>
