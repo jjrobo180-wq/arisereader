@@ -1937,53 +1937,6 @@ export default function Library() {
                       </Card>
                     );
                   })}
-                  {/* Show AI-generated quiz books for favorites */}
-                  {favoriteBooks.map((book) => {
-                    const result = results.find(r => r.bookId === book.id);
-                    const isDone = completedIds.has(book.id);
-                    return (
-                      <Card
-                        key={book.id}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px]"
-                        style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => navigate(`/quiz/${book.id}`)}
-                      >
-                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
-                            <p className="text-white/70 text-[10px]">{book.author}</p>
-                          </div>
-                          {isDone && (
-                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
-                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
-                            </span>
-                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
-                            {result && (
-                              <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
                   {/* Show existing site books that match favorite topics — tap for options */}
                   {matchedFavBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
@@ -2031,52 +1984,6 @@ export default function Library() {
                       </Card>
                     );
                   })}
-                  {/* Show create-quiz cards for topics with no matching books on the site */}
-                  {favTopics.filter(t => !matchedFavBooks.some(b => b.title.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(b.title.toLowerCase())) && !favoriteBooks.some(b => b.title.toLowerCase() === t.toLowerCase())).map((topic) => (
-                    <Card
-                      key={`create-${topic}`}
-                      className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
-                      style={{ scrollSnapAlign: 'start' }}
-                      onClick={() => handleCreateFavQuiz(topic)}
-                    >
-                      <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center p-4">
-                        <div className="text-center">
-                          <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
-                          <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
-                          <p className="text-xs text-muted-foreground mt-1">No books yet — tap to generate quiz</p>
-                        </div>
-                      </div>
-                      <CardContent className="p-3">
-                        <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] text-primary font-medium">Ready to generate</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {/* Show generate-more cards for topics that already have quizzes */}
-                  {favTopics.filter(t => favoriteBooks.some(b => b.title.toLowerCase() === t.toLowerCase())).map((topic) => (
-                    <Card
-                      key={`more-${topic}`}
-                      className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
-                      style={{ scrollSnapAlign: 'start' }}
-                      onClick={() => handleCreateFavQuiz(topic)}
-                    >
-                      <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center p-4">
-                        <div className="text-center">
-                          <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
-                          <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Create another quiz</p>
-                        </div>
-                      </div>
-                      <CardContent className="p-3">
-                        <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] text-primary font-medium">Quiz exists — make more</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
                 </div>
               </div>
             )}

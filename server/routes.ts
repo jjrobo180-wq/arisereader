@@ -2433,23 +2433,25 @@ export async function registerRoutes(
       const cacheRaw = await storage.getSetting(cacheKey);
       let cached: { topic: string; title: string; author: string; coverUrl: string; }[] = [];
       if (cacheRaw) { try { cached = JSON.parse(cacheRaw); } catch {} }
-      // If cache covers all topics, return it
+      // If cache covers all topics and has at least 2 books per topic, return it
       const cachedTopics = new Set(cached.map(c => c.topic));
-      if (topics.every(t => cachedTopics.has(t)) && cached.length >= topics.length) {
+      if (topics.every(t => cachedTopics.has(t)) && cached.length >= topics.length * 2) {
         const filtered = cached.filter(c => topics.includes(c.topic));
         return res.json({ books: filtered });
       }
 
-      // Search Open Library for each topic
+      // Search Open Library for each topic — return multiple real books per topic
       const suggestions: { topic: string; title: string; author: string; coverUrl: string; }[] = [];
       for (const topic of topics) {
         try {
-          const searchUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(topic)}&limit=5&sort=rating&language=eng&subject=kids`;
+          const searchUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(topic)}&limit=12&sort=rating&language=eng&subject=kids`;
           const searchRes = await fetch(searchUrl);
           const searchData = await searchRes.json();
           if (searchData.docs && searchData.docs.length > 0) {
-            // Pick the first result that has a cover
+            // Collect up to 4 results with covers per topic
+            let count = 0;
             for (const doc of searchData.docs) {
+              if (count >= 4) break;
               if (doc.cover_i) {
                 suggestions.push({
                   topic,
@@ -2457,18 +2459,23 @@ export async function registerRoutes(
                   author: doc.author_name ? doc.author_name[0] : "Unknown",
                   coverUrl: `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`,
                 });
-                break;
+                count++;
               }
             }
-            // If no cover found, use first result without cover
-            if (!suggestions.find(s => s.topic === topic)) {
-              const doc = searchData.docs[0];
-              suggestions.push({
-                topic,
-                title: doc.title,
-                author: doc.author_name ? doc.author_name[0] : "Unknown",
-                coverUrl: "",
-              });
+            // If not enough with covers, add some without
+            if (count < 2) {
+              for (const doc of searchData.docs) {
+                if (count >= 2) break;
+                if (!doc.cover_i) {
+                  suggestions.push({
+                    topic,
+                    title: doc.title,
+                    author: doc.author_name ? doc.author_name[0] : "Unknown",
+                    coverUrl: "",
+                  });
+                  count++;
+                }
+              }
             }
           }
         } catch (e) {
