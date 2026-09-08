@@ -562,7 +562,6 @@ export default function Library() {
       const band = bookBands[String(b.id)];
       if (band !== adminBandFilter) return false;
     }
-    if (animeComicFilter && !animeComicIds.includes(b.id)) return false;
     return true;
   });
 
@@ -601,11 +600,12 @@ export default function Library() {
   // Separate iArise books, curriculum books, and the rest
   const isSampleStudent = user?.username === 'sample';
   const [iAriseExpanded, setIAriseExpanded] = useState(false);
-  const iAriseBooks = sortedBooks.filter(b => iAriseBookIds.includes(b.id));
+  const iAriseBooks = sortedBooks.filter(b => iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id));
   // For sample student, limit iArise to 5 books unless expanded
   const displayedIAriseBooks = isSampleStudent && !iAriseExpanded ? iAriseBooks.slice(0, 5) : iAriseBooks;
-  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id));
+  const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !animeComicIds.includes(b.id));
+  const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
 
   // Pagination — 10 books per page
   const booksPerPage = 10;
@@ -1156,15 +1156,7 @@ export default function Library() {
               </div>
             )}
           </div>
-          {/* Anime & Comics filter */}
-          {animeComicIds.length > 0 && (
-            <button
-              onClick={() => setAnimeComicFilter(!animeComicFilter)}
-              className={`flex items-center gap-1.5 px-4 py-3 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap ${animeComicFilter ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground hover:bg-muted"}`}
-            >
-              Anime & Comics
-            </button>
-          )}
+          {/* Anime & Comics filter removed — now a separate section */}
         </div>
 
         {loading ? (
@@ -1592,6 +1584,66 @@ export default function Library() {
         )}
         </>
       )}
+
+        {/* Anime & Comics Section */}
+        {animeComicBooks.length > 0 && (
+          <div className="mt-10">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-lg font-bold text-foreground">Anime & Comics</h2>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{animeComicBooks.length} quizzes</span>
+              <span className="text-xs text-primary font-medium">5 points each</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {animeComicBooks.map((book) => {
+                const userResult = results?.find(r => r.bookId === book.id);
+                const completed = userResult?.completed;
+                const score = userResult?.score;
+                const total = userResult?.total;
+                const passed = userResult?.passed;
+                return (
+                  <button
+                    key={book.id}
+                    onClick={() => navigate(`/quiz/${book.id}`)}
+                    className="group relative text-left rounded-xl overflow-hidden bg-card border border-border hover:border-primary/50 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                  >
+                    <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                      {book.coverUrl ? (
+                        <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center">
+                          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                            <BookOpen className="w-6 h-6 text-primary" />
+                          </div>
+                          <p className="text-xs font-medium text-foreground line-clamp-3">{book.title}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1">{book.author}</p>
+                        </div>
+                      )}
+                      {completed && (
+                        <div className={`absolute top-2 right-2 ${passed ? "bg-green-500" : "bg-red-500"} text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg`}>
+                          {score}/{total}
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <p className="text-white text-xs font-medium line-clamp-2">{book.title}</p>
+                        <p className="text-white/60 text-[10px]">{book.author}</p>
+                      </div>
+                    </div>
+                    <div className="p-2 flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-primary">{book.pointsValue || 5} pts</span>
+                      {completed ? (
+                        <span className={`text-[10px] font-medium ${passed ? "text-green-500" : "text-red-500"}`}>
+                          {passed ? "Passed" : "Try Again"}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">Take Quiz</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Student Inbox Dialog */}

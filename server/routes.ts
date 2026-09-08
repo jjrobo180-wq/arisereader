@@ -891,6 +891,70 @@ export async function registerRoutes(
     }
   });
 
+  // Auto-fetch missing book covers
+  app.post("/api/admin/fetch-missing-covers", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const allBooks = await storage.getAllBooks();
+      const missing = allBooks.filter(b => !b.coverUrl);
+      let updated = 0;
+      for (const book of missing) {
+        let coverUrl: string | null = null;
+        const cleanTitle = (book.title || "").replace(/[:\-]/g, " ").trim();
+        const cleanAuthor = (book.author || "").trim();
+        // Method 1: covers by title
+        try {
+          const coverRes = await fetch(
+            `https://covers.openlibrary.org/b/title/${encodeURIComponent(cleanTitle)}?format=json&limit=1`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          if (coverRes.ok) {
+            const coverData = await coverRes.json() as any;
+            if (coverData.covers && coverData.covers.length > 0) {
+              coverUrl = `https://covers.openlibrary.org/b/id/${coverData.covers[0].id}-L.jpg`;
+            }
+          }
+        } catch {}
+        // Method 2: search by title + author
+        if (!coverUrl) {
+          try {
+            const searchRes = await fetch(
+              `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}&author=${encodeURIComponent(cleanAuthor)}&limit=1`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (searchRes.ok) {
+              const searchData = await searchRes.json() as any;
+              if (searchData.docs && searchData.docs.length > 0 && searchData.docs[0].cover_i) {
+                coverUrl = `https://covers.openlibrary.org/b/id/${searchData.docs[0].cover_i}-L.jpg`;
+              }
+            }
+          } catch {}
+        }
+        // Method 3: search by title only (broader)
+        if (!coverUrl) {
+          try {
+            const searchRes2 = await fetch(
+              `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}&limit=1`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (searchRes2.ok) {
+              const searchData2 = await searchRes2.json() as any;
+              if (searchData2.docs && searchData2.docs.length > 0 && searchData2.docs[0].cover_i) {
+                coverUrl = `https://covers.openlibrary.org/b/id/${searchData2.docs[0].cover_i}-L.jpg`;
+              }
+            }
+          } catch {}
+        }
+        if (coverUrl) {
+          await storage.updateBookCover(book.id, coverUrl);
+          updated++;
+        }
+      }
+      res.json({ success: true, updated, total: missing.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/public/stats", async (_req, res) => {
     try {
       const books = await storage.getAllBooks();
@@ -5125,9 +5189,116 @@ export async function registerRoutes(
       }
       await storage.upsertSetting("anime_comic_book_ids", JSON.stringify(createdIds));
       console.log(`Seeded ${createdIds.length} anime & comic book quizzes.`);
+
+      // Auto-fetch covers for the newly seeded books
+      for (const bookId of createdIds) {
+        const book = await storage.getBook(bookId);
+        if (book && !book.coverUrl) {
+          const cleanTitle = (book.title || "").replace(/[:\-]/g, " ").trim();
+          const cleanAuthor = (book.author || "").trim();
+          let coverUrl: string | null = null;
+          try {
+            const coverRes = await fetch(
+              `https://covers.openlibrary.org/b/title/${encodeURIComponent(cleanTitle)}?format=json&limit=1`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (coverRes.ok) {
+              const coverData = await coverRes.json() as any;
+              if (coverData.covers && coverData.covers.length > 0) {
+                coverUrl = `https://covers.openlibrary.org/b/id/${coverData.covers[0].id}-L.jpg`;
+              }
+            }
+          } catch {}
+          if (!coverUrl) {
+            try {
+              const searchRes = await fetch(
+                `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}&author=${encodeURIComponent(cleanAuthor)}&limit=1`,
+                { signal: AbortSignal.timeout(5000) }
+              );
+              if (searchRes.ok) {
+                const searchData = await searchRes.json() as any;
+                if (searchData.docs && searchData.docs.length > 0 && searchData.docs[0].cover_i) {
+                  coverUrl = `https://covers.openlibrary.org/b/id/${searchData.docs[0].cover_i}-L.jpg`;
+                }
+              }
+            } catch {}
+          }
+          if (coverUrl) {
+            await storage.updateBookCover(bookId, coverUrl);
+            console.log(`Fetched cover for: ${book.title}`);
+          } else {
+            console.log(`No cover found for: ${book.title}`);
+          }
+        }
+      }
     }
   } catch (e) {
     console.error("Failed to seed anime/comic books:", (e as Error).message);
+  }
+
+  // Auto-fetch covers for any books missing them (especially anime/comic books)
+  try {
+    const allBooks = await storage.getAllBooks();
+    const missingCovers = allBooks.filter(b => !b.coverUrl);
+    if (missingCovers.length > 0) {
+      console.log(`Fetching covers for ${missingCovers.length} books missing covers...`);
+      let fetched = 0;
+      for (const book of missingCovers) {
+        const cleanTitle = (book.title || "").replace(/[:\-]/g, " ").trim();
+        const cleanAuthor = (book.author || "").trim();
+        let coverUrl: string | null = null;
+        // Method 1: covers by title
+        try {
+          const coverRes = await fetch(
+            `https://covers.openlibrary.org/b/title/${encodeURIComponent(cleanTitle)}?format=json&limit=1`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          if (coverRes.ok) {
+            const coverData = await coverRes.json() as any;
+            if (coverData.covers && coverData.covers.length > 0) {
+              coverUrl = `https://covers.openlibrary.org/b/id/${coverData.covers[0].id}-L.jpg`;
+            }
+          }
+        } catch {}
+        // Method 2: search by title + author
+        if (!coverUrl) {
+          try {
+            const searchRes = await fetch(
+              `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}&author=${encodeURIComponent(cleanAuthor)}&limit=1`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (searchRes.ok) {
+              const searchData = await searchRes.json() as any;
+              if (searchData.docs && searchData.docs.length > 0 && searchData.docs[0].cover_i) {
+                coverUrl = `https://covers.openlibrary.org/b/id/${searchData.docs[0].cover_i}-L.jpg`;
+              }
+            }
+          } catch {}
+        }
+        // Method 3: search by title only
+        if (!coverUrl) {
+          try {
+            const searchRes2 = await fetch(
+              `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}&limit=1`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (searchRes2.ok) {
+              const searchData2 = await searchRes2.json() as any;
+              if (searchData2.docs && searchData2.docs.length > 0 && searchData2.docs[0].cover_i) {
+                coverUrl = `https://covers.openlibrary.org/b/id/${searchData2.docs[0].cover_i}-L.jpg`;
+              }
+            }
+          } catch {}
+        }
+        if (coverUrl) {
+          await storage.updateBookCover(book.id, coverUrl);
+          fetched++;
+        }
+      }
+      console.log(`Fetched ${fetched} book covers.`);
+    }
+  } catch (e) {
+    console.error("Failed to fetch missing covers:", (e as Error).message);
   }
 
   return httpServer;
