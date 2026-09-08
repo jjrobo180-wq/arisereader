@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, Lock, KeyRound, FileSearch, Sparkles } from "lucide-react";
+import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, Lock, KeyRound, FileSearch, Sparkles, Volume2, Square } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -48,6 +48,7 @@ export default function Quiz() {
   const [proctorLoading, setProctorLoading] = useState(false);
   const [showReviewRequest, setShowReviewRequest] = useState(false);
   const [reviewReason, setReviewReason] = useState("");
+  const [speakingQId, setSpeakingQId] = useState<number | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
@@ -107,6 +108,46 @@ export default function Quiz() {
     };
     fetchQuiz();
   }, [token, id]);
+
+  // --- Text-to-Speech for quiz questions ---
+  const speakQuestion = (q: SafeQuestion, idx: number) => {
+    if (!("speechSynthesis" in window)) return;
+    // If already speaking this question, stop
+    if (speakingQId === q.id) {
+      window.speechSynthesis.cancel();
+      setSpeakingQId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const opts = ["A", "B", "C", "D"] as const;
+    const optionTexts = opts.map(letter => {
+      const text = q[`option${letter}` as keyof SafeQuestion] as string;
+      return text ? `${letter}. ${text}` : "";
+    }).filter(Boolean);
+    const fullText = `Question ${idx + 1}. ${q.questionText}. Answer choices: ${optionTexts.join(". ")}`;
+    const utterance = new SpeechSynthesisUtterance(fullText);
+    utterance.rate = 0.9;
+    utterance.onend = () => setSpeakingQId(null);
+    utterance.onerror = () => setSpeakingQId(null);
+    setSpeakingQId(q.id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setSpeakingQId(null);
+  };
+
+  // Stop speech when leaving the page
+  useEffect(() => {
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   const handleAnswer = (questionId: number, answer: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
@@ -528,7 +569,19 @@ export default function Quiz() {
                   <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold flex-shrink-0">
                     {idx + 1}
                   </div>
-                  <p className="font-medium text-base">{q.questionText}</p>
+                  <p className="font-medium text-base flex-1">{q.questionText}</p>
+                  <button
+                    onClick={() => speakQuestion(q, idx)}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-muted hover:bg-primary/10 text-primary"
+                    title={speakingQId === q.id ? "Stop reading" : "Read question aloud"}
+                  >
+                    {speakingQId === q.id ? (
+                      <Square className="w-4 h-4" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                    {speakingQId === q.id ? "Stop" : "Listen"}
+                  </button>
                 </div>
                 <RadioGroup
                   value={answers[String(q.id)] || ""}
