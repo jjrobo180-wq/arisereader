@@ -37,6 +37,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Tutorial from "./pages/Tutorial";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import Competition from "./pages/Competition";
 import Polls from "./pages/Polls";
 import CoursePage from "./pages/CoursePage";
 import ReadingAssessment from "./pages/ReadingAssessment";
@@ -199,6 +200,9 @@ function AppRoutes() {
       </Route>
       <Route path="/leaderboard">
         <LeaderboardPage />
+      </Route>
+      <Route path="/competition">
+        <Competition />
       </Route>
       <Route path="/about">
         <About />
