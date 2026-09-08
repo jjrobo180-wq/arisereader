@@ -473,8 +473,6 @@ export default function Library() {
       const data = await res.json();
       if (res.ok) {
         if (data.quizId) setPendingEyeGazeQuizId(data.quizId);
-        // Refresh custom quizzes so the new one shows in the list
-        fetchCustomQuizzes();
       } else {
         setEyeGazeError(data.message || "Failed to generate quiz.");
         setShowGenerating(false);
@@ -1200,7 +1198,7 @@ export default function Library() {
               <p className="text-sm text-muted-foreground mb-4 ml-7">Read. Learn. Rise.</p>
               {iAriseBooks.length > 0 ? (
                 <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {displayedIAriseBooks.map((book, index) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
@@ -1208,7 +1206,8 @@ export default function Library() {
                       <Card
                         key={book.id}
                         data-tour={index === 0 ? "first-book" : undefined}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 ring-2 ring-primary/30"
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 ring-2 ring-primary/30 flex-shrink-0 w-[160px] sm:w-[180px]"
+                        style={{ scrollSnapAlign: 'start' }}
                         onClick={() => navigate(`/course/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
@@ -1275,7 +1274,7 @@ export default function Library() {
                   <span className="text-xs text-primary font-medium">5 points each</span>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4 ml-7">Fun quizzes from your favorite anime and comic books.</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {animeComicBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
@@ -1285,7 +1284,8 @@ export default function Library() {
                     return (
                       <Card
                         key={book.id}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1"
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px]"
+                        style={{ scrollSnapAlign: 'start' }}
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
