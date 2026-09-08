@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
-import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Gift, Users, Star, Heart } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Gift, Users, Star, Heart, Calendar, Clock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 interface LeaderboardEntry {
@@ -23,55 +23,99 @@ const BAND_LABELS: Record<string, string> = {
   "9-12": "9-12 Band",
 };
 
-const BAND_COLORS: Record<string, { bg: string; border: string; text: string; accent: string }> = {
-  "K-2": { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400", accent: "from-blue-500 to-blue-600" },
-  "3-5": { bg: "bg-green-500/10", border: "border-green-500/30", text: "text-green-400", accent: "from-green-500 to-green-600" },
-  "6-8": { bg: "bg-purple-500/10", border: "border-purple-500/30", text: "text-purple-400", accent: "from-purple-500 to-purple-600" },
-  "9-12": { bg: "bg-orange-500/10", border: "border-orange-500/30", text: "text-orange-400", accent: "from-orange-500 to-orange-600" },
+const BAND_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  "K-2": { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400" },
+  "3-5": { bg: "bg-green-500/10", border: "border-green-500/30", text: "text-green-400" },
+  "6-8": { bg: "bg-purple-500/10", border: "border-purple-500/30", text: "text-purple-400" },
+  "9-12": { bg: "bg-orange-500/10", border: "border-orange-500/30", text: "text-orange-400" },
 };
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function getCurrentMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+function getRecentMonths(count: number): string[] {
+  const months: string[] = [];
+  const d = new Date();
+  for (let i = 0; i < count; i++) {
+    const dt = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    months.push(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return months;
+}
 
 export default function Competition() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const [bandLeaders, setBandLeaders] = useState<Record<string, LeaderboardEntry[]>>({});
-  const [overallTop, setOverallTop] = useState<LeaderboardEntry[]>([]);
+  const [tab, setTab] = useState<"monthly" | "yearly">("monthly");
+  const [monthlyBandLeaders, setMonthlyBandLeaders] = useState<Record<string, LeaderboardEntry[]>>({});
+  const [yearlyBandLeaders, setYearlyBandLeaders] = useState<Record<string, LeaderboardEntry[]>>({});
+  const [overallYearlyTop, setOverallYearlyTop] = useState<LeaderboardEntry[]>([]);
+  const [monthlyTop, setMonthlyTop] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const recentMonths = getRecentMonths(6);
 
   useEffect(() => {
     const fetchAll = async () => {
+      setLoading(true);
       try {
-        // Fetch all bands in parallel using the public endpoint
-        const promises = BANDS.map(async (band) => {
+        // Fetch monthly leaderboard for all bands
+        const monthlyPromises = BANDS.map(async (band) => {
+          const res = await fetch(`${API_BASE}/api/tutorial/leaderboard?band=${encodeURIComponent(band)}&month=${encodeURIComponent(selectedMonth)}`);
+          if (!res.ok) return { band, data: [] };
+          const data = await res.json();
+          return { band, data: Array.isArray(data) ? data : [] };
+        });
+        const monthlyResults = await Promise.all(monthlyPromises);
+
+        const mLeaders: Record<string, LeaderboardEntry[]> = {};
+        let monthlyAll: LeaderboardEntry[] = [];
+        for (const { band, data } of monthlyResults) {
+          mLeaders[band] = data.slice(0, 3);
+          monthlyAll = monthlyAll.concat(data);
+        }
+        monthlyAll.sort((a, b) => b.totalPoints - a.totalPoints);
+        setMonthlyBandLeaders(mLeaders);
+        setMonthlyTop(monthlyAll.slice(0, 3));
+
+        // Fetch all-time (yearly) leaderboard for all bands
+        const yearlyPromises = BANDS.map(async (band) => {
           const res = await fetch(`${API_BASE}/api/tutorial/leaderboard?band=${encodeURIComponent(band)}`);
           if (!res.ok) return { band, data: [] };
           const data = await res.json();
           return { band, data: Array.isArray(data) ? data : [] };
         });
-        const results = await Promise.all(promises);
+        const yearlyResults = await Promise.all(yearlyPromises);
 
-        const leaders: Record<string, LeaderboardEntry[]> = {};
-        let allEntries: LeaderboardEntry[] = [];
-
-        for (const { band, data } of results) {
-          leaders[band] = data.slice(0, 3); // Top 3 per band
-          allEntries = allEntries.concat(data);
+        const yLeaders: Record<string, LeaderboardEntry[]> = {};
+        let yearlyAll: LeaderboardEntry[] = [];
+        for (const { band, data } of yearlyResults) {
+          yLeaders[band] = data.slice(0, 3);
+          yearlyAll = yearlyAll.concat(data);
         }
+        yearlyAll.sort((a, b) => b.totalPoints - a.totalPoints);
+        setYearlyBandLeaders(yLeaders);
+        setOverallYearlyTop(yearlyAll.slice(0, 3));
 
-        // Sort all entries by points for overall top reader
-        allEntries.sort((a, b) => b.totalPoints - a.totalPoints);
-        setOverallTop(allEntries.slice(0, 3));
-        setBandLeaders(leaders);
         setLoading(false);
       } catch (e) {
         setLoading(false);
       }
     };
     fetchAll();
-  }, []);
+  }, [selectedMonth]);
 
   const medalIcons = [Crown, Medal, Award];
   const medalColors = ["text-yellow-400", "text-gray-300", "text-orange-500"];
-  const medalLabels = ["1st Place", "2nd Place", "3rd Place"];
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,171 +134,341 @@ export default function Competition() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-8">
+        {/* Hero */}
+        <div className="text-center mb-6">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500/30 to-orange-600/10 flex items-center justify-center mx-auto mb-4 border-2 border-yellow-500/30">
             <Trophy className="w-10 h-10 text-yellow-400" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Reading Competition</h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-            Read books, take quizzes, and earn points to climb the leaderboard. The top readers win amazing prizes!
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Read books, take quizzes, and earn points to win prizes every month and at the end of the year!
           </p>
         </div>
 
-        {/* Prize Overview Card */}
-        <Card className="shadow-lg mb-8 overflow-hidden border-2 border-primary/30">
-          <div className="bg-gradient-to-r from-primary/20 to-primary/5 p-4 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Gift className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-bold text-white">Prizes</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* 1st Place */}
-              <div className="rounded-xl bg-gradient-to-br from-yellow-500/20 to-yellow-600/5 border border-yellow-500/30 p-4 text-center">
-                <Crown className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-                <p className="font-bold text-sm text-yellow-400">1st Place</p>
-                <p className="text-xs text-foreground/80 mt-1">Free Lunch</p>
-                <p className="text-[10px] text-muted-foreground mt-1">+ Ultimate Prize Goal: $300</p>
-              </div>
-              {/* 2nd Place */}
-              <div className="rounded-xl bg-gradient-to-br from-gray-400/20 to-gray-500/5 border border-gray-400/30 p-4 text-center">
-                <Medal className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="font-bold text-sm text-gray-300">2nd Place</p>
-                <p className="text-xs text-foreground/80 mt-1">Prize TBD</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Goal: $100</p>
-              </div>
-              {/* 3rd Place */}
-              <div className="rounded-xl bg-gradient-to-br from-orange-600/20 to-orange-700/5 border border-orange-600/30 p-4 text-center">
-                <Award className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                <p className="font-bold text-sm text-orange-500">3rd Place</p>
-                <p className="text-xs text-foreground/80 mt-1">Prize TBD</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Goal: $50</p>
-              </div>
-            </div>
-            <div className="mt-4 rounded-lg bg-card/50 p-3 text-center">
-              <p className="text-xs text-muted-foreground">
-                <Heart className="w-3 h-3 inline mr-1 text-red-400" />
-                100% of donations go directly to student prizes. Prize amounts are goals based on donations received.
-              </p>
-            </div>
-          </div>
-        </Card>
+        {/* Tab Switcher */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <button
+            onClick={() => setTab("monthly")}
+            className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
+              tab === "monthly"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            Monthly
+          </button>
+          <button
+            onClick={() => setTab("yearly")}
+            className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
+              tab === "yearly"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+            }`}
+          >
+            <Star className="w-4 h-4" />
+            Reader of the Year
+          </button>
+        </div>
 
-        {/* Top Reader of the Year */}
-        <Card className="shadow-lg mb-8 overflow-hidden border-2 border-yellow-500/30">
-          <div className="bg-gradient-to-r from-yellow-500/20 to-orange-600/10 p-4 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Star className="w-5 h-5 text-yellow-400" />
-              <h2 className="text-lg font-bold text-white">Reader of the Year</h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/30 text-yellow-300">ULTIMATE PRIZE</span>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              The top reader across the entire platform earns the ultimate prize!
-            </p>
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : tab === "monthly" ? (
+          <>
+            {/* Monthly Competition */}
+            <div className="space-y-6">
+              {/* Monthly Prize Card */}
+              <Card className="shadow-lg overflow-hidden border-2 border-yellow-500/30">
+                <div className="bg-gradient-to-r from-yellow-500/20 to-orange-600/10 p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Calendar className="w-5 h-5 text-yellow-400" />
+                    <h2 className="text-lg font-bold text-white">Monthly Prize</h2>
+                  </div>
+                  <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 p-4 text-center">
+                    <Crown className="w-10 h-10 text-yellow-400 mx-auto mb-2" />
+                    <p className="font-bold text-base text-yellow-400">Free Lunch</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The #1 reader from each band every month wins a free lunch!
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      2nd and 3rd place prizes will be announced soon.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Month Selector */}
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                {recentMonths.map((ym) => (
+                  <button
+                    key={ym}
+                    onClick={() => setSelectedMonth(ym)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      selectedMonth === ym
+                        ? "bg-primary/20 text-primary border border-primary/50"
+                        : "bg-muted/30 border border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {getMonthLabel(ym)}
+                  </button>
+                ))}
               </div>
-            ) : overallTop.length > 0 ? (
-              <div className="space-y-2">
-                {overallTop.map((entry, idx) => {
-                  const Icon = medalIcons[idx] || Star;
-                  return (
-                    <div
-                      key={idx}
-                      className={`flex items-center gap-3 p-3 rounded-xl ${idx === 0 ? "bg-yellow-500/15 border border-yellow-500/30" : "bg-muted/30"}`}
-                    >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${idx === 0 ? "bg-yellow-500/30" : "bg-muted"}`}>
-                        <Icon className={`w-5 h-5 ${medalColors[idx]}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-white truncate">{entry.displayName}</p>
-                        <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-bold text-lg text-primary">{entry.totalPoints}</div>
-                        <div className="text-[10px] text-muted-foreground">pts</div>
-                      </div>
+
+              {/* Month Label */}
+              <div className="text-center">
+                <span className="text-sm text-muted-foreground font-medium">
+                  {getMonthLabel(selectedMonth)} Leaderboard
+                </span>
+              </div>
+
+              {/* Monthly Overall Top 3 */}
+              {monthlyTop.length > 0 && (
+                <Card className="shadow-md overflow-hidden border border-yellow-500/20">
+                  <div className="bg-gradient-to-r from-yellow-500/15 to-transparent px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-yellow-400" />
+                      <h3 className="font-bold text-sm text-white">Top Readers This Month — All Bands</h3>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Trophy className="w-10 h-10 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Be the first to earn points!</p>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Band Leaders */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-white">Top Readers by Band</h2>
-          </div>
-          <p className="text-xs text-muted-foreground mb-4">
-            The #1 reader from each band wins a free lunch! 2nd and 3rd place prizes will be announced soon.
-          </p>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {BANDS.map((band) => {
-                const leaders = bandLeaders[band] || [];
-                const colors = BAND_COLORS[band];
-                if (leaders.length === 0) return null;
-                return (
-                  <Card key={band} className={`shadow-md overflow-hidden border ${colors.border}`}>
-                    <div className={`${colors.bg} px-4 py-3 flex items-center gap-2`}>
-                      <GraduationCap className={`w-4 h-4 ${colors.text}`} />
-                      <h3 className={`font-bold text-sm ${colors.text}`}>{BAND_LABELS[band]}</h3>
-                      <span className="text-[10px] text-muted-foreground ml-auto">Top {leaders.length}</span>
-                    </div>
-                    <CardContent className="p-3">
-                      <div className="space-y-2">
-                        {leaders.map((entry, idx) => {
-                          const Icon = medalIcons[idx] || Star;
-                          const isWinner = idx === 0;
-                          return (
-                            <div
-                              key={idx}
-                              className={`flex items-center gap-3 p-2.5 rounded-lg ${isWinner ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-muted/20"}`}
-                            >
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isWinner ? "bg-yellow-500/30" : "bg-muted"}`}>
-                                <Icon className={`w-4 h-4 ${medalColors[idx]}`} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm text-white truncate">{entry.displayName}</p>
-                                <p className="text-[10px] text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
-                                <div className="text-[10px] text-muted-foreground">pts</div>
-                              </div>
-                              {isWinner && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/30 text-yellow-300 whitespace-nowrap">
-                                  FREE LUNCH
-                                </span>
-                              )}
+                  </div>
+                  <CardContent className="p-3">
+                    <div className="space-y-2">
+                      {monthlyTop.map((entry, idx) => {
+                        const Icon = medalIcons[idx] || Star;
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center gap-3 p-2.5 rounded-lg ${idx === 0 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-muted/20"}`}
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${idx === 0 ? "bg-yellow-500/30" : "bg-muted"}`}>
+                              <Icon className={`w-4 h-4 ${medalColors[idx]}`} />
                             </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-white truncate">{entry.displayName}</p>
+                              <p className="text-[10px] text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
+                              <div className="text-[10px] text-muted-foreground">pts</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-        {/* How to Earn Points */}
-        <Card className="shadow-md mb-8">
+              {/* Monthly Band Leaders */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-bold text-white">Top Readers by Band — {getMonthLabel(selectedMonth)}</h2>
+                </div>
+
+                <div className="space-y-4">
+                  {BANDS.map((band) => {
+                    const leaders = monthlyBandLeaders[band] || [];
+                    if (leaders.length === 0) return null;
+                    const colors = BAND_COLORS[band];
+                    return (
+                      <Card key={band} className={`shadow-md overflow-hidden border ${colors.border}`}>
+                        <div className={`${colors.bg} px-4 py-3 flex items-center gap-2`}>
+                          <GraduationCap className={`w-4 h-4 ${colors.text}`} />
+                          <h3 className={`font-bold text-sm ${colors.text}`}>{BAND_LABELS[band]}</h3>
+                          <span className="text-[10px] text-muted-foreground ml-auto">Top {leaders.length}</span>
+                        </div>
+                        <CardContent className="p-3">
+                          <div className="space-y-2">
+                            {leaders.map((entry, idx) => {
+                              const Icon = medalIcons[idx] || Star;
+                              const isWinner = idx === 0;
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`flex items-center gap-3 p-2.5 rounded-lg ${isWinner ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-muted/20"}`}
+                                >
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isWinner ? "bg-yellow-500/30" : "bg-muted"}`}>
+                                    <Icon className={`w-4 h-4 ${medalColors[idx]}`} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm text-white truncate">{entry.displayName}</p>
+                                    <p className="text-[10px] text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
+                                    <div className="text-[10px] text-muted-foreground">pts</div>
+                                  </div>
+                                  {isWinner && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/30 text-yellow-300 whitespace-nowrap">
+                                      FREE LUNCH
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Yearly Competition — Reader of the Year */}
+            <div className="space-y-6">
+              {/* Yearly Prize Card */}
+              <Card className="shadow-lg overflow-hidden border-2 border-primary/30">
+                <div className="bg-gradient-to-r from-primary/20 to-primary/5 p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Star className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-bold text-white">Reader of the Year Prizes</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    The readers with the most points all year win these ultimate prizes!
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* 1st Place */}
+                    <div className="rounded-xl bg-gradient-to-br from-yellow-500/20 to-yellow-600/5 border border-yellow-500/30 p-4 text-center">
+                      <Crown className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                      <p className="font-bold text-sm text-yellow-400">1st Place</p>
+                      <p className="text-xs text-foreground/80 mt-1">Ultimate Prize</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Goal: $300</p>
+                    </div>
+                    {/* 2nd Place */}
+                    <div className="rounded-xl bg-gradient-to-br from-gray-400/20 to-gray-500/5 border border-gray-400/30 p-4 text-center">
+                      <Medal className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="font-bold text-sm text-gray-300">2nd Place</p>
+                      <p className="text-xs text-foreground/80 mt-1">Prize TBD</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Goal: $100</p>
+                    </div>
+                    {/* 3rd Place */}
+                    <div className="rounded-xl bg-gradient-to-br from-orange-600/20 to-orange-700/5 border border-orange-600/30 p-4 text-center">
+                      <Award className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                      <p className="font-bold text-sm text-orange-500">3rd Place</p>
+                      <p className="text-xs text-foreground/80 mt-1">Prize TBD</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Goal: $50</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 rounded-lg bg-card/50 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      <Heart className="w-3 h-3 inline mr-1 text-red-400" />
+                      100% of donations go directly to student prizes. Prize amounts are goals based on donations received.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Year Label */}
+              <div className="text-center">
+                <span className="text-sm text-muted-foreground font-medium">
+                  {new Date().getFullYear()} All-Time Leaderboard
+                </span>
+              </div>
+
+              {/* Overall Top 3 — Reader of the Year */}
+              {overallYearlyTop.length > 0 && (
+                <Card className="shadow-lg overflow-hidden border-2 border-yellow-500/30">
+                  <div className="bg-gradient-to-r from-yellow-500/20 to-orange-600/10 p-4 sm:p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Star className="w-5 h-5 text-yellow-400" />
+                      <h2 className="text-lg font-bold text-white">Reader of the Year</h2>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/30 text-yellow-300">ULTIMATE PRIZE</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      The top reader across the entire platform for {new Date().getFullYear()}!
+                    </p>
+                    <div className="space-y-2">
+                      {overallYearlyTop.map((entry, idx) => {
+                        const Icon = medalIcons[idx] || Star;
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center gap-3 p-3 rounded-xl ${idx === 0 ? "bg-yellow-500/15 border border-yellow-500/30" : "bg-muted/30"}`}
+                          >
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${idx === 0 ? "bg-yellow-500/30" : "bg-muted"}`}>
+                              <Icon className={`w-5 h-5 ${medalColors[idx]}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm text-white truncate">{entry.displayName}</p>
+                              <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="font-bold text-lg text-primary">{entry.totalPoints}</div>
+                              <div className="text-[10px] text-muted-foreground">pts</div>
+                            </div>
+                            {idx === 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/30 text-yellow-300 whitespace-nowrap">
+                                WINNER
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Yearly Band Leaders */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-bold text-white">Top Readers by Band — All-Time</h2>
+                </div>
+
+                <div className="space-y-4">
+                  {BANDS.map((band) => {
+                    const leaders = yearlyBandLeaders[band] || [];
+                    if (leaders.length === 0) return null;
+                    const colors = BAND_COLORS[band];
+                    return (
+                      <Card key={band} className={`shadow-md overflow-hidden border ${colors.border}`}>
+                        <div className={`${colors.bg} px-4 py-3 flex items-center gap-2`}>
+                          <GraduationCap className={`w-4 h-4 ${colors.text}`} />
+                          <h3 className={`font-bold text-sm ${colors.text}`}>{BAND_LABELS[band]}</h3>
+                          <span className="text-[10px] text-muted-foreground ml-auto">Top {leaders.length}</span>
+                        </div>
+                        <CardContent className="p-3">
+                          <div className="space-y-2">
+                            {leaders.map((entry, idx) => {
+                              const Icon = medalIcons[idx] || Star;
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`flex items-center gap-3 p-2.5 rounded-lg ${idx === 0 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-muted/20"}`}
+                                >
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${idx === 0 ? "bg-yellow-500/30" : "bg-muted"}`}>
+                                    <Icon className={`w-4 h-4 ${medalColors[idx]}`} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm text-white truncate">{entry.displayName}</p>
+                                    <p className="text-[10px] text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
+                                    <div className="text-[10px] text-muted-foreground">pts</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* How to Earn Points — always visible */}
+        <Card className="shadow-md mt-6">
           <div className="bg-gradient-to-r from-primary/15 to-primary/5 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <Trophy className="w-5 h-5 text-primary" />
@@ -291,16 +505,16 @@ export default function Competition() {
         </Card>
 
         {/* Donation Note */}
-        <div className="rounded-xl bg-card border border-border p-4 text-center">
+        <div className="rounded-xl bg-card border border-border p-4 text-center mt-6">
           <Heart className="w-6 h-6 text-red-400 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">
             100% of all donations go directly to student prizes.
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Prize goals: 1st place up to $300 | 2nd place up to $100 | 3rd place up to $50
+            Yearly prize goals: 1st place up to $300 | 2nd place up to $100 | 3rd place up to $50
           </p>
           <p className="text-[10px] text-muted-foreground mt-2">
-            Prize amounts depend on donations received. 2nd and 3rd place prizes will be announced soon.
+            Prize amounts depend on donations received. Monthly 2nd and 3rd place prizes will be announced soon.
           </p>
         </div>
       </main>
