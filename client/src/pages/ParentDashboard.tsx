@@ -46,7 +46,7 @@ interface ProfileData {
 }
 
 export default function ParentDashboard() {
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,7 +67,7 @@ export default function ParentDashboard() {
   }, [token]);
 
   const handleLogout = () => {
-    document.cookie = "arise_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    logout();
     window.location.hash = "/";
   };
 
