@@ -285,16 +285,16 @@ export default function Library() {
           })
           .catch(() => {});
       }
-      // Fetch anime/comic book IDs for filtering
-      fetch(`${API_BASE}/api/settings/anime_comic_book_ids`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data?.value) {
-            try { setAnimeComicIds(JSON.parse(data.value)); } catch {}
-          }
-        })
-        .catch(() => {});
     }
+    // Fetch anime/comic book IDs for filtering (all users)
+    fetch(`${API_BASE}/api/settings/anime_comic_book_ids`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.value) {
+          try { setAnimeComicIds(JSON.parse(data.value)); } catch {}
+        }
+      })
+      .catch(() => {});
     const interval = setInterval(fetchUnreadCount, 20000);
     return () => clearInterval(interval);
   }, [fetchBooks, fetchAnnouncement, token, user?.is_eye_gaze_user]);
