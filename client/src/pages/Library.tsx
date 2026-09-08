@@ -128,6 +128,18 @@ export default function Library() {
   const [favQuizTopic, setFavQuizTopic] = useState("");
   const [favQuizError, setFavQuizError] = useState("");
   const [pendingFavBookId, setPendingFavBookId] = useState<number | null>(null);
+  const [iariseTopics, setIariseTopics] = useState<string[]>([]);
+  const [iariseBookIds, setIariseBookIds] = useState<number[]>([]);
+  const [showIariseCustomize, setShowIariseCustomize] = useState(false);
+  const [iarisePicks, setIarisePicks] = useState<string[]>([]);
+  const [iariseSearch, setIariseSearch] = useState("");
+  const [iariseError, setIariseError] = useState("");
+  const [iariseSaving, setIariseSaving] = useState(false);
+  const [iariseQuizTopic, setIariseQuizTopic] = useState("");
+  const [pendingIariseBookId, setPendingIariseBookId] = useState<number | null>(null);
+  const [showBookAction, setShowBookAction] = useState(false);
+  const [selectedBookForAction, setSelectedBookForAction] = useState<any>(null);
+  const [bookActionMsg, setBookActionMsg] = useState("");
   const [eyeGazeTopic, setEyeGazeTopic] = useState("");
   const [eyeGazeError, setEyeGazeError] = useState("");
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
@@ -331,6 +343,16 @@ export default function Library() {
                 setShowFavOnboarding(true);
                 setFavPicks(data.topics || []);
               }
+            }
+          })
+          .catch(() => {});
+        // Fetch iArise custom topics
+        fetch(`${API_BASE}/api/student/iarise-topics`, { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              setIariseTopics(data.topics || []);
+              setIariseBookIds(data.bookIds || []);
             }
           })
           .catch(() => {});
@@ -647,6 +669,160 @@ export default function Library() {
     }
   };
 
+  // --- Book action modal (ask parents / generate quiz) ---
+  const handleBookTap = (book: any) => {
+    setSelectedBookForAction(book);
+    setBookActionMsg("");
+    setShowBookAction(true);
+  };
+
+  const handleAskParents = async () => {
+    if (!selectedBookForAction) return;
+    setBookActionMsg("");
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageText: `I'd like to read "${selectedBookForAction.title}" by ${selectedBookForAction.author || "Unknown"}. Can you get this book for me?`,
+        }),
+      });
+      if (res.ok) {
+        setBookActionMsg("Request sent! Ask your parents or teacher to check their messages.");
+      } else {
+        setBookActionMsg("Failed to send request. Please try again.");
+      }
+    } catch {
+      setBookActionMsg("Failed to send request. Please try again.");
+    }
+  };
+
+  const handleGenerateQuizFromBook = async () => {
+    if (!selectedBookForAction) return;
+    const book = selectedBookForAction;
+    setShowBookAction(false);
+    // Check if quiz already exists for this book
+    const existingQuiz = sortedBooks.find(b => b.id === book.id);
+    if (existingQuiz) {
+      navigate(`/quiz/${book.id}`);
+      return;
+    }
+    // Generate quiz using the instant quiz endpoint
+    setInstantBook(book.title);
+    setInstantAuthor(book.author || "");
+    setShowGenerating(true);
+    setPendingBookId(null);
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/instant-quiz`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ bookTitle: book.title, author: book.author || "Unknown" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.bookId) setPendingBookId(data.bookId);
+        fetchBooks();
+      } else {
+        setShowGenerating(false);
+      }
+    } catch {
+      setShowGenerating(false);
+    }
+  };
+
+  // --- iArise customization handlers ---
+  const handleSaveIarise = async () => {
+    if (iarisePicks.length < 1) {
+      setIariseError("Pick at least 1 topic!");
+      return;
+    }
+    setIariseSaving(true);
+    setIariseError("");
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/student/iarise-topics`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ topics: iarisePicks }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIariseTopics(iarisePicks);
+        setShowIariseCustomize(false);
+        setIarisePicks([]);
+      } else {
+        setIariseError(data.message || "Failed to save.");
+      }
+    } catch {
+      setIariseError("Failed to save. Please try again.");
+    }
+    setIariseSaving(false);
+  };
+
+  const handleToggleIarisePick = (topic: string) => {
+    if (iarisePicks.includes(topic)) {
+      setIarisePicks(iarisePicks.filter(t => t !== topic));
+    } else {
+      if (iarisePicks.length >= 5) {
+        setIariseError("You can pick up to 5 topics.");
+        return;
+      }
+      setIarisePicks([...iarisePicks, topic]);
+      setIariseError("");
+    }
+  };
+
+  const handleAddIariseCustomPick = () => {
+    const term = iariseSearch.trim();
+    if (!term) return;
+    if (iarisePicks.some(t => t.toLowerCase() === term.toLowerCase())) {
+      setIariseError("Already picked!");
+      return;
+    }
+    if (iarisePicks.length >= 5) {
+      setIariseError("Max 5 topics.");
+      return;
+    }
+    setIarisePicks([...iarisePicks, term]);
+    setIariseSearch("");
+    setIariseError("");
+  };
+
+  const handleCreateIariseQuiz = async (topic: string) => {
+    setIariseQuizTopic(topic);
+    setShowGenerating(true);
+    setPendingIariseBookId(null);
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/student/iarise-quiz`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ topic }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.bookId) setPendingIariseBookId(data.bookId);
+        fetchBooks();
+      } else {
+        setShowGenerating(false);
+      }
+    } catch {
+      setShowGenerating(false);
+    }
+  };
+
+  const handleIariseQuizComplete = () => {
+    setShowGenerating(false);
+    setIariseQuizTopic("");
+    if (pendingIariseBookId) {
+      navigate(`/quiz/${pendingIariseBookId}`);
+    } else {
+      navigate("/library");
+    }
+  };
+
   const fetchMessages = async () => {
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
@@ -759,6 +935,17 @@ export default function Library() {
   const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
   const classReadingBooks = sortedBooks.filter(b => classReadingIds.includes(b.id));
   const favoriteBooks = sortedBooks.filter(b => favBookIds.includes(b.id));
+  const iAriseCustomBooks = sortedBooks.filter(b => iariseBookIds.includes(b.id));
+  // Match favorites to existing books on the site (by title keyword match)
+  const matchedFavBooks = favTopics.length > 0 ? sortedBooks.filter(b => {
+    const titleLower = (b.title || "").toLowerCase();
+    const authorLower = (b.author || "").toLowerCase();
+    return favTopics.some(t => {
+      const topicLower = t.toLowerCase();
+      return titleLower.includes(topicLower) || authorLower.includes(topicLower) ||
+        topicLower.includes(titleLower);
+    });
+  }).filter(b => !favBookIds.includes(b.id)) : [];
 
   // Pagination — 10 books per page
   const booksPerPage = 10;
@@ -1346,9 +1533,21 @@ export default function Library() {
           <>
             {/* iArise Section */}
             <div className="mb-10" data-tour="iarise-section">
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">iArise</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">iArise</h2>
+                </div>
+                {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => { setIarisePicks(iariseTopics); setShowIariseCustomize(true); }}
+                  >
+                    <Settings className="w-4 h-4" /> Customize
+                  </Button>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mb-4 ml-7">Read. Learn. Rise.</p>
               {iAriseBooks.length > 0 ? (
@@ -1403,6 +1602,85 @@ export default function Library() {
                     );
                   })}
                 </div>
+                {/* Show student's custom iArise generated books + create-quiz cards (always visible if student has topics) */}
+                {iariseTopics.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 ml-7">My Custom iArise Lessons</p>
+                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                      {iAriseCustomBooks.map((book) => {
+                        const result = results.find(r => r.bookId === book.id);
+                        const isDone = completedIds.has(book.id);
+                        return (
+                          <Card
+                            key={`iarise-${book.id}`}
+                            className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
+                            style={{ scrollSnapAlign: 'start' }}
+                            onClick={() => navigate(`/quiz/${book.id}`)}
+                          >
+                            <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                              {book.coverUrl ? (
+                                <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center p-4">
+                                  <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                              <div className="absolute bottom-0 left-0 right-0 p-3">
+                                <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
+                                <p className="text-white/70 text-[10px]">{book.author}</p>
+                              </div>
+                              {isDone && (
+                                <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <CardContent className="p-3">
+                              <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                                  <Trophy className="w-3 h-3" />{book.pointsValue || 2} pts
+                                </span>
+                                {result && (
+                                  <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                      {/* Create-quiz cards for each iArise topic — always visible */}
+                      {iariseTopics.map((topic) => {
+                        const hasQuiz = iAriseCustomBooks.some(b => b.title.toLowerCase() === topic.toLowerCase());
+                        return (
+                          <Card
+                            key={`iarise-topic-${topic}`}
+                            className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
+                            style={{ scrollSnapAlign: 'start' }}
+                            onClick={() => handleCreateIariseQuiz(topic)}
+                          >
+                            <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center p-4">
+                              <div className="text-center">
+                                <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
+                                <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{hasQuiz ? "Create another" : "Tap to create quiz"}</p>
+                              </div>
+                            </div>
+                            <CardContent className="p-3">
+                              <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-[10px] text-primary font-medium">{hasQuiz ? "Quiz exists" : "Ready to generate"}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {isSampleStudent && iAriseBooks.length > 5 && (
                   <div className="mt-3 text-center">
                     <Button variant="outline" size="sm" onClick={() => setIAriseExpanded(!iAriseExpanded)}>
@@ -1412,10 +1690,97 @@ export default function Library() {
                 )}
                 </>
               ) : (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
-                  <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Coming soon: quick reads about current events, hobbies, sports, and life skills.</p>
-                </div>
+                <>
+                  {iariseTopics.length > 0 ? (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
+                      <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Your custom iArise lessons are ready below. Pick a topic to generate a quiz!</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
+                      <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Coming soon: quick reads about current events, hobbies, sports, and life skills.</p>
+                    </div>
+                  )}
+                  {/* Show custom iArise section even when no iArise books exist */}
+                  {iariseTopics.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 ml-7">My Custom iArise Lessons</p>
+                      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                        {iAriseCustomBooks.map((book) => {
+                          const result = results.find(r => r.bookId === book.id);
+                          const isDone = completedIds.has(book.id);
+                          return (
+                            <Card
+                              key={`iarise-empty-${book.id}`}
+                              className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
+                              style={{ scrollSnapAlign: 'start' }}
+                              onClick={() => navigate(`/quiz/${book.id}`)}
+                            >
+                              <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                                {book.coverUrl ? (
+                                  <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center p-4">
+                                    <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                <div className="absolute bottom-0 left-0 right-0 p-3">
+                                  <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
+                                  <p className="text-white/70 text-[10px]">{book.author}</p>
+                                </div>
+                                {isDone && (
+                                  <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                              <CardContent className="p-3">
+                                <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                                    <Trophy className="w-3 h-3" />{book.pointsValue || 2} pts
+                                  </span>
+                                  {result && (
+                                    <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                        {iariseTopics.map((topic) => {
+                          const hasQuiz = iAriseCustomBooks.some(b => b.title.toLowerCase() === topic.toLowerCase());
+                          return (
+                            <Card
+                              key={`iarise-empty-topic-${topic}`}
+                              className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
+                              style={{ scrollSnapAlign: 'start' }}
+                              onClick={() => handleCreateIariseQuiz(topic)}
+                            >
+                              <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center p-4">
+                                <div className="text-center">
+                                  <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
+                                  <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">{hasQuiz ? "Create another" : "Tap to create quiz"}</p>
+                                </div>
+                              </div>
+                              <CardContent className="p-3">
+                                <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="text-[10px] text-primary font-medium">{hasQuiz ? "Quiz exists" : "Ready to generate"}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1502,7 +1867,7 @@ export default function Library() {
                 </div>
                 <p className="text-sm text-muted-foreground mb-4 ml-7">Quizzes made just for you, based on your favorite topics.</p>
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
-                  {/* Show created quiz books first */}
+                  {/* Show AI-generated quiz books for favorites */}
                   {favoriteBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
@@ -1549,25 +1914,95 @@ export default function Library() {
                       </Card>
                     );
                   })}
-                  {/* Show topic cards that don't have quizzes yet */}
-                  {favTopics.filter(t => !favoriteBooks.some(b => b.title.toLowerCase() === t.toLowerCase())).map((topic) => (
-                    <Card
-                      key={topic}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
+                  {/* Show existing site books that match favorite topics — tap for options */}
+                  {matchedFavBooks.map((book) => {
+                    const result = results.find(r => r.bookId === book.id);
+                    const isDone = completedIds.has(book.id);
+                    return (
+                      <Card
+                        key={`match-${book.id}`}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
                         style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => handleCreateFavQuiz(topic)}
+                        onClick={() => handleBookTap(book)}
                       >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-4">
+                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
+                            <p className="text-white/70 text-[10px]">{book.author}</p>
+                          </div>
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
+                            {result && (
+                              <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {/* Show create-quiz cards for topics with no matching books on the site */}
+                  {favTopics.filter(t => !matchedFavBooks.some(b => b.title.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(b.title.toLowerCase())) && !favoriteBooks.some(b => b.title.toLowerCase() === t.toLowerCase())).map((topic) => (
+                    <Card
+                      key={`create-${topic}`}
+                      className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
+                      style={{ scrollSnapAlign: 'start' }}
+                      onClick={() => handleCreateFavQuiz(topic)}
+                    >
                       <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center p-4">
                         <div className="text-center">
                           <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
                           <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Tap to create quiz</p>
+                          <p className="text-xs text-muted-foreground mt-1">No books yet — tap to generate quiz</p>
                         </div>
                       </div>
                       <CardContent className="p-3">
                         <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <span className="text-[10px] text-primary font-medium">Ready to generate</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {/* Show generate-more cards for topics that already have quizzes */}
+                  {favTopics.filter(t => favoriteBooks.some(b => b.title.toLowerCase() === t.toLowerCase())).map((topic) => (
+                    <Card
+                      key={`more-${topic}`}
+                      className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] border-2 border-dashed border-primary/30"
+                      style={{ scrollSnapAlign: 'start' }}
+                      onClick={() => handleCreateFavQuiz(topic)}
+                    >
+                      <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center p-4">
+                        <div className="text-center">
+                          <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
+                          <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Create another quiz</p>
+                        </div>
+                      </div>
+                      <CardContent className="p-3">
+                        <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[10px] text-primary font-medium">Quiz exists — make more</span>
                         </div>
                       </CardContent>
                     </Card>
@@ -2017,8 +2452,8 @@ export default function Library() {
         <QuizGeneratingOverlay
           bookTitle={showEyeGazeInstant ? eyeGazeTopic : showFavOnboarding ? "" : favQuizTopic || instantBook}
           author={showEyeGazeInstant ? "" : showFavOnboarding ? "" : instantAuthor}
-          ready={showEyeGazeInstant ? !!pendingEyeGazeQuizId : !!pendingFavBookId || !!pendingBookId}
-          onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : pendingFavBookId ? handleFavQuizComplete : handleGeneratingComplete}
+          ready={showEyeGazeInstant ? !!pendingEyeGazeQuizId : pendingIariseBookId ? !!pendingIariseBookId : pendingFavBookId ? !!pendingFavBookId : !!pendingBookId}
+          onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : pendingIariseBookId ? handleIariseQuizComplete : pendingFavBookId ? handleFavQuizComplete : handleGeneratingComplete}
           isEyeGaze={showEyeGazeInstant}
         />
       )}
@@ -2169,6 +2604,117 @@ export default function Library() {
               <Button onClick={handleDisclaimerProceed} className="w-full" size="lg">
                 I Understand — Start Quiz
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Book Action Modal — Ask parents / Generate quiz */}
+      {showBookAction && selectedBookForAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <Card className="w-full max-w-md shadow-xl">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-foreground">{selectedBookForAction.title}</h3>
+                  <p className="text-sm text-muted-foreground">by {selectedBookForAction.author || "Unknown"}</p>
+                </div>
+                <button onClick={() => { setShowBookAction(false); setBookActionMsg(""); }} className="text-muted-foreground hover:text-foreground">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              {selectedBookForAction.coverUrl && (
+                <img src={selectedBookForAction.coverUrl} alt={selectedBookForAction.title} className="w-32 h-48 object-cover mx-auto rounded-lg mb-4" />
+              )}
+              {bookActionMsg ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-emerald-600 font-medium text-center">{bookActionMsg}</p>
+                  <Button onClick={() => { setShowBookAction(false); setBookActionMsg(""); }} className="w-full" variant="outline">Close</Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Button onClick={handleAskParents} className="w-full" variant="outline">
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    Ask Parents for This Book
+                  </Button>
+                  <Button onClick={handleGenerateQuizFromBook} className="w-full">
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    I've Read This Book — Generate Quiz
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* iArise Customize Modal */}
+      {showIariseCustomize && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
+          <Card className="w-full max-w-lg shadow-xl my-8">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h3 className="font-bold text-lg text-foreground">Customize Your iArise Lessons</h3>
+                </div>
+                <button onClick={() => setShowIariseCustomize(false)} className="text-muted-foreground hover:text-foreground">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Pick 1 to 5 topics you want iArise lessons about. Search or pick from suggestions.</p>
+
+              {/* Search bar */}
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  placeholder="Search iArise topics..."
+                  value={iariseSearch}
+                  onChange={(e) => setIariseSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddIariseCustomPick(); } }}
+                  className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                />
+                <Button size="sm" onClick={handleAddIariseCustomPick} disabled={!iariseSearch.trim() || iarisePicks.length >= 5}>Add</Button>
+              </div>
+
+              {/* Selected picks */}
+              {iarisePicks.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {iarisePicks.map((pick, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary text-primary-foreground font-medium">
+                      {pick}
+                      <button onClick={() => handleToggleIarisePick(pick)} className="hover:text-primary-foreground/70">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Suggestions */}
+              <div className="mb-4">
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Suggestions:</p>
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTED_TOPICS.filter(t => !iarisePicks.includes(t)).slice(0, 12).map((topic) => (
+                    <button
+                      key={topic}
+                      onClick={() => handleToggleIarisePick(topic)}
+                      className="px-3 py-1.5 rounded-full text-sm bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                    >
+                      {topic}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {iariseError && <p className="text-sm text-destructive mb-3">{iariseError}</p>}
+
+              <div className="flex gap-2">
+                <Button onClick={handleSaveIarise} disabled={iarisePicks.length < 1 || iariseSaving} className="flex-1">
+                  {iariseSaving ? "Saving..." : "Save My iArise Topics"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowIariseCustomize(false)}>Cancel</Button>
+              </div>
             </CardContent>
           </Card>
         </div>
