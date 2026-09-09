@@ -342,7 +342,7 @@ export default function Competition() {
                                   </div>
                                   {isLeader && (
                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/30 text-yellow-300 whitespace-nowrap">
-                                      {settings.monthlyPrize.toUpperCase()}
+                                      CURRENT LEADER
                                     </span>
                                   )}
                                 </div>
