@@ -4756,7 +4756,7 @@ export async function registerRoutes(
         { table: "quiz_review_requests", column: "user_id" },
         { table: "messages", column: "sender_id" },
         { table: "messages", column: "recipient_id" },
-        { table: "quiz_requests", column: "student_id" },
+        { table: "quiz_requests", column: "user_id" },
         { table: "parent_student_links", column: "student_id" },
         { table: "parent_student_links", column: "parent_id" },
         { table: "custom_quizzes", column: "creator_id" },
