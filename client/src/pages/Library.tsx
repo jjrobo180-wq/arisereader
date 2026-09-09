@@ -1696,14 +1696,10 @@ export default function Library() {
                   <h2 className="text-lg font-bold text-foreground">iArise</h2>
                 </div>
                 {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
+                  <button
                     onClick={() => { setIarisePicks(iariseTopics); setShowIariseCustomize(true); }}
-                  >
-                    <Settings className="w-4 h-4" /> Customize
-                  </Button>
+                    className="ml-auto text-xs text-primary hover:underline font-medium"
+                  >Customize</button>
                 )}
               </div>
               <p className="text-sm text-muted-foreground mb-4 ml-7">Read. Learn. Rise.</p>
@@ -1823,13 +1819,13 @@ export default function Library() {
                               <div className="text-center">
                                 <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
                                 <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{hasQuiz ? "Create another" : "Tap to create quiz"}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{hasQuiz ? "Create another" : "Tap to create lesson"}</p>
                               </div>
                             </div>
                             <CardContent className="p-3">
                               <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
                               <div className="flex items-center gap-2 mt-2">
-                                <span className="text-[10px] text-primary font-medium">{hasQuiz ? "Quiz exists" : "Ready to generate"}</span>
+                                <span className="text-[10px] text-primary font-medium">{hasQuiz ? "Lesson exists" : "Ready to generate"}</span>
                               </div>
                             </CardContent>
                           </Card>
@@ -1851,7 +1847,7 @@ export default function Library() {
                   {iariseTopics.length > 0 ? (
                     <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
                       <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Your custom iArise lessons are ready below. Pick a topic to generate a quiz!</p>
+                      <p className="text-sm text-muted-foreground">Your custom iArise lessons are ready below. Pick a topic to generate a lesson!</p>
                     </div>
                   ) : (
                     <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
@@ -1922,13 +1918,13 @@ export default function Library() {
                                 <div className="text-center">
                                   <PlusCircle className="w-8 h-8 text-primary mx-auto mb-2" />
                                   <p className="text-sm font-bold text-foreground line-clamp-2">{topic}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">{hasQuiz ? "Create another" : "Tap to create quiz"}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">{hasQuiz ? "Create another" : "Tap to create lesson"}</p>
                                 </div>
                               </div>
                               <CardContent className="p-3">
                                 <p className="text-sm font-semibold text-foreground line-clamp-1">{topic}</p>
                                 <div className="flex items-center gap-2 mt-2">
-                                  <span className="text-[10px] text-primary font-medium">{hasQuiz ? "Quiz exists" : "Ready to generate"}</span>
+                                  <span className="text-[10px] text-primary font-medium">{hasQuiz ? "Lesson exists" : "Ready to generate"}</span>
                                 </div>
                               </CardContent>
                             </Card>
