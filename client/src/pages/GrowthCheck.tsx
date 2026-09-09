@@ -6,6 +6,7 @@ import { BrandText } from "@/components/BrandText";
 import { Textarea } from "@/components/ui/textarea";
 import {
   BookOpen,
+  Brain,
   Target,
   TrendingUp,
   ChevronRight,
@@ -21,6 +22,23 @@ import {
   Calendar,
   Info,
 } from "lucide-react";
+
+// ─── Auth helpers ─────────────────────────────────────────────────────
+const SESSION_COOKIE = "arise_session";
+function getTokenFromCookie(): string | null {
+  try {
+    const cookies = document.cookie.split(";");
+    for (const c of cookies) {
+      const trimmed = c.trim();
+      if (trimmed.startsWith(SESSION_COOKIE + "=")) {
+        const raw = trimmed.substring(SESSION_COOKIE.length + 1);
+        const data = JSON.parse(atob(raw));
+        return data.token || null;
+      }
+    }
+  } catch {}
+  return null;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -261,7 +279,8 @@ function ScoreGauge({ score }: { score: number }) {
 // ─── Main Component ───────────────────────────────────────────────────
 
 export default function GrowthCheck() {
-  const { token, user } = useAuth();
+  const { token: authToken, user } = useAuth();
+  const token = authToken || getTokenFromCookie();
   const [, navigate] = useLocation();
 
   const [phase, setPhase] = useState<Phase>("loading");
