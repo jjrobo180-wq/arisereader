@@ -882,7 +882,7 @@ export default function Library() {
     setShowGenerating(false);
     setIariseQuizTopic("");
     if (pendingIariseBookId) {
-      navigate(`/quiz/${pendingIariseBookId}`);
+      navigate(`/course/${pendingIariseBookId}`);
     } else {
       navigate("/library");
     }
@@ -1768,7 +1768,7 @@ export default function Library() {
                             key={`iarise-${book.id}`}
                             className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
                             style={{ scrollSnapAlign: 'start' }}
-                            onClick={() => navigate(`/quiz/${book.id}`)}
+                            onClick={() => navigate(`/course/${book.id}`)}
                           >
                             <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                               {book.coverUrl ? (
@@ -1800,6 +1800,11 @@ export default function Library() {
                                 {result && (
                                   <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
                                 )}
+                              </div>
+                              <div className="mt-2">
+                                <Button size="sm" variant="default" className="h-7 text-xs w-full">
+                                  <BookOpen className="w-3 h-3 mr-1" />Start Course
+                                </Button>
                               </div>
                             </CardContent>
                           </Card>
@@ -1868,7 +1873,7 @@ export default function Library() {
                               key={`iarise-empty-${book.id}`}
                               className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
                               style={{ scrollSnapAlign: 'start' }}
-                              onClick={() => navigate(`/quiz/${book.id}`)}
+                              onClick={() => navigate(`/course/${book.id}`)}
                             >
                               <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                                 {book.coverUrl ? (
@@ -1900,6 +1905,11 @@ export default function Library() {
                                   {result && (
                                     <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
                                   )}
+                                </div>
+                                <div className="mt-2">
+                                  <Button size="sm" variant="default" className="h-7 text-xs w-full">
+                                    <BookOpen className="w-3 h-3 mr-1" />Start Course
+                                  </Button>
                                 </div>
                               </CardContent>
                             </Card>

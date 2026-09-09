@@ -175,6 +175,75 @@ Rules:
   }
 }
 
+// Generate iArise lesson content via AI — short readable lessons for students
+async function generateIariseLessonContent(topic: string, ageGroup: string): Promise<{ title: string; lessons: Array<{ title: string; content: string }> } | { error: string }> {
+  const apiKey = await getPerplexityApiKey();
+  if (!apiKey) {
+    return { error: "AI lesson generation is not configured." };
+  }
+  try {
+    const prompt = `You are an expert educator creating lesson content for students. Create a short lesson series about "${topic}" for ${ageGroup} students.
+
+Create 3 short lessons. Each lesson should be age-appropriate, engaging, and educational.
+
+Return ONLY a JSON object (no markdown, no code blocks, no explanation) with this exact format:
+{"title":"${topic} — iArise Lesson","lessons":[{"title":"Lesson 1 Title","content":"2-3 paragraphs of lesson content. Use \n between paragraphs. Include a Key takeaway: line at the end."},{"title":"Lesson 2 Title","content":"..."},{"title":"Lesson 3 Title","content":"..."}]}
+
+Rules:
+- Content should be appropriate for ${ageGroup} reading level
+- Each lesson should be 2-3 short paragraphs
+- Include real educational content — facts, explanations, examples
+- End each lesson with a "Key takeaway:" line
+- Keep it engaging and easy to read`;
+
+    const res = await fetch(PERPLEXITY_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          { role: "system", content: "You are a lesson content generator. Return ONLY valid JSON, no markdown or explanation." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!res.ok) {
+      return { error: `AI API error ${res.status}` };
+    }
+
+    const data = await res.json() as any;
+    const content = data.choices?.[0]?.message?.content || "";
+    if (!content) {
+      return { error: "AI returned empty response" };
+    }
+
+    let jsonStr = content.trim();
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed.lessons || !Array.isArray(parsed.lessons) || parsed.lessons.length === 0) {
+      return { error: "AI generated invalid lesson content" };
+    }
+
+    return {
+      title: parsed.title || `${topic} — iArise Lesson`,
+      lessons: parsed.lessons.map((l: any) => ({
+        title: l.title || "Lesson",
+        content: l.content || "",
+      })),
+    };
+  } catch (e: any) {
+    return { error: `AI lesson generation failed: ${e.message}` };
+  }
+}
+
 // Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
 async function generateEyeGazeQuizWithAI(topic: string): Promise<{ questions: Array<{ prompt: string; visual: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
@@ -2931,6 +3000,18 @@ export async function registerRoutes(
         pointsValue: result.pointsValue || 2,
         readUrl: null,
       }, result.questions);
+
+      // Generate and store lesson content for the course page
+      const lessonResult = await generateIariseLessonContent(cleanTopic, ageGroup);
+      if (!("error" in lessonResult)) {
+        try {
+          const rawCourses = await storage.getSetting('iarise_course_content');
+          let courses: any = {};
+          if (rawCourses) { try { courses = JSON.parse(rawCourses); } catch {} }
+          courses[String(book.id)] = lessonResult;
+          await storage.upsertSetting('iarise_course_content', JSON.stringify(courses));
+        } catch {}
+      }
 
       // Assign grade band
       try {
