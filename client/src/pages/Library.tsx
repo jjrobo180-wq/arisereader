@@ -1115,6 +1115,10 @@ export default function Library() {
                 <Trophy className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
                 <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>Competition</span>
               </button>
+              <button onClick={() => navigate("/reading-club")} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
+                <GraduationCap className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
+                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>Reading Club</span>
+              </button>
             </div>
             {/* More dropdown - works on both desktop and mobile */}
             <div className="relative" ref={(el) => { mobileMenuRef.current = el; }}>
@@ -1150,6 +1154,9 @@ export default function Library() {
                   </button>
                   <button onClick={() => { navigate("/competition"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
                     <Gift className="w-4 h-4" /> Competition
+                  </button>
+                  <button onClick={() => { navigate("/reading-club"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                    <GraduationCap className="w-4 h-4" /> Reading Club
                   </button>
                   <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" /> Polls
