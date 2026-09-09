@@ -2096,14 +2096,14 @@ export class DatabaseStorage implements IStorage {
     return { id: quizId, title, description, level };
   }
 
-  async deleteCustomEyeGazeQuiz(quizId: number, userId: number): Promise<void> {
+  async deleteCustomEyeGazeQuiz(quizId: number, userId: number, isAdmin: boolean = false): Promise<void> {
     const { data: quiz, error: quizErr } = await supabase
       .from("custom_eye_gaze_quizzes")
       .select("creator_user_id")
       .eq("id", quizId)
       .single();
     if (quizErr) throw new Error("Quiz not found");
-    if (quiz.creator_user_id !== userId) throw new Error("Not authorized to delete this quiz");
+    if (!isAdmin && quiz.creator_user_id !== userId) throw new Error("Not authorized to delete this quiz");
     const { error } = await supabase
       .from("custom_eye_gaze_quizzes")
       .delete()

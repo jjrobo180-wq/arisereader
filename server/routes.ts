@@ -5088,10 +5088,11 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/custom-quizzes/:id", authMiddleware, async (req, res) => {
+  app.delete("/api/custom-quizzes/:id", authMiddleware, async (req: any, res) => {
     try {
       const quizId = parseInt(req.params.id);
-      await storage.deleteCustomEyeGazeQuiz(quizId, req.user.id);
+      const isAdmin = req.user.isAdmin || req.user.role === 'admin';
+      await storage.deleteCustomEyeGazeQuiz(quizId, req.user.id, isAdmin);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
