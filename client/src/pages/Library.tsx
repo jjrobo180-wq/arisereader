@@ -18,6 +18,9 @@ import BookAccessLinks from "@/components/BookAccessLinks";
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
 
+// Hispanic Heritage Month book IDs
+const HISPANIC_HERITAGE_BOOK_IDS = [856, 857, 858, 859, 860]; // Too Many Tamales, Round Is a Tortilla, Esperanza Rising, The Dreamer, The House on Mango Street
+
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -997,7 +1000,8 @@ export default function Library() {
   // For sample student, limit iArise to 5 books unless expanded
   const displayedIAriseBooks = isSampleStudent && !iAriseExpanded ? iAriseBooks.slice(0, 5) : iAriseBooks;
   const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
+  const hispanicHeritageBooks = sortedBooks.filter(b => HISPANIC_HERITAGE_BOOK_IDS.includes(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id) && !HISPANIC_HERITAGE_BOOK_IDS.includes(b.id));
   const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
   const classReadingBooks = sortedBooks.filter(b => classReadingIds.includes(b.id));
   const favoriteBooks = sortedBooks.filter(b => favBookIds.includes(b.id));
@@ -1011,7 +1015,7 @@ export default function Library() {
       return titleLower.includes(topicLower) || authorLower.includes(topicLower) ||
         topicLower.includes(titleLower);
     });
-  }).filter(b => !favBookIds.includes(b.id)) : [];
+  }).filter(b => !favBookIds.includes(b.id) && !HISPANIC_HERITAGE_BOOK_IDS.includes(b.id)) : [];
 
   // Pagination — 10 books per page
   const booksPerPage = 10;
@@ -2125,6 +2129,95 @@ export default function Library() {
                           </div>
                           <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
                         </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Hispanic Heritage Month Section */}
+            {hispanicHeritageBooks.length > 0 && (!showEyeGaze || isSampleStudent || user?.isAdmin) && (
+              <div className="mb-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-5 h-5 text-orange-500" />
+                  <h2 className="text-lg font-bold text-foreground">Hispanic Heritage Month</h2>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{hispanicHeritageBooks.length} quizzes</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Celebrate Hispanic Heritage Month with these amazing books by Latino authors.</p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                  {hispanicHeritageBooks.map((book) => {
+                    const result = results.find(r => r.bookId === book.id);
+                    const isDone = completedIds.has(book.id);
+                    return (
+                      <Card
+                        key={book.id}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px]"
+                        style={{ scrollSnapAlign: 'start' }}
+                        onClick={() => navigate(`/quiz/${book.id}`)}
+                        data-testid={`card-book-${book.id}`}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
+                              <span className="font-bold text-sm">{book.title}</span>
+                            </div>
+                          )}
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">✓ Done</div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
+                          <div className="mt-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                              book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
+                              book.pointsValue === 20 ? "bg-primary/20 text-primary" :
+                              book.pointsValue === 30 ? "bg-red-500/20 text-red-400" :
+                              "bg-muted text-muted-foreground"
+                            }`}>
+                              <Trophy className="w-3 h-3" />
+                              {book.pointsValue || 10} pts
+                            </span>
+                          </div>
+                          {result && (
+                            <p className="text-xs text-primary font-semibold mt-1">
+                              {result.score}/{result.total} correct
+                            </p>
+                          )}
+                          <div className="flex gap-1.5 mt-2">
+                            {book.readUrl && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/read/${book.id}`);
+                                }}
+                              >
+                                <BookOpen className="w-3 h-3 mr-1" />
+                                Read
+                              </Button>
+                            )}
+                            {!(user?.role === 'teacher' || user?.isAdmin) && (
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/quiz/${book.id}`);
+                                }}
+                              >
+                                Quiz
+                              </Button>
+                            )}
+                          </div>
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                        </div>
                       </Card>
                     );
                   })}
