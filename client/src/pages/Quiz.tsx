@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, Lock, KeyRound, FileSearch, Sparkles, Volume2, Square } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
+import BookAccessLinks from "@/components/BookAccessLinks";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -28,6 +29,8 @@ interface Book {
   coverUrl: string | null;
   description: string;
   ageGroup: string;
+  readUrl?: string | null;
+  pointsValue?: number;
 }
 
 export default function Quiz() {
@@ -557,6 +560,7 @@ export default function Quiz() {
               <BookOpen className="w-3 h-3" />
               {questions.length} questions
             </div>
+            <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} />
           </div>
         </div>
 

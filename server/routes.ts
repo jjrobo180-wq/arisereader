@@ -3092,6 +3092,26 @@ export async function registerRoutes(
     res.status(201).json({ message: "Quiz request submitted! Your teacher will create it soon." });
   });
 
+  // Student: request Learning Ally / Clever access for a book
+  app.post("/api/books/request-learning-ally", authMiddleware, async (req: any, res) => {
+    try {
+      const { bookTitle, author } = req.body;
+      if (!bookTitle) return res.status(400).json({ message: "Book title is required" });
+      const adminUser = await storage.getUserByUsername("admin");
+      if (adminUser) {
+        await storage.createMessage(
+          adminUser.id,
+          "student",
+          `${req.user.displayName} requested Learning Ally / Clever access for "${bookTitle}"${author ? ` by ${author}` : ""}. Please add it to Clever so they can read it.`,
+          null
+        );
+      }
+      res.status(201).json({ message: "Request sent! We'll add it to Clever soon." });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Admin: get quiz requests
   app.get("/api/admin/quiz-requests", authMiddleware, adminMiddleware, async (_req, res) => {
     const requests = await storage.getQuizRequests();

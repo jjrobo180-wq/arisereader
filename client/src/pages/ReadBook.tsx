@@ -5,6 +5,7 @@ import { useLocation, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, ArrowLeft, Download, HelpCircle, Info } from "lucide-react";
+import BookAccessLinks from "@/components/BookAccessLinks";
 
 interface Book {
   id: number;
@@ -125,6 +126,7 @@ export default function ReadBook() {
                   <BookOpen className="w-4 h-4" />
                   {book?.pointsValue || 10} pts
                 </div>
+                <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} />
               </div>
             </div>
           </CardContent>

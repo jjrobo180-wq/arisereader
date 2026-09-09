@@ -13,6 +13,7 @@ import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
+import BookAccessLinks from "@/components/BookAccessLinks";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -2008,6 +2009,7 @@ export default function Library() {
                               <span className="text-[10px] text-muted-foreground ml-auto">{score}/{total}</span>
                             )}
                           </div>
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
                         </CardContent>
                       </Card>
                     );
@@ -2114,6 +2116,7 @@ export default function Library() {
                               <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
                             )}
                           </div>
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
                         </CardContent>
                       </Card>
                     );
@@ -2174,6 +2177,7 @@ export default function Library() {
                               <BookOpen className="w-3 h-3 mr-1" />Take Quiz
                             </Button>
                           </div>
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
                         </div>
                       </Card>
                     );
@@ -2270,6 +2274,7 @@ export default function Library() {
                             </Button>
                             )}
                           </div>
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
                         </div>
                       </Card>
                     );
@@ -2364,6 +2369,7 @@ export default function Library() {
                             {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
                           </Button>
                         </div>
+                        <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
                       </div>
                     </Card>
                   );
