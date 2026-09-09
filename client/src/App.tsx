@@ -41,6 +41,7 @@ import Competition from "./pages/Competition";
 import Polls from "./pages/Polls";
 import CoursePage from "./pages/CoursePage";
 import ReadingAssessment from "./pages/ReadingAssessment";
+import GrowthCheck from "./pages/GrowthCheck";
 import EyeGazeQuiz from "./pages/EyeGazeQuiz";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
@@ -233,7 +234,7 @@ function AppRoutes() {
         <ProtectedRoute><Admin /></ProtectedRoute>
       </Route>
       <Route path="/progress">
-        <ProtectedRoute><ReadingAssessment /></ProtectedRoute>
+        <ProtectedRoute><GrowthCheck /></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-quiz/:id">
         <ProtectedRoute><EyeGazeQuiz /></ProtectedRoute>

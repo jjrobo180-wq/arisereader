@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Trophy, BookOpen, Award, LogOut } from "lucide-react";
+import { ArrowLeft, Trophy, BookOpen, Award, LogOut, Brain } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 
 const SESSION_COOKIE = "arise_session";
@@ -50,6 +50,7 @@ export default function ParentDashboard() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [growthCheck, setGrowthCheck] = useState<any>(null);
 
   useEffect(() => {
     const authToken = token || getTokenFromCookie();
@@ -61,7 +62,18 @@ export default function ParentDashboard() {
         if (!res.ok) throw new Error("Failed to load student profile");
         return res.json();
       })
-      .then(d => setData(d))
+      .then(d => {
+        setData(d);
+        // Fetch growth check results for this student
+        if (d?.student?.id) {
+          fetch(`${API_BASE}/api/family/growth-check/student/${d.student.id}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+            .then(r => r.ok ? r.json() : null)
+            .then(gc => { if (gc?.available) setGrowthCheck(gc); })
+            .catch(() => {});
+        }
+      })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, [token]);
@@ -230,6 +242,52 @@ export default function ParentDashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Growth Check Results */}
+        {growthCheck && (
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="w-5 h-5" />
+                Arise Reading Growth Check
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6 mb-4">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-primary">{growthCheck.latest?.arise_reading_score}</div>
+                  <div className="text-xs text-muted-foreground">Arise Reading Score</div>
+                </div>
+                {growthCheck.scoreChange !== 0 && (
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${growthCheck.scoreChange > 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                      {growthCheck.scoreChange > 0 ? '+' : ''}{growthCheck.scoreChange}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Change</div>
+                  </div>
+                )}
+              </div>
+              {growthCheck.latest?.student_summary && (
+                <p className="text-sm text-muted-foreground mb-3">{growthCheck.latest.student_summary}</p>
+              )}
+              {growthCheck.skillSummary && Array.isArray(growthCheck.skillSummary) && growthCheck.skillSummary.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {growthCheck.skillSummary.map((s: any, i: number) => (
+                    <span key={i} className="text-xs px-2 py-1 rounded font-medium" style={{
+                      background: s.level === 'strength' ? 'rgba(34,197,94,0.2)' : s.level === 'developing' ? 'rgba(59,130,246,0.2)' : s.level === 'practice' ? 'rgba(249,115,22,0.2)' : 'rgba(107,114,128,0.2)',
+                      color: s.level === 'strength' ? '#4ade80' : s.level === 'developing' ? '#60a5fa' : s.level === 'practice' ? '#fb923c' : '#9ca3af',
+                    }}>
+                      {s.skillName}: {s.correct}/{s.total}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-3 italic">
+                The Arise Reading Score is a snapshot of reading skills, not a grade. It helps teachers support your child's reading growth.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

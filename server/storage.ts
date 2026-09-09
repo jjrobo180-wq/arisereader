@@ -2539,6 +2539,271 @@ export class DatabaseStorage implements IStorage {
     if (['9', '10', '11', '12'].includes(g)) return '9-12';
     return 'K-2';
   }
+
+  // ===================== GROWTH CHECK METHODS =====================
+
+  async getActiveGrowthCheckWindow(): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_windows')
+      .select('*')
+      .eq('is_active', true)
+      .single();
+    if (error) return null;
+    return data;
+  }
+
+  async getGrowthCheckForm(gradeBand: string, windowId: number): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_forms')
+      .select('*')
+      .eq('grade_band', gradeBand)
+      .eq('window_id', windowId)
+      .eq('is_active', true)
+      .single();
+    if (error) return null;
+    return data;
+  }
+
+  async getGrowthCheckFormById(formId: number): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_forms')
+      .select('*')
+      .eq('id', formId)
+      .single();
+    if (error) return null;
+    return data;
+  }
+
+  async getGrowthCheckPassages(formId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_passages')
+      .select('*')
+      .eq('form_id', formId)
+      .order('order_index', { ascending: true });
+    if (error || !data) return [];
+    return data;
+  }
+
+  async getGrowthCheckItems(formId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_items')
+      .select('*')
+      .eq('form_id', formId)
+      .order('order_index', { ascending: true });
+    if (error || !data) return [];
+    return data;
+  }
+
+  async getOrCreateGrowthCheckAttempt(studentId: number, formId: number, windowId: number): Promise<any> {
+    // Check for existing attempt
+    const { data: existing } = await supabase
+      .from('growth_check_attempts')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('form_id', formId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (existing) return existing;
+
+    // Create new attempt
+    const { data, error } = await supabase
+      .from('growth_check_attempts')
+      .insert({
+        student_id: studentId,
+        form_id: formId,
+        window_id: windowId,
+        status: 'not_started',
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async startGrowthCheckAttempt(attemptId: number): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_attempts')
+      .update({
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+      })
+      .eq('id', attemptId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async saveGrowthCheckResponse(attemptId: number, itemId: number, response: any, isCorrect: boolean | null, pointsEarned: number, needsReview: boolean): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_responses')
+      .insert({
+        attempt_id: attemptId,
+        item_id: itemId,
+        response_json: response,
+        is_correct: isCorrect,
+        points_earned: pointsEarned,
+        needs_review: needsReview,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async getGrowthCheckResponses(attemptId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_responses')
+      .select('*')
+      .eq('attempt_id', attemptId);
+    if (error || !data) return [];
+    return data;
+  }
+
+  async submitGrowthCheckAttempt(attemptId: number, rawScore: number, maxScore: number, ariseScore: number, skillSummary: any, studentSummary: string, nextSteps: any[]): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_attempts')
+      .update({
+        status: 'completed',
+        submitted_at: new Date().toISOString(),
+        raw_score: rawScore,
+        max_score: maxScore,
+        arise_reading_score: ariseScore,
+        skill_summary_json: skillSummary,
+        student_summary: studentSummary,
+        next_steps_json: nextSteps,
+      })
+      .eq('id', attemptId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async getStudentGrowthCheckHistory(studentId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_attempts')
+      .select('*, growth_check_forms(grade_band, title, pilot_label), growth_check_windows(window_name, school_year)')
+      .eq('student_id', studentId)
+      .eq('status', 'completed')
+      .order('submitted_at', { ascending: true });
+    if (error || !data) return [];
+    return data;
+  }
+
+  async getLatestGrowthCheckAttempt(studentId: number): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_attempts')
+      .select('*, growth_check_forms(grade_band, title, pilot_label)')
+      .eq('student_id', studentId)
+      .eq('status', 'completed')
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (error) return null;
+    return data;
+  }
+
+  async getAllGrowthCheckAttempts(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_attempts')
+      .select('*, users!inner(username, display_name), growth_check_forms(grade_band, title), growth_check_windows(window_name, school_year)')
+      .eq('status', 'completed')
+      .order('submitted_at', { ascending: false });
+    if (error || !data) return [];
+    return data;
+  }
+
+  async assignGrowthCheck(studentId: number, teacherId: number, formId: number, windowId: number, dueAt?: string): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_assignments')
+      .insert({
+        student_id: studentId,
+        teacher_id: teacherId,
+        form_id: formId,
+        window_id: windowId,
+        status: 'assigned',
+        due_at: dueAt || null,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async getGrowthCheckAssignments(studentId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_assignments')
+      .select('*, growth_check_forms(grade_band, title), growth_check_windows(window_name, school_year)')
+      .eq('student_id', studentId)
+      .order('assigned_at', { ascending: false });
+    if (error || !data) return [];
+    return data;
+  }
+
+  async getAllGrowthCheckForms(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_forms')
+      .select('*')
+      .order('grade_band', { ascending: true });
+    if (error || !data) return [];
+    return data;
+  }
+
+  async getAllGrowthCheckWindows(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('growth_check_windows')
+      .select('*')
+      .order('start_date', { ascending: true });
+    if (error || !data) return [];
+    return data;
+  }
+
+  async upsertGrowthCheckWindow(schoolYear: string, windowName: string, startDate: string, endDate: string, isActive: boolean): Promise<any> {
+    const { data, error } = await supabase
+      .from('growth_check_windows')
+      .upsert({
+        school_year: schoolYear,
+        window_name: windowName,
+        start_date: startDate,
+        end_date: endDate,
+        is_active: isActive,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async getStudentGrowthCheckSummary(studentId: number): Promise<any> {
+    const attempts = await this.getStudentGrowthCheckHistory(studentId);
+    if (attempts.length === 0) return null;
+
+    const latest = attempts[attempts.length - 1];
+    const previous = attempts.length > 1 ? attempts[attempts.length - 2] : null;
+    const scoreChange = previous ? latest.arise_reading_score - previous.arise_reading_score : 0;
+
+    // Get quiz accuracy trend
+    const { data: quizAttempts } = await supabase
+      .from('attempts')
+      .select('score, total, created_at')
+      .eq('user_id', studentId)
+      .order('created_at', { ascending: true });
+    const quizAccuracy = quizAttempts && quizAttempts.length > 0
+      ? Math.round((quizAttempts.reduce((sum: number, a: any) => sum + (a.score / a.total), 0) / quizAttempts.length) * 100)
+      : 0;
+
+    return {
+      latest,
+      previous,
+      scoreChange,
+      skillSummary: latest.skill_summary_json || {},
+      quizAccuracy,
+      totalAttempts: attempts.length,
+      allAttempts: attempts,
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();

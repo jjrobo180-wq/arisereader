@@ -1151,7 +1151,7 @@ export default function Library() {
                     </button>
                   ) : null}
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <Brain className="w-4 h-4" /> Progress
+                    <Brain className="w-4 h-4" /> Growth Check
                   </button>
                   <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Trophy className="w-4 h-4" /> Leaderboard

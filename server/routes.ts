@@ -6112,5 +6112,331 @@ export async function registerRoutes(
     console.error("Failed to fetch missing covers:", (e as Error).message);
   }
 
+  // ===================== GROWTH CHECK ROUTES =====================
+
+  // Student: Get current growth check status
+  app.get("/api/growth-check/current", authMiddleware, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (user.role !== 'student') return res.status(403).json({ error: "Only students can take growth checks" });
+
+      const window = await storage.getActiveGrowthCheckWindow();
+      if (!window) return res.json({ available: false, message: "No active benchmark window" });
+
+      const gradeBand = gradeToBand(user.grade || '3') || 'K-2';
+      const form = await storage.getGrowthCheckForm(gradeBand, window.id);
+      if (!form) return res.json({ available: false, message: `No form available for grade band ${gradeBand}` });
+
+      const attempt = await storage.getOrCreateGrowthCheckAttempt(userId, form.id, window.id);
+      const passages = await storage.getGrowthCheckPassages(form.id);
+      const items = await storage.getGrowthCheckItems(form.id);
+      const responses = await storage.getGrowthCheckResponses(attempt.id);
+
+      // Group items by passage
+      const passagesWithItems = passages.map((p: any) => ({
+        ...p,
+        items: items.filter((i: any) => i.passage_id === p.id),
+      }));
+
+      res.json({
+        available: true,
+        window,
+        form: { ...form, passages: passagesWithItems },
+        attempt,
+        responses: responses.reduce((acc: any, r: any) => ({ ...acc, [r.item_id]: r }), {}),
+      });
+    } catch (e) {
+      console.error("Get growth check current error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Student: Start growth check attempt
+  app.post("/api/growth-check/start", authMiddleware, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const window = await storage.getActiveGrowthCheckWindow();
+      if (!window) return res.status(400).json({ error: "No active benchmark window" });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const gradeBand = gradeToBand(user.grade || '3') || 'K-2';
+      const form = await storage.getGrowthCheckForm(gradeBand, window.id);
+      if (!form) return res.status(400).json({ error: "No form available for your grade band" });
+
+      const attempt = await storage.getOrCreateGrowthCheckAttempt(userId, form.id, window.id);
+      if (attempt.status === 'completed') return res.status(400).json({ error: "You have already completed this growth check" });
+
+      const started = await storage.startGrowthCheckAttempt(attempt.id);
+      res.json({ attempt: started });
+    } catch (e) {
+      console.error("Start growth check error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Student: Submit growth check attempt
+  app.post("/api/growth-check/submit", authMiddleware, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const { attemptId, responses } = req.body as { attemptId: number; responses: { itemId: number; answer: string }[] };
+
+      const { data: attemptData } = await supabase.from('growth_check_attempts').select('*').eq('id', attemptId).single();
+      if (!attemptData) return res.status(404).json({ error: "Attempt not found" });
+      if (attemptData.student_id !== userId) return res.status(403).json({ error: "Not your attempt" });
+      if (attemptData.status === 'completed') return res.status(400).json({ error: "Already submitted" });
+
+      const items = await storage.getGrowthCheckItems(attemptData.form_id);
+      const itemMap = new Map(items.map((i: any) => [i.id, i]));
+
+      let rawScore = 0;
+      let maxScore = 0;
+      const skillStats: any = {};
+
+      for (const resp of responses) {
+        const item = itemMap.get(resp.itemId);
+        if (!item) continue;
+        maxScore += item.points || 1;
+
+        const correctAnswers = item.correct_answer_json || [];
+        const isCorrect = item.question_type === 'multiple_choice'
+          ? correctAnswers.includes(resp.answer)
+          : null;
+
+        const pointsEarned = isCorrect === true ? (item.points || 1) : 0;
+        const needsReview = item.question_type === 'short_response';
+
+        rawScore += pointsEarned;
+
+        await storage.saveGrowthCheckResponse(attemptId, resp.itemId, { answer: resp.answer }, isCorrect, pointsEarned, needsReview);
+
+        // Track skill stats
+        const skill = item.primary_skill;
+        if (!skillStats[skill]) skillStats[skill] = { correct: 0, total: 0, skillName: skill };
+        if (!needsReview) {
+          skillStats[skill].total++;
+          if (isCorrect) skillStats[skill].correct++;
+        }
+      }
+
+      // Calculate Arise Reading Score (100-900 scale)
+      const pct = maxScore > 0 ? rawScore / maxScore : 0;
+      const ariseScore = Math.round(100 + (pct * 800));
+
+      // Build skill summary
+      const skillSummary = Object.entries(skillStats).map(([skill, stats]: [string, any]) => ({
+        skill,
+        skillName: formatSkillName(skill),
+        correct: stats.correct,
+        total: stats.total,
+        pct: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
+        level: stats.total > 0 ? getSkillLevel(stats.correct, stats.total) : 'more_evidence',
+      }));
+
+      // Generate student-facing summary
+      const studentSummary = generateStudentSummary(ariseScore, skillSummary);
+
+      // Generate next steps
+      const nextSteps = generateNextSteps(skillSummary);
+
+      const submitted = await storage.submitGrowthCheckAttempt(
+        attemptId, rawScore, maxScore, ariseScore, skillSummary, studentSummary, nextSteps
+      );
+
+      res.json({ attempt: submitted, skillSummary, studentSummary, nextSteps });
+    } catch (e) {
+      console.error("Submit growth check error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Student: Get growth check history/results
+  app.get("/api/growth-check/results", authMiddleware, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const summary = await storage.getStudentGrowthCheckSummary(userId);
+      if (!summary) return res.json({ available: false });
+      res.json({ available: true, ...summary });
+    } catch (e) {
+      console.error("Get growth check results error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Teacher: Get growth check overview for all students
+  app.get("/api/teacher/growth-check/overview", authMiddleware, adminMiddleware, async (req: any, res: any) => {
+    try {
+      const allAttempts = await storage.getAllGrowthCheckAttempts();
+      res.json({ attempts: allAttempts });
+    } catch (e) {
+      console.error("Teacher growth check overview error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Teacher: Assign growth check to student
+  app.post("/api/teacher/growth-check/assign", authMiddleware, adminMiddleware, async (req: any, res: any) => {
+    try {
+      const { studentId, formId, dueAt } = req.body as { studentId: number; formId: number; dueAt?: string };
+      const window = await storage.getActiveGrowthCheckWindow();
+      if (!window) return res.status(400).json({ error: "No active benchmark window" });
+      const assignment = await storage.assignGrowthCheck(studentId, req.user.id, formId, window.id, dueAt);
+      res.json({ assignment });
+    } catch (e) {
+      console.error("Assign growth check error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Family: Get student growth check results
+  app.get("/api/family/growth-check/student/:studentId", authMiddleware, async (req: any, res: any) => {
+    try {
+      const studentId = parseInt(req.params.studentId);
+      // Verify parent has access to this student
+      const rawLinks = await storage.getSetting('parent_student_links');
+      let parentLinks: Record<string, number> = {};
+      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
+      const linkedStudentId = parentLinks[String(req.user.id)];
+      if (linkedStudentId !== studentId && !req.user.isAdmin) return res.status(403).json({ error: "Not authorized for this student" });
+      const summary = await storage.getStudentGrowthCheckSummary(studentId);
+      if (!summary) return res.json({ available: false });
+      res.json({ available: true, ...summary });
+    } catch (e) {
+      console.error("Family growth check error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Admin: Get all growth check forms
+  app.get("/api/admin/growth-check/forms", authMiddleware, adminMiddleware, async (req: any, res: any) => {
+    try {
+      const forms = await storage.getAllGrowthCheckForms();
+      res.json({ forms });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Admin: Get all windows
+  app.get("/api/admin/growth-check/windows", authMiddleware, adminMiddleware, async (req: any, res: any) => {
+    try {
+      const windows = await storage.getAllGrowthCheckWindows();
+      res.json({ windows });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Admin: Upsert window
+  app.post("/api/admin/growth-check/windows", authMiddleware, adminMiddleware, async (req: any, res: any) => {
+    try {
+      const { schoolYear, windowName, startDate, endDate, isActive } = req.body;
+      const window = await storage.upsertGrowthCheckWindow(schoolYear, windowName, startDate, endDate, isActive);
+      res.json({ window });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Admin: Assign growth check to all students in a grade band
+  app.post("/api/admin/growth-check/assign-all", authMiddleware, adminMiddleware, async (req: any, res: any) => {
+    try {
+      const { formId, gradeBand } = req.body as { formId: number; gradeBand: string };
+      const window = await storage.getActiveGrowthCheckWindow();
+      if (!window) return res.status(400).json({ error: "No active benchmark window" });
+
+      // Get all students
+      const { data: students } = await supabase.from('users').select('id, grade').eq('role', 'student');
+      let assigned = 0;
+      if (students) {
+        for (const student of students) {
+          const studentBand = gradeToBand(student.grade || '3');
+          if (studentBand === gradeBand) {
+            try {
+              await storage.assignGrowthCheck(student.id, req.user.id, formId, window.id);
+              assigned++;
+            } catch {}
+          }
+        }
+      }
+      res.json({ assigned, total: assigned });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
   return httpServer;
+}
+
+// Helper functions for growth check scoring
+function formatSkillName(skill: string): string {
+  const names: Record<string, string> = {
+    main_idea: 'Main Idea',
+    key_details: 'Key Details',
+    inference: 'Inference',
+    vocabulary_in_context: 'Vocabulary in Context',
+    text_evidence: 'Text Evidence',
+    authors_purpose: 'Author\'s Purpose',
+    text_structure: 'Text Structure',
+    theme: 'Theme',
+    literary_elements: 'Literary Elements',
+    summary: 'Summary',
+    compare_contrast: 'Compare & Contrast',
+  };
+  return names[skill] || skill;
+}
+
+function getSkillLevel(correct: number, total: number): string {
+  if (total === 0) return 'more_evidence';
+  const pct = correct / total;
+  if (pct >= 0.8) return 'strength';
+  if (pct >= 0.5) return 'developing';
+  if (pct >= 0.25) return 'practice';
+  return 'more_evidence';
+}
+
+function generateStudentSummary(ariseScore: number, skillSummary: any[]): string {
+  const strengths = skillSummary.filter(s => s.level === 'strength').map(s => s.skillName);
+  const developing = skillSummary.filter(s => s.level === 'developing').map(s => s.skillName);
+  const practice = skillSummary.filter(s => s.level === 'practice').map(s => s.skillName);
+
+  let summary = `Your Arise Reading Score is ${ariseScore}. `;
+  if (strengths.length > 0) summary += `You showed strong skills in ${strengths.join(', ')}. `;
+  if (developing.length > 0) summary += `You are building your skills in ${developing.join(', ')}. `;
+  if (practice.length > 0) summary += `Keep practicing ${practice.join(', ')} - you are on your way! `;
+  if (strengths.length === 0 && developing.length === 0) summary += `Keep reading and practicing - every book makes you a stronger reader!`;
+  return summary;
+}
+
+function generateNextSteps(skillSummary: any[]): any[] {
+  const steps: any[] = [];
+  const practice = skillSummary.filter(s => s.level === 'practice');
+  const developing = skillSummary.filter(s => s.level === 'developing');
+  const moreEvidence = skillSummary.filter(s => s.level === 'more_evidence');
+
+  for (const skill of practice) {
+    steps.push({
+      skill: skill.skillName,
+      level: 'practice',
+      action: `Find a book and practice ${skill.skillName.toLowerCase()} skills. Try pausing after each chapter to identify the main idea.`,
+    });
+  }
+  for (const skill of developing) {
+    steps.push({
+      skill: skill.skillName,
+      level: 'developing',
+      action: `You are making progress with ${skill.skillName.toLowerCase()}. Keep reading books you enjoy and talk about what you read with a friend or teacher.`,
+    });
+  }
+  if (steps.length === 0) {
+    steps.push({
+      skill: 'General Reading',
+      level: 'strength',
+      action: 'Great work! Keep reading books you love. Try a new genre or a longer book to challenge yourself.',
+    });
+  }
+  return steps;
 }
