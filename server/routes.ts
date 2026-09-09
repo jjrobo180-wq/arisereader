@@ -1665,8 +1665,8 @@ export async function registerRoutes(
   // Admin POST — update competition settings
   app.post("/api/admin/competition-settings", authMiddleware, adminMiddleware, async (req: any, res) => {
     const {
-      monthlyPrize, monthlyDesc,
-      yearly1stPrize, yearly1stAmount,
+      monthlyPrize, monthlyDesc, monthlyCountdownDate,
+      yearly1stPrize, yearly1stAmount, yearlyCountdownDate,
       yearly2ndPrize, yearly2ndAmount,
       yearly3rdPrize, yearly3rdAmount,
       donationNote,
@@ -1674,8 +1674,10 @@ export async function registerRoutes(
     const settings: any = {};
     if (monthlyPrize !== undefined) settings.monthlyPrize = monthlyPrize.trim();
     if (monthlyDesc !== undefined) settings.monthlyDesc = monthlyDesc.trim();
+    if (monthlyCountdownDate !== undefined) settings.monthlyCountdownDate = monthlyCountdownDate;
     if (yearly1stPrize !== undefined) settings.yearly1stPrize = yearly1stPrize.trim();
     if (yearly1stAmount !== undefined) settings.yearly1stAmount = yearly1stAmount.trim();
+    if (yearlyCountdownDate !== undefined) settings.yearlyCountdownDate = yearlyCountdownDate;
     if (yearly2ndPrize !== undefined) settings.yearly2ndPrize = yearly2ndPrize.trim();
     if (yearly2ndAmount !== undefined) settings.yearly2ndAmount = yearly2ndAmount.trim();
     if (yearly3rdPrize !== undefined) settings.yearly3rdPrize = yearly3rdPrize.trim();
