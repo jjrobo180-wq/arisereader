@@ -59,6 +59,7 @@ import About from "./pages/About";
 import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
 import FypMyBooksPage from "./pages/FypMyBooksPage";
+import ReadingClub from "./pages/ReadingClub";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -206,6 +207,9 @@ function AppRoutes() {
       </Route>
       <Route path="/about">
         <About />
+      </Route>
+      <Route path="/reading-club">
+        <ReadingClub />
       </Route>
       <Route path="/polls">
         <ProtectedRoute><Polls /></ProtectedRoute>
