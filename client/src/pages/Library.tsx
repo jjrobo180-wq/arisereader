@@ -2074,7 +2074,7 @@ export default function Library() {
                     );
                   })}
                   {/* Show existing site books that match favorite topics — tap for options */}
-                  {matchedFavBooks.map((book) => {
+                  {matchedFavBooks.filter(b => !iAriseBookIds.includes(b.id)).map((book) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
                     return (
