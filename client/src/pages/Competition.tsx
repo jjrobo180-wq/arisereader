@@ -17,8 +17,10 @@ interface LeaderboardEntry {
 interface CompetitionSettings {
   monthlyPrize: string;
   monthlyDesc: string;
+  monthlyCountdownDate: string;
   yearly1stPrize: string;
   yearly1stAmount: string;
+  yearlyCountdownDate: string;
   yearly2ndPrize: string;
   yearly2ndAmount: string;
   yearly3rdPrize: string;
@@ -29,8 +31,10 @@ interface CompetitionSettings {
 const DEFAULT_SETTINGS: CompetitionSettings = {
   monthlyPrize: "Free Lunch",
   monthlyDesc: "The #1 reader from each band every month wins a free lunch!",
+  monthlyCountdownDate: "",
   yearly1stPrize: "Ultimate Prize",
   yearly1stAmount: "$300",
+  yearlyCountdownDate: "",
   yearly2ndPrize: "Prize TBD",
   yearly2ndAmount: "$100",
   yearly3rdPrize: "Prize TBD",
@@ -39,6 +43,53 @@ const DEFAULT_SETTINGS: CompetitionSettings = {
 };
 
 const BANDS = ["K-2", "3-5", "6-8", "9-12"];
+
+// Countdown timer component — shows days/hours/minutes/seconds remaining
+function CountdownTimer({ targetDate }: { targetDate: string }) {
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  useEffect(() => {
+    if (!targetDate) { setTimeLeft(null); return; }
+    const calc = () => {
+      const now = new Date().getTime();
+      const target = new Date(targetDate + "T23:59:59").getTime();
+      const diff = target - now;
+      if (diff <= 0) { setTimeLeft(null); return; }
+      setTimeLeft({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((diff % (1000 * 60)) / 1000),
+      });
+    };
+    calc();
+    const interval = setInterval(calc, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  if (!timeLeft) return null;
+
+  const parts = [
+    { label: "Days", value: timeLeft.days },
+    { label: "Hours", value: timeLeft.hours },
+    { label: "Min", value: timeLeft.minutes },
+    { label: "Sec", value: timeLeft.seconds },
+  ];
+
+  return (
+    <div className="flex items-center justify-center gap-2 mt-3">
+      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Ends in</span>
+      {parts.map((p) => (
+        <div key={p.label} className="flex flex-col items-center">
+          <div className="bg-card border border-border rounded-lg px-2 py-1 min-w-[36px] text-center">
+            <span className="text-sm font-bold text-primary tabular-nums">{String(p.value).padStart(2, "0")}</span>
+          </div>
+          <span className="text-[8px] text-muted-foreground mt-0.5">{p.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const BAND_LABELS: Record<string, string> = {
   "K-2": "K-2 Band",
@@ -231,6 +282,9 @@ export default function Competition() {
                       2nd and 3rd place prizes will be announced soon.
                     </p>
                   </div>
+                  {settings.monthlyCountdownDate && (
+                    <CountdownTimer targetDate={settings.monthlyCountdownDate} />
+                  )}
                 </div>
               </Card>
 
@@ -400,6 +454,9 @@ export default function Competition() {
                       {settings.donationNote}
                     </p>
                   </div>
+                  {settings.yearlyCountdownDate && (
+                    <CountdownTimer targetDate={settings.yearlyCountdownDate} />
+                  )}
                 </div>
               </Card>
 

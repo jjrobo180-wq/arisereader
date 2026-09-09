@@ -245,7 +245,7 @@ Rules:
 }
 
 // Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
-async function generateEyeGazeQuizWithAI(topic: string): Promise<{ questions: Array<{ prompt: string; visual: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_answer: string }> } | { error: string }> {
+async function generateEyeGazeQuizWithAI(topic: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -261,12 +261,12 @@ async function generateEyeGazeQuizWithAI(topic: string): Promise<{ questions: Ar
 These quizzes are for students who use eye gaze technology or are non-verbal. Questions should be visual, simple, and accessible. Each question must have a visual element (an emoji that represents the concept).
 
 Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
-{"questions":[{"prompt":"What color is the sky?","visual":"☁️","option_a":"Red","option_b":"Blue","option_c":"Green","option_d":"Yellow","correct_answer":"B"}]}
+{"questions":[{"prompt":"What color is the sky?","question_image":"☁️","option_a_text":"Red","option_a_image":null,"option_b_text":"Blue","option_b_image":null,"option_c_text":"Green","option_c_image":null,"option_d_text":"Yellow","option_d_image":null,"correct_answer":"B"}]}
 
 Rules:
 - Questions should be simple, visual, and appropriate for eye gaze / non-verbal students
-- The "visual" field should be a single emoji that represents the question topic
-- Each question has exactly 4 options (option_a through option_d)
+- The "question_image" field should be a single emoji that represents the question topic
+- Each question has exactly 4 options (option_a_text through option_d_text) — these are the answer choices shown to the student
 - The "correct_answer" is a single letter: "A", "B", "C", or "D"
 - Make questions about identification, matching, and simple comprehension
 - Use clear, simple language
@@ -310,13 +310,17 @@ Rules:
 
     const validQuestions = questions.slice(0, 10).map((q: any) => ({
       prompt: q.prompt || "What is this?",
-      visual: q.visual || "❓",
-      option_a: q.option_a || q.options?.[0] || "",
-      option_b: q.option_b || q.options?.[1] || "",
-      option_c: q.option_c || q.options?.[2] || "",
-      option_d: q.option_d || q.options?.[3] || "",
+      question_image: q.question_image || q.visual || null,
+      option_a_text: q.option_a_text || q.option_a || q.options?.[0] || "",
+      option_a_image: q.option_a_image || null,
+      option_b_text: q.option_b_text || q.option_b || q.options?.[1] || "",
+      option_b_image: q.option_b_image || null,
+      option_c_text: q.option_c_text || q.option_c || q.options?.[2] || "",
+      option_c_image: q.option_c_image || null,
+      option_d_text: q.option_d_text || q.option_d || q.options?.[3] || "",
+      option_d_image: q.option_d_image || null,
       correct_answer: (q.correct_answer || q.correct || "A").toUpperCase().charAt(0),
-    })).filter((q: any) => q.option_a && q.option_b && q.option_c && q.option_d);
+    })).filter((q: any) => q.option_a_text && q.option_b_text && q.option_c_text && q.option_d_text);
 
     if (validQuestions.length < 5) {
       return { error: "AI generated too few valid questions" };
@@ -4748,24 +4752,20 @@ export async function registerRoutes(
 
       // Delete all related records first to avoid foreign key constraint errors
       const tables = [
-        { table: "quiz_results", column: "user_id" },
-        { table: "quiz_attempts", column: "user_id" },
-        { table: "custom_quiz_attempts", column: "user_id" },
+        { table: "attempts", column: "user_id" },
+        { table: "quiz_review_requests", column: "user_id" },
         { table: "messages", column: "sender_id" },
         { table: "messages", column: "recipient_id" },
-        { table: "notifications", column: "user_id" },
         { table: "quiz_requests", column: "student_id" },
-        { table: "user_sessions", column: "user_id" },
         { table: "parent_student_links", column: "student_id" },
         { table: "parent_student_links", column: "parent_id" },
         { table: "custom_quizzes", column: "creator_id" },
-        { table: "student_progress", column: "user_id" },
-        { table: "eye_gaze_quiz_attempts", column: "user_id" },
-        { table: "book_grade_bands", column: "user_id" },
+        { table: "easter_egg_claims", column: "user_id" },
+        { table: "eye_gaze_quizzes", column: "creator_id" },
       ];
 
       for (const { table, column } of tables) {
-        await supabase.from(table).delete().eq(column, userId);
+        try { await supabase.from(table).delete().eq(column, userId); } catch {}
       }
 
       // Also clean up any settings referencing this user

@@ -192,8 +192,10 @@ export default function Admin() {
   const [compSettings, setCompSettings] = useState({
     monthlyPrize: "Free Lunch",
     monthlyDesc: "The #1 reader from each band every month wins a free lunch!",
+    monthlyCountdownDate: "",
     yearly1stPrize: "Ultimate Prize",
     yearly1stAmount: "$300",
+    yearlyCountdownDate: "",
     yearly2ndPrize: "Prize TBD",
     yearly2ndAmount: "$100",
     yearly3rdPrize: "Prize TBD",
@@ -2328,6 +2330,10 @@ Generate exactly 10 questions.`;
                   <input value={compSettings.monthlyDesc} onChange={(e) => setCompSettings(s => ({ ...s, monthlyDesc: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
                 </div>
               </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Monthly Countdown Date (optional — shows a live countdown to this date)</span>
+                <input type="date" value={compSettings.monthlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, monthlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+              </div>
             </div>
 
             {/* Yearly */}
@@ -2358,6 +2364,10 @@ Generate exactly 10 questions.`;
                   <span className="text-xs text-muted-foreground">3rd Place Amount</span>
                   <input value={compSettings.yearly3rdAmount} onChange={(e) => setCompSettings(s => ({ ...s, yearly3rdAmount: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
                 </div>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Yearly Countdown Date (optional — shows a live countdown to this date)</span>
+                <input type="date" value={compSettings.yearlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, yearlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
               </div>
             </div>
 
