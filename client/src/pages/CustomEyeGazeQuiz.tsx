@@ -48,7 +48,7 @@ interface CustomQuiz {
 export default function CustomEyeGazeQuiz() {
   const { id } = useParams<{ id: string }>();
   const quizId = parseInt(id || "0");
-  const { user } = useAuth();
+  const { user, token: authToken } = useAuth();
   const [, navigate] = useLocation();
   const [phase, setPhase] = useState<"loading" | "quiz" | "results">("loading");
   const [quiz, setQuiz] = useState<CustomQuiz | null>(null);
@@ -72,7 +72,7 @@ export default function CustomEyeGazeQuiz() {
   useEffect(() => {
     if (!isTeacherOrAdmin || !quizId) return;
     setSpectatorLoading(true);
-    const token = getTokenFromCookie();
+    const token = authToken || getTokenFromCookie();
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
     fetch(`${API_BASE}/api/custom-quizzes/${quizId}`, { headers })
@@ -80,7 +80,7 @@ export default function CustomEyeGazeQuiz() {
       .then(d => { if (d && d.questions) setSpectatorQuestions(d.questions); })
       .catch(() => {})
       .finally(() => setSpectatorLoading(false));
-  }, [isTeacherOrAdmin, quizId]);
+  }, [isTeacherOrAdmin, quizId, authToken]);
 
   // Spectator mode render for teachers/admins
   if (isTeacherOrAdmin && (spectatorLoading || spectatorQuestions.length > 0)) {
@@ -150,7 +150,7 @@ export default function CustomEyeGazeQuiz() {
   useEffect(() => {
     if (!user) return;
     if (phase !== "loading") return;
-    const token = getTokenFromCookie();
+    const token = authToken || getTokenFromCookie();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -159,9 +159,9 @@ export default function CustomEyeGazeQuiz() {
       headers,
     })
       .then((r) => {
-        if (r.status === 400) {
+        if (r.status === 400 || r.status === 401) {
           return r.json().then((d) => {
-            setError(d.message);
+            setError(d.message || "You need to be logged in to take this quiz.");
             return null;
           });
         }
@@ -174,7 +174,7 @@ export default function CustomEyeGazeQuiz() {
         }
       })
       .catch(() => setError("Failed to load quiz"));
-  }, [quizId, user, phase]);
+  }, [quizId, user, phase, authToken]);
 
   const handleSelectAnswer = (answer: string) => {
     if (selectedAnswer || autoAdvancing) return;
@@ -198,7 +198,7 @@ export default function CustomEyeGazeQuiz() {
   };
 
   const submitQuiz = (finalAnswers: Record<number, string>) => {
-    const token = getTokenFromCookie();
+    const token = authToken || getTokenFromCookie();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
