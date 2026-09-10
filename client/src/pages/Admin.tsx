@@ -702,9 +702,9 @@ export default function Admin() {
           fetch(`${API_BASE}/api/admin/growth-check/forms`, { headers: { Authorization: `Bearer ${authToken}` } }),
           fetch(`${API_BASE}/api/teacher/growth-check/overview`, { headers: { Authorization: `Bearer ${authToken}` } }),
         ]);
-        if (winRes.ok) { const d = await winRes.json(); setGrowthCheckWindows(Array.isArray(d) ? d : []); }
-        if (formRes.ok) { const d = await formRes.json(); setGrowthCheckForms(Array.isArray(d) ? d : []); }
-        if (overviewRes.ok) { const d = await overviewRes.json(); setGrowthCheckOverview(Array.isArray(d) ? d : []); }
+        if (winRes.ok) { const d = await winRes.json(); setGrowthCheckWindows(Array.isArray(d) ? d : (d.windows || [])); }
+        if (formRes.ok) { const d = await formRes.json(); setGrowthCheckForms(Array.isArray(d) ? d : (d.forms || [])); }
+        if (overviewRes.ok) { const d = await overviewRes.json(); setGrowthCheckOverview(Array.isArray(d) ? d : (d.attempts || d.overview || [])); }
       } catch (err) {
         console.error("Failed to fetch Growth Check data:", err);
       } finally {
