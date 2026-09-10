@@ -3083,7 +3083,7 @@ export async function registerRoutes(
       }
 
       // Create as a custom eye gaze quiz
-      const quizTitle = description && description.trim() ? description.trim().slice(0, 60) : topic.trim();
+      const quizTitle = topic.trim().slice(0, 60);
       const quiz = await storage.createCustomEyeGazeQuiz(
         req.user.id,
         quizTitle,

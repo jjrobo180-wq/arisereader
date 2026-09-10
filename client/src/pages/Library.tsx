@@ -610,7 +610,7 @@ export default function Library() {
     setEyeGazeSourceLink("");
     setEyeGazeError("");
     if (pendingEyeGazeQuizId) {
-      navigate(`/eye-gaze-quiz/${pendingEyeGazeQuizId}`);
+      navigate(`/custom-quiz/${pendingEyeGazeQuizId}`);
     } else {
       navigate("/library");
     }
