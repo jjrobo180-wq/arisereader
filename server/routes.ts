@@ -5176,6 +5176,133 @@ export async function registerRoutes(
     }
   });
 
+  // Reading Club sign-up — students and parents can sign up
+  app.post("/api/club/signup", authMiddleware, async (req: any, res) => {
+    try {
+      const { studentName, grade, parentName, parentContact, parentEmail, notes } = req.body;
+      if (!studentName) return res.status(400).json({ message: "Student name is required" });
+
+      // Determine student_id: parent's linked student, or the logged-in student
+      let studentId = req.user.id;
+      if (req.user.role === 'parent') {
+        const rawLinks = await storage.getSetting('parent_student_links');
+        if (rawLinks) {
+          const parentLinks = JSON.parse(rawLinks);
+          studentId = parentLinks[String(req.user.id)] || req.user.id;
+        }
+      }
+
+      // Check if already signed up
+      const { data: existing } = await supabase
+        .from('club_signups')
+        .select('id, status')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existing && existing.length > 0 && existing[0].status === 'pending') {
+        return res.status(409).json({ message: "You're already signed up for the Reading Club!" });
+      }
+
+      const { data, error } = await supabase
+        .from('club_signups')
+        .insert({
+          student_id: studentId,
+          student_name: studentName,
+          grade: grade || null,
+          parent_name: parentName || null,
+          parent_contact: parentContact || null,
+          parent_email: parentEmail || null,
+          notes: notes || null,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+
+      // Notify admin
+      try {
+        const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
+        const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+        for (const uid of notifyIds) {
+          await supabase.from('notifications').insert({
+            user_id: uid,
+            type: 'info',
+            title: 'Reading Club Sign-Up',
+            message: `${studentName} has signed up for the Reading Club (Thursdays after school).`
+          });
+        }
+      } catch {}
+
+      res.status(201).json({ success: true, message: "You're signed up for the Reading Club!", signup: data });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to sign up" });
+    }
+  });
+
+  // Check club sign-up status for current user
+  app.get("/api/club/signup-status", authMiddleware, async (req: any, res) => {
+    try {
+      let studentId = req.user.id;
+      if (req.user.role === 'parent') {
+        const rawLinks = await storage.getSetting('parent_student_links');
+        if (rawLinks) {
+          const parentLinks = JSON.parse(rawLinks);
+          studentId = parentLinks[String(req.user.id)] || req.user.id;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('club_signups')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw new Error(error.message);
+      res.json({ signup: data && data.length > 0 ? data[0] : null });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to check sign-up status" });
+    }
+  });
+
+  // Admin: list all club sign-ups
+  app.get("/api/admin/club-signups", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
+      const { data, error } = await supabase
+        .from('club_signups')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      res.json({ signups: data || [] });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch sign-ups" });
+    }
+  });
+
+  // Admin: update club sign-up status
+  app.post("/api/admin/club-signups/:id/status", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
+      const { status } = req.body;
+      if (!['pending', 'confirmed', 'denied'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      const { data, error } = await supabase
+        .from('club_signups')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', parseInt(req.params.id))
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      res.json({ success: true, signup: data });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to update status" });
+    }
+  });
+
   // Admin: manually create teacher account (pre-approved)
   app.post("/api/admin/teachers", authMiddleware, adminMiddleware, async (req: any, res) => {
     try {

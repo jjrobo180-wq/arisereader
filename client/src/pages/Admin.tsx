@@ -241,6 +241,7 @@ export default function Admin() {
   const [bookSearch, setBookSearch] = useState("");
   const [bookPage, setBookPage] = useState(0);
   const BOOKS_PER_PAGE = 24;
+  const [clubSignups, setClubSignups] = useState<any[]>([]);
   // Quiz review requests state
   const [reviewRequests, setReviewRequests] = useState<any[]>([]);
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState(false);
@@ -712,6 +713,20 @@ export default function Admin() {
       } catch {}
     };
     fetchPendingQuizzes();
+
+    // Fetch club sign-ups
+    const fetchClubSignups = async () => {
+      const authToken = token || getTokenFromCookie();
+      if (!authToken) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/club-signups`, { headers: { Authorization: `Bearer ${authToken}` } });
+        if (res.ok) {
+          const data = await res.json();
+          setClubSignups(data.signups || []);
+        }
+      } catch {}
+    };
+    fetchClubSignups();
   }, []);
 
   const handleApproveQuiz = async (quizId: number) => {
@@ -3444,6 +3459,81 @@ Generate exactly 10 questions.`;
                 </>
               );
             })()}
+          </CardContent>
+        </Card>
+
+        {/* Reading Club Sign-Ups */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-amber-500" />
+              Reading Club Sign-Ups
+              {clubSignups.filter(s => s.status === "pending").length > 0 && (
+                <span className="ml-2 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {clubSignups.filter(s => s.status === "pending").length} pending
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {clubSignups.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No Reading Club sign-ups yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {clubSignups.map((s) => (
+                  <div key={s.id} className={`rounded-xl border p-4 ${s.status === "pending" ? "border-amber-500/30 bg-amber-500/5" : s.status === "confirmed" ? "border-green-500/30 bg-green-500/5" : "border-border bg-muted/30"}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <span className="font-semibold">{s.student_name}</span>
+                        {s.grade && <span className="text-sm text-muted-foreground ml-2">· {s.grade}</span>}
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "pending" ? "bg-amber-500/20 text-amber-400" : s.status === "confirmed" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                        {s.status}
+                      </span>
+                    </div>
+                    {(s.parent_name || s.parent_contact || s.parent_email) && (
+                      <div className="text-sm text-muted-foreground mb-2">
+                        {s.parent_name && <span>Parent: {s.parent_name}</span>}
+                        {s.parent_contact && <span className="ml-3">📞 {s.parent_contact}</span>}
+                        {s.parent_email && <span className="ml-3">✉ {s.parent_email}</span>}
+                      </div>
+                    )}
+                    {s.notes && <p className="text-sm text-muted-foreground italic mb-2">"{s.notes}"</p>}
+                    <p className="text-xs text-muted-foreground">Signed up: {new Date(s.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
+                    {s.status === "pending" && (
+                      <div className="flex gap-2 mt-3">
+                        <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={async () => {
+                          const authToken = token || getTokenFromCookie();
+                          if (!authToken) return;
+                          await fetch(`${API_BASE}/api/admin/club-signups/${s.id}/status`, {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: "confirmed" }),
+                          });
+                          const res = await fetch(`${API_BASE}/api/admin/club-signups`, { headers: { Authorization: `Bearer ${authToken}` } });
+                          if (res.ok) { const data = await res.json(); setClubSignups(data.signups || []); }
+                        }}>
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Confirm
+                        </Button>
+                        <Button size="sm" variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={async () => {
+                          const authToken = token || getTokenFromCookie();
+                          if (!authToken) return;
+                          await fetch(`${API_BASE}/api/admin/club-signups/${s.id}/status`, {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: "denied" }),
+                          });
+                          const res = await fetch(`${API_BASE}/api/admin/club-signups`, { headers: { Authorization: `Bearer ${authToken}` } });
+                          if (res.ok) { const data = await res.json(); setClubSignups(data.signups || []); }
+                        }}>
+                          Deny
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Trophy, BookOpen, Award, LogOut, Brain } from "lucide-react";
+import { ArrowLeft, Trophy, BookOpen, Award, LogOut, Brain, Users } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 
 const SESSION_COOKIE = "arise_session";
@@ -173,6 +173,22 @@ export default function ParentDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Reading Club Sign-Up */}
+        <Card className="shadow-md border-primary/30">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <Users className="w-6 h-6 text-amber-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm">A.R.I.S.E Reading Club</h3>
+              <p className="text-xs text-muted-foreground">Thursdays after school · Earn 100 points each week</p>
+            </div>
+            <Button size="sm" onClick={() => window.location.hash = "#/reading-club"}>
+              Sign Up
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Quiz History */}
         <Card className="shadow-md">
