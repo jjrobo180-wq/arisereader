@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { BrandText } from "@/components/BrandText";
-import { BookOpen, Brain, ShieldCheck, GraduationCap, Sparkles, CheckCircle2, ClipboardCheck, Eye } from "lucide-react";
+import { BookOpen, Brain, ShieldCheck, GraduationCap, Sparkles, CheckCircle2, ClipboardCheck, Eye, Send, Mail } from "lucide-react";
 
 interface Props {
   bookTitle: string;
@@ -8,6 +8,7 @@ interface Props {
   ready: boolean;
   onComplete: () => void;
   isEyeGaze?: boolean;
+  pendingReview?: string | null;
 }
 
 interface Step {
@@ -16,7 +17,7 @@ interface Step {
   detail: string;
 }
 
-export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComplete, isEyeGaze }: Props) {
+export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComplete, isEyeGaze, pendingReview }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [stepComplete, setStepComplete] = useState<number[]>([]);
@@ -69,6 +70,21 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
       return () => clearTimeout(t);
     }
   }, [allStepsDone, ready, onComplete]);
+
+  // If pending review, show the "sent to teacher" animation
+  const [reviewSent, setReviewSent] = useState(false);
+  useEffect(() => {
+    if (pendingReview && allStepsDone) {
+      setReviewSent(true);
+    }
+  }, [pendingReview, allStepsDone]);
+
+  useEffect(() => {
+    if (reviewSent) {
+      const t = setTimeout(() => onComplete(), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [reviewSent, onComplete]);
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex items-center justify-center">
@@ -152,6 +168,69 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
             After students complete a quiz, educators review the questions, verify accuracy, and adjust scoring as needed. This is our commitment to responsible AI in schools.
           </p>
         </div>
+
+        {/* Pending review animation — quiz sent to teacher */}
+        {reviewSent && (
+          <div className="fixed inset-0 z-[70] bg-background flex items-center justify-center animate-[fadeIn_0.3s_ease-in]">
+            <div className="w-full max-w-md mx-auto px-6 text-center">
+              {/* Animated paper airplane flying */}
+              <div className="relative h-32 mb-6">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="relative">
+                    {/* Paper airplane */}
+                    <div className="text-6xl animate-[fly_2s_ease-in-out_infinite]">
+                      <Send className="w-16 h-16 text-primary mx-auto" strokeWidth={1.5} />
+                    </div>
+                    {/* Trail dots */}
+                    <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: '0.2s' }} />
+                    <div className="absolute -left-8 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary/30 animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    <div className="absolute -left-12 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-primary/20 animate-pulse" style={{ animationDelay: '0.6s' }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Envelope landing */}
+              <div className="mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-3">
+                  <Mail className="w-8 h-8 text-primary animate-bounce" />
+                </div>
+              </div>
+
+              <h2 className="text-xl font-bold text-foreground mb-2">
+                Sent to your teacher!
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                {pendingReview || "Your quiz has been sent for review. You'll get a notification when it's ready!"}
+              </p>
+
+              {/* Animated progress dots */}
+              <div className="flex items-center justify-center gap-1.5 mb-6">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0.2s' }} />
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0.4s' }} />
+              </div>
+
+              <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-primary">What happens next?</span><br />
+                  Your teacher or admin will review the quiz questions. Once approved, you'll get a notification and the quiz will appear in your library ready to take.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes fly {
+            0% { transform: translateX(-20px) translateY(0) rotate(-10deg); opacity: 0.3; }
+            50% { transform: translateX(0) translateY(-5px) rotate(0deg); opacity: 1; }
+            100% { transform: translateX(20px) translateY(0) rotate(10deg); opacity: 0.3; }
+          }
+        `}</style>
       </div>
     </div>
   );

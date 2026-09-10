@@ -160,6 +160,11 @@ export default function Admin() {
   const [replySuccess, setReplySuccess] = useState("");
   const [notifRefreshKey, setNotifRefreshKey] = useState(0);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  // AI Quiz Review state
+  const [pendingQuizzes, setPendingQuizzes] = useState<any[]>([]);
+  const [expandedQuiz, setExpandedQuiz] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectingQuizId, setRejectingQuizId] = useState<number | null>(null);
   // DM-style conversation state
   const [activeConversationUserId, setActiveConversationUserId] = useState<number | null>(null);
   const studentsRef = useRef<HTMLDivElement>(null);
@@ -690,6 +695,56 @@ export default function Admin() {
     window.addEventListener("arise-logout", clearCaches);
     return () => window.removeEventListener("arise-logout", clearCaches);
   }, []);
+
+  // Fetch pending AI quizzes on mount
+  useEffect(() => {
+    const fetchPendingQuizzes = async () => {
+      const authToken = token || getTokenFromCookie();
+      if (!authToken) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/pending-quizzes`, { headers: { Authorization: `Bearer ${authToken}` } });
+        if (res.ok) {
+          const data = await res.json();
+          setPendingQuizzes(data.pending || []);
+        }
+      } catch {}
+    };
+    fetchPendingQuizzes();
+  }, []);
+
+  const handleApproveQuiz = async (quizId: number) => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/pending-quizzes/${quizId}/approve`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        setPendingQuizzes(prev => prev.filter(q => q.id !== quizId));
+        setExpandedQuiz(null);
+      }
+    } catch {}
+  };
+
+  const handleRejectQuiz = async (quizId: number) => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/pending-quizzes/${quizId}/reject`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: rejectReason }),
+      });
+      if (res.ok) {
+        setPendingQuizzes(prev => prev.filter(q => q.id !== quizId));
+        setExpandedQuiz(null);
+        setRejectingQuizId(null);
+        setRejectReason("");
+      }
+    } catch {}
+  };
 
   // Growth Check — fetch benchmark windows, forms, and overview on mount
   useEffect(() => {
@@ -3663,6 +3718,97 @@ Generate exactly 10 questions.`;
             )}
           </CardContent>
         </Card>
+
+        {/* AI Quiz Review Section */}
+        {pendingQuizzes.length > 0 && (
+          <div className="mb-6 p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck className="w-5 h-5 text-orange-500" />
+              <h2 className="text-lg font-bold">AI Quiz Review</h2>
+              <span className="text-xs bg-orange-500/20 text-orange-600 px-2 py-0.5 rounded-full font-medium">
+                {pendingQuizzes.length} pending
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Students requested these AI-generated quizzes. Review the questions and approve or reject each one.
+            </p>
+            <div className="space-y-3">
+              {pendingQuizzes.map((quiz) => {
+                let questions = [];
+                try { questions = JSON.parse(quiz.questions); } catch {}
+                const isExpanded = expandedQuiz === quiz.id;
+                const isRejecting = rejectingQuizId === quiz.id;
+                return (
+                  <div key={quiz.id} className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">{quiz.book_title}</span>
+                          <span className="text-xs text-muted-foreground">by {quiz.author}</span>
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {quiz.quiz_type === 'eye_gaze' ? 'Eye Gaze' : quiz.quiz_type === 'iarise' ? 'iArise' : quiz.quiz_type === 'favorite_topic' ? 'Favorite Topic' : 'Book Quiz'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">Grade {quiz.age_group}</span>
+                          <span className="text-xs text-muted-foreground">{quiz.student_name || 'Unknown student'}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setExpandedQuiz(isExpanded ? null : quiz.id)}
+                        className="text-xs text-primary hover:underline"
+                      >{isExpanded ? 'Hide' : 'Review'}</button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="mt-4 space-y-3">
+                        {questions.map((q: any, qIdx: number) => (
+                          <div key={qIdx} className="bg-muted/50 rounded-lg p-3">
+                            <p className="text-sm font-medium mb-2">{qIdx + 1}. {q.question}</p>
+                            <div className="space-y-1">
+                              {q.options && q.options.map((opt: string, oIdx: number) => (
+                                <div key={oIdx} className={`text-xs px-2 py-1 rounded ${
+                                  opt === q.correct ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'
+                                }`}>
+                                  {String.fromCharCode(65 + oIdx)}) {opt}{opt === q.correct ? ' ✓' : ''}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+
+                        {isRejecting ? (
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              placeholder="Reason for rejection (optional)..."
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              className="flex-1 px-3 py-1.5 rounded-lg border border-border text-sm bg-background"
+                            />
+                            <Button size="sm" variant="destructive" onClick={() => handleRejectQuiz(quiz.id)}>
+                              Confirm Reject
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { setRejectingQuizId(null); setRejectReason(""); }}>
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="default" onClick={() => handleApproveQuiz(quiz.id)}>
+                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve & Publish
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setRejectingQuizId(quiz.id)}>
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Growth Check Section */}
         <Card className="shadow-md">

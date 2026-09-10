@@ -2641,8 +2641,7 @@ export async function registerRoutes(
         return res.status(500).json({ message: result.error });
       }
 
-      // Create the book with generated questions
-      // Auto-fetch book cover from Open Library Covers API
+      // Fetch book cover from Open Library
       let coverUrl: string | null = null;
       try {
         const coverRes = await fetch(
@@ -2656,7 +2655,6 @@ export async function registerRoutes(
           }
         }
       } catch {}
-      // Fallback: try by author + title search
       if (!coverUrl) {
         try {
           const searchRes = await fetch(
@@ -2672,26 +2670,26 @@ export async function registerRoutes(
         } catch {}
       }
 
-      const book = await storage.createBookWithQuestions({
-        title: cleanTitle,
-        author: cleanAuthor,
-        ageGroup,
-        coverUrl,
-        description: `Quiz for "${cleanTitle}" by ${cleanAuthor}`,
-        pointsValue: result.pointsValue || 10,
-        readUrl: null,
-      }, result.questions);
-
-      // Assign the book to the student's grade band
+      // Save the generated quiz for admin/teacher review before publishing
       try {
-        const rawBands = await storage.getSetting('book_grade_bands');
-        let bookBands: Record<string, string> = {};
-        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-        bookBands[String(book.id)] = ageGroup;
-        await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+        const { pool } = require("./storage.js");
+        await pool.query(
+          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
+          [req.user.id, cleanTitle, cleanAuthor, JSON.stringify(result.questions), coverUrl, ageGroup, 'book']
+        );
+        // Notify admin
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
+          [`Student requested an AI quiz for "${cleanTitle}" by ${cleanAuthor}. Review and approve it in the admin panel.`]
+        );
       } catch {}
 
-      res.status(201).json({ bookId: book.id, message: "Quiz generated! Ready to take.", generated: true });
+      return res.status(201).json({ 
+        pendingReview: true, 
+        message: `Your quiz for "${cleanTitle}" has been sent to your teacher for review. You'll get a notification when it's ready!`,
+        questions: result.questions 
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to generate quiz" });
     }
@@ -3033,30 +3031,25 @@ export async function registerRoutes(
         } catch {}
       }
 
-      const book = await storage.createBookWithQuestions({
-        title: cleanTopic,
-        author: "Favorite Topic",
-        ageGroup,
-        coverUrl,
-        description: `Quiz about ${cleanTopic}`,
-        pointsValue: result.pointsValue || 10,
-        readUrl: null,
-      }, result.questions);
-
-      // Assign grade band
+      // Save as pending for admin/teacher review
       try {
-        const rawBands = await storage.getSetting('book_grade_bands');
-        let bookBands: Record<string, string> = {};
-        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-        bookBands[String(book.id)] = ageGroup;
-        await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+        const { pool } = require("./storage.js");
+        await pool.query(
+          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
+          [req.user.id, cleanTopic, "Favorite Topic", JSON.stringify(result.questions), coverUrl, ageGroup, 'favorite_topic']
+        );
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
+          [`Student requested an AI quiz about "${cleanTopic}" (favorite topic). Review and approve it in the admin panel.`]
+        );
       } catch {}
 
-      // Store book ID in student's favorite books
-      existingBookIds.push(book.id);
-      await storage.upsertSetting(booksKey, JSON.stringify(existingBookIds));
-
-      res.status(201).json({ bookId: book.id, message: "Quiz generated! Ready to take.", generated: true });
+      return res.status(201).json({ 
+        pendingReview: true, 
+        message: `Your quiz about "${cleanTopic}" has been sent to your teacher for review. You'll get a notification when it's ready!`,
+        questions: result.questions 
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to generate quiz" });
     }
@@ -3204,46 +3197,25 @@ export async function registerRoutes(
         } catch {}
       }
 
-      const book = await storage.createBookWithQuestions({
-        title: cleanTopic,
-        author: "iArise Lesson",
-        ageGroup,
-        coverUrl,
-        description: `iArise lesson about ${cleanTopic}`,
-        pointsValue: result.pointsValue || 2,
-        readUrl: null,
-      }, result.questions);
-
-      // Generate and store lesson content for the course page
-      const lessonResult = await generateIariseLessonContent(cleanTopic, ageGroup);
-      if (!("error" in lessonResult)) {
-        try {
-          const rawCourses = await storage.getSetting('iarise_course_content');
-          let courses: any = {};
-          if (rawCourses) { try { courses = JSON.parse(rawCourses); } catch {} }
-          courses[String(book.id)] = lessonResult;
-          await storage.upsertSetting('iarise_course_content', JSON.stringify(courses));
-        } catch {}
-      }
-
-      // Assign grade band
+      // Save as pending for admin/teacher review
       try {
-        const rawBands = await storage.getSetting('book_grade_bands');
-        let bookBands: Record<string, string> = {};
-        if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-        bookBands[String(book.id)] = ageGroup;
-        await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+        const { pool } = require("./storage.js");
+        await pool.query(
+          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
+          [req.user.id, cleanTopic, "iArise Lesson", JSON.stringify(result.questions), coverUrl, ageGroup, 'iarise']
+        );
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
+          [`Student requested an AI iArise quiz about "${cleanTopic}". Review and approve it in the admin panel.`]
+        );
       } catch {}
 
-      // Store book ID in student's iArise books
-      const booksKey = `student_iarise_books_${req.user.id}`;
-      const booksRaw = await storage.getSetting(booksKey);
-      let existingBookIds: number[] = [];
-      if (booksRaw) { try { existingBookIds = JSON.parse(booksRaw); } catch {} }
-      existingBookIds.push(book.id);
-      await storage.upsertSetting(booksKey, JSON.stringify(existingBookIds));
-
-      res.status(201).json({ bookId: book.id, message: "iArise quiz generated! Ready to take.", generated: true });
+      return res.status(201).json({ 
+        pendingReview: true, 
+        message: `Your iArise quiz about "${cleanTopic}" has been sent to your teacher for review. You'll get a notification when it's ready!`,
+        questions: result.questions 
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to generate iArise quiz" });
     }
@@ -3263,22 +3235,204 @@ export async function registerRoutes(
         return res.status(500).json({ message: result.error });
       }
 
-      // Create as a custom eye gaze quiz
-      const quizTitle = topic.trim().slice(0, 60);
-      const quiz = await storage.createCustomEyeGazeQuiz(
-        req.user.id,
-        quizTitle,
-        `AI-generated eye gaze quiz about ${topic.trim()}`,
-        "Custom",
-        result.questions,
-        "global",
-        null,
-        "eye_gaze"
-      );
+      // Save as pending for admin/teacher review
+      try {
+        const { pool } = require("./storage.js");
+        await pool.query(
+          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
+          [req.user.id, quizTitle, topic.trim(), JSON.stringify(result.questions), null, 'Custom', 'eye_gaze']
+        );
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
+          [`Student requested an AI eye gaze quiz about "${topic.trim()}". Review and approve it in the admin panel.`]
+        );
+      } catch {}
 
-      res.status(201).json({ quizId: quiz.id, message: "Quiz generated! Ready to take.", generated: true });
+      return res.status(201).json({ 
+        pendingReview: true, 
+        message: `Your eye gaze quiz about "${topic.trim()}" has been sent to your teacher for review. You'll get a notification when it's ready!`,
+        questions: result.questions 
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to generate eye gaze quiz. Please try again." });
+    }
+  });
+
+  // === AI Quiz Review System ===
+  // Admin/Teacher: list pending AI quizzes
+  app.get("/api/admin/pending-quizzes", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
+      const { pool } = require("./storage.js");
+      const result = await pool.query(
+        `SELECT p.*, u.display_name as student_name FROM pending_ai_quizzes p
+         LEFT JOIN users u ON p.student_id = u.id
+         WHERE p.status = 'pending' ORDER BY p.created_at DESC`
+      );
+      res.json({ pending: result.rows });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin/Teacher: approve a pending AI quiz
+  app.post("/api/admin/pending-quizzes/:id/approve", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
+      const { pool } = require("./storage.js");
+      const result = await pool.query(
+        `SELECT * FROM pending_ai_quizzes WHERE id = $1 AND status = 'pending'`, [req.params.id]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
+      const pending = result.rows[0];
+      const questions = JSON.parse(pending.questions);
+
+      if (pending.quiz_type === 'eye_gaze') {
+        // Create as a custom eye gaze quiz
+        const quiz = await storage.createCustomEyeGazeQuiz(
+          pending.student_id,
+          pending.book_title.slice(0, 60),
+          `AI-generated eye gaze quiz about ${pending.author}`,
+          pending.age_group || "Custom",
+          questions,
+          "global", null, "eye_gaze"
+        );
+        // Notify student
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'success', 'Quiz Approved!', $2)`,
+          [pending.student_id, `Your eye gaze quiz "${pending.book_title}" has been approved and is ready to take!`]
+        );
+      } else {
+        // Create as a book quiz
+        const book = await storage.createBookWithQuestions({
+          title: pending.book_title,
+          author: pending.author,
+          ageGroup: pending.age_group,
+          coverUrl: pending.cover_url,
+          description: `Quiz for "${pending.book_title}" by ${pending.author}`,
+          pointsValue: pending.quiz_type === 'iarise' ? 2 : 10,
+          readUrl: null,
+        }, questions);
+
+        // Assign grade band
+        try {
+          const rawBands = await storage.getSetting('book_grade_bands');
+          let bookBands: Record<string, string> = {};
+          if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+          bookBands[String(book.id)] = pending.age_group;
+          await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+        } catch {}
+
+        // For iArise, generate lesson content and store book ID
+        if (pending.quiz_type === 'iarise') {
+          try {
+            const lessonResult = await generateIariseLessonContent(pending.book_title, pending.age_group);
+            if (!("error" in lessonResult)) {
+              const rawCourses = await storage.getSetting('iarise_course_content');
+              let courses: any = {};
+              if (rawCourses) { try { courses = JSON.parse(rawCourses); } catch {} }
+              courses[String(book.id)] = lessonResult;
+              await storage.upsertSetting('iarise_course_content', JSON.stringify(courses));
+            }
+          } catch {}
+          const booksKey = `student_iarise_books_${pending.student_id}`;
+          const booksRaw = await storage.getSetting(booksKey);
+          let existingBookIds: number[] = [];
+          if (booksRaw) { try { existingBookIds = JSON.parse(booksRaw); } catch {} }
+          existingBookIds.push(book.id);
+          await storage.upsertSetting(booksKey, JSON.stringify(existingBookIds));
+        } else if (pending.quiz_type === 'favorite_topic') {
+          const booksKey = `student_favorite_books_${pending.student_id}`;
+          const booksRaw = await storage.getSetting(booksKey);
+          let existingBookIds: number[] = [];
+          if (booksRaw) { try { existingBookIds = JSON.parse(booksRaw); } catch {} }
+          existingBookIds.push(book.id);
+          await storage.upsertSetting(booksKey, JSON.stringify(existingBookIds));
+        }
+
+        // Notify student
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'success', 'Quiz Approved!', $2)`,
+          [pending.student_id, `Your quiz for "${pending.book_title}" has been approved and is ready to take!`]
+        );
+      }
+
+      // Mark as approved
+      await pool.query(
+        `UPDATE pending_ai_quizzes SET status = 'approved', reviewer_id = $1, reviewed_at = NOW() WHERE id = $2`,
+        [req.user.id, req.params.id]
+      );
+      res.json({ message: "Quiz approved and published!" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin/Teacher: reject a pending AI quiz
+  app.post("/api/admin/pending-quizzes/:id/reject", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
+      const { reason } = req.body;
+      const { pool } = require("./storage.js");
+      const result = await pool.query(
+        `SELECT * FROM pending_ai_quizzes WHERE id = $1 AND status = 'pending'`, [req.params.id]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
+      const pending = result.rows[0];
+      await pool.query(
+        `UPDATE pending_ai_quizzes SET status = 'rejected', reviewer_id = $1, reviewed_at = NOW(), review_reason = $2 WHERE id = $3`,
+        [req.user.id, reason || 'Not specified', req.params.id]
+      );
+      // Notify student
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'info', 'Quiz Update', $2)`,
+        [pending.student_id, `Your quiz for "${pending.book_title}" was not approved. ${reason || 'Please try again with a different book.'}`]
+      );
+      res.json({ message: "Quiz rejected and student notified." });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: generate quiz for an existing book (bypasses review)
+  app.post("/api/admin/books/:id/generate-quiz", authMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const bookId = parseInt(req.params.id);
+      const allBooks = await storage.getAllBooks();
+      const book = allBooks.find((b: any) => b.id === bookId);
+      if (!book) return res.status(404).json({ message: "Book not found" });
+
+      // Generate quiz with AI
+      const result = await generateQuizWithAI(book.title, book.author, book.ageGroup, '5');
+      if ("error" in result) {
+        return res.status(500).json({ message: result.error });
+      }
+
+      // Delete old questions for this book
+      const { pool } = require("./storage.js");
+      await pool.query(`DELETE FROM questions WHERE book_id = $1`, [bookId]);
+
+      // Insert new questions
+      for (let i = 0; i < result.questions.length; i++) {
+        const q = result.questions[i];
+        await pool.query(
+          `INSERT INTO questions (book_id, question_text, option_a, option_b, option_c, option_d, correct_answer, question_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [bookId, q.question, q.options[0], q.options[1], q.options[2], q.options[3], q.correct, i + 1]
+        );
+      }
+
+      // Update points value
+      await pool.query(`UPDATE books SET points_value = $1 WHERE id = $2`, [result.pointsValue || 10, bookId]);
+
+      // Clear cache
+      clearCache('allBooks');
+
+      res.json({ message: `Quiz generated with ${result.questions.length} questions!`, questions: result.questions });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 

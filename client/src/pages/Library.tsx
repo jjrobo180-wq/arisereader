@@ -130,6 +130,7 @@ export default function Library() {
   const [growScoreOL, setGrowScoreOL] = useState<{topic: string; title: string; author: string; coverUrl: string}[]>([]);
   const [currentReadingLevel, setCurrentReadingLevel] = useState<number | null>(null);
   const [nextReadingLevel, setNextReadingLevel] = useState<number | null>(null);
+  const [pendingReviewMsg, setPendingReviewMsg] = useState<string | null>(null);
   const [favOnboarded, setFavOnboarded] = useState(false);
   const [showFavOnboarding, setShowFavOnboarding] = useState(false);
   const [favSearch, setFavSearch] = useState("");
@@ -547,9 +548,18 @@ export default function Library() {
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.bookId) setPendingBookId(data.bookId);
-        setInstantMsg(data.message || "Quiz generated!");
-        fetchBooks();
+        if (data.pendingReview) {
+          // Quiz sent for review — show the review animation
+          setPendingReviewMsg(data.message);
+          setShowGenerating(true);
+        } else if (data.bookId) {
+          setPendingBookId(data.bookId);
+          setInstantMsg(data.message || "Quiz generated!");
+          fetchBooks();
+        } else {
+          setInstantError(data.message || "Failed to generate quiz.");
+          setShowGenerating(false);
+        }
       } else if (data.needsManualReview) {
         // Quiz requires manual review — show the message, stop loading
         setShowGenerating(false);
@@ -572,6 +582,7 @@ export default function Library() {
     setInstantBook("");
     setInstantAuthor("");
     setInstantMsg("");
+    setPendingReviewMsg(null);
     // Show disclaimer before launching the quiz
     if (pendingBookId) {
       setShowQuizDisclaimer(true);
@@ -612,7 +623,12 @@ export default function Library() {
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.quizId) setPendingEyeGazeQuizId(data.quizId);
+        if (data.pendingReview) {
+          setPendingReviewMsg(data.message);
+          setShowGenerating(true);
+        } else if (data.quizId) {
+          setPendingEyeGazeQuizId(data.quizId);
+        }
       } else {
         setEyeGazeError(data.message || "Failed to generate quiz.");
         setShowGenerating(false);
@@ -629,6 +645,7 @@ export default function Library() {
     setEyeGazeDescription("");
     setEyeGazeSourceLink("");
     setEyeGazeError("");
+    setPendingReviewMsg(null);
     if (pendingEyeGazeQuizId) {
       navigate(`/custom-quiz/${pendingEyeGazeQuizId}`);
     } else {
@@ -772,6 +789,7 @@ export default function Library() {
     setShowGenerating(false);
     setFavQuizTopic("");
     setFavQuizError("");
+    setPendingReviewMsg(null);
     if (pendingFavBookId) {
       navigate(`/quiz/${pendingFavBookId}`);
     } else {
@@ -833,8 +851,12 @@ export default function Library() {
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.bookId) setPendingBookId(data.bookId);
-        fetchBooks();
+        if (data.pendingReview) {
+          setPendingReviewMsg(data.message);
+          setShowGenerating(true);
+        } else if (data.bookId) {
+          setPendingBookId(data.bookId);
+        }
       } else {
         setShowGenerating(false);
       }
@@ -914,8 +936,12 @@ export default function Library() {
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.bookId) setPendingIariseBookId(data.bookId);
-        fetchBooks();
+        if (data.pendingReview) {
+          setPendingReviewMsg(data.message);
+          setShowGenerating(true);
+        } else if (data.bookId) {
+          setPendingIariseBookId(data.bookId);
+        }
       } else {
         setShowGenerating(false);
       }
@@ -927,6 +953,7 @@ export default function Library() {
   const handleIariseQuizComplete = () => {
     setShowGenerating(false);
     setIariseQuizTopic("");
+    setPendingReviewMsg(null);
     if (pendingIariseBookId) {
       navigate(`/course/${pendingIariseBookId}`);
     } else {
@@ -2816,9 +2843,10 @@ export default function Library() {
         <QuizGeneratingOverlay
           bookTitle={showEyeGazeInstant ? eyeGazeTopic : showFavOnboarding ? "" : favQuizTopic || iariseQuizTopic || instantBook}
           author={showEyeGazeInstant ? "" : showFavOnboarding ? "" : instantAuthor}
-          ready={showEyeGazeInstant ? !!pendingEyeGazeQuizId : pendingIariseBookId ? !!pendingIariseBookId : pendingFavBookId ? !!pendingFavBookId : !!pendingBookId}
+          ready={pendingReviewMsg ? true : showEyeGazeInstant ? !!pendingEyeGazeQuizId : pendingIariseBookId ? !!pendingIariseBookId : pendingFavBookId ? !!pendingFavBookId : !!pendingBookId}
           onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : pendingIariseBookId ? handleIariseQuizComplete : pendingFavBookId ? handleFavQuizComplete : handleGeneratingComplete}
           isEyeGaze={showEyeGazeInstant}
+          pendingReview={pendingReviewMsg}
         />
       )}
 
