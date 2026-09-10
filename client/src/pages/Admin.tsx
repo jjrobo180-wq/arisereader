@@ -3704,21 +3704,21 @@ Generate exactly 10 questions.`;
                       growthCheckWindows.map((w) => (
                         <div key={w.id} className="flex items-center justify-between bg-muted/30 rounded-xl p-3">
                           <div>
-                            <div className="font-medium text-sm">{w.name || w.term}</div>
+                            <div className="font-medium text-sm capitalize">{w.window_name || w.name || "Unknown"}</div>
                             <div className="text-xs text-muted-foreground">
-                              {w.term}{w.startDate && ` • ${w.startDate}${w.endDate ? ` to ${w.endDate}` : ""}`}
+                              {w.school_year || w.term}{w.start_date && ` • ${w.start_date}${w.end_date ? ` to ${w.end_date}` : ""}`}
                             </div>
                           </div>
                           <button
-                            onClick={() => handleSaveGrowthCheckWindow({ ...w, isActive: !w.isActive })}
+                            onClick={() => handleSaveGrowthCheckWindow({ ...w, is_active: !w.is_active })}
                             disabled={growthCheckSaving}
                             className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${
-                              w.isActive
+                              w.is_active
                                 ? "bg-green-500/20 text-green-400 border border-green-500/30"
                                 : "bg-muted text-muted-foreground border border-border hover:bg-muted/80"
                             } disabled:opacity-50`}
                           >
-                            {w.isActive ? "Active" : "Inactive"}
+                            {w.is_active ? "Active" : "Inactive"}
                           </button>
                         </div>
                       ))
@@ -3770,11 +3770,11 @@ Generate exactly 10 questions.`;
                         <tbody>
                           {growthCheckOverview.map((r, i) => (
                             <tr key={i} className="border-b border-border/50">
-                              <td className="py-2 px-2 font-medium">{r.studentName || r.displayName || "—"}</td>
-                              <td className="py-2 px-2">{r.gradeBand || "—"}</td>
-                              <td className="py-2 px-2">{r.ariseScore ?? r.score ?? "—"}</td>
-                              <td className="py-2 px-2">{r.windowName || r.window || "—"}</td>
-                              <td className="py-2 px-2 text-muted-foreground">{r.dateTaken || r.completedAt || "—"}</td>
+                              <td className="py-2 px-2 font-medium">{r.studentName || r.student_name || r.displayName || "Student #" + (r.student_id || "—")}</td>
+                              <td className="py-2 px-2">{r.gradeBand || r.grade_band || r.formGradeBand || "—"}</td>
+                              <td className="py-2 px-2">{r.ariseScore ?? r.arise_reading_score ?? r.score ?? "—"}</td>
+                              <td className="py-2 px-2 capitalize">{r.windowName || r.window_name || "—"}</td>
+                              <td className="py-2 px-2 text-muted-foreground">{r.dateTaken || r.submitted_at || r.completedAt || "—"}</td>
                             </tr>
                           ))}
                         </tbody>
