@@ -2524,20 +2524,21 @@ export async function registerRoutes(
   // Admin: update book details (title, author, description, coverUrl, readUrl)
   app.patch("/api/admin/books/:id", authMiddleware, adminMiddleware, async (req, res) => {
     const bookId = parseInt(req.params.id);
-    const { title, author, description, coverUrl, readUrl, gradeBand } = req.body;
+    const { title, author, description, coverUrl, readUrl, ageGroup } = req.body;
     const update: any = {};
     if (title) update.title = title;
     if (author) update.author = author;
     if (description !== undefined) update.description = description;
-    if (coverUrl) update.coverUrl = coverUrl;
-    if (readUrl !== undefined) update.readUrl = readUrl;
-    if (gradeBand) update.grade_band = gradeBand;
+    if (coverUrl) update.cover_url = coverUrl;
+    if (readUrl !== undefined) update.read_url = readUrl;
+    if (ageGroup) update.age_group = ageGroup;
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ message: "No fields to update" });
     }
     const { data, error } = await supabase.from("books").update(update).eq("id", bookId).select().single();
     if (error) {
-      return res.status(500).json({ message: "Failed to update book" });
+      console.error("Book update error:", error.message);
+      return res.status(500).json({ message: "Failed to update book: " + error.message });
     }
     res.json(data);
   });
