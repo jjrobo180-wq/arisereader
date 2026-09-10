@@ -64,12 +64,13 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
   }, []);
 
   // Only complete when both the animation is done AND the API response is ready
+  // Skip this when pendingReview — the reviewSent effect handles completion instead
   useEffect(() => {
-    if (allStepsDone && ready) {
+    if (allStepsDone && ready && !pendingReview) {
       const t = setTimeout(() => onComplete(), 800);
       return () => clearTimeout(t);
     }
-  }, [allStepsDone, ready, onComplete]);
+  }, [allStepsDone, ready, onComplete, pendingReview]);
 
   // If pending review, show the "sent to teacher" animation
   const [reviewSent, setReviewSent] = useState(false);
@@ -81,7 +82,7 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
 
   useEffect(() => {
     if (reviewSent) {
-      const t = setTimeout(() => onComplete(), 9000);
+      const t = setTimeout(() => onComplete(), 8000);
       return () => clearTimeout(t);
     }
   }, [reviewSent, onComplete]);
