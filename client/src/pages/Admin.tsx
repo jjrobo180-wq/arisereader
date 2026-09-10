@@ -258,6 +258,15 @@ export default function Admin() {
   const [ireadyVocab, setIreadyVocab] = useState("");
   const [ireadyMsg, setIreadyMsg] = useState("");
   const [readingProgress, setReadingProgress] = useState<any>(null);
+  // Growth Check state
+  const [growthCheckWindows, setGrowthCheckWindows] = useState<any[]>([]);
+  const [growthCheckForms, setGrowthCheckForms] = useState<any[]>([]);
+  const [growthCheckOverview, setGrowthCheckOverview] = useState<any[]>([]);
+  const [growthCheckLoading, setGrowthCheckLoading] = useState(true);
+  const [growthCheckAssignBand, setGrowthCheckAssignBand] = useState("3-5");
+  const [growthCheckSaving, setGrowthCheckSaving] = useState(false);
+  const [growthCheckSuccess, setGrowthCheckSuccess] = useState("");
+  const [growthCheckError, setGrowthCheckError] = useState("");
 
   // Schools & Classes handlers
   const fetchSchools = async () => {
@@ -681,6 +690,80 @@ export default function Admin() {
     window.addEventListener("arise-logout", clearCaches);
     return () => window.removeEventListener("arise-logout", clearCaches);
   }, []);
+
+  // Growth Check — fetch benchmark windows, forms, and overview on mount
+  useEffect(() => {
+    const fetchGrowthCheck = async () => {
+      const authToken = token || getTokenFromCookie();
+      if (!authToken) { setGrowthCheckLoading(false); return; }
+      try {
+        const [winRes, formRes, overviewRes] = await Promise.all([
+          fetch(`${API_BASE}/api/admin/growth-check/windows`, { headers: { Authorization: `Bearer ${authToken}` } }),
+          fetch(`${API_BASE}/api/admin/growth-check/forms`, { headers: { Authorization: `Bearer ${authToken}` } }),
+          fetch(`${API_BASE}/api/teacher/growth-check/overview`, { headers: { Authorization: `Bearer ${authToken}` } }),
+        ]);
+        if (winRes.ok) { const d = await winRes.json(); setGrowthCheckWindows(Array.isArray(d) ? d : []); }
+        if (formRes.ok) { const d = await formRes.json(); setGrowthCheckForms(Array.isArray(d) ? d : []); }
+        if (overviewRes.ok) { const d = await overviewRes.json(); setGrowthCheckOverview(Array.isArray(d) ? d : []); }
+      } catch (err) {
+        console.error("Failed to fetch Growth Check data:", err);
+      } finally {
+        setGrowthCheckLoading(false);
+      }
+    };
+    fetchGrowthCheck();
+  }, [token]);
+
+  // Save (create/update) a benchmark window
+  const handleSaveGrowthCheckWindow = async (window: any) => {
+    setGrowthCheckSaving(true);
+    setGrowthCheckSuccess("");
+    setGrowthCheckError("");
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/admin/growth-check/windows`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(window),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message || "Failed to save window"); }
+      const updated = await res.json();
+      setGrowthCheckWindows(prev => {
+        const idx = prev.findIndex(w => w.id === updated.id);
+        if (idx >= 0) { const n = [...prev]; n[idx] = updated; return n; }
+        return [...prev, updated];
+      });
+      setGrowthCheckSuccess("Window updated successfully!");
+      setTimeout(() => setGrowthCheckSuccess(""), 3000);
+    } catch (err: any) {
+      setGrowthCheckError(err.message || "Failed to save window");
+    } finally {
+      setGrowthCheckSaving(false);
+    }
+  };
+
+  // Assign Growth Check to all students in a grade band
+  const handleAssignGrowthCheckAll = async () => {
+    setGrowthCheckSaving(true);
+    setGrowthCheckSuccess("");
+    setGrowthCheckError("");
+    try {
+      const authToken = token || getTokenFromCookie();
+      const res = await fetch(`${API_BASE}/api/admin/growth-check/assign-all`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ gradeBand: growthCheckAssignBand }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message || "Failed to assign"); }
+      const data = await res.json();
+      setGrowthCheckSuccess(`Assigned to ${data.assigned || data.count || "all"} students!`);
+      setTimeout(() => setGrowthCheckSuccess(""), 4000);
+    } catch (err: any) {
+      setGrowthCheckError(err.message || "Failed to assign");
+    } finally {
+      setGrowthCheckSaving(false);
+    }
+  };
 
   const fetchAnnouncement = async () => {
     if (!token) return;
@@ -3576,6 +3659,129 @@ Generate exactly 10 questions.`;
                     })}
                   </div>
                 ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Growth Check Section */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5" />
+              Arise Reading Growth Check
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">Manage benchmark windows, forms, and student assignments</p>
+          </CardHeader>
+          <CardContent>
+            {growthCheckLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Success / Error messages */}
+                {growthCheckSuccess && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    {growthCheckSuccess}
+                  </div>
+                )}
+                {growthCheckError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <X className="w-4 h-4 flex-shrink-0" />
+                    {growthCheckError}
+                  </div>
+                )}
+
+                {/* Benchmark Windows */}
+                <div>
+                  <h3 className="font-semibold text-sm mb-3">Benchmark Windows</h3>
+                  <div className="space-y-2">
+                    {growthCheckWindows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No benchmark windows configured.</p>
+                    ) : (
+                      growthCheckWindows.map((w) => (
+                        <div key={w.id} className="flex items-center justify-between bg-muted/30 rounded-xl p-3">
+                          <div>
+                            <div className="font-medium text-sm">{w.name || w.term}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {w.term}{w.startDate && ` • ${w.startDate}${w.endDate ? ` to ${w.endDate}` : ""}`}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleSaveGrowthCheckWindow({ ...w, isActive: !w.isActive })}
+                            disabled={growthCheckSaving}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${
+                              w.isActive
+                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                : "bg-muted text-muted-foreground border border-border hover:bg-muted/80"
+                            } disabled:opacity-50`}
+                          >
+                            {w.isActive ? "Active" : "Inactive"}
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Assign Growth Check */}
+                <div>
+                  <h3 className="font-semibold text-sm mb-3">Assign Growth Check</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={growthCheckAssignBand}
+                      onChange={(e) => setGrowthCheckAssignBand(e.target.value)}
+                      className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
+                    >
+                      <option value="K-2">K-2</option>
+                      <option value="3-5">3-5</option>
+                      <option value="6-8">6-8</option>
+                      <option value="9-12">9-12</option>
+                    </select>
+                    <Button
+                      onClick={handleAssignGrowthCheckAll}
+                      disabled={growthCheckSaving}
+                      className="bg-primary"
+                    >
+                      Assign to All Students
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Student Results Overview */}
+                <div>
+                  <h3 className="font-semibold text-sm mb-3">Student Results Overview</h3>
+                  {growthCheckOverview.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No student attempts yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                            <th className="py-2 px-2">Student</th>
+                            <th className="py-2 px-2">Grade Band</th>
+                            <th className="py-2 px-2">Arise Score</th>
+                            <th className="py-2 px-2">Window</th>
+                            <th className="py-2 px-2">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {growthCheckOverview.map((r, i) => (
+                            <tr key={i} className="border-b border-border/50">
+                              <td className="py-2 px-2 font-medium">{r.studentName || r.displayName || "—"}</td>
+                              <td className="py-2 px-2">{r.gradeBand || "—"}</td>
+                              <td className="py-2 px-2">{r.ariseScore ?? r.score ?? "—"}</td>
+                              <td className="py-2 px-2">{r.windowName || r.window || "—"}</td>
+                              <td className="py-2 px-2 text-muted-foreground">{r.dateTaken || r.completedAt || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

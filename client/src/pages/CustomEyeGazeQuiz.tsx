@@ -101,7 +101,8 @@ export default function CustomEyeGazeQuiz() {
           {spectatorQuestions.map((q: any, i: number) => (
             <div key={i} style={{ background: "hsl(0 0% 14%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 10, padding: 16, marginBottom: 12 }}>
               <p style={{ fontWeight: 600, marginBottom: 12 }}><span style={{ color: "hsl(21 100% 50%)" }}>Q{i + 1}.</span> {q.prompt}</p>
-              {q.question_image && <img src={q.question_image} alt="Question" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 8, marginBottom: 8 }} />}
+              {q.question_image && (q.question_image.startsWith("http") || q.question_image.startsWith("data:")) && <img src={q.question_image} alt="Question" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 8, marginBottom: 8 }} />}
+              {q.question_image && !(q.question_image.startsWith("http") || q.question_image.startsWith("data:")) && <span style={{ fontSize: 40, display: "block", marginBottom: 8 }}>{q.question_image}</span>}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {['a', 'b', 'c', 'd'].map(opt => {
                   const text = q[`option_${opt}_text`];
@@ -349,18 +350,34 @@ export default function CustomEyeGazeQuiz() {
         marginBottom: "1.5rem",
       }}>
         {currentQ.question_image ? (
-          <img
-            src={currentQ.question_image}
-            alt="Question"
-            style={{
-              maxWidth: "400px",
-              maxHeight: "350px",
+          currentQ.question_image.startsWith("http") || currentQ.question_image.startsWith("data:") ? (
+            <img
+              src={currentQ.question_image}
+              alt="Question"
+              style={{
+                maxWidth: "400px",
+                maxHeight: "350px",
+                borderRadius: "1rem",
+                border: "2px solid hsl(0 0% 20%)",
+                objectFit: "contain",
+                background: "hsl(0 0% 14%)",
+              }}
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <div style={{
+              fontSize: "8rem",
+              lineHeight: 1,
+              padding: "1rem",
+              background: "hsl(0 0% 14%)",
               borderRadius: "1rem",
               border: "2px solid hsl(0 0% 20%)",
-              objectFit: "contain",
-              background: "hsl(0 0% 14%)",
-            }}
-          />
+            }}>
+              {currentQ.question_image}
+            </div>
+          )
         ) : (
           <div style={{
             fontSize: "8rem",

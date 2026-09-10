@@ -245,7 +245,7 @@ Rules:
 }
 
 // Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
-async function generateEyeGazeQuizWithAI(topic: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
+async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -256,21 +256,41 @@ async function generateEyeGazeQuizWithAI(topic: string): Promise<{ questions: Ar
       guidelines = await storage.getSetting("quiz_generation_guidelines") || "";
     } catch {}
 
-    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students. Create exactly 10 multiple-choice questions about: "${topic}".
+    // Build a flexible prompt that accepts any topic, description, or source
+    let userRequest = `Topic: "${topic}"`;
+    if (description && description.trim()) {
+      userRequest += `\nDescription: ${description.trim()}`;
+    }
+    if (sourceLink && sourceLink.trim()) {
+      userRequest += `\nSource/Reference: ${sourceLink.trim()}`;
+    }
+
+    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students. Create exactly 5 multiple-choice questions based on the following request:
+
+${userRequest}
 
 These quizzes are for students who use eye gaze technology or are non-verbal. Questions should be visual, simple, and accessible. Each question must have a visual element (an emoji that represents the concept).
+
+IMPORTANT CONTENT RULES:
+- All content MUST be school-appropriate and child-friendly
+- All answers MUST be factually accurate
+- If the topic involves a YouTube video, song, or specific media, create questions about the general educational concepts, not about the video itself
+- Do NOT reference YouTube, specific video titles, or brand names in questions
+- Focus on the educational content and learning objectives
+- If the topic is too vague, make reasonable educational assumptions
 
 Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
 {"questions":[{"prompt":"What color is the sky?","question_image":"☁️","option_a_text":"Red","option_a_image":null,"option_b_text":"Blue","option_b_image":null,"option_c_text":"Green","option_c_image":null,"option_d_text":"Yellow","option_d_image":null,"correct_answer":"B"}]}
 
 Rules:
+- Create exactly 5 questions — no more, no less
 - Questions should be simple, visual, and appropriate for eye gaze / non-verbal students
 - The "question_image" field should be a single emoji that represents the question topic
 - Each question has exactly 4 options (option_a_text through option_d_text) — these are the answer choices shown to the student
 - The "correct_answer" is a single letter: "A", "B", "C", or "D"
 - Make questions about identification, matching, and simple comprehension
 - Use clear, simple language
-- Return exactly 10 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
+- Return exactly 5 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
 
     const res = await fetch(PERPLEXITY_API_URL, {
       method: "POST",
@@ -301,14 +321,20 @@ Rules:
     let jsonStr = content.trim();
     const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
     if (jsonMatch) jsonStr = jsonMatch[0];
-    const parsed = JSON.parse(jsonStr);
+    
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      return { error: "AI returned invalid JSON. Please try again." };
+    }
     const questions = parsed.questions || parsed;
 
     if (!Array.isArray(questions) || questions.length === 0) {
       return { error: "AI generated invalid questions" };
     }
 
-    const validQuestions = questions.slice(0, 10).map((q: any) => ({
+    const validQuestions = questions.slice(0, 5).map((q: any) => ({
       prompt: q.prompt || "What is this?",
       question_image: q.question_image || q.visual || null,
       option_a_text: q.option_a_text || q.option_a || q.options?.[0] || "",
@@ -322,8 +348,8 @@ Rules:
       correct_answer: (q.correct_answer || q.correct || "A").toUpperCase().charAt(0),
     })).filter((q: any) => q.option_a_text && q.option_b_text && q.option_c_text && q.option_d_text);
 
-    if (validQuestions.length < 5) {
-      return { error: "AI generated too few valid questions" };
+    if (validQuestions.length < 3) {
+      return { error: "AI generated too few valid questions. Please try a more specific topic." };
     }
 
     return { questions: validQuestions };
@@ -3045,21 +3071,22 @@ export async function registerRoutes(
   // Student: generate an instant AI eye gaze quiz
   app.post("/api/instant-quiz-eye-gaze", authMiddleware, async (req: any, res) => {
     try {
-      const { topic } = req.body;
+      const { topic, description, sourceLink } = req.body;
       if (!topic || topic.trim().length < 2) {
-        return res.status(400).json({ message: "Topic is required" });
+        return res.status(400).json({ message: "Please enter a topic or description for your quiz" });
       }
 
       // Generate eye gaze quiz with AI
-      const result = await generateEyeGazeQuizWithAI(topic.trim());
+      const result = await generateEyeGazeQuizWithAI(topic.trim(), description, sourceLink);
       if ("error" in result) {
         return res.status(500).json({ message: result.error });
       }
 
       // Create as a custom eye gaze quiz
+      const quizTitle = description && description.trim() ? description.trim().slice(0, 60) : topic.trim();
       const quiz = await storage.createCustomEyeGazeQuiz(
         req.user.id,
-        topic.trim(),
+        quizTitle,
         `AI-generated eye gaze quiz about ${topic.trim()}`,
         "Custom",
         result.questions,
@@ -3070,7 +3097,7 @@ export async function registerRoutes(
 
       res.status(201).json({ quizId: quiz.id, message: "Quiz generated! Ready to take.", generated: true });
     } catch (error: any) {
-      res.status(500).json({ message: error.message || "Failed to generate eye gaze quiz" });
+      res.status(500).json({ message: error.message || "Failed to generate eye gaze quiz. Please try again." });
     }
   });
 
