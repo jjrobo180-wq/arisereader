@@ -1750,13 +1750,34 @@ export async function registerRoutes(
       const pendingParentsList = (allParentRows || []).filter((p: any) =>
         !p.account_approved
       );
+      // Pending AI quizzes
+      const { data: pendingAIList } = await supabase
+        .from("pending_ai_quizzes")
+        .select("id, book_title, author, student_id, quiz_type, created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      const aiSeenAt = await storage.getNotifSeenAt("ai_quiz_pending");
+      const pendingAIItems = (pendingAIList || []).filter((r: any) =>
+        !aiSeenAt || new Date(r.created_at) > new Date(aiSeenAt)
+      );
+      // Fetch student names for AI quizzes
+      let aiStudentMap: Record<number, string> = {};
+      if (pendingAIItems.length > 0) {
+        const studentIds = [...new Set(pendingAIItems.map((r: any) => r.student_id))];
+        const { data: aiStudents } = await supabase
+          .from("users")
+          .select("id, display_name")
+          .in("id", studentIds);
+        (aiStudents || []).forEach((s: any) => { aiStudentMap[s.id] = s.display_name; });
+      }
       res.json({
-        unreadCount: pendingReqs.length + newUsersList.length + pendingTeachersList.length + pendingParentsList.length,
+        unreadCount: pendingReqs.length + newUsersList.length + pendingTeachersList.length + pendingParentsList.length + pendingAIItems.length,
         type: "admin",
         pendingRequests: pendingReqs.length,
         newUsers: newUsersList.length,
         pendingTeachers: pendingTeachersList.length,
         pendingParents: pendingParentsList.length,
+        pendingAIQuizzes: pendingAIItems.length,
         pendingRequestItems: pendingReqs.map((r: any) => ({
           id: r.id,
           bookTitle: r.bookTitle,
@@ -1776,6 +1797,14 @@ export async function registerRoutes(
           username: t.username,
           email: t.email,
           createdAt: t.created_at,
+        })),
+        pendingAIQuizItems: pendingAIItems.map((r: any) => ({
+          id: r.id,
+          bookTitle: r.book_title,
+          author: r.author,
+          studentName: aiStudentMap[r.student_id] || 'Unknown',
+          quizType: r.quiz_type,
+          createdAt: r.created_at,
         })),
       });
     } else {
@@ -1798,7 +1827,7 @@ export async function registerRoutes(
   app.post("/api/notifications/mark-seen", authMiddleware, async (req, res) => {
     try {
       const notifType = req.body?.type;
-      if (notifType === "quiz_requests" || notifType === "new_users" || notifType === "pending_teachers") {
+      if (notifType === "quiz_requests" || notifType === "new_users" || notifType === "pending_teachers" || notifType === "ai_quiz_pending") {
         // Only admins can clear admin notification types
         if (!req.user.isAdmin) return res.status(403).json({ message: "Forbidden" });
         await storage.setNotifSeenAt(notifType);

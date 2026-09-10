@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, BookPlus, UserPlus, X, MessageSquare } from "lucide-react";
+import { Bell, BookPlus, UserPlus, X, MessageSquare, Brain } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 
@@ -20,9 +20,12 @@ interface NotifData {
   pendingRequests?: number;
   newUsers?: number;
   pendingTeachers?: number;
+  pendingParents?: number;
+  pendingAIQuizzes?: number;
   pendingRequestItems?: NotifItem[];
   newUserItems?: NotifItem[];
   pendingTeacherItems?: NotifItem[];
+  pendingAIQuizItems?: NotifItem[];
   messageItems?: NotifItem[];
 }
 
@@ -131,7 +134,7 @@ export function NotificationBell({
     onNavigate?.(type, id);
   };
 
-  const handleDismissItem = (e: React.MouseEvent, type: "quiz_requests" | "new_users" | "pending_teachers" | "messages") => {
+  const handleDismissItem = (e: React.MouseEvent, type: "quiz_requests" | "new_users" | "pending_teachers" | "messages" | "ai_quiz_pending") => {
     e.stopPropagation();
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
@@ -144,7 +147,15 @@ export function NotificationBell({
   };
 
   // Combined flat list of individual items for compact display
-  const items: Array<{ key: string; type: "request" | "user" | "teacher" | "message"; id: number; title: string; subtitle: string; icon: "book" | "user" | "teacher" | "message" }> = [
+  const items: Array<{ key: string; type: "request" | "user" | "teacher" | "message" | "ai_quiz"; id: number; title: string; subtitle: string; icon: "book" | "user" | "teacher" | "message" | "ai" }> = [
+    ...(notifData.pendingAIQuizItems || []).map(r => ({
+      key: `ai-${r.id}`,
+      type: "ai_quiz" as const,
+      id: r.id,
+      title: r.bookTitle || "AI Quiz Request",
+      subtitle: `AI quiz — ${r.studentName || "Student"}`,
+      icon: "ai" as const,
+    })),
     ...(notifData.pendingTeacherItems || []).map(t => ({
       key: `teacher-${t.id}`,
       type: "teacher" as const,
@@ -226,7 +237,7 @@ export function NotificationBell({
                     className="flex-1 flex items-center gap-2 px-3 py-2 text-left min-w-0"
                   >
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      item.icon === "book" ? "bg-orange-500/20" : item.icon === "user" ? "bg-blue-500/20" : item.icon === "teacher" ? "bg-yellow-500/20" : "bg-purple-500/20"
+                      item.icon === "book" ? "bg-orange-500/20" : item.icon === "user" ? "bg-blue-500/20" : item.icon === "teacher" ? "bg-yellow-500/20" : item.icon === "ai" ? "bg-purple-500/20" : "bg-purple-500/20"
                     }`}>
                       {item.icon === "book" ? (
                         <BookPlus className="w-3.5 h-3.5 text-orange-500" />
@@ -234,6 +245,8 @@ export function NotificationBell({
                         <UserPlus className="w-3.5 h-3.5 text-blue-400" />
                       ) : item.icon === "teacher" ? (
                         <UserPlus className="w-3.5 h-3.5 text-yellow-400" />
+                      ) : item.icon === "ai" ? (
+                        <Brain className="w-3.5 h-3.5 text-purple-400" />
                       ) : (
                         <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
                       )}
@@ -244,7 +257,7 @@ export function NotificationBell({
                     </div>
                   </button>
                   <button
-                    onClick={(e) => handleDismissItem(e, item.type === "request" ? "quiz_requests" : item.type === "user" ? "new_users" : item.type === "teacher" ? "pending_teachers" : "messages")}
+                    onClick={(e) => handleDismissItem(e, item.type === "request" ? "quiz_requests" : item.type === "user" ? "new_users" : item.type === "teacher" ? "pending_teachers" : item.type === "ai_quiz" ? "ai_quiz_pending" : "messages")}
                     className="px-2 flex items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
                     aria-label="Dismiss"
                   >
