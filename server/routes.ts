@@ -2521,6 +2521,38 @@ export async function registerRoutes(
     res.json({ message: "Cover updated successfully" });
   });
 
+  // Admin: update book details (title, author, description, coverUrl, readUrl)
+  app.patch("/api/admin/books/:id", authMiddleware, adminMiddleware, async (req, res) => {
+    const bookId = parseInt(req.params.id);
+    const { title, author, description, coverUrl, readUrl, gradeBand } = req.body;
+    const update: any = {};
+    if (title) update.title = title;
+    if (author) update.author = author;
+    if (description !== undefined) update.description = description;
+    if (coverUrl) update.coverUrl = coverUrl;
+    if (readUrl !== undefined) update.readUrl = readUrl;
+    if (gradeBand) update.grade_band = gradeBand;
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+    const { data, error } = await supabase.from("books").update(update).eq("id", bookId).select().single();
+    if (error) {
+      return res.status(500).json({ message: "Failed to update book" });
+    }
+    res.json(data);
+  });
+
+  // Admin: delete a book and its quiz questions
+  app.delete("/api/admin/books/:id", authMiddleware, adminMiddleware, async (req, res) => {
+    const bookId = parseInt(req.params.id);
+    await supabase.from("quiz_questions").delete().eq("book_id", bookId);
+    const { error } = await supabase.from("books").delete().eq("id", bookId);
+    if (error) {
+      return res.status(500).json({ message: "Failed to delete book" });
+    }
+    res.json({ message: "Book deleted successfully" });
+  });
+
   // Admin: set Perplexity API key for instant quiz generation
   app.post("/api/admin/ai-settings", authMiddleware, adminMiddleware, async (req, res) => {
     const { perplexityApiKey } = req.body;
