@@ -18,8 +18,8 @@ import BookAccessLinks from "@/components/BookAccessLinks";
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
 
-// Hispanic Heritage Month book IDs
-const HISPANIC_HERITAGE_BOOK_IDS = [856, 857, 858, 859, 860]; // Too Many Tamales, Round Is a Tortilla, Esperanza Rising, The Dreamer, The House on Mango Street
+// Hispanic Heritage Month book IDs - empowering, uplifting, inspiring stories
+const HISPANIC_HERITAGE_BOOK_IDS = [856, 857, 858, 859, 874, 875, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891];
 
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
@@ -1777,7 +1777,7 @@ export default function Library() {
                   <h2 className="text-lg font-bold text-foreground">Hispanic Heritage Month</h2>
                   <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{hispanicHeritageBooks.length} quizzes</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Celebrate Hispanic Heritage Month with these amazing books by Latino authors.</p>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Celebrate Hispanic Heritage Month with empowering and inspiring stories about Latino leaders, artists, scientists, and communities.</p>
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {hispanicHeritageBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
