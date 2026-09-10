@@ -2626,15 +2626,19 @@ export async function registerRoutes(
         if (result.needsManualReview) {
           // Create a quiz request notification for the admin
           try {
-            const { pool } = require("./storage.js");
-            await pool.query(
-              "INSERT INTO quiz_requests (student_id, book_title, author, status, reason) VALUES ($1, $2, $3, $4, $5)",
-              [req.user.id, cleanTitle, cleanAuthor, "pending", result.reviewReason || ""]
-            );
-            await pool.query(
-              "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, $2, $3, $4)",
-              [1, "info", "Manual review needed", `A student requested a quiz for "${cleanTitle}" but it appears to be below their grade level. Review needed.`]
-            );
+            await supabase.from('quiz_requests').insert({
+              student_id: req.user.id,
+              book_title: cleanTitle,
+              author: cleanAuthor,
+              status: 'pending',
+              reason: result.reviewReason || ''
+            });
+            await supabase.from('notifications').insert({
+              user_id: 1,
+              type: 'info',
+              title: 'Manual review needed',
+              message: `A student requested a quiz for "${cleanTitle}" but it appears to be below their grade level. Review needed.`
+            });
           } catch {}
           return res.status(403).json({ message: result.error, needsManualReview: true });
         }
@@ -2672,17 +2676,23 @@ export async function registerRoutes(
 
       // Save the generated quiz for admin/teacher review before publishing
       try {
-        const { pool } = require("./storage.js");
-        await pool.query(
-          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-          [req.user.id, cleanTitle, cleanAuthor, JSON.stringify(result.questions), coverUrl, ageGroup, 'book']
-        );
+        await supabase.from('pending_ai_quizzes').insert({
+          student_id: req.user.id,
+          book_title: cleanTitle,
+          author: cleanAuthor,
+          questions: JSON.stringify(result.questions),
+          cover_url: coverUrl,
+          age_group: ageGroup,
+          quiz_type: 'book',
+          status: 'pending'
+        });
         // Notify admin
-        await pool.query(
-          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
-          [`Student requested an AI quiz for "${cleanTitle}" by ${cleanAuthor}. Review and approve it in the admin panel.`]
-        );
+        await supabase.from('notifications').insert({
+          user_id: 1,
+          type: 'info',
+          title: 'AI Quiz Pending Review',
+          message: `Student requested an AI quiz for "${cleanTitle}" by ${cleanAuthor}. Review and approve it in the admin panel.`
+        });
       } catch {}
 
       return res.status(201).json({ 
@@ -3033,16 +3043,22 @@ export async function registerRoutes(
 
       // Save as pending for admin/teacher review
       try {
-        const { pool } = require("./storage.js");
-        await pool.query(
-          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-          [req.user.id, cleanTopic, "Favorite Topic", JSON.stringify(result.questions), coverUrl, ageGroup, 'favorite_topic']
-        );
-        await pool.query(
-          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
-          [`Student requested an AI quiz about "${cleanTopic}" (favorite topic). Review and approve it in the admin panel.`]
-        );
+        await supabase.from('pending_ai_quizzes').insert({
+          student_id: req.user.id,
+          book_title: cleanTopic,
+          author: 'Favorite Topic',
+          questions: JSON.stringify(result.questions),
+          cover_url: coverUrl,
+          age_group: ageGroup,
+          quiz_type: 'favorite_topic',
+          status: 'pending'
+        });
+        await supabase.from('notifications').insert({
+          user_id: 1,
+          type: 'info',
+          title: 'AI Quiz Pending Review',
+          message: `Student requested an AI quiz about "${cleanTopic}" (favorite topic). Review and approve it in the admin panel.`
+        });
       } catch {}
 
       return res.status(201).json({ 
@@ -3199,16 +3215,22 @@ export async function registerRoutes(
 
       // Save as pending for admin/teacher review
       try {
-        const { pool } = require("./storage.js");
-        await pool.query(
-          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-          [req.user.id, cleanTopic, "iArise Lesson", JSON.stringify(result.questions), coverUrl, ageGroup, 'iarise']
-        );
-        await pool.query(
-          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
-          [`Student requested an AI iArise quiz about "${cleanTopic}". Review and approve it in the admin panel.`]
-        );
+        await supabase.from('pending_ai_quizzes').insert({
+          student_id: req.user.id,
+          book_title: cleanTopic,
+          author: 'iArise Lesson',
+          questions: JSON.stringify(result.questions),
+          cover_url: coverUrl,
+          age_group: ageGroup,
+          quiz_type: 'iarise',
+          status: 'pending'
+        });
+        await supabase.from('notifications').insert({
+          user_id: 1,
+          type: 'info',
+          title: 'AI Quiz Pending Review',
+          message: `Student requested an AI iArise quiz about "${cleanTopic}". Review and approve it in the admin panel.`
+        });
       } catch {}
 
       return res.status(201).json({ 
@@ -3237,16 +3259,22 @@ export async function registerRoutes(
 
       // Save as pending for admin/teacher review
       try {
-        const { pool } = require("./storage.js");
-        await pool.query(
-          `INSERT INTO pending_ai_quizzes (student_id, book_title, author, questions, cover_url, age_group, quiz_type, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-          [req.user.id, quizTitle, topic.trim(), JSON.stringify(result.questions), null, 'Custom', 'eye_gaze']
-        );
-        await pool.query(
-          `INSERT INTO notifications (user_id, type, title, message) VALUES (1, 'info', 'AI Quiz Pending Review', $1)`,
-          [`Student requested an AI eye gaze quiz about "${topic.trim()}". Review and approve it in the admin panel.`]
-        );
+        await supabase.from('pending_ai_quizzes').insert({
+          student_id: req.user.id,
+          book_title: quizTitle,
+          author: topic.trim(),
+          questions: JSON.stringify(result.questions),
+          cover_url: null,
+          age_group: 'Custom',
+          quiz_type: 'eye_gaze',
+          status: 'pending'
+        });
+        await supabase.from('notifications').insert({
+          user_id: 1,
+          type: 'info',
+          title: 'AI Quiz Pending Review',
+          message: `Student requested an AI eye gaze quiz about "${topic.trim()}". Review and approve it in the admin panel.`
+        });
       } catch {}
 
       return res.status(201).json({ 
@@ -3264,13 +3292,17 @@ export async function registerRoutes(
   app.get("/api/admin/pending-quizzes", authMiddleware, async (req: any, res) => {
     try {
       if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
-      const { pool } = require("./storage.js");
-      const result = await pool.query(
-        `SELECT p.*, u.display_name as student_name FROM pending_ai_quizzes p
-         LEFT JOIN users u ON p.student_id = u.id
-         WHERE p.status = 'pending' ORDER BY p.created_at DESC`
-      );
-      res.json({ pending: result.rows });
+      const { data, error } = await supabase
+        .from('pending_ai_quizzes')
+        .select('*, users!pending_ai_quizzes_student_id_fkey(display_name)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      const pending = (data || []).map((row: any) => ({
+        ...row,
+        student_name: row.users?.display_name || 'Unknown'
+      }));
+      res.json({ pending });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -3280,12 +3312,14 @@ export async function registerRoutes(
   app.post("/api/admin/pending-quizzes/:id/approve", authMiddleware, async (req: any, res) => {
     try {
       if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
-      const { pool } = require("./storage.js");
-      const result = await pool.query(
-        `SELECT * FROM pending_ai_quizzes WHERE id = $1 AND status = 'pending'`, [req.params.id]
-      );
-      if (result.rows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
-      const pending = result.rows[0];
+      const { data: pendingRows, error: fetchError } = await supabase
+        .from('pending_ai_quizzes')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('status', 'pending');
+      if (fetchError) throw new Error(fetchError.message);
+      if (!pendingRows || pendingRows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
+      const pending = pendingRows[0];
       const questions = JSON.parse(pending.questions);
 
       if (pending.quiz_type === 'eye_gaze') {
@@ -3299,10 +3333,12 @@ export async function registerRoutes(
           "global", null, "eye_gaze"
         );
         // Notify student
-        await pool.query(
-          `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'success', 'Quiz Approved!', $2)`,
-          [pending.student_id, `Your eye gaze quiz "${pending.book_title}" has been approved and is ready to take!`]
-        );
+        await supabase.from('notifications').insert({
+          user_id: pending.student_id,
+          type: 'success',
+          title: 'Quiz Approved!',
+          message: `Your eye gaze quiz "${pending.book_title}" has been approved and is ready to take!`
+        });
       } else {
         // Create as a book quiz
         const book = await storage.createBookWithQuestions({
@@ -3352,17 +3388,18 @@ export async function registerRoutes(
         }
 
         // Notify student
-        await pool.query(
-          `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'success', 'Quiz Approved!', $2)`,
-          [pending.student_id, `Your quiz for "${pending.book_title}" has been approved and is ready to take!`]
-        );
+        await supabase.from('notifications').insert({
+          user_id: pending.student_id,
+          type: 'success',
+          title: 'Quiz Approved!',
+          message: `Your quiz for "${pending.book_title}" has been approved and is ready to take!`
+        });
       }
 
       // Mark as approved
-      await pool.query(
-        `UPDATE pending_ai_quizzes SET status = 'approved', reviewer_id = $1, reviewed_at = NOW() WHERE id = $2`,
-        [req.user.id, req.params.id]
-      );
+      await supabase.from('pending_ai_quizzes')
+        .update({ status: 'approved', reviewer_id: req.user.id, reviewed_at: new Date().toISOString() })
+        .eq('id', req.params.id);
       res.json({ message: "Quiz approved and published!" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -3374,21 +3411,24 @@ export async function registerRoutes(
     try {
       if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
       const { reason } = req.body;
-      const { pool } = require("./storage.js");
-      const result = await pool.query(
-        `SELECT * FROM pending_ai_quizzes WHERE id = $1 AND status = 'pending'`, [req.params.id]
-      );
-      if (result.rows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
-      const pending = result.rows[0];
-      await pool.query(
-        `UPDATE pending_ai_quizzes SET status = 'rejected', reviewer_id = $1, reviewed_at = NOW(), review_reason = $2 WHERE id = $3`,
-        [req.user.id, reason || 'Not specified', req.params.id]
-      );
+      const { data: pendingRows, error: fetchError } = await supabase
+        .from('pending_ai_quizzes')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('status', 'pending');
+      if (fetchError) throw new Error(fetchError.message);
+      if (!pendingRows || pendingRows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
+      const pending = pendingRows[0];
+      await supabase.from('pending_ai_quizzes')
+        .update({ status: 'rejected', reviewer_id: req.user.id, reviewed_at: new Date().toISOString(), review_reason: reason || 'Not specified' })
+        .eq('id', req.params.id);
       // Notify student
-      await pool.query(
-        `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'info', 'Quiz Update', $2)`,
-        [pending.student_id, `Your quiz for "${pending.book_title}" was not approved. ${reason || 'Please try again with a different book.'}`]
-      );
+      await supabase.from('notifications').insert({
+        user_id: pending.student_id,
+        type: 'info',
+        title: 'Quiz Update',
+        message: `Your quiz for "${pending.book_title}" was not approved. ${reason || 'Please try again with a different book.'}`
+      });
       res.json({ message: "Quiz rejected and student notified." });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -3411,21 +3451,24 @@ export async function registerRoutes(
       }
 
       // Delete old questions for this book
-      const { pool } = require("./storage.js");
-      await pool.query(`DELETE FROM questions WHERE book_id = $1`, [bookId]);
+      await supabase.from('questions').delete().eq('book_id', bookId);
 
       // Insert new questions
-      for (let i = 0; i < result.questions.length; i++) {
-        const q = result.questions[i];
-        await pool.query(
-          `INSERT INTO questions (book_id, question_text, option_a, option_b, option_c, option_d, correct_answer, question_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [bookId, q.question, q.options[0], q.options[1], q.options[2], q.options[3], q.correct, i + 1]
-        );
-      }
+      const questionRows = result.questions.map((q: any, i: number) => ({
+        book_id: bookId,
+        question_text: q.question,
+        option_a: q.options[0],
+        option_b: q.options[1],
+        option_c: q.options[2],
+        option_d: q.options[3],
+        correct_answer: q.correct,
+        question_order: i + 1
+      }));
+      const { error: insertError } = await supabase.from('questions').insert(questionRows);
+      if (insertError) throw new Error(insertError.message);
 
       // Update points value
-      await pool.query(`UPDATE books SET points_value = $1 WHERE id = $2`, [result.pointsValue || 10, bookId]);
+      await supabase.from('books').update({ points_value: result.pointsValue || 10 }).eq('id', bookId);
 
       // Clear cache
       clearCache('allBooks');
