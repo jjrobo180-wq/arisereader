@@ -19,7 +19,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
-  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck
+  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, ChevronRight, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -239,6 +239,8 @@ export default function Admin() {
   const [quizRequestsLoading, setQuizRequestsLoading] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
   const [bookSearch, setBookSearch] = useState("");
+  const [bookPage, setBookPage] = useState(0);
+  const BOOKS_PER_PAGE = 24;
   // Quiz review requests state
   const [reviewRequests, setReviewRequests] = useState<any[]>([]);
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState(false);
@@ -2035,6 +2037,33 @@ Generate exactly 10 questions.`;
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+        {/* Pending AI quiz alert banner */}
+        {pendingQuizzes.length > 0 && (
+          <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-orange-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-orange-400">
+                {pendingQuizzes.length} AI Quiz {pendingQuizzes.length === 1 ? 'Request' : 'Requests'} Pending Review
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Students are waiting for their quizzes to be approved. Review them now.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="default"
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={() => {
+                const el = document.querySelector('[data-section="ai-quiz-review"]');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+            >
+              Review Now
+            </Button>
+          </div>
+        )}
         {/* Welcome banner */}
         <div className="rounded-2xl bg-primary text-white p-6 sm:p-8 shadow-lg">
           <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
@@ -3313,7 +3342,7 @@ Generate exactly 10 questions.`;
                   type="text"
                   placeholder="Search books..."
                   value={bookSearch}
-                  onChange={(e) => setBookSearch(e.target.value)}
+                  onChange={(e) => { setBookSearch(e.target.value); setBookPage(0); }}
                   className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -3338,7 +3367,7 @@ Generate exactly 10 questions.`;
                     ].map(opt => (
                       <button
                         key={opt.val}
-                        onClick={() => { setAdminSortBy(opt.val as any); setShowAdminSortMenu(false); }}
+                        onClick={() => { setAdminSortBy(opt.val as any); setShowAdminSortMenu(false); setBookPage(0); }}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${adminSortBy === opt.val ? "text-primary font-medium" : "text-foreground"}`}
                       >
                         {opt.label}
@@ -3350,41 +3379,71 @@ Generate exactly 10 questions.`;
             </div>
             {books.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">Loading books...</p>
-            ) : (books || []).filter(b =>
-                (b?.title || "").toLowerCase().includes(bookSearch.toLowerCase()) ||
-                (b?.author || "").toLowerCase().includes(bookSearch.toLowerCase())
-              ).length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No books match your search.</p>
-            ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {(books || []).filter(b =>
+            ) : (() => {
+              const filtered = (books || []).filter(b =>
                 (b?.title || "").toLowerCase().includes(bookSearch.toLowerCase()) ||
                 (b?.author || "").toLowerCase().includes(bookSearch.toLowerCase())
               ).sort((a, b) => {
                 if (adminSortBy === "new") return b.id - a.id;
                 if (adminSortBy === "recent") return (!a.readUrl ? 1 : 0) - (!b.readUrl ? 1 : 0);
                 if (adminSortBy === "classics") return (a.readUrl ? 1 : 0) - (b.readUrl ? 1 : 0);
-                if (adminSortBy === "popular") return 0; // admin doesn't have attempt data handy
-                // points: sort by pointsValue desc
+                if (adminSortBy === "popular") return 0;
                 return (b.pointsValue || 0) - (a.pointsValue || 0);
-              }).map((b) => (
-                <div key={b.id} className="flex flex-col items-center gap-2 p-2 rounded-xl bg-muted/20">
-                  <div className="w-16 h-24 flex-shrink-0">
-                    {b.coverUrl ? (
-                      <img src={b.coverUrl} alt={b.title} className="w-full h-full object-cover rounded" />
-                    ) : (
-                      <div className="w-full h-full rounded bg-primary flex items-center justify-center text-xs text-white text-center p-1">{b.title}</div>
-                    )}
+              });
+              if (filtered.length === 0) {
+                return <p className="text-center text-muted-foreground py-8">No books match your search.</p>;
+              }
+              const totalPages = Math.ceil(filtered.length / BOOKS_PER_PAGE);
+              const safePage = Math.min(bookPage, Math.max(0, totalPages - 1));
+              const pageBooks = filtered.slice(safePage * BOOKS_PER_PAGE, (safePage + 1) * BOOKS_PER_PAGE);
+              return (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {pageBooks.map((b) => (
+                      <div key={b.id} className="flex flex-col items-center gap-2 p-2 rounded-xl bg-muted/20">
+                        <div className="w-16 h-24 flex-shrink-0">
+                          {b.coverUrl ? (
+                            <img src={b.coverUrl} alt={b.title} className="w-full h-full object-cover rounded" />
+                          ) : (
+                            <div className="w-full h-full rounded bg-primary flex items-center justify-center text-xs text-white text-center p-1">{b.title}</div>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-center line-clamp-2">{b.title}</p>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setCoverBook(b); setCoverUrl(b.coverUrl || ""); setCoverSuccess(""); }}>
+                          <ImagePlus className="w-3 h-3 mr-1" />
+                          Update
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-xs font-medium text-center line-clamp-2">{b.title}</p>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setCoverBook(b); setCoverUrl(b.coverUrl || ""); setCoverSuccess(""); }}>
-                    <ImagePlus className="w-3 h-3 mr-1" />
-                    Update
-                  </Button>
-                </div>
-              ))}
-            </div>
-            )}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={safePage === 0}
+                        onClick={() => setBookPage(safePage - 1)}
+                        className="h-8"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {safePage + 1} of {totalPages} ({filtered.length} books)
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={safePage >= totalPages - 1}
+                        onClick={() => setBookPage(safePage + 1)}
+                        className="h-8"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -3721,7 +3780,7 @@ Generate exactly 10 questions.`;
 
         {/* AI Quiz Review Section */}
         {pendingQuizzes.length > 0 && (
-          <div className="mb-6 p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
+          <div data-section="ai-quiz-review" className="mb-6 p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
             <div className="flex items-center gap-2 mb-3">
               <ShieldCheck className="w-5 h-5 text-orange-500" />
               <h2 className="text-lg font-bold">AI Quiz Review</h2>

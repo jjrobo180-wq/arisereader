@@ -2686,13 +2686,19 @@ export async function registerRoutes(
           quiz_type: 'book',
           status: 'pending'
         });
-        // Notify admin
-        await supabase.from('notifications').insert({
-          user_id: 1,
-          type: 'info',
-          title: 'AI Quiz Pending Review',
-          message: `Student requested an AI quiz for "${cleanTitle}" by ${cleanAuthor}. Review and approve it in the admin panel.`
-        });
+        // Notify admin and teachers
+        try {
+          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
+          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+          for (const uid of notifyIds) {
+            await supabase.from('notifications').insert({
+              user_id: uid,
+              type: 'info',
+              title: 'AI Quiz Pending Review',
+              message: `Student requested an AI quiz for "${cleanTitle}" by ${cleanAuthor}. Review and approve it in the admin panel.`
+            });
+          }
+        } catch {}
       } catch {}
 
       return res.status(201).json({ 
@@ -3053,12 +3059,19 @@ export async function registerRoutes(
           quiz_type: 'favorite_topic',
           status: 'pending'
         });
-        await supabase.from('notifications').insert({
-          user_id: 1,
-          type: 'info',
-          title: 'AI Quiz Pending Review',
-          message: `Student requested an AI quiz about "${cleanTopic}" (favorite topic). Review and approve it in the admin panel.`
-        });
+        // Notify admin and teachers
+        try {
+          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
+          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+          for (const uid of notifyIds) {
+            await supabase.from('notifications').insert({
+              user_id: uid,
+              type: 'info',
+              title: 'AI Quiz Pending Review',
+              message: `Student requested an AI quiz about "${cleanTopic}" (favorite topic). Review and approve it in the admin panel.`
+            });
+          }
+        } catch {}
       } catch {}
 
       return res.status(201).json({ 
@@ -3225,12 +3238,19 @@ export async function registerRoutes(
           quiz_type: 'iarise',
           status: 'pending'
         });
-        await supabase.from('notifications').insert({
-          user_id: 1,
-          type: 'info',
-          title: 'AI Quiz Pending Review',
-          message: `Student requested an AI iArise quiz about "${cleanTopic}". Review and approve it in the admin panel.`
-        });
+        // Notify admin and teachers
+        try {
+          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
+          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+          for (const uid of notifyIds) {
+            await supabase.from('notifications').insert({
+              user_id: uid,
+              type: 'info',
+              title: 'AI Quiz Pending Review',
+              message: `Student requested an AI iArise quiz about "${cleanTopic}". Review and approve it in the admin panel.`
+            });
+          }
+        } catch {}
       } catch {}
 
       return res.status(201).json({ 
@@ -3269,12 +3289,19 @@ export async function registerRoutes(
           quiz_type: 'eye_gaze',
           status: 'pending'
         });
-        await supabase.from('notifications').insert({
-          user_id: 1,
-          type: 'info',
-          title: 'AI Quiz Pending Review',
-          message: `Student requested an AI eye gaze quiz about "${topic.trim()}". Review and approve it in the admin panel.`
-        });
+        // Notify admin and teachers
+        try {
+          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
+          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+          for (const uid of notifyIds) {
+            await supabase.from('notifications').insert({
+              user_id: uid,
+              type: 'info',
+              title: 'AI Quiz Pending Review',
+              message: `Student requested an AI eye gaze quiz about "${topic.trim()}". Review and approve it in the admin panel.`
+            });
+          }
+        } catch {}
       } catch {}
 
       return res.status(201).json({ 
