@@ -34,7 +34,7 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
   ];
 
   useEffect(() => {
-    const stepDuration = 4000; // 4 seconds per step = 24 seconds total
+    const stepDuration = 850; // ~5 seconds total for all 6 steps
     const totalDuration = steps.length * stepDuration;
     const startTime = Date.now();
 
@@ -81,7 +81,7 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
 
   useEffect(() => {
     if (reviewSent) {
-      const t = setTimeout(() => onComplete(), 4000);
+      const t = setTimeout(() => onComplete(), 9000);
       return () => clearTimeout(t);
     }
   }, [reviewSent, onComplete]);
