@@ -490,6 +490,68 @@ function teacherCreatedEmail(displayName: string, username: string): string {
   `;
 }
 
+function clubSignupNotifyAdminEmail(studentName: string, grade: string, parentName: string, parentContact: string, parentEmail: string, notes: string): string {
+  const info = (label: string, val: string) => val ? `<p style="color: #ccc; font-size: 15px; margin: 4px 0;"><strong style="color: #999;">${label}:</strong> ${val}</p>` : '';
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
+      </div>
+      <h2 style="color: #FF5900; font-size: 22px;">New Reading Club Sign-Up</h2>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">A student has signed up for the A.R.I.S.E Reading Club (Thursdays after school).</p>
+      <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        ${info('Student Name', studentName)}
+        ${info('Grade', grade)}
+        ${info('Parent / Guardian', parentName)}
+        ${info('Parent Phone', parentContact)}
+        ${info('Parent Email', parentEmail)}
+        ${info('Notes', notes)}
+      </div>
+      <p style="color: #999; font-size: 14px;">Review and approve or deny this sign-up in the admin dashboard under "Reading Club Sign-Ups".</p>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Review in Admin Dashboard</a>
+    </div>
+  `;
+}
+
+function clubApprovedEmail(studentName: string): string {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
+      </div>
+      <h2 style="color: #4ade80; font-size: 22px;">You're Approved for Reading Club!</h2>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${studentName},</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Great news! Your sign-up for the A.R.I.S.E Reading Club has been approved. You're all set to join us every Thursday after school at CGMS.</p>
+      <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="color: #999; margin: 0 0 8px 0; font-size: 14px;">Here's what to remember:</p>
+        <p style="color: #ccc; font-size: 15px; margin: 4px 0;">📅 Every Thursday after school</p>
+        <p style="color: #ccc; font-size: 15px; margin: 4px 0;">📍 CGMS</p>
+        <p style="color: #ccc; font-size: 15px; margin: 4px 0;">🏆 Earn 100 points each week</p>
+        <p style="color: #ccc; font-size: 15px; margin: 4px 0;">📖 Bring a book or find one in the library</p>
+      </div>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to A.R.I.S.E Reader</a>
+    </div>
+  `;
+}
+
+function clubDeniedEmail(studentName: string): string {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
+      </div>
+      <h2 style="color: #f87171; font-size: 22px;">Reading Club Sign-Up Update</h2>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${studentName},</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Thank you for your interest in the A.R.I.S.E Reading Club. Unfortunately, your sign-up could not be approved at this time. Please contact your teacher or school administrator for more information.</p>
+      <p style="color: #999; font-size: 14px; margin-top: 20px;">You can always try signing up again in the future.</p>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to A.R.I.S.E Reader</a>
+    </div>
+  `;
+}
+
 // Simple auth middleware
 async function authMiddleware(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace("Bearer ", "");
@@ -5221,7 +5283,7 @@ export async function registerRoutes(
 
       if (error) throw new Error(error.message);
 
-      // Notify admin
+      // Notify admin via in-app notification
       try {
         const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
         const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
@@ -5234,6 +5296,13 @@ export async function registerRoutes(
           });
         }
       } catch {}
+
+      // Email admin about new sign-up
+      sendEmail(
+        ADMIN_NOTIFY_EMAIL,
+        "New Reading Club sign-up - A.R.I.S.E Reader",
+        clubSignupNotifyAdminEmail(studentName, grade, parentName, parentContact, parentEmail, notes)
+      ).catch(() => {});
 
       res.status(201).json({ success: true, message: "You're signed up for the Reading Club!", signup: data });
     } catch (error: any) {
@@ -5297,6 +5366,32 @@ export async function registerRoutes(
         .select()
         .single();
       if (error) throw new Error(error.message);
+
+      // Email the student/parent about approval or denial
+      if (status === 'confirmed' || status === 'denied') {
+        const studentName = data.student_name || 'Student';
+        const parentEmail = data.parent_email;
+        const studentEmail = data.student_id ? (
+          await supabase.from('users').select('email').eq('id', data.student_id).maybeSingle()
+        ).data?.email : null;
+        const emailRecipients = [parentEmail, studentEmail].filter(Boolean) as string[];
+        for (const emailAddr of emailRecipients) {
+          if (status === 'confirmed') {
+            sendEmail(
+              emailAddr,
+              "You're approved for Reading Club - A.R.I.S.E Reader",
+              clubApprovedEmail(studentName)
+            ).catch(() => {});
+          } else {
+            sendEmail(
+              emailAddr,
+              "Reading Club sign-up update - A.R.I.S.E Reader",
+              clubDeniedEmail(studentName)
+            ).catch(() => {});
+          }
+        }
+      }
+
       res.json({ success: true, signup: data });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to update status" });
