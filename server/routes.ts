@@ -2540,6 +2540,7 @@ export async function registerRoutes(
       console.error("Book update error:", error.message);
       return res.status(500).json({ message: "Failed to update book: " + error.message });
     }
+    clearCache('allBooks');
     res.json(data);
   });
 
@@ -2551,6 +2552,7 @@ export async function registerRoutes(
     if (error) {
       return res.status(500).json({ message: "Failed to delete book" });
     }
+    clearCache('allBooks');
     res.json({ message: "Book deleted successfully" });
   });
 
