@@ -3294,13 +3294,25 @@ export async function registerRoutes(
       if (!req.user.isAdmin && req.user.role !== 'teacher') return res.status(403).json({ message: "Admin or teacher only" });
       const { data, error } = await supabase
         .from('pending_ai_quizzes')
-        .select('*, users!pending_ai_quizzes_student_id_fkey(display_name)')
+        .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       if (error) throw new Error(error.message);
+      
+      // Fetch student names separately
+      const studentIds = [...new Set((data || []).map((r: any) => r.student_id))];
+      let studentMap: Record<number, string> = {};
+      if (studentIds.length > 0) {
+        const { data: students } = await supabase
+          .from('users')
+          .select('id, display_name')
+          .in('id', studentIds);
+        (students || []).forEach((s: any) => { studentMap[s.id] = s.display_name; });
+      }
+      
       const pending = (data || []).map((row: any) => ({
         ...row,
-        student_name: row.users?.display_name || 'Unknown'
+        student_name: studentMap[row.student_id] || 'Unknown'
       }));
       res.json({ pending });
     } catch (error: any) {
