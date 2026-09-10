@@ -19,7 +19,7 @@ import BookAccessLinks from "@/components/BookAccessLinks";
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
 
 // Hispanic Heritage Month book IDs - empowering, uplifting, inspiring stories
-const HISPANIC_HERITAGE_BOOK_IDS = [856, 857, 858, 859, 874, 875, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891];
+const HISPANIC_HERITAGE_BOOK_IDS = [856, 857, 858, 859, 874, 875, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891, 892, 893];
 
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
