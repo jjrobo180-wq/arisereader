@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -124,6 +124,12 @@ export default function Library() {
   const [favTopics, setFavTopics] = useState<string[]>([]);
   const [favBookIds, setFavBookIds] = useState<number[]>([]);
   const [suggestedBooks, setSuggestedBooks] = useState<{topic: string; title: string; author: string; coverUrl: string}[]>([]);
+  const [matchLevelBooks, setMatchLevelBooks] = useState<any[]>([]);
+  const [matchLevelOL, setMatchLevelOL] = useState<{topic: string; title: string; author: string; coverUrl: string}[]>([]);
+  const [growScoreBooks, setGrowScoreBooks] = useState<any[]>([]);
+  const [growScoreOL, setGrowScoreOL] = useState<{topic: string; title: string; author: string; coverUrl: string}[]>([]);
+  const [currentReadingLevel, setCurrentReadingLevel] = useState<number | null>(null);
+  const [nextReadingLevel, setNextReadingLevel] = useState<number | null>(null);
   const [favOnboarded, setFavOnboarded] = useState(false);
   const [showFavOnboarding, setShowFavOnboarding] = useState(false);
   const [favSearch, setFavSearch] = useState("");
@@ -374,6 +380,20 @@ export default function Library() {
           .then(data => {
             if (data && data.books) {
               setSuggestedBooks(data.books);
+            }
+          })
+          .catch(() => {});
+        // Fetch reading-level-based recommendations (Match My Level + Grow My Score)
+        fetch(`${API_BASE}/api/student/reading-recommendations`, { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              setCurrentReadingLevel(data.currentLevel);
+              setNextReadingLevel(data.nextLevel);
+              setMatchLevelBooks(data.matchLevel?.siteBooks || []);
+              setMatchLevelOL(data.matchLevel?.openLibraryBooks || []);
+              setGrowScoreBooks(data.growScore?.siteBooks || []);
+              setGrowScoreOL(data.growScore?.openLibraryBooks || []);
             }
           })
           .catch(() => {});
@@ -661,6 +681,20 @@ export default function Library() {
         fetch(`${API_BASE}/api/student/suggested-books`, { headers: { Authorization: `Bearer ${authToken}` } })
           .then(r => r.ok ? r.json() : null)
           .then(data => { if (data && data.books) setSuggestedBooks(data.books); })
+          .catch(() => {});
+        // Fetch fresh reading-level recommendations
+        fetch(`${API_BASE}/api/student/reading-recommendations`, { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              setCurrentReadingLevel(data.currentLevel);
+              setNextReadingLevel(data.nextLevel);
+              setMatchLevelBooks(data.matchLevel?.siteBooks || []);
+              setMatchLevelOL(data.matchLevel?.openLibraryBooks || []);
+              setGrowScoreBooks(data.growScore?.siteBooks || []);
+              setGrowScoreOL(data.growScore?.openLibraryBooks || []);
+            }
+          })
           .catch(() => {});
       } else {
         setFavError(data.message || "Failed to save favorites.");
@@ -2126,28 +2160,75 @@ export default function Library() {
               </div>
             )}
 
-            {/* Your Picks Section (students only) */}
-            {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && favOnboarded && favTopics.length > 0 && (
+            {/* Match My Level — books at current reading score + favorite picks */}
+            {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && favOnboarded && (matchLevelBooks.length > 0 || matchLevelOL.length > 0) && (
               <div className="mb-10">
                 <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <h2 className="text-lg font-bold text-foreground">Your Picks</h2>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{favTopics.length} picks</span>
+                  <Target className="w-5 h-5 text-emerald-500" />
+                  <h2 className="text-lg font-bold text-foreground">Match My Level</h2>
+                  {currentReadingLevel && (
+                    <span className="text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium">Grade {currentReadingLevel}</span>
+                  )}
                   <button
                     onClick={handleOpenChangeFavorites}
                     className="ml-auto text-xs text-primary hover:underline font-medium"
                   >Change Favorites</button>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Books picked just for you, based on your favorite topics. Tap a book to ask your parents or take a quiz!</p>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Books picked for your reading level{favTopics.length > 0 ? ' and favorite topics' : ''}. Tap a book to take a quiz!</p>
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
-                  {/* Show suggested REAL books from Open Library based on favorites */}
-                  {suggestedBooks.map((sbook, idx) => {
+                  {/* Site books at current level */}
+                  {matchLevelBooks.map((book) => {
+                    const result = results.find(r => r.bookId === book.id);
+                    const isDone = completedIds.has(book.id);
+                    return (
+                      <Card
+                        key={`match-${book.id}`}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-emerald-500/20"
+                        style={{ scrollSnapAlign: 'start' }}
+                        onClick={() => navigate(`/quiz/${book.id}`)}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-4">
+                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
+                            <p className="text-white/70 text-[10px]">{book.author}</p>
+                          </div>
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600">
+                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
+                          </div>
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {/* Open Library suggestions at match level */}
+                  {matchLevelOL.map((sbook, idx) => {
                     const existingQuiz = sortedBooks.find(b => b.title.toLowerCase() === sbook.title.toLowerCase());
                     const isDone = existingQuiz && completedIds.has(existingQuiz.id);
                     return (
                       <Card
-                        key={`sugg-${idx}`}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
+                        key={`match-ol-${idx}`}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-emerald-500/20"
                         style={{ scrollSnapAlign: 'start' }}
                         onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
                       >
@@ -2175,22 +2256,42 @@ export default function Library() {
                         <CardContent className="p-3">
                           <p className="text-sm font-semibold text-foreground line-clamp-1">{sbook.title}</p>
                           <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[10px] text-primary font-medium">{existingQuiz ? 'Quiz ready!' : 'Tap for options'}</span>
+                            <span className="text-[10px] text-emerald-600 font-medium">{existingQuiz ? 'Quiz ready!' : 'Tap for options'}</span>
                           </div>
                         </CardContent>
                       </Card>
                     );
                   })}
-                  {/* Show existing site books that match favorite topics — tap for options */}
-                  {matchedFavBooks.filter(b => !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id)).map((book) => {
+                </div>
+              </div>
+            )}
+
+            {/* Grow My Score — books to increase reading score + favorite picks */}
+            {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && favOnboarded && (growScoreBooks.length > 0 || growScoreOL.length > 0) && (
+              <div className="mb-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-5 h-5 text-orange-500" />
+                  <h2 className="text-lg font-bold text-foreground">Grow My Score</h2>
+                  {nextReadingLevel && (
+                    <span className="text-xs text-orange-600 bg-orange-500/10 px-2 py-0.5 rounded-full font-medium">Next: Grade {nextReadingLevel}</span>
+                  )}
+                  <button
+                    onClick={handleOpenChangeFavorites}
+                    className="ml-auto text-xs text-primary hover:underline font-medium"
+                  >Change Favorites</button>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Challenge yourself with harder books{favTopics.length > 0 ? ' matched to your favorite topics' : ''} to grow your reading score!</p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                  {/* Site books at grow level */}
+                  {growScoreBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
                     const isDone = completedIds.has(book.id);
                     return (
                       <Card
-                        key={`match-${book.id}`}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-primary/20"
+                        key={`grow-${book.id}`}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-orange-500/20"
                         style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => handleBookTap(book)}
+                        onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
@@ -2216,15 +2317,53 @@ export default function Library() {
                         <CardContent className="p-3">
                           <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
                           <div className="flex items-center gap-2 mt-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-600">
                               <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
                             </span>
                             <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
-                            {result && (
-                              <span className="text-[10px] text-muted-foreground ml-auto">{result.score}/{result.total}</span>
-                            )}
                           </div>
                           <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {/* Open Library suggestions at grow level */}
+                  {growScoreOL.map((sbook, idx) => {
+                    const existingQuiz = sortedBooks.find(b => b.title.toLowerCase() === sbook.title.toLowerCase());
+                    const isDone = existingQuiz && completedIds.has(existingQuiz.id);
+                    return (
+                      <Card
+                        key={`grow-ol-${idx}`}
+                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-orange-500/20"
+                        style={{ scrollSnapAlign: 'start' }}
+                        onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
+                      >
+                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {sbook.coverUrl ? (
+                            <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-4">
+                              <span className="text-sm font-medium text-center text-muted-foreground">{sbook.title}</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{sbook.title}</p>
+                            <p className="text-white/70 text-[10px]">{sbook.author}</p>
+                          </div>
+                          {isDone && (
+                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{sbook.title}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-[10px] text-orange-600 font-medium">{existingQuiz ? 'Quiz ready!' : 'Tap for options'}</span>
+                          </div>
                         </CardContent>
                       </Card>
                     );

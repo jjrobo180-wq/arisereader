@@ -2547,7 +2547,7 @@ export async function registerRoutes(
   // Admin: delete a book and its quiz questions
   app.delete("/api/admin/books/:id", authMiddleware, adminMiddleware, async (req, res) => {
     const bookId = parseInt(req.params.id);
-    await supabase.from("quiz_questions").delete().eq("book_id", bookId);
+    await supabase.from("questions").delete().eq("book_id", bookId);
     const { error } = await supabase.from("books").delete().eq("id", bookId);
     if (error) {
       return res.status(500).json({ message: "Failed to delete book" });
@@ -2812,6 +2812,152 @@ export async function registerRoutes(
       // Cache the results
       await storage.upsertSetting(cacheKey, JSON.stringify(suggestions));
       res.json({ books: suggestions });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Student: get book recommendations based on reading score + favorite picks
+  // Returns two sets: matchLevel (at current level) and growScore (next level up)
+  app.get("/api/student/reading-recommendations", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role === 'teacher' || req.user.role === 'parent') {
+        return res.status(403).json({ message: "Only students can get recommendations" });
+      }
+      const userId = req.user.id;
+
+      // Get student's favorite topics
+      const favKey = `student_favorites_${userId}`;
+      const favRaw = await storage.getSetting(favKey);
+      let topics: string[] = [];
+      if (favRaw) { try { topics = JSON.parse(favRaw); } catch {} }
+
+      // Get reading profile for current level
+      const profile = await storage.getReadingProfile(userId);
+      const currentLevel = profile?.current_level || 3;
+      const nextLevel = Math.min(currentLevel + 1, 8);
+
+      // Get all books on the site
+      const allBooks = await storage.getAllBooks();
+      const userAttempts = await storage.getUserAttempts(userId);
+      const completedIds = new Set(userAttempts.map(a => a.bookId));
+
+      // Map grade level to pointsValue ranges
+      // Level 2-3 = 10pts, Level 4-5 = 20pts, Level 6+ = 30pts
+      const matchPoints = currentLevel >= 6 ? 30 : currentLevel >= 4 ? 20 : 10;
+      const growPoints = nextLevel >= 6 ? 30 : nextLevel >= 4 ? 20 : 10;
+
+      // SECTION 1: Match My Level — books at current reading level + matching favorite topics
+      let matchLevelBooks = allBooks.filter(b => b.pointsValue === matchPoints && !completedIds.has(b.id));
+
+      // SECTION 2: Grow My Score — books at next level up + matching favorite topics
+      let growScoreBooks = allBooks.filter(b => b.pointsValue === growPoints && !completedIds.has(b.id));
+
+      // If favorite topics exist, prioritize books that match
+      if (topics.length > 0) {
+        const matchesTopic = (book: any) => {
+          const titleLower = (book.title || '').toLowerCase();
+          const descLower = (book.description || '').toLowerCase();
+          return topics.some(t => titleLower.includes(t.toLowerCase()) || descLower.includes(t.toLowerCase()));
+        };
+        // Sort: topic matches first, then the rest
+        matchLevelBooks = [...matchLevelBooks].sort((a, b) => {
+          const aMatch = matchesTopic(a) ? 0 : 1;
+          const bMatch = matchesTopic(b) ? 0 : 1;
+          return aMatch - bMatch;
+        });
+        growScoreBooks = [...growScoreBooks].sort((a, b) => {
+          const aMatch = matchesTopic(a) ? 0 : 1;
+          const bMatch = matchesTopic(b) ? 0 : 1;
+          return aMatch - bMatch;
+        });
+      }
+
+      // Limit each section
+      matchLevelBooks = matchLevelBooks.slice(0, 8);
+      growScoreBooks = growScoreBooks.slice(0, 8);
+
+      // Also fetch Open Library suggestions based on favorite topics for each section
+      const olMatchBooks: any[] = [];
+      const olGrowBooks: any[] = [];
+
+      if (topics.length > 0) {
+        // Use cache for Open Library results
+        const cacheKey = `student_ol_recs_${userId}_${currentLevel}_${nextLevel}`;
+        const cacheRaw = await storage.getSetting(cacheKey);
+        let cached: any[] = [];
+        if (cacheRaw) { try { cached = JSON.parse(cacheRaw); } catch {} }
+
+        if (cached.length >= topics.length * 2) {
+          cached.forEach(c => {
+            if (c.type === 'match') olMatchBooks.push(c);
+            else olGrowBooks.push(c);
+          });
+        } else {
+          // Fetch from Open Library for each topic
+          for (const topic of topics.slice(0, 3)) {
+            try {
+              // Match level: search for books at current grade level
+              const matchUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(topic)}&limit=6&sort=rating&language=eng`;
+              const matchRes = await fetch(matchUrl);
+              const matchData = await matchRes.json();
+              if (matchData.docs) {
+                let count = 0;
+                for (const doc of matchData.docs) {
+                  if (count >= 3) break;
+                  if (doc.cover_i) {
+                    olMatchBooks.push({
+                      topic, title: doc.title,
+                      author: doc.author_name ? doc.author_name[0] : "Unknown",
+                      coverUrl: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`,
+                      type: 'match'
+                    });
+                    count++;
+                  }
+                }
+              }
+              // Grow level: same topic but search for slightly harder books
+              const growUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(topic)}&limit=6&sort=rating&language=eng&subject=young-adult`;
+              const growRes = await fetch(growUrl);
+              const growData = await growRes.json();
+              if (growData.docs) {
+                let count = 0;
+                for (const doc of growData.docs) {
+                  if (count >= 3) break;
+                  if (doc.cover_i) {
+                    olGrowBooks.push({
+                      topic, title: doc.title,
+                      author: doc.author_name ? doc.author_name[0] : "Unknown",
+                      coverUrl: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`,
+                      type: 'grow'
+                    });
+                    count++;
+                  }
+                }
+              }
+            } catch (e) {
+              // Skip on error
+            }
+          }
+          // Cache the Open Library results
+          const allOL = [...olMatchBooks, ...olGrowBooks];
+          await storage.upsertSetting(cacheKey, JSON.stringify(allOL));
+        }
+      }
+
+      res.json({
+        currentLevel,
+        nextLevel,
+        favoriteTopics: topics,
+        matchLevel: {
+          siteBooks: matchLevelBooks,
+          openLibraryBooks: olMatchBooks.slice(0, 8)
+        },
+        growScore: {
+          siteBooks: growScoreBooks,
+          openLibraryBooks: olGrowBooks.slice(0, 8)
+        }
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
