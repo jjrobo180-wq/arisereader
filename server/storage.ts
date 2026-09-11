@@ -301,6 +301,8 @@ export interface IStorage {
   getClassStats(schoolId: number): Promise<any[]>;
   // Monthly leaderboard
   getMonthlyLeaderboard(yearMonth: string): Promise<any[]>;
+  // Advisory leaderboard (grouped by teacher)
+  getAdvisoryLeaderboard(): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1050,6 +1052,70 @@ export class DatabaseStorage implements IStorage {
         }
       }
       return result.sort((a, b) => b.totalPoints - a.totalPoints);
+    });
+  }
+
+  // ─── Advisory Leaderboard (grouped by teacher) ─────────────────────────
+
+  async getAdvisoryLeaderboard() {
+    return cached('advisoryLeaderboard', 300000, async () => {
+      // Fetch all students with their teacher_id, total_points, and attempts
+      const allStudents = await fetchList(
+        supabase.from("users")
+          .select("id, username, display_name, total_points, teacher_id, attempts(points_earned), eye_gaze_attempts(score, total)")
+          .eq("is_admin", false)
+          .eq("role", "student")
+      );
+      if (allStudents.length === 0) return [];
+
+      // Fetch teacher display names
+      const teachers = await fetchList(
+        supabase.from("users").select("id, display_name, username").eq("role", "teacher")
+      );
+      const teacherMap = new Map(teachers.map((t: any) => [t.id, t.display_name || t.username]));
+
+      // Group students by teacher_id
+      const advisoryMap = new Map<number, { teacherId: number; teacherName: string; totalPoints: number; studentCount: number; quizzesCompleted: number }>();
+
+      for (const student of allStudents) {
+        const teacherId = student.teacher_id;
+        if (!teacherId) continue; // Skip students without a teacher
+
+        // Calculate points (same logic as leaderboard)
+        const attempts = student.attempts || [];
+        const eyeGazeAttempts = student.eye_gaze_attempts || [];
+        const regularPoints = attempts.reduce((sum: number, a: any) => sum + (a.points_earned || 0), 0);
+        const eyeGazePoints = eyeGazeAttempts.reduce((sum: number, a: any) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
+        const calculatedPoints = regularPoints + eyeGazePoints;
+        const totalPoints = Math.max(student.total_points || 0, calculatedPoints);
+        const completedEyeGaze = eyeGazeAttempts.filter((a: any) => a.total > 0).length;
+        const quizzesTaken = attempts.length + completedEyeGaze;
+
+        if (!advisoryMap.has(teacherId)) {
+          advisoryMap.set(teacherId, {
+            teacherId,
+            teacherName: teacherMap.get(teacherId) || `Advisory ${teacherId}`,
+            totalPoints: 0,
+            studentCount: 0,
+            quizzesCompleted: 0,
+          });
+        }
+        const advisory = advisoryMap.get(teacherId)!;
+        advisory.totalPoints += totalPoints;
+        advisory.studentCount += 1;
+        advisory.quizzesCompleted += quizzesTaken;
+      }
+
+      const result = Array.from(advisoryMap.values()).sort((a, b) => b.totalPoints - a.totalPoints);
+      // Add rank and winner flag
+      return result.map((entry, idx) => ({
+        ...entry,
+        rank: idx + 1,
+        isWinner: idx === 0 && entry.totalPoints > 0,
+      }));
     });
   }
 

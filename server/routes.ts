@@ -2050,6 +2050,17 @@ export async function registerRoutes(
     res.json(enriched);
   });
 
+  // Advisory leaderboard (grouped by teacher) — pizza party challenge
+  app.get("/api/advisory-leaderboard", authMiddleware, async (req: any, res) => {
+    try {
+      const advisoryData = await storage.getAdvisoryLeaderboard();
+      res.json(advisoryData);
+    } catch (err: any) {
+      console.error('Advisory leaderboard error:', err);
+      res.status(500).json({ message: "Failed to fetch advisory leaderboard" });
+    }
+  });
+
   // Student: Get their leaderboard standing + recommendations
   app.get("/api/leaderboard/my-standing", authMiddleware, async (req: any, res) => {
     try {

@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
-import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Gift, Users, Star, Heart, Calendar } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Gift, Users, Star, Heart, Calendar, Pizza } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 interface LeaderboardEntry {
@@ -138,6 +138,7 @@ export default function Competition() {
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [settings, setSettings] = useState<CompetitionSettings>(DEFAULT_SETTINGS);
+  const [advisoryData, setAdvisoryData] = useState<any[]>([]);
   const recentMonths = getRecentMonths(6);
 
   useEffect(() => {
@@ -191,6 +192,18 @@ export default function Competition() {
         yearlyAll.sort((a, b) => b.totalPoints - a.totalPoints);
         setYearlyBandLeaders(yLeaders);
         setOverallYearlyTop(yearlyAll.slice(0, 3));
+
+        // Fetch advisory leaderboard
+        try {
+          const authToken = document.cookie.match(/arise_session=([^;]+)/);
+          const headers: Record<string, string> = {};
+          if (authToken) headers["Authorization"] = `Bearer ${JSON.parse(atob(authToken[1])).token}`;
+          const advisoryRes = await fetch(`${API_BASE}/api/advisory-leaderboard`, { headers });
+          if (advisoryRes.ok) {
+            const advData = await advisoryRes.json();
+            if (Array.isArray(advData)) setAdvisoryData(advData);
+          }
+        } catch {}
 
         setLoading(false);
       } catch (e) {
@@ -564,6 +577,82 @@ export default function Competition() {
             </div>
           </>
         )}
+
+        {/* Advisory Challenge — Pizza Party */}
+        <div className="mt-8">
+          <div className="rounded-2xl overflow-hidden border-2 border-orange-500/30 shadow-lg">
+            {/* Header banner */}
+            <div className="bg-gradient-to-r from-orange-600 to-red-500 px-5 py-4 flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Pizza className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Advisory Challenge</h2>
+                <p className="text-sm text-white/90">The advisory with the most points wins a PIZZA PARTY!</p>
+              </div>
+            </div>
+
+            {/* Advisory list */}
+            <div className="bg-card p-4 sm:p-6">
+              {advisoryData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No advisory data yet. Keep reading!</p>
+              ) : (
+                <div className="space-y-3">
+                  {advisoryData.map((adv: any) => (
+                    <div
+                      key={adv.teacherId}
+                      className={`flex items-center gap-4 rounded-xl p-4 transition-all ${
+                        adv.isWinner
+                          ? "bg-gradient-to-r from-orange-500/20 to-yellow-500/10 border-2 border-orange-500/50"
+                          : "bg-muted/30 border border-border"
+                      }`}
+                    >
+                      {/* Rank */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                        adv.isWinner
+                          ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
+                          : adv.rank === 2
+                          ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white"
+                          : adv.rank === 3
+                          ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {adv.isWinner ? "🏆" : adv.rank}
+                      </div>
+
+                      {/* Advisory name + details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-sm sm:text-base text-foreground">{adv.teacherName}'s Advisory</h3>
+                          {adv.isWinner && (
+                            <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">
+                              PIZZA PARTY WINNER!
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {adv.studentCount} students · {adv.quizzesCompleted} quizzes completed
+                        </p>
+                      </div>
+
+                      {/* Points */}
+                      <div className="text-right flex-shrink-0">
+                        <div className={`font-bold text-lg ${adv.isWinner ? "text-orange-400" : "text-primary"}`}>
+                          {adv.totalPoints}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">pts</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-4 text-center">
+                Points are earned by every student in each advisory class through reading quizzes. The advisory with the highest total at the end of the competition wins a pizza party!
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* How to Earn Points — always visible */}
         <Card className="shadow-md mt-6">
