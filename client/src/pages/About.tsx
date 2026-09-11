@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Heart } from "lucide-react";
+import { ArrowLeft, Heart, BookOpen, Award, Sparkles, Baby } from "lucide-react";
 
 const LETTERS = [
   {
@@ -112,6 +112,77 @@ export default function About() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Meet Mr. J */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          {/* Section header */}
+          <div className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent px-6 sm:px-8 py-8 border-b border-border">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center shadow-lg">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-primary uppercase tracking-wider">The Story Behind A.R.I.S.E.</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Meet Mr. J</h2>
+            <p className="text-sm text-muted-foreground">The educator, the father, and the student who never forgot what it felt like to love reading.</p>
+          </div>
+
+          {/* Story content */}
+          <div className="px-6 sm:px-8 py-8 space-y-6">
+
+            {/* #1 AR winner */}
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow">
+                <Award className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold mb-2">The #1 Reader</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  In elementary school, Mr. J wasn't just a reader — he was the #1 winner of his school's Accelerated Reader program. He raced through books faster than anyone, earning points, climbing leaderboards, and discovering worlds he never knew existed. He found A Series of Unfortunate Events and couldn't put them down. He chased stories the way other kids chased the ice cream truck. It was the only time in his life he was truly an avid reader — and it left a mark on him that never faded.
+                </p>
+              </div>
+            </div>
+
+            {/* The problem */}
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center shadow">
+                <BookOpen className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold mb-2">Why Students Stop Reading</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  As he grew older, Mr. J realized something that bothered him deeply: the reason most students don't know how to read isn't because they can't. It's because they don't want to. There's no incentive. There's no enjoyment. Think about it — everything we do as adults, we do because it brings us joy, purpose, or fulfillment. We stick with the things that make us feel good. But when it comes to our students, we hand them a book they love, and then we never let them finish it. We kill the excitement. We turn reading into a chore instead of a reward. No wonder they stop.
+                </p>
+              </div>
+            </div>
+
+            {/* Ariana */}
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow">
+                <Baby className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold mb-2">A Father's Mission</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  When Mr. J's daughter, Ariana, was diagnosed with autism at age four, he made a decision. Over the summer, he worked with her every single day — consistent, patient, relentless. He mimicked what was taught in school but added what school often forgets: prizes, awards, celebration, and joy. He made learning feel like an adventure, not an assignment. And it worked. Ariana's education grew tremendously. She wasn't just learning — she was excited to learn. That summer proved what Mr. J had always believed: when you give a child a reason to want it, they will astound you.
+                </p>
+              </div>
+            </div>
+
+            {/* The vision */}
+            <div className="rounded-xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 p-6 mt-2">
+              <p className="text-sm sm:text-base font-medium text-foreground leading-relaxed">
+                A.R.I.S.E. Reader was born from that summer. The name itself is a tribute — A.R.I. for Ariana, the four-year-old girl who proved that every child can rise when given the right push. Mr. J built this platform because he refuses to let another generation of students miss the feeling of finishing a book they love — the feeling that made him who he is. From the #1 reader in his elementary school to a father watching his daughter light up, A.R.I.S.E. is the bridge between those two moments.
+              </p>
+              <p className="text-sm text-primary font-semibold mt-4">
+                Every child deserves to know what it feels like to win. To finish. To rise.
+              </p>
+            </div>
+
+          </div>
+        </div>
       </div>
 
       {/* Closing statement */}
