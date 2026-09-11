@@ -602,14 +602,14 @@ export default function Competition() {
                     <div
                       key={adv.teacherId}
                       className={`flex items-center gap-4 rounded-xl p-4 transition-all ${
-                        adv.isWinner
-                          ? "bg-gradient-to-r from-orange-500/20 to-yellow-500/10 border-2 border-orange-500/50"
+                        adv.rank === 1
+                          ? "bg-gradient-to-r from-yellow-500/10 to-orange-500/5 border-2 border-yellow-500/30"
                           : "bg-muted/30 border border-border"
                       }`}
                     >
                       {/* Rank */}
                       <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                        adv.isWinner
+                        adv.rank === 1
                           ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
                           : adv.rank === 2
                           ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white"
@@ -617,18 +617,13 @@ export default function Competition() {
                           ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white"
                           : "bg-muted text-muted-foreground"
                       }`}>
-                        {adv.isWinner ? "🏆" : adv.rank}
+                        {adv.rank}
                       </div>
 
                       {/* Advisory name + details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold text-sm sm:text-base text-foreground">{adv.teacherName}'s Advisory</h3>
-                          {adv.isWinner && (
-                            <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">
-                              PIZZA PARTY WINNER!
-                            </span>
-                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {adv.studentCount} student{adv.studentCount !== 1 ? "s" : ""} · {adv.quizzesCompleted} quiz{adv.quizzesCompleted !== 1 ? "zes" : ""} completed
@@ -637,9 +632,7 @@ export default function Competition() {
 
                       {/* Points */}
                       <div className="text-right flex-shrink-0">
-                        <div className={`font-bold text-lg ${adv.isWinner ? "text-orange-400" : "text-primary"}`}>
-                          {adv.totalPoints}
-                        </div>
+                        <div className="font-bold text-lg text-primary">{adv.totalPoints}</div>
                         <div className="text-[10px] text-muted-foreground">pts</div>
                       </div>
                     </div>

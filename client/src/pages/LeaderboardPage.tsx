@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
-import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users, Pizza } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 
 interface LeaderboardEntry {
@@ -44,6 +44,7 @@ export default function LeaderboardPage() {
   const [userBand, setUserBand] = useState<string | null>(null);
   const [selectedBand, setSelectedBand] = useState<string | null>(null);
   const [showEGInfo, setShowEGInfo] = useState(false);
+  const [advisoryData, setAdvisoryData] = useState<any[]>([]);
   const recentMonths = getRecentMonths(6);
 
   // Fetch user's grade band
@@ -78,6 +79,19 @@ export default function LeaderboardPage() {
       })
       .catch(() => setLoading(false));
   }, [period, selectedMonth, userBand, selectedBand]);
+
+  // Fetch advisory leaderboard
+  useEffect(() => {
+    const authToken = document.cookie.match(/arise_session=([^;]+)/);
+    if (!authToken) return;
+    try {
+      const token = JSON.parse(atob(authToken[1])).token;
+      fetch(`${API_BASE}/api/advisory-leaderboard`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { if (Array.isArray(data)) setAdvisoryData(data); })
+        .catch(() => {});
+    } catch {}
+  }, []);
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
@@ -304,6 +318,62 @@ export default function LeaderboardPage() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {/* Advisory Challenge — Pizza Party */}
+            {advisoryData.length > 0 && (
+              <div className="mt-8">
+                <div className="rounded-2xl overflow-hidden border-2 border-orange-500/30 shadow-lg">
+                  <div className="bg-gradient-to-r from-orange-600 to-red-500 px-5 py-4 flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                      <Pizza className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Advisory Challenge</h2>
+                      <p className="text-sm text-white/90">The advisory with the most points wins a PIZZA PARTY!</p>
+                    </div>
+                  </div>
+                  <div className="bg-card p-4 sm:p-6">
+                    <div className="space-y-3">
+                      {advisoryData.map((adv: any) => (
+                        <div
+                          key={adv.teacherId}
+                          className={`flex items-center gap-4 rounded-xl p-4 transition-all ${
+                            adv.rank === 1
+                              ? "bg-gradient-to-r from-yellow-500/10 to-orange-500/5 border-2 border-yellow-500/30"
+                              : "bg-muted/30 border border-border"
+                          }`}
+                        >
+                          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                            adv.rank === 1
+                              ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
+                              : adv.rank === 2
+                              ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white"
+                              : adv.rank === 3
+                              ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white"
+                              : "bg-muted text-muted-foreground"
+                          }`}>
+                            {adv.rank}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-sm sm:text-base text-foreground">{adv.teacherName}'s Advisory</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {adv.studentCount} student{adv.studentCount !== 1 ? "s" : ""} · {adv.quizzesCompleted} quiz{adv.quizzesCompleted !== 1 ? "zes" : ""} completed
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className="font-bold text-lg text-primary">{adv.totalPoints}</div>
+                            <div className="text-[10px] text-muted-foreground">pts</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4 text-center">
+                      Points are earned by every student in each advisory class through reading quizzes. The advisory with the highest total at the end of the competition wins a pizza party!
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Login CTA */}
