@@ -169,7 +169,7 @@ export default function ReadingClub() {
                 <div className="text-xs text-muted-foreground mt-1">Every Thursday</div>
               </div>
               <div className="rounded-xl bg-muted/40 p-4 text-center">
-                <div className="text-2xl font-bold text-primary">3:30</div>
+                <div className="text-2xl font-bold text-primary">4:30</div>
                 <div className="text-xs text-muted-foreground mt-1">After School</div>
               </div>
               <div className="rounded-xl bg-muted/40 p-4 text-center">

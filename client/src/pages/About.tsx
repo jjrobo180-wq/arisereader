@@ -73,47 +73,6 @@ export default function About() {
         </div>
       </div>
 
-      {/* Letter cards */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16 space-y-4">
-        {LETTERS.map((item, i) => (
-          <div
-            key={item.letter}
-            className="rounded-2xl border border-border bg-card overflow-hidden transition-all"
-          >
-            <button
-              onClick={() => setExpanded(expanded === i ? null : i)}
-              className="w-full flex items-center gap-4 p-5 text-left hover:bg-muted/30 transition-colors"
-            >
-              <div className={`flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-lg`}>
-                <span className="text-2xl font-bold text-white">{item.letter}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold">{item.word}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-1">
-                  {item.text.split(".")[0]}.
-                </p>
-              </div>
-              <svg
-                className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform ${expanded === i ? "rotate-180" : ""}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {expanded === i && (
-              <div className="px-5 pb-5 pt-0">
-                <div className="pl-[72px]">
-                  <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
       {/* Meet Mr. J */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -183,6 +142,47 @@ export default function About() {
 
           </div>
         </div>
+      </div>
+
+      {/* Letter cards */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16 space-y-4">
+        {LETTERS.map((item, i) => (
+          <div
+            key={item.letter}
+            className="rounded-2xl border border-border bg-card overflow-hidden transition-all"
+          >
+            <button
+              onClick={() => setExpanded(expanded === i ? null : i)}
+              className="w-full flex items-center gap-4 p-5 text-left hover:bg-muted/30 transition-colors"
+            >
+              <div className={`flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-lg`}>
+                <span className="text-2xl font-bold text-white">{item.letter}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold">{item.word}</h3>
+                <p className="text-sm text-muted-foreground line-clamp-1">
+                  {item.text.split(".")[0]}.
+                </p>
+              </div>
+              <svg
+                className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform ${expanded === i ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {expanded === i && (
+              <div className="px-5 pb-5 pt-0">
+                <div className="pl-[72px]">
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Closing statement */}
