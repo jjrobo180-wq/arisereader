@@ -631,7 +631,7 @@ export default function Competition() {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {adv.studentCount} students · {adv.quizzesCompleted} quizzes completed
+                          {adv.studentCount} student{adv.studentCount !== 1 ? "s" : ""} · {adv.quizzesCompleted} quiz{adv.quizzesCompleted !== 1 ? "zes" : ""} completed
                         </p>
                       </div>
 
