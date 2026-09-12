@@ -1059,6 +1059,12 @@ export class DatabaseStorage implements IStorage {
 
   async getAdvisoryLeaderboard() {
     return cached('advisoryLeaderboard', 300000, async () => {
+      // Fetch all teachers — every teacher is included even with 0 students
+      const teachers = await fetchList(
+        supabase.from("users").select("id, display_name, username").eq("role", "teacher")
+      );
+      if (teachers.length === 0) return [];
+
       // Fetch all students with their teacher_id, total_points, and attempts
       const allStudents = await fetchList(
         supabase.from("users")
@@ -1066,20 +1072,25 @@ export class DatabaseStorage implements IStorage {
           .eq("is_admin", false)
           .eq("role", "student")
       );
-      if (allStudents.length === 0) return [];
 
-      // Fetch teacher display names
-      const teachers = await fetchList(
-        supabase.from("users").select("id, display_name, username").eq("role", "teacher")
-      );
       const teacherMap = new Map(teachers.map((t: any) => [t.id, t.display_name || t.username]));
 
-      // Group students by teacher_id
+      // Initialize advisory map with ALL teachers (even those with 0 students)
       const advisoryMap = new Map<number, { teacherId: number; teacherName: string; totalPoints: number; studentCount: number; quizzesCompleted: number }>();
+      for (const teacher of teachers) {
+        advisoryMap.set(teacher.id, {
+          teacherId: teacher.id,
+          teacherName: teacher.display_name || teacher.username || `Advisory ${teacher.id}`,
+          totalPoints: 0,
+          studentCount: 0,
+          quizzesCompleted: 0,
+        });
+      }
 
+      // Add student data to each advisory
       for (const student of allStudents) {
         const teacherId = student.teacher_id;
-        if (!teacherId) continue; // Skip students without a teacher
+        if (!teacherId || !advisoryMap.has(teacherId)) continue;
 
         // Calculate points (same logic as leaderboard)
         const attempts = student.attempts || [];
@@ -1094,15 +1105,6 @@ export class DatabaseStorage implements IStorage {
         const completedEyeGaze = eyeGazeAttempts.filter((a: any) => a.total > 0).length;
         const quizzesTaken = attempts.length + completedEyeGaze;
 
-        if (!advisoryMap.has(teacherId)) {
-          advisoryMap.set(teacherId, {
-            teacherId,
-            teacherName: teacherMap.get(teacherId) || `Advisory ${teacherId}`,
-            totalPoints: 0,
-            studentCount: 0,
-            quizzesCompleted: 0,
-          });
-        }
         const advisory = advisoryMap.get(teacherId)!;
         advisory.totalPoints += totalPoints;
         advisory.studentCount += 1;
@@ -1110,7 +1112,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       const result = Array.from(advisoryMap.values()).sort((a, b) => b.totalPoints - a.totalPoints);
-      // Add rank and winner flag
+      // Add rank
       return result.map((entry, idx) => ({
         ...entry,
         rank: idx + 1,
