@@ -45,6 +45,7 @@ export default function LeaderboardPage() {
   const [selectedBand, setSelectedBand] = useState<string | null>(null);
   const [showEGInfo, setShowEGInfo] = useState(false);
   const [advisoryData, setAdvisoryData] = useState<any[]>([]);
+  const [view, setView] = useState<"individual" | "advisory">("individual");
   const recentMonths = getRecentMonths(6);
 
   // Fetch user's grade band
@@ -142,6 +143,34 @@ export default function LeaderboardPage() {
           )}
         </div>
 
+        {/* View Tabs */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <button
+            onClick={() => setView("individual")}
+            className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
+              view === "individual"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+            }`}
+          >
+            <Trophy className="w-4 h-4" />
+            Individual
+          </button>
+          <button
+            onClick={() => setView("advisory")}
+            className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
+              view === "advisory"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+            }`}
+          >
+            <Pizza className="w-4 h-4" />
+            Advisory Challenge
+          </button>
+        </div>
+
+        {view === "individual" ? (
+        <>
         {/* Band Filter Buttons */}
         <div className="flex items-center justify-center gap-2 mb-6 flex-wrap">
           <button
@@ -320,20 +349,38 @@ export default function LeaderboardPage() {
               </Card>
             )}
 
+            {/* Login CTA */}
+            <div className="text-center mt-8">
+              <p className="text-sm text-muted-foreground mb-4">
+                Want to see your name here? Log in and start earning points!
+              </p>
+              <Button size="lg" onClick={() => navigate("/")} className="gap-2">
+                <Trophy className="w-5 h-5" />
+                Login to Start Earning Points
+              </Button>
+            </div>
+          </>
+        )}
+        </>
+        ) : (
+          /* Advisory Challenge View */
+          <>
             {/* Advisory Challenge — Pizza Party */}
-            {advisoryData.length > 0 && (
-              <div className="mt-8">
-                <div className="rounded-2xl overflow-hidden border-2 border-orange-500/30 shadow-lg">
-                  <div className="bg-gradient-to-r from-orange-600 to-red-500 px-5 py-4 flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                      <Pizza className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-white">Advisory Challenge</h2>
-                      <p className="text-sm text-white/90">The advisory with the most points wins a PIZZA PARTY!</p>
-                    </div>
-                  </div>
-                  <div className="bg-card p-4 sm:p-6">
+            <div className="rounded-2xl overflow-hidden border-2 border-orange-500/30 shadow-lg">
+              <div className="bg-gradient-to-r from-orange-600 to-red-500 px-5 py-4 flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Pizza className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Advisory Challenge</h2>
+                  <p className="text-sm text-white/90">The advisory with the most points wins a PIZZA PARTY!</p>
+                </div>
+              </div>
+              <div className="bg-card p-4 sm:p-6">
+                {advisoryData.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No advisory data yet. Keep reading!</p>
+                ) : (
+                  <>
                     <div className="space-y-3">
                       {advisoryData.map((adv: any) => (
                         <div
@@ -371,20 +418,9 @@ export default function LeaderboardPage() {
                     <p className="text-xs text-muted-foreground mt-4 text-center">
                       Points are earned by every student in each advisory class through reading quizzes. The advisory with the highest total at the end of the competition wins a pizza party!
                     </p>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
-            )}
-
-            {/* Login CTA */}
-            <div className="text-center mt-8">
-              <p className="text-sm text-muted-foreground mb-4">
-                Want to see your name here? Log in and start earning points!
-              </p>
-              <Button size="lg" onClick={() => navigate("/")} className="gap-2">
-                <Trophy className="w-5 h-5" />
-                Login to Start Earning Points
-              </Button>
             </div>
           </>
         )}
