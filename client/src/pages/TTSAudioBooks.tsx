@@ -243,9 +243,13 @@ export default function TTSAudioBooks() {
     };
     loadVoices();
     // Voices load asynchronously in some browsers
-    window.speechSynthesis?.onvoiceschanged = loadVoices;
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
     return () => {
-      window.speechSynthesis?.cancel();
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
