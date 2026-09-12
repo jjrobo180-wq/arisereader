@@ -61,6 +61,7 @@ import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
 import FypMyBooksPage from "./pages/FypMyBooksPage";
 import ReadingClub from "./pages/ReadingClub";
+import TTSAudioBooks from "./pages/TTSAudioBooks";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -211,6 +212,9 @@ function AppRoutes() {
       </Route>
       <Route path="/reading-club">
         <ReadingClub />
+      </Route>
+      <Route path="/tts-audiobooks">
+        <TTSAudioBooks />
       </Route>
       <Route path="/polls">
         <ProtectedRoute><Polls /></ProtectedRoute>
