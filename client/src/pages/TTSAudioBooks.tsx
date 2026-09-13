@@ -229,29 +229,42 @@ export default function TTSAudioBooks() {
   const wordList = tokens.filter(w => !/^\s+$/.test(w));
   const totalWords = wordList.length;
 
-  // Map current audio time to word index (linear interpolation)
-  const getCurrentWordIdx = () => {
-    if (!duration || duration === 0) return -1;
-    const ratio = currentTime / duration;
-    const wordIdx = Math.floor(ratio * totalWords);
-    return Math.min(wordIdx, totalWords - 1);
-  };
+  // Word timestamps loaded from Whisper alignment (real audio timing)
+  type WordTimestamp = { i: number; s: number; e: number };
+  const [wordTimestamps, setWordTimestamps] = useState<WordTimestamp[]>([]);
 
-  // Map wordList index back to tokens index for highlighting
-  const currentWordIdx = getCurrentWordIdx();
-  let highlightTokenIdx = -1;
-  if (currentWordIdx >= 0) {
-    let wordCount = 0;
-    for (let i = 0; i < tokens.length; i++) {
-      if (!/^\s+$/.test(tokens[i])) {
-        if (wordCount === currentWordIdx) {
-          highlightTokenIdx = i;
-          break;
-        }
-        wordCount++;
+  // Load word timestamps from JSON file
+  useEffect(() => {
+    fetch("/audio/outsiders-ch1-timestamps.json")
+      .then(res => res.json())
+      .then((data: WordTimestamp[]) => setWordTimestamps(data))
+      .catch(() => setWordTimestamps([]));
+  }, []);
+
+  // Map current audio time to token index using real timestamps
+  const getCurrentTokenIdx = () => {
+    if (wordTimestamps.length === 0 || !currentTime) return -1;
+    // Binary search for the word whose time range contains currentTime
+    let lo = 0, hi = wordTimestamps.length - 1;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const ts = wordTimestamps[mid];
+      if (currentTime < ts.s) {
+        hi = mid - 1;
+      } else if (currentTime > ts.e) {
+        lo = mid + 1;
+      } else {
+        return ts.i; // Found the word
       }
     }
-  }
+    // currentTime is between two words - return the most recent one
+    if (lo > 0 && lo < wordTimestamps.length) {
+      return wordTimestamps[lo - 1].i;
+    }
+    return -1;
+  };
+
+  const highlightTokenIdx = getCurrentTokenIdx();
 
   // Load audio metadata on mount
   useEffect(() => {
