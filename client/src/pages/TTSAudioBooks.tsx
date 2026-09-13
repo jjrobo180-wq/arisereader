@@ -253,9 +253,19 @@ export default function TTSAudioBooks() {
     }
   }
 
+  // Load audio metadata on mount
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  }, []);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    // Force load the audio
+    audio.load();
 
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
@@ -305,10 +315,18 @@ export default function TTSAudioBooks() {
   const handlePlayPause = () => {
     const audio = audioRef.current;
     if (!audio) return;
+    // Reload if not loaded yet
+    if (audio.readyState === 0) {
+      audio.load();
+    }
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play().catch(() => {});
+      audio.play().catch((e) => {
+        // If play fails, try loading first then playing
+        audio.load();
+        setTimeout(() => audio.play().catch(() => {}), 500);
+      });
     }
   };
 
