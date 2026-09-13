@@ -5,8 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Play, Pause, Square, Type, Headphones, BookOpen, Volume2, SkipBack, SkipForward } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 
-// Audio source - real human narration from ESL Bits
-const AUDIO_SRC = "https://esl-bits.eu/ESL.English.Learning.Audiobooks/Outsiders/01/a.mp3";
+// Audio source - real human narration, hosted locally
+const AUDIO_SRC = "/audio/outsiders-ch1.mp3";
 
 // Chapter text
 const CHAPTER_TEXT = `Chapter 1
