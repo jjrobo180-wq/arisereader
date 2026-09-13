@@ -2276,6 +2276,7 @@ export class DatabaseStorage implements IStorage {
 
   // ─── A.R.I.S.E F.Y.P ───────────────────────────────────────────────
 
+  // Cover URL fixes applied - cache bust
   async getFypFeed(userId: number, userGrade: string | null, teacherBands: Set<string> | null, limit: number = 10, cursor?: number): Promise<any[]> {
     // 1. Determine eligible grade bands
     let eligibleBands: string[] = [];
