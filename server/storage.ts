@@ -2877,3 +2877,4 @@ export class DatabaseStorage implements IStorage {
 
 export const storage = new DatabaseStorage();
 // FYP books updated with Amazon covers - cache bust
+// Removed non-Amazon books from FYP
