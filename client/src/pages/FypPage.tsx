@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, Fragment } from "react";
 import { useLocation } from "wouter";
-import { Heart, ThumbsDown, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark, Gift } from "lucide-react";
+import { Heart, Share2, BookOpen, ArrowLeft, X, TrendingUp, ChevronDown, Bookmark, Gift, BookMarked } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const SESSION_COOKIE = "arise_session";
@@ -331,6 +331,37 @@ export default function FypPage() {
     } catch {}
   };
 
+  // Request book from teacher
+  const [requestToast, setRequestToast] = useState<{ show: boolean; message: string; success: boolean }>({ show: false, message: "", success: false });
+
+  const handleRequestBook = async (item: FeedItem) => {
+    try {
+      const token = authToken || getTokenFromCookie();
+      if (!token) {
+        navigate("/");
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/fyp/request-book`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookId: item.bookId, title: item.title, author: item.author }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRequestToast({ show: true, message: data.message || `Request sent to your teacher for "${item.title}"!`, success: true });
+      } else {
+        setRequestToast({ show: true, message: data.message || "Could not send request. Please try again.", success: false });
+      }
+      setTimeout(() => setRequestToast({ show: false, message: "", success: false }), 4000);
+    } catch {
+      setRequestToast({ show: true, message: "Could not send request. Please try again.", success: false });
+      setTimeout(() => setRequestToast({ show: false, message: "", success: false }), 4000);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#0a0a0a", color: "white" }}>
@@ -451,6 +482,57 @@ export default function FypPage() {
           </button>
         </div>
       )}
+
+      {/* Request Book Toast */}
+      {requestToast.show && (
+        <div
+          style={{
+            position: "fixed",
+            top: "60px",
+            left: "16px",
+            right: "16px",
+            zIndex: 150,
+            background: requestToast.success
+              ? "linear-gradient(135deg, rgba(26,26,46,0.97), rgba(22,33,62,0.97))"
+              : "linear-gradient(135deg, rgba(46,26,26,0.97), rgba(62,33,33,0.97))",
+            border: requestToast.success ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(239,68,68,0.3)",
+            borderRadius: "12px",
+            padding: "14px 16px",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            gap: "10px",
+            alignItems: "flex-start",
+          }}
+        >
+          <div style={{ fontSize: "1.5rem", lineHeight: 1, flexShrink: 0 }}>
+            {requestToast.success ? "\ud83d\udcdd" : "\u26a0\ufe0f"}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: requestToast.success ? "#fbbf24" : "#f87171", fontWeight: 700, fontSize: "0.85rem", marginBottom: "4px" }}>
+              {requestToast.success ? "Request Sent!" : "Could Not Send"}
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.75rem", lineHeight: 1.5 }}>
+              {requestToast.message}
+            </div>
+          </div>
+          <button
+            onClick={() => setRequestToast({ show: false, message: "", success: false })}
+            style={{
+              background: "none",
+              border: "none",
+              color: "rgba(255,255,255,0.5)",
+              cursor: "pointer",
+              padding: "0",
+              flexShrink: 0,
+              marginTop: "-2px",
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <style>{`
         @keyframes fypDisclaimerIn {
           from { opacity: 0; transform: translateY(-12px); }
@@ -477,11 +559,11 @@ export default function FypPage() {
               index={idx}
               ref={(el) => (itemRefs.current[idx] = el)}
               onLike={() => handleReaction(item.bookId, "like")}
-              onDislike={() => handleReaction(item.bookId, "dislike")}
               onShare={() => handleShare(item.bookId)}
               onReadMore={() => handleReadMore(item.bookId)}
               onReadBook={() => handleReadBook(item.bookId)}
               onSave={(saved) => handleSave(item.bookId, saved)}
+              onRequest={() => handleRequestBook(item)}
             />
             {eggAvailable && idx === eggCardIdx && (
               <div
@@ -777,14 +859,14 @@ interface CardProps {
   item: FeedItem;
   index: number;
   onLike: () => void;
-  onDislike: () => void;
   onShare: () => void;
   onReadMore: () => void;
   onReadBook: () => void;
   onSave: (saved: boolean) => void;
+  onRequest: () => void;
 }
 
-const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike, onDislike, onShare, onReadMore, onReadBook, onSave }, ref) => {
+const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike, onShare, onReadMore, onReadBook, onSave, onRequest }, ref) => {
   const [showActions, setShowActions] = useState(false);
 
   return (
@@ -973,9 +1055,9 @@ const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike
           <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>{item.likeCount}</span>
         </button>
 
-        {/* Dislike button */}
+        {/* Request from Teacher button */}
         <button
-          onClick={onDislike}
+          onClick={onRequest}
           style={{
             background: "none",
             border: "none",
@@ -991,7 +1073,7 @@ const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike
               width: "48px",
               height: "48px",
               borderRadius: "50%",
-              background: item.userReaction === "dislike" ? "rgba(239,68,68,0.8)" : "rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -999,9 +1081,9 @@ const FypBookCard = forwardRef<HTMLDivElement, CardProps>(({ item, index, onLike
               transition: "all 0.2s",
             }}
           >
-            <ThumbsDown size={22} color="white" fill={item.userReaction === "dislike" ? "white" : "none"} />
+            <BookMarked size={22} color="white" />
           </div>
-          <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>{item.dislikeCount}</span>
+          <span style={{ color: "white", fontSize: "0.75rem", fontWeight: 600 }}>Request</span>
         </button>
 
         {/* Share button */}

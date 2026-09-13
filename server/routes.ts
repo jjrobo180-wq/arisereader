@@ -6157,6 +6157,121 @@ export async function registerRoutes(
     }
   });
 
+  // POST /api/fyp/request-book - Student requests a book from their teacher
+  app.post("/api/fyp/request-book", authMiddleware, async (req: any, res) => {
+    try {
+      const { bookId, title, author } = req.body;
+      if (!bookId && !title) return res.status(400).json({ message: 'bookId or title is required' });
+      const user = req.user;
+
+      // Find the student's teacher
+      let teacherId: number | null = null;
+      const linksRaw = await storage.getSetting('teacher_students');
+      if (linksRaw) {
+        try {
+          const links = JSON.parse(linksRaw);
+          // teacher_students is a map of teacher_id -> [student_ids]
+          for (const [tid, sids] of Object.entries(links)) {
+            if (Array.isArray(sids) && sids.includes(user.id)) {
+              teacherId = parseInt(tid);
+              break;
+            }
+          }
+        } catch {}
+      }
+
+      // Fallback: check student_links setting
+      if (!teacherId) {
+        const studentLinksRaw = await storage.getSetting('student_links');
+        if (studentLinksRaw) {
+          try {
+            const studentLinks = JSON.parse(studentLinksRaw);
+            const tid = studentLinks[String(user.id)];
+            if (tid) teacherId = parseInt(tid);
+          } catch {}
+        }
+      }
+
+      if (!teacherId) {
+        return res.status(200).json({
+          success: false,
+          message: `No teacher is linked to your account yet. Ask your teacher to add you so they can help find "${title || 'this book'}"!`
+        });
+      }
+
+      // Fetch teacher info
+      const { data: teacher } = await supabase
+        .from('users')
+        .select('id, display_name, username, email')
+        .eq('id', teacherId)
+        .single();
+
+      if (!teacher) {
+        return res.status(200).json({
+          success: false,
+          message: `Your teacher's account could not be found. Please ask them for help finding "${title || 'this book'}".`
+        });
+      }
+
+      const bookTitle = title || 'a book';
+      const bookAuthor = author || 'unknown author';
+      const studentName = user.display_name || user.username;
+
+      // Create in-app notification for the teacher
+      await supabase.from('notifications').insert({
+        user_id: teacherId,
+        type: 'info',
+        title: 'Student book request',
+        message: `${studentName} would like to read "${bookTitle}" by ${bookAuthor}. Can you help them find this book?`
+      });
+
+      // Also notify admin
+      await supabase.from('notifications').insert({
+        user_id: 1,
+        type: 'info',
+        title: 'Student book request',
+        message: `${studentName} requested "${bookTitle}" by ${bookAuthor} from teacher ${teacher.display_name || teacher.username}.`
+      });
+
+      // Send email to teacher if they have an email
+      if (teacher.email) {
+        setImmediate(() => {
+          try {
+            sendEmail(
+              teacher.email,
+              `Book Request from ${studentName} - A.R.I.S.E Reader`,
+              `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+                  <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
+                </div>
+                <h2 style="color: #FF5900; font-size: 22px;">Book Request from Your Student</h2>
+                <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${teacher.display_name || teacher.username},</p>
+                <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your student <strong style="color: #FF5900;">${studentName}</strong> would like to read the following book:</p>
+                <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                  <p style="color: #FF5900; font-size: 18px; margin: 0 0 5px 0; font-weight: bold;">${bookTitle}</p>
+                  <p style="color: #999; margin: 0; font-size: 14px;">by ${bookAuthor}</p>
+                </div>
+                <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Please help ${studentName} find this book so they can continue their reading journey!</p>
+                <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 20px 0;">Go to A.R.I.S.E Reader</a>
+                <p style="color: #666; font-size: 14px; margin-top: 30px;">This is an automated message from A.R.I.S.E Reader.</p>
+              </div>
+              `
+            ).catch(() => {});
+          } catch {}
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Request sent to your teacher${teacher.display_name ? ' ' + teacher.display_name : ''} for "${bookTitle}"! They'll help you find it.`
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // GET /api/fyp/share/:token - Public share data (no auth)
   app.get("/api/fyp/share/:token", async (req, res) => {
     try {

@@ -62,7 +62,6 @@ import FypSharePage from "./pages/FypSharePage";
 import FypMyBooksPage from "./pages/FypMyBooksPage";
 import ReadingClub from "./pages/ReadingClub";
 import TTSAudioBooks from "./pages/TTSAudioBooks";
-import BrainChallenge from "./pages/BrainChallenge";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
