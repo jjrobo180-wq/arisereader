@@ -339,7 +339,7 @@ export default function TTSAudioBooks() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hidden audio element */}
-      <audio ref={audioRef} src={AUDIO_SRC} preload="metadata" crossOrigin="anonymous" />
+      <audio ref={audioRef} src={AUDIO_SRC} preload="metadata" />
 
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-10">
