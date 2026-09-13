@@ -256,17 +256,17 @@ async function searchRealImage(query: string): Promise<string | null> {
     const data = await res.json() as any;
     const pages = data.query?.pages;
     if (!pages) return null;
-    // Find first image (prefer jpg/png)
+    // Find first image (prefer jpg/png, skip PDFs and non-image files)
     for (const page of Object.values(pages) as any[]) {
       const info = page?.imageinfo?.[0];
-      if (info?.thumburl && (info.mime === 'image/jpeg' || info.mime === 'image/png')) {
+      if (info?.thumburl && (info.mime === 'image/jpeg' || info.mime === 'image/png') && !info.thumburl.includes('.pdf')) {
         return info.thumburl;
       }
     }
-    // Fall back to any image
+    // Fall back to any image (skip PDFs)
     for (const page of Object.values(pages) as any[]) {
       const info = page?.imageinfo?.[0];
-      if (info?.thumburl) return info.thumburl;
+      if (info?.thumburl && !info.thumburl.includes('.pdf') && !info.thumburl.includes('.pdf.jpg')) return info.thumburl;
     }
     return null;
   } catch {
