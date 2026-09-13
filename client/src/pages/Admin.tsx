@@ -3884,7 +3884,8 @@ Generate exactly 10 questions.`;
             <div className="space-y-3">
               {pendingQuizzes.map((quiz) => {
                 let questions = [];
-                try { questions = JSON.parse(quiz.questions); } catch {}
+                try { questions = typeof quiz.questions === 'string' ? JSON.parse(quiz.questions) : quiz.questions; } catch {}
+                if (!Array.isArray(questions)) questions = [];
                 const isExpanded = expandedQuiz === quiz.id;
                 const isRejecting = rejectingQuizId === quiz.id;
                 return (
@@ -3909,20 +3910,47 @@ Generate exactly 10 questions.`;
 
                     {isExpanded && (
                       <div className="mt-4 space-y-3">
-                        {questions.map((q: any, qIdx: number) => (
+                        {questions.length === 0 && (
+                          <p className="text-sm text-muted-foreground italic">No questions could be loaded.</p>
+                        )}
+                        {questions.map((q: any, qIdx: number) => {
+                          const questionText = q.prompt || q.question || '';
+                          const opts = q.option_a_text ? [
+                            { letter: 'A', text: q.option_a_text, image: q.option_a_image },
+                            { letter: 'B', text: q.option_b_text, image: q.option_b_image },
+                            { letter: 'C', text: q.option_c_text, image: q.option_c_image },
+                            { letter: 'D', text: q.option_d_text, image: q.option_d_image },
+                          ] : (q.options || []).map((opt: any, i: number) => ({
+                            letter: String.fromCharCode(65 + i),
+                            text: typeof opt === 'string' ? opt : (opt.text || ''),
+                            image: typeof opt === 'string' ? null : (opt.image || null),
+                          }));
+                          const correctLetter = (q.correct_answer || q.correct || 'A').toString().toUpperCase().charAt(0);
+                          const qImage = q.question_image || q.image || null;
+                          return (
                           <div key={qIdx} className="bg-muted/50 rounded-lg p-3">
-                            <p className="text-sm font-medium mb-2">{qIdx + 1}. {q.question}</p>
+                            <p className="text-sm font-medium mb-2">{qIdx + 1}. {questionText}</p>
+                            {qImage && (
+                              <div className="mb-2">
+                                {qImage.startsWith('http') || qImage.startsWith('data:') ? (
+                                  <img src={qImage} alt="Question visual" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 6 }} />
+                                ) : (
+                                  <span style={{ fontSize: 28 }}>{qImage}</span>
+                                )}
+                              </div>
+                            )}
                             <div className="space-y-1">
-                              {q.options && q.options.map((opt: string, oIdx: number) => (
+                              {opts.map((opt: any, oIdx: number) => (
                                 <div key={oIdx} className={`text-xs px-2 py-1 rounded ${
-                                  opt === q.correct ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'
+                                  opt.letter === correctLetter ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'
                                 }`}>
-                                  {String.fromCharCode(65 + oIdx)}) {opt}{opt === q.correct ? ' ✓' : ''}
+                                  {opt.letter}) {opt.text}{opt.letter === correctLetter ? ' ✓' : ''}
                                 </div>
                               ))}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
 
                         {isRejecting ? (
                           <div className="flex gap-2 items-center">

@@ -245,6 +245,35 @@ Rules:
 }
 
 // Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
+// Search for a real image using Wikimedia Commons API
+async function searchRealImage(query: string): Promise<string | null> {
+  try {
+    const cleanQuery = query.replace(/[?".!]/g, '').trim();
+    if (!cleanQuery || cleanQuery.length < 2) return null;
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrnamespace=6&gsrlimit=3&prop=imageinfo&iiprop=url|mime&iiurlwidth=400&format=json&origin=*`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    const pages = data.query?.pages;
+    if (!pages) return null;
+    // Find first image (prefer jpg/png)
+    for (const page of Object.values(pages) as any[]) {
+      const info = page?.imageinfo?.[0];
+      if (info?.thumburl && (info.mime === 'image/jpeg' || info.mime === 'image/png')) {
+        return info.thumburl;
+      }
+    }
+    // Fall back to any image
+    for (const page of Object.values(pages) as any[]) {
+      const info = page?.imageinfo?.[0];
+      if (info?.thumburl) return info.thumburl;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
@@ -269,7 +298,7 @@ async function generateEyeGazeQuizWithAI(topic: string, description?: string, so
 
 ${userRequest}
 
-These quizzes are for students who use eye gaze technology or are non-verbal. Questions should be visual, simple, and accessible. Each question must have a visual element (an emoji that represents the concept).
+These quizzes are for students who use eye gaze technology or are non-verbal. Questions should be visual, simple, and accessible. DO NOT use emojis in any field. Leave question_image and option_*_image fields as null — real images will be fetched automatically.
 
 IMPORTANT CONTENT RULES:
 - All content MUST be school-appropriate and child-friendly
@@ -278,18 +307,20 @@ IMPORTANT CONTENT RULES:
 - Do NOT reference YouTube, specific video titles, or brand names in questions
 - Focus on the educational content and learning objectives
 - If the topic is too vague, make reasonable educational assumptions
+- Make option texts concrete nouns or simple phrases that can be searched for images (e.g., "Umbrella" not "Something to stay dry")
 
 Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
-{"questions":[{"prompt":"What color is the sky?","question_image":"☁️","option_a_text":"Red","option_a_image":null,"option_b_text":"Blue","option_b_image":null,"option_c_text":"Green","option_c_image":null,"option_d_text":"Yellow","option_d_image":null,"correct_answer":"B"}]}
+{"questions":[{"prompt":"What do we use to stay dry in the rain?","question_image":null,"option_a_text":"Umbrella","option_a_image":null,"option_b_text":"Sunglasses","option_b_image":null,"option_c_text":"Boots","option_c_image":null,"option_d_text":"Hat","option_d_image":null,"correct_answer":"A"}]}
 
 Rules:
 - Create exactly 5 questions — no more, no less
 - Questions should be simple, visual, and appropriate for eye gaze / non-verbal students
-- The "question_image" field should be a single emoji that represents the question topic
+- DO NOT use emojis anywhere — leave image fields as null
 - Each question has exactly 4 options (option_a_text through option_d_text) — these are the answer choices shown to the student
 - The "correct_answer" is a single letter: "A", "B", "C", or "D"
 - Make questions about identification, matching, and simple comprehension
 - Use clear, simple language
+- Make option texts be concrete, image-searchable nouns when possible (e.g., "Elephant" not "A big gray animal")
 - Return exactly 5 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
 
     const res = await fetch(PERPLEXITY_API_URL, {
@@ -336,21 +367,44 @@ Rules:
 
     const validQuestions = questions.slice(0, 5).map((q: any) => ({
       prompt: q.prompt || "What is this?",
-      question_image: q.question_image || q.visual || null,
+      question_image: null, // Will be set by image search below
       option_a_text: q.option_a_text || q.option_a || q.options?.[0] || "",
-      option_a_image: q.option_a_image || null,
+      option_a_image: null, // Will be set by image search below
       option_b_text: q.option_b_text || q.option_b || q.options?.[1] || "",
-      option_b_image: q.option_b_image || null,
+      option_b_image: null,
       option_c_text: q.option_c_text || q.option_c || q.options?.[2] || "",
-      option_c_image: q.option_c_image || null,
+      option_c_image: null,
       option_d_text: q.option_d_text || q.option_d || q.options?.[3] || "",
-      option_d_image: q.option_d_image || null,
+      option_d_image: null,
       correct_answer: (q.correct_answer || q.correct || "A").toUpperCase().charAt(0),
     })).filter((q: any) => q.option_a_text && q.option_b_text && q.option_c_text && q.option_d_text);
 
     if (validQuestions.length < 3) {
       return { error: "AI generated too few valid questions. Please try a more specific topic." };
     }
+
+    // Search for real images for each question and option in parallel
+    try {
+      const imageResults = await Promise.all(
+        validQuestions.map(async (q) => {
+          const [qImg, aImg, bImg, cImg, dImg] = await Promise.all([
+            searchRealImage(q.prompt),
+            searchRealImage(q.option_a_text),
+            searchRealImage(q.option_b_text),
+            searchRealImage(q.option_c_text),
+            searchRealImage(q.option_d_text),
+          ]);
+          return { qImg, aImg, bImg, cImg, dImg };
+        })
+      );
+      validQuestions.forEach((q, i) => {
+        q.question_image = imageResults[i].qImg;
+        q.option_a_image = imageResults[i].aImg;
+        q.option_b_image = imageResults[i].bImg;
+        q.option_c_image = imageResults[i].cImg;
+        q.option_d_image = imageResults[i].dImg;
+      });
+    } catch {}
 
     return { questions: validQuestions };
   } catch (e: any) {
