@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Play, Pause, Square, Volume2, Type, Headphones, BookOpen, ChevronDown } from "lucide-react";
+import { ArrowLeft, Play, Pause, Square, Type, Headphones, BookOpen, Volume2, SkipBack, SkipForward } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 
-// Chapter text data
+// Audio source - real human narration from ESL Bits
+const AUDIO_SRC = "https://esl-bits.eu/ESL.English.Learning.Audiobooks/Outsiders/01/a.mp3";
+
+// Chapter text
 const CHAPTER_TEXT = `Chapter 1
 
 WHEN I STEPPED out into the bright sunlight from the darkness of the movie house, I had only two things on my mind: Paul Newman and a ride home. I was wishing I looked like Paul Newman—he looks tough and I don't—but I guess my own looks aren't so bad. I have light-brown, almost-red hair and greenish-gray eyes. I wish they were more gray, because I hate most guys that have green eyes, but I have to be content with what I have. My hair is longer than a lot of boys wear theirs, squared off in back and long at the front and sides, but I am a greaser and most of my neighborhood rarely bothers to get a haircut. Besides, I look better with long hair.
@@ -213,123 +216,131 @@ In a moment his breathing was light and regular. I turned my head to look at him
 export default function TTSAudioBooks() {
   const [, navigate] = useLocation();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [currentWordIdx, setCurrentWordIdx] = useState(-1);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [rate, setRate] = useState(1);
   const [fontSize, setFontSize] = useState(18);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [progress, setProgress] = useState(0);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const wordsRef = useRef<string[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Split text into words for highlighting
-  const words = CHAPTER_TEXT.split(/(\s+)/).filter(w => w.length > 0);
+  // Split text into tokens (words and spaces) for rendering
+  const tokens = CHAPTER_TEXT.split(/(\s+)/).filter(w => w.length > 0);
+  // Build word-only list for timing (spaces don't count)
+  const wordList = tokens.filter(w => !/^\s+$/.test(w));
+  const totalWords = wordList.length;
 
-  // Load available voices
-  useEffect(() => {
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis?.getVoices() || [];
-      if (availableVoices.length > 0) {
-        // Prefer English voices
-        const englishVoices = availableVoices.filter(v => v.lang.startsWith("en"));
-        setVoices(englishVoices.length > 0 ? englishVoices : availableVoices);
-        if (selectedVoice === "" && englishVoices.length > 0) {
-          // Try to find a good default voice
-          const defaultVoice = englishVoices.find(v => v.default) || englishVoices[0];
-          setSelectedVoice(defaultVoice.name);
+  // Map current audio time to word index (linear interpolation)
+  const getCurrentWordIdx = () => {
+    if (!duration || duration === 0) return -1;
+    const ratio = currentTime / duration;
+    const wordIdx = Math.floor(ratio * totalWords);
+    return Math.min(wordIdx, totalWords - 1);
+  };
+
+  // Map wordList index back to tokens index for highlighting
+  const currentWordIdx = getCurrentWordIdx();
+  let highlightTokenIdx = -1;
+  if (currentWordIdx >= 0) {
+    let wordCount = 0;
+    for (let i = 0; i < tokens.length; i++) {
+      if (!/^\s+$/.test(tokens[i])) {
+        if (wordCount === currentWordIdx) {
+          highlightTokenIdx = i;
+          break;
         }
+        wordCount++;
+      }
+    }
+  }
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      if (audio.duration) {
+        setProgress(Math.round((audio.currentTime / audio.duration) * 100));
       }
     };
-    loadVoices();
-    // Voices load asynchronously in some browsers
-    if (window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("play", handlePlay);
+
     return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("play", handlePlay);
     };
   }, []);
 
-  const handlePlay = () => {
-    if (isPaused) {
-      // Resume
-      window.speechSynthesis.resume();
-      setIsPaused(false);
-      setIsPlaying(true);
-      return;
+  // Update playback rate when it changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = rate;
     }
+  }, [rate]);
 
-    // Start fresh
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(CHAPTER_TEXT);
-    
-    // Set voice
-    if (selectedVoice) {
-      const voice = voices.find(v => v.name === selectedVoice);
-      if (voice) utterance.voice = voice;
+  const handlePlayPause = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch(() => {});
     }
-    
-    utterance.rate = rate;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    // Word boundary highlighting
-    let wordIdx = 0;
-    utterance.onboundary = (event: SpeechSynthesisEvent) => {
-      if (event.name === "word" || event.name === undefined) {
-        // Find the word at this character index
-        const charIdx = event.charIndex;
-        let currentIdx = 0;
-        for (let i = 0; i < words.length; i++) {
-          if (currentIdx + words[i].length > charIdx) {
-            setCurrentWordIdx(i);
-            wordIdx = i;
-            break;
-          }
-          currentIdx += words[i].length;
-        }
-        setProgress(Math.round((wordIdx / words.length) * 100));
-      }
-    };
-
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setIsPaused(false);
-      setCurrentWordIdx(-1);
-      setProgress(100);
-    };
-
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setIsPaused(false);
-      setCurrentWordIdx(-1);
-    };
-
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-    setIsPlaying(true);
-    setIsPaused(false);
-  };
-
-  const handlePause = () => {
-    window.speechSynthesis.pause();
-    setIsPaused(true);
-    setIsPlaying(false);
   };
 
   const handleStop = () => {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-    setIsPaused(false);
-    setCurrentWordIdx(-1);
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    setCurrentTime(0);
     setProgress(0);
+    setIsPlaying(false);
+  };
+
+  const handleSkip = (seconds: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + seconds));
+    setCurrentTime(audio.currentTime);
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Hidden audio element */}
+      <audio ref={audioRef} src={AUDIO_SRC} preload="metadata" crossOrigin="anonymous" />
+
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
@@ -351,7 +362,7 @@ export default function TTSAudioBooks() {
             <Headphones className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-1">TTS Audio Books</h1>
-          <p className="text-sm text-muted-foreground">Text-to-speech reader with word highlighting for accessibility</p>
+          <p className="text-sm text-muted-foreground">Human narration with word highlighting for accessibility</p>
         </div>
 
         {/* Book Card */}
@@ -370,35 +381,47 @@ export default function TTSAudioBooks() {
         <Card className="shadow-md mb-6 sticky top-16 z-10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Play/Pause/Stop */}
-              <div className="flex items-center gap-2">
-                {!isPlaying && !isPaused ? (
-                  <Button onClick={handlePlay} className="gap-2">
-                    <Play className="w-4 h-4" /> Read Aloud
-                  </Button>
-                ) : isPlaying ? (
-                  <Button onClick={handlePause} variant="secondary" className="gap-2">
-                    <Pause className="w-4 h-4" /> Pause
-                  </Button>
-                ) : (
-                  <Button onClick={handlePlay} className="gap-2">
-                    <Play className="w-4 h-4" /> Resume
-                  </Button>
-                )}
-                <Button onClick={handleStop} variant="outline" size="icon">
-                  <Square className="w-4 h-4" />
-                </Button>
-              </div>
+              {/* Skip Back */}
+              <Button onClick={() => handleSkip(-15)} variant="outline" size="icon" title="Skip back 15s">
+                <SkipBack className="w-4 h-4" />
+              </Button>
+
+              {/* Play/Pause */}
+              <Button onClick={handlePlayPause} className="gap-2 min-w-[120px]">
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                {isPlaying ? "Pause" : "Play"}
+              </Button>
+
+              {/* Stop */}
+              <Button onClick={handleStop} variant="outline" size="icon" title="Stop">
+                <Square className="w-4 h-4" />
+              </Button>
+
+              {/* Skip Forward */}
+              <Button onClick={() => handleSkip(15)} variant="outline" size="icon" title="Skip forward 15s">
+                <SkipForward className="w-4 h-4" />
+              </Button>
 
               {/* Progress */}
               <div className="flex-1 min-w-[100px]">
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-200"
-                    style={{ width: `${progress}%` }}
-                  />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{formatTime(currentTime)}</span>
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden cursor-pointer"
+                    onClick={(e) => {
+                      const audio = audioRef.current;
+                      if (!audio || !audio.duration) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const ratio = (e.clientX - rect.left) / rect.width;
+                      audio.currentTime = ratio * audio.duration;
+                    }}
+                  >
+                    <div 
+                      className="h-full bg-primary transition-all duration-200"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{formatTime(duration)}</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground mt-1 block">{progress}%</span>
               </div>
 
               {/* Speed */}
@@ -432,22 +455,6 @@ export default function TTSAudioBooks() {
                   <option value={28}>Extra Large</option>
                 </select>
               </div>
-
-              {/* Voice */}
-              {voices.length > 1 && (
-                <div className="flex items-center gap-1">
-                  <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />
-                  <select
-                    value={selectedVoice}
-                    onChange={(e) => setSelectedVoice(e.target.value)}
-                    className="bg-muted border border-border rounded-lg px-2 py-1 text-xs text-foreground max-w-[150px]"
-                  >
-                    {voices.map(v => (
-                      <option key={v.name} value={v.name}>{v.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -459,13 +466,13 @@ export default function TTSAudioBooks() {
               className="leading-relaxed text-foreground"
               style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}
             >
-              {words.map((word, idx) => {
-                const isSpace = /^\s+$/.test(word);
+              {tokens.map((token, idx) => {
+                const isSpace = /^\s+$/.test(token);
                 if (isSpace) {
-                  return <span key={idx}>{word}</span>;
+                  return <span key={idx}>{token}</span>;
                 }
-                const isCurrent = idx === currentWordIdx;
-                const isPast = idx < currentWordIdx && currentWordIdx > 0;
+                const isCurrent = idx === highlightTokenIdx;
+                const isPast = idx < highlightTokenIdx && highlightTokenIdx > 0;
                 return (
                   <span
                     key={idx}
@@ -477,7 +484,7 @@ export default function TTSAudioBooks() {
                         : ""
                     }`}
                   >
-                    {word}
+                    {token}
                   </span>
                 );
               })}
@@ -488,7 +495,7 @@ export default function TTSAudioBooks() {
         {/* Info */}
         <div className="text-center mt-6">
           <p className="text-xs text-muted-foreground">
-            Click "Read Aloud" to start. Words will highlight as they are spoken. Adjust speed and font size for your needs.
+            Click Play to hear the chapter narrated. Words highlight as the audio plays. Use the progress bar to jump to any section.
           </p>
         </div>
       </main>
