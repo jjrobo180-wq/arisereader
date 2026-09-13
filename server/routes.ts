@@ -3383,7 +3383,7 @@ export async function registerRoutes(
       try {
         await supabase.from('pending_ai_quizzes').insert({
           student_id: req.user.id,
-          book_title: quizTitle,
+          book_title: topic.trim(),
           author: topic.trim(),
           questions: JSON.stringify(result.questions),
           cover_url: null,
