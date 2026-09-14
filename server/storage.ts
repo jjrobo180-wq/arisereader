@@ -383,7 +383,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllBooks() {
     return cached('allBooks', 300000, async () => {
-      const data = await fetchList(supabase.from("books").select("*"));
+      const data = await fetchList(supabase.from("books").select("*").limit(5000));
       return data.map(mapBook);
     });
   }
