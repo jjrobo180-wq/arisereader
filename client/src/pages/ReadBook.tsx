@@ -126,7 +126,7 @@ export default function ReadBook() {
                   <BookOpen className="w-4 h-4" />
                   {book?.pointsValue || 10} pts
                 </div>
-                <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} />
+                <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} bookId={book?.id} />
               </div>
             </div>
           </CardContent>

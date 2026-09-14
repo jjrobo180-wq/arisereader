@@ -1856,7 +1856,7 @@ export default function Library() {
                               </Button>
                             )}
                           </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
                         </div>
                       </Card>
                     );
@@ -2185,7 +2185,7 @@ export default function Library() {
                               <span className="text-[10px] text-muted-foreground ml-auto">{score}/{total}</span>
                             )}
                           </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
                         </CardContent>
                       </Card>
                     );
@@ -2250,7 +2250,7 @@ export default function Library() {
                             </span>
                             <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
                           </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
                         </CardContent>
                       </Card>
                     );
@@ -2356,7 +2356,7 @@ export default function Library() {
                             </span>
                             <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
                           </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
                         </CardContent>
                       </Card>
                     );
@@ -2458,7 +2458,7 @@ export default function Library() {
                               <BookOpen className="w-3 h-3 mr-1" />Take Quiz
                             </Button>
                           </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
                         </div>
                       </Card>
                     );
@@ -2554,7 +2554,7 @@ export default function Library() {
                             {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
                           </Button>
                         </div>
-                        <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} />
+                        <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
                       </div>
                     </Card>
                   );
