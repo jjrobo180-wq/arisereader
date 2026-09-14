@@ -4888,6 +4888,309 @@ export async function registerRoutes(
     next();
   }
 
+  // === Teacher Admin endpoints: limited admin access for ALL teachers ===
+  // These mirror admin endpoints but are accessible to any approved teacher
+
+  // GET all students across all teachers (with stats + teacher names)
+  app.get("/api/teacher-admin/all-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const students = (await storage.getAllUsers()).filter((s: any) => s.role === 'student' || (!s.role && !s.isAdmin));
+      const allUsers = await storage.getAllUsers();
+      const teacherMap = new Map();
+      for (const u of allUsers) {
+        if (u.role === 'teacher') teacherMap.set(u.id, u.displayName);
+      }
+      // Fetch attempts for stats
+      let allUsersWithAttempts: any[] = [];
+      for (let retry = 0; retry < 5; retry++) {
+        try {
+          const { data, error } = await supabase.from("users").select("id, attempts(points_earned)").eq("is_admin", false).eq("role", "student");
+          if (!error && data) { allUsersWithAttempts = data; break; }
+        } catch (e) {}
+        if (retry < 4) await new Promise(r => setTimeout(r, 1000));
+      }
+      const attemptsMap = new Map();
+      for (const u of allUsersWithAttempts) {
+        attemptsMap.set(u.id, u.attempts || []);
+      }
+      const result = students.map((s: any) => {
+        const attempts = attemptsMap.get(s.id) || [];
+        const totalPoints = attempts.reduce((sum: number, a: any) => sum + (a.points_earned || 0), 0);
+        const quizzesMastered = attempts.filter((a: any) => (a.points_earned || 0) > 0).length;
+        return {
+          id: s.id,
+          username: s.username,
+          displayName: s.displayName,
+          createdAt: s.createdAt,
+          quizzesTaken: attempts.length,
+          quizzesMastered,
+          totalPoints,
+          approvedByTeacher: s.approvedByTeacher,
+          teacherId: s.teacherId,
+          teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null,
+        };
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET all teachers (for reassignment dropdown)
+  app.get("/api/teacher-admin/teachers", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const teachers = allUsers
+        .filter((u: any) => u.role === 'teacher')
+        .map((t: any) => ({ id: t.id, displayName: t.displayName, username: t.username }));
+      res.json(teachers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET pending students across ALL teachers
+  app.get("/api/teacher-admin/pending-students", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const pending = allUsers.filter((u: any) => !u.approvedByTeacher && (u.role === 'student' || (!u.role && !u.isAdmin)));
+      const teacherMap = new Map();
+      for (const u of allUsers) {
+        if (u.role === 'teacher') teacherMap.set(u.id, u.displayName);
+      }
+      const result = pending.map((s: any) => ({
+        id: s.id,
+        username: s.username,
+        displayName: s.displayName,
+        teacherId: s.teacherId,
+        teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null,
+      }));
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST approve any student (across all teachers)
+  app.post("/api/teacher-admin/students/:id/approve", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      await supabase.from("users").update({ approved_by_teacher: true }).eq("id", studentId);
+      const student = await storage.getUser(studentId);
+      const teacherName = student?.teacherId ? ((await storage.getUser(student.teacherId))?.displayName || "your teacher") : "your teacher";
+      await storage.createMessage(studentId, "teacher", `Welcome! You've been approved and are now in ${teacherName}'s class.`);
+      try { clearCache('allUsers'); } catch {}
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST reset any student's password
+  app.post("/api/teacher-admin/students/:id/reset-password", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 4) {
+        return res.status(400).json({ message: "Password must be at least 4 characters" });
+      }
+      const hashed = bcrypt.hashSync(newPassword, 10);
+      await storage.resetPassword(studentId, hashed);
+      res.json({ success: true, message: "Password reset successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET rewards for any student
+  app.get("/api/teacher-admin/students/:id/rewards", authMiddleware, teacherOrAdminMiddleware, async (req, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      const key = `student_rewards_${studentId}`;
+      const raw = await storage.getSetting(key);
+      let rewards: any[] = [];
+      if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+      res.json({ rewards });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST add reward to any student
+  app.post("/api/teacher-admin/students/:id/rewards", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      const { title, message, requiredQuizCount, expiresAt } = req.body;
+      if (!title || !message) {
+        return res.status(400).json({ message: "Title and message are required" });
+      }
+      const key = `student_rewards_${studentId}`;
+      const raw = await storage.getSetting(key);
+      let rewards: any[] = [];
+      if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+      const reward = {
+        id: Date.now(),
+        title: title.trim(),
+        message: message.trim(),
+        requiredQuizCount: requiredQuizCount ? parseInt(requiredQuizCount) : 0,
+        expiresAt: expiresAt || null,
+        active: true,
+        createdAt: new Date().toISOString(),
+        createdByAdminId: req.user.id,
+      };
+      rewards.push(reward);
+      await storage.upsertSetting(key, JSON.stringify(rewards));
+      res.status(201).json({ reward, message: "Reward added!" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE reward for any student
+  app.delete("/api/teacher-admin/students/:id/rewards/:rewardId", authMiddleware, teacherOrAdminMiddleware, async (req, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      const rewardId = parseInt(req.params.rewardId);
+      const key = `student_rewards_${studentId}`;
+      const raw = await storage.getSetting(key);
+      let rewards: any[] = [];
+      if (raw) { try { rewards = JSON.parse(raw); } catch {} }
+      rewards = rewards.filter(r => r.id !== rewardId);
+      await storage.upsertSetting(key, JSON.stringify(rewards));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST reassign student to a different teacher
+  app.post("/api/teacher-admin/students/:id/reassign", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      const { newTeacherId } = req.body;
+      if (!newTeacherId) {
+        return res.status(400).json({ message: "newTeacherId is required" });
+      }
+      // Update the student's teacher_id in users table
+      const { error } = await supabase.from("users").update({ teacher_id: newTeacherId }).eq("id", studentId);
+      if (error) throw new Error(error.message);
+      // Also update teacher_students setting
+      const rawLinks = await storage.getSetting('teacher_students');
+      let teacherStudents: Record<string, number[]> = {};
+      if (rawLinks) { try { teacherStudents = JSON.parse(rawLinks); } catch {} }
+      // Remove student from all teachers
+      for (const [tid, sids] of Object.entries(teacherStudents)) {
+        teacherStudents[tid] = (sids as number[]).filter((sid: number) => sid !== studentId);
+      }
+      // Add to new teacher
+      if (!teacherStudents[String(newTeacherId)]) teacherStudents[String(newTeacherId)] = [];
+      teacherStudents[String(newTeacherId)].push(studentId);
+      await storage.upsertSetting('teacher_students', JSON.stringify(teacherStudents));
+      try { clearCache('allUsers'); } catch {}
+      const newTeacher = await storage.getUser(newTeacherId);
+      const teacherName = newTeacher?.displayName || "your new teacher";
+      await storage.createMessage(studentId, "teacher", `You have been moved to ${teacherName}'s class.`);
+      res.json({ success: true, message: `Student reassigned to ${teacherName}` });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET pending AI quizzes (already accessible to teachers via /api/admin/pending-quizzes, but adding a teacher-admin alias)
+  app.get("/api/teacher-admin/pending-quizzes", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('pending_ai_quizzes')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      const studentIds = [...new Set((data || []).map((r: any) => r.student_id))];
+      let studentMap: Record<number, string> = {};
+      if (studentIds.length > 0) {
+        const { data: students } = await supabase.from('users').select('id, display_name').in('id', studentIds);
+        (students || []).forEach((s: any) => { studentMap[s.id] = s.display_name; });
+      }
+      const pending = (data || []).map((row: any) => ({ ...row, student_name: studentMap[row.student_id] || 'Unknown' }));
+      res.json({ pending });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST approve pending AI quiz (teacher-admin version)
+  app.post("/api/teacher-admin/pending-quizzes/:id/approve", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const { data: pendingRows, error: fetchError } = await supabase
+        .from('pending_ai_quizzes')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('status', 'pending');
+      if (fetchError) throw new Error(fetchError.message);
+      if (!pendingRows || pendingRows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
+      const pending = pendingRows[0];
+      const questions = JSON.parse(pending.questions);
+
+      if (pending.quiz_type === 'eye_gaze') {
+        const quiz = await storage.createCustomEyeGazeQuiz(
+          pending.student_id, pending.book_title.slice(0, 60),
+          `AI-generated eye gaze quiz about ${pending.author}`,
+          pending.age_group || "Custom", questions, "global", null, "eye_gaze"
+        );
+        await supabase.from('notifications').insert({
+          user_id: pending.student_id, type: 'success',
+          title: 'Quiz Approved!',
+          message: `Your eye gaze quiz "${pending.book_title}" has been approved and is ready to take!`
+        });
+      } else {
+        const book = await storage.createBookWithQuestions({
+          title: pending.book_title, author: pending.author,
+          ageGroup: pending.age_group, coverUrl: pending.cover_url,
+          description: `Quiz for "${pending.book_title}" by ${pending.author}`,
+          pointsValue: pending.quiz_type === 'iarise' ? 2 : 10, readUrl: null,
+        }, questions);
+        try {
+          const rawBands = await storage.getSetting('book_grade_bands');
+          let bookBands: Record<string, string> = {};
+          if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
+          bookBands[String(book.id)] = pending.age_group;
+          await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
+        } catch {}
+        await supabase.from('notifications').insert({
+          user_id: pending.student_id, type: 'success',
+          title: 'Quiz Approved!',
+          message: `Your quiz "${pending.book_title}" has been approved and is ready to take!`
+        });
+      }
+      await supabase.from('pending_ai_quizzes').update({ status: 'approved', reviewed_by: req.user.id, reviewed_at: new Date().toISOString() }).eq('id', req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST reject pending AI quiz (teacher-admin version)
+  app.post("/api/teacher-admin/pending-quizzes/:id/reject", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const { reason } = req.body;
+      await supabase.from('pending_ai_quizzes').update({
+        status: 'rejected', reviewed_by: req.user.id,
+        reviewed_at: new Date().toISOString(), rejection_reason: reason || null
+      }).eq('id', req.params.id);
+      const { data: pendingRows } = await supabase.from('pending_ai_quizzes').select('student_id, book_title').eq('id', req.params.id);
+      if (pendingRows && pendingRows[0]) {
+        await supabase.from('notifications').insert({
+          user_id: pendingRows[0].student_id, type: 'info',
+          title: 'Quiz Update',
+          message: `Your quiz "${pendingRows[0].book_title}" was not approved. ${reason || ''}`
+        });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/teacher/students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const teacherId = req.user.isAdmin ? null : req.user.id;
