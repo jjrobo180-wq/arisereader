@@ -906,6 +906,17 @@ export async function registerRoutes(
   });
 
   // Book routes
+  // Admin endpoint to clear in-memory cache
+  app.post("/api/admin/clear-cache", authMiddleware, async (req: any, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ message: 'Admin only' });
+    clearCache('allBooks');
+    clearCache('allUsers');
+    clearCache('leaderboard');
+    clearCache('monthlyLeaderboard');
+    clearCache('eye_gaze_leaderboard');
+    res.json({ success: true, message: 'All caches cleared' });
+  });
+
   app.get("/api/books", authMiddleware, async (req: any, res) => {
     const allBooks = await storage.getAllBooks();
     // Regular library only shows books WITH quizzes (points_value > 0)
