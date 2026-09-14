@@ -64,6 +64,7 @@ export default function TeacherDashboard() {
   const [quizLoading, setQuizLoading] = useState(false);
   const [bookRequests, setBookRequests] = useState<BookRequest[]>([]);
   const [bookReqLoading, setBookReqLoading] = useState(false);
+  const [bellRefreshKey, setBellRefreshKey] = useState(0);
 
   const authorized = Boolean(user && (user.role === "teacher" || user.isAdmin));
   const accountApproved = user?.accountApproved !== false;
@@ -233,9 +234,10 @@ export default function TeacherDashboard() {
       await fetch(`${API_BASE}/api/notifications/mark-seen`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ id: notifId }),
       });
       setBookRequests((items) => items.filter((item) => item.id !== notifId));
+      setBellRefreshKey((k) => k + 1);
       setActionSuccess("Request dismissed.");
       setTimeout(() => setActionSuccess(""), 3000);
     } catch (err) { setActionError("Unable to dismiss request."); }
@@ -299,7 +301,7 @@ export default function TeacherDashboard() {
 
   if (!user || !authorized) return null;
   return <main style={styles.page}>
-    <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><NotificationBell onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} /><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>
+    <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><NotificationBell refreshKey={bellRefreshKey} onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} /><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>
     {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={styles.content}>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">
         <TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton>

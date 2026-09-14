@@ -124,25 +124,35 @@ export function NotificationBell({
     // Mark notifications as seen when user clicks an item
     const authToken = token || getTokenFromCookie();
     if (authToken) {
+      // Teachers: clicking a book-request item dismisses just that one by id.
+      // Everything else (and admins/students) clears the whole bell as before.
+      const body = notifData.type === "teacher" && type === "request"
+        ? { id }
+        : {};
       fetch(`${API_BASE}/api/notifications/mark-seen`, {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(body),
       }).then(() => fetchCount()).catch(() => {});
     }
-    setNotifData(prev => ({ ...prev, unreadCount: 0 }));
+    const dismissedOne = notifData.type === "teacher" && type === "request";
+    setNotifData(prev => ({ ...prev, unreadCount: dismissedOne ? Math.max(0, (prev.unreadCount || 0) - 1) : 0 }));
     onNavigate?.(type, id);
   };
 
-  const handleDismissItem = (e: React.MouseEvent, type: "quiz_requests" | "new_users" | "pending_teachers" | "messages" | "ai_quiz_pending") => {
+  const handleDismissItem = (e: React.MouseEvent, type: "quiz_requests" | "new_users" | "pending_teachers" | "messages" | "ai_quiz_pending", itemId?: number) => {
     e.stopPropagation();
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
-    // Mark just this type as seen (hides that item from the list)
+    // Teacher book-request items are individual notification rows — dismiss by id.
+    // Every other type is a shared admin bucket cleared by seen-at timestamp.
+    const body = notifData.type === "teacher" && type === "quiz_requests" && itemId != null
+      ? { id: itemId }
+      : { type };
     fetch(`${API_BASE}/api/notifications/mark-seen`, {
       method: "POST",
       headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ type }),
+      body: JSON.stringify(body),
     }).then(() => fetchCount()).catch(() => {});
   };
 
@@ -257,7 +267,7 @@ export function NotificationBell({
                     </div>
                   </button>
                   <button
-                    onClick={(e) => handleDismissItem(e, item.type === "request" ? "quiz_requests" : item.type === "user" ? "new_users" : item.type === "teacher" ? "pending_teachers" : item.type === "ai_quiz" ? "ai_quiz_pending" : "messages")}
+                    onClick={(e) => handleDismissItem(e, item.type === "request" ? "quiz_requests" : item.type === "user" ? "new_users" : item.type === "teacher" ? "pending_teachers" : item.type === "ai_quiz" ? "ai_quiz_pending" : "messages", item.id)}
                     className="px-2 flex items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
                     aria-label="Dismiss"
                   >

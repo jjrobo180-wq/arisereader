@@ -2027,19 +2027,29 @@ export async function registerRoutes(
   app.post("/api/notifications/mark-seen", authMiddleware, async (req, res) => {
     try {
       const notifType = req.body?.type;
-      if (notifType === "quiz_requests" || notifType === "new_users" || notifType === "pending_teachers" || notifType === "ai_quiz_pending") {
-        // Only admins can clear admin notification types
-        if (!req.user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-        await storage.setNotifSeenAt(notifType);
-      } else if (notifType === "messages") {
-        // Mark all student messages as read
+      const notifId = req.body?.id; // optional: dismiss a single book-request notification
+
+      if (notifType === "messages") {
         await storage.markAllMessagesRead(req.user.id);
+      } else if (notifId != null && (req.user.role === "teacher" || req.user.isAdmin)) {
+        // Teacher/admin dismissing a single book-request notification by id
+        await supabase.from("notifications").update({ read: true }).eq("id", notifId).eq("user_id", req.user.id);
+      } else if (notifType === "quiz_requests" || notifType === "new_users" || notifType === "pending_teachers" || notifType === "ai_quiz_pending") {
+        // Admin-only admin notification types; teachers may also clear ai_quiz_pending
+        if (!req.user.isAdmin && notifType !== "ai_quiz_pending") return res.status(403).json({ message: "Forbidden" });
+        await storage.setNotifSeenAt(notifType);
       } else {
-        // Clear all — admins clear admin types, students clear messages
+        // Clear all — admins clear admin types, teachers clear book requests + ai quizzes, students clear messages
         if (req.user.isAdmin) {
           await storage.setNotifSeenAt("quiz_requests");
           await storage.setNotifSeenAt("new_users");
           await storage.setNotifSeenAt("pending_teachers");
+          await storage.setNotifSeenAt("ai_quiz_pending");
+        } else if (req.user.role === "teacher") {
+          // Mark this teacher's book-request notifications as read
+          await supabase.from("notifications").update({ read: true }).eq("user_id", req.user.id).eq("title", "Student book request");
+          await storage.setNotifSeenAt("ai_quiz_pending");
+          await storage.setNotifSeenAt("new_users");
         } else {
           await storage.markAllMessagesRead(req.user.id);
         }
