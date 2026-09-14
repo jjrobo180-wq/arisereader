@@ -917,6 +917,15 @@ export async function registerRoutes(
     res.json({ success: true, message: 'All caches cleared' });
   });
 
+  // Debug endpoint to check book count
+  app.get("/api/admin/debug-books", authMiddleware, async (req: any, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ message: 'Admin only' });
+    const allBooks = await storage.getAllBooks();
+    const withPoints = allBooks.filter((b: any) => b.pointsValue > 0);
+    const mamba = allBooks.find((b: any) => b.title && b.title.includes('Mamba'));
+    res.json({ totalBooks: allBooks.length, withPoints: withPoints.length, mambaFound: !!mamba, mambaId: mamba?.id });
+  });
+
   app.get("/api/books", authMiddleware, async (req: any, res) => {
     const allBooks = await storage.getAllBooks();
     // Regular library only shows books WITH quizzes (points_value > 0)
