@@ -245,33 +245,17 @@ Rules:
 }
 
 // Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
-// Search for a real image using Wikimedia Commons API
-async function searchRealImage(query: string): Promise<string | null> {
-  try {
-    const cleanQuery = query.replace(/[?".!]/g, '').trim();
-    if (!cleanQuery || cleanQuery.length < 2) return null;
-    const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrnamespace=6&gsrlimit=3&prop=imageinfo&iiprop=url|mime&iiurlwidth=400&format=json&origin=*`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
-    const data = await res.json() as any;
-    const pages = data.query?.pages;
-    if (!pages) return null;
-    // Find first image (prefer jpg/png, skip PDFs and non-image files)
-    for (const page of Object.values(pages) as any[]) {
-      const info = page?.imageinfo?.[0];
-      if (info?.thumburl && (info.mime === 'image/jpeg' || info.mime === 'image/png') && !info.thumburl.includes('.pdf')) {
-        return info.thumburl;
-      }
-    }
-    // Fall back to any image (skip PDFs)
-    for (const page of Object.values(pages) as any[]) {
-      const info = page?.imageinfo?.[0];
-      if (info?.thumburl && !info.thumburl.includes('.pdf') && !info.thumburl.includes('.pdf.jpg')) return info.thumburl;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+// Generate an AI image URL using Pollinations.ai (free, no API key, image generated on-the-fly)
+function generateImageUrl(concept: string): string {
+  const cleanConcept = concept.replace(/[?".!]/g, '').trim();
+  if (!cleanConcept || cleanConcept.length < 2) return null as any;
+  // Build a prompt for a clean, simple, high-contrast educational image
+  const prompt = encodeURIComponent(`${cleanConcept}, simple clear illustration, white background, educational, high contrast, children's book style, centered, no text`);
+  // Use a seed based on the concept string for consistent images
+  let seed = 0;
+  for (let i = 0; i < cleanConcept.length; i++) seed = ((seed << 5) - seed) + cleanConcept.charCodeAt(i);
+  seed = Math.abs(seed);
+  return `https://image.pollinations.ai/prompt/${prompt}?width=400&height=400&nologo=true&seed=${seed}&model=flux`;
 }
 
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
@@ -383,26 +367,14 @@ Rules:
       return { error: "AI generated too few valid questions. Please try a more specific topic." };
     }
 
-    // Search for real images for each question and option in parallel
+    // Generate AI images for each question and option
     try {
-      const imageResults = await Promise.all(
-        validQuestions.map(async (q) => {
-          const [qImg, aImg, bImg, cImg, dImg] = await Promise.all([
-            searchRealImage(q.prompt),
-            searchRealImage(q.option_a_text),
-            searchRealImage(q.option_b_text),
-            searchRealImage(q.option_c_text),
-            searchRealImage(q.option_d_text),
-          ]);
-          return { qImg, aImg, bImg, cImg, dImg };
-        })
-      );
-      validQuestions.forEach((q, i) => {
-        q.question_image = imageResults[i].qImg;
-        q.option_a_image = imageResults[i].aImg;
-        q.option_b_image = imageResults[i].bImg;
-        q.option_c_image = imageResults[i].cImg;
-        q.option_d_image = imageResults[i].dImg;
+      validQuestions.forEach((q) => {
+        q.question_image = generateImageUrl(q.prompt);
+        q.option_a_image = generateImageUrl(q.option_a_text);
+        q.option_b_image = generateImageUrl(q.option_b_text);
+        q.option_c_image = generateImageUrl(q.option_c_text);
+        q.option_d_image = generateImageUrl(q.option_d_text);
       });
     } catch {}
 
