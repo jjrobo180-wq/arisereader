@@ -2278,46 +2278,19 @@ export class DatabaseStorage implements IStorage {
 
   // Cover URL fixes applied - cache bust
   async getFypFeed(userId: number, userGrade: string | null, teacherBands: Set<string> | null, limit: number = 10, cursor?: number): Promise<any[]> {
-    // 1. Determine eligible grade bands
-    let eligibleBands: string[] = [];
-    if (teacherBands) {
-      eligibleBands = Array.from(teacherBands);
-    } else if (userGrade) {
-      eligibleBands = [this.gradeToBand(userGrade)];
-    }
-    if (eligibleBands.length === 0) {
-      // No grade info — return all
-      eligibleBands = ['K-2', '3-5', '6-8', '9-12'];
-    }
+    // FYP is a discovery feed — show ALL books regardless of grade band
+    // Grade band filtering is for the Library (quizzes), not the FYP feed
 
-    // 2. Fetch book IDs in the user's bands
-    const bookBandsRaw = await this.getSetting('book_grade_bands');
-    const overlapsRaw = await this.getSetting('book_grade_overlaps');
-    let bookBands: Record<string, string> = {};
-    let bookOverlaps: Record<string, string[]> = {};
-    if (bookBandsRaw) { try { bookBands = JSON.parse(bookBandsRaw); } catch {} }
-    if (overlapsRaw) { try { bookOverlaps = JSON.parse(overlapsRaw); } catch {} }
-
-    const eligibleBookIds = new Set<number>();
-    for (const [bid, band] of Object.entries(bookBands)) {
-      if (eligibleBands.includes(band)) eligibleBookIds.add(parseInt(bid));
-    }
-    for (const [bid, bands] of Object.entries(bookOverlaps)) {
-      if (bands.some(b => eligibleBands.includes(b))) eligibleBookIds.add(parseInt(bid));
-    }
-
-    if (eligibleBookIds.size === 0) return [];
-
-    // 3. Fetch feed cards for eligible books
+    // 1. Fetch ALL active feed cards (no grade band filtering)
     const { data: cards, error: cardError } = await supabase
       .from('book_feed_cards')
       .select('book_id, hook_text, short_summary, expanded_summary, tags, mood')
       .eq('is_active', true)
       .eq('safety_status', 'approved')
-      .in('book_id', Array.from(eligibleBookIds));
+      .limit(limit);
     if (cardError || !cards) return [];
 
-    // 4. Fetch book data
+    // 2. Fetch book data
     const bookIds = cards.map(c => c.book_id);
     const { data: books } = await supabase
       .from('books')
@@ -2325,7 +2298,7 @@ export class DatabaseStorage implements IStorage {
       .in('id', bookIds);
     const bookMap = new Map((books || []).map((b: any) => [b.id, b]));
 
-    // 5. Fetch like/dislike counts
+    // 3. Fetch like/dislike counts
     const { data: reactionCounts } = await supabase
       .from('book_feed_reactions')
       .select('book_id, reaction')
@@ -2337,7 +2310,7 @@ export class DatabaseStorage implements IStorage {
       else dislikeCounts[r.book_id] = (dislikeCounts[r.book_id] || 0) + 1;
     }
 
-    // 6. Fetch user's reactions
+    // 4. Fetch user's reactions
     const { data: userReactions } = await supabase
       .from('book_feed_reactions')
       .select('book_id, reaction')
@@ -2347,7 +2320,7 @@ export class DatabaseStorage implements IStorage {
       userReactionMap[r.book_id] = r.reaction;
     }
 
-    // 6b. Fetch user's saved books
+    // 4b. Fetch user's saved books
     const { data: userSaves } = await supabase
       .from('book_feed_saves')
       .select('book_id')
