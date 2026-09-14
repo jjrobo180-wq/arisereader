@@ -383,8 +383,18 @@ export class DatabaseStorage implements IStorage {
 
   async getAllBooks() {
     return cached('allBooks', 300000, async () => {
-      const data = await fetchList(supabase.from("books").select("*").limit(5000));
-      return data.map(mapBook);
+      // Fetch in chunks of 1000 to bypass Supabase/PostgREST row limit
+      let allData: any[] = [];
+      let offset = 0;
+      const chunkSize = 1000;
+      while (true) {
+        const { data, error } = await supabase.from("books").select("*").range(offset, offset + chunkSize - 1);
+        if (error || !data || data.length === 0) break;
+        allData = allData.concat(data);
+        if (data.length < chunkSize) break;
+        offset += chunkSize;
+      }
+      return allData.map(mapBook);
     });
   }
 
