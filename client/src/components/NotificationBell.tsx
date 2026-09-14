@@ -50,7 +50,7 @@ export function NotificationBell({
   onNavigate,
 }: {
   refreshKey?: number;
-  onNavigate?: (type: "request" | "user" | "teacher" | "message", id: number) => void;
+  onNavigate?: (type: "request" | "user" | "teacher" | "message" | "ai_quiz", id: number) => void;
 }) {
   const { token } = useAuth();
   const [notifData, setNotifData] = useState<NotifData>({ unreadCount: 0, type: "" });

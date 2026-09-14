@@ -1916,6 +1916,97 @@ export async function registerRoutes(
           createdAt: r.created_at,
         })),
       });
+    } else if (req.user.role === 'teacher') {
+      // Teachers: bell shows book requests from students + pending AI quizzes from their students
+      const teacherId = req.user.id;
+
+      // Fetch book request notifications for this teacher from the notifications table
+      const { data: bookRequestNotifs } = await supabase
+        .from('notifications')
+        .select('id, message, created_at, read')
+        .eq('user_id', teacherId)
+        .eq('title', 'Student book request')
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      // Fetch pending AI quizzes for this teacher's students
+      const linksRaw = await storage.getSetting('teacher_students');
+      let studentIds: number[] = [];
+      if (linksRaw) {
+        try {
+          const links = JSON.parse(linksRaw);
+          studentIds = links[String(teacherId)] || [];
+        } catch {}
+      }
+
+      let pendingAIItems: any[] = [];
+      if (studentIds.length > 0) {
+        const { data: pendingAIList } = await supabase
+          .from('pending_ai_quizzes')
+          .select('id, book_title, author, student_id, quiz_type, created_at')
+          .eq('status', 'pending')
+          .in('student_id', studentIds)
+          .order('created_at', { ascending: false });
+        const aiSeenAt = await storage.getNotifSeenAt('ai_quiz_pending');
+        pendingAIItems = (pendingAIList || []).filter((r: any) =>
+          !aiSeenAt || new Date(r.created_at) > new Date(aiSeenAt)
+        );
+        // Fetch student names
+        if (pendingAIItems.length > 0) {
+          const sIds = [...new Set(pendingAIItems.map((r: any) => r.student_id))];
+          const { data: aiStudents } = await supabase
+            .from('users')
+            .select('id, display_name')
+            .in('id', sIds);
+          const aiStudentMap: Record<number, string> = {};
+          (aiStudents || []).forEach((s: any) => { aiStudentMap[s.id] = s.display_name; });
+          pendingAIItems = pendingAIItems.map((r: any) => ({
+            ...r,
+            studentName: aiStudentMap[r.student_id] || 'Unknown',
+          }));
+        }
+      }
+
+      // Also check for pending student approvals for this teacher
+      const { data: pendingStudentsData } = await supabase
+        .from('users')
+        .select('id, display_name, username, created_at')
+        .eq('teacher_id', teacherId)
+        .eq('approved_by_teacher', false)
+        .order('created_at', { ascending: false });
+      const pendingStudentsSeenAt = await storage.getNotifSeenAt('new_users');
+      const pendingStudentItems = (pendingStudentsData || []).filter((s: any) =>
+        !pendingStudentsSeenAt || new Date(s.created_at) > new Date(pendingStudentsSeenAt)
+      );
+
+      const unreadCount = (bookRequestNotifs || []).length + pendingAIItems.length + pendingStudentItems.length;
+
+      res.json({
+        unreadCount,
+        type: 'teacher',
+        pendingRequestItems: (bookRequestNotifs || []).map((n: any) => ({
+          id: n.id,
+          bookTitle: n.message.match(/read "(.+?)"/)?.[1] || n.message.match(/requested "(.+?)"/)?.[1] || 'Unknown book',
+          studentName: n.message.match(/^(.+?) would like/)?.[1] || n.message.match(/^(.+?) requested/)?.[1] || 'Student',
+          message: n.message,
+          createdAt: n.created_at,
+        })),
+        pendingAIQuizItems: pendingAIItems.map((r: any) => ({
+          id: r.id,
+          bookTitle: r.book_title,
+          author: r.author,
+          studentName: r.studentName,
+          quizType: r.quiz_type,
+          createdAt: r.created_at,
+        })),
+        newUserItems: pendingStudentItems.map((s: any) => ({
+          id: s.id,
+          displayName: s.display_name,
+          username: s.username,
+          createdAt: s.created_at,
+        })),
+      });
     } else {
       // Students: bell shows unread messages from teacher
       const messages = await storage.getUserMessages(req.user.id);
@@ -5186,6 +5277,33 @@ export async function registerRoutes(
         });
       }
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/teacher-admin/book-requests - Get book requests for teacher (from notifications table)
+  app.get("/api/teacher-admin/book-requests", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const teacherId = req.user.id;
+      const { data: bookRequestNotifs } = await supabase
+        .from('notifications')
+        .select('id, message, created_at, read')
+        .eq('user_id', teacherId)
+        .eq('title', 'Student book request')
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      const requests = (bookRequestNotifs || []).map((n: any) => ({
+        id: n.id,
+        bookTitle: n.message.match(/read "(.+?)"/)?.[1] || n.message.match(/requested "(.+?)"/)?.[1] || 'Unknown book',
+        studentName: n.message.match(/^(.+?) would like/)?.[1] || n.message.match(/^(.+?) requested/)?.[1] || 'Student',
+        message: n.message,
+        createdAt: n.created_at,
+      }));
+
+      res.json({ requests });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

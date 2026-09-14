@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion } from "lucide-react";
+import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
+import { NotificationBell } from "@/components/NotificationBell";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -24,7 +25,9 @@ type AllStudent = { id: number; username: string; displayName: string; createdAt
 type Teacher = { id: number; displayName: string; username: string };
 type PendingStudent = { id: number; username: string; displayName: string; teacherId?: number; teacherName?: string | null };
 type PendingQuiz = { id: number; student_id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group: string; cover_url: string; status: string };
-type Tab = "students" | "all-students" | "pending" | "proctor" | "grade-changes" | "growth-check";
+type BookRequest = { id: number; bookTitle: string; studentName: string; message: string; createdAt: string };
+
+type Tab = "students" | "all-students" | "pending" | "book-requests" | "proctor" | "grade-changes" | "growth-check";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -59,6 +62,8 @@ export default function TeacherDashboard() {
   const [existingRewards, setExistingRewards] = useState<any[]>([]);
   const [pendingQuizzes, setPendingQuizzes] = useState<PendingQuiz[]>([]);
   const [quizLoading, setQuizLoading] = useState(false);
+  const [bookRequests, setBookRequests] = useState<BookRequest[]>([]);
+  const [bookReqLoading, setBookReqLoading] = useState(false);
 
   const authorized = Boolean(user && (user.role === "teacher" || user.isAdmin));
   const accountApproved = user?.accountApproved !== false;
@@ -98,12 +103,28 @@ export default function TeacherDashboard() {
     finally { setAllLoading(false); }
   };
 
+  const loadBookRequests = async () => {
+    setBookReqLoading(true);
+    try {
+      const data = await request("/api/teacher-admin/book-requests");
+      setBookRequests(data.requests || []);
+    } catch (err) {
+      // Endpoint may not exist yet for teachers — try notifications fallback
+      try {
+        const notifData = await request("/api/notifications");
+        setBookRequests(notifData.pendingRequestItems || []);
+      } catch {}
+    }
+    finally { setBookReqLoading(false); }
+  };
+
   useEffect(() => {
     if (!user) return;
     if (!authorized) { navigate("/library"); return; }
     if (accountApproved) {
       void loadData();
       void loadAllStudentsData();
+      void loadBookRequests();
       const token = getTokenFromCookie();
       if (token) {
         fetch(`${API_BASE}/api/proctor-password`, { headers: { Authorization: `Bearer ${token}` } })
@@ -205,6 +226,21 @@ export default function TeacherDashboard() {
     finally { setQuizLoading(false); }
   };
 
+  const dismissBookRequest = async (notifId: number) => {
+    try {
+      const token = getTokenFromCookie();
+      if (!token) return;
+      await fetch(`${API_BASE}/api/notifications/mark-seen`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      setBookRequests((items) => items.filter((item) => item.id !== notifId));
+      setActionSuccess("Request dismissed.");
+      setTimeout(() => setActionSuccess(""), 3000);
+    } catch (err) { setActionError("Unable to dismiss request."); }
+  };
+
   const openActionModal = async (student: AllStudent, type: "password" | "reward" | "reassign") => {
     setActionStudent(student); setActionType(type); setActionError(""); setActionSuccess("");
     setNewPassword(""); setRewardTitle(""); setRewardMessage(""); setRewardQuizCount(""); setReassignTeacherId("");
@@ -263,12 +299,13 @@ export default function TeacherDashboard() {
 
   if (!user || !authorized) return null;
   return <main style={styles.page}>
-    <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></header>
+    <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><NotificationBell onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} /><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>
     {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={styles.content}>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">
         <TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton>
         <TabButton active={tab === "all-students"} onClick={() => setTab("all-students")} icon={<Users size={19} />}>All Students</TabButton>
         <TabButton active={tab === "pending"} onClick={() => setTab("pending")} icon={<UserRound size={19} />}>Pending Approvals{pending.length ? ` (${pending.length})` : ""}</TabButton>
+        <TabButton active={tab === "book-requests"} onClick={() => setTab("book-requests")} icon={<BookOpen size={19} />}>Book Requests{bookRequests.length ? ` (${bookRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "proctor"} onClick={() => setTab("proctor")} icon={<KeyRound size={19} />}>Proctor</TabButton>
         <TabButton active={tab === "grade-changes"} onClick={() => setTab("grade-changes")} icon={<GraduationCap size={19} />}>Grade Changes{gradeChangeRequests.length ? ` (${gradeChangeRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "growth-check"} onClick={() => setTab("growth-check")} icon={<Brain size={19} />}>Growth Check</TabButton>
@@ -434,6 +471,31 @@ export default function TeacherDashboard() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* === BOOK REQUESTS TAB === */}
+      {tab === "book-requests" && (
+        bookReqLoading ? <p style={styles.muted}>Loading book requests...</p> :
+        <div>
+          <h2 style={styles.sectionTitle}><BookOpen size={20} /> Student Book Requests{bookRequests.length ? ` (${bookRequests.length})` : ""}</h2>
+          {bookRequests.length ? (
+            <div style={styles.pendingList}>
+              {bookRequests.map((req) => (
+                <div key={req.id} style={styles.pendingCard}>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={styles.studentName}>{req.bookTitle}</h3>
+                    <p style={styles.username}>Requested by {req.studentName}</p>
+                    {req.message && <p style={styles.quizMeta}>{req.message}</p>}
+                    <p style={styles.quizMeta}>{new Date(req.createdAt).toLocaleString()}</p>
+                  </div>
+                  <button onClick={() => void dismissBookRequest(req.id)} style={styles.copyBtn}>Dismiss</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={styles.empty}>No book requests from students yet.</div>
+          )}
         </div>
       )}
 
