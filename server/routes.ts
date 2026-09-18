@@ -47,7 +47,7 @@ async function getPerplexityApiKey(): Promise<string> {
   return "";
 }
 
-async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }>; bookGradeLevel: string; pointsValue: number } | { error: string; needsManualReview?: boolean; reviewReason?: string }> {
+async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }>; bookGradeLevel: string; pointsValue: number } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -124,21 +124,10 @@ Rules:
       return { error: "AI generated invalid questions" };
     }
 
-    // Grade level mismatch check
+    // Calculate points based on grade level, vocab, and length
     const studentGradeNum = parseInt(studentGrade || "5");
     const bookGradeNum = parseInt(bookGradeLevel);
     const gradeDiff = studentGradeNum - bookGradeNum; // positive = book is below student grade
-
-    // If book is 3+ grades below student's level, require manual review
-    if (gradeDiff >= 3) {
-      return {
-        error: `This book appears to be at a grade ${bookGradeLevel} reading level, which is well below your grade ${studentGrade} level. This quiz requires manual review by an educator before it can be granted.`,
-        needsManualReview: true,
-        reviewReason: `Book "${bookTitle}" is estimated at grade ${bookGradeLevel} level, but student is in grade ${studentGrade}. Difference of ${gradeDiff} grades.`,
-      };
-    }
-
-    // Calculate points based on grade level, vocab, and length
     let pointsValue = 10; // base
     if (gradeDiff <= -2) {
       // Book is 2+ grades above student → harder, more points
@@ -1276,25 +1265,6 @@ export async function registerRoutes(
     const book = await storage.getBook(bookId);
     if (!book) return res.status(404).json({ message: "Book not found" });
 
-    // Grade band enforcement: students can only take quizzes in their band (or overlaps)
-    const rawGrades = await storage.getSetting('user_grades');
-    let userGrades: Record<string, string> = {};
-    if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
-    const userGrade = userGrades[String(req.user.id)];
-    if (userGrade) {
-      const userBand = gradeToBand(userGrade);
-      const rawBands = await storage.getSetting('book_grade_bands');
-      let bookBands: Record<string, string> = {};
-      if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-      const rawOverlaps = await storage.getSetting('book_grade_overlaps');
-      let bookOverlaps: Record<string, string[]> = {};
-      if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
-      const bookBand = bookBands[String(bookId)];
-      const overlaps = bookOverlaps[String(bookId)] || [];
-      if (userBand && bookBand && userBand !== bookBand && !overlaps.includes(userBand)) {
-        return res.status(403).json({ message: "This book is not available for your grade level" });
-      }
-    }
     const allQuestions = await storage.getQuestionsByBook(bookId);
     // Strip correct answers before sending to client
     const safeQuestions = allQuestions.map(q => ({
@@ -1320,36 +1290,9 @@ export async function registerRoutes(
       return res.status(403).json({ message: "You have already taken this quiz" });
     }
 
-    // Grade band enforcement on submit too (with overlaps)
-    const rawGrades = await storage.getSetting('user_grades');
-    let userGrades: Record<string, string> = {};
-    if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
-    const userGrade = userGrades[String(req.user.id)];
-    let effectivePoints = 0;
-    if (userGrade) {
-      const userBand = gradeToBand(userGrade);
-      const rawBands = await storage.getSetting('book_grade_bands');
-      let bookBands: Record<string, string> = {};
-      if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-      const rawOverlaps = await storage.getSetting('book_grade_overlaps');
-      let bookOverlaps: Record<string, string[]> = {};
-      if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
-      const rawOverrides = await storage.getSetting('book_point_overrides');
-      let pointOverrides: Record<string, Record<string, number>> = {};
-      if (rawOverrides) { try { pointOverrides = JSON.parse(rawOverrides); } catch {} }
-      const bookBand = bookBands[String(bookId)];
-      const overlaps = bookOverlaps[String(bookId)] || [];
-      if (userBand && bookBand && userBand !== bookBand && !overlaps.includes(userBand)) {
-        return res.status(403).json({ message: "This book is not available for your grade level" });
-      }
-      // Get effective points (override if this is an overlap book for this band)
-      const book = await storage.getBook(bookId);
-      effectivePoints = book?.pointsValue || 10;
-      const overrides = pointOverrides[String(bookId)];
-      if (overrides && overrides[userBand]) {
-        effectivePoints = overrides[userBand];
-      }
-    }
+    // No grade band restriction — all students can take any quiz
+    const book = await storage.getBook(bookId);
+    const effectivePoints = book?.pointsValue || 10;
 
     const { answers } = req.body; // { questionId: "A"|"B"|"C"|"D" }
     if (!answers || typeof answers !== "object") {
@@ -1370,7 +1313,6 @@ export async function registerRoutes(
     }
 
     const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, answers, effectivePoints || undefined);
-    const book = await storage.getBook(bookId);
     res.json({
       score,
       total: allQuestions.length,
@@ -2873,25 +2815,6 @@ export async function registerRoutes(
       // Generate quiz with AI
       const result = await generateQuizWithAI(cleanTitle, cleanAuthor, ageGroup, studentGrade);
       if ("error" in result) {
-        if (result.needsManualReview) {
-          // Create a quiz request notification for the admin
-          try {
-            await supabase.from('quiz_requests').insert({
-              student_id: req.user.id,
-              book_title: cleanTitle,
-              author: cleanAuthor,
-              status: 'pending',
-              reason: result.reviewReason || ''
-            });
-            await supabase.from('notifications').insert({
-              user_id: 1,
-              type: 'info',
-              title: 'Manual review needed',
-              message: `A student requested a quiz for "${cleanTitle}" but it appears to be below their grade level. Review needed.`
-            });
-          } catch {}
-          return res.status(403).json({ message: result.error, needsManualReview: true });
-        }
         return res.status(500).json({ message: result.error });
       }
 
