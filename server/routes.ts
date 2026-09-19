@@ -249,8 +249,7 @@ async function generateImageUrl(concept: string): Promise<string | null> {
     const data = await res.json() as any;
     const thumb = data?.thumbnail?.source;
     if (thumb) {
-      // Upgrade to a larger size (use 400px instead of 330px)
-      return thumb.replace(/\/\d+px-/, '/400px-');
+      return thumb;
     }
     return null;
   } catch {
