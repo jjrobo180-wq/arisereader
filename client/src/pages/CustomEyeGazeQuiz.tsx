@@ -363,7 +363,17 @@ export default function CustomEyeGazeQuiz() {
                 background: "hsl(0 0% 14%)",
               }}
               onError={(e) => {
-                (e.target as HTMLElement).style.display = "none";
+                const img = e.target as HTMLElement;
+                const parent = img.parentElement;
+                if (parent) {
+                  // Replace broken image with text label
+                  const label = document.createElement('span');
+                  label.textContent = currentQ.prompt;
+                  label.style.fontSize = '1.5rem';
+                  label.style.fontWeight = '700';
+                  parent.appendChild(label);
+                }
+                img.style.display = 'none';
               }}
             />
           ) : (

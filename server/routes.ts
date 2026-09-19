@@ -235,17 +235,27 @@ Rules:
 }
 
 // Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
-// Generate an AI image URL using Pollinations.ai (free, no API key, image generated on-the-fly)
-function generateImageUrl(concept: string): string {
+// Fetch a real photo from Wikipedia/Wikimedia Commons for the given concept
+async function generateImageUrl(concept: string): Promise<string | null> {
   const cleanConcept = concept.replace(/[?".!]/g, '').trim();
-  if (!cleanConcept || cleanConcept.length < 2) return null as any;
-  // Build a prompt for a clean, simple, high-contrast educational image
-  const prompt = encodeURIComponent(`${cleanConcept}, simple clear illustration, white background, educational, high contrast, children's book style, centered, no text`);
-  // Use a seed based on the concept string for consistent images
-  let seed = 0;
-  for (let i = 0; i < cleanConcept.length; i++) seed = ((seed << 5) - seed) + cleanConcept.charCodeAt(i);
-  seed = Math.abs(seed);
-  return `https://image.pollinations.ai/prompt/${prompt}?width=400&height=400&nologo=true&seed=${seed}&model=flux`;
+  if (!cleanConcept || cleanConcept.length < 2) return null;
+  try {
+    const wikiTitle = encodeURIComponent(cleanConcept);
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${wikiTitle}`, {
+      signal: AbortSignal.timeout(5000),
+      headers: { 'User-Agent': 'ARISEReader/1.0 (educational quiz platform)' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    const thumb = data?.thumbnail?.source;
+    if (thumb) {
+      // Upgrade to a larger size (use 400px instead of 330px)
+      return thumb.replace(/\/\d+px-/, '/400px-');
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
@@ -357,15 +367,15 @@ Rules:
       return { error: "AI generated too few valid questions. Please try a more specific topic." };
     }
 
-    // Generate AI images for each question and option
+    // Fetch real photos for each question and option
     try {
-      validQuestions.forEach((q) => {
-        q.question_image = generateImageUrl(q.prompt);
-        q.option_a_image = generateImageUrl(q.option_a_text);
-        q.option_b_image = generateImageUrl(q.option_b_text);
-        q.option_c_image = generateImageUrl(q.option_c_text);
-        q.option_d_image = generateImageUrl(q.option_d_text);
-      });
+      for (const q of validQuestions) {
+        q.question_image = await generateImageUrl(q.prompt);
+        q.option_a_image = await generateImageUrl(q.option_a_text);
+        q.option_b_image = await generateImageUrl(q.option_b_text);
+        q.option_c_image = await generateImageUrl(q.option_c_text);
+        q.option_d_image = await generateImageUrl(q.option_d_text);
+      }
     } catch {}
 
     return { questions: validQuestions };
