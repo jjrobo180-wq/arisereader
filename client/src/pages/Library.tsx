@@ -160,6 +160,7 @@ export default function Library() {
   const [eyeGazeLevel, setEyeGazeLevel] = useState(1);
   const [eyeGazeQuestionCount, setEyeGazeQuestionCount] = useState(5);
   const [eyeGazeExactMode, setEyeGazeExactMode] = useState(false);
+  const [eyeGazeCustomQuestions, setEyeGazeCustomQuestions] = useState("");
   const [eyeGazeAllPics, setEyeGazeAllPics] = useState(true);
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
   const [instantBook, setInstantBook] = useState("");
@@ -637,6 +638,7 @@ export default function Library() {
           level: eyeGazeLevel,
           questionCount: eyeGazeQuestionCount,
           exactMode: eyeGazeExactMode,
+          customQuestions: eyeGazeExactMode ? eyeGazeCustomQuestions.trim() : undefined,
           allPics: eyeGazeAllPics,
         }),
       });
@@ -667,6 +669,7 @@ export default function Library() {
     setEyeGazeLevel(1);
     setEyeGazeQuestionCount(5);
     setEyeGazeExactMode(false);
+    setEyeGazeCustomQuestions("");
     setEyeGazeAllPics(true);
     setPendingReviewMsg(null);
     if (pendingEyeGazeQuizId) {
@@ -2969,9 +2972,21 @@ export default function Library() {
                     onChange={(e) => setEyeGazeExactMode(e.target.checked)}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm font-medium">Make exact quiz on my input</span>
+                  <span className="text-sm font-medium">I'll write my own questions</span>
                 </label>
-                <p className="text-xs text-muted-foreground ml-6">Uses your exact topic and details instead of generalizing. Good for specific lists or custom content.</p>
+                <p className="text-xs text-muted-foreground ml-6">Type your own questions below. The AI will generate 4 answer choices for each question.</p>
+                {eyeGazeExactMode && (
+                  <div className="mt-2">
+                    <textarea
+                      value={eyeGazeCustomQuestions}
+                      onChange={(e) => setEyeGazeCustomQuestions(e.target.value)}
+                      placeholder={"Type one question per line. For example:\nSelect the zoo animal\nWhich one is a fruit?\nWhich one do we wear on our feet?"}
+                      rows={5}
+                      className="w-full p-2 rounded-lg bg-muted border border-input text-sm resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Each line becomes one question. The AI creates 4 multiple-choice answers for each.</p>
+                  </div>
+                )}
                 <label className="flex items-center gap-2 cursor-pointer mt-2">
                   <input
                     type="checkbox"

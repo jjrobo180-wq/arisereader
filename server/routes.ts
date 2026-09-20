@@ -59,233 +59,42 @@ async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: 
       guidelines = await storage.getSetting("quiz_generation_guidelines") || "";
     } catch {}
 
-    const prompt = `You are an expert reading comprehension quiz creator for students. Create exactly 10 multiple-choice questions for the book "${bookTitle}" by ${author}.
+    // Check if user provided their own questions
+    const customQuestionLines = customQuestions ? customQuestions.split("\n").map((q: string) => q.trim()).filter((q: string) => q.length > 0) : [];
+    const hasCustomQuestions = customQuestionLines.length > 0;
+    const actualQuestionCount = hasCustomQuestions ? customQuestionLines.length : questionCount;
+    
+    let prompt: string;
+    
+    if (hasCustomQuestions) {
+      // USER WROTE THEIR OWN QUESTIONS - AI only generates answer options
+      const questionsList = customQuestionLines.map((q: string, i: number) => (i + 1) + ". " + q).join("\n");
+      prompt = `You are an expert quiz creator for eye gaze and non-verbal students, including autistic children and toddlers.
 
-First, analyze the book and determine:
-1. The estimated US grade level of this book (e.g., "3", "5", "8", "10")
-2. The vocabulary complexity (1=simple, 2=moderate, 3=advanced)
-3. The book length category (1=short/picture book, 2=chapter book, 3=full novel)
+The user has written their OWN questions below. Your job is to generate 4 answer choices for each question. DO NOT change the user's question text. Use each question EXACTLY as written.
 
-Then create 10 multiple-choice questions appropriate for ${ageGroup || "middle school"} students.
+USER'S QUESTIONS:
+${questionsList}
+
+Difficulty level: ${levelDescriptions[level] || levelDescriptions[1]}
+
+CRITICAL RULES:
+- Use the user's question text EXACTLY as written for the "prompt" field
+- Generate exactly 4 answer options for each question (option_a through option_d)
+- Only 1 option is correct
+- Make option texts concrete nouns or simple phrases that can be searched for images
+- Make all 4 options from the same category so the student must distinguish between them
+- All content MUST be school-appropriate and child-friendly
+- All answers MUST be factually accurate
+- DO NOT use emojis anywhere
 
 Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
-{"bookGradeLevel":"5","vocabComplexity":2,"lengthCategory":2,"questions":[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A"}]}
+{"questions":[{"prompt":"Select the zoo animal","question_image":null,"option_a_text":"Lion","option_a_image":null,"option_b_text":"Elephant","option_b_image":null,"option_c_text":"Penguin","option_c_image":null,"option_d_text":"Giraffe","option_d_image":null,"correct_answer":"A"}]}
 
-Rules:
-- Questions should test reading comprehension, plot details, character understanding, and themes
-- Each question has exactly 4 options labeled A, B, C, D
-- The "correct" field is a single letter: "A", "B", "C", or "D"
-- Make questions appropriate for ${ageGroup || "middle school"} students
-- Do NOT make questions about the author's life or publication details
-- Focus on the story content, characters, plot, and themes
-- Return exactly 10 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
-
-    const res = await fetch(PERPLEXITY_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "sonar",
-        messages: [
-          { role: "system", content: "You are a quiz generator. Return ONLY valid JSON arrays, no markdown or explanation." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.7,
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      return { error: `AI API error ${res.status}: ${errText.slice(0, 200)}` };
-    }
-
-    const data = await res.json() as any;
-    const content = data.choices?.[0]?.message?.content || "";
-
-    if (!content) {
-      return { error: "AI returned empty response" };
-    }
-
-    // Extract JSON from response (handles markdown code blocks)
-    let jsonStr = content.trim();
-    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-    if (jsonMatch) jsonStr = jsonMatch[0];
-
-    const parsed = JSON.parse(jsonStr);
-    const questions = parsed.questions || parsed;
-    const bookGradeLevel = parsed.bookGradeLevel || studentGrade || "5";
-    const vocabComplexity = parsed.vocabComplexity || 2;
-    const lengthCategory = parsed.lengthCategory || 2;
-
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return { error: "AI generated invalid questions" };
-    }
-
-    // Calculate points based on grade level, vocab, and length
-    const studentGradeNum = parseInt(studentGrade || "5");
-    const bookGradeNum = parseInt(bookGradeLevel);
-    const gradeDiff = studentGradeNum - bookGradeNum; // positive = book is below student grade
-    let pointsValue = 10; // base
-    if (gradeDiff <= -2) {
-      // Book is 2+ grades above student → harder, more points
-      pointsValue = 30;
-    } else if (gradeDiff <= -1) {
-      // Book is 1 grade above → moderately harder
-      pointsValue = 20;
+Return exactly ${actualQuestionCount} questions — one for each of the user's questions above.${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
     } else {
-      // Book is at or near grade level
-      // Adjust for vocab and length
-      if (vocabComplexity >= 3 && lengthCategory >= 3) pointsValue = 20;
-      else if (vocabComplexity >= 3 || lengthCategory >= 3) pointsValue = 15;
-      else pointsValue = 10;
-    }
-
-    // Validate and clean up questions
-    const validQuestions = questions.slice(0, 10).map((q: any) => {
-      const correctLetter = (q.correct || "A").toUpperCase().charAt(0);
-      const options = (q.options || []).slice(0, 4);
-      while (options.length < 4) options.push("None of the above");
-      return {
-        question: q.question || "What is this book about?",
-        options,
-        correct: correctLetter,
-      };
-    }).filter((q: any) => q.options.length === 4);
-
-    if (validQuestions.length < 5) {
-      return { error: "AI generated too few valid questions" };
-    }
-
-    return { questions: validQuestions, bookGradeLevel, pointsValue };
-  } catch (e: any) {
-    return { error: `AI generation failed: ${e.message}` };
-  }
-}
-
-// Generate iArise lesson content via AI — short readable lessons for students
-async function generateIariseLessonContent(topic: string, ageGroup: string): Promise<{ title: string; lessons: Array<{ title: string; content: string }> } | { error: string }> {
-  const apiKey = await getPerplexityApiKey();
-  if (!apiKey) {
-    return { error: "AI lesson generation is not configured." };
-  }
-  try {
-    const prompt = `You are an expert educator creating lesson content for students. Create a short lesson series about "${topic}" for ${ageGroup} students.
-
-Create 3 short lessons. Each lesson should be age-appropriate, engaging, and educational.
-
-Return ONLY a JSON object (no markdown, no code blocks, no explanation) with this exact format:
-{"title":"${topic} — iArise Lesson","lessons":[{"title":"Lesson 1 Title","content":"2-3 paragraphs of lesson content. Use \n between paragraphs. Include a Key takeaway: line at the end."},{"title":"Lesson 2 Title","content":"..."},{"title":"Lesson 3 Title","content":"..."}]}
-
-Rules:
-- Content should be appropriate for ${ageGroup} reading level
-- Each lesson should be 2-3 short paragraphs
-- Include real educational content — facts, explanations, examples
-- End each lesson with a "Key takeaway:" line
-- Keep it engaging and easy to read`;
-
-    const res = await fetch(PERPLEXITY_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "sonar",
-        messages: [
-          { role: "system", content: "You are a lesson content generator. Return ONLY valid JSON, no markdown or explanation." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.7,
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!res.ok) {
-      return { error: `AI API error ${res.status}` };
-    }
-
-    const data = await res.json() as any;
-    const content = data.choices?.[0]?.message?.content || "";
-    if (!content) {
-      return { error: "AI returned empty response" };
-    }
-
-    let jsonStr = content.trim();
-    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-    if (jsonMatch) jsonStr = jsonMatch[0];
-
-    const parsed = JSON.parse(jsonStr);
-    if (!parsed.lessons || !Array.isArray(parsed.lessons) || parsed.lessons.length === 0) {
-      return { error: "AI generated invalid lesson content" };
-    }
-
-    return {
-      title: parsed.title || `${topic} — iArise Lesson`,
-      lessons: parsed.lessons.map((l: any) => ({
-        title: l.title || "Lesson",
-        content: l.content || "",
-      })),
-    };
-  } catch (e: any) {
-    return { error: `AI lesson generation failed: ${e.message}` };
-  }
-}
-
-// Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
-// Fetch a real photo from Wikipedia/Wikimedia Commons for the given concept
-async function generateImageUrl(concept: string): Promise<string | null> {
-  const cleanConcept = concept.replace(/[?".!]/g, '').trim();
-  if (!cleanConcept || cleanConcept.length < 2) return null;
-  try {
-    const wikiTitle = encodeURIComponent(cleanConcept);
-    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${wikiTitle}`, {
-      signal: AbortSignal.timeout(5000),
-      headers: { 'User-Agent': 'ARISEReader/1.0 (educational quiz platform)' },
-    });
-    if (!res.ok) return null;
-    const data = await res.json() as any;
-    const thumb = data?.thumbnail?.source;
-    if (thumb) {
-      return thumb;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
-  const apiKey = await getPerplexityApiKey();
-  if (!apiKey) {
-    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
-  }
-  try {
-    let guidelines = "";
-    try {
-      guidelines = await storage.getSetting("eye_gaze_quiz_guidelines") || "";
-    } catch {}
-
-    // Build a flexible prompt that accepts any topic, description, or source
-    let userRequest = `Topic: "${topic}"`;
-    if (description && description.trim()) {
-      userRequest += `\nDescription: ${description.trim()}`;
-    }
-    if (sourceLink && sourceLink.trim()) {
-      userRequest += `\nSource/Reference: ${sourceLink.trim()}`;
-    }
-
-    const levelDescriptions: Record<number, string> = {
-      1: "Level 1 (Toddler/Pre-K): Very simple identification — one clear correct answer, obvious distractors. Simple nouns only (e.g., 'Which one is a dog?').",
-      2: "Level 2 (K-1): Basic identification and matching. Simple categories (e.g., 'Which one is red?', 'Which animal says moo?').",
-      3: "Level 3 (2-3): Simple comprehension and categorization (e.g., 'Which one do you wear on your feet?'). Slightly less obvious distractors.",
-      4: "Level 4 (3-5): Multi-step identification and function (e.g., 'Which tool do you use to eat soup?'). More nuanced distractors.",
-      5: "Level 5 (6+): Abstract concepts and reasoning (e.g., 'Which of these is a source of energy?'). Complex distractors.",
-    };
-
-    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students, including autistic children and toddlers. Create exactly ${questionCount} multiple-choice questions based on the following request:
+      // AI generates everything (original behavior)
+      prompt = `You are an expert quiz creator for eye gaze and non-verbal students, including autistic children and toddlers. Create exactly ${questionCount} multiple-choice questions based on the following request:
 
 ${userRequest}
 
@@ -293,38 +102,27 @@ Difficulty level: ${levelDescriptions[level] || levelDescriptions[1]}
 
 ${exactMode ? "IMPORTANT: The user wants an EXACT quiz based on their specific input. Use ONLY the items, concepts, or content they provided. Do NOT add new items or generalize beyond what they specified." : ""}
 
-These quizzes are for students who use eye gaze technology or are non-verbal, including autistic children and toddlers. Questions should be visual, simple, and accessible. DO NOT use emojis in any field. Leave question_image and option_*_image fields as null — real images will be fetched automatically.
+These quizzes are for students who use eye gaze technology or are non-verbal, including autistic children and toddlers. Questions should be visual, simple, and accessible. DO NOT use emojis in any field. Leave question_image and option_*_image fields as null.
 
-CRITICAL QUESTION RULES — READ THESE CAREFULLY:
-- NEVER reveal the answer in the question prompt. Do NOT ask "Which one is a cracker?" if "Cracker" is one of the options.
-- Instead, ask about a characteristic, function, or category. For example: "Which one do we eat with soup?" or "Which one is crunchy?"
-- The question must make students THINK and look at the options — it should not be obvious from the question text alone
-- Make all 4 options from the same category (e.g., all foods, all animals) so students must distinguish between them
+CRITICAL QUESTION RULES:
+- NEVER reveal the answer in the question prompt
+- Ask about a characteristic, function, or category instead
+- The question must make students THINK
+- Make all 4 options from the same category
 - Do NOT use the exact word from any option in the question prompt
 
 IMPORTANT CONTENT RULES:
 - All content MUST be school-appropriate and child-friendly
 - All answers MUST be factually accurate
-- If the topic involves a YouTube video, song, or specific media, create questions about the general educational concepts, not about the video itself
+- If the topic involves a YouTube video, song, or specific media, create questions about the general educational concepts
 - Do NOT reference YouTube, specific video titles, or brand names in questions
-- Focus on the educational content and learning objectives
-- If the topic is too vague, make reasonable educational assumptions
-- Make option texts concrete nouns or simple phrases that can be searched for images (e.g., "Umbrella" not "Something to stay dry")
+- Make option texts concrete nouns or simple phrases that can be searched for images
 
 Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
 {"questions":[{"prompt":"What do we use to stay dry in the rain?","question_image":null,"option_a_text":"Umbrella","option_a_image":null,"option_b_text":"Sunglasses","option_b_image":null,"option_c_text":"Boots","option_c_image":null,"option_d_text":"Hat","option_d_image":null,"correct_answer":"A"}]}
 
-Rules:
-- Create exactly ${questionCount} questions — no more, no less
-- Questions should be simple, visual, and appropriate for eye gaze / non-verbal students at difficulty level ${level}
-- DO NOT use emojis anywhere — leave image fields as null
-- Each question has exactly 4 options (option_a_text through option_d_text) — these are the answer choices shown to the student
-- The "correct_answer" is a single letter: "A", "B", "C", or "D"
-- NEVER put the correct answer word in the question prompt
-- Make questions about identification, matching, and simple comprehension
-- Use clear, simple language
-- Make option texts be concrete, image-searchable nouns when possible (e.g., "Elephant" not "A big gray animal")
-- Return exactly ${questionCount} questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
+Create exactly ${questionCount} questions. DO NOT use emojis. Each question has exactly 4 options. The correct_answer is a single letter A, B, C, or D. Make option texts concrete image-searchable nouns.${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
+    }
 
     const res = await fetch(PERPLEXITY_API_URL, {
       method: "POST",
@@ -3483,7 +3281,7 @@ export async function registerRoutes(
   // Student: generate an instant AI eye gaze quiz
   app.post("/api/instant-quiz-eye-gaze", authMiddleware, async (req: any, res) => {
     try {
-      const { topic, description, sourceLink, level, questionCount, exactMode, allPics } = req.body;
+      const { topic, description, sourceLink, level, questionCount, exactMode, allPics, customQuestions } = req.body;
       if (!topic || topic.trim().length < 2) {
         return res.status(400).json({ message: "Please enter a topic or description for your quiz" });
       }
@@ -3494,7 +3292,7 @@ export async function registerRoutes(
       const useAllPics = allPics !== false; // default true
 
       // Generate eye gaze quiz with AI
-      const result = await generateEyeGazeQuizWithAI(topic.trim(), description, sourceLink, quizLevel, quizCount, useExactMode, useAllPics);
+      const result = await generateEyeGazeQuizWithAI(topic.trim(), description, sourceLink, quizLevel, quizCount, useExactMode, useAllPics, customQuestions);
       if ("error" in result) {
         return res.status(500).json({ message: result.error });
       }
