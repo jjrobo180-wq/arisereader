@@ -234,10 +234,44 @@ Rules:
   }
 }
 
-// Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
+
+// Strip answer words from question prompts to prevent revealing the answer
+// e.g., "Which one is the apple?" with answer "Apple" becomes "Which one is this?"
+function stripAnswerFromPrompt(prompt: string, options: string[], correctAnswer: string): string {
+  let cleaned = prompt;
+  const correctIdx = ["A","B","C","D"].indexOf(correctAnswer.toUpperCase());
+  if (correctIdx === -1) return cleaned;
+  const correctText = (options[correctIdx] || "").toLowerCase().trim();
+  if (!correctText || correctText.length < 2) return cleaned;
+  
+  // Check if the correct answer word appears in the prompt
+  const promptLower = cleaned.toLowerCase();
+  if (promptLower.includes(correctText)) {
+    // Replace the answer word with a neutral placeholder
+    const regex = new RegExp(correctText, "gi");
+    cleaned = cleaned.replace(regex, "this");
+  }
+  
+  // Also check if ANY option text appears in the prompt
+  for (const opt of options) {
+    const optLower = opt.toLowerCase().trim();
+    if (optLower.length < 2) continue;
+    if (cleaned.toLowerCase().includes(optLower)) {
+      const regex = new RegExp(optLower, "gi");
+      cleaned = cleaned.replace(regex, "this");
+    }
+  }
+  
+  // Clean up double spaces and odd phrasing
+  cleaned = cleaned.replace(/\s+/g, " ").replace(/\bthis this\b/gi, "this").trim();
+  
+  return cleaned;
+}
+
 // Fetch a real photo from Wikipedia/Wikimedia Commons for the given concept
+// Tries the exact term first, then falls back to broader search terms
 async function generateImageUrl(concept: string): Promise<string | null> {
-  const cleanConcept = concept.replace(/[?".!]/g, '').trim();
+  const cleanConcept = concept.replace(/[".!?]/g, '').trim();
   if (!cleanConcept || cleanConcept.length < 2) return null;
   try {
     const wikiTitle = encodeURIComponent(cleanConcept);
@@ -255,6 +289,41 @@ async function generateImageUrl(concept: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+// Fetch image with fallback search terms for common food items
+async function generateImageUrlWithFallback(concept: string): Promise<string | null> {
+  // Try the exact concept first
+  let img = await generateImageUrl(concept);
+  if (img) return img;
+  
+  // Try common fallback terms
+  const fallbacks: Record<string, string[]> = {
+    "orange": ["Orange fruit", "Orange (fruit)"],
+    "cracker": ["Cracker (food)", "Crackers food"],
+    "cookie": ["Cookie", "Biscuit"],
+    "apple": ["Apple (fruit)", "Apple fruit"],
+    "banana": ["Banana (fruit)", "Banana fruit"],
+    "milk": ["Milk", "Glass of milk"],
+    "juice": ["Juice", "Orange juice"],
+    "bread": ["Bread", "Bread loaf"],
+    "rice": ["Rice", "Cooked rice"],
+    "soup": ["Soup", "Bowl of soup"],
+    "water": ["Water", "Glass of water"],
+    "soda": ["Soda", "Soft drink"],
+    "tea": ["Tea", "Cup of tea"],
+    "pear": ["Pear (fruit)", "Pear fruit"],
+    "grapes": ["Grapes", "Grape fruit"],
+  };
+  
+  const lower = concept.toLowerCase().trim();
+  const terms = fallbacks[lower] || [];
+  for (const term of terms) {
+    img = await generateImageUrl(term);
+    if (img) return img;
+  }
+  
+  return null;
 }
 
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true, customQuestions?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
@@ -415,15 +484,19 @@ Create exactly ${questionCount} questions. DO NOT use emojis. Each question has 
       if (allPics) {
         for (const q of validQuestions) {
           const [aImg, bImg, cImg, dImg] = await Promise.all([
-            generateImageUrl(q.option_a_text),
-            generateImageUrl(q.option_b_text),
-            generateImageUrl(q.option_c_text),
-            generateImageUrl(q.option_d_text),
+            generateImageUrlWithFallback(q.option_a_text),
+            generateImageUrlWithFallback(q.option_b_text),
+            generateImageUrlWithFallback(q.option_c_text),
+            generateImageUrlWithFallback(q.option_d_text),
           ]);
           q.option_a_image = aImg;
           q.option_b_image = bImg;
           q.option_c_image = cImg;
           q.option_d_image = dImg;
+          
+          // Anti-reveal: strip answer words from question prompt
+          const options = [q.option_a_text, q.option_b_text, q.option_c_text, q.option_d_text];
+          q.prompt = stripAnswerFromPrompt(q.prompt, options, q.correct_answer);
         }
       }
     } catch {}
