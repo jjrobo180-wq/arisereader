@@ -291,39 +291,211 @@ async function generateImageUrl(concept: string): Promise<string | null> {
   }
 }
 
-// Fetch image with fallback search terms for common food items
+// Food-specific search terms — search for the FOOD version, not the plant/animal
+// This prevents getting a rice plant when the kid needs to see a bowl of rice
+const FOOD_SEARCH_TERMS: Record<string, string[]> = {
+  "rice": ["Cooked rice", "Bowl of rice", "Steamed rice"],
+  "orange": ["Orange (fruit)", "Orange fruit"],
+  "apple": ["Apple (fruit)", "Apple fruit"],
+  "banana": ["Banana (fruit)", "Banana fruit"],
+  "milk": ["Glass of milk", "Milk glass"],
+  "juice": ["Orange juice", "Glass of juice"],
+  "bread": ["Bread loaf", "Sliced bread"],
+  "soup": ["Bowl of soup", "Chicken soup"],
+  "water": ["Glass of water", "Drinking water glass"],
+  "soda": ["Soft drink glass", "Soda can"],
+  "tea": ["Cup of tea", "Tea cup"],
+  "coffee": ["Cup of coffee", "Coffee cup"],
+  "cracker": ["Cracker (food)", "Saltine cracker"],
+  "cookie": ["Cookie (food)", "Chocolate chip cookie"],
+  "biscuit": ["Biscuit (food)", "Digestive biscuit"],
+  "pear": ["Pear (fruit)", "Pear fruit"],
+  "grapes": ["Grapes fruit", "Red grapes"],
+  "strawberry": ["Strawberry fruit", "Strawberries"],
+  "blueberry": ["Blueberry fruit", "Blueberries"],
+  "lemon": ["Lemon fruit", "Lemon whole"],
+  "peach": ["Peach fruit", "Peach whole"],
+  "plum": ["Plum fruit", "Plum whole"],
+  "cherry": ["Cherry fruit", "Cherries red"],
+  "mango": ["Mango fruit", "Mango whole"],
+  "pineapple": ["Pineapple fruit", "Pineapple whole"],
+  "watermelon": ["Watermelon fruit", "Watermelon slice"],
+  "carrot": ["Carrot vegetable", "Carrots bunch"],
+  "tomato": ["Tomato vegetable", "Tomato red"],
+  "potato": ["Potato vegetable", "Baked potato"],
+  "corn": ["Corn (food)", "Corn on the cob"],
+  "broccoli": ["Broccoli vegetable", "Broccoli head"],
+  "lettuce": ["Lettuce vegetable", "Lettuce head"],
+  "onion": ["Onion vegetable", "Onion bulb"],
+  "garlic": ["Garlic bulb", "Garlic clove"],
+  "cheese": ["Cheese (food)", "Cheese slice"],
+  "butter": ["Butter (food)", "Butter stick"],
+  "yogurt": ["Yogurt cup", "Yoghurt"],
+  "ice cream": ["Ice cream cone", "Ice cream scoop"],
+  "cake": ["Cake slice", "Birthday cake"],
+  "pizza": ["Pizza slice", "Pizza pepperoni"],
+  "pasta": ["Cooked pasta", "Spaghetti plate"],
+  "spaghetti": ["Spaghetti plate", "Spaghetti pasta"],
+  "noodles": ["Noodles bowl", "Cooked noodles"],
+  "hamburger": ["Hamburger food", "Cheeseburger"],
+  "hot dog": ["Hot dog food", "Hot dog sausage"],
+  "sandwich": ["Sandwich food", "Ham sandwich"],
+  "salad": ["Salad bowl", "Green salad"],
+  "egg": ["Boiled egg", "Fried egg"],
+  "chicken": ["Cooked chicken", "Roast chicken"],
+  "beef": ["Cooked beef", "Steak plate"],
+  "fish": ["Cooked fish", "Grilled fish"],
+  "shrimp": ["Cooked shrimp", "Shrimp dish"],
+  "taco": ["Taco food", "Mexican taco"],
+  "burrito": ["Burrito food", "Mexican burrito"],
+  "nacho": ["Nachos food", "Nacho chips"],
+  "popcorn": ["Popcorn bowl", "Popcorn food"],
+  "chips": ["Potato chips", "Crisps bag"],
+  "chocolate": ["Chocolate bar", "Chocolate food"],
+  "candy": ["Candy sweets", "Hard candy"],
+  "donut": ["Donut food", "Doughnut"],
+  "pancake": ["Pancake stack", "Pancake food"],
+  "waffle": ["Waffle food", "Belgian waffle"],
+  "cereal": ["Cereal bowl", "Breakfast cereal"],
+  "oatmeal": ["Oatmeal bowl", "Cooked oatmeal"],
+  "gravy": ["Gravy bowl", "Meat gravy"],
+  "sauce": ["Sauce bowl", "Tomato sauce"],
+  "honey": ["Honey jar", "Honey food"],
+  "jam": ["Jam jar", "Strawberry jam"],
+  "peanut butter": ["Peanut butter jar", "Peanut butter"],
+  "jelly": ["Jelly food", "Jelly dessert"],
+  "pudding": ["Pudding dessert", "Chocolate pudding"],
+  "smoothie": ["Smoothie glass", "Fruit smoothie"],
+  "milkshake": ["Milkshake glass", "Milkshake drink"],
+  "lemonade": ["Lemonade glass", "Lemonade drink"],
+  "hot chocolate": ["Hot chocolate cup", "Hot cocoa"],
+  "wine": ["Wine glass", "Red wine glass"],
+  "beer": ["Beer glass", "Beer mug"],
+  "dog": ["Dog animal", "Dog pet"],
+  "cat": ["Cat animal", "Cat pet"],
+  "lion": ["Lion animal", "Lion photo"],
+  "tiger": ["Tiger animal", "Tiger photo"],
+  "elephant": ["Elephant animal", "Elephant photo"],
+  "bear": ["Bear animal", "Brown bear"],
+  "rabbit": ["Rabbit animal", "Domestic rabbit"],
+  "horse": ["Horse animal", "Horse photo"],
+  "cow": ["Cow animal", "Dairy cow"],
+  "pig": ["Pig animal", "Domestic pig"],
+  "sheep": ["Sheep animal", "Domestic sheep"],
+  "goat": ["Goat animal", "Domestic goat"],
+  "chicken animal": ["Chicken animal", "Rooster photo"],
+  "duck": ["Duck animal", "Duck photo"],
+  "frog": ["Frog animal", "Green frog"],
+  "snake": ["Snake animal", "Snake photo"],
+  "fish animal": ["Fish animal", "Goldfish"],
+  "bird": ["Bird animal", "Bird photo"],
+  "penguin": ["Penguin animal", "Penguin photo"],
+  "monkey": ["Monkey animal", "Monkey photo"],
+  "giraffe": ["Giraffe animal", "Giraffe photo"],
+  "zebra": ["Zebra animal", "Zebra photo"],
+  "umbrella": ["Umbrella open", "Rain umbrella"],
+  "shoes": ["Shoes pair", "Sneakers pair"],
+  "shirt": ["T-shirt clothing", "Shirt clothing"],
+  "pants": ["Jeans clothing", "Trousers"],
+  "hat": ["Hat clothing", "Baseball cap"],
+  "gloves": ["Gloves pair", "Winter gloves"],
+  "socks": ["Socks pair", "Sock clothing"],
+  "boots": ["Boots pair", "Leather boots"],
+  "jacket": ["Jacket clothing", "Winter jacket"],
+  "scarf": ["Scarf clothing", "Winter scarf"],
+  "spoon": ["Spoon utensil", "Metal spoon"],
+  "fork": ["Fork utensil", "Metal fork"],
+  "knife": ["Knife utensil", "Kitchen knife"],
+  "plate": ["Plate dish", "White plate"],
+  "bowl": ["Bowl dish", "White bowl"],
+  "cup": ["Cup drinkware", "Coffee mug"],
+  "napkin": ["Napkin paper", "Paper napkin"],
+  "towel": ["Towel cloth", "Bath towel"],
+  "toothbrush": ["Toothbrush", "Toothbrush brush"],
+  "comb": ["Comb hair", "Hair comb"],
+  "scissors": ["Scissors tool", "Kitchen scissors"],
+  "key": ["Key metal", "House key"],
+  "clock": ["Clock wall", "Analog clock"],
+  "lamp": ["Lamp light", "Desk lamp"],
+  "book": ["Book cover", "Open book"],
+  "pencil": ["Pencil writing", "Yellow pencil"],
+  "crayon": ["Crayon art", "Crayon color"],
+  "ball": ["Ball toy", "Rubber ball"],
+  "doll": ["Doll toy", "Toy doll"],
+  "car": ["Car vehicle", "Red car"],
+  "bus": ["Bus vehicle", "School bus"],
+  "truck": ["Truck vehicle", "Pickup truck"],
+  "train": ["Train vehicle", "Train locomotive"],
+  "bicycle": ["Bicycle vehicle", "Bike"],
+  "airplane": ["Airplane vehicle", "Passenger plane"],
+  "boat": ["Boat vehicle", "Sailboat"],
+  "flower": ["Flower plant", "Red flower"],
+  "tree": ["Tree plant", "Oak tree"],
+  "leaf": ["Leaf green", "Green leaf"],
+  "rock": ["Rock stone", "Gray rock"],
+  "cloud": ["Cloud sky", "White cloud"],
+  "sun": ["Sun sky", "Yellow sun"],
+  "moon": ["Moon sky", "Full moon"],
+  "star": ["Star sky", "Yellow star"],
+  "rain": ["Rain weather", "Rain drops"],
+  "snow": ["Snow weather", "Snowflakes"],
+  "wind": ["Wind weather", "Wind blowing"],
+};
+
+// Fetch image with food-specific search terms FIRST
 async function generateImageUrlWithFallback(concept: string): Promise<string | null> {
-  // Try the exact concept first
+  const lower = concept.toLowerCase().trim();
+  
+  // For food items, search food-specific terms FIRST (prevents rice plant instead of bowl of rice)
+  const foodTerms = FOOD_SEARCH_TERMS[lower];
+  if (foodTerms) {
+    for (const term of foodTerms) {
+      const img = await generateImageUrl(term);
+      if (img) return img;
+    }
+  }
+  
+  // Try the exact concept
   let img = await generateImageUrl(concept);
   if (img) return img;
   
-  // Try common fallback terms
-  const fallbacks: Record<string, string[]> = {
-    "orange": ["Orange fruit", "Orange (fruit)"],
-    "cracker": ["Cracker (food)", "Crackers food"],
-    "cookie": ["Cookie", "Biscuit"],
-    "apple": ["Apple (fruit)", "Apple fruit"],
-    "banana": ["Banana (fruit)", "Banana fruit"],
-    "milk": ["Milk", "Glass of milk"],
-    "juice": ["Juice", "Orange juice"],
-    "bread": ["Bread", "Bread loaf"],
-    "rice": ["Rice", "Cooked rice"],
-    "soup": ["Soup", "Bowl of soup"],
-    "water": ["Water", "Glass of water"],
-    "soda": ["Soda", "Soft drink"],
-    "tea": ["Tea", "Cup of tea"],
-    "pear": ["Pear (fruit)", "Pear fruit"],
-    "grapes": ["Grapes", "Grape fruit"],
-  };
-  
-  const lower = concept.toLowerCase().trim();
-  const terms = fallbacks[lower] || [];
-  for (const term of terms) {
+  // Try generic fallbacks
+  const genericFallbacks = [
+    concept + " food",
+    concept + " photo",
+    concept + " image",
+  ];
+  for (const term of genericFallbacks) {
     img = await generateImageUrl(term);
     if (img) return img;
   }
   
   return null;
+}
+
+// Quality check: verify all images exist, retry missing ones
+async function qualityCheckQuiz(validQuestions: any[], allPics: boolean): Promise<void> {
+  if (!allPics) return;
+  
+  for (const q of validQuestions) {
+    const options = [
+      { key: "option_a_image", text: q.option_a_text },
+      { key: "option_b_image", text: q.option_b_text },
+      { key: "option_c_image", text: q.option_c_text },
+      { key: "option_d_image", text: q.option_d_text },
+    ];
+    
+    for (const opt of options) {
+      if (!q[opt.key]) {
+        // Image missing — retry with more specific terms
+        console.log(`Quality check: retrying image for "${opt.text}"`);
+        const img = await generateImageUrlWithFallback(opt.text);
+        if (img) {
+          q[opt.key] = img;
+        }
+      }
+    }
+  }
 }
 
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true, customQuestions?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
@@ -500,6 +672,13 @@ Create exactly ${questionCount} questions. DO NOT use emojis. Each question has 
         }
       }
     } catch {}
+    
+    // Quality check: verify all images exist, retry missing ones
+    if (allPics) {
+      try {
+        await qualityCheckQuiz(validQuestions, allPics);
+      } catch {}
+    }
 
     return { questions: validQuestions };
   } catch (e: any) {
