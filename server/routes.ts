@@ -395,7 +395,7 @@ const FOOD_SEARCH_TERMS: Record<string, string[]> = {
   "zebra": ["Zebra animal", "Zebra photo"],
   "umbrella": ["Umbrella open", "Rain umbrella"],
   "shoes": ["Shoes pair", "Sneakers pair"],
-  "shirt": ["T-shirt clothing", "Shirt clothing"],
+  "shirt": ["T-shirt", "Polo shirt"],
   "pants": ["Jeans clothing", "Trousers"],
   "hat": ["Hat clothing", "Baseball cap"],
   "gloves": ["Gloves pair", "Winter gloves"],
@@ -403,40 +403,40 @@ const FOOD_SEARCH_TERMS: Record<string, string[]> = {
   "boots": ["Boots pair", "Leather boots"],
   "jacket": ["Jacket clothing", "Winter jacket"],
   "scarf": ["Scarf clothing", "Winter scarf"],
-  "spoon": ["Spoon utensil", "Metal spoon"],
-  "fork": ["Fork utensil", "Metal fork"],
+  "spoon": ["Metal spoon", "Soup spoon"],
+  "fork": ["Assorted forks", "Fork (tool)"],
   "knife": ["Knife utensil", "Kitchen knife"],
-  "plate": ["Plate dish", "White plate"],
+  "plate": ["Dinner plate", "Ceramic plate", "Dish plate"],
   "bowl": ["Bowl dish", "White bowl"],
   "cup": ["Cup drinkware", "Coffee mug"],
-  "napkin": ["Napkin paper", "Paper napkin"],
-  "towel": ["Towel cloth", "Bath towel"],
+  "napkin": ["Paper napkin", "Serviette"],
+  "towel": ["Bath towel", "Towel (textile)"],
   "toothbrush": ["Toothbrush", "Toothbrush brush"],
   "comb": ["Comb hair", "Hair comb"],
-  "scissors": ["Scissors tool", "Kitchen scissors"],
-  "key": ["Key metal", "House key"],
-  "clock": ["Clock wall", "Analog clock"],
-  "lamp": ["Lamp light", "Desk lamp"],
-  "book": ["Book cover", "Open book"],
-  "pencil": ["Pencil writing", "Yellow pencil"],
+  "scissors": ["Scissors", "Kitchen shears"],
+  "key": ["Key (lock)", "House key"],
+  "clock": ["Analog clock", "Wall clock"],
+  "lamp": ["Desk lamp", "Table lamp"],
+  "book": ["Open book", "Book stack"],
+  "pencil": ["Pencil", "Colored pencils"],
   "crayon": ["Crayon art", "Crayon color"],
-  "ball": ["Ball toy", "Rubber ball"],
+  "ball": ["Soccer ball", "Tennis ball"],
   "doll": ["Doll toy", "Toy doll"],
-  "car": ["Car vehicle", "Red car"],
-  "bus": ["Bus vehicle", "School bus"],
-  "truck": ["Truck vehicle", "Pickup truck"],
+  "car": ["Hatchback car", "Toyota Corolla"],
+  "bus": ["School bus", "Transit bus"],
+  "truck": ["Pickup truck", "Semi-truck"],
   "train": ["Train vehicle", "Train locomotive"],
   "bicycle": ["Bicycle vehicle", "Bike"],
   "airplane": ["Airplane vehicle", "Passenger plane"],
   "boat": ["Boat vehicle", "Sailboat"],
-  "flower": ["Flower plant", "Red flower"],
-  "tree": ["Tree plant", "Oak tree"],
+  "flower": ["Sunflower", "Red rose"],
+  "tree": ["Oak tree", "Pine tree"],
   "leaf": ["Leaf green", "Green leaf"],
   "rock": ["Rock stone", "Gray rock"],
   "cloud": ["Cloud sky", "White cloud"],
-  "sun": ["Sun sky", "Yellow sun"],
+  "sun": ["Sun (star)", "Solar eclipse"],
   "moon": ["Moon sky", "Full moon"],
-  "star": ["Star sky", "Yellow star"],
+  "star": ["Five-pointed star", "Star symbol"],
   "rain": ["Rain weather", "Rain drops"],
   "snow": ["Snow weather", "Snowflakes"],
   "wind": ["Wind weather", "Wind blowing"],
@@ -477,6 +477,8 @@ async function generateImageUrlWithFallback(concept: string): Promise<string | n
 async function qualityCheckQuiz(validQuestions: any[], allPics: boolean): Promise<void> {
   if (!allPics) return;
   
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+  
   for (const q of validQuestions) {
     const options = [
       { key: "option_a_image", text: q.option_a_text },
@@ -487,11 +489,16 @@ async function qualityCheckQuiz(validQuestions: any[], allPics: boolean): Promis
     
     for (const opt of options) {
       if (!q[opt.key]) {
-        // Image missing — retry with more specific terms
-        console.log(`Quality check: retrying image for "${opt.text}"`);
+        // Image missing — retry with fallback terms
+        await sleep(300); // Avoid Wikipedia rate limiting
         const img = await generateImageUrlWithFallback(opt.text);
         if (img) {
           q[opt.key] = img;
+        } else {
+          // Last resort: try even more generic terms
+          await sleep(300);
+          const lastResort = await generateImageUrl(opt.text + " (food)");
+          if (lastResort) q[opt.key] = lastResort;
         }
       }
     }
