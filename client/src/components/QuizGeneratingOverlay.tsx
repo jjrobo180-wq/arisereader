@@ -23,6 +23,8 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
   const [stepComplete, setStepComplete] = useState<number[]>([]);
   const [allStepsDone, setAllStepsDone] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   const steps: Step[] = [
     { label: isEyeGaze ? "Analyzing topic" : "Analyzing book content", icon: BookOpen, detail: isEyeGaze ? `Creating visual quiz about "${bookTitle}"` : `Reading "${bookTitle}" by ${author}` },
@@ -67,10 +69,10 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
   // Skip this when pendingReview — the reviewSent effect handles completion instead
   useEffect(() => {
     if (allStepsDone && ready && !pendingReview) {
-      const t = setTimeout(() => onComplete(), 800);
+      const t = setTimeout(() => onCompleteRef.current(), 800);
       return () => clearTimeout(t);
     }
-  }, [allStepsDone, ready, onComplete, pendingReview]);
+  }, [allStepsDone, ready, pendingReview]);
 
   // If pending review, show the "sent to teacher" animation
   const [reviewSent, setReviewSent] = useState(false);
@@ -82,10 +84,10 @@ export default function QuizGeneratingOverlay({ bookTitle, author, ready, onComp
 
   useEffect(() => {
     if (reviewSent) {
-      const t = setTimeout(() => onComplete(), 8000);
+      const t = setTimeout(() => onCompleteRef.current(), 8000);
       return () => clearTimeout(t);
     }
-  }, [reviewSent, onComplete]);
+  }, [reviewSent]);
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex items-center justify-center">

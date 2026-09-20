@@ -257,7 +257,7 @@ async function generateImageUrl(concept: string): Promise<string | null> {
   }
 }
 
-async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
+async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -285,13 +285,22 @@ async function generateEyeGazeQuizWithAI(topic: string, description?: string, so
       5: "Level 5 (6+): Abstract concepts and reasoning (e.g., 'Which of these is a source of energy?'). Complex distractors.",
     };
 
-    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students. Create exactly ${questionCount} multiple-choice questions based on the following request:
+    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students, including autistic children and toddlers. Create exactly ${questionCount} multiple-choice questions based on the following request:
 
 ${userRequest}
 
 Difficulty level: ${levelDescriptions[level] || levelDescriptions[1]}
 
+${exactMode ? "IMPORTANT: The user wants an EXACT quiz based on their specific input. Use ONLY the items, concepts, or content they provided. Do NOT add new items or generalize beyond what they specified." : ""}
+
 These quizzes are for students who use eye gaze technology or are non-verbal, including autistic children and toddlers. Questions should be visual, simple, and accessible. DO NOT use emojis in any field. Leave question_image and option_*_image fields as null — real images will be fetched automatically.
+
+CRITICAL QUESTION RULES — READ THESE CAREFULLY:
+- NEVER reveal the answer in the question prompt. Do NOT ask "Which one is a cracker?" if "Cracker" is one of the options.
+- Instead, ask about a characteristic, function, or category. For example: "Which one do we eat with soup?" or "Which one is crunchy?"
+- The question must make students THINK and look at the options — it should not be obvious from the question text alone
+- Make all 4 options from the same category (e.g., all foods, all animals) so students must distinguish between them
+- Do NOT use the exact word from any option in the question prompt
 
 IMPORTANT CONTENT RULES:
 - All content MUST be school-appropriate and child-friendly
@@ -311,6 +320,7 @@ Rules:
 - DO NOT use emojis anywhere — leave image fields as null
 - Each question has exactly 4 options (option_a_text through option_d_text) — these are the answer choices shown to the student
 - The "correct_answer" is a single letter: "A", "B", "C", or "D"
+- NEVER put the correct answer word in the question prompt
 - Make questions about identification, matching, and simple comprehension
 - Use clear, simple language
 - Make option texts be concrete, image-searchable nouns when possible (e.g., "Elephant" not "A big gray animal")
@@ -376,19 +386,21 @@ Rules:
       return { error: "AI generated too few valid questions. Please try a more specific topic." };
     }
 
-    // Fetch real photos for answer options only (no question image), in parallel
+    // Fetch real photos for answer options only if allPics is true
     try {
-      for (const q of validQuestions) {
-        const [aImg, bImg, cImg, dImg] = await Promise.all([
-          generateImageUrl(q.option_a_text),
-          generateImageUrl(q.option_b_text),
-          generateImageUrl(q.option_c_text),
-          generateImageUrl(q.option_d_text),
-        ]);
-        q.option_a_image = aImg;
-        q.option_b_image = bImg;
-        q.option_c_image = cImg;
-        q.option_d_image = dImg;
+      if (allPics) {
+        for (const q of validQuestions) {
+          const [aImg, bImg, cImg, dImg] = await Promise.all([
+            generateImageUrl(q.option_a_text),
+            generateImageUrl(q.option_b_text),
+            generateImageUrl(q.option_c_text),
+            generateImageUrl(q.option_d_text),
+          ]);
+          q.option_a_image = aImg;
+          q.option_b_image = bImg;
+          q.option_c_image = cImg;
+          q.option_d_image = dImg;
+        }
       }
     } catch {}
 
@@ -3471,16 +3483,18 @@ export async function registerRoutes(
   // Student: generate an instant AI eye gaze quiz
   app.post("/api/instant-quiz-eye-gaze", authMiddleware, async (req: any, res) => {
     try {
-      const { topic, description, sourceLink, level, questionCount } = req.body;
+      const { topic, description, sourceLink, level, questionCount, exactMode, allPics } = req.body;
       if (!topic || topic.trim().length < 2) {
         return res.status(400).json({ message: "Please enter a topic or description for your quiz" });
       }
 
       const quizLevel = Math.min(Math.max(parseInt(level) || 1, 1), 5);
       const quizCount = [3, 5, 10].includes(parseInt(questionCount)) ? parseInt(questionCount) : 5;
+      const useExactMode = !!exactMode;
+      const useAllPics = allPics !== false; // default true
 
       // Generate eye gaze quiz with AI
-      const result = await generateEyeGazeQuizWithAI(topic.trim(), description, sourceLink, quizLevel, quizCount);
+      const result = await generateEyeGazeQuizWithAI(topic.trim(), description, sourceLink, quizLevel, quizCount, useExactMode, useAllPics);
       if ("error" in result) {
         return res.status(500).json({ message: result.error });
       }

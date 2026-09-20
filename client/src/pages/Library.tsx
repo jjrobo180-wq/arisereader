@@ -159,6 +159,8 @@ export default function Library() {
   const [eyeGazeError, setEyeGazeError] = useState("");
   const [eyeGazeLevel, setEyeGazeLevel] = useState(1);
   const [eyeGazeQuestionCount, setEyeGazeQuestionCount] = useState(5);
+  const [eyeGazeExactMode, setEyeGazeExactMode] = useState(false);
+  const [eyeGazeAllPics, setEyeGazeAllPics] = useState(true);
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
   const [instantBook, setInstantBook] = useState("");
   const [instantAuthor, setInstantAuthor] = useState("");
@@ -420,6 +422,17 @@ export default function Library() {
     refreshUser();
   }, []);
 
+  // Fallback: if eye gaze quiz was created but overlay is stuck, auto-navigate after 5 seconds
+  useEffect(() => {
+    if (pendingEyeGazeQuizId && showGenerating) {
+      const t = setTimeout(() => {
+        setShowGenerating(false);
+        navigate(`/custom-quiz/${pendingEyeGazeQuizId}`);
+      }, 5000);
+      return () => clearTimeout(t);
+    }
+  }, [pendingEyeGazeQuizId, showGenerating, navigate]);
+
   // Clear caches on global logout event
   useEffect(() => {
     const clearCaches = () => {
@@ -623,6 +636,8 @@ export default function Library() {
           sourceLink: eyeGazeSourceLink.trim() || undefined,
           level: eyeGazeLevel,
           questionCount: eyeGazeQuestionCount,
+          exactMode: eyeGazeExactMode,
+          allPics: eyeGazeAllPics,
         }),
       });
       const data = await res.json();
@@ -651,6 +666,8 @@ export default function Library() {
     setEyeGazeError("");
     setEyeGazeLevel(1);
     setEyeGazeQuestionCount(5);
+    setEyeGazeExactMode(false);
+    setEyeGazeAllPics(true);
     setPendingReviewMsg(null);
     if (pendingEyeGazeQuizId) {
       navigate(`/custom-quiz/${pendingEyeGazeQuizId}`);
@@ -2942,6 +2959,29 @@ export default function Library() {
                   className="w-full p-2 rounded-lg bg-muted border border-input text-sm resize-none"
                 />
                 <p className="text-xs text-muted-foreground">Add details to help the AI create exactly what you want. The more specific, the better the quiz.</p>
+              </div>
+              {/* Options toggles */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={eyeGazeExactMode}
+                    onChange={(e) => setEyeGazeExactMode(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium">Make exact quiz on my input</span>
+                </label>
+                <p className="text-xs text-muted-foreground ml-6">Uses your exact topic and details instead of generalizing. Good for specific lists or custom content.</p>
+                <label className="flex items-center gap-2 cursor-pointer mt-2">
+                  <input
+                    type="checkbox"
+                    checked={eyeGazeAllPics}
+                    onChange={(e) => setEyeGazeAllPics(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium">Include real photos</span>
+                </label>
+                <p className="text-xs text-muted-foreground ml-6">Fetches real photos from Wikipedia for each answer choice. Uncheck for text-only quizzes.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="eyegaze-link">YouTube or source link (optional)</Label>
