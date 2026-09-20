@@ -157,6 +157,8 @@ export default function Library() {
   const [eyeGazeDescription, setEyeGazeDescription] = useState("");
   const [eyeGazeSourceLink, setEyeGazeSourceLink] = useState("");
   const [eyeGazeError, setEyeGazeError] = useState("");
+  const [eyeGazeLevel, setEyeGazeLevel] = useState(1);
+  const [eyeGazeQuestionCount, setEyeGazeQuestionCount] = useState(5);
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
   const [instantBook, setInstantBook] = useState("");
   const [instantAuthor, setInstantAuthor] = useState("");
@@ -619,15 +621,17 @@ export default function Library() {
           topic: eyeGazeTopic.trim(),
           description: eyeGazeDescription.trim() || undefined,
           sourceLink: eyeGazeSourceLink.trim() || undefined,
+          level: eyeGazeLevel,
+          questionCount: eyeGazeQuestionCount,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.pendingReview) {
+        if (data.created && data.quizId) {
+          setPendingEyeGazeQuizId(data.quizId);
+        } else if (data.pendingReview) {
           setPendingReviewMsg(data.message);
           setShowGenerating(true);
-        } else if (data.quizId) {
-          setPendingEyeGazeQuizId(data.quizId);
         }
       } else {
         setEyeGazeError(data.message || "Failed to generate quiz.");
@@ -645,6 +649,8 @@ export default function Library() {
     setEyeGazeDescription("");
     setEyeGazeSourceLink("");
     setEyeGazeError("");
+    setEyeGazeLevel(1);
+    setEyeGazeQuestionCount(5);
     setPendingReviewMsg(null);
     if (pendingEyeGazeQuizId) {
       navigate(`/custom-quiz/${pendingEyeGazeQuizId}`);
@@ -1610,13 +1616,31 @@ export default function Library() {
                       </div>
                     </div>
                   )}
-                  {/* Edit/Delete buttons if user is creator */}
+                  {/* Edit/Delete/Regenerate buttons if user is creator */}
                   {user && quiz.creator_user_id === user.id && (
                     <div className="absolute bottom-2 right-2 flex gap-1 z-10">
                       <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/quiz-builder/${quiz.id}`); }}
                         className="px-2 py-0.5 text-xs font-semibold rounded bg-primary text-white hover:opacity-90"
                       >Edit</button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!confirm(`Regenerate "${quiz.title}" with new AI questions? This will replace all existing questions.`)) return;
+                          const token = getTokenFromCookie();
+                          const res = await fetch(`${API_BASE}/api/custom-quizzes/${quiz.id}/regenerate`, {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${token}` },
+                          });
+                          if (res.ok) {
+                            navigate(`/custom-quiz/${quiz.id}`);
+                          } else {
+                            const data = await res.json().catch(() => ({}));
+                            alert(data.message || "Failed to regenerate quiz.");
+                          }
+                        }}
+                        className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-600 text-white hover:opacity-90"
+                      >Regenerate</button>
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
@@ -2874,7 +2898,38 @@ export default function Library() {
                   onChange={(e) => setEyeGazeTopic(e.target.value)}
                   placeholder="e.g., Animals, Colors, Super Simple Songs, Weather"
                 />
-                <p className="text-xs text-muted-foreground">Type any topic — be as creative as you want. A 5-question eye gaze quiz will be created instantly.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="eyegaze-level">Difficulty Level</Label>
+                  <select
+                    id="eyegaze-level"
+                    value={eyeGazeLevel}
+                    onChange={(e) => setEyeGazeLevel(parseInt(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-muted border border-input text-sm"
+                  >
+                    <option value={1}>Level 1 — Toddler/Pre-K</option>
+                    <option value={2}>Level 2 — K-1</option>
+                    <option value={3}>Level 3 — 2-3 Grade</option>
+                    <option value={4}>Level 4 — 3-5 Grade</option>
+                    <option value={5}>Level 5 — 6+ Grade</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">Select the difficulty for your students</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="eyegaze-count">Number of Questions</Label>
+                  <select
+                    id="eyegaze-count"
+                    value={eyeGazeQuestionCount}
+                    onChange={(e) => setEyeGazeQuestionCount(parseInt(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-muted border border-input text-sm"
+                  >
+                    <option value={3}>3 Questions</option>
+                    <option value={5}>5 Questions</option>
+                    <option value={10}>10 Questions</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">How many questions to generate</p>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="eyegaze-desc">More details (optional)</Label>
@@ -2903,7 +2958,7 @@ export default function Library() {
               </div>
               <Button onClick={handleEyeGazeInstant} disabled={!eyeGazeTopic.trim()} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
                 <Sparkles className="w-4 h-4 mr-1" />
-                Create 5-Question Quiz
+                Create {eyeGazeQuestionCount}-Question Quiz
               </Button>
             </CardContent>
           </Card>

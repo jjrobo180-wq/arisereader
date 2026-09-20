@@ -342,7 +342,7 @@ export default function CustomEyeGazeQuiz() {
         )}
       </div>
 
-      {/* Large visual - question image or emoji */}
+      {/* Large visual - question image only if available */}
       <div style={{
         display: "flex",
         justifyContent: "center",
@@ -378,18 +378,7 @@ export default function CustomEyeGazeQuiz() {
               {currentQ.question_image}
             </div>
           )
-        ) : (
-          <div style={{
-            fontSize: "8rem",
-            lineHeight: 1,
-            padding: "1rem",
-            background: "hsl(0 0% 14%)",
-            borderRadius: "1rem",
-            border: "2px solid hsl(0 0% 20%)",
-          }}>
-            📖
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Large answer buttons - 2x2 grid */}

@@ -186,7 +186,9 @@ export default function Admin() {
   const [aiKeyConfigured, setAiKeyConfigured] = useState(false);
   const [aiKeyMsg, setAiKeyMsg] = useState("");
   const [quizGuidelines, setQuizGuidelines] = useState("");
+  const [eyeGazeGuidelines, setEyeGazeGuidelines] = useState("");
   const [guidelinesMsg, setGuidelinesMsg] = useState("");
+  const [eyeGazeGuidelinesMsg, setEyeGazeGuidelinesMsg] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
   const [proctorMsg, setProctorMsg] = useState("");
@@ -908,6 +910,7 @@ export default function Admin() {
         setAiKeyConfigured(data.configured);
         setAiKeyPreview(data.keyPreview || "");
         setQuizGuidelines(data.guidelines || "");
+        setEyeGazeGuidelines(data.eyeGazeGuidelines || "");
       }
     } catch {}
   };
@@ -953,6 +956,27 @@ export default function Admin() {
       }
     } catch {
       setGuidelinesMsg("Failed to save guidelines.");
+    }
+  };
+
+  const handleSaveEyeGazeGuidelines = async () => {
+    if (!token) return;
+    setEyeGazeGuidelinesMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/eye-gaze-guidelines`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ guidelines: eyeGazeGuidelines }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEyeGazeGuidelinesMsg("Eye gaze guidelines saved! All new eye gaze quizzes will follow these.");
+        setTimeout(() => setEyeGazeGuidelinesMsg(""), 4000);
+      } else {
+        setEyeGazeGuidelinesMsg(data.message || "Failed to save guidelines.");
+      }
+    } catch {
+      setEyeGazeGuidelinesMsg("Failed to save guidelines.");
     }
   };
 
@@ -2329,6 +2353,23 @@ Generate exactly 10 questions.`;
             />
             <Button size="sm" variant="outline" onClick={handleSaveGuidelines}>
               Save Guidelines
+            </Button>
+          </div>
+
+          {/* Eye Gaze Quiz Guidelines */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Eye Gaze Quiz Standards</Label>
+            <p className="text-xs text-muted-foreground">Control how the AI generates eye gaze quizzes for non-verbal and eye gaze students. Leave empty for defaults. These instructions are added to every eye gaze quiz.</p>
+            {eyeGazeGuidelinesMsg && <p className="text-sm text-green-400">{eyeGazeGuidelinesMsg}</p>}
+            <textarea
+              value={eyeGazeGuidelines}
+              onChange={(e) => setEyeGazeGuidelines(e.target.value)}
+              placeholder={"Examples:\n- Use only single-word answers (nouns)\n- Make distractors very different from the correct answer\n- Focus on identification and matching\n- Use simple, concrete concepts\n- Avoid abstract reasoning for Level 1-2"}
+              rows={5}
+              className="w-full rounded-md bg-muted/30 border border-border text-foreground text-sm p-2 resize-y"
+            />
+            <Button size="sm" variant="outline" onClick={handleSaveEyeGazeGuidelines}>
+              Save Eye Gaze Guidelines
             </Button>
           </div>
 

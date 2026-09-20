@@ -257,7 +257,7 @@ async function generateImageUrl(concept: string): Promise<string | null> {
   }
 }
 
-async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
+async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -265,7 +265,7 @@ async function generateEyeGazeQuizWithAI(topic: string, description?: string, so
   try {
     let guidelines = "";
     try {
-      guidelines = await storage.getSetting("quiz_generation_guidelines") || "";
+      guidelines = await storage.getSetting("eye_gaze_quiz_guidelines") || "";
     } catch {}
 
     // Build a flexible prompt that accepts any topic, description, or source
@@ -277,11 +277,21 @@ async function generateEyeGazeQuizWithAI(topic: string, description?: string, so
       userRequest += `\nSource/Reference: ${sourceLink.trim()}`;
     }
 
-    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students. Create exactly 5 multiple-choice questions based on the following request:
+    const levelDescriptions: Record<number, string> = {
+      1: "Level 1 (Toddler/Pre-K): Very simple identification — one clear correct answer, obvious distractors. Simple nouns only (e.g., 'Which one is a dog?').",
+      2: "Level 2 (K-1): Basic identification and matching. Simple categories (e.g., 'Which one is red?', 'Which animal says moo?').",
+      3: "Level 3 (2-3): Simple comprehension and categorization (e.g., 'Which one do you wear on your feet?'). Slightly less obvious distractors.",
+      4: "Level 4 (3-5): Multi-step identification and function (e.g., 'Which tool do you use to eat soup?'). More nuanced distractors.",
+      5: "Level 5 (6+): Abstract concepts and reasoning (e.g., 'Which of these is a source of energy?'). Complex distractors.",
+    };
+
+    const prompt = `You are an expert quiz creator for eye gaze and non-verbal students. Create exactly ${questionCount} multiple-choice questions based on the following request:
 
 ${userRequest}
 
-These quizzes are for students who use eye gaze technology or are non-verbal. Questions should be visual, simple, and accessible. DO NOT use emojis in any field. Leave question_image and option_*_image fields as null — real images will be fetched automatically.
+Difficulty level: ${levelDescriptions[level] || levelDescriptions[1]}
+
+These quizzes are for students who use eye gaze technology or are non-verbal, including autistic children and toddlers. Questions should be visual, simple, and accessible. DO NOT use emojis in any field. Leave question_image and option_*_image fields as null — real images will be fetched automatically.
 
 IMPORTANT CONTENT RULES:
 - All content MUST be school-appropriate and child-friendly
@@ -296,15 +306,15 @@ Return ONLY a JSON object (no markdown, no explanation, no code blocks) with thi
 {"questions":[{"prompt":"What do we use to stay dry in the rain?","question_image":null,"option_a_text":"Umbrella","option_a_image":null,"option_b_text":"Sunglasses","option_b_image":null,"option_c_text":"Boots","option_c_image":null,"option_d_text":"Hat","option_d_image":null,"correct_answer":"A"}]}
 
 Rules:
-- Create exactly 5 questions — no more, no less
-- Questions should be simple, visual, and appropriate for eye gaze / non-verbal students
+- Create exactly ${questionCount} questions — no more, no less
+- Questions should be simple, visual, and appropriate for eye gaze / non-verbal students at difficulty level ${level}
 - DO NOT use emojis anywhere — leave image fields as null
 - Each question has exactly 4 options (option_a_text through option_d_text) — these are the answer choices shown to the student
 - The "correct_answer" is a single letter: "A", "B", "C", or "D"
 - Make questions about identification, matching, and simple comprehension
 - Use clear, simple language
 - Make option texts be concrete, image-searchable nouns when possible (e.g., "Elephant" not "A big gray animal")
-- Return exactly 5 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
+- Return exactly ${questionCount} questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
 
     const res = await fetch(PERPLEXITY_API_URL, {
       method: "POST",
@@ -348,9 +358,9 @@ Rules:
       return { error: "AI generated invalid questions" };
     }
 
-    const validQuestions = questions.slice(0, 5).map((q: any) => ({
+    const validQuestions = questions.slice(0, questionCount).map((q: any) => ({
       prompt: q.prompt || "What is this?",
-      question_image: null, // Will be set by image search below
+      question_image: null, // No question image — text prompt only
       option_a_text: q.option_a_text || q.option_a || q.options?.[0] || "",
       option_a_image: null, // Will be set by image search below
       option_b_text: q.option_b_text || q.option_b || q.options?.[1] || "",
@@ -366,14 +376,19 @@ Rules:
       return { error: "AI generated too few valid questions. Please try a more specific topic." };
     }
 
-    // Fetch real photos for each question and option
+    // Fetch real photos for answer options only (no question image), in parallel
     try {
       for (const q of validQuestions) {
-        q.question_image = await generateImageUrl(q.prompt);
-        q.option_a_image = await generateImageUrl(q.option_a_text);
-        q.option_b_image = await generateImageUrl(q.option_b_text);
-        q.option_c_image = await generateImageUrl(q.option_c_text);
-        q.option_d_image = await generateImageUrl(q.option_d_text);
+        const [aImg, bImg, cImg, dImg] = await Promise.all([
+          generateImageUrl(q.option_a_text),
+          generateImageUrl(q.option_b_text),
+          generateImageUrl(q.option_c_text),
+          generateImageUrl(q.option_d_text),
+        ]);
+        q.option_a_image = aImg;
+        q.option_b_image = bImg;
+        q.option_c_image = cImg;
+        q.option_d_image = dImg;
       }
     } catch {}
 
@@ -2771,7 +2786,8 @@ export async function registerRoutes(
   app.get("/api/admin/ai-settings", authMiddleware, adminMiddleware, async (req, res) => {
     const key = await storage.getSetting("perplexity_api_key");
     const guidelines = await storage.getSetting("quiz_generation_guidelines");
-    res.json({ configured: !!key, keyPreview: key ? key.slice(0, 8) + "..." + key.slice(-4) : null, guidelines: guidelines || "" });
+    const eyeGazeGuidelines = await storage.getSetting("eye_gaze_quiz_guidelines");
+    res.json({ configured: !!key, keyPreview: key ? key.slice(0, 8) + "..." + key.slice(-4) : null, guidelines: guidelines || "", eyeGazeGuidelines: eyeGazeGuidelines || "" });
   });
 
   // Admin: set quiz generation guidelines
@@ -2779,6 +2795,13 @@ export async function registerRoutes(
     const { guidelines } = req.body;
     await storage.upsertSetting("quiz_generation_guidelines", guidelines || "");
     res.json({ message: "Quiz guidelines saved successfully" });
+  });
+
+  // Admin: set eye gaze quiz guidelines
+  app.post("/api/admin/eye-gaze-guidelines", authMiddleware, adminMiddleware, async (req, res) => {
+    const { guidelines } = req.body;
+    await storage.upsertSetting("eye_gaze_quiz_guidelines", guidelines || "");
+    res.json({ message: "Eye gaze quiz guidelines saved successfully" });
   });
 
   // Student: generate an instant AI quiz for a book
@@ -3448,48 +3471,36 @@ export async function registerRoutes(
   // Student: generate an instant AI eye gaze quiz
   app.post("/api/instant-quiz-eye-gaze", authMiddleware, async (req: any, res) => {
     try {
-      const { topic, description, sourceLink } = req.body;
+      const { topic, description, sourceLink, level, questionCount } = req.body;
       if (!topic || topic.trim().length < 2) {
         return res.status(400).json({ message: "Please enter a topic or description for your quiz" });
       }
 
+      const quizLevel = Math.min(Math.max(parseInt(level) || 1, 1), 5);
+      const quizCount = [3, 5, 10].includes(parseInt(questionCount)) ? parseInt(questionCount) : 5;
+
       // Generate eye gaze quiz with AI
-      const result = await generateEyeGazeQuizWithAI(topic.trim(), description, sourceLink);
+      const result = await generateEyeGazeQuizWithAI(topic.trim(), description, sourceLink, quizLevel, quizCount);
       if ("error" in result) {
         return res.status(500).json({ message: result.error });
       }
 
-      // Save as pending for admin/teacher review
-      try {
-        await supabase.from('pending_ai_quizzes').insert({
-          student_id: req.user.id,
-          book_title: topic.trim(),
-          author: topic.trim(),
-          questions: JSON.stringify(result.questions),
-          cover_url: null,
-          age_group: 'Custom',
-          quiz_type: 'eye_gaze',
-          status: 'pending'
-        });
-        // Notify admin and teachers
-        try {
-          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
-          for (const uid of notifyIds) {
-            await supabase.from('notifications').insert({
-              user_id: uid,
-              type: 'info',
-              title: 'AI Quiz Pending Review',
-              message: `Student requested an AI eye gaze quiz about "${topic.trim()}". Review and approve it in the admin panel.`
-            });
-          }
-        } catch {}
-      } catch {}
+      // Create the quiz immediately — no teacher review needed
+      const quiz = await storage.createCustomEyeGazeQuiz(
+        req.user.id,
+        topic.trim(),
+        `AI-generated eye gaze quiz about ${topic.trim()}`,
+        `Level ${quizLevel}`,
+        result.questions,
+        'global',
+        null,
+        'eye_gaze'
+      );
 
       return res.status(201).json({ 
-        pendingReview: true, 
-        message: `Your eye gaze quiz about "${topic.trim()}" has been sent to your teacher for review. You'll get a notification when it's ready!`,
-        questions: result.questions 
+        created: true,
+        quizId: quiz.id,
+        message: `Your eye gaze quiz about "${topic.trim()}" is ready!` 
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to generate eye gaze quiz. Please try again." });
@@ -6230,6 +6241,37 @@ export async function registerRoutes(
       const isAdmin = req.user.isAdmin || req.user.role === 'admin';
       await storage.deleteCustomEyeGazeQuiz(quizId, req.user.id, isAdmin);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Regenerate an eye gaze quiz with new AI questions (keeps same quiz ID)
+  app.post("/api/custom-quizzes/:id/regenerate", authMiddleware, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.id);
+      const isAdmin = req.user.isAdmin || req.user.role === 'admin';
+      // Get the existing quiz
+      const quiz = await storage.getCustomEyeGazeQuiz(quizId);
+      if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+      if (!isAdmin && quiz.creator_user_id !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized to regenerate this quiz" });
+      }
+      // Parse the level number from "Level X"
+      const levelNum = parseInt((quiz.level || "Level 1").replace(/[^0-9]/g, "")) || 1;
+      const questionCount = quiz.questions?.length || 5;
+      // Extract topic from title (strip "AI-generated eye gaze quiz about " prefix)
+      const topic = quiz.title.replace(/^AI-generated eye gaze quiz about\s+/i, "").trim() || quiz.title;
+
+      // Generate new questions
+      const result = await generateEyeGazeQuizWithAI(topic, quiz.description, undefined, levelNum, questionCount);
+      if ("error" in result) {
+        return res.status(500).json({ message: result.error });
+      }
+
+      // Update the quiz with new questions
+      await storage.updateCustomEyeGazeQuiz(quizId, quiz.creator_user_id, quiz.title, quiz.description, quiz.level || `Level ${levelNum}`, result.questions);
+      res.json({ success: true, quizId, message: "Quiz regenerated with new questions!" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
