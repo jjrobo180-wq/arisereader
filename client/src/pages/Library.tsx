@@ -2778,8 +2778,8 @@ export default function Library() {
         <QuizGeneratingOverlay
           bookTitle={showEyeGazeInstant ? eyeGazeTopic : showFavOnboarding ? "" : favQuizTopic || iariseQuizTopic || instantBook}
           author={showEyeGazeInstant ? "" : showFavOnboarding ? "" : instantAuthor}
-          ready={pendingReviewMsg ? true : showEyeGazeInstant ? !!pendingEyeGazeQuizId : pendingIariseBookId ? !!pendingIariseBookId : pendingFavBookId ? !!pendingFavBookId : !!pendingBookId}
-          onComplete={showEyeGazeInstant ? handleEyeGazeGeneratingComplete : pendingIariseBookId ? handleIariseQuizComplete : pendingFavBookId ? handleFavQuizComplete : handleGeneratingComplete}
+          ready={pendingReviewMsg ? true : pendingEyeGazeQuizId ? true : showEyeGazeInstant ? false : pendingIariseBookId ? !!pendingIariseBookId : pendingFavBookId ? !!pendingFavBookId : !!pendingBookId}
+          onComplete={pendingEyeGazeQuizId ? handleEyeGazeGeneratingComplete : showEyeGazeInstant ? handleEyeGazeGeneratingComplete : pendingIariseBookId ? handleIariseQuizComplete : pendingFavBookId ? handleFavQuizComplete : handleGeneratingComplete}
           isEyeGaze={showEyeGazeInstant}
           pendingReview={pendingReviewMsg}
         />
