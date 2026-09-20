@@ -1514,18 +1514,8 @@ export default function Library() {
                 Create Quiz
               </button>
             </div>
-            {/* Eye Gaze search + sort bar */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search quizzes..."
-                  value={eyeGazeSearch}
-                  onChange={(e) => setEyeGazeSearch(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
+            {/* Eye Gaze sort bar (search is only for point books) */}
+            <div className="flex items-center justify-end gap-2 mb-4">
               <select
                 value={eyeGazeSortBy}
                 onChange={(e) => setEyeGazeSortBy(e.target.value as any)}
@@ -1541,15 +1531,8 @@ export default function Library() {
                 ...eyeGazeQuizzes.map(q => ({ ...q, _builtin: true, _key: `b-${q.id}` })),
                 ...customQuizzes.map(q => ({ ...q, _builtin: false, _key: `c-${q.id}` })),
               ];
-              // Filter by search
-              const searched = eyeGazeSearch.trim()
-                ? allEyeGazeItems.filter(q =>
-                    (q.title || "").toLowerCase().includes(eyeGazeSearch.toLowerCase()) ||
-                    (q.description || "").toLowerCase().includes(eyeGazeSearch.toLowerCase())
-                  )
-                : allEyeGazeItems;
               // Sort
-              const sorted = [...searched].sort((a, b) => {
+              const sorted = [...allEyeGazeItems].sort((a, b) => {
                 if (eyeGazeSortBy === "title") return (a.title || "").localeCompare(b.title || "");
                 if (eyeGazeSortBy === "level") return (a.level || 1) - (b.level || 1);
                 // newest: by created_at desc, fallback to id desc
@@ -1561,7 +1544,7 @@ export default function Library() {
               if (sorted.length === 0) {
                 return (
                   <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">No quizzes found for "{eyeGazeSearch}".</p>
+                    <p className="text-sm text-muted-foreground">No quizzes yet. Click "Create Quiz" to make one.</p>
                   </div>
                 );
               }
