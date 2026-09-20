@@ -59,6 +59,232 @@ async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: 
       guidelines = await storage.getSetting("quiz_generation_guidelines") || "";
     } catch {}
 
+    const prompt = `You are an expert reading comprehension quiz creator for students. Create exactly 10 multiple-choice questions for the book "${bookTitle}" by ${author}.
+
+First, analyze the book and determine:
+1. The estimated US grade level of this book (e.g., "3", "5", "8", "10")
+2. The vocabulary complexity (1=simple, 2=moderate, 3=advanced)
+3. The book length category (1=short/picture book, 2=chapter book, 3=full novel)
+
+Then create 10 multiple-choice questions appropriate for ${ageGroup || "middle school"} students.
+
+Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
+{"bookGradeLevel":"5","vocabComplexity":2,"lengthCategory":2,"questions":[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A"}]}
+
+Rules:
+- Questions should test reading comprehension, plot details, character understanding, and themes
+- Each question has exactly 4 options labeled A, B, C, D
+- The "correct" field is a single letter: "A", "B", "C", or "D"
+- Make questions appropriate for ${ageGroup || "middle school"} students
+- Do NOT make questions about the author's life or publication details
+- Focus on the story content, characters, plot, and themes
+- Return exactly 10 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
+
+    const res = await fetch(PERPLEXITY_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          { role: "system", content: "You are a quiz generator. Return ONLY valid JSON arrays, no markdown or explanation." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return { error: `AI API error ${res.status}: ${errText.slice(0, 200)}` };
+    }
+
+    const data = await res.json() as any;
+    const content = data.choices?.[0]?.message?.content || "";
+
+    if (!content) {
+      return { error: "AI returned empty response" };
+    }
+
+    // Extract JSON from response (handles markdown code blocks)
+    let jsonStr = content.trim();
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const parsed = JSON.parse(jsonStr);
+    const questions = parsed.questions || parsed;
+    const bookGradeLevel = parsed.bookGradeLevel || studentGrade || "5";
+    const vocabComplexity = parsed.vocabComplexity || 2;
+    const lengthCategory = parsed.lengthCategory || 2;
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return { error: "AI generated invalid questions" };
+    }
+
+    // Calculate points based on grade level, vocab, and length
+    const studentGradeNum = parseInt(studentGrade || "5");
+    const bookGradeNum = parseInt(bookGradeLevel);
+    const gradeDiff = studentGradeNum - bookGradeNum; // positive = book is below student grade
+    let pointsValue = 10; // base
+    if (gradeDiff <= -2) {
+      // Book is 2+ grades above student → harder, more points
+      pointsValue = 30;
+    } else if (gradeDiff <= -1) {
+      // Book is 1 grade above → moderately harder
+      pointsValue = 20;
+    } else {
+      // Book is at or near grade level
+      // Adjust for vocab and length
+      if (vocabComplexity >= 3 && lengthCategory >= 3) pointsValue = 20;
+      else if (vocabComplexity >= 3 || lengthCategory >= 3) pointsValue = 15;
+      else pointsValue = 10;
+    }
+
+    // Validate and clean up questions
+    const validQuestions = questions.slice(0, 10).map((q: any) => {
+      const correctLetter = (q.correct || "A").toUpperCase().charAt(0);
+      const options = (q.options || []).slice(0, 4);
+      while (options.length < 4) options.push("None of the above");
+      return {
+        question: q.question || "What is this book about?",
+        options,
+        correct: correctLetter,
+      };
+    }).filter((q: any) => q.options.length === 4);
+
+    if (validQuestions.length < 5) {
+      return { error: "AI generated too few valid questions" };
+    }
+
+    return { questions: validQuestions, bookGradeLevel, pointsValue };
+  } catch (e: any) {
+    return { error: `AI generation failed: ${e.message}` };
+  }
+}
+
+// Generate iArise lesson content via AI — short readable lessons for students
+async function generateIariseLessonContent(topic: string, ageGroup: string): Promise<{ title: string; lessons: Array<{ title: string; content: string }> } | { error: string }> {
+  const apiKey = await getPerplexityApiKey();
+  if (!apiKey) {
+    return { error: "AI lesson generation is not configured." };
+  }
+  try {
+    const prompt = `You are an expert educator creating lesson content for students. Create a short lesson series about "${topic}" for ${ageGroup} students.
+
+Create 3 short lessons. Each lesson should be age-appropriate, engaging, and educational.
+
+Return ONLY a JSON object (no markdown, no code blocks, no explanation) with this exact format:
+{"title":"${topic} — iArise Lesson","lessons":[{"title":"Lesson 1 Title","content":"2-3 paragraphs of lesson content. Use \n between paragraphs. Include a Key takeaway: line at the end."},{"title":"Lesson 2 Title","content":"..."},{"title":"Lesson 3 Title","content":"..."}]}
+
+Rules:
+- Content should be appropriate for ${ageGroup} reading level
+- Each lesson should be 2-3 short paragraphs
+- Include real educational content — facts, explanations, examples
+- End each lesson with a "Key takeaway:" line
+- Keep it engaging and easy to read`;
+
+    const res = await fetch(PERPLEXITY_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          { role: "system", content: "You are a lesson content generator. Return ONLY valid JSON, no markdown or explanation." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!res.ok) {
+      return { error: `AI API error ${res.status}` };
+    }
+
+    const data = await res.json() as any;
+    const content = data.choices?.[0]?.message?.content || "";
+    if (!content) {
+      return { error: "AI returned empty response" };
+    }
+
+    let jsonStr = content.trim();
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed.lessons || !Array.isArray(parsed.lessons) || parsed.lessons.length === 0) {
+      return { error: "AI generated invalid lesson content" };
+    }
+
+    return {
+      title: parsed.title || `${topic} — iArise Lesson`,
+      lessons: parsed.lessons.map((l: any) => ({
+        title: l.title || "Lesson",
+        content: l.content || "",
+      })),
+    };
+  } catch (e: any) {
+    return { error: `AI lesson generation failed: ${e.message}` };
+  }
+}
+
+// Generate an eye gaze quiz with AI — questions use prompt, visual (emoji), option_a-d, correct_answer
+// Fetch a real photo from Wikipedia/Wikimedia Commons for the given concept
+async function generateImageUrl(concept: string): Promise<string | null> {
+  const cleanConcept = concept.replace(/[?".!]/g, '').trim();
+  if (!cleanConcept || cleanConcept.length < 2) return null;
+  try {
+    const wikiTitle = encodeURIComponent(cleanConcept);
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${wikiTitle}`, {
+      signal: AbortSignal.timeout(5000),
+      headers: { 'User-Agent': 'ARISEReader/1.0 (educational quiz platform)' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    const thumb = data?.thumbnail?.source;
+    if (thumb) {
+      return thumb;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true, customQuestions?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
+  const apiKey = await getPerplexityApiKey();
+  if (!apiKey) {
+    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
+  }
+  try {
+    let guidelines = "";
+    try {
+      guidelines = await storage.getSetting("eye_gaze_quiz_guidelines") || "";
+    } catch {}
+
+    // Build a flexible prompt that accepts any topic, description, or source
+    let userRequest = `Topic: "${topic}"`;
+    if (description && description.trim()) {
+      userRequest += `\nDescription: ${description.trim()}`;
+    }
+    if (sourceLink && sourceLink.trim()) {
+      userRequest += `\nSource/Reference: ${sourceLink.trim()}`;
+    }
+
+    const levelDescriptions: Record<number, string> = {
+      1: "Level 1 (Toddler/Pre-K): Very simple identification — one clear correct answer, obvious distractors. Simple nouns only (e.g., 'Which one is a dog?').",
+      2: "Level 2 (K-1): Basic identification and matching. Simple categories (e.g., 'Which one is red?', 'Which animal says moo?').",
+      3: "Level 3 (2-3): Simple comprehension and categorization (e.g., 'Which one do you wear on your feet?'). Slightly less obvious distractors.",
+      4: "Level 4 (3-5): Multi-step identification and function (e.g., 'Which tool do you use to eat soup?'). More nuanced distractors.",
+      5: "Level 5 (6+): Abstract concepts and reasoning (e.g., 'Which of these is a source of energy?'). Complex distractors.",
+    };
+
     // Check if user provided their own questions
     const customQuestionLines = customQuestions ? customQuestions.split("\n").map((q: string) => q.trim()).filter((q: string) => q.length > 0) : [];
     const hasCustomQuestions = customQuestionLines.length > 0;
