@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Trophy, BookOpen, MessageSquare, Send, ExternalLink, Mail, Award, Lock, User, LayoutGrid, LogOut, Brain, Info } from "lucide-react";
+import { CELEBRATION_OPTIONS, CelebrationStyle } from "@/components/Celebration";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { generateCertificate } from "@/lib/certificate";
@@ -231,6 +232,7 @@ export default function Profile() {
   const [eyeGazeRankInfo, setEyeGazeRankInfo] = useState<{ band: string; overallRank: number | null; eyeGazeRank: number | null; totalInBand: number; totalEyeGazeInBand: number } | null>(null);
   const [showEyeGazeRank, setShowEyeGazeRank] = useState(false);
   const [eyeGazeLoading, setEyeGazeLoading] = useState(false);
+  const [celebrationStyle, setCelebrationStyle] = useState<CelebrationStyle>("confetti");
   const [activeTab, setActiveTab] = useState<"profile" | "leaderboard">("profile");
   const [lbPeriod, setLbPeriod] = useState<"all-time" | "monthly">("all-time");
   const [lbMonth, setLbMonth] = useState(() => {
@@ -333,6 +335,17 @@ export default function Profile() {
       fetchEyeGazeRank();
     }
   }, [user?.is_eye_gaze_user]);
+
+  // Load celebration style preference
+  useEffect(() => {
+    if (!eyeGazeEnabled) return;
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    fetch(`${API_BASE}/api/eye-gaze/celebration-style`, { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.style) setCelebrationStyle(d.style); })
+      .catch(() => {});
+  }, [eyeGazeEnabled]);
 
   // Retry profile fetch after a delay if quizResults are still empty
   useEffect(() => {
@@ -990,6 +1003,39 @@ export default function Profile() {
                 }`} />
               </button>
             </div>
+
+            {/* Celebration Style Picker */}
+            {eyeGazeEnabled && (
+              <div className="mt-4 pt-4 border-t border-muted">
+                <p className="text-sm font-medium mb-1">Celebration Animation</p>
+                <p className="text-xs text-muted-foreground mb-3">Pick what happens when your student answers correctly</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {CELEBRATION_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setCelebrationStyle(opt.value as CelebrationStyle);
+                        const token = authToken || getTokenFromCookie();
+                        const headers: Record<string, string> = { "Content-Type": "application/json" };
+                        if (token) headers["Authorization"] = `Bearer ${token}`;
+                        fetch(`${API_BASE}/api/eye-gaze/celebration-style`, {
+                          method: "POST",
+                          headers,
+                          body: JSON.stringify({ style: opt.value }),
+                        }).catch(() => {});
+                      }}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                        celebrationStyle === opt.value
+                          ? "bg-primary text-primary-foreground border-2 border-primary"
+                          : "bg-muted text-muted-foreground border-2 border-transparent hover:bg-muted/80"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

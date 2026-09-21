@@ -1748,7 +1748,7 @@ export class DatabaseStorage implements IStorage {
     if (qError) throw new Error(qError.message);
     const safe = (questions || []).map((q: any) => {
       const { correct_answer, ...rest } = q;
-      return rest;
+      return { ...rest, correct_answer };
     });
     return { ...quiz, questions: safe };
   }
@@ -2081,7 +2081,7 @@ export class DatabaseStorage implements IStorage {
     if (qError) throw new Error(qError.message);
     const safe = (questions || []).map((q: any) => {
       const { correct_answer, ...rest } = q;
-      return rest;
+      return { ...rest, correct_answer };
     });
     return { ...quiz, questions: safe };
   }

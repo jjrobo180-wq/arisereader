@@ -3,6 +3,7 @@ import { useLocation, useParams } from "wouter";
 import { CheckCircle2, Trophy, RotateCcw, ArrowLeft, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { speakQuestion, speakOption, stopSpeaking, initVoices } from "@/lib/tts";
+import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
 import { API_BASE } from "@/lib/queryClient";
 
@@ -62,6 +63,9 @@ export default function CustomEyeGazeQuiz() {
   const [subtitle, setSubtitle] = useState("");
   const [hoveredOption, setHoveredOption] = useState<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [celebrationTrigger, setCelebrationTrigger] = useState(0);
+  const [celebrationStyle, setCelebrationStyle] = useState<CelebrationStyle>("confetti");
+  const correctButtonRef = useRef<HTMLElement | null>(null);
 
   // Spectator mode for teachers/admins
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
@@ -134,6 +138,17 @@ export default function CustomEyeGazeQuiz() {
     return () => stopSpeaking();
   }, []);
 
+  // Load celebration preference
+  useEffect(() => {
+    const token = authToken || getTokenFromCookie();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    fetch(`${API_BASE}/api/eye-gaze/celebration-style`, { headers })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.style) setCelebrationStyle(d.style); })
+      .catch(() => {});
+  }, [authToken]);
+
   // Speak question when it changes
   useEffect(() => {
     if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
@@ -176,12 +191,19 @@ export default function CustomEyeGazeQuiz() {
       .catch(() => setError("Failed to load quiz"));
   }, [quizId, user, phase, authToken]);
 
-  const handleSelectAnswer = (answer: string) => {
+  const handleSelectAnswer = (answer: string, buttonEl?: HTMLElement) => {
     if (selectedAnswer || autoAdvancing) return;
     const currentQ = quiz?.questions[currentIdx];
     if (!currentQ) return;
     setSelectedAnswer(answer);
     setAutoAdvancing(true);
+
+    // Check if answer is correct and trigger celebration
+    const correctAnswer = (currentQ as any).correct_answer || "";
+    if (correctAnswer && answer === correctAnswer) {
+      if (buttonEl) correctButtonRef.current = buttonEl;
+      setCelebrationTrigger((t) => t + 1);
+    }
 
     const newAnswers = { ...answers, [currentQ.id]: answer };
     setAnswers(newAnswers);
@@ -399,7 +421,7 @@ export default function CustomEyeGazeQuiz() {
           return (
             <button
               key={opt.letter}
-              onClick={() => handleSelectAnswer(opt.letter)}
+              onClick={(e) => handleSelectAnswer(opt.letter, e.currentTarget)}
               onMouseEnter={() => {
                 if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
                 setHoveredOption(opt.letter);
@@ -484,6 +506,9 @@ export default function CustomEyeGazeQuiz() {
           {currentIdx < quiz.questions.length - 1 ? "Moving to next question..." : "Submitting..."}
         </div>
       )}
+
+      {/* Celebration animation on correct answer */}
+      <Celebration style={celebrationStyle} trigger={celebrationTrigger} targetRef={correctButtonRef} />
     </div>
   );
 }

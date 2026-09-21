@@ -4617,6 +4617,27 @@ export async function registerRoutes(
     }
   });
 
+  // Celebration style preference
+  app.get("/api/eye-gaze/celebration-style", authMiddleware, async (req: any, res) => {
+    try {
+      const style = await storage.getSetting(`celebration_style_${req.user.id}`);
+      res.json({ style: style || "confetti" });
+    } catch {
+      res.json({ style: "confetti" });
+    }
+  });
+
+  app.post("/api/eye-gaze/celebration-style", authMiddleware, async (req: any, res) => {
+    try {
+      const { style } = req.body;
+      if (!style) return res.status(400).json({ message: "style is required" });
+      await storage.saveSetting(`celebration_style_${req.user.id}`, style);
+      res.json({ success: true, style });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ─── EYE GAZE APPROVAL WORKFLOW ────────────────────────────────────
 
   // Student: Request eye gaze toggle (creates a pending request, does NOT toggle directly)

@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye } from "lucide-react";
 import { initVoices, speakQuestion, speak, stopSpeaking } from "@/lib/tts";
+import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
 function getTokenFromCookie(): string | null {
   const match = document.cookie.match(/arise_session=([^;]+)/);
@@ -51,6 +52,9 @@ export default function EyeGazeQuiz() {
   const [submitting, setSubmitting] = useState(false);
   const countdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [celebrationTrigger, setCelebrationTrigger] = useState(0);
+  const [celebrationStyle, setCelebrationStyle] = useState<CelebrationStyle>("confetti");
+  const correctButtonRef = useRef<HTMLElement | null>(null);
 
   // Initialize voices
   useEffect(() => {
@@ -59,6 +63,17 @@ export default function EyeGazeQuiz() {
       window.speechSynthesis.onvoiceschanged = () => initVoices();
     }
     return () => stopSpeaking();
+  }, []);
+
+  // Load celebration preference
+  useEffect(() => {
+    const token = getTokenFromCookie();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    fetch(`${API_BASE}/api/eye-gaze/celebration-style`, { headers })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.style) setCelebrationStyle(d.style); })
+      .catch(() => {});
   }, []);
 
   // Load quiz data when phase is loading
@@ -312,6 +327,13 @@ export default function EyeGazeQuiz() {
 
     setSubmitting(true);
     stopSpeaking();
+
+    // Check if answer is correct and trigger celebration
+    const correctAnswer = (currentQ as any).correct_answer || "";
+    if (correctAnswer && answer === correctAnswer) {
+      setCelebrationTrigger((t) => t + 1);
+    }
+
     const newAnswers = { ...answers, [currentQ.id]: answer };
     setAnswers(newAnswers);
 
@@ -585,6 +607,9 @@ export default function EyeGazeQuiz() {
           </p>
         </div>
       )}
+
+      {/* Celebration animation on correct answer */}
+      <Celebration style={celebrationStyle} trigger={celebrationTrigger} targetRef={correctButtonRef} />
     </div>
   );
 }
