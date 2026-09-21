@@ -296,28 +296,10 @@ export default function EyeGazeQuiz() {
     const currentQ = quiz.questions[currentIdx];
     if (!currentQ) return;
 
-    // Stop any ongoing TTS and say "You chose A. Cat"
+    // Just set the selected answer — no countdown
     stopSpeaking();
     setSelectedAnswer(answer);
-    setCountdownAnswer(answer);
-
-    // Find the answer text
-    const optMap: Record<string, string> = {
-      A: currentQ.option_a,
-      B: currentQ.option_b,
-      C: currentQ.option_c,
-      D: currentQ.option_d,
-    };
-    const answerText = optMap[answer] || "";
-    speak(`You chose ${answer}. ${answerText}`, {
-      rate: 0.9,
-      onSubtitle: (sub) => setSubtitle(sub),
-      onEnd: () => {
-        setSubtitle("");
-        // Start 5-second countdown
-        setCountdown(5);
-      },
-    });
+    setSubtitle("");
   };
 
   const confirmAnswer = (answer: string) => {
@@ -491,7 +473,7 @@ export default function EyeGazeQuiz() {
             <button
               key={opt.letter}
               onClick={() => answersRead && handleSelectAnswer(opt.letter)}
-              disabled={!answersRead || !!countdown || submitting}
+              disabled={!answersRead || submitting}
               style={{
                 padding: "2rem 1rem",
                 fontSize: "1.5rem",
@@ -500,7 +482,7 @@ export default function EyeGazeQuiz() {
                 border: isSelected ? "3px solid hsl(21 100% 50%)" : isHighlighted ? "2px solid hsl(21 100% 50% / 0.5)" : "2px solid hsl(0 0% 20%)",
                 background: isSelected ? "hsl(21 100% 50%)" : isHighlighted ? "hsl(21 100% 50% / 0.08)" : "hsl(0 0% 14%)",
                 color: isSelected ? "hsl(0 0% 0%)" : "hsl(0 0% 100%)",
-                cursor: !answersRead || countdown ? "default" : "pointer",
+                cursor: !answersRead ? "default" : "pointer",
                 transition: "all 0.2s ease",
                 minHeight: "120px",
                 display: "flex",
@@ -517,70 +499,35 @@ export default function EyeGazeQuiz() {
         })}
       </div>
 
-      {/* Countdown overlay - shows when user has selected an answer */}
-      {countdown !== null && (
+      {/* Big Submit button - shows when user has selected an answer */}
+      {selectedAnswer && !submitting && (
         <div style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.85)",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
           justifyContent: "center",
-          gap: "1.5rem",
-          zIndex: 200,
+          padding: "1rem 0 0.5rem",
         }}>
-          <div style={{
-            width: "120px",
-            height: "120px",
-            borderRadius: "50%",
-            border: "4px solid hsl(21 100% 50%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "3.5rem",
-            fontWeight: 800,
-            color: "hsl(21 100% 50%)",
-          }}>
-            {countdown}
-          </div>
-          <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 100%)", fontWeight: 700, textAlign: "center" }}>
-            Submitting your answer...
-          </p>
-          <p style={{ fontSize: "1rem", color: "hsl(0 0% 66%)", textAlign: "center" }}>
-            Tap a different answer to change your selection
-          </p>
-          {/* Show answer options during countdown */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", maxWidth: "400px", width: "100%" }}>
-            {options.map((opt) => {
-              const isSelected = countdownAnswer === opt.letter;
-              return (
-                <button
-                  key={opt.letter}
-                  onClick={() => {
-                    // Reset countdown with new answer
-                    if (countdownInterval.current) clearInterval(countdownInterval.current);
-                    setCountdownAnswer(opt.letter);
-                    setSelectedAnswer(opt.letter);
-                    setCountdown(5);
-                  }}
-                  style={{
-                    padding: "1rem",
-                    fontSize: "1.1rem",
-                    fontWeight: 600,
-                    borderRadius: "0.75rem",
-                    border: isSelected ? "3px solid hsl(21 100% 50%)" : "2px solid hsl(0 0% 20%)",
-                    background: isSelected ? "hsl(21 100% 50%)" : "hsl(0 0% 14%)",
-                    color: isSelected ? "hsl(0 0% 0%)" : "hsl(0 0% 100%)",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {opt.letter}. {opt.text}
-                </button>
-              );
-            })}
-          </div>
+          <button
+            onClick={() => confirmAnswer(selectedAnswer)}
+            style={{
+              padding: "1.25rem 3rem",
+              fontSize: "1.5rem",
+              fontWeight: 800,
+              borderRadius: "1rem",
+              border: "none",
+              background: "hsl(21 100% 50%)",
+              color: "hsl(0 0% 0%)",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: "0 4px 15px hsl(21 100% 50% / 0.4)",
+            }}
+          >
+            ✓ Submit Answer
+          </button>
+        </div>
+      )}
+      {submitting && (
+        <div style={{ textAlign: "center", padding: "1rem", color: "hsl(0 0% 66%)", fontSize: "1.1rem" }}>
+          Submitting...
         </div>
       )}
 

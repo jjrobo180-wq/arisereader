@@ -192,20 +192,26 @@ export default function CustomEyeGazeQuiz() {
   }, [quizId, user, phase, authToken]);
 
   const handleSelectAnswer = (answer: string, buttonEl?: HTMLElement) => {
-    if (selectedAnswer || autoAdvancing) return;
+    if (autoAdvancing) return;
     const currentQ = quiz?.questions[currentIdx];
     if (!currentQ) return;
+    // Allow changing selection — just set the selected answer
     setSelectedAnswer(answer);
+  };
+
+  const handleSubmitAnswer = () => {
+    if (!selectedAnswer || autoAdvancing) return;
+    const currentQ = quiz?.questions[currentIdx];
+    if (!currentQ) return;
     setAutoAdvancing(true);
 
     // Check if answer is correct and trigger celebration
     const correctAnswer = (currentQ as any).correct_answer || "";
-    if (correctAnswer && answer === correctAnswer) {
-      if (buttonEl) correctButtonRef.current = buttonEl;
+    if (correctAnswer && selectedAnswer === correctAnswer) {
       setCelebrationTrigger((t) => t + 1);
     }
 
-    const newAnswers = { ...answers, [currentQ.id]: answer };
+    const newAnswers = { ...answers, [currentQ.id]: selectedAnswer };
     setAnswers(newAnswers);
 
     advanceTimer.current = setTimeout(() => {
@@ -495,7 +501,32 @@ export default function CustomEyeGazeQuiz() {
         </div>
       )}
 
-      {/* Auto-advance indicator */}
+      {/* Submit button - shows when user has selected an answer */}
+      {selectedAnswer && !autoAdvancing && (
+        <div style={{
+          display: "flex",
+          justifyContent: "center",
+          padding: "1rem 0 0.5rem",
+        }}>
+          <button
+            onClick={handleSubmitAnswer}
+            style={{
+              padding: "1.25rem 3rem",
+              fontSize: "1.5rem",
+              fontWeight: 800,
+              borderRadius: "1rem",
+              border: "none",
+              background: "hsl(21 100% 50%)",
+              color: "hsl(0 0% 0%)",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: "0 4px 15px hsl(21 100% 50% / 0.4)",
+            }}
+          >
+            ✓ Submit Answer
+          </button>
+        </div>
+      )}
       {autoAdvancing && (
         <div style={{
           textAlign: "center",
