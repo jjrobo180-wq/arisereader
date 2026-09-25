@@ -127,6 +127,13 @@ export default function Admin() {
   const [filterTeacher, setFilterTeacher] = useState("");
   const [userGradesMap, setUserGradesMap] = useState<Record<string, string>>({});
   const [resetStudent, setResetStudent] = useState<Student | null>(null);
+  const [pointsStudent, setPointsStudent] = useState<Student | null>(null);
+  const [manualPoints, setManualPoints] = useState("");
+  const [manualReason, setManualReason] = useState("");
+  const [manualDate, setManualDate] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const [manualHistory, setManualHistory] = useState<any[]>([]);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualError, setManualError] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
   const [messageStudent, setMessageStudent] = useState<Student | null>(null);
@@ -1370,6 +1377,52 @@ export default function Admin() {
       }
     } catch {}
     setAdminLbLoading(false);
+  };
+
+  const openManualPoints = async (student: Student) => {
+    setPointsStudent(student);
+    setManualPoints("");
+    setManualReason("");
+    setManualError("");
+    setManualHistory([]);
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${student.id}/manual-points`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) setManualHistory(await res.json());
+      else setManualError("Could not load point history.");
+    } catch { setManualError("Could not load point history."); }
+  };
+
+  const awardManualPoints = async () => {
+    if (!pointsStudent || manualSaving) return;
+    const points = Number(manualPoints);
+    if (!Number.isSafeInteger(points) || points < 1 || points > 1000 || manualReason.trim().length < 3 || !manualDate) {
+      setManualError("Enter 1–1000 whole points, a reason, and the date earned.");
+      return;
+    }
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    if (!window.confirm(`Award ${points} points to ${pointsStudent.displayName} for ${manualReason.trim()}?`)) return;
+    setManualSaving(true);
+    setManualError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${pointsStudent.id}/manual-points`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ points, reason: manualReason.trim(), earnedOn: manualDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not award points.");
+      setManualHistory(prev => [data, ...prev]);
+      setManualPoints("");
+      setManualReason("");
+      await fetchStudents();
+      fetchAdminLeaderboard();
+    } catch (error: any) { setManualError(error.message || "Could not award points."); }
+    finally { setManualSaving(false); }
   };
 
   const handleResetPassword = async () => {
@@ -3107,6 +3160,10 @@ Generate exactly 10 questions.`;
                         <div className="text-xs text-muted-foreground">{s.quizzesTaken} quizzes</div>
                       </div>
                     <div className="flex gap-1 flex-shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => openManualPoints(s)}>
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline ml-1">Points</span>
+                      </Button>
                       {/* View detail */}
                       <Button variant="ghost" size="sm" onClick={() => handleViewStudent(s)}>
                         <Eye className="w-3.5 h-3.5" />
@@ -4153,6 +4210,26 @@ Generate exactly 10 questions.`;
       </main>
 
       {/* Student detail dialog */}
+      <Dialog open={!!pointsStudent} onOpenChange={(open) => { if (!open && !manualSaving) setPointsStudent(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Award points to {pointsStudent?.displayName}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">For a paper quiz or earlier work. This adds points to the student's total and the month of the date earned; it does not count as an online quiz.</p>
+          <div className="space-y-3">
+            <div><Label htmlFor="manual-points">Points</Label><Input id="manual-points" type="number" min="1" max="1000" step="1" value={manualPoints} onChange={e => setManualPoints(e.target.value)} /></div>
+            <div><Label htmlFor="manual-reason">Reason or book title</Label><Input id="manual-reason" maxLength={200} placeholder="Paper quiz: book title" value={manualReason} onChange={e => setManualReason(e.target.value)} /></div>
+            <div><Label htmlFor="manual-date">Date earned</Label><Input id="manual-date" type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} /></div>
+            {manualError && <p role="alert" className="text-sm text-destructive">{manualError}</p>}
+            <Button disabled={manualSaving} onClick={awardManualPoints} className="w-full">{manualSaving ? "Saving..." : "Award points"}</Button>
+          </div>
+          <div className="max-h-40 overflow-y-auto text-sm space-y-1">
+            <p className="font-medium">Recent manual awards</p>
+            {manualHistory.length === 0 ? <p className="text-muted-foreground">No manual awards recorded.</p> : manualHistory.map(a => (
+              <p key={a.id}>{a.earned_on}: +{a.points} points — {a.reason}</p>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!detailStudent} onOpenChange={(open) => { if (!open) { setDetailStudent(null); setStudentDetail(null); } }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
