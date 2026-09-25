@@ -2745,7 +2745,7 @@ Generate exactly 10 questions.`;
                         {entry.grade && <span className="ml-1">· Gr {entry.grade}</span>}
                       </p>
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="w-full sm:w-auto flex sm:block items-center justify-between sm:text-right flex-shrink-0">
                       <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
                       <div className="text-xs text-muted-foreground">pts</div>
                     </div>
@@ -3695,7 +3695,7 @@ Generate exactly 10 questions.`;
           <Dialog open={!!activeReview} onOpenChange={(open) => { if (!open) { setActiveReview(null); setReviewDetail(null); } }}>
             <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 pr-8 text-base sm:text-lg">
                   <FileSearch className="w-5 h-5 text-orange-400" />
                   Quiz Review: {activeReview.studentName}
                 </DialogTitle>
@@ -4235,7 +4235,7 @@ Generate exactly 10 questions.`;
       </Dialog>
 
       <Dialog open={!!detailStudent} onOpenChange={(open) => { if (!open) { setDetailStudent(null); setStudentDetail(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
@@ -4254,7 +4254,7 @@ Generate exactly 10 questions.`;
           ) : studentDetail ? (
             <div className="space-y-4">
               {/* Student info */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div className="text-center p-3 rounded-xl bg-primary/10">
                   <div className="text-xl font-bold text-primary">{studentDetail.totalPoints}</div>
                   <div className="text-xs text-muted-foreground">Points</div>
@@ -4272,9 +4272,9 @@ Generate exactly 10 questions.`;
               {/* Assign School */}
               <div className="p-3 rounded-xl bg-muted/30 border border-border">
                 <Label className="text-xs text-muted-foreground mb-2 block">Assign School</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
-                    className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
+                    className="w-full sm:flex-1 px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm"
                     defaultValue={detailStudent?.schoolId || ""}
                     onChange={async (e) => {
                       const schoolId = e.target.value ? parseInt(e.target.value) : null;
@@ -4342,8 +4342,8 @@ Generate exactly 10 questions.`;
                 ) : (
                   <div className="space-y-2">
                     {(studentDetail.quizHistory || []).map((q, i) => (
-                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                        <div className="w-8 h-12 flex-shrink-0">
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg bg-muted/30">
+                        <div className="w-10 h-14 sm:w-8 sm:h-12 flex-shrink-0">
                           {q.coverUrl ? (
                             <img src={q.coverUrl} alt={q.title} className="w-full h-full object-cover rounded" />
                           ) : (
@@ -4403,7 +4403,7 @@ Generate exactly 10 questions.`;
                 {/* i-Ready entry form */}
                 <div className="rounded-lg border border-border p-3 bg-muted/20">
                   <div className="text-xs font-semibold mb-2 text-muted-foreground">Enter i-Ready Reading Score (bypasses initial assessment)</div>
-                  <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                     <div>
                       <Label className="text-xs">Grade Level</Label>
                       <select
@@ -4422,7 +4422,7 @@ Generate exactly 10 questions.`;
                       <Input type="number" placeholder="e.g. 542" value={ireadyScore} onChange={(e) => setIreadyScore(e.target.value)} className="h-9" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                     <div>
                       <Label className="text-xs">Comprehension % (optional)</Label>
                       <Input type="number" placeholder="e.g. 75" value={ireadyComp} onChange={(e) => setIreadyComp(e.target.value)} className="h-9" />
