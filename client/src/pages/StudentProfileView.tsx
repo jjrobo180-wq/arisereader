@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Trophy, BookOpen, Award } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
+import { printParentInvites } from "@/lib/parentInvites";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -100,7 +101,7 @@ export default function StudentProfileView() {
             <h1 className="text-lg font-bold text-white">{data.student.displayName}</h1>
             <p className="text-xs text-muted-foreground">@{data.student.username}</p>
           </div>
-          <div className="w-16" />
+          <Button variant="outline" size="sm" onClick={() => printParentInvites(Number(studentId)).catch(e => window.alert(e.message))}>Print parent letter</Button>
         </div>
       </header>
 
