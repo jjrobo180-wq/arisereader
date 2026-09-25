@@ -3148,28 +3148,30 @@ Generate exactly 10 questions.`;
                     return (
                     <div
                       key={s.id}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
-                      <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-                        {s.displayName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="w-full sm:w-auto flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                          {s.displayName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">{s.displayName}</p>
-                        <p className="text-xs text-muted-foreground">@{s.username}{sBand ? ` · ${sBand} Band${sGrade ? ` · Grade ${sGrade}` : ''}` : ''}</p>
+                        <p className="text-xs text-muted-foreground break-words">@{s.username}{sBand ? ` · ${sBand} Band${sGrade ? ` · Grade ${sGrade}` : ''}` : ''}</p>
+                        </div>
                       </div>
-                      <div className="text-right flex-shrink-0 hidden sm:block">
+                      <div className="w-full sm:w-auto flex sm:block items-center justify-between sm:text-right flex-shrink-0 px-1 sm:px-0">
                         <div className="font-bold text-sm">{s.totalPoints} pts</div>
                         <div className="text-xs text-muted-foreground">{s.quizzesTaken} quizzes</div>
                       </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button variant="outline" size="sm" onClick={() => openManualPoints(s)}>
+                    <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-1 w-full sm:w-auto flex-shrink-0">
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center" onClick={() => openManualPoints(s)}>
                         <PlusCircle className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline ml-1">Points</span>
+                        <span className="ml-1">Points</span>
                       </Button>
                       {/* View detail */}
-                      <Button variant="ghost" size="sm" onClick={() => handleViewStudent(s)}>
+                      <Button variant="ghost" size="sm" className="w-full sm:w-auto justify-center border border-border sm:border-0" onClick={() => handleViewStudent(s)}>
                         <Eye className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline ml-1">Details</span>
+                        <span className="ml-1">Details</span>
                       </Button>
 
                       {/* Reset password */}
@@ -3178,9 +3180,9 @@ Generate exactly 10 questions.`;
                         else { setResetStudent(null); setNewPassword(""); setResetSuccess(""); }
                       }}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center">
                             <KeyRound className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline ml-1">Reset</span>
+                            <span className="ml-1">Reset</span>
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -3220,9 +3222,9 @@ Generate exactly 10 questions.`;
                         else { setMessageStudent(null); setMessageText(""); setLinkUrl(""); setSendSuccess(""); }
                       }}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center">
                             <Send className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline ml-1">Message</span>
+                            <span className="ml-1">Message</span>
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -3276,9 +3278,9 @@ Generate exactly 10 questions.`;
                         }
                       }}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center">
                             <Gift className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline ml-1">Reward</span>
+                            <span className="ml-1">Reward</span>
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-lg">
