@@ -4237,9 +4237,9 @@ Generate exactly 10 questions.`;
       <Dialog open={!!detailStudent} onOpenChange={(open) => { if (!open) { setDetailStudent(null); setStudentDetail(null); } }}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              {detailStudent?.displayName}
+            <DialogTitle className="flex items-center gap-2 pr-8 text-base sm:text-lg">
+              <Users className="w-5 h-5 flex-shrink-0" />
+              <span className="truncate">{detailStudent?.displayName}</span>
             </DialogTitle>
           </DialogHeader>
           {detailStudent && (
@@ -4303,9 +4303,9 @@ Generate exactly 10 questions.`;
               {/* Assign Grade */}
               <div className="p-3 rounded-xl bg-muted/30 border border-border">
                 <Label className="text-xs text-muted-foreground mb-2 block">Assign Grade Level</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
-                    className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
+                    className="w-full sm:flex-1 px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm"
                     defaultValue={""}
                     onChange={async (e) => {
                       const grade = e.target.value;
@@ -4354,7 +4354,7 @@ Generate exactly 10 questions.`;
                           <p className="text-sm font-medium truncate">{q.title}</p>
                           <p className="text-xs text-muted-foreground">{q.pointsValue || 10} pts</p>
                         </div>
-                        <div className="text-right flex-shrink-0">
+                        <div className="w-full sm:w-auto flex sm:block items-center justify-between sm:text-right flex-shrink-0">
                           <div className="font-bold text-sm">{q.score}/{q.total}</div>
                           <div className="text-xs text-muted-foreground">{q.pointsEarned || q.score} pts earned</div>
                         </div>
