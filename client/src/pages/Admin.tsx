@@ -2199,7 +2199,7 @@ Generate exactly 10 questions.`;
             </CardContent>
           </Card>
           <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-3">
+            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
                 <BookOpen className="w-5 h-5 text-green-400" />
               </div>
@@ -2210,7 +2210,7 @@ Generate exactly 10 questions.`;
             </CardContent>
           </Card>
           <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-3">
+            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                 <Trophy className="w-5 h-5 text-primary" />
               </div>
@@ -2221,7 +2221,7 @@ Generate exactly 10 questions.`;
             </CardContent>
           </Card>
           <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-3">
+            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
                 <BookOpen className="w-5 h-5 text-purple-400" />
               </div>
@@ -2232,7 +2232,7 @@ Generate exactly 10 questions.`;
             </CardContent>
           </Card>
           <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-3">
+            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
               <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center flex-shrink-0">
                 <FileQuestion className="w-5 h-5 text-orange-400" />
               </div>
@@ -2260,7 +2260,7 @@ Generate exactly 10 questions.`;
               <Label className="text-sm font-medium">Announcement Banner</Label>
             </div>
             <p className="text-xs text-muted-foreground">This message appears at the top of every student's Library page.</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 placeholder="Enter an announcement (leave empty to clear)..."
@@ -2379,7 +2379,7 @@ Generate exactly 10 questions.`;
               </div>
             )}
             {aiKeyMsg && <p className="text-sm text-green-400">{aiKeyMsg}</p>}
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 type="password"
                 value={aiApiKey}
@@ -2514,7 +2514,7 @@ Generate exactly 10 questions.`;
               />
               <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(proctorPassword)}>Copy</Button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 placeholder="New proctor password..."
@@ -2797,7 +2797,7 @@ Generate exactly 10 questions.`;
         <div ref={teachersRef}>
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <span className="flex flex-wrap items-center gap-2">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -2850,15 +2850,15 @@ Generate exactly 10 questions.`;
                 <h3 className="font-semibold text-sm text-yellow-500 mb-2">Pending Approvals</h3>
                 <div className="space-y-2">
                   {pendingTeachers.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                    <div key={t.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
                       <div>
                         <span className="font-semibold text-white">{t.display_name}</span>
                         <span className="text-xs text-muted-foreground ml-2">@{t.username}</span>
                         {t.email && <span className="text-xs text-muted-foreground ml-2">| {t.email}</span>}
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleApproveTeacher(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-primary text-white hover:opacity-90">Approve</button>
-                        <button onClick={() => handleDeleteUser(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-red-600 text-white hover:opacity-90">Delete</button>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button onClick={() => handleApproveTeacher(t.id)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-primary text-white hover:opacity-90">Approve</button>
+                        <button onClick={() => handleDeleteUser(t.id)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-red-600 text-white hover:opacity-90">Delete</button>
                       </div>
                     </div>
                   ))}
@@ -2872,7 +2872,7 @@ Generate exactly 10 questions.`;
             ) : (
               <div className="space-y-2">
                 {allTeachers.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between bg-muted/30 hover:bg-muted/50 transition-colors rounded-xl p-3">
+                  <div key={t.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/30 hover:bg-muted/50 transition-colors rounded-xl p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center">
                         {(t.display_name || "?").charAt(0)}
@@ -3185,7 +3185,7 @@ Generate exactly 10 questions.`;
                             <span className="ml-1">Reset</span>
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
                           <DialogHeader>
                             <DialogTitle>Reset Password for {s.displayName}</DialogTitle>
                           </DialogHeader>
@@ -3227,7 +3227,7 @@ Generate exactly 10 questions.`;
                             <span className="ml-1">Message</span>
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
                           <DialogHeader>
                             <DialogTitle>Send Message to {s.displayName}</DialogTitle>
                           </DialogHeader>
@@ -3584,7 +3584,7 @@ Generate exactly 10 questions.`;
               <div className="space-y-3">
                 {clubSignups.map((s) => (
                   <div key={s.id} className={`rounded-xl border p-4 ${s.status === "pending" ? "border-amber-500/30 bg-amber-500/5" : s.status === "confirmed" ? "border-green-500/30 bg-green-500/5" : "border-border bg-muted/30"}`}>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                       <div>
                         <span className="font-semibold">{s.student_name}</span>
                         {s.grade && <span className="text-sm text-muted-foreground ml-2">· {s.grade}</span>}
@@ -3661,7 +3661,7 @@ Generate exactly 10 questions.`;
               <div className="space-y-3">
                 {reviewRequests.map((r) => (
                   <div key={r.id} className={`rounded-xl border p-4 ${r.status === "pending" ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-muted/30"}`}>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                       <div>
                         <span className="font-semibold">{r.studentName}</span>
                         <span className="text-sm text-muted-foreground ml-2">{r.bookTitle}</span>
@@ -3706,7 +3706,7 @@ Generate exactly 10 questions.`;
                 </div>
               ) : reviewDetail ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg bg-muted/50 p-3">
                     <div>
                       <p className="font-semibold">{reviewDetail.book?.title}</p>
                       <p className="text-sm text-muted-foreground">Student: {reviewDetail.student?.displayName}</p>
@@ -3729,7 +3729,7 @@ Generate exactly 10 questions.`;
                       return (
                         <div key={q.id} className={`rounded-lg border p-4 ${isCorrect ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
                           <p className="font-medium mb-2">{idx + 1}. {q.questionText}</p>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                             {[
                               { letter: "a", text: q.optionA },
                               { letter: "b", text: q.optionB },
@@ -3887,7 +3887,7 @@ Generate exactly 10 questions.`;
           </CardHeader>
           <CardContent>
             {/* Create school */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
               <Input
                 value={newSchoolName}
                 onChange={(e) => setNewSchoolName(e.target.value)}
@@ -3907,7 +3907,7 @@ Generate exactly 10 questions.`;
               <div className="space-y-3">
                 {schools.map((school: any) => (
                   <div key={school.id} className="rounded-xl border border-border p-4 bg-muted/20">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                       <div>
                         <h4 className="font-medium text-sm">{school.name}</h4>
                         <p className="text-xs text-muted-foreground">
@@ -3923,7 +3923,7 @@ Generate exactly 10 questions.`;
                     </div>
 
                     {/* Create class under school */}
-                    <div className="flex gap-2 mb-3">
+                    <div className="flex flex-col sm:flex-row gap-2 mb-3">
                       <Input
                         value={newClassName[school.id] || ""}
                         onChange={(e) => setNewClassName({ ...newClassName, [school.id]: e.target.value })}
@@ -3944,7 +3944,7 @@ Generate exactly 10 questions.`;
                       const stats = classStats[cls.id];
                       return (
                         <div key={cls.id} className="rounded-lg bg-background/50 p-3 mb-2">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div>
                               <span className="text-sm font-medium">{cls.name}</span>
                               {stats && (
@@ -3992,7 +3992,7 @@ Generate exactly 10 questions.`;
                 const isRejecting = rejectingQuizId === quiz.id;
                 return (
                   <div key={quiz.id} className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex items-start gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm">{quiz.book_title}</span>
@@ -4055,7 +4055,7 @@ Generate exactly 10 questions.`;
                         })}
 
                         {isRejecting ? (
-                          <div className="flex gap-2 items-center">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <input
                               type="text"
                               placeholder="Reason for rejection (optional)..."
@@ -4071,7 +4071,7 @@ Generate exactly 10 questions.`;
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <Button size="sm" variant="default" onClick={() => handleApproveQuiz(quiz.id)}>
                               <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve & Publish
                             </Button>
@@ -4127,7 +4127,7 @@ Generate exactly 10 questions.`;
                       <p className="text-sm text-muted-foreground text-center py-4">No benchmark windows configured.</p>
                     ) : (
                       growthCheckWindows.map((w) => (
-                        <div key={w.id} className="flex items-center justify-between bg-muted/30 rounded-xl p-3">
+                        <div key={w.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/30 rounded-xl p-3">
                           <div>
                             <div className="font-medium text-sm capitalize">{w.window_name || w.name || "Unknown"}</div>
                             <div className="text-xs text-muted-foreground">
@@ -4215,7 +4215,7 @@ Generate exactly 10 questions.`;
 
       {/* Student detail dialog */}
       <Dialog open={!!pointsStudent} onOpenChange={(open) => { if (!open && !manualSaving) setPointsStudent(null); }}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader><DialogTitle>Award points to {pointsStudent?.displayName}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">For a paper quiz or earlier work. This adds points to the student's total and the month of the date earned; it does not count as an online quiz.</p>
           <div className="space-y-3">
@@ -4556,7 +4556,7 @@ Generate exactly 10 questions.`;
                         className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button size="sm" onClick={handleComposeSend} disabled={!composeStudent || !composeText.trim()} className="flex-1">
                         <Send className="w-3 h-3 mr-1" />
                         Send Message
@@ -4612,7 +4612,7 @@ Generate exactly 10 questions.`;
                           {convo.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <span className={`text-sm truncate ${convo.unread ? "font-bold text-foreground" : "font-medium text-foreground"}`}>{convo.name}</span>
                             <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{new Date(convo.lastDate).toLocaleDateString()}</span>
                           </div>
@@ -4711,7 +4711,7 @@ Generate exactly 10 questions.`;
 
       {/* Update cover dialog */}
       <Dialog open={!!coverBook} onOpenChange={(open) => { if (!open) { setCoverBook(null); setCoverUrl(""); setCoverSuccess(""); } }}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Update Cover for {coverBook?.title}</DialogTitle>
           </DialogHeader>
@@ -4824,7 +4824,7 @@ Generate exactly 10 questions.`;
               </div>
               {/* Grade Band Suggestion */}
               <div className="space-y-2 p-3 rounded-xl bg-muted/20 border border-border">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <Label className="text-sm font-medium">Grade Band</Label>
                   <button type="button" onClick={handleSuggestBand} disabled={bandSuggesting || !quizForm.title.trim()} className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
                     {bandSuggesting ? "Suggesting..." : "Suggest Band"}
@@ -4833,7 +4833,7 @@ Generate exactly 10 questions.`;
                 {bandSuggestion && (
                   <p className="text-xs text-green-400">Suggested: <span className="font-semibold">{bandSuggestion}</span></p>
                 )}
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {["K-2", "3-5", "6-8", "9-12"].map(b => (
                     <button
                       key={b}
