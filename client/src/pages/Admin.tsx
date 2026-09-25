@@ -2095,9 +2095,9 @@ Generate exactly 10 questions.`;
   const unreadMsgs = (studentMsgs || []).filter(m => !m.isRead).length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-start gap-1.5 sm:gap-3 min-h-16 py-2">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
+      <header className="sticky top-0 z-50 w-full max-w-full overflow-x-hidden bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-start gap-1.5 sm:gap-3 min-h-16 py-2">
           <Button variant="ghost" size="sm" onClick={() => navigate("/progress")} className="flex-shrink-0">
             <Brain className="w-4 h-4" />
             <span className="hidden sm:inline">Progress</span>
@@ -2129,7 +2129,7 @@ Generate exactly 10 questions.`;
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6">
+      <main className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 overflow-x-hidden">
         {/* Pending AI quiz alert banner */}
         {pendingQuizzes.length > 0 && (
           <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -4182,7 +4182,7 @@ Generate exactly 10 questions.`;
                     <p className="text-sm text-muted-foreground text-center py-4">No student attempts yet.</p>
                   ) : (
                     <div className="overflow-x-auto -mx-2 px-2">
-                      <table className="w-full text-sm">
+                      <table className="w-full min-w-[640px] text-sm">
                         <thead>
                           <tr className="border-b border-border text-left text-xs text-muted-foreground">
                             <th className="py-2 px-2">Student</th>
