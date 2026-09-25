@@ -2097,7 +2097,7 @@ Generate exactly 10 questions.`;
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 flex items-center gap-1 sm:gap-3 h-16">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-start gap-1.5 sm:gap-3 min-h-16 py-2">
           <Button variant="ghost" size="sm" onClick={() => navigate("/progress")} className="flex-shrink-0">
             <Brain className="w-4 h-4" />
             <span className="hidden sm:inline">Progress</span>
@@ -2110,8 +2110,8 @@ Generate exactly 10 questions.`;
             <BarChart3 className="w-4 h-4" />
             <span className="hidden sm:inline">Polls</span>
           </Button>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-sm sm:text-base truncate">Admin Dashboard</h1>
+          <div className="order-first basis-full sm:order-none sm:basis-auto sm:flex-1 min-w-0 text-center sm:text-left pb-1 sm:pb-0">
+            <h1 className="font-bold text-base sm:text-base truncate">Admin Dashboard</h1>
           </div>
           <NotificationBell refreshKey={notifRefreshKey} onNavigate={handleNotifNavigate} />
           <Button variant="outline" size="sm" onClick={() => { fetchStudentMsgs(); fetchSentMsgs(); fetchUnreadMsgCount(); setActiveConversationUserId(null); setReplyText(""); setReplyLink(""); setReplySuccess(""); setShowInbox(true); }} className="relative">
@@ -2129,10 +2129,10 @@ Generate exactly 10 questions.`;
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6">
         {/* Pending AI quiz alert banner */}
         {pendingQuizzes.length > 0 && (
-          <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex items-center gap-3">
+          <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
               <ShieldCheck className="w-5 h-5 text-orange-400" />
             </div>
@@ -2147,7 +2147,7 @@ Generate exactly 10 questions.`;
             <Button
               size="sm"
               variant="default"
-              className="bg-orange-500 hover:bg-orange-600 text-white"
+              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
               onClick={() => {
                 const el = document.querySelector('[data-section="ai-quiz-review"]');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2158,10 +2158,10 @@ Generate exactly 10 questions.`;
           </div>
         )}
         {/* Welcome banner */}
-        <div className="rounded-2xl bg-primary text-white p-6 sm:p-8 shadow-lg">
+        <div className="rounded-2xl bg-primary text-white p-4 sm:p-8 shadow-lg">
           <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
           <p className="mt-1 text-white/90">Welcome back! Here's your platform overview.</p>
-          <div className="flex gap-4 sm:gap-6 mt-4 flex-wrap">
+          <div className="grid grid-cols-2 gap-4 sm:flex sm:gap-6 mt-4 sm:flex-wrap">
             <div>
               <div className="text-3xl font-bold">{students.length}</div>
               <div className="text-sm text-white/80">Students</div>
@@ -2186,10 +2186,10 @@ Generate exactly 10 questions.`;
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4">
           <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
                 <Users className="w-5 h-5 text-blue-400" />
               </div>
               <div>
@@ -2200,7 +2200,7 @@ Generate exactly 10 questions.`;
           </Card>
           <Card className="shadow-md">
             <CardContent className="p-5 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
                 <BookOpen className="w-5 h-5 text-green-400" />
               </div>
               <div>
@@ -2211,7 +2211,7 @@ Generate exactly 10 questions.`;
           </Card>
           <Card className="shadow-md">
             <CardContent className="p-5 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                 <Trophy className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -2222,7 +2222,7 @@ Generate exactly 10 questions.`;
           </Card>
           <Card className="shadow-md">
             <CardContent className="p-5 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
                 <BookOpen className="w-5 h-5 text-purple-400" />
               </div>
               <div>
@@ -2253,7 +2253,7 @@ Generate exactly 10 questions.`;
 
           {/* Announcement banner */}
           <div className="space-y-2 pt-4 border-t border-border mt-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
               </svg>
@@ -2284,12 +2284,12 @@ Generate exactly 10 questions.`;
               onChange={(e) => setStudentBanner({ ...studentBanner, text: e.target.value })}
               className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
             />
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-muted-foreground">Bg:</label>
                 <input type="color" value={studentBanner.bgColor} onChange={(e) => setStudentBanner({ ...studentBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-muted-foreground">Text:</label>
                 <input type="color" value={studentBanner.textColor} onChange={(e) => setStudentBanner({ ...studentBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
               </div>
@@ -2310,12 +2310,12 @@ Generate exactly 10 questions.`;
               onChange={(e) => setTeacherBanner({ ...teacherBanner, text: e.target.value })}
               className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
             />
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-muted-foreground">Bg:</label>
                 <input type="color" value={teacherBanner.bgColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-muted-foreground">Text:</label>
                 <input type="color" value={teacherBanner.textColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
               </div>
@@ -2346,7 +2346,7 @@ Generate exactly 10 questions.`;
               placeholder="e.g. Site maintenance tonight at 9 PM. Expect brief downtime."
               className="bg-muted/30 border-border text-foreground"
             />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">BG</span>
                 <input type="color" value={loginBanner.bgColor} onChange={(e) => setLoginBanner({ ...loginBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
@@ -2430,7 +2430,7 @@ Generate exactly 10 questions.`;
           {/* Donation Goal Settings */}
           <div className="space-y-3 pt-4 border-t border-border mt-4">
             <Label className="text-sm font-medium">Donation Goal (shows on student library page)</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <span className="text-xs text-muted-foreground">Goal Amount ($)</span>
                 <Input
@@ -2487,7 +2487,7 @@ Generate exactly 10 questions.`;
                 className="w-full px-3 py-2 rounded-lg bg-muted/30 border border-border text-foreground text-sm"
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -2505,7 +2505,7 @@ Generate exactly 10 questions.`;
           {/* Proctor Password */}
           <div className="space-y-2 pt-4 border-t border-border mt-4">
             <Label className="text-sm font-medium">Proctor Password (All Proctored Tests)</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
                 readOnly
@@ -2530,14 +2530,14 @@ Generate exactly 10 questions.`;
 
           {/* Easter Eggs */}
           <div className="space-y-3 pt-4 border-t border-border mt-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-base">🥚</span>
               <Label className="text-sm font-bold">FYP Easter Eggs</Label>
               <span className={`ml-auto px-2 py-0.5 rounded text-xs font-bold ${easterEggs.active ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"}`}>
                 {easterEggs.active ? "ACTIVE" : "INACTIVE"}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="p-2 rounded-lg bg-muted/30 text-center">
                 <div className="text-xs text-muted-foreground">Total</div>
                 <div className="text-lg font-bold">{easterEggs.totalEggs}</div>
@@ -2551,7 +2551,7 @@ Generate exactly 10 questions.`;
                 <div className="text-lg font-bold text-green-400">{easterEggs.claims.length}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="number"
                 min="0"
@@ -2586,7 +2586,7 @@ Generate exactly 10 questions.`;
         {/* Competition Settings */}
         <Card className="shadow-md border-yellow-500/30">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <Trophy className="w-5 h-5 text-yellow-400" />
               Competition Settings
             </CardTitle>
@@ -2597,7 +2597,7 @@ Generate exactly 10 questions.`;
             {/* Monthly */}
             <div className="space-y-2 pt-2 border-t border-border">
               <Label className="text-sm font-bold text-yellow-400">Monthly Competition</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <span className="text-xs text-muted-foreground">Monthly Prize Name</span>
                   <input value={compSettings.monthlyPrize} onChange={(e) => setCompSettings(s => ({ ...s, monthlyPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
@@ -2616,7 +2616,7 @@ Generate exactly 10 questions.`;
             {/* Yearly */}
             <div className="space-y-2 pt-2 border-t border-border">
               <Label className="text-sm font-bold text-primary">Reader of the Year Prizes</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <span className="text-xs text-muted-foreground">1st Place Prize</span>
                   <input value={compSettings.yearly1stPrize} onChange={(e) => setCompSettings(s => ({ ...s, yearly1stPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
@@ -2664,14 +2664,14 @@ Generate exactly 10 questions.`;
         {eyeGazeRequests.length > 0 && (
         <Card className="shadow-md border-blue-500/30">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <Eye className="w-5 h-5 text-blue-500" />
               Eye Gaze Change Requests ({eyeGazeRequests.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {eyeGazeRequests.map((r) => (
-              <div key={r.id || r.userId} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+              <div key={r.id || r.userId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
                 <div>
                   <p className="font-semibold text-sm">{r.displayName || r.username}</p>
                   <p className="text-xs text-muted-foreground">@{r.username}</p>
@@ -2679,7 +2679,7 @@ Generate exactly 10 questions.`;
                     {r.currentStatus ? 'Enable' : 'Disable'} Eye Gaze access
                   </p>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto flex-shrink-0">
                   <button
                     onClick={() => handleEyeGazeRequest(r.id, true)}
                     className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700"
@@ -2698,7 +2698,7 @@ Generate exactly 10 questions.`;
         {/* Admin Leaderboard with Band Switching */}
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <Trophy className="w-5 h-5 text-primary" />
               Leaderboard (Admin View)
             </CardTitle>
@@ -2760,7 +2760,7 @@ Generate exactly 10 questions.`;
         {gradeChangeRequests.length > 0 && (
         <Card className="shadow-md border-amber-500/30">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.836 5.253 9.5 4.5 8 4.5c-1.5 0-2.836.753-4 1.753v13c1.164-.991 2.5-1.753 4-1.753 1.5 0 2.836.753 4 1.753 1.164-.991 2.5-1.753 4-1.753 1.5 0 2.836.753 4 1.753v-13c-1.164-.991-2.5-1.753-4-1.753-1.5 0-2.836.753-4 1.753z" />
               </svg>
@@ -2769,7 +2769,7 @@ Generate exactly 10 questions.`;
           </CardHeader>
           <CardContent className="space-y-3">
             {gradeChangeRequests.map((r) => (
-              <div key={r.id} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              <div key={r.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
                 <div>
                   <p className="font-semibold text-sm">{r.displayName || r.username}</p>
                   <p className="text-xs text-muted-foreground">@{r.username}</p>
@@ -2777,7 +2777,7 @@ Generate exactly 10 questions.`;
                     Grade {r.oldGrade || 'N/A'} ({r.oldBand || 'N/A'} Band) → Grade {r.newGrade} ({r.newBand} Band)
                   </p>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto flex-shrink-0">
                   <button
                     onClick={() => handleGradeChange(r.id, 'approve')}
                     className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700"
@@ -2798,7 +2798,7 @@ Generate exactly 10 questions.`;
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
+              <span className="flex flex-wrap items-center gap-2">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -2873,7 +2873,7 @@ Generate exactly 10 questions.`;
               <div className="space-y-2">
                 {allTeachers.map((t) => (
                   <div key={t.id} className="flex items-center justify-between bg-muted/30 hover:bg-muted/50 transition-colors rounded-xl p-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center">
                         {(t.display_name || "?").charAt(0)}
                       </div>
@@ -2882,7 +2882,7 @@ Generate exactly 10 questions.`;
                         <div className="text-xs text-muted-foreground">@{t.username}{t.email ? " | " + t.email : ""}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <select
                         className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs"
                         defaultValue={t.school_id || ""}
@@ -3063,7 +3063,7 @@ Generate exactly 10 questions.`;
         {/* Students table */}
         <Card className="shadow-md" ref={studentsRef}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <Users className="w-5 h-5" />
               Students ({students.length})
             </CardTitle>
@@ -3283,7 +3283,7 @@ Generate exactly 10 questions.`;
                             <span className="ml-1">Reward</span>
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-lg">
+                        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg max-h-[92dvh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Drop a Reward for {s.displayName}</DialogTitle>
                           </DialogHeader>
@@ -3314,7 +3314,7 @@ Generate exactly 10 questions.`;
                                   rows={3}
                                 />
                               </div>
-                              <div className="grid grid-cols-2 gap-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="space-y-2">
                                   <Label className="text-xs">Required Quizzes (optional)</Label>
                                   <Input
@@ -3347,7 +3347,7 @@ Generate exactly 10 questions.`;
                                   <div key={r.id} className={`p-3 rounded-lg border ${r.active ? "border-primary/30 bg-primary/5" : "border-border bg-muted/20 opacity-60"}`}>
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
                                           <p className="text-sm font-medium">{r.title}</p>
                                           {r.claimStatus === "requested" && (
                                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500 text-white">CLAIMED</span>
@@ -3445,7 +3445,7 @@ Generate exactly 10 questions.`;
         {/* Book cover management */}
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <ImagePlus className="w-5 h-5" />
               Book Covers
             </CardTitle>
@@ -3567,7 +3567,7 @@ Generate exactly 10 questions.`;
         {/* Reading Club Sign-Ups */}
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <Users className="w-5 h-5 text-amber-500" />
               Reading Club Sign-Ups
               {clubSignups.filter(s => s.status === "pending").length > 0 && (
@@ -3642,7 +3642,7 @@ Generate exactly 10 questions.`;
         {/* Quiz Review Requests */}
         <Card className="shadow-md" ref={reviewRef}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <FileSearch className="w-5 h-5 text-orange-400" />
               Quiz Review Requests
               {reviewRequests.filter(r => r.status === "pending").length > 0 && (
@@ -3693,7 +3693,7 @@ Generate exactly 10 questions.`;
         {/* Review Detail Dialog */}
         {activeReview && (
           <Dialog open={!!activeReview} onOpenChange={(open) => { if (!open) { setActiveReview(null); setReviewDetail(null); } }}>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-3xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 pr-8 text-base sm:text-lg">
                   <FileSearch className="w-5 h-5 text-orange-400" />
@@ -3767,7 +3767,7 @@ Generate exactly 10 questions.`;
                     })}
                   </div>
                   <div className="space-y-3 border-t border-border pt-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="checkbox"
                         id="updateKey"
@@ -3800,7 +3800,7 @@ Generate exactly 10 questions.`;
         {/* Quiz requests */}
         <Card className="shadow-md" ref={quizRequestsRef}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <MessageSquarePlus className="w-5 h-5" />
               Quiz Requests
             </CardTitle>
@@ -3880,7 +3880,7 @@ Generate exactly 10 questions.`;
         {/* Schools & Classes Section */}
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <Building className="w-5 h-5" />
               Schools & Classes
             </CardTitle>
@@ -4092,7 +4092,7 @@ Generate exactly 10 questions.`;
         {/* Growth Check Section */}
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <Brain className="w-5 h-5" />
               Arise Reading Growth Check
             </CardTitle>
@@ -4181,7 +4181,7 @@ Generate exactly 10 questions.`;
                   {growthCheckOverview.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">No student attempts yet.</p>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto -mx-2 px-2">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -4467,10 +4467,10 @@ Generate exactly 10 questions.`;
 
       {/* Inbox dialog — DM style */}
       <Dialog open={showInbox} onOpenChange={(open) => { setShowInbox(open); if (!open) setActiveConversationUserId(null); }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-2xl max-h-[92dvh] flex flex-col p-0 overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {activeConversationUserId && (
                 <button
                   onClick={() => { setActiveConversationUserId(null); setReplyText(""); setReplyLink(""); setReplySuccess(""); }}
@@ -4485,7 +4485,7 @@ Generate exactly 10 questions.`;
                 {activeConversationUserId ? "Conversation" : "Inbox"}
               </DialogTitle>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {activeConversationUserId && (
                 <button
                   onClick={() => handleConversationSend()}
@@ -4675,7 +4675,7 @@ Generate exactly 10 questions.`;
                     </div>
                     {/* Reply box */}
                     <div className="px-4 py-3 border-t border-border sticky bottom-0 bg-card">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input
                           type="text"
                           placeholder="Type a message..."
@@ -4754,9 +4754,9 @@ Generate exactly 10 questions.`;
 
       {/* Add quiz dialog */}
       <Dialog open={showAddQuiz} onOpenChange={setShowAddQuiz}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-3xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex flex-wrap items-center gap-2">
               <PlusCircle className="w-5 h-5" />
               Add New Quiz
             </DialogTitle>
@@ -4788,7 +4788,7 @@ Generate exactly 10 questions.`;
                   rows={6}
                   className="text-sm font-mono"
                 />
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-col sm:flex-row gap-2 mt-2">
                   <Button onClick={handleParsePaste} size="sm" variant="default">
                     <ClipboardPaste className="w-3.5 h-3.5 mr-1" />
                     Parse
@@ -4804,7 +4804,7 @@ Generate exactly 10 questions.`;
               </div>
 
               {/* Book info */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="q-title">Book Title *</Label>
                   <Input id="q-title" value={quizForm.title} onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} placeholder="Book title" />
@@ -4847,7 +4847,7 @@ Generate exactly 10 questions.`;
                 </div>
                 <p className="text-xs text-muted-foreground">Selects which grade bands see this book in their library.</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="q-cover">Cover URL</Label>
                   <Input id="q-cover" value={quizForm.coverUrl} onChange={(e) => setQuizForm({ ...quizForm, coverUrl: e.target.value })} placeholder="https://..." />
@@ -4868,7 +4868,7 @@ Generate exactly 10 questions.`;
                 <div className="space-y-4">
                   {questions.map((q, qi) => (
                     <div key={qi} className="p-3 rounded-xl bg-muted/20 border border-border space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-bold bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">{qi + 1}</span>
                         <Input value={q.question} onChange={(e) => {
                           const newQs = [...questions];
@@ -4876,7 +4876,7 @@ Generate exactly 10 questions.`;
                           setQuestions(newQs);
                         }} placeholder="Question text" className="h-8 text-sm" />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {q.options.map((opt, oi) => (
                           <div key={oi} className="flex items-center gap-1">
                             <button
