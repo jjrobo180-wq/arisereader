@@ -50,6 +50,8 @@ export default function ParentDashboard() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [parentCode, setParentCode] = useState("");
+  const [linking, setLinking] = useState(false);
   const [growthCheck, setGrowthCheck] = useState<any>(null);
 
   useEffect(() => {
@@ -83,6 +85,22 @@ export default function ParentDashboard() {
     window.location.hash = "/";
   };
 
+  const linkStudent = async () => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    setLinking(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/parent/link-code`, {
+        method: 'POST', headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentCode }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || 'Could not connect your child.');
+      window.location.reload();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not connect your child.'); }
+    finally { setLinking(false); }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -95,7 +113,9 @@ export default function ParentDashboard() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <p className="text-red-400">{error}</p>
-        <p className="text-sm text-muted-foreground">If you haven't been linked to a student yet, please contact your school administrator.</p>
+        <p className="text-sm text-muted-foreground">Have a parent code from your child's teacher? Enter it below.</p>
+        <input aria-label="Parent code" className="rounded-lg border border-border bg-card p-3" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" value={parentCode} onChange={e => setParentCode(e.target.value.toUpperCase())} />
+        <Button disabled={linking || !parentCode.trim()} onClick={linkStudent}>Connect my child</Button>
         <Button variant="ghost" onClick={handleLogout}>
           <LogOut className="w-4 h-4 mr-1" /> Logout
         </Button>

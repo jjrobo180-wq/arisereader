@@ -165,6 +165,9 @@ export default function Login() {
                 <Trophy className="w-4 h-4" />
                 View Leaderboard
               </button>
+              <button type="button" onClick={() => navigate('/parent-signup')} className="w-full mt-2 rounded-lg border border-primary/30 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/10">
+                Parent sign up with a code
+              </button>
               <button
                 type="button"
                 onClick={() => navigate("/about")}

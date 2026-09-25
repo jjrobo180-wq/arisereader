@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowLeft, CheckCircle2, Info, UserPlus, Link2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -9,19 +9,10 @@ export default function ParentSignup() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
-  const [studentUsername, setStudentUsername] = useState("");
+  const [parentCode, setParentCode] = useState("");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [schools, setSchools] = useState<any[]>([]);
-  const [selectedSchoolId, setSelectedSchoolId] = useState("");
-
-  useEffect(() => {
-    fetch(`${API_BASE}/api/schools`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setSchools(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -37,8 +28,7 @@ export default function ParentSignup() {
           password,
           displayName,
           email,
-          schoolId: selectedSchoolId ? parseInt(selectedSchoolId) : null,
-          studentUsername: studentUsername.toLowerCase(),
+          parentCode: parentCode.trim(),
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -60,56 +50,40 @@ export default function ParentSignup() {
         {submitted ? (
           <div style={styles.success} role="status" data-testid="status-parent-signup-success">
             <CheckCircle2 size={28} aria-hidden="true" />
-            <p style={{ margin: 0 }}>Your request has been submitted! The admin will review your account and link you to your student. You'll receive a confirmation email when your account is approved.</p>
+            <p style={{ margin: 0 }}>Your account is ready and connected to your child. You can log in now.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>After submitting, your account will be reviewed by the administrator. Once approved, you'll be linked to your student and can view their progress, print certificates, and message their teacher.</span>
+              <span>Enter the parent code on the handout from your child's school. Your account will connect to your child automatically.</span>
             </div>
             <Field id="parent-display-name" label="Your Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="parent-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
             <Field id="parent-email" label="Email (for activation notification)" value={email} onChange={setEmail} type="email" autoComplete="email" />
             <Field id="parent-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
             <div>
-              <label htmlFor="parent-school" style={{ ...styles.label, display: "block", marginBottom: 6 }}>Select Your School</label>
-              <select
-                id="parent-school"
-                value={selectedSchoolId}
-                onChange={(e) => setSelectedSchoolId(e.target.value)}
-                required
-                style={styles.input}
-                data-testid="select-parent-school"
-              >
-                <option value="">Choose your school...</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="parent-student" style={{ ...styles.label, display: "block", marginBottom: 6 }}>
+              <label htmlFor="parent-code" style={{ ...styles.label, display: "block", marginBottom: 6 }}>
                 <Link2 size={14} style={{ display: "inline", marginRight: 4 }} />
-                Your Student's Username
+                Your Parent Code
               </label>
               <input
-                id="parent-student"
+                id="parent-code"
                 type="text"
-                value={studentUsername}
-                onChange={(e) => setStudentUsername(e.target.value)}
+                value={parentCode}
+                onChange={(e) => setParentCode(e.target.value.toUpperCase())}
                 required
-                placeholder="Enter your child's username exactly"
+                placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
                 style={styles.input}
-                data-testid="input-parent-student"
+                data-testid="input-parent-code"
               />
               <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 4 }}>
-                This links your parent account to your student so you can view their progress, certificates, and messages.
+                Your child's teacher can give you a new handout if you need the code.
               </p>
             </div>
             {error && <div style={styles.error} role="alert" data-testid="text-parent-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-parent-account">
-              <UserPlus size={20} aria-hidden="true" /> {loading ? "Submitting Request..." : "Request Parent Account"}
+              <UserPlus size={20} aria-hidden="true" /> {loading ? "Creating Account..." : "Create Parent Account"}
             </button>
           </form>
         )}
