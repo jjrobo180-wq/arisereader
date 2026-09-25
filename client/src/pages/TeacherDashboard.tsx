@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
+import { printParentInvites } from "@/lib/parentInvites";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -65,6 +66,7 @@ export default function TeacherDashboard() {
   const [bookRequests, setBookRequests] = useState<BookRequest[]>([]);
   const [bookReqLoading, setBookReqLoading] = useState(false);
   const [bellRefreshKey, setBellRefreshKey] = useState(0);
+  const printLetters = (studentId?: number) => printParentInvites(studentId).catch(err => window.alert(err.message));
 
   const authorized = Boolean(user && (user.role === "teacher" || user.isAdmin));
   const accountApproved = user?.accountApproved !== false;
@@ -315,6 +317,8 @@ export default function TeacherDashboard() {
 
       {actionSuccess && <div style={styles.successBanner}><CheckCircle2 size={18} /> {actionSuccess}</div>}
       {actionError && <div style={styles.errorBanner}><X size={18} /> {actionError}</div>}
+
+      {tab === 'students' && <button style={styles.primaryBtn} onClick={() => printLetters()}>Print parent letters for my students</button>}
 
       {/* === ALL STUDENTS TAB === */}
       {tab === "all-students" && (
