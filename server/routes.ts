@@ -4,7 +4,7 @@ import { storage } from "./storage";
 // Cache-bust: force server restart to pick up new DB entries
 import { seedData } from "./storage";
 import { clearCache } from "./storage";
-import { supabase } from "./supabase";
+import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
 
 // Email helper using Resend REST API
@@ -1671,7 +1671,7 @@ export async function registerRoutes(
       };
     });
 
-    const totalPoints = attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0);
+    const totalPoints = Math.max(req.user.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0));
     const quizzesTaken = attempts.length;
     const totalBooks = books.length;
 
@@ -1729,7 +1729,7 @@ export async function registerRoutes(
         };
       });
 
-      const totalPoints = attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0);
+      const totalPoints = Math.max(req.user.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0));
       const quizzesTaken = attempts.length;
 
       // ── Band-aware book count ──
@@ -1831,6 +1831,45 @@ export async function registerRoutes(
   });
 
   // Admin routes
+  app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
+    const studentId = Number(req.params.id);
+    const points = req.body?.points;
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    const earnedOn = req.body?.earnedOn;
+    const validDate = typeof earnedOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(earnedOn) &&
+      !Number.isNaN(Date.parse(`${earnedOn}T00:00:00Z`)) &&
+      new Date(`${earnedOn}T00:00:00Z`).toISOString().slice(0, 10) === earnedOn;
+    if (!Number.isSafeInteger(studentId) || studentId < 1 || !Number.isSafeInteger(points) || points < 1 || points > 1000 || reason.length < 3 || reason.length > 200 || !validDate) {
+      return res.status(400).json({ message: "Enter 1–1000 points, a reason (3–200 characters), and a valid date." });
+    }
+    const student = await storage.getUser(studentId);
+    if (!student || student.isAdmin || (student.role && student.role !== "student")) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Manual points are not configured on the server." });
+    const { data, error } = await getAdminSupabase().from("manual_point_awards").insert({
+      student_id: studentId, awarded_by: req.user.id, points, reason, earned_on: earnedOn,
+    }).select("id, student_id, points, reason, earned_on, created_at").single();
+    if (error) return res.status(500).json({ message: "Could not save points. Check that the manual_point_awards migration has been applied." });
+    clearCache("allUsers");
+    clearCache("leaderboard");
+    clearCache("monthlyLeaderboard");
+    clearCache("advisoryLeaderboard");
+    clearCache("session_");
+    res.status(201).json(data);
+  });
+
+  app.get("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req, res) => {
+    const studentId = Number(req.params.id);
+    if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message: "Invalid student." });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Manual points are not configured on the server." });
+    const { data, error } = await getAdminSupabase().from("manual_point_awards")
+      .select("id, points, reason, earned_on, created_at").eq("student_id", studentId)
+      .order("created_at", { ascending: false }).limit(50);
+    if (error) return res.status(500).json({ message: "Could not load manual point history." });
+    res.json(data || []);
+  });
+
   app.get("/api/admin/students", authMiddleware, adminMiddleware, async (_req, res) => {
     // Use embedded resources to fetch users with attempts in a single query
     const students = (await storage.getAllUsers()).filter((s: any) => s.role === 'student' || (!s.role && !s.isAdmin));
@@ -1857,7 +1896,7 @@ export async function registerRoutes(
     }
     for (const s of students) {
       const attempts = attemptsMap.get(s.id) || [];
-      const totalPoints = attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
+      const totalPoints = Math.max(s.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0));
       const quizzesMastered = attempts.filter(a => (a.points_earned || 0) > 0).length;
       const teacherName = s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null;
       result.push({
@@ -5696,7 +5735,7 @@ export async function registerRoutes(
           completedAt: a.completedAt,
         };
       });
-      const totalPoints = attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0);
+      const totalPoints = Math.max(student.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0));
       res.json({
         student: {
           id: student.id,
@@ -5969,7 +6008,7 @@ export async function registerRoutes(
           completedAt: a.completedAt,
         };
       });
-      const totalPoints = attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0);
+      const totalPoints = Math.max(student.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0));
       res.json({
         student: {
           id: student.id,
