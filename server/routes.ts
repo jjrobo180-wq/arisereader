@@ -5315,6 +5315,33 @@ export async function registerRoutes(
     }
   });
 
+  // Students can print their own parent invite letter from their profile.
+  app.post('/api/parent-invites/me', authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'student' || req.user.isAdmin) return res.status(403).json({ message: 'Student account required.' });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are not configured.' });
+      const adminDb = getAdminSupabase();
+      let { data: invite, error } = await adminDb.from('parent_invite_codes').select('code').eq('student_id', req.user.id).maybeSingle();
+      if (error) throw error;
+      if (!invite) {
+        const code = randomBytes(10).toString('hex').toUpperCase();
+        const inserted = await adminDb.from('parent_invite_codes').upsert({ student_id: req.user.id, code }, { onConflict: 'student_id', ignoreDuplicates: true }).select('code').maybeSingle();
+        if (inserted.error) throw inserted.error;
+        invite = inserted.data;
+        if (!invite) {
+          const again = await adminDb.from('parent_invite_codes').select('code').eq('student_id', req.user.id).single();
+          if (again.error) throw again.error;
+          invite = again.data;
+        }
+      }
+      res.set('Cache-Control', 'no-store');
+      res.json({ invite: { studentName: req.user.displayName, code: invite!.code.match(/.{1,4}/g)!.join('-') } });
+    } catch (error: any) {
+      console.error('[parent-invites] Student print failed:', error?.message);
+      res.status(503).json({ message: 'Unable to prepare your parent code right now.' });
+    }
+  });
+
   // An existing parent account without a student may redeem a code after signing in.
   app.post('/api/parent/link-code', authMiddleware, async (req: any, res) => {
     try {
