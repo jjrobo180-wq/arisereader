@@ -4240,6 +4240,11 @@ Generate exactly 10 questions.`;
               {detailStudent?.displayName}
             </DialogTitle>
           </DialogHeader>
+          {detailStudent && (
+            <Button variant="outline" className="w-full" onClick={() => printParentInvites(detailStudent.id).catch(e => window.alert(e.message))}>
+              Print parent letter
+            </Button>
+          )}
           {detailLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
