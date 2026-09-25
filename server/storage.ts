@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
 
 let bookQuizzes: any[] = [];
@@ -178,6 +178,7 @@ function mapSession(row: any) {
 }
 
 export async function seedData() {
+  const seedPassword = process.env.ADMIN_SEED_PASSWORD;
   // Load quiz data at call time
   if (bookQuizzes.length === 0) {
     try {
@@ -197,6 +198,10 @@ export async function seedData() {
   if (existingBooks && existingBooks.length > 0) {
     console.log("Seed data already exists, skipping.");
     return;
+  }
+
+  if (!seedPassword || seedPassword.length < 12) {
+    throw new Error("ADMIN_SEED_PASSWORD (at least 12 characters) is required to seed an empty database");
   }
 
   // Seed books and questions
@@ -237,7 +242,7 @@ export async function seedData() {
   }
 
   // Create default admin
-  const adminPassword = bcrypt.hashSync("admin123", 10);
+  const adminPassword = bcrypt.hashSync(seedPassword, 10);
   const { error: adminError } = await supabase.from("users").insert({
     username: "admin",
     password: adminPassword,
@@ -694,7 +699,7 @@ export class DatabaseStorage implements IStorage {
       };
     });
 
-    const totalPoints = userAttempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
+    const totalPoints = Math.max(user.totalPoints || 0, userAttempts.reduce((sum, a) => sum + (a.points_earned || 0), 0));
 
     const userMessages = await fetchList(
       supabase.from("messages").select("*").eq("user_id", userId).order("created_at", { ascending: true })
@@ -1028,6 +1033,15 @@ export class DatabaseStorage implements IStorage {
       const totalBooks = allBooks.length;
 
       const result = [];
+      const { data: manualAwards, error: manualAwardsError } = process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? await getAdminSupabase().from("manual_point_awards")
+          .select("student_id, points").gte("earned_on", yearMonth + "-01").lt("earned_on", nextMonth.slice(0, 10))
+        : { data: [], error: null };
+      if (manualAwardsError) throw new Error(manualAwardsError.message);
+      const manualByStudent = new Map<number, number>();
+      for (const award of manualAwards || []) {
+        manualByStudent.set(award.student_id, (manualByStudent.get(award.student_id) || 0) + award.points);
+      }
       for (const user of allUsers) {
         const allAttempts = user.attempts || [];
         // Filter regular attempts by date
@@ -1048,9 +1062,9 @@ export class DatabaseStorage implements IStorage {
           return sum + (passed ? 10 : 0);
         }, 0);
 
-        const totalMonthlyPoints = monthlyPoints + eyeGazePoints;
+        const totalMonthlyPoints = monthlyPoints + eyeGazePoints + (manualByStudent.get(user.id) || 0);
         const totalMonthlyQuizzes = monthlyAttempts.length + monthlyEyeGaze.length;
-        if (totalMonthlyQuizzes > 0) {
+        if (totalMonthlyQuizzes > 0 || (manualByStudent.get(user.id) || 0) > 0) {
           result.push({
             id: user.id,
             username: user.username,
