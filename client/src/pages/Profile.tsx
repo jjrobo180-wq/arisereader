@@ -12,6 +12,7 @@ import { CELEBRATION_OPTIONS, CelebrationStyle } from "@/components/Celebration"
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { generateCertificate } from "@/lib/certificate";
+import { printMyParentInvite } from "@/lib/parentInvites";
 
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
@@ -616,6 +617,24 @@ export default function Profile() {
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {activeTab === "profile" && (
         <>
+        {user?.role === 'student' && (
+          <Card className="shadow-md border-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                Parent Sign-Up Letter
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Print or show this letter to your parent or caregiver. It contains your private code so they can create a parent account connected to you.
+              </p>
+              <Button className="w-full sm:w-auto" onClick={() => printMyParentInvite().catch(e => window.alert(e.message))}>
+                Print / View My Parent Code
+              </Button>
+            </CardContent>
+          </Card>
+        )}
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="shadow-md">
