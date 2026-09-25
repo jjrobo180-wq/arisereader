@@ -2704,7 +2704,7 @@ Generate exactly 10 questions.`;
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <span className="text-sm font-medium">View Band:</span>
               <select
                 value={adminLbBand}
@@ -2712,7 +2712,7 @@ Generate exactly 10 questions.`;
                   setAdminLbBand(e.target.value);
                   fetchAdminLeaderboard(e.target.value);
                 }}
-                className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm"
+                className="w-full sm:w-auto px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
               >
                 <option value="">All Bands</option>
                 <option value="K-2">K-2 Band</option>
@@ -2728,26 +2728,26 @@ Generate exactly 10 questions.`;
             ) : (
               <div className="space-y-2">
                 {adminLeaderboard.slice(0, 20).map((entry: any, idx: number) => (
-                  <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-muted text-muted-foreground">
+                  <div key={entry.id} className="grid grid-cols-[auto,minmax(0,1fr),auto] items-center gap-3 p-3 sm:p-4 rounded-xl bg-muted/30">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-muted text-muted-foreground">
                       {idx + 1}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {entry.displayName}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-medium text-sm sm:text-base truncate">{entry.displayName}</p>
                         {entry.isEyeGaze || entry.isEyeGazeUser ? (
-                          <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-semibold">EG</span>
+                          <span className="inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-semibold">EG</span>
                         ) : null}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {entry.quizzesTaken} quizzes
-                        {entry.schoolName && <span className="ml-1">· {entry.schoolName}</span>}
-                        {entry.grade && <span className="ml-1">· Gr {entry.grade}</span>}
-                      </p>
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] sm:text-xs text-muted-foreground">
+                        <span>{entry.quizzesTaken} quizzes</span>
+                        {entry.schoolName && <span>· {entry.schoolName}</span>}
+                        {entry.grade && <span>· Gr {entry.grade}</span>}
+                      </div>
                     </div>
-                    <div className="w-full sm:w-auto flex sm:block items-center justify-between sm:text-right flex-shrink-0">
-                      <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
-                      <div className="text-xs text-muted-foreground">pts</div>
+                    <div className="flex-shrink-0 text-right rounded-lg bg-primary/10 px-2.5 py-1.5 sm:px-3">
+                      <div className="font-bold text-base sm:text-lg leading-none text-primary">{entry.totalPoints}</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">pts</div>
                     </div>
                   </div>
                 ))}
