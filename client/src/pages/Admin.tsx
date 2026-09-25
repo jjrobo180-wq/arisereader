@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
+import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
@@ -3066,6 +3067,7 @@ Generate exactly 10 questions.`;
               <Users className="w-5 h-5" />
               Students ({students.length})
             </CardTitle>
+            <Button variant="outline" onClick={() => printParentInvites().catch(e => window.alert(e.message))}>Print all parent letters</Button>
           </CardHeader>
           <CardContent>
             {/* Student search + filters */}
