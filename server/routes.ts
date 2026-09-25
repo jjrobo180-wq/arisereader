@@ -6,6 +6,7 @@ import { seedData } from "./storage";
 import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -1079,7 +1080,7 @@ export async function registerRoutes(
 
   app.post("/api/auth/register-parent", async (req, res) => {
     try {
-      const { username, password, displayName, email, schoolId, studentUsername } = req.body;
+      const { username, password, displayName, email, parentCode } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }
@@ -1089,8 +1090,9 @@ export async function registerRoutes(
       if (password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
-      if (!studentUsername) {
-        return res.status(400).json({ message: "Please enter your student's username" });
+      const normalizedCode = typeof parentCode === 'string' ? parentCode.replace(/[-\s]/g, '').toUpperCase() : '';
+      if (!/^[A-F0-9]{20}$/.test(normalizedCode)) {
+        return res.status(400).json({ message: "Enter the parent code from your child's school handout." });
       }
 
       const existing = await storage.getUserByUsername(username.toLowerCase());
@@ -1098,14 +1100,13 @@ export async function registerRoutes(
         return res.status(409).json({ message: "Username already taken" });
       }
 
-      // Verify student exists
-      const student = await storage.getUserByUsername(studentUsername.toLowerCase());
-      if (!student) {
-        return res.status(404).json({ message: `Student "${studentUsername}" not found. Please check the username.` });
-      }
-      if (student.role !== 'student') {
-        return res.status(400).json({ message: `"${studentUsername}" is not a student account.` });
-      }
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Parent codes are not configured yet." });
+      const { data: invite, error: inviteError } = await getAdminSupabase().from('parent_invite_codes')
+        .select('student_id').eq('code', normalizedCode).maybeSingle();
+      if (inviteError) return res.status(503).json({ message: "Parent codes are unavailable right now." });
+      if (!invite) return res.status(400).json({ message: "That parent code was not found. Please check the handout." });
+      const student = await storage.getUser(invite.student_id);
+      if (!student || student.role !== 'student') return res.status(400).json({ message: "That parent code was not found. Please check the handout." });
 
       const hashedPassword = bcrypt.hashSync(password, 10);
       const user = await storage.createUser({
@@ -1113,11 +1114,12 @@ export async function registerRoutes(
         password: hashedPassword,
         displayName,
         role: 'parent',
-        accountApproved: false,
+        accountApproved: true,
         email: email || null,
-        schoolId: schoolId ? parseInt(schoolId) : null,
+        schoolId: student.school_id || null,
         teacherId: student.teacherId || null,
       });
+      if (!user) throw new Error('Could not create parent account.');
 
       // Link parent to student by storing parent_id in a setting
       const rawLinks = await storage.getSetting('parent_student_links');
@@ -1128,22 +1130,7 @@ export async function registerRoutes(
 
       res.status(201).json({
         success: true,
-        message: "Your request has been submitted! The admin will review your account and link you to your student.",
-      });
-      setImmediate(() => {
-        try { clearCache('teachers'); } catch {}
-        sendEmail(
-          ADMIN_NOTIFY_EMAIL,
-          "New parent signup - A.R.I.S.E Reader",
-          `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
-            <h1 style="color: #FF5900; font-size: 28px;">New Parent Signup</h1>
-            <p style="color: #ccc; font-size: 16px;"><strong>Name:</strong> ${displayName}</p>
-            <p style="color: #ccc; font-size: 16px;"><strong>Username:</strong> @${username.toLowerCase()}</p>
-            <p style="color: #ccc; font-size: 16px;"><strong>Email:</strong> ${email || 'N/A'}</p>
-            <p style="color: #ccc; font-size: 16px;"><strong>Linked Student:</strong> ${studentUsername}</p>
-            <p style="color: #999; font-size: 14px; margin-top: 20px;">Log in to the admin panel to approve or reject this parent.</p>
-          </div>`
-        ).catch(() => {});
+        message: "Your account is ready and connected to your student. You can log in now.",
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -1400,6 +1387,9 @@ export async function registerRoutes(
   // Public setting lookup (for anime/comic book IDs etc.)
   app.get("/api/settings/:key", async (req, res) => {
     try {
+      if (!new Set(['anime_comic_book_ids', 'class_reading_book_ids']).has(req.params.key)) {
+        return res.status(404).json({ message: 'Setting not found' });
+      }
       const value = await storage.getSetting(req.params.key);
       res.json({ value });
     } catch {
@@ -5288,6 +5278,61 @@ export async function registerRoutes(
     }
     next();
   }
+
+  // Print-only parent invites. Teachers can print their roster; admins can print all students.
+  app.post('/api/parent-invites/print', authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: 'Teacher account approval required.' });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are not configured.' });
+      const studentId = req.body?.studentId;
+      if (studentId !== undefined && (!Number.isSafeInteger(studentId) || studentId < 1)) return res.status(400).json({ message: 'Invalid student.' });
+      const allStudents = (await storage.getAllUsers()).filter((u: any) => u.role === 'student' && (req.user.isAdmin || u.teacherId === req.user.id));
+      const students = studentId === undefined ? allStudents : allStudents.filter((u: any) => u.id === studentId);
+      if (studentId !== undefined && students.length === 0) return res.status(404).json({ message: 'Student not found on your roster.' });
+      const adminDb = getAdminSupabase();
+      const rows: Array<{ studentId: number; studentName: string; code: string }> = [];
+      for (const student of students) {
+        let { data: invite, error } = await adminDb.from('parent_invite_codes').select('code').eq('student_id', student.id).maybeSingle();
+        if (error) throw error;
+        if (!invite) {
+          const code = randomBytes(10).toString('hex').toUpperCase();
+          const inserted = await adminDb.from('parent_invite_codes').upsert({ student_id: student.id, code }, { onConflict: 'student_id', ignoreDuplicates: true }).select('code').maybeSingle();
+          if (inserted.error) throw inserted.error;
+          invite = inserted.data;
+          if (!invite) {
+            const again = await adminDb.from('parent_invite_codes').select('code').eq('student_id', student.id).single();
+            if (again.error) throw again.error;
+            invite = again.data;
+          }
+        }
+        rows.push({ studentId: student.id, studentName: student.displayName, code: invite!.code.match(/.{1,4}/g)!.join('-') });
+      }
+      res.set('Cache-Control', 'no-store');
+      res.json({ invites: rows.sort((a, b) => a.studentName.localeCompare(b.studentName)) });
+    } catch (error: any) {
+      console.error('[parent-invites] Print failed:', error?.message);
+      res.status(503).json({ message: 'Unable to prepare parent codes. Check that the parent_invite_codes table exists.' });
+    }
+  });
+
+  // An existing parent account without a student may redeem a code after signing in.
+  app.post('/api/parent/link-code', authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'parent' || req.user.accountApproved === false) return res.status(403).json({ message: 'Approved parent account required.' });
+      const code = typeof req.body?.parentCode === 'string' ? req.body.parentCode.replace(/[-\s]/g, '').toUpperCase() : '';
+      if (!/^[A-F0-9]{20}$/.test(code)) return res.status(400).json({ message: 'Enter the parent code from your handout.' });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are unavailable.' });
+      const { data: invite, error } = await getAdminSupabase().from('parent_invite_codes').select('student_id').eq('code', code).maybeSingle();
+      if (error) return res.status(503).json({ message: 'Parent codes are unavailable.' });
+      if (!invite) return res.status(400).json({ message: 'That parent code was not found.' });
+      const rawLinks = await storage.getSetting('parent_student_links');
+      const links: Record<string, number> = rawLinks ? JSON.parse(rawLinks) : {};
+      if (links[String(req.user.id)] && links[String(req.user.id)] !== invite.student_id) return res.status(409).json({ message: 'Your account is already linked to a student. Contact the school for help.' });
+      links[String(req.user.id)] = invite.student_id;
+      await storage.upsertSetting('parent_student_links', JSON.stringify(links));
+      res.json({ success: true });
+    } catch { res.status(500).json({ message: 'Could not link this student right now.' }); }
+  });
 
   // === Teacher Admin endpoints: limited admin access for ALL teachers ===
   // These mirror admin endpoints but are accessible to any approved teacher
