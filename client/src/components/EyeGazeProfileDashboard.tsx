@@ -16,7 +16,7 @@ import {
   Eye,
 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
-import { speakCharacter, speakCharacterAI } from "@/lib/tts";
+import { speakCharacterAI } from "@/lib/tts";
 
 type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
 type BuddyConfig = {
@@ -144,11 +144,7 @@ export default function EyeGazeProfileDashboard({
     if (!draft.voiceEnabled) return;
     speakCharacterAI(text, {
       calmMode: !!draft.calmMode,
-      onFallback: () => {
-        speakCharacter(text, {
-          excitement: draft.calmMode ? "calm" : excited ? "excited" : "normal",
-        });
-      },
+      onFallback: () => setSaveMessage("Natural AI voice is unavailable. The server AI voice needs to be configured."),
     });
   };
 
@@ -177,9 +173,7 @@ export default function EyeGazeProfileDashboard({
       if (normalized.voiceEnabled) {
         speakCharacterAI(`Hi ${firstName}! I'm ${normalized.name}. Let's learn together!`, {
           calmMode: !!normalized.calmMode,
-          onFallback: () => speakCharacter(`Hi ${firstName}! I'm ${normalized.name}. Let's learn together!`, {
-            excitement: normalized.calmMode ? "calm" : "excited",
-          }),
+          onFallback: () => setSaveMessage("Natural AI voice is unavailable. The server AI voice needs to be configured."),
         });
       }
     } catch (error: any) {
