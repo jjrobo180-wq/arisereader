@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye, Gamepad2, Image as ImageIcon, Sparkles, Heart, Shield, Footprints } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye, Gamepad2, Image as ImageIcon, Heart, Shield, Footprints } from "lucide-react";
 import { initVoices, speakQuestion, speak, stopSpeaking } from "@/lib/tts";
 import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
@@ -57,7 +57,6 @@ export default function EyeGazeQuiz() {
   const [gameMode, setGameMode] = useState<"picture" | "story" | "boss">("picture");
   const [showGamePicker, setShowGamePicker] = useState(true);
   const [bossHealth, setBossHealth] = useState(0);
-  const [correctCount, setCorrectCount] = useState(0);
   const [lastFeedback, setLastFeedback] = useState<"correct" | "try" | null>(null);
   const correctButtonRef = useRef<HTMLElement | null>(null);
 
@@ -114,7 +113,7 @@ export default function EyeGazeQuiz() {
 
   // Speak question, then read all answer options back-to-back
   useEffect(() => {
-    if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled) {
+    if (phase === "quiz" && quiz && quiz.questions[currentIdx] && ttsEnabled && !showGamePicker) {
       const q = quiz.questions[currentIdx];
       const visual = q.visual || "";
       setAnswersRead(false);
@@ -146,7 +145,7 @@ export default function EyeGazeQuiz() {
       stopSpeaking();
       setSubtitle("");
     };
-  }, [currentIdx, phase, quiz, ttsEnabled]);
+  }, [currentIdx, phase, quiz, ttsEnabled, showGamePicker]);
 
   // Countdown timer logic
   useEffect(() => {
@@ -264,7 +263,7 @@ export default function EyeGazeQuiz() {
         )}
         <div style={{ textAlign: "center" }}>
           <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: passed ? "hsl(21 100% 50%)" : "hsl(0 0% 100%)" }}>
-            {passed ? (gameMode === "boss" ? "Boss Defeated!" : gameMode === "story" ? "Quest Complete!" : "Picture Hunt Complete!") : "Great Try!"
+            {passed ? (gameMode === "boss" ? "Boss Defeated!" : gameMode === "story" ? "Quest Complete!" : "Picture Hunt Complete!") : "Great Try!"}
           </h1>
           <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 66%)" }}>
             You scored {result.score} out of {result.total} correct
@@ -321,7 +320,6 @@ export default function EyeGazeQuiz() {
     const isCorrect = !!correctAnswer && answer === correctAnswer;
     if (isCorrect) {
       setCelebrationTrigger((t) => t + 1);
-      setCorrectCount((n) => n + 1);
       setBossHealth((hp) => Math.max(0, hp - 1));
       setLastFeedback("correct");
     } else {
