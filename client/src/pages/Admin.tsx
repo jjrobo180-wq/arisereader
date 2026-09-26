@@ -3177,6 +3177,25 @@ Generate exactly 10 questions.`;
                         <span className="ml-1">Details</span>
                       </Button>
 
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto justify-center"
+                        onClick={async () => {
+                          const authToken = token || getTokenFromCookie();
+                          if (!authToken) return;
+                          const res = await fetch(`${API_BASE}/api/admin/students/${s.id}/reset-daily-challenge`, {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${authToken}` },
+                          });
+                          const data = await res.json().catch(() => ({}));
+                          window.alert(res.ok ? (data.message || "Daily Challenge reset.") : (data.message || "Could not reset Daily Challenge."));
+                        }}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span className="ml-1">Daily Reset</span>
+                      </Button>
+
                       {/* Reset password */}
                       <Dialog open={resetStudent?.id === s.id} onOpenChange={(open) => {
                         if (open) { setResetStudent(s); setResetSuccess(""); }
