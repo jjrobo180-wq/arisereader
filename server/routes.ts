@@ -5108,6 +5108,41 @@ export async function registerRoutes(
     }
   });
 
+
+  app.get("/api/eye-gaze/profile-photo", authMiddleware, async (req: any, res) => {
+    try {
+      const imageData = await storage.getSetting(`eye_gaze_profile_photo_${req.user.id}`);
+      res.set("Cache-Control", "no-store");
+      res.json({ imageData: imageData || null });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not load profile picture." });
+    }
+  });
+
+  app.post("/api/eye-gaze/profile-photo", authMiddleware, async (req: any, res) => {
+    try {
+      const imageData = req.body?.imageData;
+      const key = `eye_gaze_profile_photo_${req.user.id}`;
+
+      if (imageData === null || imageData === "") {
+        await storage.upsertSetting(key, "");
+        return res.json({ imageData: null });
+      }
+
+      if (typeof imageData !== "string" || !/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(imageData)) {
+        return res.status(400).json({ message: "Please upload a PNG, JPG, or WEBP picture." });
+      }
+      if (imageData.length > 900_000) {
+        return res.status(400).json({ message: "That picture is too large. Please use an image under about 600 KB." });
+      }
+
+      await storage.upsertSetting(key, imageData);
+      res.json({ imageData });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not save profile picture." });
+    }
+  });
+
   // The student's own session and a linked parent session reach the same
   // private talker state. Photos and progress never pass through public URLs.
   async function talkerStudent(req: any): Promise<{ id: number; displayName: string } | null> {
