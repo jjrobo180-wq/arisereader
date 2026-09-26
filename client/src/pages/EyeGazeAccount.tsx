@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { UserRound, KeyRound, LogOut, Sparkles } from "lucide-react";
+import { Camera, KeyRound, LogOut, Sparkles, Trash2, UserRound } from "lucide-react";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -25,8 +25,59 @@ export default function EyeGazeAccount() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwMsg, setPwMsg] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [photoMsg, setPhotoMsg] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const authToken = token || getTokenFromCookie();
+
+  useEffect(() => {
+    if (!authToken) return;
+    fetch(`${API_BASE}/api/eye-gaze/profile-photo`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      cache: "no-store",
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setProfilePhoto(data?.imageData || null))
+      .catch(() => {});
+  }, [authToken, user?.id]);
+
+  const savePhotoData = async (imageData: string | null) => {
+    if (!authToken) return;
+    setPhotoBusy(true);
+    setPhotoMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/api/eye-gaze/profile-photo`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ imageData }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not save picture.");
+      setProfilePhoto(data.imageData || null);
+      setPhotoMsg(data.imageData ? "Profile picture updated!" : "Profile picture removed.");
+      window.dispatchEvent(new CustomEvent("eye-gaze-profile-photo-updated", { detail: { imageData: data.imageData || null } }));
+    } catch (error: any) {
+      setPhotoMsg(error?.message || "Could not save picture.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const choosePhoto = (file?: File) => {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setPhotoMsg("Choose a PNG, JPG, or WEBP picture.");
+      return;
+    }
+    if (file.size > 600_000) {
+      setPhotoMsg("Choose a picture under about 600 KB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => savePhotoData(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  };
 
   const saveName = async () => {
     if (!authToken || displayName.trim().length < 2) {
@@ -84,69 +135,75 @@ export default function EyeGazeAccount() {
   };
 
   return (
-    <main className="px-4 sm:px-8 py-6 sm:py-10 max-w-5xl mx-auto">
-      <div className="rounded-[2rem] bg-gradient-to-r from-sky-100 via-violet-100 to-amber-100 border-2 border-white shadow-sm p-6 sm:p-8 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-3xl bg-white flex items-center justify-center shadow-sm">
-            <UserRound className="w-10 h-10 text-violet-600" />
+    <main className="px-4 sm:px-6 py-6 max-w-5xl mx-auto space-y-5">
+      <section className="rounded-[2rem] bg-gradient-to-r from-sky-100 via-violet-100 to-amber-100 border-2 border-white shadow-sm p-5 sm:p-7">
+        <div className="flex flex-col sm:flex-row items-center gap-5">
+          <div className="relative flex-shrink-0">
+            {profilePhoto ? (
+              <img src={profilePhoto} alt="Profile" className="w-28 h-28 rounded-[2rem] object-cover border-4 border-white shadow-md" />
+            ) : (
+              <div className="w-28 h-28 rounded-[2rem] bg-white flex items-center justify-center shadow-md">
+                <UserRound className="w-14 h-14 text-violet-600" />
+              </div>
+            )}
+            <label className="absolute -bottom-2 -right-2 w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center cursor-pointer shadow-md" aria-label="Change profile picture">
+              <Camera className="w-5 h-5" />
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={photoBusy} onChange={e => choosePhoto(e.target.files?.[0])} />
+            </label>
           </div>
-          <div>
+          <div className="flex-1 text-center sm:text-left">
             <p className="text-sm font-black uppercase tracking-widest text-violet-600">My Profile</p>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900">{user?.displayName || user?.username || "Reader"}</h1>
             <p className="text-slate-600 font-bold">@{user?.username}</p>
+            <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
+              <label className="min-h-[44px] rounded-2xl bg-white px-4 font-black text-blue-700 inline-flex items-center gap-2 cursor-pointer border border-blue-100">
+                <Camera className="w-4 h-4" /> {profilePhoto ? "Change Picture" : "Add Picture"}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={photoBusy} onChange={e => choosePhoto(e.target.files?.[0])} />
+              </label>
+              {profilePhoto && (
+                <button type="button" disabled={photoBusy} onClick={() => savePhotoData(null)} className="min-h-[44px] rounded-2xl bg-rose-50 px-4 font-black text-rose-700 inline-flex items-center gap-2">
+                  <Trash2 className="w-4 h-4" /> Remove
+                </button>
+              )}
+            </div>
+            {photoMsg && <p className="mt-2 text-sm font-bold text-slate-600">{photoMsg}</p>}
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <section className="rounded-3xl bg-white border-2 border-sky-100 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <Sparkles className="w-7 h-7 text-sky-500" />
+      <div className="grid lg:grid-cols-2 gap-5">
+        <section className="rounded-3xl bg-white border-2 border-sky-100 p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <Sparkles className="w-6 h-6 text-sky-500" />
             <h2 className="text-2xl font-black">My Name</h2>
           </div>
           <label className="block text-sm font-black text-slate-600 mb-2">Display name</label>
-          <input
-            value={displayName}
-            onChange={e => setDisplayName(e.target.value)}
-            className="w-full min-h-[56px] rounded-2xl border-2 border-sky-100 px-4 text-lg font-bold outline-none focus:border-violet-400"
-          />
-          <button
-            type="button"
-            onClick={saveName}
-            disabled={nameBusy}
-            className="mt-4 w-full min-h-[56px] rounded-2xl bg-violet-600 text-white font-black text-lg disabled:opacity-50"
-          >
+          <input value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full min-h-[54px] rounded-2xl border-2 border-sky-100 px-4 text-lg font-bold outline-none focus:border-violet-400" />
+          <button type="button" onClick={saveName} disabled={nameBusy} className="mt-3 w-full min-h-[54px] rounded-2xl bg-violet-600 text-white font-black text-lg disabled:opacity-50">
             {nameBusy ? "Saving..." : "Save My Name"}
           </button>
-          {nameMsg && <p className="mt-3 font-bold text-slate-600">{nameMsg}</p>}
+          {nameMsg && <p className="mt-2 font-bold text-slate-600">{nameMsg}</p>}
         </section>
 
-        <section className="rounded-3xl bg-white border-2 border-violet-100 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <KeyRound className="w-7 h-7 text-violet-500" />
+        <section className="rounded-3xl bg-white border-2 border-violet-100 p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <KeyRound className="w-6 h-6 text-violet-500" />
             <h2 className="text-2xl font-black">Password</h2>
           </div>
-          <div className="space-y-3">
-            <input type="password" placeholder="Current password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full min-h-[54px] rounded-2xl border-2 border-violet-100 px-4 font-bold outline-none focus:border-violet-400" />
-            <input type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full min-h-[54px] rounded-2xl border-2 border-violet-100 px-4 font-bold outline-none focus:border-violet-400" />
-            <input type="password" placeholder="Type new password again" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full min-h-[54px] rounded-2xl border-2 border-violet-100 px-4 font-bold outline-none focus:border-violet-400" />
+          <div className="space-y-2">
+            <input type="password" placeholder="Current password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full min-h-[50px] rounded-2xl border-2 border-violet-100 px-4 font-bold outline-none focus:border-violet-400" />
+            <input type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full min-h-[50px] rounded-2xl border-2 border-violet-100 px-4 font-bold outline-none focus:border-violet-400" />
+            <input type="password" placeholder="Type new password again" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full min-h-[50px] rounded-2xl border-2 border-violet-100 px-4 font-bold outline-none focus:border-violet-400" />
           </div>
-          <button type="button" onClick={savePassword} disabled={pwBusy} className="mt-4 w-full min-h-[56px] rounded-2xl bg-sky-600 text-white font-black text-lg disabled:opacity-50">
+          <button type="button" onClick={savePassword} disabled={pwBusy} className="mt-3 w-full min-h-[54px] rounded-2xl bg-sky-600 text-white font-black text-lg disabled:opacity-50">
             {pwBusy ? "Saving..." : "Change Password"}
           </button>
-          {pwMsg && <p className="mt-3 font-bold text-slate-600">{pwMsg}</p>}
+          {pwMsg && <p className="mt-2 font-bold text-slate-600">{pwMsg}</p>}
         </section>
       </div>
 
-      <section className="mt-6 rounded-3xl bg-rose-50 border-2 border-rose-100 p-6">
-        <button
-          type="button"
-          onClick={() => {
-            logout();
-            navigate("/");
-          }}
-          className="w-full sm:w-auto min-h-[58px] rounded-2xl bg-rose-600 text-white px-7 font-black text-lg flex items-center justify-center gap-2"
-        >
+      <section className="rounded-3xl bg-rose-50 border-2 border-rose-100 p-4">
+        <button type="button" onClick={() => { logout(); navigate("/"); }} className="w-full sm:w-auto min-h-[54px] rounded-2xl bg-rose-600 text-white px-6 font-black flex items-center justify-center gap-2">
           <LogOut className="w-5 h-5" /> Log Out
         </button>
       </section>
