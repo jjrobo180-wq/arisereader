@@ -5107,6 +5107,58 @@ export async function registerRoutes(
     }
   });
 
+  // Learning Buddy preference for Eye Gaze games
+  app.get("/api/eye-gaze/learning-buddy", authMiddleware, async (req: any, res) => {
+    try {
+      const raw = await storage.getSetting(`learning_buddy_${req.user.id}`);
+      if (!raw) {
+        return res.json({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        res.set("Cache-Control", "no-store");
+        return res.json(parsed);
+      } catch {
+        return res.json({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not load Learning Buddy." });
+    }
+  });
+
+  app.post("/api/eye-gaze/learning-buddy", authMiddleware, async (req: any, res) => {
+    try {
+      const { type, preset, name, imageData, voiceEnabled } = req.body || {};
+      const allowedPresets = ["puppy", "dino", "robot", "bunny"];
+      const safeType = type === "upload" ? "upload" : "preset";
+      const safePreset = allowedPresets.includes(preset) ? preset : "puppy";
+      const safeName = String(name || "Buddy").trim().slice(0, 30) || "Buddy";
+
+      let safeImageData: string | null = null;
+      if (safeType === "upload") {
+        if (typeof imageData !== "string" || !/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(imageData)) {
+          return res.status(400).json({ message: "Please upload a PNG, JPG, or WEBP image." });
+        }
+        if (imageData.length > 2_000_000) {
+          return res.status(400).json({ message: "That picture is too large. Please use an image under about 1.5 MB." });
+        }
+        safeImageData = imageData;
+      }
+
+      const value = {
+        type: safeType,
+        preset: safePreset,
+        name: safeName,
+        imageData: safeImageData,
+        voiceEnabled: voiceEnabled !== false,
+      };
+      await storage.upsertSetting(`learning_buddy_${req.user.id}`, JSON.stringify(value));
+      res.json(value);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not save Learning Buddy." });
+    }
+  });
+
   // Celebration style preference
   app.get("/api/eye-gaze/celebration-style", authMiddleware, async (req: any, res) => {
     try {
