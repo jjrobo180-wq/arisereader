@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X, Zap, Flag, LockKeyhole } from "lucide-react";
+import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X, Zap, Flag, LockKeyhole, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
@@ -966,6 +966,33 @@ export default function EyeGazeGames() {
             <p className="text-sm text-muted-foreground">Every game can be played by tapping or by holding the pointer over a large choice for about one second.</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => navigate("/arise-city")}
+          className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-cyan-300/50 bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950 p-6 sm:p-8 text-left text-white shadow-2xl hover:-translate-y-1 transition-all mb-5 min-h-[280px]"
+        >
+          <div className="absolute inset-0 opacity-30" style={{
+            backgroundImage: "linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px)",
+            backgroundSize: "34px 34px",
+          }} />
+          <div className="absolute right-4 bottom-[-18px] text-[130px] sm:text-[175px] opacity-75">🏙️</div>
+          <div className="absolute right-8 top-6 flex gap-2 text-3xl">
+            <span>💼</span><span>🚙</span><span>🏡</span>
+          </div>
+          <div className="relative max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-cyan-300/15 border border-cyan-200/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4 text-cyan-200">
+              <Sparkles className="w-4 h-4" /> FLAGSHIP GAME
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-black leading-none">A.R.I.S.E. City</h2>
+            <p className="mt-4 text-white/85 text-base sm:text-lg font-bold max-w-xl">
+              Choose a career, explore a living city, interview for jobs, work shifts, earn money, shop, buy a car and build toward your first home.
+            </p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-cyan-300 text-slate-950 px-5 py-3 font-black">
+              Enter the City →
+            </div>
+          </div>
+        </button>
 
         <button
           type="button"
