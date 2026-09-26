@@ -1692,6 +1692,255 @@ export async function registerRoutes(
     });
   });
 
+  // ─── Student Engagement Hub ───────────────────────────────────────
+  // Daily missions, levels, streaks, personal bests, mystery rewards,
+  // and a 3-question quick challenge. Uses existing settings +
+  // manual_point_awards, so no new migration is required.
+  app.get("/api/engagement/summary", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+
+      const userId = req.user.id;
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const attempts = await storage.getUserAttempts(userId);
+
+      const dayKey = (value: any) => value ? new Date(value).toISOString().slice(0, 10) : "";
+      const todayAttempts = attempts.filter((a: any) => dayKey(a.completedAt) === today);
+      const quizToday = todayAttempts.length > 0;
+      const quizPointsToday = todayAttempts.reduce((sum: number, a: any) => sum + (a.pointsEarned || 0), 0);
+
+      const rawQuick = await storage.getSetting("engagement_daily_quick_challenges");
+      let quickMap: Record<string, any> = {};
+      if (rawQuick) { try { quickMap = JSON.parse(rawQuick); } catch {} }
+      const quickToday = quickMap[String(userId)]?.date === today && quickMap[String(userId)]?.completed === true;
+
+      let manualAwards: any[] = [];
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const { data } = await getAdminSupabase().from("manual_point_awards")
+          .select("points, earned_on, reason")
+          .eq("student_id", userId)
+          .order("earned_on", { ascending: false });
+        manualAwards = data || [];
+      }
+      const manualToday = manualAwards.filter((a: any) => a.earned_on === today).reduce((s: number, a: any) => s + (a.points || 0), 0);
+      const pointsToday = quizPointsToday + manualToday;
+
+      const missions = [
+        { id: "quiz", label: "Complete 1 quiz", detail: "Any full A.R.I.S.E. quiz counts.", completed: quizToday },
+        { id: "points", label: "Earn 10 points", detail: "Quiz, challenge, or bonus points count.", completed: pointsToday >= 10 },
+        { id: "quick", label: "Beat the Daily Quick Challenge", detail: "Just 3 questions.", completed: quickToday },
+      ];
+      const completedMissions = missions.filter(m => m.completed).length;
+
+      const activeDates = new Set<string>();
+      for (const a of attempts) if (a.completedAt) activeDates.add(dayKey(a.completedAt));
+      for (const value of Object.values(quickMap)) {
+        const item: any = value;
+        if (item?.completed && item?.date && Number(item.userId || userId) === userId) activeDates.add(item.date);
+      }
+      // Current streak allows today OR yesterday as the most recent active day.
+      let streak = 0;
+      let cursor = new Date(now);
+      if (!activeDates.has(today)) cursor.setUTCDate(cursor.getUTCDate() - 1);
+      while (activeDates.has(cursor.toISOString().slice(0, 10))) {
+        streak++;
+        cursor.setUTCDate(cursor.getUTCDate() - 1);
+      }
+
+      const startOfWeek = new Date(now);
+      const dow = (startOfWeek.getUTCDay() + 6) % 7;
+      startOfWeek.setUTCDate(startOfWeek.getUTCDate() - dow);
+      startOfWeek.setUTCHours(0, 0, 0, 0);
+      const priorStart = new Date(startOfWeek); priorStart.setUTCDate(priorStart.getUTCDate() - 7);
+      const priorEnd = new Date(startOfWeek);
+
+      const pointsInRange = (start: Date, end: Date) => {
+        const quizPts = attempts.filter((a: any) => {
+          const d = a.completedAt ? new Date(a.completedAt) : null;
+          return d && d >= start && d < end;
+        }).reduce((s: number, a: any) => s + (a.pointsEarned || 0), 0);
+        const manualPts = manualAwards.filter((a: any) => {
+          const d = new Date(a.earned_on + "T00:00:00Z");
+          return d >= start && d < end;
+        }).reduce((s: number, a: any) => s + (a.points || 0), 0);
+        return quizPts + manualPts;
+      };
+      const thisWeekPoints = pointsInRange(startOfWeek, new Date(now.getTime() + 1000));
+      const lastWeekPoints = pointsInRange(priorStart, priorEnd);
+
+      const currentUser = await storage.getUser(userId);
+      const totalPoints = currentUser?.totalPoints || 0;
+      const levels = [
+        { level: 1, name: "Rookie Reader", min: 0 },
+        { level: 2, name: "Page Turner", min: 50 },
+        { level: 3, name: "Book Boss", min: 125 },
+        { level: 4, name: "Story Slayer", min: 250 },
+        { level: 5, name: "Reading Legend", min: 500 },
+      ];
+      let level = levels[0];
+      for (const item of levels) if (totalPoints >= item.min) level = item;
+      const next = levels.find(item => item.level === level.level + 1) || null;
+      const levelProgress = next
+        ? Math.max(0, Math.min(100, Math.round(((totalPoints - level.min) / (next.min - level.min)) * 100)))
+        : 100;
+
+      const rawClaims = await storage.getSetting("engagement_mystery_claims");
+      let claims: Record<string, any> = {};
+      if (rawClaims) { try { claims = JSON.parse(rawClaims); } catch {} }
+      const claimedToday = claims[String(userId)]?.date === today;
+
+      res.set("Cache-Control", "no-store");
+      res.json({
+        date: today,
+        missions,
+        completedMissions,
+        streak,
+        totalPoints,
+        level: { ...level, progress: levelProgress, nextName: next?.name || null, nextPoints: next?.min || null },
+        personalBest: { thisWeekPoints, lastWeekPoints, beatLastWeek: thisWeekPoints > lastWeekPoints && lastWeekPoints > 0 },
+        mystery: { unlocked: completedMissions >= 2, claimedToday, reward: claimedToday ? claims[String(userId)]?.points || 0 : null },
+        quickChallengeCompleted: quickToday,
+      });
+    } catch (error: any) {
+      console.error("[engagement] Summary failed:", error?.message);
+      res.status(500).json({ message: "Could not load today's missions." });
+    }
+  });
+
+  app.post("/api/engagement/mystery", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Rewards are not configured." });
+      const today = new Date().toISOString().slice(0, 10);
+
+      const rawClaims = await storage.getSetting("engagement_mystery_claims");
+      let claims: Record<string, any> = {};
+      if (rawClaims) { try { claims = JSON.parse(rawClaims); } catch {} }
+      if (claims[String(req.user.id)]?.date === today) return res.status(409).json({ message: "You already opened today's Mystery Box." });
+
+      // Reuse the summary's simple mission checks server-side.
+      const attempts = await storage.getUserAttempts(req.user.id);
+      const todayAttempts = attempts.filter((a: any) => a.completedAt && new Date(a.completedAt).toISOString().slice(0, 10) === today);
+      const rawQuick = await storage.getSetting("engagement_daily_quick_challenges");
+      let quickMap: Record<string, any> = {};
+      if (rawQuick) { try { quickMap = JSON.parse(rawQuick); } catch {} }
+      const quickDone = quickMap[String(req.user.id)]?.date === today && quickMap[String(req.user.id)]?.completed === true;
+      const { data: todaysManual } = await getAdminSupabase().from("manual_point_awards").select("points").eq("student_id", req.user.id).eq("earned_on", today);
+      const pointsToday = todayAttempts.reduce((s: number, a: any) => s + (a.pointsEarned || 0), 0) + (todaysManual || []).reduce((s: number, a: any) => s + (a.points || 0), 0);
+      const completed = Number(todayAttempts.length > 0) + Number(pointsToday >= 10) + Number(quickDone);
+      if (completed < 2) return res.status(403).json({ message: "Complete any 2 daily missions to unlock your Mystery Box." });
+
+      const rewards = [5, 10, 10, 15, 20];
+      const seed = req.user.id + Number(today.replace(/-/g, ""));
+      const points = rewards[seed % rewards.length];
+      const adminUser = await storage.getUserByUsername("admin");
+      const awardedBy = adminUser?.id || req.user.id;
+      const { error } = await getAdminSupabase().from("manual_point_awards").insert({
+        student_id: req.user.id,
+        awarded_by: awardedBy,
+        points,
+        reason: "Daily Mystery Box",
+        earned_on: today,
+      });
+      if (error) throw error;
+
+      claims[String(req.user.id)] = { date: today, points };
+      await storage.upsertSetting("engagement_mystery_claims", JSON.stringify(claims));
+      clearCache("leaderboard"); clearCache("monthlyLeaderboard_"); clearCache("allUsers");
+      res.json({ success: true, points });
+    } catch (error: any) {
+      console.error("[engagement] Mystery claim failed:", error?.message);
+      res.status(500).json({ message: "Could not open the Mystery Box." });
+    }
+  });
+
+  app.get("/api/engagement/quick-challenge", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      const today = new Date().toISOString().slice(0, 10);
+      const rawQuick = await storage.getSetting("engagement_daily_quick_challenges");
+      let quickMap: Record<string, any> = {};
+      if (rawQuick) { try { quickMap = JSON.parse(rawQuick); } catch {} }
+      if (quickMap[String(req.user.id)]?.date === today && quickMap[String(req.user.id)]?.completed) {
+        return res.json({ completed: true, score: quickMap[String(req.user.id)].score, points: quickMap[String(req.user.id)].points || 0 });
+      }
+
+      const books = await storage.getAllBooks();
+      const attempts = await storage.getUserAttempts(req.user.id);
+      const attempted = new Set(attempts.map((a: any) => a.bookId));
+      const candidates = books.filter((b: any) => !attempted.has(b.id));
+      const pool = candidates.length ? candidates : books;
+      if (!pool.length) return res.status(404).json({ message: "No challenge available right now." });
+
+      const seed = req.user.id + Number(today.replace(/-/g, ""));
+      let book: any = null;
+      let questions: any[] = [];
+      for (let offset = 0; offset < Math.min(pool.length, 25); offset++) {
+        const candidate = pool[(seed + offset) % pool.length];
+        const qs = await storage.getQuestionsByBook(candidate.id);
+        if (qs.length >= 3) { book = candidate; questions = qs.slice(0, 3); break; }
+      }
+      if (!book || questions.length < 3) return res.status(404).json({ message: "No 3-question challenge is available right now." });
+
+      res.set("Cache-Control", "no-store");
+      res.json({
+        completed: false,
+        book: { id: book.id, title: book.title, author: book.author, coverUrl: book.coverUrl },
+        questions: questions.map((q: any) => ({
+          id: q.id, questionText: q.questionText,
+          optionA: q.optionA, optionB: q.optionB, optionC: q.optionC, optionD: q.optionD,
+        })),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Could not load the Daily Quick Challenge." });
+    }
+  });
+
+  app.post("/api/engagement/quick-challenge", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Challenges are not configured." });
+      const today = new Date().toISOString().slice(0, 10);
+      const rawQuick = await storage.getSetting("engagement_daily_quick_challenges");
+      let quickMap: Record<string, any> = {};
+      if (rawQuick) { try { quickMap = JSON.parse(rawQuick); } catch {} }
+      if (quickMap[String(req.user.id)]?.date === today && quickMap[String(req.user.id)]?.completed) {
+        return res.status(409).json({ message: "You already completed today's Quick Challenge." });
+      }
+
+      const bookId = Number(req.body?.bookId);
+      const answers = req.body?.answers;
+      if (!Number.isSafeInteger(bookId) || !answers || typeof answers !== "object") return res.status(400).json({ message: "Challenge answers are required." });
+      const questions = (await storage.getQuestionsByBook(bookId)).slice(0, 3);
+      if (questions.length < 3) return res.status(400).json({ message: "This challenge is unavailable." });
+      let score = 0;
+      for (const q of questions) if (answers[String(q.id)] === q.correctAnswer) score++;
+      const passed = score >= 2;
+      const points = passed ? 5 : 0;
+
+      if (points > 0) {
+        const adminUser = await storage.getUserByUsername("admin");
+        const { error } = await getAdminSupabase().from("manual_point_awards").insert({
+          student_id: req.user.id,
+          awarded_by: adminUser?.id || req.user.id,
+          points,
+          reason: "Daily Quick Challenge",
+          earned_on: today,
+        });
+        if (error) throw error;
+      }
+
+      quickMap[String(req.user.id)] = { userId: req.user.id, date: today, completed: true, bookId, score, points };
+      await storage.upsertSetting("engagement_daily_quick_challenges", JSON.stringify(quickMap));
+      clearCache("leaderboard"); clearCache("monthlyLeaderboard_"); clearCache("allUsers");
+      res.json({ success: true, score, total: 3, passed, points });
+    } catch (error: any) {
+      console.error("[engagement] Quick challenge failed:", error?.message);
+      res.status(500).json({ message: "Could not submit the Daily Quick Challenge." });
+    }
+  });
+
   // Profile stats endpoint — reflects band if specified (for admin band simulation)
   app.get("/api/profile/stats", authMiddleware, async (req: any, res) => {
     try {
