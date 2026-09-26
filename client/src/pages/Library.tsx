@@ -14,6 +14,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 import BookAccessLinks from "@/components/BookAccessLinks";
+import { EngagementHub } from "@/components/EngagementHub";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -1414,6 +1415,8 @@ export default function Library() {
             </div>
           </div>
         </div>
+
+        <EngagementHub />
 
         {/* Create a Quiz - students only */}
         {!(user?.role === 'teacher' || user?.isAdmin) && (
