@@ -142,6 +142,7 @@ export default function ReadingNinja({
   const [gameOver, setGameOver] = useState(false);
   const gameOverRef = useRef(false);
   const [slicing, setSlicing] = useState(false);
+  const slicingRef = useRef(false);
   const [trail, setTrail] = useState<Array<{ x: number; y: number; id: number }>>([]);
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const nextId = useRef(1);
@@ -409,18 +410,20 @@ export default function ReadingNinja({
           style={{ height: "min(70vh, 720px)", minHeight: 520 }}
           onPointerDown={event => {
             setSlicing(true);
+            slicingRef.current = true;
             event.currentTarget.setPointerCapture?.(event.pointerId);
             sliceAt(event.clientX, event.clientY);
           }}
           onPointerMove={event => {
-            if (!slicing) return;
+            if (!slicingRef.current) return;
             sliceAt(event.clientX, event.clientY);
           }}
           onPointerUp={event => {
-            if (slicing) sliceAt(event.clientX, event.clientY);
+            if (slicingRef.current) sliceAt(event.clientX, event.clientY);
+            slicingRef.current = false;
             setSlicing(false);
           }}
-          onPointerCancel={() => setSlicing(false)}
+          onPointerCancel={() => { slicingRef.current = false; setSlicing(false); }}
         >
           <div className="absolute inset-0 opacity-20" style={{backgroundImage:"radial-gradient(circle at 20% 20%, white 0 2px, transparent 3px), radial-gradient(circle at 80% 35%, white 0 2px, transparent 3px)", backgroundSize:"80px 80px"}} />
 
