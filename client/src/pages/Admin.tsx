@@ -1497,21 +1497,24 @@ export default function Admin() {
   const handleDeleteUser = async (userId: number) => {
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
-    // Optimistically remove from UI immediately
-    setPendingTeachers(prev => prev.filter((t) => t.id !== userId));
-    setAllTeachers(prev => prev.filter((t) => t.id !== userId));
-    setStudents(prev => prev.filter((s) => s.id !== userId));
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${authToken}` } });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        // Silently success — already removed from UI
+        setPendingTeachers(prev => prev.filter((t) => t.id !== userId));
+        setAllTeachers(prev => prev.filter((t) => t.id !== userId));
+        setStudents(prev => prev.filter((s) => s.id !== userId));
       } else {
-        const data = await res.json().catch(() => ({}));
         alert(data.message || "Failed to delete user. Please refresh and try again.");
       }
     } catch {
       alert("Network error. Please refresh and try again.");
     }
+  };
+
+  const handleDeleteStudent = async (student: Student) => {
+    if (!window.confirm(`Are you sure you want to delete this student?\n\n${student.displayName} (@${student.username}) will be permanently deleted.`)) return;
+    await handleDeleteUser(student.id);
   };
 
   const handleApproveStudent = async (studentId: number, studentName: string) => {
@@ -3428,7 +3431,7 @@ Generate exactly 10 questions.`;
                       </Dialog>
 
                       {/* Delete user */}
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(s.id)} className="text-red-500 hover:text-red-400">
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteStudent(s)} className="text-red-500 hover:text-red-400">
                         <Trash2 className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline ml-1">Delete</span>
                       </Button>
