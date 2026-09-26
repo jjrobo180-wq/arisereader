@@ -6409,10 +6409,15 @@ export async function registerRoutes(
       const { error } = await adminDb.from("users").delete().eq("id", userId);
       if (error) throw new Error(error.message);
 
+      // Invalidate all user/ranking caches immediately so deleted accounts disappear at once.
+      clearCache('allUsers');
+      clearCache('teachers');
+      clearCache('leaderboard');
+      clearCache('monthlyLeaderboard_');
+      clearCache('eye_gaze_leaderboard');
+      clearCache('advisoryLeaderboard');
+
       res.json({ success: true, deletedRole: target.role || (target.isAdmin ? "admin" : "student") });
-      setImmediate(() => {
-        try { clearCache('allUsers'); clearCache('teachers'); } catch {}
-      });
     } catch (error: any) {
       console.error("[admin-delete] Failed:", error?.message);
       res.status(500).json({ message: error?.message || "Failed to delete user." });
