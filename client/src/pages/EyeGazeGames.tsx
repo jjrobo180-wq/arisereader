@@ -7,8 +7,9 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI } from "@/lib/tts";
 import ReadingRunnerPro from "@/pages/ReadingRunnerPro";
+import ReadingNinja from "@/pages/ReadingNinja";
 
-type GameId = "runner" | "match" | "pop" | "sentence" | null;
+type GameId = "runner" | "ninja" | "match" | "pop" | "sentence" | null;
 
 type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
 type BuddyConfig = {
@@ -922,6 +923,7 @@ export default function EyeGazeGames() {
   };
 
   if (game === "runner") return <ReadingRunnerPro onBack={() => setGame(null)} buddy={buddy} />;
+  if (game === "ninja") return <ReadingNinja onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "match") return <MatchPairs onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "pop") return <WordPop onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
@@ -937,7 +939,7 @@ export default function EyeGazeGames() {
             <h1 className="font-black text-lg flex items-center gap-2">
               <Gamepad2 className="w-5 h-5 text-primary" /> Eye Gaze Reading Games
             </h1>
-            <p className="text-xs text-muted-foreground hidden sm:block">Real games built for large gaze targets. No quiz required.</p>
+            <p className="text-xs text-muted-foreground hidden sm:block">Reading games with gaze, tap, and movement-based play. No quiz required.</p>
           </div>
         </div>
       </header>
@@ -962,8 +964,8 @@ export default function EyeGazeGames() {
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-6 flex items-start gap-3">
           <Eye className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-bold">Eye-gaze friendly</p>
-            <p className="text-sm text-muted-foreground">Every game can be played by tapping or by holding the pointer over a large choice for about one second.</p>
+            <p className="font-bold">Different ways to play</p>
+            <p className="text-sm text-muted-foreground">Choice games support tap or eye-gaze dwell. Reading Runner and Reading Ninja use swipes and movement instead of answer buttons.</p>
           </div>
         </div>
 
@@ -1017,26 +1019,45 @@ export default function EyeGazeGames() {
           </div>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setGame("runner")}
-          className="relative overflow-hidden w-full rounded-[2rem] border-2 border-violet-300 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-sky-500 p-6 sm:p-8 text-left text-white shadow-xl hover:-translate-y-1 transition-all mb-5 min-h-[240px]"
-        >
-          <div className="absolute -right-8 -bottom-10 text-[150px] opacity-20 rotate-[-8deg]">🏃</div>
-          <div className="absolute right-8 top-5 flex gap-3 text-4xl">
-            <span className="animate-bounce">🪙</span><span>🚧</span><span>⚡</span>
-          </div>
-          <div className="relative max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
-              <Zap className="w-4 h-4" /> NEW · 10 LEVELS
+        <div className="grid lg:grid-cols-2 gap-5 mb-5">
+          <button
+            type="button"
+            onClick={() => setGame("runner")}
+            className="relative overflow-hidden rounded-[2rem] border-2 border-violet-300 bg-gradient-to-br from-violet-600 via-fuchsia-500 to-sky-500 p-6 sm:p-8 text-left text-white shadow-xl hover:-translate-y-1 transition-all min-h-[280px]"
+          >
+            <div className="absolute -right-8 -bottom-10 text-[155px] opacity-20 rotate-[-8deg]">🏃</div>
+            <div className="absolute right-7 top-5 flex gap-2 text-4xl"><span>🐱</span><span>🐶</span><span>🍎</span></div>
+            <div className="relative max-w-lg">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
+                <Zap className="w-4 h-4" /> SWIPE · DODGE · COLLECT
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black">Reading Runner</h2>
+              <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Hear “Rescue all the cats,” then swipe between lanes to collect cats and swipe up to jump over dogs, rabbits, and other distractors.</p>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-violet-700 px-5 py-3 font-black">
+                <Flag className="w-5 h-5" /> Run & Rescue
+              </div>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black">Reading Runner</h2>
-            <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Run through cities, tunnels, beaches, space and more. Pick the right lane to jump obstacles, grab coins and unlock the next world.</p>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-violet-700 px-5 py-3 font-black">
-              <Flag className="w-5 h-5" /> Start Adventure
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setGame("ninja")}
+            className="relative overflow-hidden rounded-[2rem] border-2 border-pink-300 bg-gradient-to-br from-fuchsia-700 via-violet-700 to-indigo-800 p-6 sm:p-8 text-left text-white shadow-xl hover:-translate-y-1 transition-all min-h-[280px]"
+          >
+            <div className="absolute -right-2 -bottom-8 text-[150px] opacity-20">🥷</div>
+            <div className="absolute right-7 top-5 flex gap-2 text-4xl"><span>🍎</span><span>🍌</span><span>🐱</span></div>
+            <div className="relative max-w-lg">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
+                ✨ SWIPE-TO-SLICE
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black">Reading Ninja</h2>
+              <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Fruit-Ninja-style learning: hear “Slice all the apples” or “Slice all the cats,” then swipe through only the correct targets as everything flies by.</p>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-fuchsia-700 px-5 py-3 font-black">
+                🥷 Start Slicing
+              </div>
             </div>
-          </div>
-        </button>
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
