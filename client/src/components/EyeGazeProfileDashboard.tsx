@@ -347,6 +347,51 @@ export default function EyeGazeProfileDashboard({
                   const preset = PRESETS[key];
                   const selected = draft.type === "preset" && draft.preset === key;
                   return (
+    <div className="bg-[#f7fbff] text-slate-900 min-h-screen">
+      <main className="max-w-[1500px] mx-auto p-3 sm:p-5 lg:p-6 space-y-4">
+
+          <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-amber-100 via-orange-50 to-sky-100 border border-sky-100 min-h-[310px]">
+            <div className="absolute inset-0 opacity-50">
+              <div className="absolute top-5 left-[8%] text-5xl">⭐</div>
+              <div className="absolute bottom-6 right-[8%] text-5xl">🌈</div>
+              <div className="absolute top-10 right-[15%] text-4xl">☀️</div>
+            </div>
+
+            <div className="relative grid md:grid-cols-[380px_1fr] items-center gap-5 p-5 sm:p-7">
+              <button
+                type="button"
+                onClick={() => speak(`Hi ${firstName}! I'm ${heroBuddy.name}. Let's learn together!`, true)}
+                className="mx-auto relative group"
+              >
+                <BuddyVisual buddy={heroBuddy} className="w-56 h-56 sm:w-64 sm:h-64 text-[8rem] sm:text-[10rem] group-hover:scale-105 transition-transform" />
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 text-white px-4 py-2 text-xs font-black shadow">
+                  TAP ME!
+                </div>
+              </button>
+
+              <div className="relative bg-white border-4 border-blue-500 rounded-[2.5rem] px-6 py-7 sm:px-9 sm:py-8 text-center shadow-sm">
+                <div className="hidden md:block absolute -left-7 top-1/2 -translate-y-1/2 w-0 h-0 border-y-[22px] border-y-transparent border-r-[30px] border-r-blue-500" />
+                <p className="text-2xl sm:text-4xl font-black text-blue-950 leading-tight">
+                  Hi! I'm your reading buddy!
+                </p>
+                <p className="text-xl sm:text-3xl font-black text-blue-800 mt-2">
+                  Let's find the word
+                </p>
+                <p className="text-5xl sm:text-7xl font-black text-blue-600 mt-2 tracking-wide">
+                  CAT!
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid lg:grid-cols-[1fr_360px] gap-4">
+            <div className="rounded-[2rem] border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-4 sm:p-5">
+              <h2 className="text-2xl sm:text-3xl font-black text-blue-950 mb-4">Choose a Buddy</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(Object.keys(PRESETS) as BuddyPreset[]).map(key => {
+                  const preset = PRESETS[key];
+                  const selected = draft.type === "preset" && draft.preset === key;
+                  return (
                     <button
                       key={key}
                       type="button"
@@ -518,15 +563,8 @@ export default function EyeGazeProfileDashboard({
               <div className="text-xs font-black text-slate-400">RANK</div>
             </div>
           </section>
-        </main>
-      </div>
 
-      <nav className="xl:hidden sticky bottom-0 z-40 bg-white border-t border-sky-100 px-2 py-2 grid grid-cols-4 gap-1">
-        <button onClick={() => navigate("/eye-gaze-home")} className="min-h-[62px] rounded-2xl flex flex-col items-center justify-center text-xs font-black text-slate-500"><Home className="w-5 h-5 mb-1" /> Home</button>
-        <button onClick={() => navigate("/library")} className="min-h-[62px] rounded-2xl flex flex-col items-center justify-center text-xs font-black text-slate-500"><BookOpen className="w-5 h-5 mb-1" /> Read</button>
-        <button onClick={() => navigate("/eye-gaze-games")} className="min-h-[62px] rounded-2xl flex flex-col items-center justify-center text-xs font-black text-slate-500"><Gamepad2 className="w-5 h-5 mb-1" /> Games</button>
-        <button onClick={() => navigate("/leaderboard")} className="min-h-[62px] rounded-2xl flex flex-col items-center justify-center text-xs font-black text-slate-500"><Trophy className="w-5 h-5 mb-1" /> Progress</button>
-      </nav>
+      </main>
     </div>
   );
 }
