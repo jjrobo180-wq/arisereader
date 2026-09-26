@@ -99,72 +99,7 @@ const EMOJI_SOUND_MAP: Record<string, string> = {
   "🪱": "slither slither",
 };
 
-let selectedVoice: SpeechSynthesisVoice | null = null;
 let currentSubtitle: string = "";
-
-// Find the best available voice
-function getBestVoice(): SpeechSynthesisVoice | null {
-  if (!("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return null;
-
-  // Priority list - best voices first (most human-like)
-  const voicePriority = [
-    // Google voices (Chrome) - most natural
-    (v: SpeechSynthesisVoice) => v.name.includes("Google US English"),
-    // Mac natural voices
-    (v: SpeechSynthesisVoice) => v.name === "Samantha" && v.lang === "en-US",
-    (v: SpeechSynthesisVoice) => v.name === "Alex" && v.lang === "en-US",
-    (v: SpeechSynthesisVoice) => v.name === "Daniel" && v.lang === "en-GB",
-    // Any Google voice
-    (v: SpeechSynthesisVoice) => v.name.includes("Google") && v.lang.startsWith("en"),
-    // Microsoft natural voices (Edge)
-    (v: SpeechSynthesisVoice) => v.name.includes("Natural") && v.lang.startsWith("en"),
-    (v: SpeechSynthesisVoice) => v.name.includes("Aria") && v.lang.startsWith("en"),
-    // Premium/enhanced voices
-    (v: SpeechSynthesisVoice) => v.name.includes("Premium") && v.lang.startsWith("en"),
-    (v: SpeechSynthesisVoice) => v.name.includes("Enhanced") && v.lang.startsWith("en"),
-    // Any US English voice
-    (v: SpeechSynthesisVoice) => v.lang === "en-US",
-    // Any English voice
-    (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
-  ];
-
-  for (const check of voicePriority) {
-    const found = voices.find(check);
-    if (found) return found;
-  }
-  return voices[0];
-}
-
-// Choose a more playful, youthful-sounding voice for the Learning Buddy.
-// Browser voice inventories differ by device, so this prefers higher-quality
-// youthful/natural voices when they exist and falls back gracefully.
-function getCharacterVoice(): SpeechSynthesisVoice | null {
-  if (!("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return null;
-
-  const priorities = [
-    // Apple voices that tend to sound warmer/younger when installed
-    (v: SpeechSynthesisVoice) => /Zoe|Ava|Joelle|Samantha/i.test(v.name) && v.lang.startsWith("en"),
-    // Microsoft natural/neural-style voices
-    (v: SpeechSynthesisVoice) => /Ana|Jenny|Aria|Natural/i.test(v.name) && v.lang.startsWith("en"),
-    // Google voices
-    (v: SpeechSynthesisVoice) => /Google US English/i.test(v.name),
-    (v: SpeechSynthesisVoice) => /Google/i.test(v.name) && v.lang.startsWith("en"),
-    // Enhanced/premium system voices
-    (v: SpeechSynthesisVoice) => /Enhanced|Premium/i.test(v.name) && v.lang.startsWith("en"),
-    (v: SpeechSynthesisVoice) => v.lang === "en-US",
-    (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
-  ];
-
-  for (const check of priorities) {
-    const found = voices.find(check);
-    if (found) return found;
-  }
-  return voices[0] || null;
-}
 
 let activeBuddyAudio: HTMLAudioElement | null = null;
 let activeBuddyAudioUrl: string | null = null;
