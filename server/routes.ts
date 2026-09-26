@@ -1856,6 +1856,91 @@ export async function registerRoutes(
     }
   });
 
+  const dailyQuickChallenges = [
+    {
+      id: "octopus",
+      topic: "Animals",
+      title: "The Octopus Escape Artist",
+      passage: "An octopus has eight arms and a soft body with no bones. Because its body is soft, it can squeeze through very small spaces. Octopuses can also change color to blend in with rocks and plants. When one feels threatened, it may release a dark cloud of ink and swim away.",
+      questions: [
+        { id: "q1", questionText: "Why can an octopus squeeze through small spaces?", optionA: "It has no bones", optionB: "It can fly", optionC: "It has fur", optionD: "It is very loud", correctAnswer: "A" },
+        { id: "q2", questionText: "What can an octopus do to hide?", optionA: "Grow wings", optionB: "Change color", optionC: "Turn into a rock", optionD: "Dig a tunnel", correctAnswer: "B" },
+        { id: "q3", questionText: "What may an octopus release when it feels threatened?", optionA: "Bubbles", optionB: "Sand", optionC: "Ink", optionD: "Leaves", correctAnswer: "C" },
+      ],
+    },
+    {
+      id: "basketball",
+      topic: "Sports",
+      title: "Why Basketball Players Dribble",
+      passage: "In basketball, a player cannot simply run while holding the ball. To move with the ball, the player must bounce it on the floor. This is called dribbling. Good players keep the ball low and close to their body so it is harder for another player to steal it.",
+      questions: [
+        { id: "q1", questionText: "What is dribbling?", optionA: "Throwing the ball at the hoop", optionB: "Bouncing the ball while moving", optionC: "Passing to the referee", optionD: "Holding the ball still", correctAnswer: "B" },
+        { id: "q2", questionText: "Why do players keep the ball close?", optionA: "To make it harder to steal", optionB: "To make it heavier", optionC: "To stop the game", optionD: "To make the court smaller", correctAnswer: "A" },
+        { id: "q3", questionText: "What can a player NOT do while holding the ball?", optionA: "Stand still", optionB: "Pass it", optionC: "Run without dribbling", optionD: "Shoot it", correctAnswer: "C" },
+      ],
+    },
+    {
+      id: "mars",
+      topic: "Space",
+      title: "Why Mars Looks Red",
+      passage: "Mars is often called the Red Planet. Its surface contains a lot of iron. Over time, that iron reacted with oxygen and formed rust. Tiny pieces of rusty dust cover much of the planet. That dust gives Mars its reddish color when we see it from space.",
+      questions: [
+        { id: "q1", questionText: "Why is Mars called the Red Planet?", optionA: "It is covered in red water", optionB: "Rusty dust makes it look red", optionC: "It is made of fire", optionD: "Red lights shine on it", correctAnswer: "B" },
+        { id: "q2", questionText: "What metal is common on Mars?", optionA: "Iron", optionB: "Gold", optionC: "Silver", optionD: "Copper", correctAnswer: "A" },
+        { id: "q3", questionText: "What formed when iron reacted with oxygen?", optionA: "Ice", optionB: "Glass", optionC: "Rust", optionD: "Smoke", correctAnswer: "C" },
+      ],
+    },
+    {
+      id: "gaming",
+      topic: "Gaming",
+      title: "How Video Games Save Progress",
+      passage: "Many video games save a player's progress so they do not have to start over every time. The game stores information such as completed levels, items, or scores. Some games save this information on the device, while others save it online in the cloud.",
+      questions: [
+        { id: "q1", questionText: "Why do games save progress?", optionA: "So players do not always start over", optionB: "To make the screen brighter", optionC: "To turn off the controller", optionD: "To slow the game down", correctAnswer: "A" },
+        { id: "q2", questionText: "Which is something a game may save?", optionA: "The weather outside", optionB: "Completed levels", optionC: "The player's shoes", optionD: "The room temperature", correctAnswer: "B" },
+        { id: "q3", questionText: "Where can some games save information?", optionA: "Only on paper", optionB: "Inside a pencil", optionC: "In the cloud", optionD: "Under the keyboard", correctAnswer: "C" },
+      ],
+    },
+    {
+      id: "popcorn",
+      topic: "Food",
+      title: "Why Popcorn Pops",
+      passage: "Each popcorn kernel has a tiny amount of water trapped inside it. When the kernel gets hot, the water turns into steam. Pressure builds inside the hard shell. When the pressure becomes strong enough, the shell bursts and the soft inside expands into the popcorn we eat.",
+      questions: [
+        { id: "q1", questionText: "What is trapped inside a popcorn kernel?", optionA: "A little water", optionB: "Sand", optionC: "Oil only", optionD: "Air only", correctAnswer: "A" },
+        { id: "q2", questionText: "What happens to the water when it gets hot?", optionA: "It freezes", optionB: "It turns into steam", optionC: "It disappears forever", optionD: "It becomes sugar", correctAnswer: "B" },
+        { id: "q3", questionText: "Why does the shell burst?", optionA: "Pressure builds inside", optionB: "The kernel gets cold", optionC: "The shell becomes wet", optionD: "Someone cuts it open", correctAnswer: "A" },
+      ],
+    },
+    {
+      id: "velcro",
+      topic: "Inventions",
+      title: "An Invention Inspired by Plants",
+      passage: "Velcro was inspired by tiny plant burrs that stuck to clothing and animal fur. An inventor looked closely at the burrs and saw that they had small hooks. He copied that idea by making two strips: one with tiny hooks and one with soft loops. Pressed together, they stick.",
+      questions: [
+        { id: "q1", questionText: "What inspired Velcro?", optionA: "Raindrops", optionB: "Plant burrs", optionC: "Bird feathers", optionD: "Snowflakes", correctAnswer: "B" },
+        { id: "q2", questionText: "What did the inventor notice on the burrs?", optionA: "Tiny hooks", optionB: "Tiny lights", optionC: "Tiny wheels", optionD: "Tiny magnets", correctAnswer: "A" },
+        { id: "q3", questionText: "What are the two Velcro strips made to have?", optionA: "Hooks and loops", optionB: "Buttons and zippers", optionC: "Glue and tape", optionD: "Metal and wood", correctAnswer: "A" },
+      ],
+    },
+    {
+      id: "lightning",
+      topic: "Weather",
+      title: "Why We See Lightning Before Thunder",
+      passage: "Lightning and thunder happen at nearly the same time, but light travels much faster than sound. That is why we usually see the flash of lightning before we hear the thunder. The farther away a storm is, the longer the gap may be between the flash and the sound.",
+      questions: [
+        { id: "q1", questionText: "Why do we see lightning before hearing thunder?", optionA: "Thunder happens later", optionB: "Light travels faster than sound", optionC: "Lightning is closer to Earth", optionD: "Our ears stop working", correctAnswer: "B" },
+        { id: "q2", questionText: "What may happen when a storm is farther away?", optionA: "The gap between flash and sound is longer", optionB: "Thunder becomes light", optionC: "Lightning disappears", optionD: "The sky turns green every time", correctAnswer: "A" },
+        { id: "q3", questionText: "Lightning is seen as a what?", optionA: "Flash", optionB: "Whisper", optionC: "Shadow", optionD: "Wave", correctAnswer: "A" },
+      ],
+    },
+  ];
+
+  function getDailyQuickChallenge(today: string) {
+    const seed = Number(today.replace(/-/g, ""));
+    return dailyQuickChallenges[seed % dailyQuickChallenges.length];
+  }
+
   app.get("/api/engagement/quick-challenge", authMiddleware, async (req: any, res) => {
     try {
       if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
@@ -1867,30 +1952,23 @@ export async function registerRoutes(
         return res.json({ completed: true, score: quickMap[String(req.user.id)].score, points: quickMap[String(req.user.id)].points || 0 });
       }
 
-      const books = await storage.getAllBooks();
-      const attempts = await storage.getUserAttempts(req.user.id);
-      const attempted = new Set(attempts.map((a: any) => a.bookId));
-      const candidates = books.filter((b: any) => !attempted.has(b.id));
-      const pool = candidates.length ? candidates : books;
-      if (!pool.length) return res.status(404).json({ message: "No challenge available right now." });
-
-      const seed = req.user.id + Number(today.replace(/-/g, ""));
-      let book: any = null;
-      let questions: any[] = [];
-      for (let offset = 0; offset < Math.min(pool.length, 25); offset++) {
-        const candidate = pool[(seed + offset) % pool.length];
-        const qs = await storage.getQuestionsByBook(candidate.id);
-        if (qs.length >= 3) { book = candidate; questions = qs.slice(0, 3); break; }
-      }
-      if (!book || questions.length < 3) return res.status(404).json({ message: "No 3-question challenge is available right now." });
-
+      const challenge = getDailyQuickChallenge(today);
       res.set("Cache-Control", "no-store");
       res.json({
         completed: false,
-        book: { id: book.id, title: book.title, author: book.author, coverUrl: book.coverUrl },
-        questions: questions.map((q: any) => ({
-          id: q.id, questionText: q.questionText,
-          optionA: q.optionA, optionB: q.optionB, optionC: q.optionC, optionD: q.optionD,
+        challenge: {
+          id: challenge.id,
+          topic: challenge.topic,
+          title: challenge.title,
+          passage: challenge.passage,
+        },
+        questions: challenge.questions.map((q: any) => ({
+          id: q.id,
+          questionText: q.questionText,
+          optionA: q.optionA,
+          optionB: q.optionB,
+          optionC: q.optionC,
+          optionD: q.optionD,
         })),
       });
     } catch (error: any) {
@@ -1910,13 +1988,15 @@ export async function registerRoutes(
         return res.status(409).json({ message: "You already completed today's Quick Challenge." });
       }
 
-      const bookId = Number(req.body?.bookId);
+      const challengeId = String(req.body?.challengeId || "");
       const answers = req.body?.answers;
-      if (!Number.isSafeInteger(bookId) || !answers || typeof answers !== "object") return res.status(400).json({ message: "Challenge answers are required." });
-      const questions = (await storage.getQuestionsByBook(bookId)).slice(0, 3);
-      if (questions.length < 3) return res.status(400).json({ message: "This challenge is unavailable." });
+      const challenge = getDailyQuickChallenge(today);
+      if (challengeId !== challenge.id || !answers || typeof answers !== "object") {
+        return res.status(400).json({ message: "Challenge answers are required." });
+      }
+
       let score = 0;
-      for (const q of questions) if (answers[String(q.id)] === q.correctAnswer) score++;
+      for (const q of challenge.questions) if (answers[String(q.id)] === q.correctAnswer) score++;
       const passed = score >= 2;
       const points = passed ? 5 : 0;
 
@@ -1939,7 +2019,7 @@ export async function registerRoutes(
         userId: req.user.id,
         date: today,
         completed: true,
-        bookId,
+        challengeId: challenge.id,
         score,
         points,
         history: history.slice(-60),
