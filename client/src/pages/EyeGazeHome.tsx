@@ -15,7 +15,7 @@ function getTokenFromCookie(): string | null {
 
 const ACTIONS = [
   { title: "My Talker", subtitle: "Say what I need", emoji: "🗣️", path: "/eye-gaze-talker", tone: "from-teal-100 to-cyan-50 border-teal-200" },
-  { title: "Buddy World", subtitle: "Learn at home, zoo & more", emoji: "🏠", path: "/buddy-world", tone: "from-emerald-100 to-lime-50 border-emerald-200" },
+  { title: "My World", subtitle: "Learn with my real rooms, pictures & videos", emoji: "🏠", path: "/my-world", tone: "from-emerald-100 to-lime-50 border-emerald-200" },
   { title: "Lessons", subtitle: "Pictures, words & reading", emoji: "📚", path: "/library", tone: "from-sky-100 to-blue-50 border-sky-200" },
   { title: "Games", subtitle: "Play and practice", emoji: "🎮", path: "/eye-gaze-games", tone: "from-amber-100 to-orange-50 border-amber-200" },
   { title: "My Buddy", subtitle: "Choose my learning friend", emoji: "🐶", path: "/eye-gaze-buddy", tone: "from-violet-100 to-fuchsia-50 border-violet-200" },
