@@ -1941,6 +1941,47 @@ export async function registerRoutes(
     return dailyQuickChallenges[seed % dailyQuickChallenges.length];
   }
 
+  app.post("/api/admin/students/:id/reset-daily-challenge", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const studentId = Number(req.params.id);
+      if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message: "Invalid student." });
+
+      const student = await storage.getUser(studentId);
+      if (!student || student.isAdmin || (student.role && student.role !== "student")) {
+        return res.status(404).json({ message: "Student not found." });
+      }
+
+      const rawQuick = await storage.getSetting("engagement_daily_quick_challenges");
+      let quickMap: Record<string, any> = {};
+      if (rawQuick) { try { quickMap = JSON.parse(rawQuick); } catch {} }
+
+      const existing = quickMap[String(studentId)];
+      if (existing) {
+        // Preserve prior-day history for streaks but clear today's completion/result.
+        quickMap[String(studentId)] = {
+          userId: studentId,
+          history: Array.isArray(existing.history) ? existing.history.filter((d: any) => typeof d === "string" && d !== new Date().toISOString().slice(0, 10)) : [],
+        };
+      }
+
+      await storage.upsertSetting("engagement_daily_quick_challenges", JSON.stringify(quickMap));
+
+      // Also clear today's mystery-box claim so the full engagement flow can be tested again.
+      const rawClaims = await storage.getSetting("engagement_mystery_claims");
+      let claims: Record<string, any> = {};
+      if (rawClaims) { try { claims = JSON.parse(rawClaims); } catch {} }
+      if (claims[String(studentId)]?.date === new Date().toISOString().slice(0, 10)) {
+        delete claims[String(studentId)];
+        await storage.upsertSetting("engagement_mystery_claims", JSON.stringify(claims));
+      }
+
+      res.json({ success: true, message: `Daily Challenge reset for ${student.displayName}.` });
+    } catch (error: any) {
+      console.error("[engagement] Admin reset failed:", error?.message);
+      res.status(500).json({ message: "Could not reset the Daily Challenge." });
+    }
+  });
+
   app.get("/api/engagement/quick-challenge", authMiddleware, async (req: any, res) => {
     try {
       if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
