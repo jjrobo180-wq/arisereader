@@ -8,7 +8,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const [location, navigate] = useLocation();
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
-  const immersive = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/");
+  const immersive = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city");
 
   if (!isEyeGazer || immersive) return <>{children}</>;
 
