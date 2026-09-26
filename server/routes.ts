@@ -7,6 +7,7 @@ import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+import { raw } from "express";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -5152,9 +5153,10 @@ export async function registerRoutes(
         model: "gpt-4o-mini-tts",
         voice: "marin",
         input: text,
-        instructions: calmMode
+        instructions: (calmMode
           ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
-          : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.",
+          : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.")
+          + " Read every word of the input verbatim from beginning to end; do not omit, paraphrase, or cut off the last words.",
         response_format: "mp3",
       }),
     });
@@ -5222,6 +5224,40 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("[eye-gaze-tts] failed:", error?.message);
       res.status(500).json({ message: "Could not create AI voice." });
+    }
+  });
+
+  // A short, opt-in recording is transcribed for the Talker's word practice.
+  // The recording is forwarded to the transcription service and is never persisted here.
+  app.post("/api/eye-gaze/listen", authMiddleware, raw({ type: ["audio/webm", "audio/ogg", "audio/mp4"], limit: "2mb" }), async (req: any, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    if (!req.user?.is_eye_gaze_user) return res.status(403).json({ message: "Eye Gazer account required." });
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return res.status(503).json({ message: "Listening is unavailable right now." });
+    const mime = String(req.headers["content-type"] || "").split(";")[0].toLowerCase();
+    const extension = mime === "audio/mp4" ? "mp4" : mime === "audio/ogg" ? "ogg" : mime === "audio/webm" ? "webm" : null;
+    const audio: Buffer = req.body;
+    if (!extension || !Buffer.isBuffer(audio) || audio.length < 500 || audio.length > 2_000_000) {
+      return res.status(400).json({ message: "Please try recording again." });
+    }
+    try {
+      const form = new FormData();
+      form.append("model", "gpt-4o-mini-transcribe");
+      form.append("language", "en");
+      form.append("response_format", "json");
+      form.append("file", new Blob([Uint8Array.from(audio)], { type: mime }), `word.${extension}`);
+      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: AbortSignal.timeout(20000),
+      });
+      if (!response.ok) {
+        console.error("[eye-gaze-listen] transcription failed:", response.status);
+        return res.status(502).json({ message: "I couldn't listen that time. Please try again." });
+      }
+      const result: any = await response.json();
+      res.json({ heard: String(result?.text || "").trim().slice(0, 120) });
+    } catch (error: any) {
+      console.error("[eye-gaze-listen] failed:", error?.name || error?.message);
+      res.status(502).json({ message: "I couldn't listen that time. Please try again." });
     }
   });
 
