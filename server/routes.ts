@@ -5248,9 +5248,15 @@ export async function registerRoutes(
         const mediaType = item?.mediaType === 'video' ? 'video' : item?.mediaType === 'image' ? 'image' : null;
         if (!label) throw new Error('Every My World item needs a word.');
         if (mediaPath && !mediaPath.startsWith(`${studentId}/`)) throw new Error('A learning picture or video does not belong to this child.');
-        const x = Math.max(5, Math.min(95, Number(item?.x) || 50));
-        const y = Math.max(8, Math.min(92, Number(item?.y) || 55));
-        return { id: itemId, label, phrase, mediaPath, mediaType, x, y };
+        const x = Math.max(0, Math.min(96, Number(item?.x) || 41));
+        const y = Math.max(0, Math.min(96, Number(item?.y) || 41));
+        const w = Math.max(4, Math.min(60, Number(item?.w) || 18));
+        const h = Math.max(4, Math.min(60, Number(item?.h) || 18));
+        const safeW = Math.min(w, 100 - x);
+        const safeH = Math.min(h, 100 - y);
+        const source = item?.source === 'ai' ? 'ai' : 'manual';
+        const confidence = Number.isFinite(Number(item?.confidence)) ? Math.max(0, Math.min(1, Number(item.confidence))) : null;
+        return { id: itemId, label, phrase, mediaPath, mediaType, x, y, w: safeW, h: safeH, source, confidence };
       });
 
       return { id, name, icon, backgroundPath, items };
@@ -5299,6 +5305,109 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error('[my-world] load:', error?.message);
       res.status(503).json({ message: 'Could not load My World right now.' });
+    }
+  });
+
+
+  app.post('/api/eye-gaze/my-world/ai-tag', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'An Eye Gazer account is required.' });
+      if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to use AI tagging.' });
+
+      const backgroundPath = String(req.body?.backgroundPath || '');
+      const worldName = String(req.body?.worldName || 'room').trim().slice(0, 40);
+      if (!backgroundPath || !backgroundPath.startsWith(`${child.id}/`)) {
+        return res.status(400).json({ message: 'Upload the room photo first.' });
+      }
+
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) return res.status(503).json({ message: 'AI Auto-Tag is not configured right now.' });
+
+      const adminDb = getAdminSupabase();
+      const { data: signed, error: signedError } = await adminDb.storage.from(MY_WORLD_BUCKET).createSignedUrl(backgroundPath, 600);
+      if (signedError || !signed?.signedUrl) throw signedError || new Error('Could not read the room photo.');
+
+      const prompt = `Analyze this family-provided photo of a place called "${worldName}" for an early-learning accessibility activity.
+
+Identify 5 to 12 clear, useful, child-friendly OBJECTS that are visibly present and easy to point to, such as bed, shoes, TV, cup, chair, table, toothbrush, sink, door, toy, backpack, etc.
+
+For each object:
+- Give a short label that a young child can learn.
+- Give one simple first-person or functional sentence, such as "I put on my shoes." or "I sleep in my bed."
+- Give an approximate bounding rectangle as percentages of the ENTIRE ORIGINAL IMAGE:
+  x = left edge, y = top edge, w = width, h = height, each from 0 to 100.
+- Keep boxes reasonably tight around the object.
+- confidence is 0 to 1.
+
+Important:
+- Do NOT identify, name, describe, infer, or tag people, faces, private documents, screens with personal information, medication labels, addresses, or other sensitive personal details.
+- Prefer everyday objects useful for communication and routines.
+- Panoramic/wide photos are allowed; coordinates must still refer to the full image.
+- Return JSON only in this exact shape:
+{"objects":[{"label":"Shoes","phrase":"I put on my shoes.","x":10,"y":64,"w":18,"h":20,"confidence":0.9}]}`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4.1-mini',
+          temperature: 0.1,
+          response_format: { type: 'json_object' },
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: signed.signedUrl, detail: 'high' } },
+            ],
+          }],
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        console.error('[my-world-ai-tag] OpenAI failed:', response.status, detail.slice(0, 500));
+        return res.status(503).json({ message: 'AI could not analyze that room photo right now. You can still tag objects manually.' });
+      }
+
+      const payload: any = await response.json();
+      const content = payload?.choices?.[0]?.message?.content || '{}';
+      let parsed: any = {};
+      try { parsed = JSON.parse(content); } catch { parsed = {}; }
+
+      const rawObjects = Array.isArray(parsed?.objects) ? parsed.objects.slice(0, 14) : [];
+      const objects = rawObjects.map((obj: any, index: number) => {
+        const label = String(obj?.label || '').trim().slice(0, 40);
+        if (!label) return null;
+        const phrase = String(obj?.phrase || '').trim().slice(0, 160) || `I see ${label}.`;
+        const x = Math.max(0, Math.min(96, Number(obj?.x) || 0));
+        const y = Math.max(0, Math.min(96, Number(obj?.y) || 0));
+        const w = Math.max(4, Math.min(60, Number(obj?.w) || 18));
+        const h = Math.max(4, Math.min(60, Number(obj?.h) || 18));
+        return {
+          id: `ai-${safeWorldId(label, `object-${index + 1}`)}-${index + 1}`,
+          label,
+          phrase,
+          x,
+          y,
+          w: Math.min(w, 100 - x),
+          h: Math.min(h, 100 - y),
+          confidence: Math.max(0, Math.min(1, Number(obj?.confidence) || 0.5)),
+          source: 'ai',
+        };
+      }).filter(Boolean);
+
+      res.set('Cache-Control', 'no-store');
+      res.json({
+        objects,
+        note: 'AI tags are suggestions. A grown-up should review and adjust each box before saving.',
+      });
+    } catch (error: any) {
+      console.error('[my-world-ai-tag]:', error?.message);
+      res.status(503).json({ message: 'AI could not tag that photo right now. Manual tagging is still available.' });
     }
   });
 
