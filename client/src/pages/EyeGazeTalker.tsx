@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
+import { preloadCharacterAI, speakCharacterAI, stopSpeaking } from "@/lib/tts";
 import EyeGazeLearningZone from "./EyeGazeLearningZone";
 
 type Word = { label: string; picture: string; sentence: string };
 type Place = { id: string; label: string; picture: string; hint: string; color: string; words: Word[] };
+
+const animalSounds: Record<string, string> = {
+  Lion: "lion", Elephant: "elephant", Giraffe: "giraffe", Monkey: "monkey",
+  Penguin: "penguin", Tiger: "tiger", Bear: "bear", Owl: "owl", Frog: "frog",
+  Cow: "cow", Dog: "dog", Cat: "cat", Sheep: "sheep", Duck: "duck", Rooster: "rooster",
+};
 
 const needs: Word[] = [
   { label: "I want", picture: "🙋", sentence: "I want something." },
@@ -55,7 +61,14 @@ const places: Place[] = [
     { label: "Lion", picture: "🦁", sentence: "I see a lion." }, { label: "Elephant", picture: "🐘", sentence: "I see an elephant." },
     { label: "Giraffe", picture: "🦒", sentence: "I see a giraffe." }, { label: "Monkey", picture: "🐒", sentence: "I see a monkey." },
     { label: "Penguin", picture: "🐧", sentence: "I see a penguin." }, { label: "Tiger", picture: "🐯", sentence: "I see a tiger." },
+    { label: "Bear", picture: "🐻", sentence: "I see a bear." }, { label: "Owl", picture: "🦉", sentence: "I see an owl." },
+    { label: "Frog", picture: "🐸", sentence: "I see a frog." },
     { label: "More", picture: "➕", sentence: "I want to see more." }, { label: "Go", picture: "🚶", sentence: "Let us go." },
+  ] },
+  { id: "farm", label: "Farm", picture: "🐮", hint: "Friendly animal sounds", color: "#fff1c8", words: [
+    { label: "Cow", picture: "🐮", sentence: "The cow says moo." }, { label: "Dog", picture: "🐶", sentence: "The dog barks." },
+    { label: "Cat", picture: "🐱", sentence: "The cat says meow." }, { label: "Sheep", picture: "🐑", sentence: "The sheep says baa." },
+    { label: "Duck", picture: "🦆", sentence: "The duck quacks." }, { label: "Rooster", picture: "🐓", sentence: "The rooster crows." },
   ] },
   { id: "outside", label: "Outside", picture: "🌈", hint: "The world around me", color: "#e0f3fa", words: [
     { label: "Park", picture: "🛝", sentence: "I want to go to the park." }, { label: "Tree", picture: "🌳", sentence: "I see a tree." },
@@ -81,6 +94,21 @@ export default function EyeGazeTalker() {
   const dwellTarget = useRef<HTMLButtonElement | null>(null);
   const animalAudio = useRef<HTMLAudioElement | null>(null);
   const place = places.find(item => item.id === placeId);
+
+  useEffect(() => {
+    if (voiceStatus !== "ai") return;
+    const lines = placeId
+      ? places.find(item => item.id === placeId)?.words.flatMap(word => [word.label, word.sentence]) || []
+      : needs.flatMap(word => [word.label, word.sentence]);
+    let cancelled = false;
+    // Keep requests small and staggered so the first words are ready quickly.
+    void (async () => {
+      for (let i = 0; i < lines.length && !cancelled; i += 3) {
+        await Promise.all(lines.slice(i, i + 3).map(line => preloadCharacterAI(line).catch(() => null)));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [placeId, voiceStatus]);
 
   useEffect(() => {
     fetch("/api/eye-gaze/tts/status").then(r => r.json()).then(data => setVoiceStatus(data.configured ? "ai" : "device")).catch(() => setVoiceStatus("device"));
@@ -144,10 +172,9 @@ export default function EyeGazeTalker() {
   };
 
   const playAnimal = (word: string) => {
-    const sounds: Record<string, string> = { Lion: "lion", Elephant: "elephant", Giraffe: "giraffe", Monkey: "monkey", Penguin: "penguin", Tiger: "tiger" };
-    if (!sounds[word]) return;
+    if (!animalSounds[word]) return;
     animalAudio.current?.pause();
-    const audio = new Audio(`/animal-sounds/${sounds[word]}.mp3`);
+    const audio = new Audio(`/animal-sounds/${animalSounds[word]}.mp3`);
     animalAudio.current = audio;
     audio.volume = 0.85;
     void audio.play().catch(() => setNotice("Tap Hear animal to play the sound."));
@@ -167,7 +194,8 @@ export default function EyeGazeTalker() {
 
   const choose = (word: Word) => {
     setSelected(word);
-    say(word.label, placeId === "zoo" ? () => playAnimal(word.label) : undefined);
+    if (voiceStatus === "ai") void preloadCharacterAI(word.sentence).catch(() => null);
+    say(word.label, animalSounds[word.label] ? () => playAnimal(word.label) : undefined);
   };
 
   const closeWord = () => { wordDialog.current?.close(); setSelected(null); };
@@ -231,7 +259,7 @@ export default function EyeGazeTalker() {
       </div>
 
       <dialog ref={wordDialog} onClose={() => setSelected(null)} aria-labelledby="talker-selected-word" className="rounded-[2rem] p-5 sm:p-7 w-[min(92vw,480px)] max-h-[94vh] overflow-y-auto text-center text-[#193d57] backdrop:bg-[#0b293bc2]">
-        {selected && <><div className="flex justify-end"><button data-talker-dwell type="button" onClick={closeWord} aria-label="Close word card" className="relative w-14 h-14 rounded-full bg-[#eef4f6] text-3xl font-black">×</button></div><div className="h-44 sm:h-52 rounded-3xl bg-[#e0f3f0] grid place-items-center text-[7rem]" role="img" aria-label={`Picture for ${selected.label}`}>{selected.picture}</div><h2 id="talker-selected-word" className="text-4xl font-black mt-3">{selected.label}</h2><p className="text-xl font-bold text-[#3f687a] my-3">{selected.sentence}</p><div className="grid grid-cols-2 gap-2"><button data-talker-dwell type="button" onClick={() => say(selected.label)} className="relative min-h-16 rounded-2xl bg-[#e6f2f4] font-black">🔊 Say word</button><button data-talker-dwell type="button" onClick={() => say(selected.sentence)} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white font-black">▶ Say full sentence</button></div>{["Lion", "Elephant", "Giraffe", "Monkey", "Penguin", "Tiger"].includes(selected.label) && <button data-talker-dwell type="button" onClick={() => { stopSpeaking(); playAnimal(selected.label); }} className="relative min-h-16 rounded-2xl w-full bg-[#e0f3e7] mt-3 font-black text-lg">🐾 Hear animal sound</button>}<button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); closeWord(); }} className="relative min-h-14 mt-3 px-4 text-[#246779] font-black underline">+ Add to my words</button></>}
+        {selected && <><div className="flex justify-end"><button data-talker-dwell type="button" onClick={closeWord} aria-label="Close word card" className="relative w-14 h-14 rounded-full bg-[#eef4f6] text-3xl font-black">×</button></div><div className="h-44 sm:h-52 rounded-3xl bg-[#e0f3f0] grid place-items-center text-[7rem]" role="img" aria-label={`Picture for ${selected.label}`}>{selected.picture}</div><h2 id="talker-selected-word" className="text-4xl font-black mt-3">{selected.label}</h2><p className="text-xl font-bold text-[#3f687a] my-3">{selected.sentence}</p><div className="grid grid-cols-2 gap-2"><button data-talker-dwell type="button" onClick={() => say(selected.label)} className="relative min-h-16 rounded-2xl bg-[#e6f2f4] font-black">🔊 Say word</button><button data-talker-dwell type="button" onClick={() => say(selected.sentence)} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white font-black">▶ Say full sentence</button></div>{animalSounds[selected.label] && <button data-talker-dwell type="button" onClick={() => { stopSpeaking(); playAnimal(selected.label); }} className="relative min-h-16 rounded-2xl w-full bg-[#e0f3e7] mt-3 font-black text-lg">🐾 Hear animal sound</button>}<button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); closeWord(); }} className="relative min-h-14 mt-3 px-4 text-[#246779] font-black underline">+ Add to my words</button></>}
       </dialog>
 
       <dialog ref={settingsDialog} onClose={() => setSettingsOpen(false)} aria-labelledby="talker-settings-title" className="rounded-[2rem] p-6 w-[min(92vw,480px)] max-h-[90vh] overflow-y-auto text-[#193d57] backdrop:bg-[#0b293bc2]">

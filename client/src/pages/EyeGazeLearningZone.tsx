@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { preloadCharacterAI } from "@/lib/tts";
 
 type Picture = { icon: string; caption: string };
 type Lesson = { word: string; icon: string; first: string; sounds: string; syllables: string; pictures: Picture[]; phrases: string[]; choices: string[] };
@@ -32,69 +33,143 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
   const { token } = useAuth();
   const [word, setWord] = useState(() => localStorage.getItem("eye-gaze-learning-word") || "Milk");
   const [answer, setAnswer] = useState<string | null>(null);
-  const [listening, setListening] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [heard, setHeard] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioContext = useRef<AudioContext | null>(null);
+  const practiceId = useRef(0);
   const alive = useRef(true);
   const practiceActive = useRef(false);
   const lesson = lessons.find(item => item.word === word) || lessons[0];
 
-  useEffect(() => { localStorage.setItem("eye-gaze-learning-word", lesson.word); practiceActive.current = false; setAnswer(null); setFeedback(""); setHeard(""); }, [lesson.word]);
-  useEffect(() => () => {
-    alive.current = false;
+  useEffect(() => {
+    localStorage.setItem("eye-gaze-learning-word", lesson.word);
     practiceActive.current = false;
+    practiceId.current++;
     if (timer.current) clearTimeout(timer.current);
     if (recorder.current?.state === "recording") recorder.current.stop();
     stream.current?.getTracks().forEach(track => track.stop());
+    void audioContext.current?.close();
+    setBusy(false); setAnswer(null); setFeedback(""); setHeard("");
+    const lines = [lesson.word, `Can you say ${lesson.word}?`, `I heard ${lesson.word}!`,
+      `Let's try ${lesson.word}. Start with ${lesson.first}. ${lesson.word}.`,
+      ...lesson.phrases, ...lesson.pictures.map(picture => picture.caption),
+      `${lesson.word} begins with the sound ${lesson.first}. Listen: ${lesson.word}.`,
+      `${lesson.syllables.replaceAll(" · ", ". ")}. ${lesson.word}.`];
+    let cancelled = false;
+    void (async () => {
+      for (let i = 0; i < lines.length && !cancelled; i += 3) {
+        await Promise.all(lines.slice(i, i + 3).map(line => preloadCharacterAI(line).catch(() => null)));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [lesson.word]);
+  useEffect(() => () => {
+    alive.current = false;
+    practiceActive.current = false;
+    practiceId.current++;
+    if (timer.current) clearTimeout(timer.current);
+    if (recorder.current?.state === "recording") recorder.current.stop();
+    stream.current?.getTracks().forEach(track => track.stop());
+    void audioContext.current?.close();
   }, []);
 
-  const startListening = async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { setFeedback("This browser cannot use the microphone here. You can still listen and use pictures."); return; }
+  const startListening = (media: MediaStream, type: string, id: number, practiced: Lesson) => {
+    if (!alive.current || id !== practiceId.current || !practiceActive.current) { media.getTracks().forEach(track => track.stop()); return; }
     try {
-      const media = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.current = media;
-      const type = ["audio/webm", "audio/mp4", "audio/ogg"].find(candidate => MediaRecorder.isTypeSupported(candidate));
-      if (!type) { media.getTracks().forEach(track => track.stop()); setFeedback("This microphone format isn't supported. You can still listen and use pictures."); return; }
       const chunks: BlobPart[] = [];
+      let heardVoice = false;
       const active = new MediaRecorder(media, { mimeType: type });
       recorder.current = active;
       active.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
       active.onstop = async () => {
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = null;
+        void audioContext.current?.close();
+        audioContext.current = null;
         media.getTracks().forEach(track => track.stop());
         stream.current = null;
-        if (!alive.current) return;
-        setListening(false);
+        if (!alive.current || id !== practiceId.current || !practiceActive.current) return;
+        if (!heardVoice) { setBusy(false); setFeedback("I didn't catch a voice. Try again when you're ready."); return; }
         const audio = new Blob(chunks, { type });
-        if (audio.size < 500) { setFeedback("I couldn't hear that time. Try again when you're ready."); return; }
-        setFeedback("Listening to your word…");
+        if (audio.size < 500) { setBusy(false); setFeedback("I couldn't hear that time. Try again when you're ready."); return; }
+        setFeedback("Checking what I heard…");
         try {
           const response = await fetch(`${API_BASE}/api/eye-gaze/listen`, { method: "POST", headers: { "Content-Type": type, Authorization: `Bearer ${token}` }, body: audio, cache: "no-store" });
           const result = await response.json();
-          if (!alive.current) return;
+          if (!alive.current || id !== practiceId.current) return;
           if (!response.ok) throw new Error(result.message || "I couldn't listen that time.");
           const transcript = String(result.heard || "").trim();
           setHeard(transcript);
-          if (!transcript) { setFeedback("I couldn't hear a word. Let's listen and try again."); return; }
-          const matched = transcript.toLowerCase().split(/[^a-z]+/).includes(lesson.word.toLowerCase());
-          const message = matched ? `I heard ${lesson.word}! Let's say it together.` : `I heard “${transcript}.” Listen to ${lesson.word}. Start with ${lesson.first}, then try again.`;
+          if (!transcript) { setFeedback("I couldn't hear a word. Let's listen and try again."); setBusy(false); return; }
+          const matched = transcript.toLowerCase().split(/[^a-z]+/).includes(practiced.word.toLowerCase());
+          const message = matched ? `I heard ${practiced.word}! Let's say it together.` : `I heard “${transcript}.” Listen to ${practiced.word}. Start with ${practiced.first}, then try again.`;
           setFeedback(message);
-          say(matched ? `I heard ${lesson.word}!` : `Let's try ${lesson.word}. Start with ${lesson.first}. ${lesson.word}.`);
-        } catch (error: any) { setFeedback(error?.message || "I couldn't listen that time. Try again."); }
+          setBusy(false);
+          say(matched ? `I heard ${practiced.word}!` : `Let's try ${practiced.word}. Start with ${practiced.first}. ${practiced.word}.`);
+        } catch (error: any) { if (id === practiceId.current) { setBusy(false); setFeedback(error?.message || "I couldn't listen that time. Try again."); } }
       };
       active.start();
-      setListening(true);
-      setFeedback("I'm listening. Say the word, or tap Done.");
-      timer.current = setTimeout(() => { if (active.state === "recording") active.stop(); }, 4500);
-    } catch { setFeedback("Microphone permission wasn't available. You can still listen and use pictures."); setListening(false); }
+      setFeedback("I'm listening. Say the word now.");
+
+      // Stop as soon as speech ends; a generous timeout also helps quieter kids.
+      const context = audioContext.current || new AudioContext();
+      audioContext.current = context;
+      void context.resume();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      const source = context.createMediaStreamSource(media);
+      source.connect(analyser);
+      const samples = new Float32Array(analyser.fftSize);
+      const started = performance.now();
+      let speakingSince = 0;
+      let lastVoiceAt = 0;
+      let noiseFloor = 0.004;
+      const poll = () => {
+        if (active.state !== "recording" || id !== practiceId.current) return;
+        analyser.getFloatTimeDomainData(samples);
+        let energy = 0;
+        for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) energy += samples[sampleIndex] * samples[sampleIndex];
+        const rms = Math.sqrt(energy / samples.length);
+        const now = performance.now();
+        if (now - started < 250) noiseFloor = Math.max(noiseFloor, rms);
+        const voice = rms > Math.max(0.009, noiseFloor * 2.2);
+        if (voice) {
+          if (!speakingSince) speakingSince = now;
+          if (now - speakingSince > 140) heardVoice = true;
+          lastVoiceAt = now;
+        } else speakingSince = 0;
+        if ((heardVoice && now - lastVoiceAt > 700 && now - started > 800) || now - started > 6500) {
+          active.stop();
+        } else timer.current = setTimeout(poll, 60);
+      };
+      timer.current = setTimeout(poll, 60);
+    } catch { if (recorder.current?.state === "recording") recorder.current.stop(); media.getTracks().forEach(track => track.stop()); setFeedback("The microphone couldn't start. You can still listen and use pictures."); setBusy(false); }
   };
 
-  const ask = () => {
+  const ask = async () => {
+    if (busy) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { setFeedback("This browser cannot use the microphone here. You can still listen and use pictures."); return; }
+    const type = ["audio/webm", "audio/mp4", "audio/ogg"].find(candidate => MediaRecorder.isTypeSupported(candidate));
+    if (!type) { setFeedback("This microphone format isn't supported. You can still listen and use pictures."); return; }
+    const id = ++practiceId.current;
+    setBusy(true);
     setFeedback(""); setHeard("");
     practiceActive.current = true;
-    say(`Can you say ${lesson.word}?`, () => { if (alive.current && practiceActive.current) void startListening(); });
+    try {
+      audioContext.current = new AudioContext();
+      void audioContext.current.resume();
+      // Request permission on the initial tap, before the AI speaks. Only
+      // record after the prompt ends, so its own voice cannot be transcribed.
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!alive.current || id !== practiceId.current) { media.getTracks().forEach(track => track.stop()); return; }
+      stream.current = media;
+      setFeedback(`Listen, then say ${lesson.word}. The microphone starts by itself.`);
+      say(`Can you say ${lesson.word}?`, () => startListening(media, type, id, lesson));
+    } catch { if (id === practiceId.current) { void audioContext.current?.close(); audioContext.current = null; setBusy(false); setFeedback("Microphone permission wasn't available. You can still listen and use pictures."); } }
   };
 
   return (
@@ -113,7 +188,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
 
       <section className="rounded-3xl bg-[#e0f3e7] p-5 sm:p-6"><h3 className="text-2xl font-black">Find {lesson.word}</h3><button data-talker-dwell type="button" onClick={() => say(`Can you find ${lesson.word}?`)} className="relative rounded-2xl bg-white min-h-14 px-4 mt-2 font-black">🔊 Hear the question</button><div className="grid grid-cols-3 gap-2 sm:gap-3 mt-4">{lesson.choices.map(choice => <button data-talker-dwell type="button" key={choice} onClick={() => { setAnswer(choice); say(choice === lesson.word ? `Yes! You found ${lesson.word}.` : `Good try. Let's find ${lesson.word}.`); }} className={`relative rounded-3xl min-h-32 sm:min-h-40 border-4 ${answer === choice ? (choice === lesson.word ? "border-emerald-500" : "border-amber-400") : "border-white"} bg-white flex flex-col items-center justify-center p-2`}><span className="text-5xl" aria-hidden="true">{lessons.find(item => item.word === choice)?.icon || "❔"}</span><span className="font-black text-lg">{choice}</span></button>)}</div>{answer && <p role="status" className="font-black mt-3 text-xl">{answer === lesson.word ? `You found ${lesson.word}!` : `Let's look for ${lesson.word}.`}</p>}</section>
 
-      <section className="rounded-3xl bg-[#e3eefa] p-5 sm:p-6"><h3 className="text-2xl font-black">Your turn to talk</h3><p className="font-bold mt-2">The AI voice can ask for the word, then listen for a few seconds. You can also keep using pictures.</p><div className="flex flex-wrap gap-3 mt-4"><button data-talker-dwell type="button" onClick={ask} disabled={listening} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white px-6 font-black disabled:opacity-50">🎙️ Ask me to say {lesson.word}</button>{!listening && <button data-talker-dwell type="button" onClick={() => { practiceActive.current = true; void startListening(); }} className="relative min-h-16 rounded-2xl bg-white px-6 font-black">Start talking</button>}{listening && <button data-talker-dwell type="button" onClick={() => { if (timer.current) clearTimeout(timer.current); recorder.current?.stop(); }} className="relative min-h-16 rounded-2xl bg-white px-6 font-black">Done talking</button>}<button data-talker-dwell type="button" onClick={() => say(lesson.word)} className="relative min-h-16 rounded-2xl bg-white px-6 font-black">🔊 Hear it again</button></div>{feedback && <p role="status" className="text-lg font-black mt-4">{feedback}</p>}{heard && <p className="font-bold">The microphone heard: “{heard}”</p>}<p className="text-sm font-bold text-[#4c687b] mt-4">A grown-up can allow microphone access. Short recordings are sent for transcription and are not saved by this app. Speech recognition may mishear children's voices; it is practice, not a speech assessment.</p></section>
+      <section className="rounded-3xl bg-[#e3eefa] p-5 sm:p-6"><h3 className="text-2xl font-black">Your turn to talk</h3><p className="font-bold mt-2">The AI asks, then listens automatically. Say the word and pause; feedback follows without another button.</p><div className="flex flex-wrap gap-3 mt-4"><button data-talker-dwell type="button" onClick={() => void ask()} disabled={busy} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white px-6 font-black disabled:opacity-50">🎙️ Ask me to say {lesson.word}</button><button data-talker-dwell type="button" onClick={() => say(lesson.word)} disabled={busy} className="relative min-h-16 rounded-2xl bg-white px-6 font-black disabled:opacity-50">🔊 Hear it again</button></div>{feedback && <p role="status" className="text-lg font-black mt-4">{feedback}</p>}{heard && <p className="font-bold">The microphone heard: “{heard}”</p>}<p className="text-sm font-bold text-[#4c687b] mt-4">A grown-up can allow microphone access. Short recordings are sent for transcription and are not saved by this app. Speech recognition may mishear children's voices; it is practice, not a speech assessment.</p></section>
     </div>
   );
 }

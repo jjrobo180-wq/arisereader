@@ -139,6 +139,7 @@ function stopActiveBuddyVoice(notifyEnd = false) {
 // Cache generated neural speech in the browser so repeated Buddy phrases
 // replay locally without another server/OpenAI request.
 const buddyAudioBlobCache = new Map<string, Blob>();
+const buddyAudioPrefetches = new Map<string, Promise<Blob>>();
 const BUDDY_AUDIO_CACHE_LIMIT = 100;
 
 function getBuddyAudioCacheKey(text: string, calmMode: boolean): string {
@@ -165,6 +166,30 @@ function getSessionToken(): string | null {
   }
 }
 
+// Warm the next likely lines while the child is looking at a scene. A tap can
+// share an in-flight request instead of starting a second voice generation.
+export function preloadCharacterAI(text: string, calmMode = true): Promise<Blob | null> {
+  const token = getSessionToken();
+  if (!token || !text.trim()) return Promise.resolve(null);
+  const key = getBuddyAudioCacheKey(text, calmMode);
+  const cached = buddyAudioBlobCache.get(key);
+  if (cached) return Promise.resolve(cached);
+  const existing = buddyAudioPrefetches.get(key);
+  if (existing) return existing;
+  const pending = fetch(`${API_BASE}/api/eye-gaze/tts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ text, calmMode }),
+  }).then(async response => {
+    if (!response.ok) throw new Error("Voice prefetch failed");
+    const blob = await response.blob();
+    rememberBuddyAudio(key, blob);
+    return blob;
+  }).finally(() => buddyAudioPrefetches.delete(key));
+  buddyAudioPrefetches.set(key, pending);
+  return pending;
+}
+
 export async function speakCharacterAI(
   text: string,
   options?: {
@@ -187,6 +212,9 @@ export async function speakCharacterAI(
     const calmMode = !!options?.calmMode;
     const cacheKey = getBuddyAudioCacheKey(text, calmMode);
     let blob = buddyAudioBlobCache.get(cacheKey) || null;
+
+    const warming = buddyAudioPrefetches.get(cacheKey);
+    if (!blob && warming) blob = await warming;
 
     if (!blob) {
       const controller = new AbortController();
