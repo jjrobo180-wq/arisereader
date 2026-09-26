@@ -22,6 +22,16 @@ function getTokenFromCookie(): string | null {
   return null;
 }
 
+function getEyeGazeLaunchMode(): "quiz" | "picture" | "story" | "boss" | null {
+  try {
+    const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
+    const mode = new URLSearchParams(query).get("mode");
+    return mode === "quiz" || mode === "picture" || mode === "story" || mode === "boss" ? mode : null;
+  } catch {
+    return null;
+  }
+}
+
 interface CustomQuestion {
   id: number;
   prompt: string;
@@ -65,8 +75,10 @@ export default function CustomEyeGazeQuiz() {
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [celebrationTrigger, setCelebrationTrigger] = useState(0);
   const [celebrationStyle, setCelebrationStyle] = useState<CelebrationStyle>("confetti");
-  const [gameMode, setGameMode] = useState<"picture" | "story" | "boss">("picture");
-  const [showGamePicker, setShowGamePicker] = useState(true);
+  const launchMode = getEyeGazeLaunchMode();
+  const [gameMode, setGameMode] = useState<"picture" | "story" | "boss">(launchMode && launchMode !== "quiz" ? launchMode : "picture");
+  const [showGamePicker, setShowGamePicker] = useState(!launchMode);
+  const isPlainQuiz = launchMode === "quiz";
   const [bossHealth, setBossHealth] = useState(0);
   const [lastFeedback, setLastFeedback] = useState<"correct" | "try" | null>(null);
   const correctButtonRef = useRef<HTMLElement | null>(null);
@@ -292,7 +304,7 @@ export default function CustomEyeGazeQuiz() {
           <RotateCcw size={80} color="hsl(0 0% 66%)" />
         )}
         <h1 style={{ fontSize: "2.5rem", fontWeight: 800 }}>
-          {passed ? (gameMode === "boss" ? "Boss Defeated!" : gameMode === "story" ? "Quest Complete!" : "Picture Hunt Complete!") : "Great Try!"}
+          {passed ? (isPlainQuiz ? "Great Job!" : gameMode === "boss" ? "Boss Defeated!" : gameMode === "story" ? "Quest Complete!" : "Picture Hunt Complete!") : "Great Try!"}
         </h1>
         <div style={{ fontSize: "3rem", fontWeight: 700, color: passed ? "hsl(21 100% 50%)" : "hsl(0 0% 66%)" }}>
           {result.score}/{result.total}
@@ -395,7 +407,7 @@ export default function CustomEyeGazeQuiz() {
         </div>
       </div>
 
-      <div className="max-w-3xl w-full mx-auto mb-4">
+      {!isPlainQuiz && <div className="max-w-3xl w-full mx-auto mb-4">
         {gameMode === "boss" && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
             <div className="flex items-center justify-between gap-3 mb-2">
@@ -428,7 +440,7 @@ export default function CustomEyeGazeQuiz() {
             <span className="font-black flex items-center justify-center gap-2"><ImageIcon className="w-5 h-5 text-purple-400" /> Picture Hunt</span>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Question prompt */}
       <div style={{ textAlign: "center", marginBottom: "1rem" }}>
