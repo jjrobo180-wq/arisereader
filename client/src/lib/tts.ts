@@ -168,6 +168,38 @@ function getCharacterVoice(): SpeechSynthesisVoice | null {
 
 let activeBuddyAudio: HTMLAudioElement | null = null;
 let activeBuddyAudioUrl: string | null = null;
+let activeBuddyRequestId = 0;
+let activeBuddyAbortController: AbortController | null = null;
+let activeBuddyOnEnd: (() => void) | null = null;
+
+function stopActiveBuddyVoice() {
+  // Stop any old browser/system speech too, so neural + browser voices can never overlap.
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+
+  if (activeBuddyAbortController) {
+    activeBuddyAbortController.abort();
+    activeBuddyAbortController = null;
+  }
+
+  if (activeBuddyAudio) {
+    activeBuddyAudio.pause();
+    activeBuddyAudio.currentTime = 0;
+    activeBuddyAudio = null;
+  }
+
+  if (activeBuddyAudioUrl) {
+    URL.revokeObjectURL(activeBuddyAudioUrl);
+    activeBuddyAudioUrl = null;
+  }
+
+  if (activeBuddyOnEnd) {
+    const onEnd = activeBuddyOnEnd;
+    activeBuddyOnEnd = null;
+    onEnd();
+  }
+}
 
 // Cache generated neural speech in the browser so repeated Buddy phrases
 // replay locally without another server/OpenAI request.
@@ -213,21 +245,18 @@ export async function speakCharacterAI(
     return false;
   }
 
-  try {
-    if (activeBuddyAudio) {
-      activeBuddyAudio.pause();
-      activeBuddyAudio = null;
-    }
-    if (activeBuddyAudioUrl) {
-      URL.revokeObjectURL(activeBuddyAudioUrl);
-      activeBuddyAudioUrl = null;
-    }
+  const requestId = ++activeBuddyRequestId;
+  stopActiveBuddyVoice();
 
+  try {
     const calmMode = !!options?.calmMode;
     const cacheKey = getBuddyAudioCacheKey(text, calmMode);
     let blob = buddyAudioBlobCache.get(cacheKey) || null;
 
     if (!blob) {
+      const controller = new AbortController();
+      activeBuddyAbortController = controller;
+
       const response = await fetch(`${API_BASE}/api/eye-gaze/tts`, {
         method: "POST",
         headers: {
@@ -236,7 +265,15 @@ export async function speakCharacterAI(
         },
         body: JSON.stringify({ text, calmMode }),
         cache: "no-store",
+        signal: controller.signal,
       });
+
+      if (activeBuddyAbortController === controller) {
+        activeBuddyAbortController = null;
+      }
+
+      // A newer Buddy line replaced this one while the audio was generating.
+      if (requestId !== activeBuddyRequestId) return false;
 
       if (!response.ok) {
         options?.onFallback?.();
@@ -244,36 +281,69 @@ export async function speakCharacterAI(
       }
 
       blob = await response.blob();
+      if (requestId !== activeBuddyRequestId) return false;
       rememberBuddyAudio(cacheKey, blob);
+    }
+
+    if (requestId !== activeBuddyRequestId) return false;
+
+    // A previous audio clip could have started while this request was loading.
+    // Stop it again immediately before playback.
+    if (activeBuddyAudio) {
+      activeBuddyAudio.pause();
+      activeBuddyAudio.currentTime = 0;
+      activeBuddyAudio = null;
+    }
+    if (activeBuddyAudioUrl) {
+      URL.revokeObjectURL(activeBuddyAudioUrl);
+      activeBuddyAudioUrl = null;
     }
 
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     activeBuddyAudio = audio;
     activeBuddyAudioUrl = url;
+    activeBuddyOnEnd = options?.onEnd || null;
 
-    audio.onplay = () => options?.onStart?.();
+    audio.onplay = () => {
+      if (requestId === activeBuddyRequestId) options?.onStart?.();
+    };
     audio.onended = () => {
-      options?.onEnd?.();
       if (activeBuddyAudioUrl === url) {
         URL.revokeObjectURL(url);
         activeBuddyAudioUrl = null;
       }
       if (activeBuddyAudio === audio) activeBuddyAudio = null;
+      if (requestId === activeBuddyRequestId) {
+        activeBuddyOnEnd = null;
+        options?.onEnd?.();
+      }
     };
     audio.onerror = () => {
-      options?.onFallback?.();
-      options?.onEnd?.();
       if (activeBuddyAudioUrl === url) {
         URL.revokeObjectURL(url);
         activeBuddyAudioUrl = null;
       }
       if (activeBuddyAudio === audio) activeBuddyAudio = null;
+      if (requestId === activeBuddyRequestId) {
+        activeBuddyOnEnd = null;
+        options?.onFallback?.();
+        options?.onEnd?.();
+      }
     };
 
     await audio.play();
+    if (requestId !== activeBuddyRequestId) {
+      audio.pause();
+      return false;
+    }
     return true;
-  } catch {
+  } catch (error: any) {
+    // Aborted requests are expected when a newer Buddy line replaces an older one.
+    if (error?.name === "AbortError" || requestId !== activeBuddyRequestId) {
+      return false;
+    }
+    activeBuddyOnEnd = null;
     options?.onFallback?.();
     options?.onEnd?.();
     return false;
