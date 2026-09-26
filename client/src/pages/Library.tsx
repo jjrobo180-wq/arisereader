@@ -1294,6 +1294,41 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && !user?.is_eye_gaze_user && (
+          <div className="grid md:grid-cols-2 gap-4 mb-7">
+            <button
+              type="button"
+              onClick={() => navigate("/reading-level-up")}
+              className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-blue-600 via-violet-600 to-fuchsia-600 p-5 sm:p-6 text-left text-white shadow-xl hover:-translate-y-1 transition-all min-h-[190px]"
+            >
+              <div className="absolute right-4 bottom-[-18px] text-[110px] opacity-20">📈</div>
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-widest">
+                  <Brain className="w-4 h-4" /> Build My Reading
+                </div>
+                <h2 className="mt-4 text-2xl sm:text-3xl font-black">Reading Level Up</h2>
+                <p className="mt-2 text-sm sm:text-base text-white/85 font-semibold max-w-lg">Train decoding, fluency, vocabulary, comprehension, and reading stamina through short game-style missions.</p>
+                <div className="mt-4 font-black">Start Training →</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/arise-city")}
+              className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950 p-5 sm:p-6 text-left text-white shadow-xl hover:-translate-y-1 transition-all min-h-[190px]"
+            >
+              <div className="absolute right-3 bottom-[-20px] text-[115px] opacity-45">🏙️</div>
+              <div className="relative max-w-lg">
+                <div className="inline-flex items-center gap-2 rounded-full bg-cyan-300/15 px-3 py-1 text-xs font-black uppercase tracking-widest text-cyan-200">
+                  <Sparkles className="w-4 h-4" /> Life Skills Game
+                </div>
+                <h2 className="mt-4 text-2xl sm:text-3xl font-black">A.R.I.S.E. City</h2>
+                <p className="mt-2 text-sm sm:text-base text-white/80 font-semibold">Explore the city, interview for careers, work, earn money, shop, drive, buy a home, and complete reading challenges.</p>
+                <div className="mt-4 font-black text-cyan-200">Enter the City →</div>
+              </div>
+            </button>
+          </div>
+        )}
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <div className="mb-6 rounded-xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
