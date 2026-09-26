@@ -1506,6 +1506,12 @@ export default function Library() {
               </div>
               <h2 className="text-xl font-bold">Eye Gazer &amp; Non-Verbal</h2>
               <button
+                onClick={() => navigate("/eye-gaze-home")}
+                className="ml-auto mr-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border-2 border-green-500/40 bg-green-500/10 text-green-400 text-sm font-black hover:bg-green-500/20 transition-colors"
+              >
+                MY EYE GAZE HOME
+              </button>
+              <button
                 onClick={() => { setShowEyeGazeInstant(true); setEyeGazeError(""); setEyeGazeTopic(""); }}
                 className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
               >
@@ -1530,7 +1536,7 @@ export default function Library() {
               >
                 <div className="text-xs font-black uppercase tracking-wide text-amber-400 mb-1">Eye Gaze</div>
                 <div className="text-xl font-black">GAMES</div>
-                <div className="text-xs text-muted-foreground mt-1">Picture Hunt · Story Quest · Boss Battle</div>
+                <div className="text-xs text-muted-foreground mt-1">Match Pairs · Word Pop · Sentence Builder</div>
               </button>
             </div>
 
