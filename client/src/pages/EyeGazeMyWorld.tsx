@@ -555,41 +555,25 @@ export default function EyeGazeMyWorld() {
           <div className="absolute inset-0 bg-black/5" />
 
           {selectedWorld.items.map(item => (
-            <DwellButton
+            <div
               key={item.id}
-              label={mode === "ispy" ? `Choose this spot for ${target?.label || "the item"}` : `Explore ${item.label}`}
-              onSelect={() => chooseItem(item)}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full shadow-2xl border-[5px] border-white flex items-center justify-center transition-all ${mode === "ispy" ? "w-24 h-24 sm:w-32 sm:h-32 bg-amber-300/85 hover:bg-amber-300" : "w-28 h-28 sm:w-36 sm:h-36 bg-white/90"}`}
-              style={undefined as any}
+              style={{ left: `${item.x}%`, top: `${item.y}%` }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
             >
-              <span style={{ position: "absolute", left: `${item.x}%`, top: `${item.y}%` }} />
-            </DwellButton>
-          ))}
-
-          {selectedWorld.items.map(item => (
-            <div key={`pos-${item.id}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10">
-              <div className={`w-24 h-24 sm:w-32 sm:h-32 rounded-full shadow-2xl border-[5px] border-white overflow-hidden flex items-center justify-center ${mode === "ispy" ? "bg-amber-300/90" : "bg-white/95"}`}>
-                {mode === "explore" ? <Media item={item} className="w-full h-full rounded-full object-cover" /> : <span className="text-4xl sm:text-5xl font-black text-amber-900">?</span>}
-              </div>
-              {mode === "explore" && <div className="mt-1 rounded-full bg-slate-950/85 text-white px-3 py-1 text-center text-sm font-black">{item.label}</div>}
+              <DwellButton
+                label={mode === "ispy" ? `Choose this spot for ${target?.label || "the item"}` : `Explore ${item.label}`}
+                onSelect={() => chooseItem(item)}
+                className={`rounded-full shadow-2xl border-[5px] border-white flex items-center justify-center transition-all ${mode === "ispy" ? "w-24 h-24 sm:w-32 sm:h-32 bg-amber-300/90 hover:bg-amber-300" : "w-28 h-28 sm:w-36 sm:h-36 bg-white/95"}`}
+              >
+                {mode === "explore" ? (
+                  item.mediaUrl ? <Media item={item} className="w-full h-full rounded-full object-cover" /> : <span className="text-4xl">📍</span>
+                ) : (
+                  <span className="text-4xl sm:text-5xl font-black text-amber-900">?</span>
+                )}
+              </DwellButton>
+              {mode === "explore" && <div className="mt-1 rounded-full bg-slate-950/85 text-white px-3 py-1 text-center text-sm font-black whitespace-nowrap">{item.label}</div>}
             </div>
           ))}
-
-          <div className="absolute inset-0 z-20">
-            {selectedWorld.items.map(item => (
-              <DwellButton
-                key={`hit-${item.id}`}
-                label={mode === "ispy" ? `Choose spot` : `Explore ${item.label}`}
-                onSelect={() => chooseItem(item)}
-                className="absolute -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-transparent"
-              >
-                <span className="sr-only">{item.label}</span>
-              </DwellButton>
-            )).map((node, index) => {
-              const item = selectedWorld.items[index];
-              return <div key={`wrap-${item.id}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} className="absolute">{node}</div>;
-            })}
-          </div>
         </section>
 
         {feedback && <div role="status" className={`rounded-2xl p-4 text-center text-xl font-black ${feedback.startsWith("Yes") ? "bg-green-100 text-green-800" : feedback.startsWith("That") ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}>{feedback}</div>}
