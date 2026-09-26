@@ -11,6 +11,7 @@ import { generateCertificate } from "@/lib/certificate";
 import BookAccessLinks from "@/components/BookAccessLinks";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { speakCharacterAI, stopSpeaking as stopAiSpeaking } from "@/lib/tts";
 
 interface SafeQuestion {
   id: number;
@@ -112,44 +113,37 @@ export default function Quiz() {
     fetchQuiz();
   }, [token, id]);
 
-  // --- Text-to-Speech for quiz questions ---
+  // --- Neural AI text-to-speech for quiz questions ---
   const speakQuestion = (q: SafeQuestion, idx: number) => {
-    if (!("speechSynthesis" in window)) return;
-    // If already speaking this question, stop
     if (speakingQId === q.id) {
-      window.speechSynthesis.cancel();
+      stopAiSpeaking();
       setSpeakingQId(null);
       return;
     }
-    window.speechSynthesis.cancel();
+
+    stopAiSpeaking();
     const opts = ["A", "B", "C", "D"] as const;
     const optionTexts = opts.map(letter => {
       const text = q[`option${letter}` as keyof SafeQuestion] as string;
       return text ? `${letter}. ${text}` : "";
     }).filter(Boolean);
     const fullText = `Question ${idx + 1}. ${q.questionText}. Answer choices: ${optionTexts.join(". ")}`;
-    const utterance = new SpeechSynthesisUtterance(fullText);
-    utterance.rate = 0.9;
-    utterance.onend = () => setSpeakingQId(null);
-    utterance.onerror = () => setSpeakingQId(null);
+
     setSpeakingQId(q.id);
-    window.speechSynthesis.speak(utterance);
+    void speakCharacterAI(fullText, {
+      onEnd: () => setSpeakingQId(null),
+      onFallback: () => setSpeakingQId(null),
+    });
   };
 
   const stopSpeaking = () => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopAiSpeaking();
     setSpeakingQId(null);
   };
 
-  // Stop speech when leaving the page
+  // Stop neural speech when leaving the page
   useEffect(() => {
-    return () => {
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
+    return () => stopAiSpeaking();
   }, []);
 
   const handleAnswer = (questionId: number, answer: string) => {
