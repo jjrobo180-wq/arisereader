@@ -969,7 +969,7 @@ export default function EyeGazeGames() {
 
         <button
           type="button"
-          onClick={() => navigate("/buddy-world")}
+          onClick={() => navigate("/my-world")}
           className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-emerald-300/60 bg-gradient-to-br from-sky-400 via-cyan-400 to-emerald-400 p-6 sm:p-8 text-left text-slate-950 shadow-2xl hover:-translate-y-1 transition-all mb-5 min-h-[270px]"
         >
           <div className="absolute right-3 bottom-[-16px] text-[145px] sm:text-[180px] opacity-30">🏠</div>
@@ -980,12 +980,12 @@ export default function EyeGazeGames() {
             <div className="inline-flex items-center gap-2 rounded-full bg-white/45 border border-white/50 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
               <Sparkles className="w-4 h-4" /> EARLY LEARNER · WORDS + PHRASES
             </div>
-            <h2 className="text-3xl sm:text-5xl font-black leading-none">Buddy World</h2>
+            <h2 className="text-3xl sm:text-5xl font-black leading-none">My World</h2>
             <p className="mt-4 text-slate-900/80 text-base sm:text-lg font-bold max-w-xl">
-              Explore a kitchen, bedroom, bathroom, zoo and park. Learn words like milk, book and lion, then build useful phrases like “I want milk” and “I see a lion.”
+              Explore familiar places built from your own family photos and short videos. Find real objects, learn their words, and practice everyday routines through I‑Spy.
             </p>
             <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-slate-950 text-white px-5 py-3 font-black">
-              Explore Buddy World →
+              Explore My World →
             </div>
           </div>
         </button>
