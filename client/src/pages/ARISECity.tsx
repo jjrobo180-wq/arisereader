@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
+import ARISECityInterior, { type CityInteriorAction } from "@/pages/ARISECityInterior";
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -13,6 +14,8 @@ import {
   Star,
   UserRound,
   X,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 type CareerId = "teacher" | "medical" | "engineer" | "chef" | "designer" | "entrepreneur";
@@ -130,6 +133,86 @@ const INTERVIEW_QUESTIONS = [
     answer: 0,
   },
 ];
+
+type ComprehensionChallenge = {
+  passage: string;
+  q: string;
+  choices: string[];
+  answer: number;
+  explanation: string;
+};
+
+const TRAFFIC_COMPREHENSION: ComprehensionChallenge[] = [
+  {
+    passage: "Maya left the library and started across Main Street. The walk signal had already changed, but she was focused on a message and kept walking. A driver stopped suddenly. Maya stepped back onto the sidewalk and decided to wait for the next walk signal.",
+    q: "What caused the dangerous situation?",
+    choices: ["Maya crossed after the signal changed while distracted", "The library closed early", "Maya waited on the sidewalk"],
+    answer: 0,
+    explanation: "The passage says Maya kept crossing after the signal changed because she was distracted.",
+  },
+  {
+    passage: "Jordan reached an intersection where parked cars made it hard to see traffic. Instead of stepping into the street, Jordan moved to the marked crosswalk, looked left, right, and left again, and crossed when the road was clear.",
+    q: "Why did Jordan move to the marked crosswalk?",
+    choices: ["To find a safer place with a better view of traffic", "To get farther from the destination", "To avoid seeing any cars"],
+    answer: 0,
+    explanation: "Jordan needed a safer place to see traffic before crossing.",
+  },
+  {
+    passage: "Kai was hurrying to work when a ball rolled into the road. Kai wanted to grab it right away, but noticed a car approaching. Kai stayed on the sidewalk, let the car pass, and only picked up the ball when the street was clear.",
+    q: "What is the main idea of this passage?",
+    choices: ["Being late is always a problem", "Objects are more important than safety", "Waiting for traffic to clear is safer than rushing into the road"],
+    answer: 2,
+    explanation: "Kai chose to wait because personal safety mattered more than grabbing the ball quickly.",
+  },
+  {
+    passage: "Avery got off the city bus near school. The bus blocked Avery's view of the next lane. Avery waited until the bus moved away before crossing so there would be a clear view in both directions.",
+    q: "What can you infer about why Avery waited?",
+    choices: ["The bus was the final destination", "A clear view helps Avery check for moving vehicles", "Avery forgot where the school was"],
+    answer: 1,
+    explanation: "Waiting until the bus moved gave Avery a clear view of traffic.",
+  },
+];
+
+const LIBRARY_COMPREHENSION: ComprehensionChallenge[] = [
+  {
+    passage: "DeShawn wanted to buy a $120 pair of headphones. He had $45 saved and earned $25 each weekend helping his aunt. Instead of spending his weekend money on snacks, he decided to save until he had enough for the headphones.",
+    q: "Which detail best shows DeShawn is working toward a goal?",
+    choices: ["The headphones cost $120", "He saves his weekend earnings instead of spending them", "He helps his aunt"],
+    answer: 1,
+    explanation: "Saving his earnings directly shows the action he is taking to reach his goal.",
+  },
+  {
+    passage: "A robotics team built a small delivery robot. During the first test, the robot kept turning too early. The team reviewed the sensor data, changed the code, and tested again. On the third test, the robot completed the route.",
+    q: "What helped the team solve the problem?",
+    choices: ["Ignoring the first test", "Using evidence and revising the code", "Building a completely unrelated robot"],
+    answer: 1,
+    explanation: "The team studied the data, made a change, and tested the solution.",
+  },
+  {
+    passage: "Nia started a new job at a café. During a busy shift, she noticed that customers were waiting a long time because orders were being placed in two different spots. She suggested using one clearly marked pickup area. The next day, customers moved through the line more quickly.",
+    q: "What problem did Nia's idea solve?",
+    choices: ["Customers did not know where to pick up orders", "The café had no food", "Nia did not like her job"],
+    answer: 0,
+    explanation: "The single pickup area made the process clearer and reduced waiting.",
+  },
+  {
+    passage: "Luis read two articles about the same event. One article included interviews and links to official records. The other made several big claims but did not name any sources. Luis decided to use the first article for his project.",
+    q: "Why was the first article a stronger source?",
+    choices: ["It was shorter", "It used evidence that could be checked", "It had a more exciting headline"],
+    answer: 1,
+    explanation: "Interviews and official records gave Luis evidence he could verify.",
+  },
+];
+
+function isTrafficRoad(x: number, y: number) {
+  return (
+    (y >= 520 && y <= 770) ||
+    (y >= 1000 && y <= 1250) ||
+    (x >= 640 && x <= 890) ||
+    (x >= 1180 && x <= 1430) ||
+    (x >= 1830 && x <= 2080)
+  );
+}
 
 const WORK_TASKS: Record<CareerId, Array<{ q: string; choices: string[]; answer: number }>> = {
   teacher: [
@@ -428,9 +511,24 @@ export default function ARISECity() {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const keysRef = useRef<Record<string, boolean>>({});
   const frameRef = useRef<number | null>(null);
+  const trafficLockRef = useRef(false);
+  const lastSafeRef = useRef({ x: loadSave().playerX, y: loadSave().playerY });
+  const trafficAudioRef = useRef<{
+    ctx: AudioContext;
+    source: AudioBufferSourceNode;
+    gain: GainNode;
+    hum: OscillatorNode;
+  } | null>(null);
 
   const [save, setSave] = useState<GameSave>(() => loadSave());
-  const [screen, setScreen] = useState<"setup" | "city">(() => (loadSave().started ? "city" : "setup"));
+  const [screen, setScreen] = useState<"setup" | "city" | "interior">(() => (loadSave().started ? "city" : "setup"));
+  const [insidePlace, setInsidePlace] = useState<Building | null>(null);
+  const [transitionLabel, setTransitionLabel] = useState<string | null>(null);
+  const [trafficChallenge, setTrafficChallenge] = useState<number | null>(null);
+  const [trafficFeedback, setTrafficFeedback] = useState("");
+  const [libraryChallenge, setLibraryChallenge] = useState(0);
+  const [libraryFeedback, setLibraryFeedback] = useState("");
+  const [ambientEnabled, setAmbientEnabled] = useState(true);
   const [avatar, setAvatar] = useState<AvatarId>(() => loadSave().avatar);
   const [career, setCareer] = useState<CareerId>(() => loadSave().career);
   const [nearPlace, setNearPlace] = useState<Building | null>(null);
@@ -460,11 +558,142 @@ export default function ARISECity() {
     window.setTimeout(() => setNotice(""), 2600);
   };
 
+  const stopTrafficAudio = () => {
+    const audio = trafficAudioRef.current;
+    if (!audio) return;
+    try {
+      audio.source.stop();
+      audio.hum.stop();
+      audio.ctx.close();
+    } catch {}
+    trafficAudioRef.current = null;
+  };
+
+  const startTrafficAudio = () => {
+    if (!ambientEnabled || screen !== "city" || trafficAudioRef.current) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx: AudioContext = new AudioCtx();
+      const duration = 2.5;
+      const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * (0.42 + Math.sin(i / 2200) * 0.08);
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 620;
+      const gain = ctx.createGain();
+      gain.gain.value = 0.045;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      const hum = ctx.createOscillator();
+      const humGain = ctx.createGain();
+      hum.type = "sine";
+      hum.frequency.value = 56;
+      humGain.gain.value = 0.018;
+      hum.connect(humGain);
+      humGain.connect(ctx.destination);
+
+      source.start();
+      hum.start();
+      trafficAudioRef.current = { ctx, source, gain, hum };
+    } catch {}
+  };
+
+  const playTrafficAlert = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx: AudioContext = new AudioCtx();
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + .45);
+      const horn = ctx.createOscillator();
+      horn.type = "square";
+      horn.frequency.setValueAtTime(310, ctx.currentTime);
+      horn.frequency.exponentialRampToValueAtTime(245, ctx.currentTime + .35);
+      horn.connect(gain);
+      horn.start();
+      horn.stop(ctx.currentTime + .45);
+      window.setTimeout(() => ctx.close().catch(() => {}), 700);
+    } catch {}
+  };
+
+  const enterBuilding = (place: Building) => {
+    keysRef.current = {};
+    setTransitionLabel(`Entering ${place.label}…`);
+    window.setTimeout(() => {
+      stopTrafficAudio();
+      setInsidePlace(place);
+      setScreen("interior");
+      setNearPlace(null);
+      setTransitionLabel(null);
+    }, 420);
+  };
+
+  const exitBuilding = () => {
+    if (!insidePlace) return;
+    const label = insidePlace.label;
+    setTransitionLabel(`Leaving ${label}…`);
+    window.setTimeout(() => {
+      setInsidePlace(null);
+      setScreen("city");
+      setTransitionLabel(null);
+      window.setTimeout(() => startTrafficAudio(), 100);
+    }, 420);
+  };
+
+  const handleInteriorAction = (action: CityInteriorAction) => {
+    if (action === "interview") {
+      setInterviewIndex(0);
+      setInterviewScore(0);
+      setModal("interview");
+      return;
+    }
+    if (action === "work") {
+      if (!save.hired) {
+        setNotice("Get hired at the Career Center first.");
+        window.setTimeout(() => setNotice(""), 2400);
+        return;
+      }
+      setWorkIndex(0);
+      setWorkScore(0);
+      setModal("work");
+      return;
+    }
+    if (action === "store") setModal("store");
+    else if (action === "dealer") setModal("dealer");
+    else if (action === "home") setModal("home");
+    else if (action === "bank") setModal("bank");
+    else if (action === "library") {
+      setLibraryChallenge((save.xp + level) % LIBRARY_COMPREHENSION.length);
+      setLibraryFeedback("");
+      setModal("library");
+    } else {
+      setNotice("You explored this building and learned more about the community.");
+      window.setTimeout(() => setNotice(""), 2400);
+    }
+  };
+
+  useEffect(() => {
+    if (screen !== "city") stopTrafficAudio();
+    return () => {
+      if (screen !== "city") stopTrafficAudio();
+    };
+  }, [screen]);
+
   useEffect(() => {
     if (screen !== "city") return;
 
     const onDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
+      startTrafficAudio();
       keysRef.current[key] = true;
       if (key === "e") interact();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) event.preventDefault();
@@ -520,7 +749,7 @@ export default function ARISECity() {
       if (keys["d"] || keys["arrowright"]) dx += 1;
 
       const isMoving = dx !== 0 || dy !== 0;
-      if (isMoving) {
+      if (isMoving && !trafficLockRef.current) {
         const mag = Math.hypot(dx, dy) || 1;
         dx /= mag;
         dy /= mag;
@@ -618,10 +847,32 @@ export default function ARISECity() {
       ctx.fillText("CENTRAL PARK", 1580, 985);
 
       const trafficT = (time / 1000) % 18;
-      drawCar(ctx, ((trafficT * 180) % (WORLD_W + 300)) - 150, 580, "#ef4444", 0, .9);
-      drawCar(ctx, WORLD_W - (((trafficT + 5) * 160) % (WORLD_W + 300)) + 150, 720, "#0ea5e9", Math.PI, .88);
-      drawCar(ctx, 700, ((trafficT * 140) % (WORLD_H + 260)) - 130, "#f59e0b", Math.PI / 2, .84);
-      drawCar(ctx, 2020, WORLD_H - (((trafficT + 2) * 145) % (WORLD_H + 260)) + 130, "#8b5cf6", -Math.PI / 2, .85);
+      const trafficCars = [
+        { x: ((trafficT * 180) % (WORLD_W + 300)) - 150, y: 580, color: "#ef4444", angle: 0, scale: .9 },
+        { x: WORLD_W - (((trafficT + 5) * 160) % (WORLD_W + 300)) + 150, y: 720, color: "#0ea5e9", angle: Math.PI, scale: .88 },
+        { x: 700, y: ((trafficT * 140) % (WORLD_H + 260)) - 130, color: "#f59e0b", angle: Math.PI / 2, scale: .84 },
+        { x: 2020, y: WORLD_H - (((trafficT + 2) * 145) % (WORLD_H + 260)) + 130, color: "#8b5cf6", angle: -Math.PI / 2, scale: .85 },
+      ];
+      trafficCars.forEach(car => drawCar(ctx, car.x, car.y, car.color, car.angle, car.scale));
+
+      if (!isTrafficRoad(playerX, playerY)) {
+        lastSafeRef.current = { x: playerX, y: playerY };
+      }
+
+      const drivingOwnCar = save.carOwned && keys["shift"];
+      if (!drivingOwnCar && !trafficLockRef.current) {
+        const hit = trafficCars.some(car => distance(playerX, playerY, car.x, car.y) < 50);
+        if (hit) {
+          trafficLockRef.current = true;
+          keysRef.current = {};
+          playTrafficAlert();
+          playerX = lastSafeRef.current.x;
+          playerY = lastSafeRef.current.y;
+          setSave(current => ({ ...current, playerX, playerY }));
+          setTrafficFeedback("");
+          setTrafficChallenge((Math.floor(time / 1000) + level) % TRAFFIC_COMPREHENSION.length);
+        }
+      }
 
       NPCS.forEach((npc, i) => {
         const bobX = Math.sin(time / 1200 + i) * 10;
@@ -699,43 +950,48 @@ export default function ARISECity() {
   };
 
   const interact = () => {
-    if (modal) return;
+    startTrafficAudio();
+    if (modal || trafficChallenge !== null || transitionLabel) return;
     if (nearNpc) {
       setSelectedNpc(nearNpc);
       setModal("npc");
       return;
     }
-    if (!nearPlace) return;
+    if (nearPlace) enterBuilding(nearPlace);
+  };
 
-    const type = nearPlace.type;
-    if (type === "career") {
-      setInterviewIndex(0);
-      setInterviewScore(0);
-      setModal("interview");
+  const chooseTrafficAnswer = (choice: number) => {
+    if (trafficChallenge === null) return;
+    const challenge = TRAFFIC_COMPREHENSION[trafficChallenge];
+    if (choice !== challenge.answer) {
+      setTrafficFeedback("Not quite. Read the passage again and use the details to try another answer.");
       return;
     }
+    setTrafficFeedback(`Correct. ${challenge.explanation}`);
+    setSave(current => ({ ...current, xp: current.xp + 20 }));
+    window.setTimeout(() => {
+      setTrafficChallenge(null);
+      setTrafficFeedback("");
+      trafficLockRef.current = false;
+      setNotice("Safe again. +20 XP for reading carefully.");
+      window.setTimeout(() => setNotice(""), 2200);
+    }, 700);
+  };
 
-    if (type === careerInfo.workplace) {
-      if (!save.hired) {
-        setNotice("Get hired at the Career Center first.");
-        window.setTimeout(() => setNotice(""), 2200);
-        return;
-      }
-      setWorkIndex(0);
-      setWorkScore(0);
-      setModal("work");
+  const chooseLibraryAnswer = (choice: number) => {
+    const challenge = LIBRARY_COMPREHENSION[libraryChallenge];
+    if (choice !== challenge.answer) {
+      setLibraryFeedback("Look back at the passage. Which answer is supported by what you actually read?");
       return;
     }
-
-    if (type === "store") setModal("store");
-    else if (type === "dealer") setModal("dealer");
-    else if (type === "apartments" || type === "houses") setModal("home");
-    else if (type === "library") setModal("library");
-    else if (type === "bank") setModal("bank");
-    else {
-      setNotice(`${nearPlace.label} is open, but your current career works somewhere else.`);
+    setLibraryFeedback(`Correct. ${challenge.explanation}`);
+    setSave(current => ({ ...current, xp: current.xp + 50 }));
+    window.setTimeout(() => {
+      setModal(null);
+      setLibraryFeedback("");
+      setNotice("Reading challenge complete! +50 XP.");
       window.setTimeout(() => setNotice(""), 2400);
-    }
+    }, 750);
   };
 
   const chooseInterview = (choice: number) => {
@@ -883,10 +1139,24 @@ export default function ARISECity() {
     <div className="fixed inset-0 z-[120] bg-[#07111f] text-white overflow-hidden">
       <style>{cityStyles}</style>
 
-      <div ref={wrapRef} className="absolute inset-0">
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-        <div className="absolute inset-0 pointer-events-none city-vignette" />
-      </div>
+      {screen === "city" && (
+        <div ref={wrapRef} className="absolute inset-0">
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+          <div className="absolute inset-0 pointer-events-none city-vignette" />
+        </div>
+      )}
+
+      {screen === "interior" && insidePlace && (
+        <ARISECityInterior
+          place={insidePlace}
+          avatar={AVATARS[save.avatar]}
+          careerWorkplace={careerInfo.workplace}
+          hired={save.hired}
+          disabled={!!modal || !!transitionLabel}
+          onAction={handleInteriorAction}
+          onExit={exitBuilding}
+        />
+      )}
 
       <div className="absolute z-[125] top-3 left-3 right-3 flex items-start gap-2 sm:gap-3 pointer-events-none">
         <button type="button" onClick={() => navigate("/eye-gaze-games")} className="pointer-events-auto min-h-[48px] px-3 sm:px-4 rounded-2xl bg-slate-950/80 backdrop-blur border border-white/15 font-black flex items-center gap-2 shadow-xl">
@@ -909,6 +1179,22 @@ export default function ARISECity() {
         </div>
 
         <div className="ml-auto pointer-events-auto flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (ambientEnabled) {
+                setAmbientEnabled(false);
+                stopTrafficAudio();
+              } else {
+                setAmbientEnabled(true);
+                window.setTimeout(() => startTrafficAudio(), 0);
+              }
+            }}
+            className="w-12 rounded-2xl bg-slate-950/80 backdrop-blur border border-white/15 flex items-center justify-center shadow-xl"
+            aria-label={ambientEnabled ? "Mute city sounds" : "Turn on city sounds"}
+          >
+            {ambientEnabled ? <Volume2 className="w-5 h-5 text-cyan-300" /> : <VolumeX className="w-5 h-5 text-slate-400" />}
+          </button>
           <div className="rounded-2xl bg-slate-950/80 backdrop-blur border border-white/15 px-3 sm:px-4 py-3 font-black shadow-xl flex items-center gap-2">
             <Coins className="w-5 h-5 text-amber-300" /> ${save.money}
           </div>
@@ -934,24 +1220,61 @@ export default function ARISECity() {
         </div>
       )}
 
-      {(nearPlace || nearNpc) && !modal && (
+      {screen === "city" && (nearPlace || nearNpc) && !modal && trafficChallenge === null && (
         <button type="button" onClick={interact} className="absolute z-[128] bottom-28 sm:bottom-8 left-1/2 -translate-x-1/2 min-h-[58px] px-6 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 text-white font-black text-lg shadow-2xl border-2 border-white/60 animate-pulse">
           {nearNpc ? `Talk to ${nearNpc.name}` : `Enter ${nearPlace?.label}`} <span className="hidden sm:inline text-white/70 ml-2">[E]</span>
         </button>
       )}
 
-      <div className="absolute z-[127] bottom-3 left-3 sm:hidden grid grid-cols-3 gap-2">
-        <div />
-        <button className="touch-control" onPointerDown={() => (keysRef.current["w"] = true)} onPointerUp={() => (keysRef.current["w"] = false)}>▲</button>
-        <div />
-        <button className="touch-control" onPointerDown={() => (keysRef.current["a"] = true)} onPointerUp={() => (keysRef.current["a"] = false)}>◀</button>
-        <button className="touch-control" onPointerDown={() => (keysRef.current["s"] = true)} onPointerUp={() => (keysRef.current["s"] = false)}>▼</button>
-        <button className="touch-control" onPointerDown={() => (keysRef.current["d"] = true)} onPointerUp={() => (keysRef.current["d"] = false)}>▶</button>
-      </div>
+      {screen === "city" && (
+        <div className="absolute z-[127] bottom-3 left-3 sm:hidden grid grid-cols-3 gap-2">
+          <div />
+          <button className="touch-control" onPointerDown={() => { startTrafficAudio(); keysRef.current["w"] = true; }} onPointerUp={() => (keysRef.current["w"] = false)} onPointerCancel={() => (keysRef.current["w"] = false)}>▲</button>
+          <div />
+          <button className="touch-control" onPointerDown={() => { startTrafficAudio(); keysRef.current["a"] = true; }} onPointerUp={() => (keysRef.current["a"] = false)} onPointerCancel={() => (keysRef.current["a"] = false)}>◀</button>
+          <button className="touch-control" onPointerDown={() => { startTrafficAudio(); keysRef.current["s"] = true; }} onPointerUp={() => (keysRef.current["s"] = false)} onPointerCancel={() => (keysRef.current["s"] = false)}>▼</button>
+          <button className="touch-control" onPointerDown={() => { startTrafficAudio(); keysRef.current["d"] = true; }} onPointerUp={() => (keysRef.current["d"] = false)} onPointerCancel={() => (keysRef.current["d"] = false)}>▶</button>
+        </div>
+      )}
 
-      <div className="hidden sm:block absolute z-[126] bottom-4 right-4 rounded-2xl bg-slate-950/70 backdrop-blur border border-white/10 px-4 py-3 text-xs font-bold text-slate-300">
+      {screen === "city" && <div className="hidden sm:block absolute z-[126] bottom-4 right-4 rounded-2xl bg-slate-950/70 backdrop-blur border border-white/10 px-4 py-3 text-xs font-bold text-slate-300">
         Move: WASD / Arrow Keys · Interact: E {save.carOwned && "· Hold Shift to drive"}
-      </div>
+      </div>}
+
+      {transitionLabel && (
+        <div className="absolute inset-0 z-[160] bg-slate-950 flex items-center justify-center transition-screen">
+          <div className="text-center">
+            <div className="w-14 h-14 mx-auto rounded-full border-4 border-white/25 border-t-cyan-300 animate-spin" />
+            <div className="mt-5 text-xl sm:text-2xl font-black">{transitionLabel}</div>
+          </div>
+        </div>
+      )}
+
+      {trafficChallenge !== null && (
+        <div className="fixed inset-0 z-[155] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-[2rem] bg-white text-slate-900 shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-5 sm:px-7 py-5">
+              <div className="text-xs uppercase tracking-[.2em] font-black">Traffic Safety · Reading Comprehension</div>
+              <h2 className="mt-1 text-2xl sm:text-3xl font-black">Pause. Read. Think.</h2>
+              <p className="mt-1 text-white/90 font-semibold">Your character is okay. Answer correctly to continue exploring.</p>
+            </div>
+            <div className="p-5 sm:p-7">
+              <div className="rounded-3xl bg-slate-50 border-2 border-slate-100 p-5 text-base sm:text-lg font-semibold leading-relaxed">
+                {TRAFFIC_COMPREHENSION[trafficChallenge].passage}
+              </div>
+              <div className="mt-5 text-xl font-black">{TRAFFIC_COMPREHENSION[trafficChallenge].q}</div>
+              <div className="mt-4 space-y-3">
+                {TRAFFIC_COMPREHENSION[trafficChallenge].choices.map((choice, index) => (
+                  <button key={choice} type="button" onClick={() => chooseTrafficAnswer(index)} className="w-full min-h-[60px] rounded-2xl border-2 border-slate-200 bg-white hover:border-amber-400 hover:bg-amber-50 px-4 text-left font-black">
+                    {choice}
+                  </button>
+                ))}
+              </div>
+              {trafficFeedback && <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4 font-bold text-amber-900">{trafficFeedback}</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal === "npc" && selectedNpc && (
         <GameModal title={selectedNpc.name} subtitle="Community resident" onClose={() => setModal(null)}>
@@ -1059,13 +1382,22 @@ export default function ARISECity() {
       )}
 
       {modal === "library" && (
-        <GameModal title="City Library" subtitle="Study, build skills, and earn XP." onClose={() => setModal(null)}>
-          <div className="rounded-3xl bg-violet-50 border border-violet-100 p-5">
+        <GameModal title="City Library Reading Challenge" subtitle="Read the passage and use evidence from the text." onClose={() => setModal(null)}>
+          <div className="rounded-3xl bg-violet-50 border-2 border-violet-100 p-5">
             <BookOpen className="w-10 h-10 text-violet-600" />
-            <h3 className="mt-3 text-xl font-black">Skill Study Session</h3>
-            <p className="mt-2 font-semibold text-slate-600">Spend time studying career, reading, and life skills.</p>
+            <div className="mt-3 text-base sm:text-lg font-semibold leading-relaxed text-slate-700">
+              {LIBRARY_COMPREHENSION[libraryChallenge].passage}
+            </div>
           </div>
-          <button type="button" onClick={() => { setModal(null); addMoneyXp(0, 40, "Study session complete! +40 XP."); }} className="mt-4 w-full min-h-[60px] rounded-2xl bg-violet-600 text-white font-black">Study +40 XP</button>
+          <div className="mt-5 text-xl sm:text-2xl font-black">{LIBRARY_COMPREHENSION[libraryChallenge].q}</div>
+          <div className="mt-4 space-y-3">
+            {LIBRARY_COMPREHENSION[libraryChallenge].choices.map((choice, index) => (
+              <button key={choice} type="button" onClick={() => chooseLibraryAnswer(index)} className="w-full min-h-[60px] rounded-2xl border-2 border-slate-200 bg-slate-50 hover:border-violet-400 hover:bg-violet-50 px-4 text-left font-black">
+                {choice}
+              </button>
+            ))}
+          </div>
+          {libraryFeedback && <div className="mt-4 rounded-2xl bg-violet-50 border border-violet-200 p-4 font-bold text-violet-900">{libraryFeedback}</div>}
         </GameModal>
       )}
 
@@ -1112,6 +1444,13 @@ const cityStyles = `
   }
   .city-vignette {
     box-shadow:inset 0 0 140px rgba(2,6,23,.32);
+  }
+  .transition-screen {
+    animation:cityFadeIn .42s ease both;
+  }
+  @keyframes cityFadeIn {
+    from { opacity:0; }
+    to { opacity:1; }
   }
   .touch-control {
     width:54px;
