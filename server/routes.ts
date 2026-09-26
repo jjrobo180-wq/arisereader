@@ -1735,9 +1735,10 @@ export async function registerRoutes(
 
       const activeDates = new Set<string>();
       for (const a of attempts) if (a.completedAt) activeDates.add(dayKey(a.completedAt));
-      for (const value of Object.values(quickMap)) {
-        const item: any = value;
-        if (item?.completed && item?.date && Number(item.userId || userId) === userId) activeDates.add(item.date);
+      const myQuick = quickMap[String(userId)];
+      if (myQuick?.completed && myQuick?.date) activeDates.add(myQuick.date);
+      if (Array.isArray(myQuick?.history)) {
+        for (const date of myQuick.history) if (typeof date === "string") activeDates.add(date);
       }
       // Current streak allows today OR yesterday as the most recent active day.
       let streak = 0;
@@ -1931,7 +1932,18 @@ export async function registerRoutes(
         if (error) throw error;
       }
 
-      quickMap[String(req.user.id)] = { userId: req.user.id, date: today, completed: true, bookId, score, points };
+      const previousQuick = quickMap[String(req.user.id)] || {};
+      const history = Array.isArray(previousQuick.history) ? previousQuick.history.filter((d: any) => typeof d === "string") : [];
+      if (!history.includes(today)) history.push(today);
+      quickMap[String(req.user.id)] = {
+        userId: req.user.id,
+        date: today,
+        completed: true,
+        bookId,
+        score,
+        points,
+        history: history.slice(-60),
+      };
       await storage.upsertSetting("engagement_daily_quick_challenges", JSON.stringify(quickMap));
       clearCache("leaderboard"); clearCache("monthlyLeaderboard_"); clearCache("allUsers");
       res.json({ success: true, score, total: 3, passed, points });
