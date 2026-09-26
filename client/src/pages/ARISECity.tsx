@@ -442,7 +442,6 @@ export default function ARISECity() {
   const [workIndex, setWorkIndex] = useState(0);
   const [workScore, setWorkScore] = useState(0);
   const [notice, setNotice] = useState("");
-  const [moving, setMoving] = useState(false);
 
   const level = levelFromXp(save.xp);
   const careerInfo = CAREERS[save.career];
@@ -493,6 +492,7 @@ export default function ARISECity() {
     let playerX = save.playerX;
     let playerY = save.playerY;
     let direction = 1;
+    let lastPositionSave = performance.now();
 
     const resize = () => {
       const rect = wrap.getBoundingClientRect();
@@ -529,8 +529,6 @@ export default function ARISECity() {
         playerX = Math.max(75, Math.min(WORLD_W - 75, playerX + dx * speed * dt));
         playerY = Math.max(75, Math.min(WORLD_H - 75, playerY + dy * speed * dt));
       }
-      setMoving(isMoving);
-
       const cameraX = Math.max(0, Math.min(WORLD_W - rect.width, playerX - rect.width / 2));
       const cameraY = Math.max(0, Math.min(WORLD_H - rect.height, playerY - rect.height / 2));
 
@@ -673,6 +671,14 @@ export default function ARISECity() {
       });
       const nextNpc = closestNpcDist < 90 ? closestNpc : null;
       if ((nextNpc?.name || null) !== (nearNpc?.name || null)) setNearNpc(nextNpc);
+
+      if (time - lastPositionSave > 1200) {
+        lastPositionSave = time;
+        setSave(current => {
+          if (Math.abs(current.playerX - playerX) < 2 && Math.abs(current.playerY - playerY) < 2) return current;
+          return { ...current, playerX, playerY };
+        });
+      }
 
       frameRef.current = requestAnimationFrame(render);
     };
