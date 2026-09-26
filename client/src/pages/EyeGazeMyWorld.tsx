@@ -96,7 +96,7 @@ function DwellButton({
       onMouseLeave={stop}
       onFocus={start}
       onBlur={stop}
-      className={`relative overflow-hidden ${active ? "ring-4 ring-blue-500 ring-offset-2" : ""} ${className}`}
+      className={`${className.includes("absolute") ? "absolute" : "relative"} overflow-hidden ${active ? "ring-4 ring-blue-500 ring-offset-2" : ""} ${className}`}
       style={style}
     >
       {children}
@@ -701,7 +701,7 @@ export default function EyeGazeMyWorld() {
 
                         <div className="rounded-3xl overflow-x-auto bg-slate-100 border-2 border-slate-100">
                           <div
-                            className={`relative min-w-[680px] md:min-w-full touch-none ${placingItemId ? "cursor-crosshair ring-4 ring-inset ring-blue-300" : ""}`}
+                            className={`relative min-w-[680px] md:min-w-full ${placingItemId ? "touch-none cursor-crosshair ring-4 ring-inset ring-blue-300" : "touch-pan-x"}`}
                             onPointerDown={startTagBox}
                             onPointerMove={moveTagBox}
                             onPointerUp={finishTagBox}
