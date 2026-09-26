@@ -290,6 +290,7 @@ function AppInner() {
   const { user, token } = useAuth();
   const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
   const isParent = user && user.role === 'parent';
+  const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
   const isSampleStudent = isStudent && user?.username === 'sample';
   const [sampleTourDone, setSampleTourDone] = useState(false);
   const [tourShown, setTourShown] = useState(false);
@@ -336,11 +337,11 @@ function AppInner() {
   return (
     <>
       {/* All students get GuidedTour (replaces old FypAnnouncementPopup) */}
-      {isStudent && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
-      {isStudent && <FypSideTab />}
-      {isStudent && <PointsSideTab />}
-      {isStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isEyeGazeStudent && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
+      {isStudent && !isEyeGazeStudent && <FypSideTab />}
+      {isStudent && !isEyeGazeStudent && <PointsSideTab />}
+      {isStudent && !isEyeGazeStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isEyeGazeStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
       <Router hook={useHashLocation}>
         <EyeGazeSiteShell>
