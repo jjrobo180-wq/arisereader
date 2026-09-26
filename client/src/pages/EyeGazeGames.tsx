@@ -16,6 +16,7 @@ type BuddyConfig = {
   name: string;
   imageData: string | null;
   voiceEnabled: boolean;
+  calmMode?: boolean;
 };
 
 const BUDDY_PRESETS: Record<BuddyPreset, { emoji: string; label: string }> = {
@@ -464,8 +465,8 @@ export default function EyeGazeGames() {
   const [, navigate] = useLocation();
   const [game, setGame] = useState<GameId>(null);
   const [showBuddySetup, setShowBuddySetup] = useState(false);
-  const [buddy, setBuddy] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
-  const [buddyDraft, setBuddyDraft] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
+  const [buddy, setBuddy] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true, calmMode: false });
+  const [buddyDraft, setBuddyDraft] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true, calmMode: false });
   const [savingBuddy, setSavingBuddy] = useState(false);
   const [buddyMessage, setBuddyMessage] = useState("");
 
