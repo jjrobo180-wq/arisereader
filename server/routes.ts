@@ -5107,6 +5107,54 @@ export async function registerRoutes(
     }
   });
 
+  // Neural Learning Buddy voice. Uses OpenAI TTS when OPENAI_API_KEY is configured.
+  // The generated voice is AI-generated and should be disclosed to users.
+  app.post("/api/eye-gaze/tts", authMiddleware, async (req: any, res) => {
+    try {
+      const text = String(req.body?.text || "").trim();
+      const calmMode = !!req.body?.calmMode;
+
+      if (!text) return res.status(400).json({ message: "Text is required." });
+      if (text.length > 500) return res.status(400).json({ message: "Text is too long." });
+
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({ message: "AI voice is not configured." });
+      }
+
+      const response = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini-tts",
+          voice: "marin",
+          input: text,
+          instructions: calmMode
+            ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
+            : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.",
+          response_format: "mp3",
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        console.error("[eye-gaze-tts] OpenAI speech failed:", response.status, errText.slice(0, 300));
+        return res.status(502).json({ message: "AI voice is temporarily unavailable." });
+      }
+
+      const audio = Buffer.from(await response.arrayBuffer());
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.send(audio);
+    } catch (error: any) {
+      console.error("[eye-gaze-tts] failed:", error?.message);
+      res.status(500).json({ message: "Could not create AI voice." });
+    }
+  });
+
   // Learning Buddy preference for Eye Gaze games
   app.get("/api/eye-gaze/learning-buddy", authMiddleware, async (req: any, res) => {
     try {
