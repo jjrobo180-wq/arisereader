@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { BookOpen, Gamepad2, Home, LogOut, Trophy, UserRound, Users } from "lucide-react";
+import { BookOpen, Gamepad2, Home, LogOut, MessageCircle, Trophy, UserRound, Users } from "lucide-react";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
   const { user, token, logout } = useAuth();
@@ -10,7 +10,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
-  const immersive = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-parent");
+  const immersive = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-parent");
 
   useEffect(() => {
     if (!isEyeGazer || !token) return;
@@ -38,6 +38,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     { label: "Home", icon: Home, path: "/eye-gaze-home" },
     { label: "Lessons", icon: BookOpen, path: "/library" },
     { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
+    { label: "Talker", icon: MessageCircle, path: "/eye-gaze-talker" },
     { label: "Progress", icon: Trophy, path: "/leaderboard" },
     { label: "My Buddy", icon: Users, path: "/eye-gaze-buddy" },
     { label: "Profile", icon: UserRound, path: "/eye-gaze-account" },
@@ -131,7 +132,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
         <div className="eye-gaze-page flex-1 min-w-0">{children}</div>
       </div>
 
-      <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-sky-100 px-1 py-2 grid grid-cols-6 gap-1">
+      <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-sky-100 px-1 py-2 grid grid-cols-7 gap-1">
         {nav.map(item => {
           const Icon = item.icon;
           const active = location === item.path;
