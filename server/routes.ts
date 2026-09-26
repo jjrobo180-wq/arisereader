@@ -5117,6 +5117,59 @@ export async function registerRoutes(
     });
   });
 
+  // Shared in-process cache for neural Learning Buddy speech.
+  // One generated phrase can be reused across students until the service restarts.
+  const ttsAudioCache = new Map<string, { audio: Buffer; lastUsed: number }>();
+  const ttsAudioInFlight = new Map<string, Promise<Buffer>>();
+  const TTS_AUDIO_CACHE_LIMIT = 250;
+
+  function rememberTtsAudio(key: string, audio: Buffer) {
+    if (ttsAudioCache.has(key)) ttsAudioCache.delete(key);
+    ttsAudioCache.set(key, { audio, lastUsed: Date.now() });
+
+    while (ttsAudioCache.size > TTS_AUDIO_CACHE_LIMIT) {
+      let oldestKey: string | null = null;
+      let oldestTime = Infinity;
+      for (const [candidateKey, entry] of ttsAudioCache.entries()) {
+        if (entry.lastUsed < oldestTime) {
+          oldestTime = entry.lastUsed;
+          oldestKey = candidateKey;
+        }
+      }
+      if (!oldestKey) break;
+      ttsAudioCache.delete(oldestKey);
+    }
+  }
+
+  async function generateTtsAudio(text: string, calmMode: boolean, apiKey: string): Promise<Buffer> {
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini-tts",
+        voice: "marin",
+        input: text,
+        instructions: calmMode
+          ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
+          : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.",
+        response_format: "mp3",
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      const error: any = new Error(`OpenAI speech failed: ${response.status}`);
+      error.status = response.status;
+      error.detail = errText.slice(0, 300);
+      throw error;
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   // Neural Learning Buddy voice. Uses OpenAI TTS when OPENAI_API_KEY is configured.
   // The generated voice is AI-generated and should be disclosed to users.
   app.post("/api/eye-gaze/tts", authMiddleware, async (req: any, res) => {
@@ -5132,32 +5185,39 @@ export async function registerRoutes(
         return res.status(503).json({ message: "AI voice is not configured." });
       }
 
-      const response = await fetch("https://api.openai.com/v1/audio/speech", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini-tts",
-          voice: "marin",
-          input: text,
-          instructions: calmMode
-            ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
-            : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.",
-          response_format: "mp3",
-        }),
-      });
+      const cacheKey = `${calmMode ? "calm" : "normal"}|${text}`;
+      const cached = ttsAudioCache.get(cacheKey);
 
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "");
-        console.error("[eye-gaze-tts] OpenAI speech failed:", response.status, errText.slice(0, 300));
-        return res.status(502).json({ message: "AI voice is temporarily unavailable." });
+      if (cached) {
+        cached.lastUsed = Date.now();
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        res.setHeader("X-ARISE-TTS-Cache", "HIT");
+        return res.send(cached.audio);
       }
 
-      const audio = Buffer.from(await response.arrayBuffer());
+      let pending = ttsAudioInFlight.get(cacheKey);
+      if (!pending) {
+        pending = generateTtsAudio(text, calmMode, apiKey);
+        ttsAudioInFlight.set(cacheKey, pending);
+      }
+
+      let audio: Buffer;
+      try {
+        audio = await pending;
+      } catch (error: any) {
+        console.error("[eye-gaze-tts] OpenAI speech failed:", error?.status || "", error?.detail || error?.message);
+        return res.status(502).json({ message: "AI voice is temporarily unavailable." });
+      } finally {
+        if (ttsAudioInFlight.get(cacheKey) === pending) {
+          ttsAudioInFlight.delete(cacheKey);
+        }
+      }
+
+      rememberTtsAudio(cacheKey, audio);
       res.setHeader("Content-Type", "audio/mpeg");
       res.setHeader("Cache-Control", "private, max-age=3600");
+      res.setHeader("X-ARISE-TTS-Cache", "MISS");
       res.send(audio);
     } catch (error: any) {
       console.error("[eye-gaze-tts] failed:", error?.message);
