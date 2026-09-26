@@ -1,10 +1,88 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { API_BASE } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
 
 type GameId = "match" | "pop" | "sentence" | null;
+
+type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
+type BuddyConfig = {
+  type: "preset" | "upload";
+  preset: BuddyPreset;
+  name: string;
+  imageData: string | null;
+  voiceEnabled: boolean;
+};
+
+const BUDDY_PRESETS: Record<BuddyPreset, { emoji: string; label: string }> = {
+  puppy: { emoji: "🐶", label: "Puppy" },
+  dino: { emoji: "🦖", label: "Dino" },
+  robot: { emoji: "🤖", label: "Robot" },
+  bunny: { emoji: "🐰", label: "Bunny" },
+};
+
+function getTokenFromCookie(): string | null {
+  try {
+    const match = document.cookie.match(/arise_session=([^;]+)/);
+    if (!match) return null;
+    return JSON.parse(atob(match[1])).token || null;
+  } catch {
+    return null;
+  }
+}
+
+function speakBuddy(text: string) {
+  try {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.82;
+    utterance.pitch = 1.08;
+    window.speechSynthesis.speak(utterance);
+  } catch {}
+}
+
+function BuddyAvatar({ buddy, size = "large" }: { buddy: BuddyConfig; size?: "small" | "large" }) {
+  const box = size === "large" ? "w-20 h-20 text-5xl" : "w-12 h-12 text-3xl";
+  if (buddy.type === "upload" && buddy.imageData) {
+    return <img src={buddy.imageData} alt={buddy.name} className={`${box} rounded-2xl object-cover border-2 border-primary/30 bg-card`} />;
+  }
+  const preset = BUDDY_PRESETS[buddy.preset] || BUDDY_PRESETS.puppy;
+  return (
+    <div className={`${box} rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center`} aria-label={preset.label}>
+      {preset.emoji}
+    </div>
+  );
+}
+
+function BuddyCoach({ buddy, message }: { buddy: BuddyConfig; message: string }) {
+  useEffect(() => {
+    if (buddy.voiceEnabled && message) speakBuddy(message);
+  }, [message, buddy.voiceEnabled]);
+
+  return (
+    <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 mb-5 flex items-center gap-4">
+      <BuddyAvatar buddy={buddy} />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-black uppercase tracking-wide text-primary">{buddy.name} says</p>
+        <div className="mt-1 rounded-2xl rounded-tl-sm bg-card border border-border px-4 py-3 text-lg font-bold leading-snug">
+          {message}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => buddy.voiceEnabled && speakBuddy(message)}
+        className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center flex-shrink-0"
+        aria-label="Hear buddy again"
+      >
+        <Volume2 className="w-5 h-5" />
+      </button>
+    </div>
+  );
+}
 
 type MatchCard = {
   id: string;
@@ -108,12 +186,12 @@ function Celebration({ text }: { text: string }) {
   );
 }
 
-function MatchPairs({ onBack }: { onBack: () => void }) {
+function MatchPairs({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
   const [setIndex, setSetIndex] = useState(0);
   const [cards, setCards] = useState(() => MATCH_SETS[0].map(c => ({ ...c })));
   const [first, setFirst] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
-  const [message, setMessage] = useState("Find a word and its matching picture.");
+  const [message, setMessage] = useState("Hi! Let's play Match Pairs. First, choose any word or picture.");
 
   const selectCard = (id: string) => {
     if (locked) return;
@@ -122,7 +200,7 @@ function MatchPairs({ onBack }: { onBack: () => void }) {
 
     if (!first) {
       setFirst(id);
-      setMessage("Now find its match.");
+      setMessage(`Great choice! Now find the picture or word that matches ${card.label}.`);
       return;
     }
 
@@ -134,11 +212,11 @@ function MatchPairs({ onBack }: { onBack: () => void }) {
     setLocked(true);
     if (firstCard.pair === card.pair && firstCard.kind !== card.kind) {
       setCards(prev => prev.map(c => c.id === first || c.id === id ? { ...c, matched: true } : c));
-      setMessage("Match!");
+      setMessage("Yes! Those match. Nice reading! Pick another card.");
       setFirst(null);
       setLocked(false);
     } else {
-      setMessage("Not a match. Try another pair.");
+      setMessage("Good try. Those do not match yet. Choose a different card.");
       setTimeout(() => {
         setFirst(null);
         setLocked(false);
@@ -153,14 +231,12 @@ function MatchPairs({ onBack }: { onBack: () => void }) {
     setSetIndex(next);
     setCards(MATCH_SETS[next].map(c => ({ ...c })));
     setFirst(null);
-    setMessage("Find a word and its matching picture.");
+    setMessage("New set! Choose a word or picture, then find its match.");
   };
 
   return (
     <GameShell title="Match Pairs" subtitle="Match each word with its picture." onBack={onBack}>
-      <div className="text-center mb-4">
-        <p className="text-sm font-semibold" aria-live="polite">{message}</p>
-      </div>
+      <BuddyCoach buddy={buddy} message={message} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {cards.map(card => {
@@ -191,10 +267,10 @@ function MatchPairs({ onBack }: { onBack: () => void }) {
   );
 }
 
-function WordPop({ onBack }: { onBack: () => void }) {
+function WordPop({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
   const [round, setRound] = useState(0);
   const [stars, setStars] = useState(0);
-  const [feedback, setFeedback] = useState("Find the matching word.");
+  const [feedback, setFeedback] = useState("Look at the big word. Then find the exact same word in one of the bubbles.");
   const [locked, setLocked] = useState(false);
 
   const current = POP_ROUNDS[round];
@@ -204,19 +280,20 @@ function WordPop({ onBack }: { onBack: () => void }) {
     if (word === current.target) {
       setLocked(true);
       setStars(s => s + 1);
-      setFeedback("POP! You found it!");
+      setFeedback(`POP! You found ${current.target}! Great job!`);
       setTimeout(() => {
         setRound(r => (r + 1) % POP_ROUNDS.length);
-        setFeedback("Find the matching word.");
+        setFeedback("Here is a new word. Look carefully, then find the exact match.");
         setLocked(false);
       }, 850);
     } else {
-      setFeedback("Try another bubble.");
+      setFeedback("That one looks close. Look at the big word again and try another bubble.");
     }
   };
 
   return (
     <GameShell title="Word Pop" subtitle="Find the target word and pop it." onBack={onBack}>
+      <BuddyCoach buddy={buddy} message={feedback} />
       <div className="rounded-2xl border border-border bg-card p-5 text-center mb-5">
         <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold">Find this word</p>
         <div className="text-4xl sm:text-5xl font-black mt-2 tracking-wider">{current.target}</div>
@@ -238,15 +315,15 @@ function WordPop({ onBack }: { onBack: () => void }) {
         ))}
       </div>
 
-      <p className="mt-4 text-center font-bold" aria-live="polite">{feedback}</p>
+
     </GameShell>
   );
 }
 
-function SentenceBuilder({ onBack }: { onBack: () => void }) {
+function SentenceBuilder({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
   const [round, setRound] = useState(0);
   const [built, setBuilt] = useState<string[]>([]);
-  const [message, setMessage] = useState("Build the sentence from left to right.");
+  const [message, setMessage] = useState("Look at the picture. We are going to build a sentence one word at a time. Choose the first word.");
   const current = SENTENCE_ROUNDS[round];
 
   const bank = [...current.words, ...current.distractors];
@@ -258,30 +335,31 @@ function SentenceBuilder({ onBack }: { onBack: () => void }) {
     if (word === current.words[nextIndex]) {
       const next = [...built, word];
       setBuilt(next);
-      setMessage(next.length === current.words.length ? "Sentence complete!" : "Great. Pick the next word.");
+      setMessage(next.length === current.words.length ? "You built the whole sentence! Read it with me." : `Yes! ${word} goes there. Now choose the next word.`);
     } else {
-      setMessage("That word does not go there. Try another.");
+      setMessage("Good try. That word comes later or does not belong here. Choose another word.");
     }
   };
 
   const reset = () => {
     setBuilt([]);
-    setMessage("Build the sentence from left to right.");
+    setMessage("Look at the picture. Choose the first word to start the sentence.");
   };
 
   const next = () => {
     setRound(r => (r + 1) % SENTENCE_ROUNDS.length);
     setBuilt([]);
-    setMessage("Build the sentence from left to right.");
+    setMessage("Look at the picture. Choose the first word to start the sentence.");
   };
 
   const complete = built.length === current.words.length;
 
   return (
     <GameShell title="Sentence Builder" subtitle="Choose words in order to build a sentence." onBack={onBack}>
+      <BuddyCoach buddy={buddy} message={message} />
       <div className="text-center mb-4">
         <div className="text-6xl mb-3" aria-label="Picture clue">{current.picture}</div>
-        <p className="font-semibold" aria-live="polite">{message}</p>
+
       </div>
 
       <div className="min-h-[90px] rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-4 mb-5 flex flex-wrap items-center justify-center gap-2">
@@ -347,12 +425,77 @@ function GameShell({
 }
 
 export default function EyeGazeGames() {
+  const { token } = useAuth();
   const [, navigate] = useLocation();
   const [game, setGame] = useState<GameId>(null);
+  const [showBuddySetup, setShowBuddySetup] = useState(false);
+  const [buddy, setBuddy] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
+  const [buddyDraft, setBuddyDraft] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
+  const [savingBuddy, setSavingBuddy] = useState(false);
+  const [buddyMessage, setBuddyMessage] = useState("");
 
-  if (game === "match") return <MatchPairs onBack={() => setGame(null)} />;
-  if (game === "pop") return <WordPop onBack={() => setGame(null)} />;
-  if (game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} />;
+  useEffect(() => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    fetch(`${API_BASE}/api/eye-gaze/learning-buddy`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      cache: "no-store",
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setBuddy(data);
+        setBuddyDraft(data);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const saveBuddy = async () => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    setSavingBuddy(true);
+    setBuddyMessage("");
+    try {
+      const res = await fetch(`${API_BASE}/api/eye-gaze/learning-buddy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify(buddyDraft),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not save buddy.");
+      setBuddy(data);
+      setBuddyDraft(data);
+      setBuddyMessage("Learning Buddy saved!");
+      setShowBuddySetup(false);
+      if (data.voiceEnabled) speakBuddy(`Hi! I'm ${data.name}. Let's learn together!`);
+    } catch (e: any) {
+      setBuddyMessage(e.message || "Could not save buddy.");
+    } finally {
+      setSavingBuddy(false);
+    }
+  };
+
+  const handleBuddyUpload = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setBuddyMessage("Please choose an image file.");
+      return;
+    }
+    if (file.size > 1_500_000) {
+      setBuddyMessage("Please choose a picture under 1.5 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBuddyDraft(prev => ({ ...prev, type: "upload", imageData: String(reader.result || "") }));
+      setBuddyMessage("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  if (game === "match") return <MatchPairs onBack={() => setGame(null)} buddy={buddy} />;
+  if (game === "pop") return <WordPop onBack={() => setGame(null)} buddy={buddy} />;
+  if (game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -371,6 +514,22 @@ export default function EyeGazeGames() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
+        <Card className="mb-6 border-primary/30">
+          <CardContent className="p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <BuddyAvatar buddy={buddy} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black uppercase tracking-wide text-primary">My Learning Buddy</p>
+                <h2 className="text-xl font-black">{buddy.name}</h2>
+                <p className="text-sm text-muted-foreground mt-1">Your buddy teaches the games, gives directions, and helps you after each choice.</p>
+              </div>
+              <Button className="h-12" onClick={() => { setBuddyDraft(buddy); setShowBuddySetup(true); }}>
+                Choose / Upload Buddy
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-6 flex items-start gap-3">
           <Eye className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
           <div>
@@ -420,6 +579,89 @@ export default function EyeGazeGames() {
           </button>
         </div>
       </main>
+
+      {showBuddySetup && (
+        <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-center justify-center">
+          <Card className="w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+            <CardContent className="p-6 space-y-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-black">Choose Your Learning Buddy</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Pick a buddy or upload a favorite picture. This buddy will teach the reading games.</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setShowBuddySetup(false)}><X className="w-5 h-5" /></Button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {(Object.keys(BUDDY_PRESETS) as BuddyPreset[]).map(key => {
+                  const item = BUDDY_PRESETS[key];
+                  const selected = buddyDraft.type === "preset" && buddyDraft.preset === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setBuddyDraft(prev => ({ ...prev, type: "preset", preset: key, imageData: null, name: prev.name === "Buddy" ? item.label : prev.name }))}
+                      className={`rounded-2xl border-2 p-4 text-center min-h-[135px] ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+                    >
+                      <div className="text-5xl">{item.emoji}</div>
+                      <div className="font-black mt-2">{item.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-2xl border-2 border-dashed border-border p-5">
+                <label className="block font-black mb-2">Or upload a favorite picture</label>
+                <p className="text-xs text-muted-foreground mb-3">PNG, JPG, or WEBP under 1.5 MB. The picture stays attached to this student's Learning Buddy setting.</p>
+                <label className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-muted cursor-pointer font-bold">
+                  <Upload className="w-4 h-4" /> Choose Picture
+                  <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => handleBuddyUpload(e.target.files?.[0])} />
+                </label>
+                {buddyDraft.type === "upload" && buddyDraft.imageData && (
+                  <div className="mt-4 flex items-center gap-3">
+                    <BuddyAvatar buddy={buddyDraft} />
+                    <span className="text-sm font-semibold">Uploaded picture selected</span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-2">What should your buddy be called?</label>
+                <input
+                  value={buddyDraft.name}
+                  maxLength={30}
+                  onChange={(e) => setBuddyDraft(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full h-12 rounded-xl bg-background border border-border px-4 text-base"
+                  placeholder="Buddy"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setBuddyDraft(prev => ({ ...prev, voiceEnabled: !prev.voiceEnabled }))}
+                className="w-full rounded-xl border border-border p-4 flex items-center justify-between gap-3"
+              >
+                <span className="font-bold flex items-center gap-2">
+                  {buddyDraft.voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                  Buddy Voice
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-black ${buddyDraft.voiceEnabled ? "bg-green-500/15 text-green-400" : "bg-muted text-muted-foreground"}`}>
+                  {buddyDraft.voiceEnabled ? "ON" : "OFF"}
+                </span>
+              </button>
+
+              {buddyMessage && <p className="text-sm font-semibold">{buddyMessage}</p>}
+
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1 h-12" onClick={() => setShowBuddySetup(false)}>Cancel</Button>
+                <Button className="flex-1 h-12" onClick={saveBuddy} disabled={savingBuddy || !buddyDraft.name.trim()}>
+                  {savingBuddy ? "Saving..." : "Use This Buddy"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
