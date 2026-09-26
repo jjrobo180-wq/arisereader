@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye, Gamepad2, Image as ImageIcon, Heart, Shield, Footprints } from "lucide-react";
-import { initVoices, speakQuestion, speak, stopSpeaking } from "@/lib/tts";
+import { speakQuestion, speak, stopSpeaking } from "@/lib/tts";
 import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
 function getTokenFromCookie(): string | null {
@@ -72,12 +72,8 @@ export default function EyeGazeQuiz() {
   const [lastFeedback, setLastFeedback] = useState<"correct" | "try" | null>(null);
   const correctButtonRef = useRef<HTMLElement | null>(null);
 
-  // Initialize voices
+  // Neural AI voice cleanup
   useEffect(() => {
-    initVoices();
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.onvoiceschanged = () => initVoices();
-    }
     return () => stopSpeaking();
   }, []);
 
