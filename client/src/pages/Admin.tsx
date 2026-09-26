@@ -4246,9 +4246,31 @@ Generate exactly 10 questions.`;
             </DialogTitle>
           </DialogHeader>
           {detailStudent && (
-            <Button variant="outline" className="w-full" onClick={() => printParentInvites(detailStudent.id).catch(e => window.alert(e.message))}>
-              Print parent letter
-            </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Button variant="outline" className="w-full" onClick={() => printParentInvites(detailStudent.id).catch(e => window.alert(e.message))}>
+                Print parent letter
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  const authToken = token || getTokenFromCookie();
+                  if (!authToken) return;
+                  const res = await fetch(`${API_BASE}/api/admin/students/${detailStudent.id}/reset-daily-challenge`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${authToken}` },
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (res.ok) {
+                    window.alert(data.message || "Daily Challenge reset.");
+                  } else {
+                    window.alert(data.message || "Could not reset Daily Challenge.");
+                  }
+                }}
+              >
+                Reset Daily Challenge
+              </Button>
+            </div>
           )}
           {detailLoading ? (
             <div className="flex items-center justify-center py-8">
