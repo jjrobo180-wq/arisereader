@@ -1809,6 +1809,78 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/engagement/badges", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+
+      const userId = req.user.id;
+      const attempts = await storage.getUserAttempts(userId);
+      const currentUser = await storage.getUser(userId);
+      const totalPoints = currentUser?.totalPoints || 0;
+
+      const rawQuick = await storage.getSetting("engagement_daily_quick_challenges");
+      let quickMap: Record<string, any> = {};
+      if (rawQuick) { try { quickMap = JSON.parse(rawQuick); } catch {} }
+      const myQuick = quickMap[String(userId)] || {};
+      const quickHistory = new Set<string>(
+        Array.isArray(myQuick.history) ? myQuick.history.filter((d: any) => typeof d === "string") : []
+      );
+      if (myQuick?.completed && myQuick?.date) quickHistory.add(myQuick.date);
+
+      const activeDates = new Set<string>();
+      for (const a of attempts) {
+        if (a.completedAt) activeDates.add(new Date(a.completedAt).toISOString().slice(0, 10));
+      }
+      for (const date of quickHistory) activeDates.add(date);
+
+      const today = new Date().toISOString().slice(0, 10);
+      let cursor = new Date();
+      if (!activeDates.has(today)) cursor.setUTCDate(cursor.getUTCDate() - 1);
+      let streak = 0;
+      while (activeDates.has(cursor.toISOString().slice(0, 10))) {
+        streak++;
+        cursor.setUTCDate(cursor.getUTCDate() - 1);
+      }
+
+      const rawClaims = await storage.getSetting("engagement_mystery_claims");
+      let claims: Record<string, any> = {};
+      if (rawClaims) { try { claims = JSON.parse(rawClaims); } catch {} }
+      const hasOpenedMystery = !!claims[String(userId)];
+
+      const passedQuizzes = attempts.filter((a: any) => {
+        const total = a.totalQuestions || 10;
+        return a.score >= Math.ceil(total * 0.7);
+      }).length;
+
+      const badgeDefs = [
+        { id: "first-points", name: "Point Starter", emoji: "⭐", description: "Earn your first A.R.I.S.E. point.", unlocked: totalPoints >= 1 },
+        { id: "first-quiz", name: "Quiz Rookie", emoji: "📝", description: "Complete your first quiz.", unlocked: attempts.length >= 1 },
+        { id: "first-pass", name: "Got It!", emoji: "✅", description: "Pass your first full quiz.", unlocked: passedQuizzes >= 1 },
+        { id: "quick-one", name: "Quick Thinker", emoji: "⚡", description: "Complete your first Daily Quick Challenge.", unlocked: quickHistory.size >= 1 },
+        { id: "points-50", name: "50 Club", emoji: "🏅", description: "Reach 50 total points.", unlocked: totalPoints >= 50 },
+        { id: "points-100", name: "Triple Digits", emoji: "💯", description: "Reach 100 total points.", unlocked: totalPoints >= 100 },
+        { id: "quiz-5", name: "Quiz Streaker", emoji: "📚", description: "Complete 5 quizzes.", unlocked: attempts.length >= 5 },
+        { id: "streak-3", name: "On Fire", emoji: "🔥", description: "Build a 3-day reading streak.", unlocked: streak >= 3 },
+        { id: "quick-5", name: "Daily Challenger", emoji: "⚡", description: "Complete 5 Daily Quick Challenges.", unlocked: quickHistory.size >= 5 },
+        { id: "mystery", name: "Mystery Hunter", emoji: "🎁", description: "Open your first Mystery Box.", unlocked: hasOpenedMystery },
+        { id: "points-250", name: "Point Pro", emoji: "🏆", description: "Reach 250 total points.", unlocked: totalPoints >= 250 },
+        { id: "streak-7", name: "Week Warrior", emoji: "🔥", description: "Build a 7-day reading streak.", unlocked: streak >= 7 },
+        { id: "quiz-10", name: "Quiz Master", emoji: "🧠", description: "Complete 10 quizzes.", unlocked: attempts.length >= 10 },
+        { id: "points-500", name: "Reading Legend", emoji: "👑", description: "Reach 500 total points.", unlocked: totalPoints >= 500 },
+      ];
+
+      res.set("Cache-Control", "no-store");
+      res.json({
+        unlockedCount: badgeDefs.filter((b) => b.unlocked).length,
+        totalCount: badgeDefs.length,
+        badges: badgeDefs,
+      });
+    } catch (error: any) {
+      console.error("[engagement] Badges failed:", error?.message);
+      res.status(500).json({ message: "Could not load badges." });
+    }
+  });
+
   app.post("/api/engagement/mystery", authMiddleware, async (req: any, res) => {
     try {
       if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
