@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { speakCharacter, speakCharacterAI } from "@/lib/tts";
+import { speakCharacterAI } from "@/lib/tts";
 
 type GameId = "match" | "pop" | "sentence" | null;
 
@@ -63,10 +63,8 @@ function BuddyCoach({ buddy, message }: { buddy: BuddyConfig; message: string })
       onStart: () => setTalking(true),
       onEnd: () => setTalking(false),
       onFallback: () => {
-        speakCharacter(message, {
-          excitement: success ? "excited" : retry ? "calm" : "normal",
-          onEnd: () => setTalking(false),
-        });
+        setTalking(false);
+        setBuddyMessage("Natural AI voice is unavailable. Check the server AI voice configuration.");
       },
     });
   };
@@ -506,7 +504,7 @@ export default function EyeGazeGames() {
       if (data.voiceEnabled) {
         speakCharacterAI(`Hi! I'm ${data.name}. Let's learn together!`, {
           calmMode: !!data.calmMode,
-          onFallback: () => speakCharacter(`Hi! I'm ${data.name}. Let's learn together!`, { excitement: "excited" }),
+          onFallback: () => setBuddyMessage("Natural AI voice is unavailable. Check the server AI voice configuration."),
         });
       }
     } catch (e: any) {
