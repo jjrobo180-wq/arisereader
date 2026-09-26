@@ -851,57 +851,88 @@ export default function EyeGazeMyWorld() {
     <div className="min-h-screen bg-[#f5fbff] text-slate-900 p-3 sm:p-5">
       <div className="max-w-[1350px] mx-auto space-y-4">
         <header className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={() => { setSelectedWorldId(null); setFeedback(""); stopSpeaking(); }} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5" /> Places</button>
+          <button type="button" onClick={() => { setSelectedWorldId(null); setFocusedItem(null); setFeedback(""); stopSpeaking(); }} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5" /> Places</button>
           <div className="flex-1 text-center"><p className="text-xs font-black uppercase tracking-widest text-violet-600">My World</p><h1 className="text-3xl sm:text-4xl font-black text-blue-950">{selectedWorld.icon} {selectedWorld.name}</h1></div>
           <div className="rounded-2xl bg-amber-100 px-4 py-2 font-black text-amber-700 flex items-center gap-2"><Star className="w-5 h-5 fill-current" /> {stars}</div>
         </header>
 
         <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto">
-          <button type="button" onClick={() => { setMode("ispy"); setFeedback(""); if (target) speak(`Find ${target.label}.`); }} className={`min-h-14 rounded-2xl font-black flex items-center justify-center gap-2 ${mode === "ispy" ? "bg-violet-600 text-white" : "bg-white border-2 border-violet-100 text-violet-700"}`}><Eye className="w-5 h-5" /> I‑Spy</button>
-          <button type="button" onClick={() => { setMode("explore"); setFeedback(""); speak("Explore your world. Choose something you know."); }} className={`min-h-14 rounded-2xl font-black flex items-center justify-center gap-2 ${mode === "explore" ? "bg-teal-600 text-white" : "bg-white border-2 border-teal-100 text-teal-700"}`}><Home className="w-5 h-5" /> Explore</button>
+          <button type="button" onClick={() => { setMode("ispy"); setFocusedItem(null); setFeedback(""); if (target) speak(`I spy with my little eye. Find ${target.label}.`); }} className={`min-h-14 rounded-2xl font-black flex items-center justify-center gap-2 ${mode === "ispy" ? "bg-violet-600 text-white" : "bg-white border-2 border-violet-100 text-violet-700"}`}><Eye className="w-5 h-5" /> I‑Spy</button>
+          <button type="button" onClick={() => { setMode("explore"); setFocusedItem(null); setFeedback(""); speak("Explore your world. Choose something you know."); }} className={`min-h-14 rounded-2xl font-black flex items-center justify-center gap-2 ${mode === "explore" ? "bg-teal-600 text-white" : "bg-white border-2 border-teal-100 text-teal-700"}`}><Home className="w-5 h-5" /> Explore</button>
         </div>
 
         {mode === "ispy" && target && (
           <section className="rounded-[2rem] bg-gradient-to-r from-amber-100 via-white to-violet-100 border-2 border-amber-200 p-4 flex flex-col sm:flex-row items-center gap-4">
-            <div className="w-28 h-28 rounded-2xl overflow-hidden bg-white border-4 border-white shadow flex-shrink-0"><Media item={target} className="w-full h-full rounded-2xl object-cover" /></div>
+            <div className="w-28 h-28 rounded-2xl overflow-hidden bg-white border-4 border-white shadow flex-shrink-0"><RoomCrop world={selectedWorld} item={target} className="w-full h-full rounded-2xl" /></div>
             <div className="flex-1 text-center sm:text-left"><p className="text-sm font-black uppercase tracking-widest text-amber-700">I‑SPY</p><h2 className="text-3xl sm:text-4xl font-black text-blue-950">Find {target.label}!</h2><p className="font-bold text-slate-600">Look at your real {selectedWorld.name.toLowerCase()} and choose where it is.</p></div>
-            <button type="button" onClick={() => speak(`Find ${target.label}. Where is ${target.label}?`)} className="min-h-14 rounded-2xl bg-blue-600 text-white px-5 font-black">🔊 Hear clue</button>
+            <button type="button" onClick={() => speak(`I spy with my little eye. Find ${target.label}. Where is ${target.label}?`)} className="min-h-14 rounded-2xl bg-blue-600 text-white px-5 font-black">🔊 Hear clue</button>
           </section>
         )}
 
-        <section className="relative rounded-[2rem] overflow-hidden bg-slate-200 min-h-[520px] sm:min-h-[650px] border-4 border-white shadow-xl">
+        <section className="rounded-[2rem] overflow-hidden bg-slate-200 border-4 border-white shadow-xl">
           {selectedWorld.backgroundUrl ? (
-            <img src={selectedWorld.backgroundUrl} alt={selectedWorld.name} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-sky-100 to-violet-100 grid place-items-center text-[10rem]">{selectedWorld.icon}</div>
-          )}
-          <div className="absolute inset-0 bg-black/5" />
+            <div className="overflow-x-auto bg-slate-100">
+              <div className="relative min-w-[640px] md:min-w-full">
+                <img src={selectedWorld.backgroundUrl} alt={selectedWorld.name} className="block w-full h-auto select-none" draggable={false} />
 
-          {selectedWorld.items.map(item => (
-            <div
-              key={item.id}
-              style={{ left: `${item.x}%`, top: `${item.y}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
-            >
-              <DwellButton
-                label={mode === "ispy" ? `Choose this spot for ${target?.label || "the item"}` : `Explore ${item.label}`}
-                onSelect={() => chooseItem(item)}
-                className={`rounded-full shadow-2xl border-[5px] border-white flex items-center justify-center transition-all ${mode === "ispy" ? "w-24 h-24 sm:w-32 sm:h-32 bg-amber-300/90 hover:bg-amber-300" : "w-28 h-28 sm:w-36 sm:h-36 bg-white/95"}`}
-              >
-                {mode === "explore" ? (
-                  item.mediaUrl ? <Media item={item} className="w-full h-full rounded-full object-cover" /> : <span className="text-4xl">📍</span>
-                ) : (
-                  <span className="text-4xl sm:text-5xl font-black text-amber-900">?</span>
+                {selectedWorld.items.map(item => {
+                  const box = safeBox(item);
+                  return (
+                    <DwellButton
+                      key={item.id}
+                      label={mode === "ispy" ? `Choose ${item.label}` : `Explore ${item.label}`}
+                      onSelect={() => chooseItem(item)}
+                      style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
+                      className={`absolute z-20 min-w-12 min-h-12 rounded-xl border-4 transition-all ${mode === "ispy" ? "border-transparent bg-transparent hover:border-amber-300 hover:bg-amber-200/10 focus:border-amber-300" : "border-white/20 bg-white/5 hover:border-sky-300 hover:bg-sky-200/10 focus:border-sky-300"}`}
+                    >
+                      <span className="sr-only">{item.label}</span>
+                    </DwellButton>
+                  );
+                })}
+
+                {focusedItem && (
+                  <div className="absolute inset-0 z-40 bg-slate-950/65 p-3 sm:p-6 grid place-items-center">
+                    <div className="w-full max-w-4xl rounded-[2rem] bg-white p-4 sm:p-6 shadow-2xl">
+                      <div className="grid md:grid-cols-[1.25fr_1fr] gap-5 items-stretch">
+                        <div className="min-h-[260px] sm:min-h-[360px] rounded-3xl overflow-hidden border-4 border-sky-100 relative">
+                          <RoomCrop world={selectedWorld} item={focusedItem} className="absolute inset-0 w-full h-full transition-all duration-500" />
+                          <div className="absolute top-3 left-3 rounded-full bg-slate-950/80 text-white px-3 py-1 text-xs font-black uppercase tracking-widest flex items-center gap-2"><Focus className="w-4 h-4" /> Zoomed in</div>
+                        </div>
+                        <div className="flex flex-col justify-center text-center md:text-left">
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-600">{mode === "ispy" ? "You found it!" : "Learn this word"}</p>
+                          <h2 className="text-4xl sm:text-6xl font-black text-blue-950 mt-2">{focusedItem.label}</h2>
+                          <p className="text-xl sm:text-2xl font-bold text-slate-600 mt-3">{focusedItem.phrase}</p>
+
+                          {focusedItem.mediaUrl && (
+                            <div className="mt-4 rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50">
+                              <Media item={focusedItem} className="w-full max-h-44 object-cover" />
+                            </div>
+                          )}
+
+                          <div className="grid sm:grid-cols-2 gap-2 mt-5">
+                            <DwellButton label={`Hear ${focusedItem.label} again`} onSelect={() => speak(`${focusedItem.label}. ${focusedItem.phrase}`)} className="min-h-14 rounded-2xl bg-blue-600 text-white px-4 font-black">🔊 Hear it again</DwellButton>
+                            {mode === "explore" ? (
+                              <DwellButton label={`Play I Spy with ${focusedItem.label}`} onSelect={() => playIspyWith(focusedItem)} className="min-h-14 rounded-2xl bg-violet-600 text-white px-4 font-black">👁️ I‑Spy: find it</DwellButton>
+                            ) : (
+                              <DwellButton label="Next I Spy object" onSelect={nextIspy} className="min-h-14 rounded-2xl bg-emerald-600 text-white px-4 font-black">⭐ Next I‑Spy</DwellButton>
+                            )}
+                          </div>
+                          <DwellButton label="Back to the full room" onSelect={() => { setFocusedItem(null); setFeedback(""); }} className="mt-2 min-h-12 rounded-2xl bg-slate-100 text-slate-700 px-4 font-black">Back to full room</DwellButton>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </DwellButton>
-              {mode === "explore" && <div className="mt-1 rounded-full bg-slate-950/85 text-white px-3 py-1 text-center text-sm font-black whitespace-nowrap">{item.label}</div>}
+              </div>
             </div>
-          ))}
+          ) : (
+            <div className="min-h-[420px] bg-gradient-to-br from-sky-100 to-violet-100 grid place-items-center text-[10rem]">{selectedWorld.icon}</div>
+          )}
         </section>
 
-        {feedback && <div role="status" className={`rounded-2xl p-4 text-center text-xl font-black ${feedback.startsWith("Yes") ? "bg-green-100 text-green-800" : feedback.startsWith("That") ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}>{feedback}</div>}
+        {feedback && <div role="status" className={`rounded-2xl p-4 text-center text-xl font-black ${feedback.startsWith("Yes") ? "bg-green-100 text-green-800" : feedback.startsWith("Good try") ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}>{feedback}</div>}
 
-        <p className="text-center text-sm font-bold text-slate-500">Look at a large circle for about one second, or tap it. My World uses familiar family photos and videos chosen by your caregiver.</p>
+        <p className="text-center text-sm font-bold text-slate-500">Look at the real object for about one second, or tap it. My World uses the exact object areas tagged by a grown-up in familiar family photos.</p>
       </div>
     </div>
   );
