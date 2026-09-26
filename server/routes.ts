@@ -6343,6 +6343,7 @@ export async function registerRoutes(
         { table: "quiz_review_requests", column: "user_id" },
         { table: "messages", column: "sender_id" },
         { table: "messages", column: "recipient_id" },
+        { table: "notifications", column: "user_id" },
         { table: "quiz_requests", column: "user_id" },
         { table: "custom_quizzes", column: "creator_id" },
         { table: "easter_egg_claims", column: "user_id" },
