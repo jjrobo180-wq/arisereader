@@ -68,6 +68,41 @@ export const places: Place[] = [
   ] },
 ];
 
+
+function uniqueByLabel(words: Word[]) {
+  const seen = new Set<string>();
+  return words.filter(word => {
+    const key = word.label.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function learningGroup(selected: Word, currentPlace: Place | undefined, needs: TalkerWord[]) {
+  const matchingPlace = currentPlace?.words.some(word => word.label.toLowerCase() === selected.label.toLowerCase())
+    ? currentPlace
+    : places.find(item => item.words.some(word => word.label.toLowerCase() === selected.label.toLowerCase()));
+
+  const pool: Word[] = [
+    selected,
+    ...(matchingPlace?.words || []),
+    ...needs,
+    ...places.flatMap(item => item.words),
+  ];
+
+  return {
+    place: matchingPlace,
+    words: uniqueByLabel(pool),
+  };
+}
+
+function rotateChoices(words: Word[], offset: number) {
+  if (words.length < 2) return words;
+  const amount = ((offset % words.length) + words.length) % words.length;
+  return [...words.slice(amount), ...words.slice(0, amount)];
+}
+
 export default function EyeGazeTalker() {
   const [, navigate] = useLocation();
   const { token, user } = useAuth();
@@ -78,6 +113,9 @@ export default function EyeGazeTalker() {
     return openLearning ? "learn" : "talk";
   });
   const [selected, setSelected] = useState<Word | null>(null);
+  const [learningOpen, setLearningOpen] = useState(false);
+  const [learningFeedback, setLearningFeedback] = useState("");
+  const [learningRound, setLearningRound] = useState(0);
   const [words, setWords] = useState<string[]>([]);
   const [dwell, setDwell] = useState(() => localStorage.getItem("eye-gaze-talker-dwell") !== "off");
   const [dwellMs, setDwellMs] = useState(() => Number(localStorage.getItem("eye-gaze-talker-time")) || 1800);
@@ -123,7 +161,12 @@ export default function EyeGazeTalker() {
   }, []);
 
   useEffect(() => {
-    if (selected) wordDialog.current?.showModal();
+    if (selected) {
+      setLearningOpen(false);
+      setLearningFeedback("");
+      setLearningRound(0);
+      wordDialog.current?.showModal();
+    }
   }, [selected]);
 
   useEffect(() => {
@@ -207,7 +250,37 @@ export default function EyeGazeTalker() {
       ? () => playAnimal(word.label) : undefined);
   };
 
-  const closeWord = () => { wordDialog.current?.close(); setSelected(null); };
+  const recordLearning = (word: string, outcome: "correct" | "retry" | "practiced", prompt = 1) => {
+    void talkerRequest(token, "/practice", "POST", { word, outcome, prompt }).catch(() => {});
+  };
+
+  const answerLearningQuestion = (choice: Word) => {
+    if (!selected) return;
+    const correct = choice.label.trim().toLowerCase() === selected.label.trim().toLowerCase();
+    if (correct) {
+      const feedback = `Yes! You found ${selected.label}! Great job!`;
+      setLearningFeedback(feedback);
+      recordLearning(selected.label, "correct", 1);
+      say(feedback);
+      window.setTimeout(() => {
+        setLearningFeedback("");
+        setLearningRound(round => round + 1);
+      }, 1600);
+    } else {
+      const feedback = `Good try. Look again for ${selected.label}.`;
+      setLearningFeedback(feedback);
+      recordLearning(selected.label, "retry", 1);
+      say(feedback);
+    }
+  };
+
+  const closeWord = () => {
+    wordDialog.current?.close();
+    setSelected(null);
+    setLearningOpen(false);
+    setLearningFeedback("");
+    setLearningRound(0);
+  };
   const closeSettings = () => { settingsDialog.current?.close(); setSettingsOpen(false); };
 
   if (view === "learn") return (
@@ -253,14 +326,14 @@ export default function EyeGazeTalker() {
         <section aria-label="Everyday words" className="mt-7">
           <p className="text-sm font-black tracking-widest text-[#477586] mb-3">ALWAYS HERE</p>
           <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
-            {needs.map(word => <button data-talker-dwell key={word.id} type="button" onClick={() => choose(word)} aria-label={`Say ${word.label}`} className="relative rounded-2xl bg-white border-2 border-sky-100 min-h-28 sm:min-h-32 px-1 py-3 flex flex-col justify-center items-center gap-1 shadow-sm hover:border-sky-500">{picture(word) ? <img src={picture(word)!} alt="" className="w-16 h-16 rounded-2xl object-cover" /> : <span className="text-4xl sm:text-5xl" aria-hidden="true">{word.picture}</span>}<span className="font-black text-base sm:text-lg leading-tight">{word.label}</span></button>)}
+            {needs.map(word => <button data-talker-dwell key={word.id} type="button" onClick={() => choose(word)} aria-label={`Say ${word.label}`} className="relative rounded-2xl bg-white border-2 border-sky-100 min-h-28 sm:min-h-32 px-1 py-3 flex flex-col justify-center items-center gap-1 shadow-sm hover:border-sky-500">{picture(word) ? <img src={picture(word)!} alt="" className="w-16 h-16 rounded-2xl object-cover" /> : <span className="text-4xl sm:text-5xl" aria-hidden="true">{word.picture}</span>}<span className="font-black text-base sm:text-lg leading-tight">{word.label}</span><span className="text-[10px] font-black tracking-wider text-[#4c7788]">MORE →</span></button>)}
           </div>
         </section>
 
         <section className="mt-9" aria-labelledby="talker-place-title">
           <div className="flex flex-wrap justify-between items-end gap-3 mb-5"><div><p className="text-sm font-black tracking-widest text-[#477586]">{place ? "MY PLACES / " + place.label.toUpperCase() : "CHOOSE A PLACE"}</p><h2 id="talker-place-title" className="font-black text-3xl sm:text-4xl tracking-tight">{place ? place.label : "Where are we going?"}</h2><p className="text-[#547886] font-bold">{place ? "Choose a picture to hear a word." : "Pick a place or say what you need."}</p></div>{place && <button data-talker-dwell type="button" onClick={() => setPlaceId(null)} className="relative min-h-14 rounded-2xl bg-white border-2 border-sky-100 px-5 font-black">← All places</button>}</div>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            {place ? place.words.map(word => <button data-talker-dwell key={word.label} type="button" onClick={() => choose(word)} aria-label={`Say ${word.label}`} style={{ backgroundColor: place.color }} className="relative min-h-44 rounded-3xl border-2 border-transparent hover:border-sky-500 flex flex-col items-center justify-center gap-2 shadow-sm">{picture(word) ? <img src={picture(word)!} alt="" className="w-28 h-28 rounded-2xl object-cover" /> : <span className="text-7xl sm:text-8xl" aria-hidden="true">{word.picture}</span>}<span className="text-xl sm:text-2xl font-black">{word.label}</span></button>) : places.map(item => <button data-talker-dwell key={item.id} type="button" onClick={() => setPlaceId(item.id)} style={{ backgroundColor: item.color }} className="relative min-h-40 rounded-3xl border-2 border-transparent hover:border-sky-500 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 p-3 shadow-sm"><span className="text-6xl sm:text-7xl" aria-hidden="true">{item.picture}</span><span className="text-center sm:text-left"><strong className="block text-xl sm:text-2xl font-black">{item.label}</strong><small className="font-bold text-[#527483]">{item.hint}</small></span></button>)}
+            {place ? place.words.map(word => <button data-talker-dwell key={word.label} type="button" onClick={() => choose(word)} aria-label={`Say ${word.label}`} style={{ backgroundColor: place.color }} className="relative min-h-44 rounded-3xl border-2 border-transparent hover:border-sky-500 flex flex-col items-center justify-center gap-2 shadow-sm">{picture(word) ? <img src={picture(word)!} alt="" className="w-28 h-28 rounded-2xl object-cover" /> : <span className="text-7xl sm:text-8xl" aria-hidden="true">{word.picture}</span>}<span className="text-xl sm:text-2xl font-black">{word.label}</span><span className="text-[10px] font-black tracking-wider text-[#4c7788]">KEEP LEARNING →</span></button>) : places.map(item => <button data-talker-dwell key={item.id} type="button" onClick={() => setPlaceId(item.id)} style={{ backgroundColor: item.color }} className="relative min-h-40 rounded-3xl border-2 border-transparent hover:border-sky-500 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 p-3 shadow-sm"><span className="text-6xl sm:text-7xl" aria-hidden="true">{item.picture}</span><span className="text-center sm:text-left"><strong className="block text-xl sm:text-2xl font-black">{item.label}</strong><small className="font-bold text-[#527483]">{item.hint}</small></span></button>)}
           </div>
         </section>
         <p className="text-center text-sm text-[#5c7c88] font-bold mt-8">Voice is AI-generated when available. Your device voice is the backup.</p>
@@ -268,8 +341,125 @@ export default function EyeGazeTalker() {
         {notice && <p role="status" className="text-center font-black text-[#315772] mt-2">{notice}</p>}
       </div>
 
-      <dialog ref={wordDialog} onClose={() => setSelected(null)} aria-labelledby="talker-selected-word" className="rounded-[2rem] p-5 sm:p-7 w-[min(92vw,480px)] max-h-[94vh] overflow-y-auto text-center text-[#193d57] backdrop:bg-[#0b293bc2]">
-        {selected && <><div className="flex justify-end"><button data-talker-dwell type="button" onClick={closeWord} aria-label="Close word card" className="relative w-14 h-14 rounded-full bg-[#eef4f6] text-3xl font-black">×</button></div><div className="h-44 sm:h-52 rounded-3xl bg-[#e0f3f0] grid place-items-center text-[7rem]" role="img" aria-label={`Picture for ${selected.label}`}>{picture(selected) ? <img src={picture(selected)!} alt="" className="w-full h-full rounded-3xl object-contain" /> : selected.picture}</div><h2 id="talker-selected-word" className="text-4xl font-black mt-3">{selected.label}</h2><p className="text-xl font-bold text-[#3f687a] my-3">{selected.sentence}</p><div className="grid grid-cols-2 gap-2"><button data-talker-dwell type="button" onClick={() => say(selected.label)} className="relative min-h-16 rounded-2xl bg-[#e6f2f4] font-black">🔊 Say word</button><button data-talker-dwell type="button" onClick={() => say(selected.sentence)} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white font-black">▶ Say full sentence</button></div>{animalSounds[selected.label] && <button data-talker-dwell type="button" onClick={() => { stopSpeaking(); playAnimal(selected.label); }} className="relative min-h-16 rounded-2xl w-full bg-[#e0f3e7] mt-3 font-black text-lg">🐾 Hear animal sound</button>}<button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); closeWord(); }} className="relative min-h-14 mt-3 px-4 text-[#246779] font-black underline">+ Add to my words</button></>}
+      <dialog ref={wordDialog} onClose={() => { setSelected(null); setLearningOpen(false); setLearningFeedback(""); }} aria-labelledby="talker-selected-word" className="rounded-[2rem] p-4 sm:p-6 w-[min(96vw,760px)] max-h-[94vh] overflow-y-auto text-center text-[#193d57] backdrop:bg-[#0b293bc2]">
+        {selected && (() => {
+          const group = learningGroup(selected, place, needs);
+          const related = group.words.filter(word => word.label.toLowerCase() !== selected.label.toLowerCase()).slice(0, 4);
+          const quizBase = uniqueByLabel([selected, ...related]).slice(0, 3);
+          const quizChoices = rotateChoices(quizBase, selected.label.length + learningRound);
+          const where = group.place?.label || "your day";
+
+          return (
+            <>
+              <div className="flex justify-end">
+                <button data-talker-dwell type="button" onClick={closeWord} aria-label="Close word card" className="relative w-14 h-14 rounded-full bg-[#eef4f6] text-3xl font-black">×</button>
+              </div>
+
+              <div className={learningOpen ? "grid lg:grid-cols-[260px_1fr] gap-5 items-start text-left" : ""}>
+                <div className={learningOpen ? "lg:sticky lg:top-0" : ""}>
+                  <div className="h-44 sm:h-52 rounded-3xl bg-[#e0f3f0] grid place-items-center text-[7rem]" role="img" aria-label={`Picture for ${selected.label}`}>
+                    {picture(selected) ? <img src={picture(selected)!} alt="" className="w-full h-full rounded-3xl object-contain" /> : selected.picture}
+                  </div>
+                  <h2 id="talker-selected-word" className="text-4xl font-black mt-3 text-center">{selected.label}</h2>
+                  <p className="text-lg font-bold text-[#3f687a] my-3 text-center">{selected.sentence}</p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button data-talker-dwell type="button" onClick={() => { say(selected.label); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#e6f2f4] font-black">🔊 Say word</button>
+                    <button data-talker-dwell type="button" onClick={() => { say(selected.sentence); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white font-black">▶ Say sentence</button>
+                  </div>
+
+                  {animalSounds[selected.label] && (
+                    <button data-talker-dwell type="button" onClick={() => { stopSpeaking(); playAnimal(selected.label); }} className="relative min-h-16 rounded-2xl w-full bg-[#e0f3e7] mt-3 font-black text-lg">🐾 Hear animal sound</button>
+                  )}
+
+                  <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); closeWord(); }} className="relative min-h-14 mt-2 px-4 w-full text-[#246779] font-black underline">+ Add to my words</button>
+
+                  <button
+                    data-talker-dwell
+                    type="button"
+                    onClick={() => {
+                      setLearningOpen(open => !open);
+                      setLearningFeedback("");
+                      if (!learningOpen) {
+                        say(`Let's keep learning about ${selected.label}. Find ${selected.label} in the pictures.`);
+                        recordLearning(selected.label, "practiced");
+                      }
+                    }}
+                    className={`relative w-full min-h-16 rounded-2xl mt-3 px-4 font-black text-lg ${learningOpen ? "bg-[#315772] text-white" : "bg-[#ffd766] text-[#193d57]"}`}
+                  >
+                    {learningOpen ? "← Back to word" : "✨ Keep Learning / More →"}
+                  </button>
+                </div>
+
+                {learningOpen && (
+                  <div className="space-y-4">
+                    <section className="rounded-3xl bg-[#fff8d9] border-2 border-[#f2d876] p-4 sm:p-5">
+                      <p className="text-xs font-black tracking-widest text-[#8a6c0b]">LOOK • LISTEN • FIND</p>
+                      <h3 className="text-2xl sm:text-3xl font-black mt-1">Can you find {selected.label}?</h3>
+                      <p className="font-bold text-[#5d6f77] mt-1">Look at the pictures. Choose {selected.label}.</p>
+                      <button data-talker-dwell type="button" onClick={() => say(`Can you find ${selected.label}? Choose ${selected.label}.`)} className="relative mt-3 min-h-12 rounded-2xl bg-white border-2 border-amber-200 px-4 font-black">🔊 Hear the question</button>
+
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-4">
+                        {quizChoices.map(choice => (
+                          <button
+                            data-talker-dwell
+                            key={`quiz-${choice.label}`}
+                            type="button"
+                            onClick={() => answerLearningQuestion(choice)}
+                            aria-label={`Choose ${choice.label}`}
+                            className="relative min-h-32 sm:min-h-40 rounded-2xl bg-white border-2 border-amber-100 hover:border-blue-500 flex flex-col items-center justify-center gap-2 p-2"
+                          >
+                            {picture(choice) ? <img src={picture(choice)!} alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover" /> : <span className="text-5xl sm:text-6xl" aria-hidden="true">{choice.picture}</span>}
+                            <span className="font-black text-sm sm:text-lg leading-tight">{choice.label}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {learningFeedback && (
+                        <div role="status" className={`mt-4 rounded-2xl px-4 py-3 text-center font-black ${learningFeedback.startsWith("Yes") ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+                          {learningFeedback}
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="rounded-3xl bg-[#eaf5ff] border-2 border-sky-200 p-4 sm:p-5">
+                      <p className="text-xs font-black tracking-widest text-[#246779]">SEE MORE</p>
+                      <h3 className="text-2xl font-black mt-1">More pictures & words</h3>
+                      <p className="font-bold text-[#5d6f77]">These words go with {selected.label} in {where}.</p>
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-4">
+                        {related.map(word => (
+                          <button
+                            data-talker-dwell
+                            key={`related-${word.label}`}
+                            type="button"
+                            onClick={() => choose(word)}
+                            className="relative min-h-28 rounded-2xl bg-white border-2 border-sky-100 hover:border-sky-500 flex items-center gap-3 p-3 text-left"
+                          >
+                            {picture(word) ? <img src={picture(word)!} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" /> : <span className="text-4xl flex-shrink-0" aria-hidden="true">{word.picture}</span>}
+                            <span>
+                              <strong className="block text-lg font-black">{word.label}</strong>
+                              <small className="font-bold text-[#55717e]">Tap to learn this word</small>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="rounded-3xl bg-[#eef7e8] border-2 border-emerald-200 p-4 sm:p-5">
+                      <p className="text-xs font-black tracking-widest text-emerald-700">USE THE WORD</p>
+                      <h3 className="text-2xl font-black mt-1">Say it in a sentence</h3>
+                      <div className="mt-3 rounded-2xl bg-white border-2 border-emerald-100 p-4 text-xl font-black">{selected.sentence}</div>
+                      <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                        <button data-talker-dwell type="button" onClick={() => { say(selected.sentence); recordLearning(selected.label, "practiced"); }} className="relative min-h-14 rounded-2xl bg-emerald-600 text-white font-black">▶ Hear sentence</button>
+                        <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); say(`You added ${selected.label} to your words.`); }} className="relative min-h-14 rounded-2xl bg-white border-2 border-emerald-200 font-black">+ Use in My Words</button>
+                      </div>
+                    </section>
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
       </dialog>
 
       <dialog ref={settingsDialog} onClose={() => setSettingsOpen(false)} aria-labelledby="talker-settings-title" className="rounded-[2rem] p-6 w-[min(92vw,480px)] max-h-[90vh] overflow-y-auto text-[#193d57] backdrop:bg-[#0b293bc2]">
