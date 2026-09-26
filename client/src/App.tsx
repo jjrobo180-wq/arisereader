@@ -45,6 +45,7 @@ import ReadingAssessment from "./pages/ReadingAssessment";
 import GrowthCheck from "./pages/GrowthCheck";
 import EyeGazeQuiz from "./pages/EyeGazeQuiz";
 import EyeGazeGames from "./pages/EyeGazeGames";
+import EyeGazeHome from "./pages/EyeGazeHome";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
@@ -243,6 +244,9 @@ function AppRoutes() {
       </Route>
       <Route path="/progress">
         <ProtectedRoute><GrowthCheck /></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-home">
+        <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-games">
         <ProtectedRoute><EyeGazeGames /></ProtectedRoute>
