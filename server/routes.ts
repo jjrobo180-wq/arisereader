@@ -5107,6 +5107,14 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/eye-gaze/tts/status", (_req, res) => {
+    res.json({
+      configured: !!process.env.OPENAI_API_KEY,
+      provider: process.env.OPENAI_API_KEY ? "openai" : null,
+      model: process.env.OPENAI_API_KEY ? "gpt-4o-mini-tts" : null,
+    });
+  });
+
   // Neural Learning Buddy voice. Uses OpenAI TTS when OPENAI_API_KEY is configured.
   // The generated voice is AI-generated and should be disclosed to users.
   app.post("/api/eye-gaze/tts", authMiddleware, async (req: any, res) => {
