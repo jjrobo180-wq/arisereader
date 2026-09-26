@@ -135,6 +135,76 @@ function getBestVoice(): SpeechSynthesisVoice | null {
   return voices[0];
 }
 
+// Choose a more playful, youthful-sounding voice for the Learning Buddy.
+// Browser voice inventories differ by device, so this prefers higher-quality
+// youthful/natural voices when they exist and falls back gracefully.
+function getCharacterVoice(): SpeechSynthesisVoice | null {
+  if (!("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  const priorities = [
+    // Apple voices that tend to sound warmer/younger when installed
+    (v: SpeechSynthesisVoice) => /Zoe|Ava|Joelle|Samantha/i.test(v.name) && v.lang.startsWith("en"),
+    // Microsoft natural/neural-style voices
+    (v: SpeechSynthesisVoice) => /Ana|Jenny|Aria|Natural/i.test(v.name) && v.lang.startsWith("en"),
+    // Google voices
+    (v: SpeechSynthesisVoice) => /Google US English/i.test(v.name),
+    (v: SpeechSynthesisVoice) => /Google/i.test(v.name) && v.lang.startsWith("en"),
+    // Enhanced/premium system voices
+    (v: SpeechSynthesisVoice) => /Enhanced|Premium/i.test(v.name) && v.lang.startsWith("en"),
+    (v: SpeechSynthesisVoice) => v.lang === "en-US",
+    (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
+  ];
+
+  for (const check of priorities) {
+    const found = voices.find(check);
+    if (found) return found;
+  }
+  return voices[0] || null;
+}
+
+export function speakCharacter(
+  text: string,
+  options?: {
+    onEnd?: () => void;
+    onSubtitle?: (text: string) => void;
+    excitement?: "calm" | "normal" | "excited";
+  }
+) {
+  if (!("speechSynthesis" in window)) {
+    options?.onEnd?.();
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  const mood = options?.excitement || "normal";
+
+  utterance.rate = mood === "calm" ? 0.78 : mood === "excited" ? 0.9 : 0.84;
+  utterance.pitch = mood === "calm" ? 1.08 : mood === "excited" ? 1.28 : 1.18;
+  utterance.volume = 1;
+
+  const voice = getCharacterVoice() || selectedVoice || getBestVoice();
+  if (voice) utterance.voice = voice;
+
+  currentSubtitle = text;
+  options?.onSubtitle?.(text);
+
+  utterance.onend = () => {
+    currentSubtitle = "";
+    options?.onSubtitle?.("");
+    options?.onEnd?.();
+  };
+  utterance.onerror = () => {
+    currentSubtitle = "";
+    options?.onSubtitle?.("");
+    options?.onEnd?.();
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
 // Initialize voices (call on component mount)
 export function initVoices() {
   if (!("speechSynthesis" in window)) return;
