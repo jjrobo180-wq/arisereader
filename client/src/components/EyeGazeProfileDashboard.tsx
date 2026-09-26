@@ -16,7 +16,7 @@ import {
   Eye,
 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
-import { speakCharacter } from "@/lib/tts";
+import { speakCharacter, speakCharacterAI } from "@/lib/tts";
 
 type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
 type BuddyConfig = {
@@ -142,8 +142,13 @@ export default function EyeGazeProfileDashboard({
 
   const speak = (text: string, excited = false) => {
     if (!draft.voiceEnabled) return;
-    speakCharacter(text, {
-      excitement: draft.calmMode ? "calm" : excited ? "excited" : "normal",
+    speakCharacterAI(text, {
+      calmMode: !!draft.calmMode,
+      onFallback: () => {
+        speakCharacter(text, {
+          excitement: draft.calmMode ? "calm" : excited ? "excited" : "normal",
+        });
+      },
     });
   };
 
@@ -170,8 +175,11 @@ export default function EyeGazeProfileDashboard({
       setDraft(normalized);
       setSaveMessage("Buddy saved!");
       if (normalized.voiceEnabled) {
-        speakCharacter(`Hi ${firstName}! I'm ${normalized.name}. Let's learn together!`, {
-          excitement: normalized.calmMode ? "calm" : "excited",
+        speakCharacterAI(`Hi ${firstName}! I'm ${normalized.name}. Let's learn together!`, {
+          calmMode: !!normalized.calmMode,
+          onFallback: () => speakCharacter(`Hi ${firstName}! I'm ${normalized.name}. Let's learn together!`, {
+            excitement: normalized.calmMode ? "calm" : "excited",
+          }),
         });
       }
     } catch (error: any) {
@@ -462,7 +470,7 @@ export default function EyeGazeProfileDashboard({
                 </div>
                 <div className="text-left flex-1">
                   <div className="text-xl font-black text-blue-950">Buddy Voice: {draft.voiceEnabled ? "On" : "Off"}</div>
-                  <div className="text-xs text-slate-500">Character voice during lessons</div>
+                  <div className="text-xs text-slate-500">Natural AI-generated character voice during lessons</div>
                 </div>
                 <div className={`w-16 h-9 rounded-full p-1 transition-colors ${draft.voiceEnabled ? "bg-green-400" : "bg-slate-300"}`}>
                   <div className={`w-7 h-7 rounded-full bg-white transition-transform ${draft.voiceEnabled ? "translate-x-7" : ""}`} />
