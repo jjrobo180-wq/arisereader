@@ -30,6 +30,39 @@ const allowlist = [
   "zod-validation-error",
 ];
 
+async function verifyTts() {
+  if (process.env.VERIFY_TTS_ON_BUILD !== "true") return;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.log("[tts-build-check] skipped: OPENAI_API_KEY missing");
+    return;
+  }
+  try {
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini-tts",
+        voice: "marin",
+        input: "Voice check.",
+        response_format: "mp3",
+      }),
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      console.log("[tts-build-check] failed:", response.status, detail.slice(0, 500));
+      return;
+    }
+    const bytes = (await response.arrayBuffer()).byteLength;
+    console.log("[tts-build-check] success: generated", bytes, "bytes of audio");
+  } catch (error: any) {
+    console.log("[tts-build-check] error:", error?.message || String(error));
+  }
+}
+
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
@@ -43,6 +76,8 @@ async function buildAll() {
     ...Object.keys(pkg.devDependencies || {}),
   ];
   const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+
+  await verifyTts();
 
   await esbuild({
     entryPoints: ["server/index.ts"],
