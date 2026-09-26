@@ -321,7 +321,8 @@ export default function Profile() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (user?.role !== "student") return;
+    const isStudentAccount = !!user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent" && user.role !== "admin";
+    if (!isStudentAccount) return;
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
     const loadBadges = () => {
@@ -696,8 +697,8 @@ export default function Profile() {
           </Card>
         </div>
 
-        {user?.role === 'student' && (
-          <Card className="shadow-md border-amber-500/20">
+        {user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && user.role !== 'admin' && (
+          <Card className="shadow-md border-amber-500/30 bg-amber-500/5">
             <CardHeader>
               <CardTitle className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2">
