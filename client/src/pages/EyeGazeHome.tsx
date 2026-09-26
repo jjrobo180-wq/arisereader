@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { BookOpen, Gamepad2, MessageCircle, Trophy, Users } from "lucide-react";
 
 function getTokenFromCookie(): string | null {
   try {
