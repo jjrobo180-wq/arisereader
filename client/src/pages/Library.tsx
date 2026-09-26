@@ -84,6 +84,7 @@ export default function Library() {
   const [books, setBooks] = useState<Book[]>(libraryCache.books);
   const [quizCount, setQuizCount] = useState(libraryCache.quizCount || 0);
   const [results, setResults] = useState<QuizResult[]>(libraryCache.results);
+  const [liveTotalPoints, setLiveTotalPoints] = useState<number>(user?.totalPoints || 0);
   const [loading, setLoading] = useState(libraryCache.books.length === 0);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -266,6 +267,7 @@ export default function Library() {
           const profileData = await profileRes.json();
           const quizResults = profileData?.quizResults || [];
           setResults(quizResults);
+          setLiveTotalPoints(profileData?.totalPoints || 0);
           libraryCache.results = quizResults;
         }
       } catch (e) {
@@ -285,6 +287,26 @@ export default function Library() {
       setLoading(false);
     }
   }, [token]);
+
+  useEffect(() => {
+    const refreshPoints = async () => {
+      const authToken = token || getTokenFromCookie();
+      if (!authToken) return;
+      try {
+        const profileRes = await fetch(`${API_BASE}/api/profile`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+          cache: "no-store",
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setLiveTotalPoints(profileData?.totalPoints || 0);
+        }
+        try { await refreshUser(); } catch {}
+      } catch {}
+    };
+    window.addEventListener("arise-points-updated", refreshPoints);
+    return () => window.removeEventListener("arise-points-updated", refreshPoints);
+  }, [token, refreshUser]);
 
   const fetchAnnouncement = useCallback(async () => {
     const authToken = token || getTokenFromCookie();
@@ -1040,7 +1062,7 @@ export default function Library() {
   };
 
   const completedIds = new Set((results || []).map(r => r.bookId));
-  const totalPoints = user?.totalPoints ?? (results || []).reduce((sum, r) => sum + (r.pointsEarned ?? r.score ?? 0), 0);
+  const totalPoints = liveTotalPoints;
 
   // Filter books by search and admin band filter
   const filteredBooks = (searchQuery.trim()
