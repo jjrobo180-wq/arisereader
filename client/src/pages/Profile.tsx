@@ -234,6 +234,8 @@ export default function Profile() {
   const [showEyeGazeRank, setShowEyeGazeRank] = useState(false);
   const [eyeGazeLoading, setEyeGazeLoading] = useState(false);
   const [celebrationStyle, setCelebrationStyle] = useState<CelebrationStyle>("confetti");
+  const [badges, setBadges] = useState<Array<{ id: string; name: string; emoji: string; description: string; unlocked: boolean }>>([]);
+  const [badgeCounts, setBadgeCounts] = useState({ unlocked: 0, total: 0 });
   const [activeTab, setActiveTab] = useState<"profile" | "leaderboard">("profile");
   const [lbPeriod, setLbPeriod] = useState<"all-time" | "monthly">("all-time");
   const [lbMonth, setLbMonth] = useState(() => {
@@ -317,6 +319,28 @@ export default function Profile() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (user?.role !== "student") return;
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    const loadBadges = () => {
+      fetch(`${API_BASE}/api/engagement/badges`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: "no-store",
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          setBadges(Array.isArray(data.badges) ? data.badges : []);
+          setBadgeCounts({ unlocked: data.unlockedCount || 0, total: data.totalCount || 0 });
+        })
+        .catch(() => {});
+    };
+    loadBadges();
+    window.addEventListener("arise-points-updated", loadBadges);
+    return () => window.removeEventListener("arise-points-updated", loadBadges);
+  }, [user?.id, user?.role, token]);
 
   // Fetch eye gaze band rank for eye gaze students
   const fetchEyeGazeRank = async () => {
@@ -671,6 +695,47 @@ export default function Profile() {
             </CardContent>
           </Card>
         </div>
+
+        {user?.role === 'student' && (
+          <Card className="shadow-md border-amber-500/20">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-amber-400" />
+                  My Badges
+                </span>
+                <span className="text-xs font-medium text-muted-foreground">{badgeCounts.unlocked}/{badgeCounts.total} unlocked</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {badges.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Complete activities to start unlocking badges.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {badges.map((badge) => (
+                    <div
+                      key={badge.id}
+                      className={`rounded-xl border p-3 text-center transition-all ${
+                        badge.unlocked
+                          ? "border-amber-500/30 bg-amber-500/10 shadow-sm"
+                          : "border-border bg-muted/20 opacity-45 grayscale"
+                      }`}
+                    >
+                      <div className="text-3xl mb-2">{badge.unlocked ? badge.emoji : "🔒"}</div>
+                      <p className="font-bold text-sm">{badge.name}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{badge.description}</p>
+                      {badge.unlocked && (
+                        <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 text-[10px] font-bold">
+                          UNLOCKED
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* My Teacher */}
         {teacher && (
