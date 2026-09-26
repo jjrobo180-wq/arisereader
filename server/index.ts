@@ -22,7 +22,7 @@ app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
 // still requires an authenticated linked parent before anything is stored.
 app.use("/api/eye-gaze/my-world/upload", express.raw({
   type: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"],
-  limit: "12mb",
+  limit: "20mb",
 }));
 
 app.use(
