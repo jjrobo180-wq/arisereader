@@ -18,6 +18,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
     { label: "Progress", icon: Trophy, path: "/leaderboard" },
     { label: "My Buddy", icon: Users, path: "/profile" },
+    { label: "Profile", icon: UserRound, path: "/eye-gaze-account" },
   ];
 
   return (
@@ -114,7 +115,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
         </div>
       </div>
 
-      <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-sky-100 px-2 py-2 grid grid-cols-5 gap-1">
+      <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-sky-100 px-1 py-2 grid grid-cols-6 gap-1">
         {nav.map(item => {
           const Icon = item.icon;
           const active = location === item.path;
