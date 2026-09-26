@@ -47,6 +47,8 @@ import GrowthCheck from "./pages/GrowthCheck";
 import EyeGazeQuiz from "./pages/EyeGazeQuiz";
 import EyeGazeGames from "./pages/EyeGazeGames";
 import EyeGazeHome from "./pages/EyeGazeHome";
+import EyeGazeLessons from "./pages/EyeGazeLessons";
+import EyeGazeProgress from "./pages/EyeGazeProgress";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
@@ -173,7 +175,7 @@ function AppRoutes() {
   return (
     <Switch>
       <Route path="/saved">
-        <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>
+        {user?.is_eye_gaze_user ? <Redirect to="/library" /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/">
         {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" /> : user.is_eye_gaze_user ? <StudentSetupGate><Redirect to="/eye-gaze-home" /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
@@ -206,27 +208,29 @@ function AppRoutes() {
         <Tutorial />
       </Route>
       <Route path="/leaderboard">
-        {user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
-          ? <ProtectedRoute><StudentProgress /></ProtectedRoute>
-          : <LeaderboardPage />}
+        {user?.is_eye_gaze_user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
+          ? <ProtectedRoute><EyeGazeProgress /></ProtectedRoute>
+          : user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
+            ? <ProtectedRoute><StudentProgress /></ProtectedRoute>
+            : <LeaderboardPage />}
       </Route>
       <Route path="/competition">
-        <Competition />
+        {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-games" /> : <Competition />}
       </Route>
       <Route path="/about">
         <About />
       </Route>
       <Route path="/reading-club">
-        <ReadingClub />
+        {user?.is_eye_gaze_user ? <Redirect to="/library" /> : <ReadingClub />}
       </Route>
       <Route path="/tts-audiobooks">
-        <TTSAudioBooks />
+        {user?.is_eye_gaze_user ? <Redirect to="/library" /> : <TTSAudioBooks />}
       </Route>
       <Route path="/polls">
-        <ProtectedRoute><Polls /></ProtectedRoute>
+        {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-home" /> : <ProtectedRoute><Polls /></ProtectedRoute>}
       </Route>
       <Route path="/library">
-        <ProtectedRoute><Library /></ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeLessons /> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/course/:id">
         <ProtectedRoute><CoursePage /></ProtectedRoute>
@@ -246,7 +250,7 @@ function AppRoutes() {
         <ProtectedRoute><Admin /></ProtectedRoute>
       </Route>
       <Route path="/progress">
-        <ProtectedRoute><GrowthCheck /></ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeProgress /> : <GrowthCheck />}</ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-home">
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
@@ -276,7 +280,7 @@ function AppRoutes() {
         <ProtectedRoute><StudentCertificates /></ProtectedRoute>
       </Route>
       <Route path="/fyp">
-        <ProtectedRoute><FypPage /></ProtectedRoute>
+        {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-home" /> : <ProtectedRoute><FypPage /></ProtectedRoute>}
       </Route>
       <Route path="/fyp/share/:token">
         {(params) => <FypSharePage token={params.token} />}
