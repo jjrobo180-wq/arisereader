@@ -18,6 +18,13 @@ declare module "http" {
 // still exceed Express's default 100 KB JSON limit.
 app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
 
+// My World family media is sent as the raw image/video body. The route itself
+// still requires an authenticated linked parent before anything is stored.
+app.use("/api/eye-gaze/my-world/upload", express.raw({
+  type: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"],
+  limit: "12mb",
+}));
+
 app.use(
   express.json({
     verify: (req, _res, buf) => {
