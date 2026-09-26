@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye, Gamepad2, Image as ImageIcon, Sparkles, Heart, Shield, Footprints } from "lucide-react";
 import { initVoices, speakQuestion, speak, stopSpeaking } from "@/lib/tts";
 import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
@@ -54,6 +54,11 @@ export default function EyeGazeQuiz() {
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const [celebrationTrigger, setCelebrationTrigger] = useState(0);
   const [celebrationStyle, setCelebrationStyle] = useState<CelebrationStyle>("confetti");
+  const [gameMode, setGameMode] = useState<"picture" | "story" | "boss">("picture");
+  const [showGamePicker, setShowGamePicker] = useState(true);
+  const [bossHealth, setBossHealth] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [lastFeedback, setLastFeedback] = useState<"correct" | "try" | null>(null);
   const correctButtonRef = useRef<HTMLElement | null>(null);
 
   // Initialize voices
@@ -100,6 +105,7 @@ export default function EyeGazeQuiz() {
       .then((data) => {
         if (data && data.questions) {
           setQuiz({ ...data, attemptId: data.attemptId });
+          setBossHealth(data.questions.length);
           setPhase("quiz");
         }
       })
@@ -258,7 +264,7 @@ export default function EyeGazeQuiz() {
         )}
         <div style={{ textAlign: "center" }}>
           <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: passed ? "hsl(21 100% 50%)" : "hsl(0 0% 100%)" }}>
-            {passed ? "Great Job!" : "Try Again!"}
+            {passed ? (gameMode === "boss" ? "Boss Defeated!" : gameMode === "story" ? "Quest Complete!" : "Picture Hunt Complete!") : "Great Try!"
           </h1>
           <p style={{ fontSize: "1.5rem", color: "hsl(0 0% 66%)" }}>
             You scored {result.score} out of {result.total} correct
@@ -312,9 +318,16 @@ export default function EyeGazeQuiz() {
 
     // Check if answer is correct and trigger celebration
     const correctAnswer = (currentQ as any).correct_answer || "";
-    if (correctAnswer && answer === correctAnswer) {
+    const isCorrect = !!correctAnswer && answer === correctAnswer;
+    if (isCorrect) {
       setCelebrationTrigger((t) => t + 1);
+      setCorrectCount((n) => n + 1);
+      setBossHealth((hp) => Math.max(0, hp - 1));
+      setLastFeedback("correct");
+    } else {
+      setLastFeedback("try");
     }
+    window.setTimeout(() => setLastFeedback(null), 900);
 
     const newAnswers = { ...answers, [currentQ.id]: answer };
     setAnswers(newAnswers);
@@ -375,11 +388,47 @@ export default function EyeGazeQuiz() {
   const currentQ = quiz.questions[currentIdx];
   if (!currentQ) return null;
   const options = [
-    { letter: "A", text: currentQ.option_a },
-    { letter: "B", text: currentQ.option_b },
-    { letter: "C", text: currentQ.option_c },
-    { letter: "D", text: currentQ.option_d },
-  ];
+    { letter: "A", text: currentQ.option_a, image: currentQ.option_a_image },
+    { letter: "B", text: currentQ.option_b, image: currentQ.option_b_image },
+    { letter: "C", text: currentQ.option_c, image: currentQ.option_c_image },
+    { letter: "D", text: currentQ.option_d, image: currentQ.option_d_image },
+  ].filter((opt) => opt.text);
+
+  if (showGamePicker) {
+    const modes = [
+      { id: "picture" as const, title: "Picture Hunt", subtitle: "Look, read, and find the best picture.", icon: <ImageIcon size={42} /> },
+      { id: "story" as const, title: "Story Quest", subtitle: "Move along the path one reading challenge at a time.", icon: <Footprints size={42} /> },
+      { id: "boss" as const, title: "Boss Battle", subtitle: "Correct answers take down the reading boss.", icon: <Shield size={42} /> },
+    ];
+    return (
+      <div className="min-h-screen bg-background p-4 flex items-center justify-center">
+        <div className="w-full max-w-4xl">
+          <div className="text-center mb-6">
+            <Gamepad2 className="w-14 h-14 text-primary mx-auto mb-3" />
+            <h1 className="text-3xl font-black">Choose Your Reading Game</h1>
+            <p className="text-muted-foreground mt-2">Same reading skills. Pick the way you want to play.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {modes.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => { setGameMode(mode.id); setShowGamePicker(false); }}
+                className="min-h-[220px] rounded-2xl border-2 border-border bg-card hover:border-primary hover:bg-primary/5 transition-all p-5 text-center flex flex-col items-center justify-center gap-3"
+              >
+                <div className="w-20 h-20 rounded-2xl bg-primary/15 text-primary flex items-center justify-center">{mode.icon}</div>
+                <div className="font-black text-xl">{mode.title}</div>
+                <div className="text-sm text-muted-foreground leading-relaxed">{mode.subtitle}</div>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { stopSpeaking(); navigate("/library"); }} className="mt-6 mx-auto block text-sm text-muted-foreground hover:text-foreground">
+            Exit
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "1rem" }}>
@@ -419,6 +468,42 @@ export default function EyeGazeQuiz() {
         </div>
       </div>
 
+      {/* Game status */}
+      <div className="max-w-3xl w-full mx-auto mb-4">
+        {gameMode === "boss" && (
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="font-black flex items-center gap-2"><Shield className="w-5 h-5 text-red-400" /> Reading Boss</span>
+              <span className="text-sm font-bold">{bossHealth} HP left</span>
+            </div>
+            <div className="h-4 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${Math.max(0, (bossHealth / Math.max(1, quiz.questions.length)) * 100)}%` }} />
+            </div>
+            <div className="flex gap-1 mt-2">
+              {Array.from({ length: Math.min(8, bossHealth) }).map((_, i) => <Heart key={i} className="w-4 h-4 text-red-400 fill-current" />)}
+            </div>
+          </div>
+        )}
+        {gameMode === "story" && (
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4">
+            <div className="flex items-center justify-between">
+              <span className="font-black flex items-center gap-2"><Footprints className="w-5 h-5 text-blue-400" /> Story Quest</span>
+              <span className="text-sm font-bold">Stop {currentIdx + 1} of {quiz.questions.length}</span>
+            </div>
+            <div className="flex items-center gap-1 mt-3">
+              {quiz.questions.map((_: any, i: number) => (
+                <div key={i} className={`h-3 flex-1 rounded-full ${i < currentIdx ? "bg-green-500" : i === currentIdx ? "bg-blue-500" : "bg-muted"}`} />
+              ))}
+            </div>
+          </div>
+        )}
+        {gameMode === "picture" && (
+          <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3 text-center">
+            <span className="font-black flex items-center justify-center gap-2"><ImageIcon className="w-5 h-5 text-purple-400" /> Picture Hunt</span>
+          </div>
+        )}
+      </div>
+
       {/* Question prompt */}
       <div style={{ textAlign: "center", marginBottom: "1rem" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "hsl(0 0% 100%)" }}>
@@ -437,23 +522,13 @@ export default function EyeGazeQuiz() {
       </div>
 
       {/* Large visual */}
-      <div style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: "1.5rem",
-      }}>
-        <div style={{
-          fontSize: "8rem",
-          lineHeight: 1,
-          padding: "1rem",
-          background: "hsl(0 0% 14%)",
-          borderRadius: "1rem",
-          border: "2px solid hsl(0 0% 20%)",
-        }}>
-          {currentQ.visual}
+      {currentQ.visual && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "1.5rem" }}>
+          <div style={{ fontSize: "8rem", lineHeight: 1, padding: "1rem", background: "hsl(0 0% 14%)", borderRadius: "1rem", border: "2px solid hsl(0 0% 20%)" }}>
+            {currentQ.visual}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Answer options - highlight each as it's being read */}
       <div style={{
@@ -492,12 +567,28 @@ export default function EyeGazeQuiz() {
                 opacity: !answersRead ? 0.7 : 1,
               }}
             >
-              {isSelected && <CheckCircle2 size={28} />}
-              <span style={{ fontWeight: 800 }}>{opt.letter}.</span> {opt.text}
+              {gameMode === "picture" && opt.image ? (
+                <img src={opt.image} alt={opt.text} style={{ width: "110px", height: "90px", objectFit: "cover", borderRadius: "0.75rem", border: "2px solid hsl(0 0% 30%)" }} />
+              ) : gameMode === "picture" ? (
+                <div style={{ width: "90px", height: "70px", borderRadius: "0.75rem", background: "hsl(0 0% 20%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <ImageIcon size={32} color="hsl(0 0% 66%)" />
+                </div>
+              ) : null}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", justifyContent: "center" }}>
+                {isSelected && <CheckCircle2 size={28} />}
+                <span style={{ fontWeight: 800 }}>{opt.letter}.</span> {opt.text}
+              </div>
             </button>
           );
         })}
       </div>
+
+      {lastFeedback && (
+        <div className={`fixed inset-x-4 top-24 z-50 mx-auto max-w-md rounded-2xl border-2 p-5 text-center shadow-2xl ${lastFeedback === "correct" ? "bg-green-600 border-green-300 text-white" : "bg-card border-amber-400 text-foreground"}`}>
+          <div className="text-4xl mb-1">{lastFeedback === "correct" ? "⭐" : "💪"}</div>
+          <div className="text-xl font-black">{lastFeedback === "correct" ? (gameMode === "boss" ? "HIT!" : "You got it!") : "Keep going!"}</div>
+        </div>
+      )}
 
       {/* Big Submit button - shows when user has selected an answer */}
       {selectedAnswer && !submitting && (
