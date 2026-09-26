@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useState, useEffect } from "react";
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
+import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -342,7 +343,9 @@ function AppInner() {
       {isStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
       <Router hook={useHashLocation}>
-        <AppRoutes />
+        <EyeGazeSiteShell>
+          <AppRoutes />
+        </EyeGazeSiteShell>
       </Router>
     </>
   );
