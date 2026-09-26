@@ -1,3 +1,5 @@
+import { API_BASE } from "@/lib/queryClient";
+
 // TTS helper for Eye Gaze quizzes using Web Speech API
 // Improved: better voices, subtitles, hover-to-read, correct animal sound logic
 
@@ -162,6 +164,93 @@ function getCharacterVoice(): SpeechSynthesisVoice | null {
     if (found) return found;
   }
   return voices[0] || null;
+}
+
+let activeBuddyAudio: HTMLAudioElement | null = null;
+let activeBuddyAudioUrl: string | null = null;
+
+function getSessionToken(): string | null {
+  try {
+    const match = document.cookie.match(/arise_session=([^;]+)/);
+    if (!match) return null;
+    return JSON.parse(atob(match[1])).token || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function speakCharacterAI(
+  text: string,
+  options?: {
+    calmMode?: boolean;
+    onStart?: () => void;
+    onEnd?: () => void;
+    onFallback?: () => void;
+  }
+): Promise<boolean> {
+  const token = getSessionToken();
+  if (!token || !text.trim()) {
+    options?.onFallback?.();
+    return false;
+  }
+
+  try {
+    if (activeBuddyAudio) {
+      activeBuddyAudio.pause();
+      activeBuddyAudio = null;
+    }
+    if (activeBuddyAudioUrl) {
+      URL.revokeObjectURL(activeBuddyAudioUrl);
+      activeBuddyAudioUrl = null;
+    }
+
+    const response = await fetch(`${API_BASE}/api/eye-gaze/tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ text, calmMode: !!options?.calmMode }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      options?.onFallback?.();
+      return false;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    activeBuddyAudio = audio;
+    activeBuddyAudioUrl = url;
+
+    audio.onplay = () => options?.onStart?.();
+    audio.onended = () => {
+      options?.onEnd?.();
+      if (activeBuddyAudioUrl === url) {
+        URL.revokeObjectURL(url);
+        activeBuddyAudioUrl = null;
+      }
+      if (activeBuddyAudio === audio) activeBuddyAudio = null;
+    };
+    audio.onerror = () => {
+      options?.onFallback?.();
+      options?.onEnd?.();
+      if (activeBuddyAudioUrl === url) {
+        URL.revokeObjectURL(url);
+        activeBuddyAudioUrl = null;
+      }
+      if (activeBuddyAudio === audio) activeBuddyAudio = null;
+    };
+
+    await audio.play();
+    return true;
+  } catch {
+    options?.onFallback?.();
+    options?.onEnd?.();
+    return false;
+  }
 }
 
 export function speakCharacter(
