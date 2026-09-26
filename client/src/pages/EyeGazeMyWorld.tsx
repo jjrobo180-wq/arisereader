@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { ArrowLeft, Camera, CheckCircle2, Eye, Home, MapPin, Plus, Save, Sparkles, Star, Trash2, Upload, Video } from "lucide-react";
+import { ArrowLeft, Camera, CheckCircle2, Eye, Focus, Home, MapPin, Plus, Save, Sparkles, Star, Trash2, Upload, Video, WandSparkles } from "lucide-react";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
 
 type MediaType = "image" | "video";
@@ -15,6 +15,10 @@ type WorldItem = {
   mediaType?: MediaType | null;
   x: number;
   y: number;
+  w: number;
+  h: number;
+  source?: "manual" | "ai";
+  confidence?: number | null;
 };
 type MyWorld = {
   id: string;
@@ -59,11 +63,13 @@ function DwellButton({
   onSelect,
   className = "",
   label,
+  style,
 }: {
   children: React.ReactNode;
   onSelect: () => void;
   className?: string;
   label: string;
+  style?: React.CSSProperties;
 }) {
   const timer = useRef<number | null>(null);
   const [active, setActive] = useState(false);
@@ -90,7 +96,8 @@ function DwellButton({
       onMouseLeave={stop}
       onFocus={start}
       onBlur={stop}
-      className={`relative overflow-hidden ${active ? "ring-4 ring-blue-500" : ""} ${className}`}
+      className={`relative overflow-hidden ${active ? "ring-4 ring-blue-500 ring-offset-2" : ""} ${className}`}
+      style={style}
     >
       {children}
       {active && <span className="absolute inset-x-0 bottom-0 h-2 bg-blue-500 animate-pulse" />}
@@ -104,6 +111,39 @@ function Media({ item, className = "" }: { item: WorldItem; className?: string }
     return <video src={item.mediaUrl} className={className} controls playsInline preload="metadata" />;
   }
   return <img src={item.mediaUrl} alt={item.label} className={`object-cover ${className}`} />;
+}
+
+
+function safeBox(item: Partial<WorldItem>) {
+  const w = Math.max(4, Math.min(60, Number(item.w) || 18));
+  const h = Math.max(4, Math.min(60, Number(item.h) || 18));
+  let x = Number(item.x);
+  let y = Number(item.y);
+  if (!Number.isFinite(x)) x = 41;
+  if (!Number.isFinite(y)) y = 41;
+  x = Math.max(0, Math.min(100 - w, x));
+  y = Math.max(0, Math.min(100 - h, y));
+  return { x, y, w, h };
+}
+
+function RoomCrop({ world, item, className = "" }: { world: MyWorld; item: WorldItem; className?: string }) {
+  if (!world.backgroundUrl) return <Media item={item} className={className} />;
+  const box = safeBox(item);
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const zoom = Math.min(650, Math.max(180, 6500 / Math.max(box.w, box.h)));
+  return (
+    <div
+      className={`bg-slate-100 bg-no-repeat ${className}`}
+      style={{
+        backgroundImage: `url("${world.backgroundUrl}")`,
+        backgroundSize: `${zoom}% auto`,
+        backgroundPosition: `${cx}% ${cy}%`,
+      }}
+      role="img"
+      aria-label={`Close-up of ${item.label} in ${world.name}`}
+    />
+  );
 }
 
 export default function EyeGazeMyWorld() {
@@ -134,6 +174,10 @@ export default function EyeGazeMyWorld() {
   const [mathAnswer, setMathAnswer] = useState("");
   const [gateError, setGateError] = useState("");
   const [gateLoading, setGateLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [focusedItem, setFocusedItem] = useState<WorldItem | null>(null);
 
   const isParent = user?.role === "parent";
   const canBuild = isParent || !!grownupToken;
@@ -167,7 +211,16 @@ export default function EyeGazeMyWorld() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || "Could not load My World.");
       setData(result);
-      setWorlds(result.worlds || []);
+      const normalizedWorlds = (result.worlds || []).map((world: MyWorld) => ({
+        ...world,
+        items: (world.items || []).map((item: any) => {
+          if (Number.isFinite(Number(item.w)) && Number.isFinite(Number(item.h))) return { ...item, ...safeBox(item) };
+          const legacyW = 18;
+          const legacyH = 18;
+          return { ...item, x: Math.max(0, Number(item.x || 50) - legacyW / 2), y: Math.max(0, Number(item.y || 55) - legacyH / 2), w: legacyW, h: legacyH, source: item.source || "manual" };
+        }),
+      }));
+      setWorlds(normalizedWorlds);
       setStars(Number(result.progress?.stars || 0));
     } catch (error: any) {
       setNotice(error?.message || "Could not load My World.");
@@ -328,8 +381,11 @@ export default function EyeGazeMyWorld() {
         mediaPath: uploaded?.path || null,
         mediaUrl: uploaded?.url || null,
         mediaType: uploaded?.mediaType || null,
-        x: 50,
-        y: 55,
+        x: 41,
+        y: 41,
+        w: 18,
+        h: 18,
+        source: "manual",
       };
       setWorlds(prev => prev.map(w => w.id === builderWorld.id ? { ...w, items: [...w.items, item] } : w));
       setPlacingItemId(item.id);
@@ -344,16 +400,103 @@ export default function EyeGazeMyWorld() {
     }
   };
 
-  const placeItem = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!builderWorld || !placingItemId) return;
+  const pointerPercent = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const x = Math.max(5, Math.min(95, ((event.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(8, Math.min(92, ((event.clientY - rect.top) / rect.height) * 100));
-    setWorlds(prev => prev.map(w => w.id === builderWorld.id ? {
-      ...w,
-      items: w.items.map(item => item.id === placingItemId ? { ...item, x, y } : item),
-    } : w));
-    setNotice("Placed! You can tap another item below to position it.");
+    return {
+      x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  const startTagBox = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!builderWorld || !placingItemId) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const point = pointerPercent(event);
+    setDrawStart(point);
+    setDrawCurrent(point);
+  };
+
+  const moveTagBox = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!drawStart || !placingItemId) return;
+    setDrawCurrent(pointerPercent(event));
+  };
+
+  const finishTagBox = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!builderWorld || !placingItemId || !drawStart) return;
+    const end = pointerPercent(event);
+    let x = Math.min(drawStart.x, end.x);
+    let y = Math.min(drawStart.y, end.y);
+    let w = Math.abs(end.x - drawStart.x);
+    let h = Math.abs(end.y - drawStart.y);
+
+    // A simple tap creates a useful default-size box centered on the tap.
+    if (w < 3 && h < 3) {
+      w = 18;
+      h = 18;
+      x = Math.max(0, Math.min(82, end.x - 9));
+      y = Math.max(0, Math.min(82, end.y - 9));
+    } else {
+      w = Math.max(4, Math.min(60, w));
+      h = Math.max(4, Math.min(60, h));
+      x = Math.max(0, Math.min(100 - w, x));
+      y = Math.max(0, Math.min(100 - h, y));
+    }
+
+    setWorlds(prev => prev.map(world => world.id === builderWorld.id ? {
+      ...world,
+      items: world.items.map(item => item.id === placingItemId ? { ...item, x, y, w, h, source: item.source || "manual" } : item),
+    } : world));
+    setDrawStart(null);
+    setDrawCurrent(null);
+    setNotice("Tagged! The box is the exact area your child can choose.");
+  };
+
+  const cancelTagBox = () => {
+    setDrawStart(null);
+    setDrawCurrent(null);
+  };
+
+  const updateItem = (itemId: string, patch: Partial<WorldItem>) => {
+    if (!builderWorld) return;
+    setWorlds(prev => prev.map(world => world.id === builderWorld.id ? {
+      ...world,
+      items: world.items.map(item => item.id === itemId ? { ...item, ...patch } : item),
+    } : world));
+  };
+
+  const runAiTagging = async () => {
+    if (!authToken || !builderWorld?.backgroundPath) return;
+    setAiLoading(true);
+    setNotice("");
+    try {
+      const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/ai-tag`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json", ...grownupHeader },
+        body: JSON.stringify({ backgroundPath: builderWorld.backgroundPath, worldName: builderWorld.name }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "AI could not tag this room.");
+      const existing = new Set(builderWorld.items.map(item => item.label.toLowerCase()));
+      const suggestions: WorldItem[] = (result.objects || [])
+        .filter((obj: any) => obj?.label && !existing.has(String(obj.label).toLowerCase()))
+        .map((obj: any, index: number) => ({
+          id: `${obj.id || `ai-${slug(obj.label)}`}-${Date.now().toString(36)}-${index}`,
+          label: String(obj.label).slice(0, 40),
+          phrase: String(obj.phrase || `I see ${obj.label}.`).slice(0, 160),
+          mediaPath: null,
+          mediaUrl: null,
+          mediaType: null,
+          ...safeBox(obj),
+          source: "ai" as const,
+          confidence: Number(obj.confidence) || null,
+        }));
+      setWorlds(prev => prev.map(world => world.id === builderWorld.id ? { ...world, items: [...world.items, ...suggestions] } : world));
+      setNotice(suggestions.length ? `AI suggested ${suggestions.length} objects. Review the boxes, words, and sentences before saving.` : "AI did not find any new clear objects. You can tag them manually.");
+    } catch (error: any) {
+      setNotice(error?.message || "AI tagging is unavailable right now. Manual tagging still works.");
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const removeWorld = (worldId: string) => {
@@ -381,28 +524,44 @@ export default function EyeGazeMyWorld() {
     if (mode === "explore") {
       const text = `${item.label}. ${item.phrase}`;
       setFeedback(text);
+      setFocusedItem(item);
       speak(text);
       record(item, "explored");
       return;
     }
     if (!target) return;
     if (item.id !== target.id) {
-      const text = `That is ${item.label}. Find ${target.label}.`;
+      const text = `Good try. Find ${target.label}.`;
       setFeedback(text);
       speak(text);
       record(target, "retry");
       return;
     }
-    const text = `Yes! You found ${target.label}. ${target.phrase}`;
+    const text = `Yes! You found ${target.label}. ${target.label}. ${target.phrase}`;
     setFeedback(text);
     setStars(value => value + 1);
+    setFocusedItem(target);
     speak(text);
     record(target, "correct");
-    window.setTimeout(() => {
-      if (!selectedWorld.items.length) return;
-      setTargetIndex(index => (index + 1) % selectedWorld.items.length);
-      setFeedback("");
-    }, 1900);
+  };
+
+  const playIspyWith = (item: WorldItem) => {
+    if (!selectedWorld) return;
+    const index = selectedWorld.items.findIndex(candidate => candidate.id === item.id);
+    if (index >= 0) setTargetIndex(index);
+    setMode("ispy");
+    setFocusedItem(null);
+    setFeedback("");
+    speak(`I spy with my little eye. Find ${item.label}.`);
+  };
+
+  const nextIspy = () => {
+    if (!selectedWorld?.items.length) return;
+    setTargetIndex(index => (index + 1) % selectedWorld.items.length);
+    setFocusedItem(null);
+    setFeedback("");
+    const next = selectedWorld.items[(targetIndex + 1) % selectedWorld.items.length];
+    if (next) speak(`I spy with my little eye. Find ${next.label}.`);
   };
 
   if (!user) return <Redirect to="/" />;
