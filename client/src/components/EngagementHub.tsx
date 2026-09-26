@@ -37,8 +37,8 @@ type Challenge = {
   completed?: boolean;
   score?: number;
   points?: number;
-  book?: { id: number; title: string; author: string; coverUrl?: string | null };
-  questions?: Array<{ id: number; questionText: string; optionA: string; optionB: string; optionC: string; optionD: string }>;
+  challenge?: { id: string; topic: string; title: string; passage: string };
+  questions?: Array<{ id: string; questionText: string; optionA: string; optionB: string; optionC: string; optionD: string }>;
 };
 
 export function EngagementHub() {
@@ -93,14 +93,14 @@ export function EngagementHub() {
   };
 
   const submitChallenge = async () => {
-    if (!authToken || !challenge?.book || !challenge.questions) return;
+    if (!authToken || !challenge?.challenge || !challenge.questions) return;
     if (Object.keys(answers).length < challenge.questions.length) return;
     setChallengeLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/engagement/quick-challenge`, {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ bookId: challenge.book.id, answers }),
+        body: JSON.stringify({ challengeId: challenge.challenge.id, answers }),
       });
       const data = await res.json();
       setResult(data);
@@ -256,12 +256,15 @@ export function EngagementHub() {
               {!result.passed && <p className="text-xs text-muted-foreground mt-2">You still completed today's mission. Try again tomorrow for a new challenge.</p>}
               <Button className="mt-5" onClick={() => setShowChallenge(false)}>Done</Button>
             </div>
-          ) : challenge?.book && challenge.questions ? (
+          ) : challenge?.challenge && challenge.questions ? (
             <div className="space-y-5">
-              <div className="rounded-xl bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground">Today's challenge</p>
-                <p className="font-bold">{challenge.book.title}</p>
-                <p className="text-xs text-muted-foreground">{challenge.book.author}</p>
+              <div className="rounded-xl bg-muted/30 p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-semibold text-primary">{challenge.challenge.topic}</p>
+                  <span className="text-[10px] text-muted-foreground">Read this first</span>
+                </div>
+                <p className="font-bold text-base">{challenge.challenge.title}</p>
+                <p className="text-sm leading-relaxed mt-2 text-foreground/90">{challenge.challenge.passage}</p>
               </div>
 
               {challenge.questions.map((q, index) => (
@@ -289,7 +292,7 @@ export function EngagementHub() {
               <Button className="w-full" onClick={submitChallenge} disabled={challengeLoading || Object.keys(answers).length < 3}>
                 {challengeLoading ? "Checking..." : "Submit Challenge"}
               </Button>
-              <p className="text-center text-xs text-muted-foreground">2 out of 3 correct earns +5 leaderboard points.</p>
+              <p className="text-center text-xs text-muted-foreground">No book required. Read the short passage above, then get 2 out of 3 correct for +5 leaderboard points.</p>
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-muted-foreground">No Daily Quick Challenge is available right now.</div>
