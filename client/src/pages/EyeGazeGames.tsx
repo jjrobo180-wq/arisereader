@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { speakCharacter } from "@/lib/tts";
 
 type GameId = "match" | "pop" | "sentence" | null;
 
@@ -34,19 +35,9 @@ function getTokenFromCookie(): string | null {
   }
 }
 
-function speakBuddy(text: string) {
-  try {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.82;
-    utterance.pitch = 1.08;
-    window.speechSynthesis.speak(utterance);
-  } catch {}
-}
 
 function BuddyAvatar({ buddy, size = "large" }: { buddy: BuddyConfig; size?: "small" | "large" }) {
-  const box = size === "large" ? "w-20 h-20 text-5xl" : "w-12 h-12 text-3xl";
+  const box = size === "large" ? "w-36 h-36 sm:w-44 sm:h-44 text-7xl sm:text-8xl" : "w-14 h-14 text-3xl";
   if (buddy.type === "upload" && buddy.imageData) {
     return <img src={buddy.imageData} alt={buddy.name} className={`${box} rounded-2xl object-cover border-2 border-primary/30 bg-card`} />;
   }
@@ -59,27 +50,65 @@ function BuddyAvatar({ buddy, size = "large" }: { buddy: BuddyConfig; size?: "sm
 }
 
 function BuddyCoach({ buddy, message }: { buddy: BuddyConfig; message: string }) {
+  const [talking, setTalking] = useState(false);
+  const lower = message.toLowerCase();
+  const success = /yes|great|found|complete|match|built|nice reading|pop!/i.test(message);
+  const retry = /try|does not|close|different/i.test(message);
+
+  const say = () => {
+    if (!buddy.voiceEnabled || !message) return;
+    setTalking(true);
+    speakCharacter(message, {
+      excitement: success ? "excited" : retry ? "calm" : "normal",
+      onEnd: () => setTalking(false),
+    });
+  };
+
   useEffect(() => {
-    if (buddy.voiceEnabled && message) speakBuddy(message);
+    say();
   }, [message, buddy.voiceEnabled]);
 
   return (
-    <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 mb-5 flex items-center gap-4">
-      <BuddyAvatar buddy={buddy} />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-black uppercase tracking-wide text-primary">{buddy.name} says</p>
-        <div className="mt-1 rounded-2xl rounded-tl-sm bg-card border border-border px-4 py-3 text-lg font-bold leading-snug">
-          {message}
+    <div className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-6 mb-6 transition-all ${
+      success ? "border-green-500/40 bg-green-500/10" : retry ? "border-amber-500/40 bg-amber-500/10" : "border-primary/25 bg-primary/5"
+    }`}>
+      <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-primary/10" />
+      <div className="absolute -bottom-12 -left-10 w-32 h-32 rounded-full bg-amber-400/10" />
+
+      <div className="relative flex flex-col sm:flex-row items-center gap-5">
+        <button
+          type="button"
+          onClick={say}
+          className={`relative flex-shrink-0 rounded-3xl transition-transform focus:outline-none focus:ring-4 focus:ring-primary/30 ${talking ? "scale-105" : "hover:scale-105"}`}
+          aria-label={`Hear ${buddy.name}`}
+        >
+          <div className={talking ? "animate-bounce" : success ? "animate-pulse" : ""}>
+            <BuddyAvatar buddy={buddy} />
+          </div>
+          <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-black whitespace-nowrap ${
+            talking ? "bg-primary text-primary-foreground" : "bg-card border border-border"
+          }`}>
+            {talking ? "TALKING..." : "TAP TO HEAR"}
+          </span>
+        </button>
+
+        <div className="min-w-0 flex-1 w-full">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-sm font-black uppercase tracking-wide text-primary">{buddy.name} is teaching</p>
+            {success && <span className="text-xs font-black text-green-400">★ AWESOME!</span>}
+            {retry && <span className="text-xs font-black text-amber-400">YOU'VE GOT THIS</span>}
+          </div>
+
+          <div className="relative rounded-3xl sm:rounded-tl-md bg-card border-2 border-border px-5 py-5 text-xl sm:text-2xl font-black leading-snug min-h-[110px] flex items-center">
+            {message}
+          </div>
+
+          <div className="mt-3 flex items-center gap-2 text-sm font-bold text-muted-foreground">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary">👀</span>
+            <span>Your turn — gaze or tap a big choice below.</span>
+          </div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => buddy.voiceEnabled && speakBuddy(message)}
-        className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center flex-shrink-0"
-        aria-label="Hear buddy again"
-      >
-        <Volume2 className="w-5 h-5" />
-      </button>
     </div>
   );
 }
@@ -467,7 +496,7 @@ export default function EyeGazeGames() {
       setBuddyDraft(data);
       setBuddyMessage("Learning Buddy saved!");
       setShowBuddySetup(false);
-      if (data.voiceEnabled) speakBuddy(`Hi! I'm ${data.name}. Let's learn together!`);
+      if (data.voiceEnabled) speakCharacter(`Hi! I'm ${data.name}. Let's learn together!`, { excitement: "excited" });
     } catch (e: any) {
       setBuddyMessage(e.message || "Could not save buddy.");
     } finally {
