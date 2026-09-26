@@ -128,8 +128,15 @@ export default function EyeGazeMyWorld() {
   const [targetIndex, setTargetIndex] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [stars, setStars] = useState(0);
+  const [grownupToken, setGrownupToken] = useState("");
+  const [gateOpen, setGateOpen] = useState(false);
+  const [challenge, setChallenge] = useState<{ challengeId: string; question: string } | null>(null);
+  const [mathAnswer, setMathAnswer] = useState("");
+  const [gateError, setGateError] = useState("");
+  const [gateLoading, setGateLoading] = useState(false);
 
   const isParent = user?.role === "parent";
+  const canBuild = isParent || !!grownupToken;
   const selectedWorld = useMemo(() => worlds.find(w => w.id === selectedWorldId) || null, [worlds, selectedWorldId]);
   const builderWorld = useMemo(() => worlds.find(w => w.id === builderWorldId) || null, [worlds, builderWorldId]);
   const target = selectedWorld?.items[targetIndex % Math.max(1, selectedWorld?.items.length || 1)] || null;
@@ -174,6 +181,65 @@ export default function EyeGazeMyWorld() {
     return () => stopSpeaking();
   }, [authToken, user?.id]);
 
+
+  const getNewChallenge = async (message = "") => {
+    if (!authToken || isParent) return;
+    setGateLoading(true);
+    setGateError(message);
+    setMathAnswer("");
+    try {
+      const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/grownup-challenge`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: "no-store",
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Could not open the grown-up check.");
+      setChallenge(result);
+      setGateOpen(true);
+    } catch (error: any) {
+      setGateError(error?.message || "Could not open the grown-up check.");
+      setGateOpen(true);
+    } finally {
+      setGateLoading(false);
+    }
+  };
+
+  const startGrownupGate = () => {
+    setSelectedWorldId(null);
+    setGateOpen(true);
+    void getNewChallenge();
+  };
+
+  const submitGrownupGate = async () => {
+    if (!authToken || !challenge || !mathAnswer.trim()) return;
+    setGateLoading(true);
+    setGateError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/grownup-challenge`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId: challenge.challengeId, answer: Number(mathAnswer) }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        await getNewChallenge(result.message || "Not quite. Try this one.");
+        return;
+      }
+      setGrownupToken(result.grownupToken || "");
+      setGateOpen(false);
+      setChallenge(null);
+      setMathAnswer("");
+      setBuilderWorldId(worlds[0]?.id || null);
+      setNotice("Grown-up setup unlocked for 30 minutes.");
+    } catch (error: any) {
+      await getNewChallenge(error?.message || "Try another grown-up question.");
+    } finally {
+      setGateLoading(false);
+    }
+  };
+
+  const grownupHeader = grownupToken ? { "X-My-World-Grownup-Token": grownupToken } : {};
+
   const uploadMedia = async (file: File, label: string) => {
     if (!authToken) throw new Error("Please sign in again.");
     const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/upload`, {
@@ -182,6 +248,7 @@ export default function EyeGazeMyWorld() {
         Authorization: `Bearer ${authToken}`,
         "Content-Type": file.type,
         "X-My-World-Label": label,
+        ...grownupHeader,
       },
       body: file,
     });
@@ -197,7 +264,7 @@ export default function EyeGazeMyWorld() {
     try {
       const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/config`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json", ...grownupHeader },
         body: JSON.stringify({ worlds, setupComplete: finish || !!data?.setupComplete }),
       });
       const result = await res.json();
@@ -343,14 +410,51 @@ export default function EyeGazeMyWorld() {
 
   if (loading) return <div className="min-h-screen grid place-items-center bg-sky-50"><div className="w-14 h-14 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" /></div>;
 
-  if (isParent) {
+  if (!isParent && gateOpen && !grownupToken) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-violet-100 via-white to-sky-100 grid place-items-center p-5 text-slate-900">
+        <div className="w-full max-w-lg rounded-[2rem] bg-white border-2 border-violet-100 p-6 sm:p-8 text-center shadow-2xl">
+          <div className="text-6xl" aria-hidden="true">🧑‍🧒</div>
+          <p className="mt-3 text-xs font-black uppercase tracking-widest text-violet-600">Grown-up check</p>
+          <h1 className="text-3xl sm:text-4xl font-black text-blue-950 mt-1">A grown-up can set up My World</h1>
+          <p className="font-bold text-slate-600 mt-3">Answer one quick math question. No parent account or signup is needed.</p>
+
+          <div className="mt-6 rounded-3xl bg-amber-50 border-2 border-amber-200 p-5">
+            <div className="text-sm font-black uppercase tracking-widest text-amber-700">What is</div>
+            <div className="text-5xl sm:text-6xl font-black text-slate-950 mt-2">{challenge?.question || "Loading..."}</div>
+            <input
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoFocus
+              value={mathAnswer}
+              onChange={e => setMathAnswer(e.target.value.replace(/[^0-9-]/g, "").slice(0, 3))}
+              onKeyDown={e => { if (e.key === "Enter") void submitGrownupGate(); }}
+              aria-label="Math answer"
+              placeholder="Answer"
+              className="mt-5 w-full min-h-16 rounded-2xl border-2 border-amber-200 bg-white px-4 text-center text-3xl font-black"
+            />
+          </div>
+
+          {gateError && <div role="alert" className="mt-3 rounded-2xl bg-rose-50 border border-rose-200 p-3 font-bold text-rose-700">{gateError}</div>}
+
+          <button type="button" disabled={gateLoading || !challenge || !mathAnswer.trim()} onClick={() => void submitGrownupGate()} className="mt-4 w-full min-h-16 rounded-2xl bg-violet-600 text-white text-xl font-black disabled:opacity-50">
+            {gateLoading ? "Checking..." : "Unlock Grown-up Setup"}
+          </button>
+          <button type="button" onClick={() => { setGateOpen(false); setChallenge(null); setGateError(""); }} className="mt-2 w-full min-h-12 rounded-2xl text-slate-500 font-black">Back to My World</button>
+          <p className="mt-4 text-xs font-bold text-slate-400">This is a simple grown-up barrier for the child's interface, not a replacement for account security.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (canBuild) {
     return (
       <div className="min-h-screen bg-[#f7fbff] text-slate-900 px-4 sm:px-6 py-5">
         <div className="max-w-6xl mx-auto space-y-5">
           <header className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => navigate("/parent-dashboard")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5" /> Parent Portal</button>
+            <button type="button" onClick={() => { if (isParent) navigate("/parent-dashboard"); else { setGrownupToken(""); setBuilderWorldId(null); setNotice(""); } }} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5" /> {isParent ? "Parent Portal" : "My World"}</button>
             <div className="flex-1">
-              <p className="text-xs font-black uppercase tracking-widest text-violet-600">Family setup</p>
+              <p className="text-xs font-black uppercase tracking-widest text-violet-600">{isParent ? "Family setup" : "Grown-up setup · unlocked for 30 minutes"}</p>
               <h1 className="text-3xl sm:text-4xl font-black text-blue-950">Build {data?.student.name}'s My World</h1>
             </div>
             <button type="button" disabled={saving} onClick={() => saveWorlds(false)} className="min-h-12 rounded-2xl bg-blue-600 text-white px-5 font-black flex items-center gap-2 disabled:opacity-50"><Save className="w-5 h-5" /> Save</button>
@@ -491,9 +595,11 @@ export default function EyeGazeMyWorld() {
       <div className="min-h-screen bg-gradient-to-b from-sky-100 via-white to-violet-100 grid place-items-center p-5">
         <div className="max-w-xl rounded-[2rem] bg-white border-2 border-sky-100 p-7 text-center shadow-xl">
           <div className="text-7xl">🏠</div>
-          <h1 className="text-4xl font-black text-blue-950 mt-4">My World is getting ready!</h1>
-          <p className="text-lg font-bold text-slate-600 mt-3">A parent or caregiver needs to add familiar rooms, pictures, and videos first.</p>
-          <button type="button" onClick={() => navigate("/eye-gaze-home")} className="mt-5 min-h-14 rounded-2xl bg-blue-600 text-white px-6 font-black">Back Home</button>
+          <h1 className="text-4xl font-black text-blue-950 mt-4">Build My World</h1>
+          <p className="text-lg font-bold text-slate-600 mt-3">A grown-up can add familiar rooms, pictures, and short videos right from this account.</p>
+          <button type="button" onClick={startGrownupGate} className="mt-5 w-full min-h-16 rounded-2xl bg-violet-600 text-white px-6 text-xl font-black">🧑‍🧒 Grown-up Setup</button>
+          <p className="text-sm font-bold text-slate-400 mt-2">One simple math question · no parent signup</p>
+          <button type="button" onClick={() => navigate("/eye-gaze-home")} className="mt-3 min-h-12 rounded-2xl bg-slate-100 text-slate-600 px-6 font-black">Back Home</button>
         </div>
       </div>
     );
@@ -506,6 +612,7 @@ export default function EyeGazeMyWorld() {
           <header className="flex items-center gap-3">
             <button type="button" onClick={() => navigate("/eye-gaze-home")} className="min-h-12 rounded-2xl bg-white border border-slate-200 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5" /> Home</button>
             <div className="flex-1 text-center"><p className="text-sm font-black uppercase tracking-widest text-violet-600">Made from my real life</p><h1 className="text-4xl sm:text-5xl font-black text-blue-950">My World</h1></div>
+            <button type="button" onClick={startGrownupGate} className="min-h-12 rounded-2xl bg-violet-100 border border-violet-200 px-4 font-black text-violet-800">⚙ Grown-up Edit</button>
             <div className="rounded-2xl bg-amber-100 px-4 py-2 font-black text-amber-700 flex items-center gap-2"><Star className="w-5 h-5 fill-current" /> {stars}</div>
           </header>
           <p className="text-center text-lg font-bold text-slate-600 mt-3">Choose a familiar place.</p>
