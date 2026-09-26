@@ -91,11 +91,11 @@ export default function EyeGazeLessons() {
       </section>
 
       <section className="grid sm:grid-cols-2 gap-3">
-        <button type="button" onClick={() => navigate("/buddy-world")} className="rounded-3xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-100 to-sky-50 p-4 flex items-center gap-4 text-left hover:border-emerald-400">
+        <button type="button" onClick={() => navigate("/my-world")} className="rounded-3xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-100 to-sky-50 p-4 flex items-center gap-4 text-left hover:border-emerald-400">
           <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-4xl flex-shrink-0">🏠</div>
           <div>
-            <div className="text-lg font-black text-blue-950">Buddy World</div>
-            <div className="text-sm font-bold text-slate-600">Home, kitchen, zoo, park & everyday words</div>
+            <div className="text-lg font-black text-blue-950">My World</div>
+            <div className="text-sm font-bold text-slate-600">My real rooms, pictures, videos & everyday words</div>
           </div>
         </button>
         <button type="button" onClick={() => navigate("/eye-gaze-talker")} className="rounded-3xl border-2 border-teal-200 bg-gradient-to-r from-teal-100 to-cyan-50 p-4 flex items-center gap-4 text-left hover:border-teal-400">
