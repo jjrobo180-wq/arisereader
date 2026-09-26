@@ -51,7 +51,6 @@ function BuddyAvatar({ buddy, size = "large" }: { buddy: BuddyConfig; size?: "sm
 
 function BuddyCoach({ buddy, message }: { buddy: BuddyConfig; message: string }) {
   const [talking, setTalking] = useState(false);
-  const lower = message.toLowerCase();
   const success = /yes|great|found|complete|match|built|nice reading|pop!/i.test(message);
   const retry = /try|does not|close|different/i.test(message);
 
