@@ -37,6 +37,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Tutorial from "./pages/Tutorial";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import StudentProgress from "./pages/StudentProgress";
 import Competition from "./pages/Competition";
 import Polls from "./pages/Polls";
 import CoursePage from "./pages/CoursePage";
@@ -202,7 +203,9 @@ function AppRoutes() {
         <Tutorial />
       </Route>
       <Route path="/leaderboard">
-        <LeaderboardPage />
+        {user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
+          ? <ProtectedRoute><StudentProgress /></ProtectedRoute>
+          : <LeaderboardPage />}
       </Route>
       <Route path="/competition">
         <Competition />
