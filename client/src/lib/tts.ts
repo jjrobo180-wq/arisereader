@@ -169,6 +169,25 @@ function getCharacterVoice(): SpeechSynthesisVoice | null {
 let activeBuddyAudio: HTMLAudioElement | null = null;
 let activeBuddyAudioUrl: string | null = null;
 
+// Cache generated neural speech in the browser so repeated Buddy phrases
+// replay locally without another server/OpenAI request.
+const buddyAudioBlobCache = new Map<string, Blob>();
+const BUDDY_AUDIO_CACHE_LIMIT = 100;
+
+function getBuddyAudioCacheKey(text: string, calmMode: boolean): string {
+  return `${calmMode ? "calm" : "normal"}|${text.trim()}`;
+}
+
+function rememberBuddyAudio(key: string, blob: Blob) {
+  if (buddyAudioBlobCache.has(key)) buddyAudioBlobCache.delete(key);
+  buddyAudioBlobCache.set(key, blob);
+  while (buddyAudioBlobCache.size > BUDDY_AUDIO_CACHE_LIMIT) {
+    const oldest = buddyAudioBlobCache.keys().next().value;
+    if (!oldest) break;
+    buddyAudioBlobCache.delete(oldest);
+  }
+}
+
 function getSessionToken(): string | null {
   try {
     const match = document.cookie.match(/arise_session=([^;]+)/);
@@ -204,22 +223,30 @@ export async function speakCharacterAI(
       activeBuddyAudioUrl = null;
     }
 
-    const response = await fetch(`${API_BASE}/api/eye-gaze/tts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ text, calmMode: !!options?.calmMode }),
-      cache: "no-store",
-    });
+    const calmMode = !!options?.calmMode;
+    const cacheKey = getBuddyAudioCacheKey(text, calmMode);
+    let blob = buddyAudioBlobCache.get(cacheKey) || null;
 
-    if (!response.ok) {
-      options?.onFallback?.();
-      return false;
+    if (!blob) {
+      const response = await fetch(`${API_BASE}/api/eye-gaze/tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text, calmMode }),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        options?.onFallback?.();
+        return false;
+      }
+
+      blob = await response.blob();
+      rememberBuddyAudio(cacheKey, blob);
     }
 
-    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     activeBuddyAudio = audio;
