@@ -172,7 +172,7 @@ let activeBuddyRequestId = 0;
 let activeBuddyAbortController: AbortController | null = null;
 let activeBuddyOnEnd: (() => void) | null = null;
 
-function stopActiveBuddyVoice() {
+function stopActiveBuddyVoice(notifyEnd = false) {
   // Stop any old browser/system speech too, so neural + browser voices can never overlap.
   if ("speechSynthesis" in window) {
     window.speechSynthesis.cancel();
@@ -197,7 +197,7 @@ function stopActiveBuddyVoice() {
   if (activeBuddyOnEnd) {
     const onEnd = activeBuddyOnEnd;
     activeBuddyOnEnd = null;
-    onEnd();
+    if (notifyEnd) onEnd();
   }
 }
 
@@ -358,50 +358,31 @@ export function speakCharacter(
     excitement?: "calm" | "normal" | "excited";
   }
 ) {
-  if (!("speechSynthesis" in window)) {
-    options?.onEnd?.();
-    return;
-  }
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  const mood = options?.excitement || "normal";
-
-  utterance.rate = mood === "calm" ? 0.78 : mood === "excited" ? 0.9 : 0.84;
-  utterance.pitch = mood === "calm" ? 1.08 : mood === "excited" ? 1.28 : 1.18;
-  utterance.volume = 1;
-
-  const voice = getCharacterVoice() || selectedVoice || getBestVoice();
-  if (voice) utterance.voice = voice;
-
+  const calmMode = options?.excitement === "calm";
   currentSubtitle = text;
   options?.onSubtitle?.(text);
 
-  utterance.onend = () => {
-    currentSubtitle = "";
-    options?.onSubtitle?.("");
-    options?.onEnd?.();
-  };
-  utterance.onerror = () => {
-    currentSubtitle = "";
-    options?.onSubtitle?.("");
-    options?.onEnd?.();
-  };
-
-  window.speechSynthesis.speak(utterance);
+  void speakCharacterAI(text, {
+    calmMode,
+    onStart: () => {
+      currentSubtitle = text;
+      options?.onSubtitle?.(text);
+    },
+    onEnd: () => {
+      currentSubtitle = "";
+      options?.onSubtitle?.("");
+      options?.onEnd?.();
+    },
+    onFallback: () => {
+      currentSubtitle = "";
+      options?.onSubtitle?.("");
+    },
+  });
 }
 
 // Initialize voices (call on component mount)
 export function initVoices() {
-  if (!("speechSynthesis" in window)) return;
-  // Force voice loading
-  window.speechSynthesis.getVoices();
-  // Set selected voice
-  selectedVoice = getBestVoice();
-  // Chrome loads voices asynchronously
-  window.speechSynthesis.onvoiceschanged = () => {
-    selectedVoice = getBestVoice();
-  };
+  // Neural AI TTS does not depend on the browser's installed voices.
 }
 
 // Get current subtitle text
@@ -418,51 +399,28 @@ export function speak(
     rate?: number;
     pitch?: number;
     volume?: number;
+    calmMode?: boolean;
   }
 ) {
-  if (!("speechSynthesis" in window)) {
-    options?.onEnd?.();
-    return;
-  }
-
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = options?.rate ?? 0.9;
-  utterance.pitch = options?.pitch ?? 1;
-  utterance.volume = options?.volume ?? 1;
-
-  // Use the best voice
-  const voice = selectedVoice || getBestVoice();
-  if (voice) {
-    utterance.voice = voice;
-  }
-
-  // Set subtitle
   currentSubtitle = text;
   options?.onSubtitle?.(text);
 
-  utterance.onboundary = (event: SpeechSynthesisEvent) => {
-    // Update subtitle with the word being spoken (for live subtitle effect)
-    if (event.name === "word") {
-      const spokenSoFar = text.substring(0, event.charIndex + event.charLength);
-      options?.onSubtitle?.(spokenSoFar);
-    }
-  };
-
-  utterance.onend = () => {
-    currentSubtitle = "";
-    options?.onSubtitle?.("");
-    options?.onEnd?.();
-  };
-
-  utterance.onerror = () => {
-    currentSubtitle = "";
-    options?.onSubtitle?.("");
-    options?.onEnd?.();
-  };
-
-  window.speechSynthesis.speak(utterance);
+  void speakCharacterAI(text, {
+    calmMode: !!options?.calmMode,
+    onStart: () => {
+      currentSubtitle = text;
+      options?.onSubtitle?.(text);
+    },
+    onEnd: () => {
+      currentSubtitle = "";
+      options?.onSubtitle?.("");
+      options?.onEnd?.();
+    },
+    onFallback: () => {
+      currentSubtitle = "";
+      options?.onSubtitle?.("");
+    },
+  });
 }
 
 // Check if the question is asking about an animal/vehicle/sound
@@ -514,12 +472,7 @@ export function speakQuestion(
   onSubtitle?: (text: string) => void,
   onDone?: () => void
 ) {
-  if (!("speechSynthesis" in window)) {
-    onDone?.();
-    return;
-  }
-
-  // Speak the question prompt
+  // Speak the question prompt with neural AI voice
   speak(prompt, {
     rate: 0.9,
     pitch: 1,
@@ -581,16 +534,13 @@ export function replayQuestion(
 
 // Stop any ongoing speech
 export function stopSpeaking() {
-  if ("speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-    currentSubtitle = "";
-  }
+  activeBuddyRequestId += 1;
+  stopActiveBuddyVoice(true);
+  currentSubtitle = "";
 }
 
 // Speak all answer options sequentially
 export function speakOptions(options: string[], onSubtitle?: (text: string) => void) {
-  if (!("speechSynthesis" in window)) return;
-
   const text = options
     .map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`)
     .join(". ");
