@@ -1698,7 +1698,8 @@ export async function registerRoutes(
   // manual_point_awards, so no new migration is required.
   app.get("/api/engagement/summary", authMiddleware, async (req: any, res) => {
     try {
-      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      const isStudentAccount = !req.user.isAdmin && req.user.role !== "teacher" && req.user.role !== "parent" && req.user.role !== "admin";
+      if (!isStudentAccount) return res.status(403).json({ message: "Student account required." });
 
       const userId = req.user.id;
       const now = new Date();
