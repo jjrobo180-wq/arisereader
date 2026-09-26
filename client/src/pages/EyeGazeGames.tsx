@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI } from "@/lib/tts";
+import ReadingRunnerPro from "@/pages/ReadingRunnerPro";
 
 type GameId = "runner" | "match" | "pop" | "sentence" | null;
 
@@ -920,7 +921,7 @@ export default function EyeGazeGames() {
     reader.readAsDataURL(file);
   };
 
-  if (game === "runner") return <ReadingRunner onBack={() => setGame(null)} buddy={buddy} />;
+  if (game === "runner") return <ReadingRunnerPro onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "match") return <MatchPairs onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "pop") return <WordPop onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
