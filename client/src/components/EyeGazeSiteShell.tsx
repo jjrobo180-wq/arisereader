@@ -23,6 +23,19 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   return (
     <div data-eye-gaze-shell className="min-h-screen bg-[#f7fbff] text-slate-900">
       <style>{`
+        [data-eye-gaze-shell] {
+          --background: 210 100% 98%;
+          --foreground: 222 47% 11%;
+          --card: 0 0% 100%;
+          --card-foreground: 222 47% 11%;
+          --muted: 210 40% 96%;
+          --muted-foreground: 215 16% 47%;
+          --border: 214 32% 91%;
+        }
+        [data-eye-gaze-shell] .eye-gaze-page {
+          background: #f7fbff;
+          color: #0f172a;
+        }
         [data-eye-gaze-shell] .eye-gaze-page > div > header {
           display: none !important;
         }
