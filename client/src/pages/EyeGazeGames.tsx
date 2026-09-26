@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { speakCharacter } from "@/lib/tts";
+import { speakCharacter, speakCharacterAI } from "@/lib/tts";
 
 type GameId = "match" | "pop" | "sentence" | null;
 
@@ -57,9 +57,16 @@ function BuddyCoach({ buddy, message }: { buddy: BuddyConfig; message: string })
   const say = () => {
     if (!buddy.voiceEnabled || !message) return;
     setTalking(true);
-    speakCharacter(message, {
-      excitement: success ? "excited" : retry ? "calm" : "normal",
+    speakCharacterAI(message, {
+      calmMode: retry || !!buddy.calmMode,
+      onStart: () => setTalking(true),
       onEnd: () => setTalking(false),
+      onFallback: () => {
+        speakCharacter(message, {
+          excitement: success ? "excited" : retry ? "calm" : "normal",
+          onEnd: () => setTalking(false),
+        });
+      },
     });
   };
 
@@ -495,7 +502,12 @@ export default function EyeGazeGames() {
       setBuddyDraft(data);
       setBuddyMessage("Learning Buddy saved!");
       setShowBuddySetup(false);
-      if (data.voiceEnabled) speakCharacter(`Hi! I'm ${data.name}. Let's learn together!`, { excitement: "excited" });
+      if (data.voiceEnabled) {
+        speakCharacterAI(`Hi! I'm ${data.name}. Let's learn together!`, {
+          calmMode: !!data.calmMode,
+          onFallback: () => speakCharacter(`Hi! I'm ${data.name}. Let's learn together!`, { excitement: "excited" }),
+        });
+      }
     } catch (e: any) {
       setBuddyMessage(e.message || "Could not save buddy.");
     } finally {
@@ -671,7 +683,7 @@ export default function EyeGazeGames() {
               >
                 <span className="font-bold flex items-center gap-2">
                   {buddyDraft.voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                  Buddy Voice
+                  Buddy Voice <span className="text-[10px] font-medium text-muted-foreground ml-1">(AI-generated)</span>
                 </span>
                 <span className={`px-3 py-1 rounded-full text-xs font-black ${buddyDraft.voiceEnabled ? "bg-green-500/15 text-green-400" : "bg-muted text-muted-foreground"}`}>
                   {buddyDraft.voiceEnabled ? "ON" : "OFF"}
