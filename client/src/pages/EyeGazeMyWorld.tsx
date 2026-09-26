@@ -717,7 +717,7 @@ export default function EyeGazeMyWorld() {
                                   type="button"
                                   onPointerDown={event => event.stopPropagation()}
                                   onClick={event => { event.stopPropagation(); setPlacingItemId(item.id); }}
-                                  style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
+                                  style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%`, pointerEvents: placingItemId ? "none" : "auto" }}
                                   className={`absolute border-4 rounded-xl shadow-sm flex items-start justify-start p-1 text-left transition-all ${placingItemId === item.id ? "border-blue-500 bg-blue-500/20 ring-2 ring-white" : item.source === "ai" ? "border-violet-400 bg-violet-400/10" : "border-amber-400 bg-amber-300/10"}`}
                                   aria-label={`Retag ${item.label}`}
                                 >
