@@ -624,11 +624,11 @@ export default function EyeGazeMyWorld() {
               <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest"><Sparkles className="w-4 h-4" /> First-time setup</div>
                 <h2 className="text-3xl sm:text-5xl font-black mt-4">Turn real life into the learning game.</h2>
-                <p className="mt-3 text-lg font-bold text-white/90">Take a photo of a real room. Add pictures or short videos of familiar things and routines. Then tap the room photo where each thing belongs. Your child will use those exact images in Explore and I‑Spy activities.</p>
+                <p className="mt-3 text-lg font-bold text-white/90">Take or upload a normal or panoramic photo of a real room. Tag the actual objects inside the photo—bed, shoes, TV, cup, toys—and My World turns those exact spots into interactive learning targets. AI Auto‑Tag can suggest objects for you to review.</p>
                 <div className="grid sm:grid-cols-3 gap-3 mt-5">
                   <div className="rounded-2xl bg-white/15 p-4"><Camera className="w-7 h-7 mb-2" /><strong className="block">1. Photograph a place</strong><span className="text-sm">Bedroom, kitchen, bathroom, classroom area.</span></div>
-                  <div className="rounded-2xl bg-white/15 p-4"><Upload className="w-7 h-7 mb-2" /><strong className="block">2. Add real things</strong><span className="text-sm">Bed, TV, shoes, cup, toothbrush—or a short action video.</span></div>
-                  <div className="rounded-2xl bg-white/15 p-4"><MapPin className="w-7 h-7 mb-2" /><strong className="block">3. Tag the spot</strong><span className="text-sm">Tap where the object is so your child can find it.</span></div>
+                  <div className="rounded-2xl bg-white/15 p-4"><MapPin className="w-7 h-7 mb-2" /><strong className="block">2. Box the objects</strong><span className="text-sm">Draw around the real bed, shoes, TV, cup, toothbrush, toys, and more.</span></div>
+                  <div className="rounded-2xl bg-white/15 p-4"><WandSparkles className="w-7 h-7 mb-2" /><strong className="block">3. Or let AI help</strong><span className="text-sm">AI can suggest object boxes, words, and simple sentences. You review before saving.</span></div>
                 </div>
               </div>
             </section>
@@ -668,7 +668,7 @@ export default function EyeGazeMyWorld() {
                     <section className="rounded-[2rem] bg-white border border-sky-100 p-5">
                       <div className="flex items-start gap-3">
                         <div className="text-4xl">{builderWorld.icon}</div>
-                        <div className="flex-1"><h2 className="text-2xl font-black text-blue-950">{builderWorld.name}</h2><p className="text-sm font-bold text-slate-500">Use a wide room photo when possible.</p></div>
+                        <div className="flex-1"><h2 className="text-2xl font-black text-blue-950">{builderWorld.name}</h2><p className="text-sm font-bold text-slate-500">Normal and panoramic room photos both work.</p></div>
                         <button type="button" onClick={() => removeWorld(builderWorld.id)} className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 grid place-items-center" aria-label="Delete place"><Trash2 className="w-5 h-5" /></button>
                       </div>
                       <label className="mt-4 min-h-14 rounded-2xl border-2 border-dashed border-blue-200 bg-sky-50 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
@@ -679,54 +679,111 @@ export default function EyeGazeMyWorld() {
 
                     {builderWorld.backgroundUrl && (
                       <section className="rounded-[2rem] bg-white border border-sky-100 p-4">
-                        <div className="mb-3">
-                          <h3 className="text-xl font-black">Tag where things are</h3>
-                          <p className="text-sm font-bold text-slate-500">{placingItemId ? "Tap the room photo where the selected item is." : "Choose an item below, then tap its real location in the room."}</p>
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-xl font-black">Tag the exact object</h3>
+                            <p className="text-sm font-bold text-slate-500">
+                              {placingItemId
+                                ? "Drag a box around the selected object. A quick tap makes a starter box you can redraw."
+                                : "Choose an item below, then draw a box around that real object in the room."}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={aiLoading || !builderWorld.backgroundPath}
+                            onClick={() => void runAiTagging()}
+                            className="min-h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 font-black flex items-center justify-center gap-2 disabled:opacity-50"
+                          >
+                            <WandSparkles className="w-5 h-5" />
+                            {aiLoading ? "AI is looking..." : "AI Auto‑Tag Room"}
+                          </button>
                         </div>
-                        <div onClick={placeItem} className={`relative rounded-3xl overflow-hidden bg-slate-100 aspect-video ${placingItemId ? "cursor-crosshair ring-4 ring-blue-300" : ""}`}>
-                          <img src={builderWorld.backgroundUrl} alt={builderWorld.name} className="w-full h-full object-cover" />
-                          {builderWorld.items.map(item => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={e => { e.stopPropagation(); setPlacingItemId(item.id); }}
-                              style={{ left: `${item.x}%`, top: `${item.y}%` }}
-                              className={`absolute -translate-x-1/2 -translate-y-1/2 min-w-16 min-h-16 rounded-full border-4 shadow-lg grid place-items-center px-2 font-black text-xs ${placingItemId === item.id ? "bg-blue-600 border-white text-white scale-110" : "bg-white/90 border-amber-300 text-slate-900"}`}
-                            >
-                              {item.mediaType === "video" ? "🎥" : "📍"}<span className="block">{item.label}</span>
-                            </button>
-                          ))}
+
+                        <div className="rounded-3xl overflow-x-auto bg-slate-100 border-2 border-slate-100">
+                          <div
+                            className={`relative min-w-[680px] md:min-w-full touch-none ${placingItemId ? "cursor-crosshair ring-4 ring-inset ring-blue-300" : ""}`}
+                            onPointerDown={startTagBox}
+                            onPointerMove={moveTagBox}
+                            onPointerUp={finishTagBox}
+                            onPointerCancel={cancelTagBox}
+                          >
+                            <img src={builderWorld.backgroundUrl} alt={builderWorld.name} className="block w-full h-auto select-none pointer-events-none" draggable={false} />
+
+                            {builderWorld.items.map(item => {
+                              const box = safeBox(item);
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onPointerDown={event => event.stopPropagation()}
+                                  onClick={event => { event.stopPropagation(); setPlacingItemId(item.id); }}
+                                  style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
+                                  className={`absolute border-4 rounded-xl shadow-sm flex items-start justify-start p-1 text-left transition-all ${placingItemId === item.id ? "border-blue-500 bg-blue-500/20 ring-2 ring-white" : item.source === "ai" ? "border-violet-400 bg-violet-400/10" : "border-amber-400 bg-amber-300/10"}`}
+                                  aria-label={`Retag ${item.label}`}
+                                >
+                                  <span className="max-w-full truncate rounded-lg bg-slate-950/80 text-white px-2 py-1 text-[11px] font-black">
+                                    {item.source === "ai" ? "✨ " : ""}{item.label}
+                                  </span>
+                                </button>
+                              );
+                            })}
+
+                            {drawStart && drawCurrent && (() => {
+                              const x = Math.min(drawStart.x, drawCurrent.x);
+                              const y = Math.min(drawStart.y, drawCurrent.y);
+                              const w = Math.abs(drawCurrent.x - drawStart.x);
+                              const h = Math.abs(drawCurrent.y - drawStart.y);
+                              return <div className="absolute border-4 border-blue-600 bg-blue-400/20 rounded-xl pointer-events-none" style={{ left: `${x}%`, top: `${y}%`, width: `${Math.max(1, w)}%`, height: `${Math.max(1, h)}%` }} />;
+                            })()}
+                          </div>
                         </div>
+                        <p className="mt-3 text-xs font-bold text-slate-500">AI boxes are suggestions, not final answers. Review them and redraw any box that misses the object.</p>
                       </section>
                     )}
 
                     <section className="rounded-[2rem] bg-white border border-sky-100 p-5">
-                      <h3 className="text-xl font-black">Add something to learn</h3>
-                      <p className="text-sm font-bold text-slate-500 mt-1">Use a photo of the actual object, or a short video of the child/parent doing an action such as putting on shoes.</p>
+                      <h3 className="text-xl font-black">Add or review learning objects</h3>
+                      <p className="text-sm font-bold text-slate-500 mt-1">The room photo becomes the object's picture automatically. Add a separate photo/video only when you want extra teaching media for a routine, such as putting on shoes.</p>
                       <div className="grid sm:grid-cols-2 gap-3 mt-4">
                         <input value={itemLabel} onChange={e => setItemLabel(e.target.value)} placeholder="Word: Bed, Shoes, TV..." className="min-h-12 rounded-2xl border-2 border-slate-200 px-4 font-bold" />
-                        <input value={itemPhrase} onChange={e => setItemPhrase(e.target.value)} placeholder="Phrase: Put on my shoes." className="min-h-12 rounded-2xl border-2 border-slate-200 px-4 font-bold" />
+                        <input value={itemPhrase} onChange={e => setItemPhrase(e.target.value)} placeholder="Sentence: I put on my shoes." className="min-h-12 rounded-2xl border-2 border-slate-200 px-4 font-bold" />
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2 mt-3">
                         <label className="flex-1 min-h-12 rounded-2xl bg-violet-50 border-2 border-violet-100 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
-                          {itemFile?.type.startsWith("video/") ? <Video className="w-5 h-5" /> : <Upload className="w-5 h-5" />} {itemFile ? itemFile.name : "Photo or short video"}
+                          {itemFile?.type.startsWith("video/") ? <Video className="w-5 h-5" /> : <Upload className="w-5 h-5" />} {itemFile ? itemFile.name : "Optional extra photo / short video"}
                           <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={e => setItemFile(e.target.files?.[0] || null)} />
                         </label>
-                        <button type="button" disabled={uploading || !itemLabel.trim()} onClick={addItem} className="min-h-12 rounded-2xl bg-violet-600 text-white px-5 font-black disabled:opacity-50"><Plus className="w-4 h-4 inline mr-1" /> Add item</button>
+                        <button type="button" disabled={uploading || !itemLabel.trim()} onClick={addItem} className="min-h-12 rounded-2xl bg-violet-600 text-white px-5 font-black disabled:opacity-50"><Plus className="w-4 h-4 inline mr-1" /> Add & tag</button>
                       </div>
 
-                      <div className="grid sm:grid-cols-2 gap-3 mt-5">
+                      <div className="grid lg:grid-cols-2 gap-3 mt-5">
                         {builderWorld.items.map(item => (
-                          <div key={item.id} className={`rounded-2xl border-2 p-3 flex gap-3 ${placingItemId === item.id ? "border-blue-500 bg-blue-50" : "border-slate-100"}`}>
-                            <button type="button" onClick={() => setPlacingItemId(item.id)} className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
-                              <Media item={item} className="w-full h-full rounded-xl object-cover" />
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <strong className="block font-black">{item.label}</strong>
-                              <p className="text-xs text-slate-500 line-clamp-2">{item.phrase}</p>
-                              <button type="button" onClick={() => setPlacingItemId(item.id)} className="text-xs font-black text-blue-600 mt-2">📍 Place on room</button>
+                          <div key={item.id} className={`rounded-2xl border-2 p-3 ${placingItemId === item.id ? "border-blue-500 bg-blue-50" : item.source === "ai" ? "border-violet-200 bg-violet-50/40" : "border-slate-100"}`}>
+                            <div className="flex gap-3">
+                              <button type="button" onClick={() => setPlacingItemId(item.id)} className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+                                <RoomCrop world={builderWorld} item={item} className="w-full h-full rounded-xl" />
+                              </button>
+                              <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  {item.source === "ai" && <span className="rounded-full bg-violet-100 text-violet-700 px-2 py-1 text-[10px] font-black uppercase">✨ AI suggestion</span>}
+                                  {item.mediaType === "video" && <span className="rounded-full bg-sky-100 text-sky-700 px-2 py-1 text-[10px] font-black uppercase">🎥 Extra video</span>}
+                                </div>
+                                <input
+                                  value={item.label}
+                                  onChange={e => updateItem(item.id, { label: e.target.value.slice(0, 40) })}
+                                  aria-label="Learning word"
+                                  className="w-full min-h-10 rounded-xl border-2 border-slate-200 px-3 font-black"
+                                />
+                                <input
+                                  value={item.phrase}
+                                  onChange={e => updateItem(item.id, { phrase: e.target.value.slice(0, 160) })}
+                                  aria-label="Learning sentence"
+                                  className="w-full min-h-10 rounded-xl border-2 border-slate-200 px-3 text-sm font-bold"
+                                />
+                              </div>
+                              <button type="button" onClick={() => removeItem(item.id)} className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 grid place-items-center flex-shrink-0" aria-label={`Delete ${item.label}`}><Trash2 className="w-4 h-4" /></button>
                             </div>
-                            <button type="button" onClick={() => removeItem(item.id)} className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 grid place-items-center"><Trash2 className="w-4 h-4" /></button>
+                            <button type="button" onClick={() => { setPlacingItemId(item.id); setNotice(`Draw a new box around ${item.label}.`); }} className="mt-3 w-full min-h-11 rounded-xl bg-white border-2 border-blue-100 text-blue-700 font-black flex items-center justify-center gap-2"><Focus className="w-4 h-4" /> Draw / adjust object box</button>
                           </div>
                         ))}
                       </div>
