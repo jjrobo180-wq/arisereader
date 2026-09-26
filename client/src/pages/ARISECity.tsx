@@ -512,6 +512,9 @@ export default function ARISECity() {
   const keysRef = useRef<Record<string, boolean>>({});
   const frameRef = useRef<number | null>(null);
   const trafficLockRef = useRef(false);
+  const enteringBuildingRef = useRef(false);
+  const nearPlaceRef = useRef<Building | null>(null);
+  const nearNpcRef = useRef<(typeof NPCS)[number] | null>(null);
   const lastSafeRef = useRef({ x: loadSave().playerX, y: loadSave().playerY });
   const trafficAudioRef = useRef<{
     ctx: AudioContext;
@@ -626,14 +629,18 @@ export default function ARISECity() {
   };
 
   const enterBuilding = (place: Building) => {
+    if (enteringBuildingRef.current) return;
+    enteringBuildingRef.current = true;
     keysRef.current = {};
     setTransitionLabel(`Entering ${place.label}…`);
     window.setTimeout(() => {
       stopTrafficAudio();
       setInsidePlace(place);
       setScreen("interior");
+      nearPlaceRef.current = null;
       setNearPlace(null);
       setTransitionLabel(null);
+      enteringBuildingRef.current = false;
     }, 420);
   };
 
@@ -645,6 +652,7 @@ export default function ARISECity() {
       setInsidePlace(null);
       setScreen("city");
       setTransitionLabel(null);
+      enteringBuildingRef.current = false;
       window.setTimeout(() => startTrafficAudio(), 100);
     }, 420);
   };
@@ -831,7 +839,26 @@ export default function ARISECity() {
       ctx.arc(1580, 852, 10, 0, Math.PI * 2);
       ctx.fill();
 
-      BUILDINGS.forEach(b => drawBuilding(ctx, b));
+      BUILDINGS.forEach(b => {
+        drawBuilding(ctx, b);
+        const doorX = b.x + b.w / 2;
+        const doorY = b.y + b.h + 18;
+        const pulse = 0.78 + Math.sin(time / 260) * 0.14;
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        ctx.strokeStyle = "#67e8f9";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.ellipse(doorX, doorY + 10, 48, 20, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(34,211,238,.18)";
+        ctx.fill();
+        ctx.font = "900 14px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#083344";
+        ctx.fillText("ENTER", doorX, doorY + 15);
+        ctx.restore();
+      });
 
       const treePoints = [
         [120, 130], [570, 140], [1040, 115], [1710, 120], [2520, 210],
@@ -901,15 +928,24 @@ export default function ARISECity() {
       let closestPlaceDist = Infinity;
       BUILDINGS.forEach(b => {
         const doorX = b.x + b.w / 2;
-        const doorY = b.y + b.h + 20;
+        const doorY = b.y + b.h + 18;
         const d = distance(playerX, playerY, doorX, doorY);
         if (d < closestPlaceDist) {
           closestPlaceDist = d;
           closestPlace = b;
         }
       });
-      const nextPlace = closestPlaceDist < 140 ? closestPlace : null;
-      if ((nextPlace?.id || null) !== (nearPlace?.id || null)) setNearPlace(nextPlace);
+
+      const nextPlace = closestPlaceDist < 235 ? closestPlace : null;
+      if ((nextPlace?.id || null) !== (nearPlaceRef.current?.id || null)) {
+        nearPlaceRef.current = nextPlace;
+        setNearPlace(nextPlace);
+      }
+
+      // Walking directly onto a glowing doorway automatically enters.
+      if (closestPlace && closestPlaceDist < 68 && !trafficLockRef.current && !enteringBuildingRef.current) {
+        enterBuilding(closestPlace);
+      }
 
       let closestNpc: (typeof NPCS)[number] | null = null;
       let closestNpcDist = Infinity;
@@ -921,7 +957,10 @@ export default function ARISECity() {
         }
       });
       const nextNpc = closestNpcDist < 90 ? closestNpc : null;
-      if ((nextNpc?.name || null) !== (nearNpc?.name || null)) setNearNpc(nextNpc);
+      if ((nextNpc?.name || null) !== (nearNpcRef.current?.name || null)) {
+        nearNpcRef.current = nextNpc;
+        setNearNpc(nextNpc);
+      }
 
       if (time - lastPositionSave > 1200) {
         lastPositionSave = time;
@@ -951,13 +990,19 @@ export default function ARISECity() {
 
   const interact = () => {
     startTrafficAudio();
-    if (modal || trafficChallenge !== null || transitionLabel) return;
-    if (nearNpc) {
-      setSelectedNpc(nearNpc);
-      setModal("npc");
+    if (modal || trafficChallenge !== null || transitionLabel || enteringBuildingRef.current) return;
+
+    const place = nearPlaceRef.current;
+    if (place) {
+      enterBuilding(place);
       return;
     }
-    if (nearPlace) enterBuilding(nearPlace);
+
+    const npc = nearNpcRef.current;
+    if (npc) {
+      setSelectedNpc(npc);
+      setModal("npc");
+    }
   };
 
   const chooseTrafficAnswer = (choice: number) => {
@@ -1222,7 +1267,7 @@ export default function ARISECity() {
 
       {screen === "city" && (nearPlace || nearNpc) && !modal && trafficChallenge === null && (
         <button type="button" onClick={interact} className="absolute z-[128] bottom-28 sm:bottom-8 left-1/2 -translate-x-1/2 min-h-[58px] px-6 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 text-white font-black text-lg shadow-2xl border-2 border-white/60 animate-pulse">
-          {nearNpc ? `Talk to ${nearNpc.name}` : `Enter ${nearPlace?.label}`} <span className="hidden sm:inline text-white/70 ml-2">[E]</span>
+          {nearPlace ? `Enter ${nearPlace.label}` : `Talk to ${nearNpc?.name}`} <span className="hidden sm:inline text-white/70 ml-2">[E]</span>
         </button>
       )}
 
