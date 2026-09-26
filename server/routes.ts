@@ -5155,6 +5155,224 @@ export async function registerRoutes(
     return child?.role === 'student' && child.is_eye_gaze_user ? child : null;
   }
 
+
+  const MY_WORLD_BUCKET = 'eye-gaze-my-world';
+
+  async function ensureMyWorldBucket() {
+    const adminDb = getAdminSupabase();
+    const { error } = await adminDb.storage.createBucket(MY_WORLD_BUCKET, {
+      public: false,
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'],
+      fileSizeLimit: '12MB',
+    });
+    if (error && !/already exists|duplicate/i.test(error.message || '')) throw error;
+  }
+
+  function safeWorldId(value: unknown, fallback: string) {
+    const clean = String(value || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    return clean || fallback;
+  }
+
+  function normalizeMyWorlds(input: unknown, studentId: number) {
+    if (!Array.isArray(input) || input.length > 12) throw new Error('Use up to 12 My World places.');
+    return input.map((raw: any, worldIndex: number) => {
+      const id = safeWorldId(raw?.id, `world-${worldIndex + 1}`);
+      const name = String(raw?.name || '').trim().slice(0, 40);
+      const icon = String(raw?.icon || '🏠').slice(0, 16);
+      if (!name) throw new Error('Every My World place needs a name.');
+
+      const backgroundPath = raw?.backgroundPath ? String(raw.backgroundPath) : null;
+      if (backgroundPath && !backgroundPath.startsWith(`${studentId}/`)) throw new Error('A room picture does not belong to this child.');
+
+      const itemsRaw = Array.isArray(raw?.items) ? raw.items : [];
+      if (itemsRaw.length > 20) throw new Error('Use up to 20 learning items in each place.');
+
+      const items = itemsRaw.map((item: any, itemIndex: number) => {
+        const itemId = safeWorldId(item?.id, `item-${itemIndex + 1}`);
+        const label = String(item?.label || '').trim().slice(0, 40);
+        const phrase = String(item?.phrase || '').trim().slice(0, 160) || `This is ${label}.`;
+        const mediaPath = item?.mediaPath ? String(item.mediaPath) : null;
+        const mediaType = item?.mediaType === 'video' ? 'video' : item?.mediaType === 'image' ? 'image' : null;
+        if (!label) throw new Error('Every My World item needs a word.');
+        if (mediaPath && !mediaPath.startsWith(`${studentId}/`)) throw new Error('A learning picture or video does not belong to this child.');
+        const x = Math.max(5, Math.min(95, Number(item?.x) || 50));
+        const y = Math.max(8, Math.min(92, Number(item?.y) || 55));
+        return { id: itemId, label, phrase, mediaPath, mediaType, x, y };
+      });
+
+      return { id, name, icon, backgroundPath, items };
+    });
+  }
+
+  async function signMyWorldMedia(worlds: any[]) {
+    const adminDb = getAdminSupabase();
+    const signed = [];
+    for (const world of worlds || []) {
+      let backgroundUrl: string | null = null;
+      if (world.backgroundPath) {
+        const { data } = await adminDb.storage.from(MY_WORLD_BUCKET).createSignedUrl(world.backgroundPath, 3600);
+        backgroundUrl = data?.signedUrl || null;
+      }
+      const items = [];
+      for (const item of world.items || []) {
+        let mediaUrl: string | null = null;
+        if (item.mediaPath) {
+          const { data } = await adminDb.storage.from(MY_WORLD_BUCKET).createSignedUrl(item.mediaPath, 3600);
+          mediaUrl = data?.signedUrl || null;
+        }
+        items.push({ ...item, mediaUrl });
+      }
+      signed.push({ ...world, backgroundUrl, items });
+    }
+    return signed;
+  }
+
+  app.get('/api/eye-gaze/my-world', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const { data, error } = await getAdminSupabase().from('eye_gaze_my_world')
+        .select('setup_complete,worlds,progress').eq('student_id', child.id).maybeSingle();
+      if (error) throw error;
+      const worlds = await signMyWorldMedia(Array.isArray(data?.worlds) ? data.worlds : []);
+      res.set('Cache-Control', 'no-store');
+      res.json({
+        student: { id: child.id, name: child.displayName },
+        canEdit: req.user.role === 'parent',
+        setupComplete: !!data?.setup_complete,
+        worlds,
+        progress: data?.progress || { stars: 0, learned: {}, history: [] },
+      });
+    } catch (error: any) {
+      console.error('[my-world] load:', error?.message);
+      res.status(503).json({ message: 'Could not load My World right now.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/my-world/config', authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'parent') return res.status(403).json({ message: 'A linked parent or caregiver must set up My World.' });
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const worlds = normalizeMyWorlds(req.body?.worlds, child.id);
+      const setupComplete = !!req.body?.setupComplete && worlds.some((world: any) => world.items.length > 0);
+      const { data: previous } = await getAdminSupabase().from('eye_gaze_my_world').select('progress').eq('student_id', child.id).maybeSingle();
+      const progress = previous?.progress || { stars: 0, learned: {}, history: [] };
+      const { error } = await getAdminSupabase().from('eye_gaze_my_world').upsert({
+        student_id: child.id,
+        setup_complete: setupComplete,
+        worlds,
+        progress,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'student_id' });
+      if (error) throw error;
+      res.json({ setupComplete, worlds: await signMyWorldMedia(worlds) });
+    } catch (error: any) {
+      res.status(400).json({ message: error?.message || 'Could not save My World.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/my-world/upload', authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'parent') return res.status(403).json({ message: 'A linked parent or caregiver must add family media.' });
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+
+      const contentType = String(req.headers['content-type'] || '').split(';')[0].toLowerCase();
+      const allowed: Record<string, { ext: string; type: 'image' | 'video' }> = {
+        'image/jpeg': { ext: 'jpg', type: 'image' },
+        'image/png': { ext: 'png', type: 'image' },
+        'image/webp': { ext: 'webp', type: 'image' },
+        'video/mp4': { ext: 'mp4', type: 'video' },
+        'video/webm': { ext: 'webm', type: 'video' },
+        'video/quicktime': { ext: 'mov', type: 'video' },
+      };
+      const format = allowed[contentType];
+      const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+      if (!format || !body.length) return res.status(400).json({ message: 'Choose a JPG, PNG, WEBP, MP4, WEBM, or MOV file.' });
+      if (body.length > 12 * 1024 * 1024) return res.status(413).json({ message: 'Keep My World photos/videos under 12 MB.' });
+
+      await ensureMyWorldBucket();
+      const requested = String(req.headers['x-my-world-label'] || 'media').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || 'media';
+      const path = `${child.id}/${Date.now()}-${requested}-${Math.random().toString(36).slice(2, 8)}.${format.ext}`;
+      const adminDb = getAdminSupabase();
+      const { error } = await adminDb.storage.from(MY_WORLD_BUCKET).upload(path, body, {
+        contentType,
+        cacheControl: '3600',
+        upsert: false,
+      });
+      if (error) throw error;
+      const { data } = await adminDb.storage.from(MY_WORLD_BUCKET).createSignedUrl(path, 3600);
+      res.json({ path, mediaType: format.type, url: data?.signedUrl || null });
+    } catch (error: any) {
+      console.error('[my-world] upload:', error?.message);
+      res.status(503).json({ message: error?.message || 'Could not upload that family picture or video.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/my-world/practice', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const word = String(req.body?.word || '').trim().slice(0, 40);
+      const outcome = String(req.body?.outcome || '');
+      if (!word || !['correct', 'retry', 'explored'].includes(outcome)) return res.status(400).json({ message: 'Choose a My World learning result.' });
+
+      const adminDb = getAdminSupabase();
+      const { data } = await adminDb.from('eye_gaze_my_world').select('worlds,progress,setup_complete').eq('student_id', child.id).maybeSingle();
+      const previous = data?.progress || { stars: 0, learned: {}, history: [] };
+      const now = new Date().toISOString();
+      const key = word.toLowerCase();
+      const learned = { ...(previous.learned || {}) };
+      const old = learned[key] || { attempts: 0, correct: 0 };
+      learned[key] = {
+        attempts: Number(old.attempts || 0) + (outcome === 'explored' ? 0 : 1),
+        correct: Number(old.correct || 0) + (outcome === 'correct' ? 1 : 0),
+        lastAt: now,
+      };
+      const progress = {
+        stars: Number(previous.stars || 0) + (outcome === 'correct' ? 1 : 0),
+        learned,
+        history: [...(Array.isArray(previous.history) ? previous.history.slice(-149) : []), { word, outcome, at: now }],
+      };
+      const { error } = await adminDb.from('eye_gaze_my_world').upsert({
+        student_id: child.id,
+        setup_complete: !!data?.setup_complete,
+        worlds: Array.isArray(data?.worlds) ? data.worlds : [],
+        progress,
+        updated_at: now,
+      }, { onConflict: 'student_id' });
+      if (error) throw error;
+
+      // Also count My World practice in the family vocabulary tracker.
+      const { data: talkerRow } = await adminDb.from('eye_gaze_talker_state').select('progress').eq('student_id', child.id).maybeSingle();
+      const talkerProgress = talkerRow?.progress || { words: {}, history: [] };
+      const tw = { ...(talkerProgress.words || {}) };
+      const existing = tw[key] || {};
+      tw[key] = {
+        label: word,
+        status: existing.status || 'learning',
+        timesPracticed: Math.min(9999, Number(existing.timesPracticed || 0) + 1),
+        attemptCount: Number(existing.attemptCount || 0) + (outcome === 'explored' ? 0 : 1),
+        correctCount: Number(existing.correctCount || 0) + (outcome === 'correct' ? 1 : 0),
+        lastPracticedAt: now,
+        knownAt: existing.knownAt || null,
+      };
+      await adminDb.from('eye_gaze_talker_state').upsert({
+        student_id: child.id,
+        progress: {
+          words: tw,
+          history: [...(Array.isArray(talkerProgress.history) ? talkerProgress.history.slice(-119) : []), { word, outcome: outcome === 'explored' ? 'practiced' : outcome, at: now }],
+        },
+        updated_at: now,
+      }, { onConflict: 'student_id' });
+
+      res.json({ progress });
+    } catch (error: any) {
+      res.status(503).json({ message: 'Could not save My World practice.' });
+    }
+  });
+
   const emptyTalker = { config: { alwaysHere: null, pictures: {} }, progress: { words: {}, history: [] } };
   const validTalkerPhoto = (value: unknown) => typeof value === 'string'
     && value.length < 90_000 && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(value);
