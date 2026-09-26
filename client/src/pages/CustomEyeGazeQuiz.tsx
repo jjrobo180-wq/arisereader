@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { CheckCircle2, Trophy, RotateCcw, ArrowLeft, Volume2, VolumeX, Gamepad2, Image as ImageIcon, Footprints, Shield, Heart } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { speakQuestion, speakOption, stopSpeaking, initVoices } from "@/lib/tts";
+import { speakQuestion, speakOption, stopSpeaking } from "@/lib/tts";
 import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
 import { API_BASE } from "@/lib/queryClient";
@@ -145,12 +145,8 @@ export default function CustomEyeGazeQuiz() {
     );
   }
 
-  // Initialize voices
+  // Neural AI voice cleanup
   useEffect(() => {
-    initVoices();
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.onvoiceschanged = () => initVoices();
-    }
     return () => stopSpeaking();
   }, []);
 
