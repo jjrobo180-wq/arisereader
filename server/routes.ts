@@ -5112,14 +5112,14 @@ export async function registerRoutes(
     try {
       const raw = await storage.getSetting(`learning_buddy_${req.user.id}`);
       if (!raw) {
-        return res.json({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
+        return res.json({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true, calmMode: false });
       }
       try {
         const parsed = JSON.parse(raw);
         res.set("Cache-Control", "no-store");
         return res.json(parsed);
       } catch {
-        return res.json({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true });
+        return res.json({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true, calmMode: false });
       }
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Could not load Learning Buddy." });
@@ -5128,7 +5128,7 @@ export async function registerRoutes(
 
   app.post("/api/eye-gaze/learning-buddy", authMiddleware, async (req: any, res) => {
     try {
-      const { type, preset, name, imageData, voiceEnabled } = req.body || {};
+      const { type, preset, name, imageData, voiceEnabled, calmMode } = req.body || {};
       const allowedPresets = ["puppy", "dino", "robot", "bunny"];
       const safeType = type === "upload" ? "upload" : "preset";
       const safePreset = allowedPresets.includes(preset) ? preset : "puppy";
@@ -5151,6 +5151,7 @@ export async function registerRoutes(
         name: safeName,
         imageData: safeImageData,
         voiceEnabled: voiceEnabled !== false,
+        calmMode: !!calmMode,
       };
       await storage.upsertSetting(`learning_buddy_${req.user.id}`, JSON.stringify(value));
       res.json(value);
