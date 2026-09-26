@@ -2420,9 +2420,15 @@ export async function registerRoutes(
     let userGrades: Record<string, string> = {};
     if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
 
-    // Fetch all users with eye gaze flag and school_id
+    // Fetch all current users with eye gaze flag and school_id.
+    // Filter out leaderboard rows whose user account has been deleted.
     const allUsers = await storage.getAllUsers();
     const userMap = new Map(allUsers.map((u: any) => [u.id, u]));
+    leaderboard = leaderboard.filter((entry: any) => {
+      const uid = entry.userId || entry.id;
+      const user = userMap.get(uid);
+      return !!user && !user.isAdmin && (!user.role || user.role === 'student');
+    });
 
     // Fetch all schools for name lookup
     const schools = await storage.getAllSchools();
