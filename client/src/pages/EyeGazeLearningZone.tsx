@@ -6,7 +6,7 @@ import { preloadCharacterAI } from "@/lib/tts";
 type Picture = { icon: string; caption: string };
 type Lesson = { word: string; icon: string; first: string; sounds: string; syllables: string; pictures: Picture[]; phrases: string[]; choices: string[] };
 
-const lessons: Lesson[] = [
+export const lessons: Lesson[] = [
   { word: "Milk", icon: "🥛", first: "mmm", sounds: "m · i · l · k", syllables: "milk", pictures: [{ icon: "🥛", caption: "A glass of milk" }, { icon: "🐄🥛", caption: "Milk from a cow" }, { icon: "🧊🥛", caption: "Cold milk" }], phrases: ["I want milk.", "The milk is cold.", "Please pour the milk."], choices: ["Milk", "Water", "Apple"] },
   { word: "Apple", icon: "🍎", first: "aah", sounds: "a · pp · le", syllables: "ap · ple", pictures: [{ icon: "🍎", caption: "A red apple" }, { icon: "🍏", caption: "A green apple" }, { icon: "🌳🍎", caption: "An apple on a tree" }], phrases: ["I want an apple.", "The apple is red.", "I can eat an apple."], choices: ["Banana", "Apple", "Milk"] },
   { word: "Lion", icon: "🦁", first: "lll", sounds: "l · i · o · n", syllables: "li · on", pictures: [{ icon: "🦁", caption: "A lion" }, { icon: "🦁🌿", caption: "A lion in the grass" }, { icon: "🦁👶", caption: "A lion and cub" }], phrases: ["I see a lion.", "The lion is big.", "The lion can roar."], choices: ["Lion", "Monkey", "Elephant"] },

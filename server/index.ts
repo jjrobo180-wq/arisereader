@@ -14,6 +14,10 @@ declare module "http" {
   }
 }
 
+// Family photos are resized in the browser, but several picture cards can
+// still exceed Express's default 100 KB JSON limit.
+app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
+
 app.use(
   express.json({
     verify: (req, _res, buf) => {

@@ -277,6 +277,7 @@ export default function EyeGazeProfileDashboard({
             <p className="text-base sm:text-lg font-bold text-slate-600 mt-1">Pick pictures, hear words, and tell people what you need.</p>
           </div>
           <button type="button" onClick={() => navigate("/eye-gaze-talker")} className="w-full sm:w-auto min-h-[76px] rounded-3xl bg-teal-600 hover:bg-teal-700 text-white px-8 text-xl font-black shadow-md focus:outline-none focus:ring-4 focus:ring-teal-300">Open Talker</button>
+          <button type="button" onClick={() => navigate("/eye-gaze-parent")} className="w-full sm:w-auto min-h-[76px] rounded-3xl bg-amber-200 hover:bg-amber-300 text-blue-950 px-6 text-base font-black shadow-md focus:outline-none focus:ring-4 focus:ring-amber-300">Grown-up tools</button>
         </section>
 
         <section className="grid lg:grid-cols-[1fr_360px] gap-4">

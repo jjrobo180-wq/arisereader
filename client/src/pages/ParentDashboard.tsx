@@ -157,6 +157,14 @@ export default function ParentDashboard() {
           </div>
         </div>
 
+        {data.student.isEyeGazeUser && (
+          <div className="rounded-2xl border-2 border-teal-400/40 bg-teal-900/30 p-5 flex flex-wrap items-center gap-4">
+            <div className="text-5xl" aria-hidden="true">📚</div>
+            <div className="flex-1 min-w-[200px]"><h3 className="text-xl font-bold text-white">My World Talker · Grown-up tools</h3><p className="text-sm text-teal-100">Add familiar photos and buttons, teach three daily words, and track words your child knows.</p></div>
+            <Button onClick={() => window.location.hash = "#/eye-gaze-parent"}>Open grown-up tools</Button>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="shadow-md">

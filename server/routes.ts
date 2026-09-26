@@ -5098,13 +5098,131 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/eye-gaze/profile", authMiddleware, async (req, res) => {
+  app.get("/api/eye-gaze/profile", authMiddleware, async (req: any, res) => {
     try {
       const profile = await storage.getEyeGazeProfile(req.user.id);
       const history = await storage.getEyeGazeAttemptHistory(req.user.id);
       res.json({ ...profile, history });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // The student's own session and a linked parent session reach the same
+  // private talker state. Photos and progress never pass through public URLs.
+  async function talkerStudent(req: any): Promise<{ id: number; displayName: string } | null> {
+    if (req.user.role === 'student' && req.user.is_eye_gaze_user) return req.user;
+    if (req.user.role !== 'parent' || req.user.accountApproved === false) return null;
+    const raw = await storage.getSetting('parent_student_links');
+    const linkedId = raw ? JSON.parse(raw)[String(req.user.id)] : null;
+    if (!Number.isSafeInteger(Number(linkedId)) || Number(linkedId) <= 0) return null;
+    const child = await storage.getUser(Number(linkedId));
+    return child?.role === 'student' && child.is_eye_gaze_user ? child : null;
+  }
+
+  const emptyTalker = { config: { alwaysHere: null, pictures: {} }, progress: { words: {}, history: [] } };
+  const validTalkerPhoto = (value: unknown) => typeof value === 'string'
+    && value.length < 90_000 && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(value);
+
+  app.get('/api/eye-gaze/talker-state', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const { data, error } = await getAdminSupabase().from('eye_gaze_talker_state')
+        .select('config,progress').eq('student_id', child.id).maybeSingle();
+      if (error) throw error;
+      res.set('Cache-Control', 'no-store');
+      res.json({ student: { id: child.id, name: child.displayName }, ...(data || emptyTalker) });
+    } catch (error: any) {
+      console.error('[eye-gaze-talker] load:', error?.message);
+      res.status(503).json({ message: 'Could not load the family talker right now.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/talker-state/config', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const submitted = req.body || {};
+      if (!Array.isArray(submitted.alwaysHere) || submitted.alwaysHere.length > 24
+        || !submitted.pictures || typeof submitted.pictures !== 'object' || Array.isArray(submitted.pictures)
+        || Object.keys(submitted.pictures).length > 50) {
+        return res.status(400).json({ message: 'Please use up to 24 buttons and 50 pictures.' });
+      }
+      const ids = new Set<string>();
+      const alwaysHere = [];
+      for (const button of submitted.alwaysHere) {
+        const id = String(button?.id || '');
+        const label = String(button?.label || '').trim().slice(0, 40);
+        const sentence = String(button?.sentence || '').trim().slice(0, 180);
+        const picture = String(button?.picture || '💬').slice(0, 16);
+        if (!/^[a-z0-9_-]{1,50}$/.test(id) || ids.has(id) || !label || !sentence
+          || (button?.imageData && !validTalkerPhoto(button.imageData))) {
+          return res.status(400).json({ message: 'Check the button names, phrases, and pictures.' });
+        }
+        ids.add(id);
+        alwaysHere.push({ id, label, sentence, picture, imageData: button?.imageData || null });
+      }
+      const pictures: Record<string, string> = {};
+      for (const [key, value] of Object.entries(submitted.pictures)) {
+        if (!/^[a-z0-9 -]{1,40}$/.test(key) || !validTalkerPhoto(value)) {
+          return res.status(400).json({ message: 'A picture could not be saved. Try a smaller JPG, PNG, or WEBP.' });
+        }
+        pictures[key] = value as string;
+      }
+      const config = { alwaysHere, pictures };
+      if (JSON.stringify(config).length > 1_450_000) return res.status(413).json({ message: 'Too many pictures. Remove a few before saving.' });
+      const { error } = await getAdminSupabase().from('eye_gaze_talker_state').upsert({
+        student_id: child.id, config, updated_at: new Date().toISOString(),
+      }, { onConflict: 'student_id' });
+      if (error) throw error;
+      res.set('Cache-Control', 'no-store');
+      res.json({ config });
+    } catch (error: any) {
+      console.error('[eye-gaze-talker] save config:', error?.message);
+      res.status(503).json({ message: 'Could not save the talker. Please try again.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/talker-state/practice', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const word = String(req.body?.word || '').trim().slice(0, 40);
+      const outcome = String(req.body?.outcome || '');
+      if (!word || !/^[^\x00-\x1F<>]{1,40}$/.test(word) || !['known', 'learning', 'practiced', 'correct', 'retry'].includes(outcome)) {
+        return res.status(400).json({ message: 'Choose a word and a practice result.' });
+      }
+      const adminDb = getAdminSupabase();
+      const { data, error: loadError } = await adminDb.from('eye_gaze_talker_state')
+        .select('progress').eq('student_id', child.id).maybeSingle();
+      if (loadError) throw loadError;
+      const previous = data?.progress || emptyTalker.progress;
+      const words = previous.words && typeof previous.words === 'object' ? { ...previous.words } : {};
+      const key = word.toLocaleLowerCase('en-US');
+      const now = new Date().toISOString();
+      const old = words[key] || {};
+      const answer = outcome === 'correct' || outcome === 'retry';
+      words[key] = {
+        label: word, status: ['known', 'learning'].includes(outcome) ? outcome : old.status || 'learning',
+        timesPracticed: Math.min(9999, (Number(old.timesPracticed) || 0) + 1),
+        attemptCount: (Number(old.attemptCount) || 0) + (answer ? 1 : 0),
+        correctCount: (Number(old.correctCount) || 0) + (outcome === 'correct' ? 1 : 0),
+        lastPracticedAt: now,
+        knownAt: outcome === 'known' ? now : outcome === 'learning' ? null : old.knownAt || null,
+      };
+      const prompt = Number(req.body?.prompt);
+      const history = [...(Array.isArray(previous.history) ? previous.history.slice(-119) : []), { word, outcome, at: now, ...(Number.isInteger(prompt) && prompt >= 1 && prompt <= 3 ? { prompt } : {}) }];
+      const progress = { words, history };
+      const { error } = await adminDb.from('eye_gaze_talker_state').upsert({
+        student_id: child.id, progress, updated_at: now,
+      }, { onConflict: 'student_id' });
+      if (error) throw error;
+      res.set('Cache-Control', 'no-store');
+      res.json({ progress });
+    } catch (error: any) {
+      console.error('[eye-gaze-talker] save practice:', error?.message);
+      res.status(503).json({ message: 'Could not save practice. Please try again.' });
     }
   });
 

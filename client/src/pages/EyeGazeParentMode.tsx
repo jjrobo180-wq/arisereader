@@ -1,0 +1,173 @@
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/context/AuthContext";
+import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
+import { defaultNeeds, resizeTalkerPhoto, talkerPicture, talkerRequest, type TalkerConfig, type TalkerProgress, type TalkerState, type TalkerWord } from "@/lib/talkerState";
+import { lessons } from "./EyeGazeLearningZone";
+import { places } from "./EyeGazeTalker";
+
+type WordChoice = { word: string; icon: string; sentence: string; first?: string; choices?: string[] };
+type Tab = "today" | "customize" | "progress";
+
+function localDay() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function dailyChoices(catalog: WordChoice[], progress: TalkerProgress, studentId: number): WordChoice[] {
+  const waiting = catalog.filter(item => progress.words[item.word.toLowerCase()]?.status !== "known");
+  const available = waiting.length ? waiting : catalog;
+  const [year, month, day] = localDay().split("-").map(Number);
+  const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  const offset = ((dayNumber * 3 + studentId) % available.length + available.length) % available.length;
+  return Array.from({ length: Math.min(3, available.length) }, (_, index) => available[(offset + index) % available.length]);
+}
+
+export default function EyeGazeParentMode() {
+  const { token, user } = useAuth();
+  const [, navigate] = useLocation();
+  const [tab, setTab] = useState<Tab>("today");
+  const [state, setState] = useState<TalkerState | null>(null);
+  const [draft, setDraft] = useState<TalkerConfig>({ alwaysHere: defaultNeeds, pictures: {} });
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState("");
+  const [question, setQuestion] = useState(0);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [photoWord, setPhotoWord] = useState("Milk");
+
+  useEffect(() => {
+    let active = true;
+    void talkerRequest<TalkerState>(token).then(result => {
+      if (!active) return;
+      setState(result);
+      setDraft({ alwaysHere: result.config.alwaysHere ?? defaultNeeds.map(item => ({ ...item })), pictures: result.config.pictures || {} });
+    }).catch(err => { if (active) setError(err.message); });
+    return () => { active = false; stopSpeaking(); };
+  }, [token]);
+
+  const catalog = useMemo<WordChoice[]>(() => {
+    const entries: WordChoice[] = lessons.map(item => ({ word: item.word, icon: item.icon, sentence: item.phrases[0], first: item.first, choices: item.choices }));
+    const labels = new Set(entries.map(item => item.word.toLowerCase()));
+    for (const button of draft.alwaysHere || []) {
+      if (labels.has(button.label.toLowerCase())) continue;
+      labels.add(button.label.toLowerCase());
+      entries.push({ word: button.label, icon: button.picture, sentence: button.sentence });
+    }
+    return entries;
+  }, [draft.alwaysHere]);
+
+  const progress = state?.progress || { words: {}, history: [] };
+  const todaysWords = state ? dailyChoices(catalog, progress, state.student.id) : [];
+  const focus = catalog.find(item => item.word === selected) || todaysWords[0];
+  const known = Object.values(progress.words).filter(item => item.status === "known");
+  const practicedToday = progress.history.filter(item => new Date(item.at).toLocaleDateString() === new Date().toLocaleDateString()).length;
+  const photoLabels = Array.from(new Set([...places.flatMap(place => place.words.map(word => word.label)), ...defaultNeeds.map(item => item.label), ...(draft.alwaysHere || []).map(item => item.label)])).sort();
+
+  const speak = (line: string) => {
+    void speakCharacterAI(line, { calmMode: true, onFallback: () => {
+      if (!("speechSynthesis" in window)) return;
+      const utterance = new SpeechSynthesisUtterance(line);
+      utterance.rate = 0.85;
+      window.speechSynthesis.speak(utterance);
+    } });
+  };
+
+  const record = async (word: string, outcome: string, prompt?: number) => {
+    setSaving(true); setError("");
+    try {
+      const result = await talkerRequest<{ progress: TalkerProgress }>(token, "/practice", "POST", { word, outcome, prompt });
+      setState(previous => previous && ({ ...previous, progress: result.progress }));
+      setMessage(outcome === "known" ? `${word} marked as known. Great work!` : outcome === "retry" ? `Let's try ${word} again.` : `Saved ${word} practice.`);
+      if (prompt && outcome === "correct") setQuestion(previous => Math.min(2, previous + 1));
+    } catch (err: any) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const save = async () => {
+    setSaving(true); setError(""); setMessage("");
+    try {
+      const result = await talkerRequest<{ config: TalkerConfig }>(token, "/config", "POST", draft);
+      setDraft(result.config);
+      setState(previous => previous && ({ ...previous, config: result.config }));
+      setMessage("Pictures and buttons saved to your child's talker.");
+    } catch (err: any) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const changeButton = (id: string, update: Partial<TalkerWord>) => {
+    setDraft(previous => ({ ...previous, alwaysHere: (previous.alwaysHere || []).map(item => item.id === id ? { ...item, ...update } : item) }));
+  };
+
+  const upload = async (file: File | undefined, id?: string) => {
+    if (!file) return;
+    setError("");
+    try {
+      const data = await resizeTalkerPhoto(file);
+      if (id) changeButton(id, { imageData: data });
+      else setDraft(previous => ({ ...previous, pictures: { ...previous.pictures, [photoWord.toLowerCase()]: data } }));
+      setMessage("Photo ready. Tap Save changes below.");
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const addButton = () => {
+    const id = `custom-${Math.random().toString(36).slice(2, 12)}`;
+    setDraft(previous => ({ ...previous, alwaysHere: [...(previous.alwaysHere || []), { id, label: "My word", picture: "💬", sentence: "I want to say my word." }] }));
+    setEditing(id);
+  };
+
+  if (error && !state) return <div className="min-h-screen bg-[#f3f8fa] p-8 text-[#193d57]"><h1 className="text-2xl font-black">Grown-up tools</h1><p role="alert" className="my-4">{error}</p><button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-talker")} className="rounded-2xl bg-white p-4 font-black">← Back</button></div>;
+  if (!state) return <div className="min-h-screen bg-[#f3f8fa] p-8 font-black text-[#193d57]">Loading your family's talker…</div>;
+
+  return (
+    <div className="min-h-screen bg-[#f3f8fa] text-[#193d57] px-3 sm:px-6 pb-12">
+      <div className="max-w-5xl mx-auto">
+        <header className="flex flex-wrap items-center justify-between gap-3 py-6">
+          <div><p className="text-sm font-black tracking-widest text-teal-700">MY WORLD TALKER · GROWN-UP TOOLS</p><h1 className="text-3xl sm:text-4xl font-black">Learn together, {state.student.name}</h1><p className="font-bold text-slate-600 mt-1">Personal pictures, daily words, and a record of what your child knows.</p></div>
+          <div className="flex gap-2 flex-wrap"><button onClick={() => navigate("/eye-gaze-talker")} className="min-h-12 rounded-2xl bg-teal-600 text-white px-4 font-black">Open child's talker</button><button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/profile")} className="min-h-12 rounded-2xl bg-white px-4 font-black">← Profile</button></div>
+        </header>
+
+        <nav aria-label="Grown-up tools" className="flex flex-wrap gap-2 mb-5">
+          {(["today", "customize", "progress"] as const).map(item => <button key={item} onClick={() => { setTab(item); setMessage(""); }} aria-current={tab === item ? "page" : undefined} className={`min-h-14 rounded-2xl px-5 font-black ${tab === item ? "bg-[#193d57] text-white" : "bg-white border border-slate-200"}`}>{item === "today" ? "📅 Today's words" : item === "customize" ? "📸 Pictures & buttons" : "📈 Progress"}</button>)}
+        </nav>
+        {error && <p role="alert" className="rounded-2xl bg-red-50 border border-red-200 p-4 font-bold mb-4">{error}</p>}
+        {message && <p role="status" className="rounded-2xl bg-teal-50 border border-teal-200 p-4 font-bold mb-4">{message}</p>}
+
+        {tab === "today" && <div className="space-y-5">
+          <section className="rounded-3xl bg-white border-2 border-teal-100 p-5 sm:p-7">
+            <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-2xl font-black">Three words for today</h2><span className="font-bold text-slate-500">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</span></div>
+            <p className="font-bold text-slate-600 mt-1">New suggestions each day. Choose any word to teach at your own pace.</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-5">{todaysWords.map(item => <button key={item.word} onClick={() => { setSelected(item.word); setQuestion(0); }} className={`min-h-32 rounded-3xl border-4 p-2 flex flex-col items-center justify-center gap-1 ${focus?.word === item.word ? "border-teal-500 bg-teal-50" : "border-slate-100 bg-white"}`}><span className="text-5xl" aria-hidden="true">{item.icon}</span><span className="font-black text-lg">{item.word}</span></button>)}</div>
+            <label htmlFor="family-word" className="block font-black mt-5 mb-2">Or choose a word yourself</label>
+            <select id="family-word" value={focus?.word || ""} onChange={event => { setSelected(event.target.value); setQuestion(0); }} className="min-h-14 w-full sm:w-72 rounded-2xl border-2 border-teal-200 bg-white p-3 font-bold">{catalog.map(item => <option key={item.word} value={item.word}>{item.word}</option>)}</select>
+          </section>
+          {focus && <section className="rounded-3xl bg-gradient-to-br from-sky-100 via-white to-amber-50 border-2 border-sky-100 p-5 sm:p-7">
+            <div className="grid sm:grid-cols-[170px_1fr] gap-5 items-center"><div className="w-40 h-40 rounded-3xl bg-white grid place-items-center text-8xl overflow-hidden" role="img" aria-label={focus.word}>{draft.pictures[focus.word.toLowerCase()] ? <img src={draft.pictures[focus.word.toLowerCase()]} alt="" className="w-full h-full object-cover" /> : focus.icon}</div><div><p className="font-black text-teal-700">TEACH THIS WORD</p><h3 className="text-4xl font-black">{focus.word}</h3><p className="text-lg font-bold mt-2">{focus.sentence}</p><button onClick={() => speak(`${focus.word}. ${focus.sentence}`)} className="min-h-12 px-4 rounded-2xl bg-white font-black mt-3">🔊 Hear the word and phrase</button></div></div>
+            <div className="mt-6 border-t border-sky-200 pt-5"><p className="font-black text-sm text-teal-700">QUESTION {question + 1} OF 3</p><h4 className="text-2xl font-black mt-1">{question === 0 ? `Can you find ${focus.word}?` : question === 1 ? `Can you say ${focus.word}?` : `Can you use ${focus.word} in a phrase?`}</h4><button onClick={() => speak(question === 0 ? `Can you find ${focus.word}?` : question === 1 ? `Can you say ${focus.word}?` : `Let's say this together. ${focus.sentence}`)} className="min-h-12 mt-3 rounded-2xl bg-[#137f96] text-white font-black px-5">🔊 Ask with AI voice</button>
+              {question === 0 && focus.choices && <div className="grid grid-cols-3 gap-2 mt-4">{focus.choices.map(choice => <button disabled={saving} onClick={() => void record(focus.word, choice === focus.word ? "correct" : "retry", 1)} key={choice} className="min-h-28 bg-white rounded-2xl border-2 border-sky-100 font-black flex flex-col justify-center items-center"><span className="text-4xl">{lessons.find(item => item.word === choice)?.icon || "❔"}</span>{choice}</button>)}</div>}
+              <div className="flex flex-wrap gap-2 mt-4"><button disabled={saving} onClick={() => void record(focus.word, "correct", question + 1)} className="min-h-14 bg-emerald-600 text-white rounded-2xl px-5 font-black">✓ Got it</button><button disabled={saving} onClick={() => void record(focus.word, "retry", question + 1)} className="min-h-14 bg-white rounded-2xl px-5 font-black">Practice more</button><button onClick={() => setQuestion((question + 1) % 3)} className="min-h-14 rounded-2xl px-4 font-bold underline">Next question →</button></div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t border-sky-200"><p className="font-bold flex-1">Parent check: Does your child use this word reliably? You decide when it's known.</p><button disabled={saving} onClick={() => void record(focus.word, "known")} className="min-h-14 rounded-2xl bg-[#193d57] text-white px-5 font-black">⭐ Mark {focus.word} known</button><button disabled={saving} onClick={() => void record(focus.word, "learning")} className="min-h-14 rounded-2xl bg-white px-5 font-black">Still learning</button></div>
+            {lessons.some(item => item.word === focus.word) && <button className="mt-4 font-black text-teal-800 underline" onClick={() => { localStorage.setItem("eye-gaze-learning-word", focus.word); sessionStorage.setItem("eye-gaze-talker-open-learn", "1"); navigate("/eye-gaze-talker"); }}>Open picture and phonics Learning Zone →</button>}
+          </section>}
+        </div>}
+
+        {tab === "customize" && <div className="space-y-5">
+          <section className="rounded-3xl bg-white border-2 border-teal-100 p-5 sm:p-7"><h2 className="text-2xl font-black">Use familiar pictures</h2><p className="font-bold text-slate-600 mt-1">Choose a talker word, then upload a photo of your child's own cup, pet, toy, or favorite place. The photo replaces its picture wherever that word appears.</p>
+            <div className="flex flex-wrap items-center gap-3 mt-5"><select aria-label="Picture to replace" value={photoWord} onChange={event => setPhotoWord(event.target.value)} className="min-h-14 rounded-2xl border-2 border-teal-200 bg-white p-3 font-bold">{photoLabels.map(label => <option key={label} value={label}>{label}</option>)}</select><label className="min-h-14 rounded-2xl bg-teal-600 text-white px-5 flex items-center font-black cursor-pointer">📸 Upload photo<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ""; }} /></label>{draft.pictures[photoWord.toLowerCase()] && <button onClick={() => setDraft(previous => { const pictures = { ...previous.pictures }; delete pictures[photoWord.toLowerCase()]; return { ...previous, pictures }; })} className="min-h-14 rounded-2xl bg-white border px-4 font-bold">Use original picture</button>}</div>
+            <div className="flex items-center gap-3 mt-4">{draft.pictures[photoWord.toLowerCase()] ? <img src={draft.pictures[photoWord.toLowerCase()]} alt={`Uploaded picture for ${photoWord}`} className="w-24 h-24 rounded-2xl object-cover" /> : <span className="text-6xl" aria-hidden="true">{places.flatMap(place => place.words).find(word => word.label === photoWord)?.picture || "💬"}</span>}<span className="font-black text-xl">{photoWord}</span></div><p className="text-sm font-bold text-slate-500 mt-3">Pictures stay with this child's account and linked parent. Images are resized before saving.</p></section>
+          <section className="rounded-3xl bg-white border-2 border-amber-100 p-5 sm:p-7"><div className="flex flex-wrap justify-between gap-2"><div><h2 className="text-2xl font-black">Always here buttons</h2><p className="font-bold text-slate-600 mt-1">Edit what a button says, add a family word, or attach its own photo.</p></div><button onClick={addButton} disabled={(draft.alwaysHere || []).length >= 24} className="min-h-14 rounded-2xl bg-amber-300 px-5 font-black disabled:opacity-50">+ Add a button</button></div>
+            <div className="grid sm:grid-cols-2 gap-3 mt-5">{(draft.alwaysHere || []).map(button => <div key={button.id} className="rounded-2xl border-2 border-slate-100 p-4"><div className="flex items-center gap-3"><div className="w-16 h-16 rounded-xl bg-teal-50 grid place-items-center text-4xl overflow-hidden">{talkerPicture(button, draft.pictures) ? <img src={talkerPicture(button, draft.pictures)!} alt="" className="w-full h-full object-cover" /> : button.picture}</div><div className="flex-1"><strong className="block text-lg">{button.label}</strong><span className="text-sm font-bold text-slate-600">{button.sentence}</span></div><button onClick={() => setEditing(editing === button.id ? null : button.id)} className="min-h-12 rounded-xl bg-slate-100 px-3 font-black">Edit</button></div>
+              {editing === button.id && <div className="space-y-3 mt-4"><label className="block font-bold">Button name<input maxLength={40} value={button.label} onChange={event => changeButton(button.id, { label: event.target.value })} className="block w-full min-h-12 rounded-xl border-2 p-2 mt-1" /></label><label className="block font-bold">What the AI says<input maxLength={180} value={button.sentence} onChange={event => changeButton(button.id, { sentence: event.target.value })} className="block w-full min-h-12 rounded-xl border-2 p-2 mt-1" /></label><label className="block font-bold">Picture or emoji<input maxLength={16} value={button.picture} onChange={event => changeButton(button.id, { picture: event.target.value })} className="block w-full min-h-12 rounded-xl border-2 p-2 mt-1" /></label><div className="flex flex-wrap gap-2"><label className="min-h-12 rounded-xl bg-teal-100 px-3 flex items-center font-bold cursor-pointer">📸 Use my photo<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={event => { void upload(event.target.files?.[0], button.id); event.target.value = ""; }} /></label>{button.imageData && <button onClick={() => changeButton(button.id, { imageData: null })} className="min-h-12 rounded-xl bg-slate-100 px-3 font-bold">Remove photo</button>}<button onClick={() => { setDraft(previous => ({ ...previous, alwaysHere: (previous.alwaysHere || []).filter(item => item.id !== button.id) })); setEditing(null); }} className="min-h-12 rounded-xl bg-red-50 text-red-800 px-3 font-bold">Remove button</button></div></div>}
+            </div>)}</div><div className="flex flex-wrap gap-3 mt-5"><button onClick={() => setDraft(previous => ({ ...previous, alwaysHere: defaultNeeds.map(item => ({ ...item })) }))} className="min-h-14 rounded-2xl border-2 bg-white px-5 font-black">Restore basic buttons</button><button disabled={saving} onClick={() => void save()} className="min-h-14 rounded-2xl bg-[#193d57] text-white px-6 font-black disabled:opacity-50">{saving ? "Saving…" : "Save changes"}</button></div></section>
+        </div>}
+
+        {tab === "progress" && <div className="space-y-5"><section className="grid sm:grid-cols-3 gap-3">{[{ count: known.length, label: "Words marked known" }, { count: Object.keys(progress.words).length, label: "Words practiced" }, { count: practicedToday, label: "Responses today" }].map(item => <div key={item.label} className="rounded-3xl bg-white p-6 border-2 border-teal-100"><strong className="text-4xl font-black">{item.count}</strong><span className="block font-bold text-slate-600">{item.label}</span></div>)}</section>
+          <section className="rounded-3xl bg-white p-5 sm:p-7"><h2 className="text-2xl font-black">Words we're learning</h2><p className="font-bold text-slate-600 mt-1">These are parent observations, not an automatic speech assessment. You can change a word's status anytime.</p><div className="grid sm:grid-cols-2 gap-3 mt-5">{Object.values(progress.words).sort((a, b) => b.lastPracticedAt.localeCompare(a.lastPracticedAt)).map(item => <div key={item.label.toLowerCase()} className="rounded-2xl border-2 border-slate-100 p-4"><strong className="text-xl">{item.label}</strong><span className={`ml-2 rounded-full px-2 py-1 text-xs font-black ${item.status === "known" ? "bg-emerald-100" : "bg-amber-100"}`}>{item.status === "known" ? "KNOWN" : "LEARNING"}</span><p className="text-sm font-bold text-slate-600 mt-2">Practiced {item.timesPracticed} times · Got {item.correctCount || 0} of {item.attemptCount || 0} questions</p><p className="text-xs text-slate-500">Last practiced {new Date(item.lastPracticedAt).toLocaleDateString()}</p><button disabled={saving} onClick={() => void record(item.label, item.status === "known" ? "learning" : "known")} className="mt-3 font-black text-teal-700 underline">{item.status === "known" ? "Move back to learning" : "Mark known"}</button></div>)}{!Object.keys(progress.words).length && <p className="font-bold text-slate-600">Start with one of today's words. Each response will appear here.</p>}</div></section>
+          <section className="rounded-3xl bg-white p-5 sm:p-7"><h2 className="text-2xl font-black">Recent practice</h2><div className="space-y-2 mt-4">{progress.history.slice(-12).reverse().map((item, index) => <div key={`${item.at}-${index}`} className="flex justify-between gap-3 border-b border-slate-100 py-2"><span className="font-bold">{item.word} · {item.outcome === "correct" ? "Got it" : item.outcome === "retry" ? "Practicing" : item.outcome === "known" ? "Marked known" : "Learning"}</span><time className="text-sm text-slate-500">{new Date(item.at).toLocaleString()}</time></div>)}{!progress.history.length && <p className="font-bold text-slate-600">No practice recorded yet.</p>}</div></section>
+        </div>}
+      </div>
+    </div>
+  );
+}
