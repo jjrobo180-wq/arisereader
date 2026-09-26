@@ -13,6 +13,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { generateCertificate } from "@/lib/certificate";
 import { printMyParentInvite } from "@/lib/parentInvites";
+import EyeGazeProfileDashboard from "@/components/EyeGazeProfileDashboard";
 
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
@@ -591,6 +592,17 @@ export default function Profile() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
+    );
+  }
+
+  if (user?.is_eye_gaze_user) {
+    return (
+      <EyeGazeProfileDashboard
+        displayName={user.displayName || user.username || "Reader"}
+        totalPoints={totalPoints}
+        quizzesTaken={quizzesTaken}
+        rank={eyeGazeRankInfo?.eyeGazeRank || eyeGazeRankInfo?.overallRank || null}
+      />
     );
   }
 
