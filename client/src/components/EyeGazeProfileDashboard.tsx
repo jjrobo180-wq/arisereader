@@ -9,7 +9,6 @@ import {
   Settings,
   Star,
   Trophy,
-  Upload,
   UserRound,
   Users,
   Volume2,
