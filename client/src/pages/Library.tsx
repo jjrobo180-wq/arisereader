@@ -1196,7 +1196,7 @@ export default function Library() {
                 sessionStorage.setItem('admin_notif', JSON.stringify({ type, id }));
                 navigate("/admin");
               } else {
-                navigate("/profile");
+                navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile");
               }
             }} />
             <Button variant="outline" size="sm" onClick={() => { fetchMessages(); setShowInbox(true); }} className="relative">
@@ -1266,8 +1266,8 @@ export default function Library() {
                   <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" /> Polls
                   </button>
-                  <button onClick={() => { navigate("/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <User className="w-4 h-4" /> Account
+                  <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                    <User className="w-4 h-4" /> {user?.is_eye_gaze_user ? "My Eye Gaze Home" : "Account"}
                   </button>
                   {user?.isAdmin && (
                     <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
