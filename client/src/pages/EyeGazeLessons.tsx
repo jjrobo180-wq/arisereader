@@ -122,7 +122,7 @@ export default function EyeGazeLessons() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={tab === "lessons" ? "Find a lesson..." : "Find a book..."}
-          className="w-full h-14 rounded-2xl border-2 border-sky-100 bg-white pl-13 pr-5 text-base font-bold text-slate-900 outline-none focus:border-blue-400"
+          className="w-full h-14 rounded-2xl border-2 border-sky-100 bg-white pl-14 pr-5 text-base font-bold text-slate-900 outline-none focus:border-blue-400"
         />
       </div>
 
