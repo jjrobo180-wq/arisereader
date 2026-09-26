@@ -915,6 +915,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // My World uses a lightweight grown-up math gate from the child's account.
+  // These short-lived tokens are only an editing gate, not account authentication.
+  const myWorldChallenges = new Map<string, { studentId: number; answer: number; expiresAt: number }>();
+  const myWorldGrownupPasses = new Map<string, { studentId: number; expiresAt: number }>();
   // Seed data on startup
   await seedData();
   await storage.seedEyeGazeQuizzes();
@@ -5158,6 +5162,55 @@ export async function registerRoutes(
 
   const MY_WORLD_BUCKET = 'eye-gaze-my-world';
 
+  function validMyWorldGrownupPass(req: any, studentId: number) {
+    if (req.user?.role === 'parent') return true;
+    const token = String(req.headers['x-my-world-grownup-token'] || '');
+    const pass = myWorldGrownupPasses.get(token);
+    if (!pass) return false;
+    if (pass.expiresAt <= Date.now()) {
+      myWorldGrownupPasses.delete(token);
+      return false;
+    }
+    return pass.studentId === studentId;
+  }
+
+  app.get('/api/eye-gaze/my-world/grownup-challenge', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Eye Gazer account.' });
+      const a = 2 + Math.floor(Math.random() * 8);
+      const b = 2 + Math.floor(Math.random() * 8);
+      const challengeId = randomBytes(18).toString('hex');
+      myWorldChallenges.set(challengeId, { studentId: child.id, answer: a + b, expiresAt: Date.now() + 5 * 60_000 });
+      res.set('Cache-Control', 'no-store');
+      res.json({ challengeId, question: `${a} + ${b} = ?` });
+    } catch {
+      res.status(503).json({ message: 'Could not open the grown-up check.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/my-world/grownup-challenge', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Eye Gazer account.' });
+      const challengeId = String(req.body?.challengeId || '');
+      const challenge = myWorldChallenges.get(challengeId);
+      myWorldChallenges.delete(challengeId);
+      if (!challenge || challenge.studentId !== child.id || challenge.expiresAt <= Date.now()) {
+        return res.status(400).json({ message: 'That question expired. Try a new one.' });
+      }
+      if (Number(req.body?.answer) !== challenge.answer) {
+        return res.status(400).json({ message: 'Not quite. Try a new grown-up question.' });
+      }
+      const grownupToken = randomBytes(24).toString('hex');
+      myWorldGrownupPasses.set(grownupToken, { studentId: child.id, expiresAt: Date.now() + 30 * 60_000 });
+      res.set('Cache-Control', 'no-store');
+      res.json({ grownupToken, expiresInSeconds: 1800 });
+    } catch {
+      res.status(503).json({ message: 'Could not verify the grown-up check.' });
+    }
+  });
+
   async function ensureMyWorldBucket() {
     const adminDb = getAdminSupabase();
     const { error } = await adminDb.storage.createBucket(MY_WORLD_BUCKET, {
@@ -5251,9 +5304,9 @@ export async function registerRoutes(
 
   app.post('/api/eye-gaze/my-world/config', authMiddleware, async (req: any, res) => {
     try {
-      if (req.user.role !== 'parent') return res.status(403).json({ message: 'A linked parent or caregiver must set up My World.' });
       const child = await talkerStudent(req);
       if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to edit My World.' });
       const worlds = normalizeMyWorlds(req.body?.worlds, child.id);
       const setupComplete = !!req.body?.setupComplete && worlds.some((world: any) => world.items.length > 0);
       const { data: previous } = await getAdminSupabase().from('eye_gaze_my_world').select('progress').eq('student_id', child.id).maybeSingle();
@@ -5274,9 +5327,9 @@ export async function registerRoutes(
 
   app.post('/api/eye-gaze/my-world/upload', authMiddleware, async (req: any, res) => {
     try {
-      if (req.user.role !== 'parent') return res.status(403).json({ message: 'A linked parent or caregiver must add family media.' });
       const child = await talkerStudent(req);
       if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to add family media.' });
 
       const contentType = String(req.headers['content-type'] || '').split(';')[0].toLowerCase();
       const allowed: Record<string, { ext: string; type: 'image' | 'video' }> = {
