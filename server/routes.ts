@@ -5107,6 +5107,8 @@ export async function registerRoutes(
     }
   });
 
+  console.log("[eye-gaze-tts] natural voice configured:", !!process.env.OPENAI_API_KEY);
+
   app.get("/api/eye-gaze/tts/status", (_req, res) => {
     res.json({
       configured: !!process.env.OPENAI_API_KEY,
