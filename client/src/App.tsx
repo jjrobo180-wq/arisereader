@@ -53,6 +53,7 @@ import EyeGazeAccount from "./pages/EyeGazeAccount";
 import ARISECity from "./pages/ARISECity";
 import ReadingLevelUp from "./pages/ReadingLevelUp";
 import EyeGazeBuddyWorld from "./pages/EyeGazeBuddyWorld";
+import EyeGazeTalker from "./pages/EyeGazeTalker";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
@@ -273,6 +274,9 @@ function AppRoutes() {
       </Route>
       <Route path="/buddy-world">
         <ProtectedRoute><EyeGazeBuddyWorld /></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-talker">
+        {user?.is_eye_gaze_user ? <ProtectedRoute><EyeGazeTalker /></ProtectedRoute> : <Redirect to="/" />}
       </Route>
       <Route path="/eye-gaze-quiz/:id">
         <ProtectedRoute><EyeGazeQuiz /></ProtectedRoute>

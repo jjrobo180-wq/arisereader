@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BookOpen, Camera, CheckCircle2, Eye, Star, Trophy, Volume2, VolumeX } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { speakCharacterAI } from "@/lib/tts";
+import { useLocation } from "wouter";
 
 type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
 
@@ -76,6 +77,7 @@ export default function EyeGazeProfileDashboard({
   quizzesTaken: number;
   rank?: number | null;
 }) {
+  const [, navigate] = useLocation();
   const [buddy, setBuddy] = useState<BuddyConfig>({
     type: "preset",
     preset: "puppy",
@@ -266,6 +268,15 @@ export default function EyeGazeProfileDashboard({
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-[2rem] border-2 border-teal-200 bg-gradient-to-r from-cyan-50 via-white to-amber-50 p-5 sm:p-7 flex flex-col sm:flex-row items-center gap-5">
+          <div className="w-24 h-24 rounded-3xl bg-teal-100 flex items-center justify-center text-6xl" aria-hidden="true">🗣️</div>
+          <div className="flex-1 text-center sm:text-left">
+            <h2 className="text-2xl sm:text-3xl font-black text-blue-950">My World Talker</h2>
+            <p className="text-base sm:text-lg font-bold text-slate-600 mt-1">Pick pictures, hear words, and tell people what you need.</p>
+          </div>
+          <button type="button" onClick={() => navigate("/eye-gaze-talker")} className="w-full sm:w-auto min-h-[76px] rounded-3xl bg-teal-600 hover:bg-teal-700 text-white px-8 text-xl font-black shadow-md focus:outline-none focus:ring-4 focus:ring-teal-300">Open Talker</button>
         </section>
 
         <section className="grid lg:grid-cols-[1fr_360px] gap-4">
