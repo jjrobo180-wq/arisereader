@@ -50,6 +50,7 @@ import EyeGazeHome from "./pages/EyeGazeHome";
 import EyeGazeLessons from "./pages/EyeGazeLessons";
 import EyeGazeProgress from "./pages/EyeGazeProgress";
 import EyeGazeAccount from "./pages/EyeGazeAccount";
+import ARISECity from "./pages/ARISECity";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
@@ -261,6 +262,9 @@ function AppRoutes() {
       </Route>
       <Route path="/eye-gaze-account">
         <ProtectedRoute><EyeGazeAccount /></ProtectedRoute>
+      </Route>
+      <Route path="/arise-city">
+        <ProtectedRoute><ARISECity /></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-quiz/:id">
         <ProtectedRoute><EyeGazeQuiz /></ProtectedRoute>
