@@ -1,10 +1,10 @@
 import { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { BookOpen, Gamepad2, Home, Trophy, UserRound, Users } from "lucide-react";
+import { BookOpen, Gamepad2, Home, LogOut, Trophy, UserRound, Users } from "lucide-react";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [location, navigate] = useLocation();
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
@@ -72,6 +72,19 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
             </div>
             <div className="font-black text-blue-950 truncate max-w-[140px]">Hi, {user.displayName?.split(" ")[0] || "Learner"}!</div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate("/");
+            }}
+            className="ml-2 min-h-[46px] rounded-2xl border-2 border-rose-200 bg-rose-50 px-3 sm:px-4 flex items-center justify-center gap-2 font-black text-rose-700 hover:bg-rose-100 focus:outline-none focus:ring-4 focus:ring-rose-200"
+            aria-label="Log out"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="hidden sm:inline">Log Out</span>
+          </button>
         </div>
       </header>
 
