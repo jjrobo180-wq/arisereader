@@ -6327,44 +6327,88 @@ export async function registerRoutes(
   app.delete("/api/admin/users/:userId", authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
       const userId = parseInt(req.params.userId);
+      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Admin deletion is not configured on the server." });
 
-      // Delete all related records first to avoid foreign key constraint errors
+      const adminDb = getAdminSupabase();
+      const target = await storage.getUser(userId);
+      if (!target) return res.status(404).json({ message: "User not found." });
+
+      // Delete related rows using the service-role client so RLS cannot block admin cleanup.
+      // manual_point_awards does not cascade, so it must be removed before deleting a student.
       const tables = [
+        { table: "manual_point_awards", column: "student_id" },
+        { table: "manual_point_awards", column: "awarded_by" },
         { table: "attempts", column: "user_id" },
         { table: "quiz_review_requests", column: "user_id" },
         { table: "messages", column: "sender_id" },
         { table: "messages", column: "recipient_id" },
         { table: "quiz_requests", column: "user_id" },
-        { table: "parent_student_links", column: "student_id" },
-        { table: "parent_student_links", column: "parent_id" },
         { table: "custom_quizzes", column: "creator_id" },
         { table: "easter_egg_claims", column: "user_id" },
         { table: "eye_gaze_quizzes", column: "creator_id" },
       ];
 
       for (const { table, column } of tables) {
-        try { await supabase.from(table).delete().eq(column, userId); } catch {}
+        const { error } = await adminDb.from(table).delete().eq(column, userId);
+        // Ignore missing optional tables/columns, but surface real FK/permission failures later via the user delete.
+        if (error && !/does not exist|column .* does not exist/i.test(error.message || "")) {
+          console.warn(`[admin-delete] Cleanup ${table}.${column}:`, error.message);
+        }
       }
 
-      // Also clean up any settings referencing this user
-      try {
-        const { data: grades } = await supabase.from("settings").select("key, value").eq("key", "user_grades").single();
-        if (grades?.value) {
-          const parsed = JSON.parse(grades.value);
-          delete parsed[String(userId)];
-          await supabase.from("settings").update({ value: JSON.stringify(parsed) }).eq("key", "user_grades");
-        }
-      } catch {}
+      // Parent invite rows cascade from users, but deleting explicitly is harmless and keeps cleanup obvious.
+      try { await adminDb.from("parent_invite_codes").delete().eq("student_id", userId); } catch {}
 
-      // Finally delete the user
-      const { error } = await supabase.from("users").delete().eq("id", userId);
+      // Clean settings-backed relationships that reference users.
+      for (const key of ["user_grades", "parent_student_links", "teacher_students"]) {
+        try {
+          const raw = await storage.getSetting(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          let changed = false;
+          if (key === "user_grades" || key === "parent_student_links") {
+            if (Object.prototype.hasOwnProperty.call(parsed, String(userId))) {
+              delete parsed[String(userId)];
+              changed = true;
+            }
+            if (key === "parent_student_links") {
+              for (const [parentId, studentId] of Object.entries(parsed)) {
+                if (Number(studentId) === userId) {
+                  delete parsed[parentId];
+                  changed = true;
+                }
+              }
+            }
+          } else if (key === "teacher_students") {
+            if (Object.prototype.hasOwnProperty.call(parsed, String(userId))) {
+              delete parsed[String(userId)];
+              changed = true;
+            }
+            for (const [teacherId, studentIds] of Object.entries(parsed)) {
+              if (Array.isArray(studentIds)) {
+                const next = studentIds.filter((id: any) => Number(id) !== userId);
+                if (next.length !== studentIds.length) {
+                  parsed[teacherId] = next;
+                  changed = true;
+                }
+              }
+            }
+          }
+          if (changed) await storage.upsertSetting(key, JSON.stringify(parsed));
+        } catch {}
+      }
+
+      const { error } = await adminDb.from("users").delete().eq("id", userId);
       if (error) throw new Error(error.message);
-      res.json({ success: true });
+
+      res.json({ success: true, deletedRole: target.role || (target.isAdmin ? "admin" : "student") });
       setImmediate(() => {
         try { clearCache('allUsers'); clearCache('teachers'); } catch {}
       });
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      console.error("[admin-delete] Failed:", error?.message);
+      res.status(500).json({ message: error?.message || "Failed to delete user." });
     }
   });
 
