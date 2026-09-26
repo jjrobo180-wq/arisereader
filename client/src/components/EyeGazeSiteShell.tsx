@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { BookOpen, Gamepad2, Home, Star, Trophy, UserRound, Users } from "lucide-react";
+import { BookOpen, Gamepad2, Home, Trophy, UserRound, Users } from "lucide-react";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -64,20 +64,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
             </div>
           </button>
 
-          <nav className="hidden lg:flex items-center gap-2">
-            <button onClick={() => navigate("/eye-gaze-home")} className={`px-4 py-3 rounded-2xl font-black flex items-center gap-2 ${location === "/eye-gaze-home" ? "bg-blue-100 text-blue-900" : "text-slate-600 hover:bg-blue-50"}`}>
-              <Home className="w-5 h-5" /> Home
-            </button>
-            <button onClick={() => navigate("/library")} className={`px-4 py-3 rounded-2xl font-black flex items-center gap-2 ${location === "/library" ? "bg-blue-100 text-blue-900" : "text-slate-600 hover:bg-blue-50"}`}>
-              <BookOpen className="w-5 h-5" /> My Lessons
-            </button>
-            <button onClick={() => navigate("/leaderboard")} className={`px-4 py-3 rounded-2xl font-black flex items-center gap-2 ${location === "/leaderboard" ? "bg-blue-100 text-blue-900" : "text-slate-600 hover:bg-blue-50"}`}>
-              <Star className="w-5 h-5 text-yellow-400 fill-current" /> My Progress
-            </button>
-            <button onClick={() => navigate("/profile")} className={`px-5 py-3 rounded-2xl font-black flex items-center gap-2 ${location === "/profile" ? "bg-violet-100 text-violet-900" : "text-slate-600 hover:bg-violet-50"}`}>
-              <Users className="w-5 h-5" /> My Learning Buddy
-            </button>
-          </nav>
+
 
           <div className="hidden sm:flex items-center gap-2 pl-3">
             <div className="w-11 h-11 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
