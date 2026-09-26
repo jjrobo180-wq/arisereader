@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X, Zap, Flag, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI } from "@/lib/tts";
 
-type GameId = "match" | "pop" | "sentence" | null;
+type GameId = "runner" | "match" | "pop" | "sentence" | null;
 
 type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
 type BuddyConfig = {
@@ -217,6 +217,394 @@ function Celebration({ text }: { text: string }) {
       <Star className="w-8 h-8 text-green-400 mx-auto mb-1 fill-current" />
       <p className="font-black text-lg">{text}</p>
     </div>
+  );
+}
+
+
+type RunnerQuestion = {
+  prompt: string;
+  choices: string[];
+  answer: string;
+  skill: string;
+};
+
+const RUNNER_LEVELS: Array<{ name: string; world: string; speed: number; questions: RunnerQuestion[] }> = [
+  {
+    name: "City Start",
+    world: "🌆",
+    speed: 1,
+    questions: [
+      { prompt: "Jump over the barrier! Find CAT.", choices: ["CAT", "CAN", "CAP"], answer: "CAT", skill: "Word match" },
+      { prompt: "Which word says DOG?", choices: ["DIG", "DOG", "DOT"], answer: "DOG", skill: "Word match" },
+      { prompt: "Find the word SUN.", choices: ["RUN", "SUN", "FUN"], answer: "SUN", skill: "Word match" },
+      { prompt: "Which one starts with B?", choices: ["BALL", "CAT", "SUN"], answer: "BALL", skill: "Beginning sound" },
+    ],
+  },
+  {
+    name: "Park Dash",
+    world: "🌳",
+    speed: 1.05,
+    questions: [
+      { prompt: "Which picture goes with BOOK?", choices: ["📘", "⚽", "🍎"], answer: "📘", skill: "Picture match" },
+      { prompt: "Which picture goes with APPLE?", choices: ["🐶", "🍎", "🚗"], answer: "🍎", skill: "Picture match" },
+      { prompt: "Find RED.", choices: ["BED", "RED", "RID"], answer: "RED", skill: "Word discrimination" },
+      { prompt: "Which word starts with S?", choices: ["SUN", "DOG", "MAP"], answer: "SUN", skill: "Beginning sound" },
+    ],
+  },
+  {
+    name: "Tunnel Rush",
+    world: "🚇",
+    speed: 1.1,
+    questions: [
+      { prompt: "Finish it: The dog ___ .", choices: ["RUNS", "BLUE", "BOOK"], answer: "RUNS", skill: "Sentence meaning" },
+      { prompt: "Which word means very fast movement?", choices: ["RUN", "SIT", "NAP"], answer: "RUN", skill: "Vocabulary" },
+      { prompt: "Which word rhymes with CAT?", choices: ["HAT", "DOG", "SUN"], answer: "HAT", skill: "Rhyming" },
+      { prompt: "Which word rhymes with BOOK?", choices: ["LOOK", "BALL", "TREE"], answer: "LOOK", skill: "Rhyming" },
+    ],
+  },
+  {
+    name: "Beach Boardwalk",
+    world: "🏖️",
+    speed: 1.15,
+    questions: [
+      { prompt: "Which sentence makes sense?", choices: ["I read a book.", "Book the run.", "Blue eats fast."], answer: "I read a book.", skill: "Sentence meaning" },
+      { prompt: "Which word names a person?", choices: ["GIRL", "RUN", "RED"], answer: "GIRL", skill: "Nouns" },
+      { prompt: "Which word is an action?", choices: ["JUMP", "BALL", "GREEN"], answer: "JUMP", skill: "Verbs" },
+      { prompt: "Which sentence matches 🐱💤 ?", choices: ["The cat sleeps.", "The dog runs.", "The bird flies."], answer: "The cat sleeps.", skill: "Picture comprehension" },
+    ],
+  },
+  {
+    name: "Boss Bridge",
+    world: "🌉",
+    speed: 1.2,
+    questions: [
+      { prompt: "BOSS ROUND: Which word has the /sh/ sound?", choices: ["SHIP", "CAT", "DOG"], answer: "SHIP", skill: "Phonics" },
+      { prompt: "BOSS ROUND: What comes first in 'SUN'?", choices: ["S", "U", "N"], answer: "S", skill: "Letter sounds" },
+      { prompt: "BOSS ROUND: Which sentence is complete?", choices: ["The dog runs.", "Dog the.", "Runs blue."], answer: "The dog runs.", skill: "Sentences" },
+      { prompt: "BOSS ROUND: Which word means happy?", choices: ["GLAD", "SAD", "MAD"], answer: "GLAD", skill: "Vocabulary" },
+    ],
+  },
+  {
+    name: "Neon Night",
+    world: "🌃",
+    speed: 1.25,
+    questions: [
+      { prompt: "Find the word with 2 syllables.", choices: ["APPLE", "DOG", "SUN"], answer: "APPLE", skill: "Syllables" },
+      { prompt: "Which word is a place?", choices: ["SCHOOL", "RUN", "HAPPY"], answer: "SCHOOL", skill: "Vocabulary" },
+      { prompt: "Which word means the opposite of HOT?", choices: ["COLD", "BIG", "FAST"], answer: "COLD", skill: "Opposites" },
+      { prompt: "Choose the best ending: I wear shoes on my ___.", choices: ["FEET", "BOOK", "MILK"], answer: "FEET", skill: "Context clues" },
+    ],
+  },
+  {
+    name: "Space Sprint",
+    world: "🚀",
+    speed: 1.3,
+    questions: [
+      { prompt: "Which word means to look at words in a book?", choices: ["READ", "EAT", "SLEEP"], answer: "READ", skill: "Vocabulary" },
+      { prompt: "Which one is a question?", choices: ["Where is the dog?", "The dog runs.", "I like books."], answer: "Where is the dog?", skill: "Sentence types" },
+      { prompt: "Which word comes alphabetically first?", choices: ["BALL", "CAT", "DOG"], answer: "BALL", skill: "Alphabetical order" },
+      { prompt: "Which word has the long A sound?", choices: ["CAKE", "CAT", "CAN"], answer: "CAKE", skill: "Phonics" },
+    ],
+  },
+  {
+    name: "Jungle Run",
+    world: "🌴",
+    speed: 1.35,
+    questions: [
+      { prompt: "Which sentence tells who did something?", choices: ["The boy jumped.", "Jumped fast.", "Very green."], answer: "The boy jumped.", skill: "Sentence structure" },
+      { prompt: "Which word describes the dog?", choices: ["BIG", "RUN", "DOG"], answer: "BIG", skill: "Adjectives" },
+      { prompt: "Which word has 3 letters?", choices: ["CAT", "BOOK", "APPLE"], answer: "CAT", skill: "Word length" },
+      { prompt: "Which word rhymes with TREE?", choices: ["BEE", "CAT", "BOOK"], answer: "BEE", skill: "Rhyming" },
+    ],
+  },
+  {
+    name: "Skyline Challenge",
+    world: "🏙️",
+    speed: 1.4,
+    questions: [
+      { prompt: "Read: Mia has a red ball. What color is the ball?", choices: ["RED", "BLUE", "GREEN"], answer: "RED", skill: "Comprehension" },
+      { prompt: "Read: Sam ran home. What did Sam do?", choices: ["RAN", "SLEPT", "ATE"], answer: "RAN", skill: "Comprehension" },
+      { prompt: "Read: The bird is in the tree. Where is the bird?", choices: ["TREE", "CAR", "HOUSE"], answer: "TREE", skill: "Comprehension" },
+      { prompt: "Which word best completes: She ___ a book.", choices: ["READS", "BLUE", "DOG"], answer: "READS", skill: "Grammar" },
+    ],
+  },
+  {
+    name: "Reading Champion",
+    world: "🏆",
+    speed: 1.45,
+    questions: [
+      { prompt: "FINAL: Which is the best title for a story about a dog at the park?", choices: ["Dog's Park Day", "How to Bake", "Space Rockets"], answer: "Dog's Park Day", skill: "Main idea" },
+      { prompt: "FINAL: Which detail tells where a story happens?", choices: ["SETTING", "CHARACTER", "TITLE"], answer: "SETTING", skill: "Story elements" },
+      { prompt: "FINAL: Who is a story about?", choices: ["CHARACTER", "SETTING", "PAGE"], answer: "CHARACTER", skill: "Story elements" },
+      { prompt: "FINAL: What happens in a story?", choices: ["PLOT", "COLOR", "AUTHOR NAME"], answer: "PLOT", skill: "Story elements" },
+    ],
+  },
+];
+
+function RunnerBuddy({ buddy, talking, pointing }: { buddy: BuddyConfig; talking: boolean; pointing: boolean }) {
+  const face = buddy.type === "upload" && buddy.imageData
+    ? <img src={buddy.imageData} alt={buddy.name} className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg" />
+    : <div className="w-16 h-16 rounded-full bg-white/95 shadow-lg border-4 border-white flex items-center justify-center text-4xl">{BUDDY_PRESETS[buddy.preset]?.emoji || "🐶"}</div>;
+
+  return (
+    <div className={`relative transition-all duration-500 ${pointing ? "translate-x-[-8px]" : ""}`}>
+      <div className={talking ? "animate-[buddyBob_.35s_ease-in-out_infinite_alternate]" : "animate-[buddyFloat_2s_ease-in-out_infinite]"}>{face}</div>
+      <div className={`absolute left-1/2 -translate-x-1/2 bottom-1 w-5 h-2 rounded-full bg-slate-900/70 transition-transform ${talking ? "scale-y-125 animate-pulse" : "scale-y-50"}`} />
+      {pointing && (
+        <div className="absolute -left-12 top-8 flex items-center">
+          <div className="w-10 h-2 rounded-full bg-amber-300 rotate-[-12deg] origin-right shadow" />
+          <div className="text-2xl -ml-1">👉</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReadingRunner({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
+  const { user } = useAuth();
+  const storageKey = `arise-reading-runner-${user?.id || "student"}`;
+  const [level, setLevel] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      return Math.max(1, Math.min(10, Number(saved.level || 1)));
+    } catch { return 1; }
+  });
+  const [unlockedLevel, setUnlockedLevel] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      return Math.max(1, Math.min(10, Number(saved.unlockedLevel || 1)));
+    } catch { return 1; }
+  });
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [coins, setCoins] = useState(() => {
+    try { return Number(JSON.parse(localStorage.getItem(storageKey) || "{}").coins || 0); } catch { return 0; }
+  });
+  const [hearts, setHearts] = useState(3);
+  const [runState, setRunState] = useState<"running" | "jump" | "hit" | "finish">("running");
+  const [feedback, setFeedback] = useState("Ready? Read the sign and pick the right lane!");
+  const [talking, setTalking] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [showMap, setShowMap] = useState(true);
+
+  const currentLevel = RUNNER_LEVELS[level - 1];
+  const current = currentLevel.questions[questionIndex];
+
+  const speakBuddy = (text: string, calm = false) => {
+    if (!buddy.voiceEnabled) return;
+    setTalking(true);
+    void speakCharacterAI(text, {
+      calmMode: calm || !!buddy.calmMode,
+      onStart: () => setTalking(true),
+      onEnd: () => setTalking(false),
+      onFallback: () => setTalking(false),
+    });
+  };
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify({ level, unlockedLevel, coins }));
+  }, [storageKey, level, unlockedLevel, coins]);
+
+  useEffect(() => {
+    if (!showMap) {
+      const intro = `Level ${level}. ${currentLevel.name}. ${current.prompt}`;
+      setFeedback(current.prompt);
+      speakBuddy(intro);
+    }
+  }, [level, showMap]);
+
+  const startLevel = (nextLevel: number) => {
+    if (nextLevel > unlockedLevel) return;
+    setLevel(nextLevel);
+    setQuestionIndex(0);
+    setHearts(3);
+    setRunState("running");
+    setLocked(false);
+    setShowMap(false);
+  };
+
+  const choose = (choice: string) => {
+    if (locked || runState === "finish") return;
+    setLocked(true);
+
+    if (choice === current.answer) {
+      setRunState("jump");
+      setCoins(v => v + 10);
+      setFeedback(`YES! Jump! You got ${current.answer}!`);
+      speakBuddy(`Yes! ${current.answer}! Jump!`);
+
+      setTimeout(() => {
+        const isLast = questionIndex >= currentLevel.questions.length - 1;
+        if (isLast) {
+          const nextUnlock = Math.min(10, Math.max(unlockedLevel, level + 1));
+          setUnlockedLevel(nextUnlock);
+          setRunState("finish");
+          setFeedback(level === 10 ? "CHAMPION! You finished every Reading Runner world!" : `LEVEL ${level} COMPLETE! You unlocked the next world!`);
+          speakBuddy(level === 10 ? "Reading Champion! You did it!" : "Level complete! You unlocked the next world!");
+          setLocked(false);
+        } else {
+          setQuestionIndex(i => i + 1);
+          setRunState("running");
+          setFeedback(currentLevel.questions[questionIndex + 1].prompt);
+          setLocked(false);
+          speakBuddy(currentLevel.questions[questionIndex + 1].prompt);
+        }
+      }, 900);
+    } else {
+      setRunState("hit");
+      setHearts(h => Math.max(0, h - 1));
+      setFeedback("BUMP! Try another lane. Your runner is okay!");
+      speakBuddy("Oops! Bump! Try another lane.", true);
+      setTimeout(() => {
+        setRunState("running");
+        setLocked(false);
+      }, 700);
+    }
+  };
+
+  if (showMap) {
+    return (
+      <GameShell title="Reading Runner" subtitle="Run through 10 reading worlds. Answer correctly to jump obstacles and earn coins." onBack={onBack}>
+        <style>{`
+          @keyframes buddyFloat { from { transform: translateY(0) } 50% { transform: translateY(-8px) } to { transform: translateY(0) } }
+          @keyframes buddyBob { from { transform: translateY(0) rotate(-2deg) } to { transform: translateY(-5px) rotate(2deg) } }
+        `}</style>
+        <div className="rounded-[2rem] overflow-hidden border-2 border-sky-200 bg-gradient-to-br from-sky-100 via-violet-100 to-amber-100 p-5 sm:p-7 mb-6">
+          <div className="flex items-center gap-4">
+            <RunnerBuddy buddy={buddy} talking={false} pointing={false} />
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-violet-600">Adventure Map</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Reading Runner</h2>
+              <p className="font-bold text-slate-600 mt-1">⭐ {coins} coins · Level {unlockedLevel} unlocked</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {RUNNER_LEVELS.map((item, i) => {
+            const n = i + 1;
+            const unlocked = n <= unlockedLevel;
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => startLevel(n)}
+                disabled={!unlocked}
+                className={`relative min-h-[150px] rounded-3xl border-2 p-4 text-center transition-all ${unlocked ? "bg-white border-violet-200 hover:-translate-y-1 hover:shadow-lg" : "bg-slate-100 border-slate-200 opacity-60"}`}
+              >
+                <div className="text-5xl mb-2">{item.world}</div>
+                <div className="text-xs font-black uppercase tracking-widest text-violet-600">Level {n}</div>
+                <div className="font-black text-slate-900 mt-1">{item.name}</div>
+                {!unlocked && <LockKeyhole className="w-5 h-5 absolute top-3 right-3 text-slate-400" />}
+                {unlocked && n < unlockedLevel && <CheckCircle2 className="w-5 h-5 absolute top-3 right-3 text-green-500" />}
+              </button>
+            );
+          })}
+        </div>
+      </GameShell>
+    );
+  }
+
+  return (
+    <GameShell title={`Reading Runner · Level ${level}`} subtitle={currentLevel.name} onBack={() => setShowMap(true)}>
+      <style>{`
+        @keyframes roadMove { from { background-position-y: 0 } to { background-position-y: 120px } }
+        @keyframes skylineMove { from { transform: translateX(0) } to { transform: translateX(-80px) } }
+        @keyframes runnerBounce { from { transform: translateY(0) scaleY(1) } to { transform: translateY(-5px) scaleY(.97) } }
+        @keyframes runnerJump { 0% { transform: translateY(0) rotate(0deg) } 45% { transform: translateY(-95px) rotate(-8deg) } 100% { transform: translateY(0) rotate(0deg) } }
+        @keyframes runnerHit { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-10px) rotate(-7deg) } 75% { transform: translateX(10px) rotate(7deg) } }
+        @keyframes obstacleRush { from { transform: translateY(-10px) scale(.45); opacity:.45 } to { transform: translateY(180px) scale(1.15); opacity:1 } }
+        @keyframes coinSpin { from { transform: rotateY(0deg) } to { transform: rotateY(360deg) } }
+        @keyframes buddyFloat { from { transform: translateY(0) } 50% { transform: translateY(-8px) } to { transform: translateY(0) } }
+        @keyframes buddyBob { from { transform: translateY(0) rotate(-2deg) } to { transform: translateY(-5px) rotate(2deg) } }
+      `}</style>
+
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex-1 h-4 rounded-full bg-slate-200 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500" style={{ width: `${((questionIndex + (runState === "finish" ? 1 : 0)) / currentLevel.questions.length) * 100}%` }} />
+        </div>
+        <div className="font-black text-slate-700 whitespace-nowrap">{questionIndex + 1}/{currentLevel.questions.length}</div>
+      </div>
+
+      <div className="relative rounded-[2rem] overflow-hidden border-4 border-sky-200 shadow-xl bg-gradient-to-b from-sky-300 via-sky-100 to-slate-200 min-h-[520px]">
+        <div className="absolute inset-x-0 top-0 h-36 overflow-hidden">
+          <div className="absolute inset-0 flex items-end gap-4 opacity-75 animate-[skylineMove_4s_linear_infinite]">
+            {Array.from({length: 14}).map((_, i) => (
+              <div key={i} className="w-14 rounded-t-lg bg-slate-500/60" style={{height: `${50 + (i % 4) * 20}px`}} />
+            ))}
+          </div>
+        </div>
+
+        <div className="absolute top-4 left-4 z-20 flex gap-2">
+          <div className="rounded-2xl bg-white/90 px-3 py-2 font-black shadow">🪙 {coins}</div>
+          <div className="rounded-2xl bg-white/90 px-3 py-2 font-black shadow">{Array.from({length: 3}).map((_, i) => <span key={i} className={i < hearts ? "" : "opacity-20"}>❤️</span>)}</div>
+        </div>
+
+        <div className="absolute top-4 right-5 z-20">
+          <RunnerBuddy buddy={buddy} talking={talking} pointing={runState === "running"} />
+        </div>
+
+        <div className="absolute left-1/2 -translate-x-1/2 top-24 w-[74%] h-[420px] bg-slate-700 [clip-path:polygon(32%_0,68%_0,100%_100%,0_100%)] overflow-hidden">
+          <div className="absolute inset-0 opacity-60" style={{
+            backgroundImage: "linear-gradient(to bottom, transparent 0 40px, rgba(255,255,255,.85) 40px 70px, transparent 70px 120px)",
+            backgroundSize: "100% 120px",
+            animation: `roadMove ${Math.max(.45, 1 / currentLevel.speed)}s linear infinite`
+          }} />
+
+          <div className="absolute left-1/3 top-0 bottom-0 border-l-4 border-dashed border-white/60" />
+          <div className="absolute left-2/3 top-0 bottom-0 border-l-4 border-dashed border-white/60" />
+
+          {runState !== "finish" && (
+            <div className="absolute left-1/2 -translate-x-1/2 top-16 animate-[obstacleRush_1.25s_linear_infinite]">
+              <div className="w-24 h-12 bg-orange-500 border-4 border-white rounded-lg shadow-xl flex items-center justify-center text-2xl">🚧</div>
+            </div>
+          )}
+
+          <div className={`absolute left-1/2 -translate-x-1/2 bottom-16 transition-all ${runState === "jump" ? "animate-[runnerJump_.8s_ease-out]" : runState === "hit" ? "animate-[runnerHit_.5s_ease-in-out]" : "animate-[runnerBounce_.28s_ease-in-out_infinite_alternate]"}`}>
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-violet-500 border-4 border-white shadow-xl flex items-center justify-center text-4xl">🏃</div>
+              <div className="absolute -right-4 top-0 text-2xl animate-[coinSpin_1s_linear_infinite]">{runState === "jump" ? "⚡" : ""}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute inset-x-3 bottom-3 z-30">
+          <div className="rounded-3xl bg-white/95 backdrop-blur p-4 shadow-2xl border-2 border-white">
+            <div className="text-center mb-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">{current.skill}</div>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{runState === "finish" ? feedback : current.prompt}</div>
+            </div>
+
+            {runState === "finish" ? (
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button onClick={() => setShowMap(true)} className="min-h-[64px] rounded-2xl bg-violet-600 text-white font-black text-lg">Back to Map</button>
+                {level < 10 && (
+                  <button onClick={() => startLevel(Math.min(10, level + 1))} className="min-h-[64px] rounded-2xl bg-green-500 text-white font-black text-lg">Next Level →</button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {current.choices.map((choice, i) => (
+                  <DwellButton
+                    key={choice}
+                    onSelect={() => choose(choice)}
+                    disabled={locked}
+                    ariaLabel={`Lane ${i + 1}: ${choice}`}
+                    className={`min-h-[92px] sm:min-h-[105px] p-2 sm:p-3 text-base sm:text-xl bg-gradient-to-b ${i === 0 ? "from-rose-50 to-rose-100 border-rose-300" : i === 1 ? "from-sky-50 to-sky-100 border-sky-300" : "from-amber-50 to-amber-100 border-amber-300"} text-slate-900`}
+                  >
+                    <div className="text-[10px] uppercase tracking-widest opacity-60 mb-1">Lane {i + 1}</div>
+                    <div className="font-black break-words">{choice}</div>
+                  </DwellButton>
+                ))}
+              </div>
+            )}
+
+            <div className={`mt-3 text-center font-black text-sm ${runState === "hit" ? "text-amber-600" : runState === "jump" ? "text-green-600" : "text-slate-600"}`}>
+              {feedback}
+            </div>
+          </div>
+        </div>
+      </div>
+    </GameShell>
   );
 }
 
@@ -532,6 +920,7 @@ export default function EyeGazeGames() {
     reader.readAsDataURL(file);
   };
 
+  if (game === "runner") return <ReadingRunner onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "match") return <MatchPairs onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "pop") return <WordPop onBack={() => setGame(null)} buddy={buddy} />;
   if (game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
@@ -576,6 +965,27 @@ export default function EyeGazeGames() {
             <p className="text-sm text-muted-foreground">Every game can be played by tapping or by holding the pointer over a large choice for about one second.</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setGame("runner")}
+          className="relative overflow-hidden w-full rounded-[2rem] border-2 border-violet-300 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-sky-500 p-6 sm:p-8 text-left text-white shadow-xl hover:-translate-y-1 transition-all mb-5 min-h-[240px]"
+        >
+          <div className="absolute -right-8 -bottom-10 text-[150px] opacity-20 rotate-[-8deg]">🏃</div>
+          <div className="absolute right-8 top-5 flex gap-3 text-4xl">
+            <span className="animate-bounce">🪙</span><span>🚧</span><span>⚡</span>
+          </div>
+          <div className="relative max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
+              <Zap className="w-4 h-4" /> NEW · 10 LEVELS
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black">Reading Runner</h2>
+            <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Run through cities, tunnels, beaches, space and more. Pick the right lane to jump obstacles, grab coins and unlock the next world.</p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-violet-700 px-5 py-3 font-black">
+              <Flag className="w-5 h-5" /> Start Adventure
+            </div>
+          </div>
+        </button>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
