@@ -175,10 +175,10 @@ function AppRoutes() {
         <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>
       </Route>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" /> : user.is_eye_gaze_user ? <StudentSetupGate><Redirect to="/eye-gaze-home" /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" /> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Register />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" /> : user.is_eye_gaze_user ? <StudentSetupGate><Redirect to="/eye-gaze-home" /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />
@@ -237,7 +237,9 @@ function AppRoutes() {
         <ProtectedRoute><ReadBook /></ProtectedRoute>
       </Route>
       <Route path="/profile">
-        <ProtectedRoute><Profile /></ProtectedRoute>
+        <ProtectedRoute>
+          {user?.is_eye_gaze_user ? <EyeGazeHome /> : <Profile />}
+        </ProtectedRoute>
       </Route>
       <Route path="/admin">
         <ProtectedRoute><Admin /></ProtectedRoute>
