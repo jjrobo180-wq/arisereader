@@ -5216,7 +5216,7 @@ export async function registerRoutes(
     const { error } = await adminDb.storage.createBucket(MY_WORLD_BUCKET, {
       public: false,
       allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'],
-      fileSizeLimit: '12MB',
+      fileSizeLimit: '20MB',
     });
     if (error && !/already exists|duplicate/i.test(error.message || '')) throw error;
   }
@@ -5452,7 +5452,7 @@ Important:
       const format = allowed[contentType];
       const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
       if (!format || !body.length) return res.status(400).json({ message: 'Choose a JPG, PNG, WEBP, MP4, WEBM, or MOV file.' });
-      if (body.length > 12 * 1024 * 1024) return res.status(413).json({ message: 'Keep My World photos/videos under 12 MB.' });
+      if (body.length > 20 * 1024 * 1024) return res.status(413).json({ message: 'Keep My World photos/videos under 20 MB.' });
 
       await ensureMyWorldBucket();
       const requested = String(req.headers['x-my-world-label'] || 'media').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || 'media';
