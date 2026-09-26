@@ -53,6 +53,7 @@ import EyeGazeAccount from "./pages/EyeGazeAccount";
 import ARISECity from "./pages/ARISECity";
 import ReadingLevelUp from "./pages/ReadingLevelUp";
 import EyeGazeBuddyWorld from "./pages/EyeGazeBuddyWorld";
+import EyeGazeMyWorld from "./pages/EyeGazeMyWorld";
 import EyeGazeBuddy from "./pages/EyeGazeBuddy";
 import EyeGazeTalker from "./pages/EyeGazeTalker";
 import EyeGazeParentMode from "./pages/EyeGazeParentMode";
@@ -164,7 +165,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   if (!user) return <Redirect to="/" />;
   // A linked parent can also open their child's talker and family tools.
-  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-talker'].includes(location)) {
+  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-talker', '/my-world'].includes(location)) {
     return <Redirect to="/parent-dashboard" />;
   }
   return <>{children}</>;
@@ -278,7 +279,10 @@ function AppRoutes() {
         <ProtectedRoute><ReadingLevelUp /></ProtectedRoute>
       </Route>
       <Route path="/buddy-world">
-        <ProtectedRoute><EyeGazeBuddyWorld /></ProtectedRoute>
+        <Redirect to="/my-world" />
+      </Route>
+      <Route path="/my-world">
+        {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeMyWorld /></ProtectedRoute> : <Redirect to="/" />}
       </Route>
       <Route path="/eye-gaze-talker">
         {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeTalker /></ProtectedRoute> : <Redirect to="/" />}
