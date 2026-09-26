@@ -1515,27 +1515,24 @@ export default function Library() {
                 Create Quiz
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-4 rounded-xl bg-muted/30 p-1">
+            <div className="grid grid-cols-2 gap-3 mb-5">
               <button
                 onClick={() => setEyeGazeView("quizzes")}
-                className={`rounded-lg px-4 py-3 text-sm font-bold transition-colors ${eyeGazeView === "quizzes" ? "bg-card text-primary shadow" : "text-muted-foreground"}`}
+                className="rounded-2xl border-2 border-primary bg-primary/10 px-4 py-5 text-left hover:bg-primary/15 transition-colors"
               >
-                Eye Gaze Quizzes
+                <div className="text-xs font-black uppercase tracking-wide text-primary mb-1">Eye Gaze</div>
+                <div className="text-xl font-black">QUIZZES</div>
+                <div className="text-xs text-muted-foreground mt-1">Accessible quiz mode</div>
               </button>
               <button
-                onClick={() => setEyeGazeView("games")}
-                className={`rounded-lg px-4 py-3 text-sm font-bold transition-colors ${eyeGazeView === "games" ? "bg-card text-primary shadow" : "text-muted-foreground"}`}
+                onClick={() => navigate("/eye-gaze-games")}
+                className="rounded-2xl border-2 border-amber-500/40 bg-amber-500/10 px-4 py-5 text-left hover:bg-amber-500/15 transition-colors"
               >
-                Reading Games
+                <div className="text-xs font-black uppercase tracking-wide text-amber-400 mb-1">Eye Gaze</div>
+                <div className="text-xl font-black">GAMES</div>
+                <div className="text-xs text-muted-foreground mt-1">Picture Hunt · Story Quest · Boss Battle</div>
               </button>
             </div>
-
-            {eyeGazeView === "games" && (
-              <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <p className="font-semibold text-sm">Choose a quiz below, then pick a game style:</p>
-                <p className="text-xs text-muted-foreground mt-1">Picture Hunt, Story Quest, or Boss Battle use the same reading questions but make them more playful.</p>
-              </div>
-            )}
 
             {/* Eye Gaze sort bar (search is only for point books) */}
             <div className="flex items-center justify-end gap-2 mb-4">
