@@ -607,28 +607,16 @@ export default function Profile() {
             <span className="hidden sm:inline">Library</span>
           </Button>
           <div className="flex-1 flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "profile" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline">Profile</span>
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab("leaderboard")}
-              className={`px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "leaderboard" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
+            <span className="px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium bg-primary text-white flex items-center gap-1.5">
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Account</span>
+            </span>
+            {user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && (
+              <Button variant="ghost" size="sm" onClick={() => navigate("/leaderboard")}>
                 <Trophy className="w-4 h-4" />
-                <span className="hidden sm:inline">Leaderboard</span>
-              </span>
-            </button>
+                <span className="hidden sm:inline ml-1">My Progress</span>
+              </Button>
+            )}
           </div>
           <NotificationBell refreshKey={notifRefreshKey} />
           <div className="hidden sm:flex"><ReportProblemButton variant="ghost" size="sm" /></div>
@@ -640,7 +628,6 @@ export default function Profile() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {activeTab === "profile" && (
         <>
         {user?.role === 'student' && (
           <Card className="shadow-md border-primary/30">
@@ -696,47 +683,6 @@ export default function Profile() {
             </CardContent>
           </Card>
         </div>
-
-        {user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && user.role !== 'admin' && (
-          <Card className="shadow-md border-amber-500/30 bg-amber-500/5">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-amber-400" />
-                  My Badges
-                </span>
-                <span className="text-xs font-medium text-muted-foreground">{badgeCounts.unlocked}/{badgeCounts.total} unlocked</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {badges.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Complete activities to start unlocking badges.</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {badges.map((badge) => (
-                    <div
-                      key={badge.id}
-                      className={`rounded-xl border p-3 text-center transition-all ${
-                        badge.unlocked
-                          ? "border-amber-500/30 bg-amber-500/10 shadow-sm"
-                          : "border-border bg-muted/20 opacity-45 grayscale"
-                      }`}
-                    >
-                      <div className="text-3xl mb-2">{badge.unlocked ? badge.emoji : "🔒"}</div>
-                      <p className="font-bold text-sm">{badge.name}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{badge.description}</p>
-                      {badge.unlocked && (
-                        <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 text-[10px] font-bold">
-                          UNLOCKED
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* My Teacher */}
         {teacher && (
@@ -1141,7 +1087,6 @@ export default function Profile() {
         </Card>
         )}
         </>
-        )}
 
         {activeTab === "leaderboard" && (
         <>
