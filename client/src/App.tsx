@@ -52,6 +52,7 @@ import EyeGazeProgress from "./pages/EyeGazeProgress";
 import EyeGazeAccount from "./pages/EyeGazeAccount";
 import ARISECity from "./pages/ARISECity";
 import ReadingLevelUp from "./pages/ReadingLevelUp";
+import EyeGazeBuddyWorld from "./pages/EyeGazeBuddyWorld";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
@@ -269,6 +270,9 @@ function AppRoutes() {
       </Route>
       <Route path="/reading-level-up">
         <ProtectedRoute><ReadingLevelUp /></ProtectedRoute>
+      </Route>
+      <Route path="/buddy-world">
+        <ProtectedRoute><EyeGazeBuddyWorld /></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-quiz/:id">
         <ProtectedRoute><EyeGazeQuiz /></ProtectedRoute>
