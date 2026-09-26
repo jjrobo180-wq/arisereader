@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
+import { speakCharacterAI } from "@/lib/tts";
 import {
   ArrowLeft,
   Award,
@@ -293,11 +294,9 @@ function titleForLevel(level: number) {
 }
 
 function speakText(text: string) {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = .92;
-  window.speechSynthesis.speak(u);
+  void speakCharacterAI(text, {
+    onFallback: () => {},
+  });
 }
 
 function MissionShell({
