@@ -180,6 +180,7 @@ export default function Library() {
   const [regularCustomQuizzes, setRegularCustomQuizzes] = useState<any[]>([]);
   const [showEyeGaze, setShowEyeGaze] = useState(false);
   const [eyeGazeSortBy, setEyeGazeSortBy] = useState<"new" | "title" | "level">("new");
+  const [eyeGazeView, setEyeGazeView] = useState<"quizzes" | "games">("quizzes");
   const [eyeGazeSearch, setEyeGazeSearch] = useState("");
 
   // Reset eye gaze state when user changes (handles login/logout switching)
@@ -1514,6 +1515,28 @@ export default function Library() {
                 Create Quiz
               </button>
             </div>
+            <div className="grid grid-cols-2 gap-2 mb-4 rounded-xl bg-muted/30 p-1">
+              <button
+                onClick={() => setEyeGazeView("quizzes")}
+                className={`rounded-lg px-4 py-3 text-sm font-bold transition-colors ${eyeGazeView === "quizzes" ? "bg-card text-primary shadow" : "text-muted-foreground"}`}
+              >
+                Eye Gaze Quizzes
+              </button>
+              <button
+                onClick={() => setEyeGazeView("games")}
+                className={`rounded-lg px-4 py-3 text-sm font-bold transition-colors ${eyeGazeView === "games" ? "bg-card text-primary shadow" : "text-muted-foreground"}`}
+              >
+                Reading Games
+              </button>
+            </div>
+
+            {eyeGazeView === "games" && (
+              <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="font-semibold text-sm">Choose a quiz below, then pick a game style:</p>
+                <p className="text-xs text-muted-foreground mt-1">Picture Hunt, Story Quest, or Boss Battle use the same reading questions but make them more playful.</p>
+              </div>
+            )}
+
             {/* Eye Gaze sort bar (search is only for point books) */}
             <div className="flex items-center justify-end gap-2 mb-4">
               <select
@@ -1553,14 +1576,14 @@ export default function Library() {
                   {sorted.map((quiz) => quiz._builtin ? (
                 <button
                   key={quiz.id}
-                  onClick={() => navigate(`/eye-gaze-quiz/${quiz.id}`)}
+                  onClick={() => eyeGazeView === "quizzes" && navigate(`/eye-gaze-quiz/${quiz.id}?mode=quiz`)}
                   disabled={quiz.hasCompleted}
                   className={`group relative rounded-2xl overflow-hidden border-2 transition-all ${
                     quiz.hasCompleted
                       ? "border-green-500/30 bg-card/50 opacity-60 cursor-not-allowed"
                       : "border-border bg-card hover:border-primary/50 hover:shadow-lg"
                   }`}
-                  style={{ minHeight: "140px" }}
+                  style={{ minHeight: eyeGazeView === "games" ? "210px" : "140px" }}
                 >
                   <div className="flex items-center gap-4 p-5">
                     <div style={{ fontSize: "3rem", lineHeight: 1 }}>
@@ -1574,6 +1597,13 @@ export default function Library() {
                       </span>
                     </div>
                   </div>
+                  {eyeGazeView === "games" && !quiz.hasCompleted && (
+                    <div className="px-4 pb-4 grid grid-cols-3 gap-2">
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/eye-gaze-quiz/${quiz.id}?mode=picture`); }} className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-2 py-2 text-xs font-bold hover:bg-purple-500/20">Picture Hunt</button>
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/eye-gaze-quiz/${quiz.id}?mode=story`); }} className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2 py-2 text-xs font-bold hover:bg-blue-500/20">Story Quest</button>
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/eye-gaze-quiz/${quiz.id}?mode=boss`); }} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-2 text-xs font-bold hover:bg-red-500/20">Boss Battle</button>
+                    </div>
+                  )}
                   {quiz.hasCompleted && (
                     <div className="absolute top-2 right-2">
                       <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -1587,7 +1617,7 @@ export default function Library() {
               ) : (
                 <button
                   key={quiz._key}
-                  onClick={() => navigate(`/custom-quiz/${quiz.id}`)}
+                  onClick={() => eyeGazeView === "quizzes" && navigate(`/custom-quiz/${quiz.id}?mode=quiz`)}
                   disabled={quiz.hasCompleted}
                   className={`group relative rounded-2xl overflow-hidden border-2 transition-all ${
                     quiz.hasCompleted
@@ -1610,6 +1640,13 @@ export default function Library() {
                       </span>
                     </div>
                   </div>
+                  {eyeGazeView === "games" && !quiz.hasCompleted && (
+                    <div className="px-4 pb-4 grid grid-cols-3 gap-2">
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/custom-quiz/${quiz.id}?mode=picture`); }} className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-2 py-2 text-xs font-bold hover:bg-purple-500/20">Picture Hunt</button>
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/custom-quiz/${quiz.id}?mode=story`); }} className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2 py-2 text-xs font-bold hover:bg-blue-500/20">Story Quest</button>
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/custom-quiz/${quiz.id}?mode=boss`); }} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-2 text-xs font-bold hover:bg-red-500/20">Boss Battle</button>
+                    </div>
+                  )}
                   {quiz.hasCompleted && (
                     <div className="absolute top-2 right-2">
                       <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -1620,7 +1657,7 @@ export default function Library() {
                     </div>
                   )}
                   {/* Edit/Delete/Regenerate buttons if user is creator */}
-                  {user && quiz.creator_user_id === user.id && (
+                  {eyeGazeView === "quizzes" && user && quiz.creator_user_id === user.id && (
                     <div className="absolute bottom-2 right-2 flex gap-1 z-10">
                       <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/quiz-builder/${quiz.id}`); }}
