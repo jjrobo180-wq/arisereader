@@ -1218,33 +1218,15 @@ export default function Library() {
                 <Bookmark className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
                 <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Books</span>
               </button>
-              {studentRewards.length > 0 && (
-                <button onClick={() => setShowRewardsPage(true)} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
-                  <Gift className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
-                  <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Rewards</span>
+              {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
+                <button onClick={() => navigate("/leaderboard")} className="flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-primary/10 rounded-r-lg border-l border-primary/20">
+                  <Trophy className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
+                  <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Progress</span>
                   {studentRewards.some(r => r.claimStatus === "approved") && (
                     <span className="ml-0.5 w-2 h-2 rounded-full bg-green-500" />
                   )}
                 </button>
               )}
-              {studentRewards.length === 0 && !user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
-                <button onClick={() => setShowRewardsPage(true)} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
-                  <Gift className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
-                  <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Rewards</span>
-                </button>
-              )}
-              <button onClick={() => navigate("/competition")} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
-                <Trophy className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
-                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>Competition</span>
-              </button>
-              <button onClick={() => navigate("/reading-club")} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
-                <GraduationCap className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
-                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>Reading Club</span>
-              </button>
-              <button onClick={() => navigate("/tts-audiobooks")} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-lg border-l border-primary/20">
-                <Headphones className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
-                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>TTS Audio Books</span>
-              </button>
             </div>
             {/* More dropdown - works on both desktop and mobile */}
             <div className="relative" ref={(el) => { mobileMenuRef.current = el; }}>
@@ -1262,21 +1244,14 @@ export default function Library() {
                   <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2 sm:hidden" style={{ color: "#f59e0b" }}>
                     <Bookmark className="w-4 h-4" /> My Books
                   </button>
-                  {studentRewards.length > 0 ? (
-                    <button onClick={() => { setShowRewardsPage(true); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
-                      <Gift className="w-4 h-4" /> My Rewards
+                  {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
+                    <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                      <Trophy className="w-4 h-4" /> My Progress
                       {studentRewards.some(r => r.claimStatus === "approved") && <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />}
                     </button>
-                  ) : !user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' ? (
-                    <button onClick={() => { setShowRewardsPage(true); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
-                      <Gift className="w-4 h-4" /> My Rewards
-                    </button>
-                  ) : null}
+                  )}
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
                     <Brain className="w-4 h-4" /> Growth Check
-                  </button>
-                  <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <Trophy className="w-4 h-4" /> Leaderboard
                   </button>
                   <button onClick={() => { navigate("/competition"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
                     <Gift className="w-4 h-4" /> Competition
@@ -1291,7 +1266,7 @@ export default function Library() {
                     <BarChart3 className="w-4 h-4" /> Polls
                   </button>
                   <button onClick={() => { navigate("/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <User className="w-4 h-4" /> {user?.displayName || "Profile"}
+                    <User className="w-4 h-4" /> Account
                   </button>
                   {user?.isAdmin && (
                     <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
@@ -1396,7 +1371,7 @@ export default function Library() {
                   {reward.progress && (
                     <p className="text-xs text-primary font-medium mt-2">
                       Progress: {reward.progress} quizzes completed
-                      {reward.completed && !status ? " — You earned it! Tap View My Rewards to claim." : ""}
+                      {reward.completed && !status ? " — You earned it! Tap View My Progress to claim." : ""}
                     </p>
                   )}
                   {reward.expiresAt && (
@@ -1406,10 +1381,10 @@ export default function Library() {
                     size="sm"
                     variant="outline"
                     className="mt-2 text-xs"
-                    onClick={() => setShowRewardsPage(true)}
+                    onClick={() => navigate("/leaderboard")}
                   >
                     <Gift className="w-3.5 h-3.5 mr-1" />
-                    {status === "approved" ? "Show Approved Reward" : status === "requested" ? "View Status" : "View My Rewards"}
+                    {status === "approved" ? "View My Progress" : status === "requested" ? "View My Progress" : "View My Progress"}
                   </Button>
                 </div>
               </div>
