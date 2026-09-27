@@ -54,6 +54,10 @@ export default function EyeGazeTV() {
 
   const limited = !!settings?.tvDailyMinutes && usageMinutes >= settings.tvDailyMinutes;
   const current = shorts[index];
+  const feedStateRef = useRef({ current, shorts, index });
+  feedStateRef.current = { current, shorts, index };
+  const apiReadyRef = useRef(false);
+  const loadedEntryRef = useRef<string | undefined>();
 
   const addUnique = (incoming: ShortItem[]) => {
     const clean = incoming.filter(item => item?.id && !failedIdsRef.current.has(item.id));
@@ -164,8 +168,11 @@ export default function EyeGazeTV() {
       const target = document.createElement("div");
       host.replaceChildren(target);
       try {
+        const initial = feedStateRef.current.current;
+        if (!initial) return;
+        loadedEntryRef.current = initial.feedKey;
         player = new window.YT.Player(target, {
-          videoId: current.id,
+          videoId: initial.id,
           width: "100%",
           height: "100%",
           playerVars: {
@@ -179,13 +186,13 @@ export default function EyeGazeTV() {
             modestbranding: 1,
             fs: 0,
             disablekb: 1,
-            loop: 1,
-            playlist: current.id,
+
           },
           events: {
             onReady: (event: any) => {
               if (cancelled) return;
               window.clearTimeout(timeout);
+              apiReadyRef.current = true;
               setPlayerError("");
               setPlayerReady(true);
               try {
@@ -213,11 +220,18 @@ export default function EyeGazeTV() {
             },
             onStateChange: (event: any) => {
               if (cancelled) return;
+              if (event.data === 0) {
+                try { event.target.seekTo?.(0, true); event.target.playVideo?.(); } catch {}
+              }
               setPlaying(event.data === 1);
               if (event.data === 1 || event.data === 2 || event.data === 3) setPlayerReady(true);
             },
             onError: (event: any) => {
               if (cancelled) return;
+              const { current, shorts, index } = feedStateRef.current;
+              if (!current) return;
+              const reportedId = event.target?.getVideoData?.()?.video_id;
+              if (reportedId && reportedId !== current.id) return;
               window.clearTimeout(timeout);
               setPlayerReady(false);
               setPlaying(false);
@@ -267,6 +281,8 @@ export default function EyeGazeTV() {
 
     return () => {
       cancelled = true;
+      apiReadyRef.current = false;
+      loadedEntryRef.current = undefined;
       window.clearTimeout(timeout);
       window.clearInterval(apiPoll);
       try { player?.destroy?.(); } catch {}
@@ -275,7 +291,23 @@ export default function EyeGazeTV() {
       setPlaying(false);
       setPlayerReady(false);
     };
-  }, [current?.feedKey, limited, playerAttempt]);
+  }, [!!current, limited, playerAttempt]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!current || limited || !apiReadyRef.current || !player || loadedEntryRef.current === current.feedKey) return;
+    loadedEntryRef.current = current.feedKey;
+    setPlayerError("");
+    setPlayerReady(false);
+    setPlaying(false);
+    try {
+      // Reuse the same iframe and its sound permission across every swipe.
+      // loadVideoById starts playback without resetting the player's mute state.
+      player.loadVideoById({ videoId: current.id });
+    } catch {
+      setPlayerError("YouTube could not load this Short. Try again or swipe up.");
+    }
+  }, [current?.feedKey, limited, playerReady]);
 
   const toggleSound = () => {
     const nextMuted = !mutedRef.current;
@@ -367,13 +399,12 @@ export default function EyeGazeTV() {
       </button>
     </header>
 
-    <div ref={feedRef} onScroll={onScroll} className="h-full overflow-y-auto snap-y snap-mandatory overscroll-y-contain scroll-smooth">
+    <div ref={playerHostRef} data-testid="shorts-player-host" className="absolute inset-0 w-full h-full pointer-events-none" />
+    <div ref={feedRef} onScroll={onScroll} className="relative z-10 h-full overflow-y-auto snap-y snap-mandatory overscroll-y-contain scroll-smooth">
       {shorts.map((item, i) => {
         const active = i === index;
-        return <article key={item.feedKey || `${item.id}-${i}`} className="relative h-[100dvh] snap-start snap-always bg-black overflow-hidden">
-          {active
-            ? <div ref={playerHostRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-            : Math.abs(i - index) <= 2 ? <img loading="lazy" src={`https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" /> : null}
+        return <article key={item.feedKey || `${item.id}-${i}`} className={`relative h-[100dvh] snap-start snap-always overflow-hidden ${active ? "bg-transparent" : "bg-black"}`}>
+          {!active && Math.abs(i - index) <= 2 ? <img loading="lazy" src={`https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" /> : null}
           {active && !playerReady && !playerError && <div className="absolute inset-0 z-10 bg-black grid place-items-center pointer-events-none">
             <div className="text-center">
               <div className="w-12 h-12 mx-auto rounded-full border-4 border-cyan-300 border-t-transparent animate-spin" />
