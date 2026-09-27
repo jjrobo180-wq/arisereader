@@ -17,6 +17,7 @@ export const CONTROLLED_FEATURES = [
   { path: "/my-world", label: "My World", emoji: "🏠" },
   { path: "/library", label: "Lessons & books (inside Games)", emoji: "📚" },
   { path: "/eye-gaze-games", label: "Games (inside Games menu)", emoji: "🎮" },
+  { path: "/eye-gaze-life-skills", label: "Life Skills", emoji: "🌟" },
   { path: "/eye-gaze-tv", label: "A.R.I.S.E. TV", emoji: "📺" },
   { path: "/eye-gaze-flashcards", label: "Flash Cards", emoji: "🃏" },
   { path: "/eye-gaze-buddy", label: "My Buddy", emoji: "🐶" },
