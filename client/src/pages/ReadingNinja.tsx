@@ -212,27 +212,27 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
 
         <div className="flex-1 min-h-0 grid place-items-center py-3">
           {setupStep==="difficulty" ? (
-            <section key="difficulty" className="ninja-setup-in w-full max-w-3xl rounded-[2rem] bg-slate-950/92 border-2 border-pink-300/30 p-5 sm:p-8 shadow-2xl">
-              <p className="text-xs font-black uppercase tracking-[.18em] text-pink-300">Step 1 of 2</p>
+            <section key="difficulty" className="ninja-setup-in w-full max-w-3xl rounded-[2rem] bg-white text-slate-950 border-4 border-fuchsia-400 p-5 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,.45)]">
+              <p className="text-xs font-black uppercase tracking-[.18em] text-fuchsia-700">Step 1 of 2</p>
               <h1 className="text-3xl sm:text-5xl font-black mt-2">How fast should things fly?</h1>
-              <p className="font-bold text-white/65 mt-2">Choose one. Easy gives bigger targets, slower movement, and no lost hearts.</p>
+              <p className="font-bold text-slate-600 mt-2">Choose one. Easy gives bigger targets, slower movement, and no lost hearts.</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
                 {(Object.keys(SPEED) as Difficulty[]).map(level=>(
-                  <button key={level} type="button" onClick={()=>setDifficulty(level)} className={"min-h-24 rounded-2xl border-3 p-4 text-left transition touch-manipulation "+(difficulty===level?"border-pink-300 bg-pink-300/20 ring-4 ring-pink-300/15":"border-white/15 bg-white/5")}>
+                  <button key={level} type="button" onClick={()=>setDifficulty(level)} className={"min-h-24 rounded-2xl border-4 p-4 text-left transition touch-manipulation shadow-md "+(difficulty===level?"border-fuchsia-500 bg-fuchsia-100 text-slate-950 ring-4 ring-fuchsia-300/40":"border-slate-300 bg-slate-100 text-slate-950 hover:border-fuchsia-400 hover:bg-fuchsia-50")}>
                     <div className="text-2xl font-black">{level==="easy"?"🧸":level==="medium"?"🥷":"⚡"} {SPEED[level].label}</div>
-                    <div className="text-sm font-bold text-white/65 mt-1">{SPEED[level].description}</div>
-                    {difficulty===level&&<div className="text-pink-200 font-black mt-2">✓ Selected</div>}
+                    <div className="text-sm font-bold text-slate-600 mt-1">{SPEED[level].description}</div>
+                    {difficulty===level&&<div className="text-fuchsia-800 font-black mt-2">✓ Selected</div>}
                   </button>
                 ))}
               </div>
               <button type="button" onClick={()=>setSetupStep("level")} className="mt-5 w-full min-h-16 rounded-2xl bg-pink-300 text-slate-950 text-xl font-black shadow-xl">Next: choose a level →</button>
             </section>
           ) : (
-            <section key="level" className="ninja-setup-in w-full max-w-4xl h-full max-h-[760px] rounded-[2rem] bg-slate-950/92 border-2 border-pink-300/30 p-4 sm:p-6 shadow-2xl flex flex-col min-h-0">
+            <section key="level" className="ninja-setup-in w-full max-w-4xl h-full max-h-[760px] rounded-[2rem] bg-white text-slate-950 border-4 border-fuchsia-400 p-4 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,.45)] flex flex-col min-h-0">
               <div className="flex items-center gap-3 flex-shrink-0">
-                <button type="button" onClick={()=>setSetupStep("difficulty")} className="min-h-11 rounded-xl bg-white/10 px-3 font-black">← Speed</button>
+                <button type="button" onClick={()=>setSetupStep("difficulty")} className="min-h-11 rounded-xl bg-slate-200 border-2 border-slate-300 text-slate-950 px-3 font-black shadow-sm">← Speed</button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[.18em] text-pink-300">Step 2 of 2</p>
+                  <p className="text-xs font-black uppercase tracking-[.18em] text-fuchsia-700">Step 2 of 2</p>
                   <h1 className="text-2xl sm:text-4xl font-black">Choose a level</h1>
                 </div>
                 <div className="rounded-full bg-pink-300 text-slate-950 px-3 py-2 text-xs font-black">{SPEED[difficulty].label}</div>
@@ -240,16 +240,16 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
 
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
                 {MISSIONS.map((m,i)=>(
-                  <button key={i} type="button" onClick={()=>setMissionIndex(i)} className={"min-h-[92px] rounded-2xl border-2 p-2 text-center touch-manipulation "+(missionIndex===i?"border-pink-300 bg-pink-300/20 ring-4 ring-pink-300/10":"border-white/10 bg-white/5")}>
+                  <button key={i} type="button" onClick={()=>setMissionIndex(i)} className={"min-h-[92px] rounded-2xl border-4 p-2 text-center touch-manipulation shadow-md "+(missionIndex===i?"border-fuchsia-500 bg-fuchsia-100 text-slate-950 ring-4 ring-fuchsia-300/40":"border-slate-300 bg-slate-100 text-slate-950 hover:border-fuchsia-400 hover:bg-fuchsia-50")}>
                     <div className="text-3xl sm:text-4xl">{m.theme.badge}</div>
                     <div className="font-black text-xs mt-1">LEVEL {i+1}</div>
-                    <div className="text-[10px] font-bold text-white/60 truncate">{m.theme.name}</div>
+                    <div className="text-[10px] font-bold text-slate-600 truncate">{m.theme.name}</div>
                   </button>
                 ))}
               </div>
 
               <div className="pt-3 flex-shrink-0">
-                <div className="rounded-xl bg-white/5 px-3 py-2 text-center font-black text-sm truncate">{MISSIONS[missionIndex].target.emoji} {MISSIONS[missionIndex].prompt}</div>
+                <div className="rounded-xl bg-slate-100 border-2 border-slate-200 text-slate-950 px-3 py-2 text-center font-black text-sm truncate shadow-sm">{MISSIONS[missionIndex].target.emoji} {MISSIONS[missionIndex].prompt}</div>
                 <button type="button" onClick={startGame} className="mt-2 w-full min-h-16 rounded-2xl bg-gradient-to-r from-pink-300 via-fuchsia-400 to-violet-400 text-slate-950 text-xl font-black shadow-xl">🥷 Start Level {missionIndex+1}</button>
               </div>
             </section>
