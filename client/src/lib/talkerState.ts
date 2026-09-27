@@ -14,7 +14,14 @@ export type TalkerProgress = {
   words: Record<string, WordProgress>;
   history: Array<{ word: string; outcome: string; at: string; prompt?: number }>;
 };
-export type TalkerConfig = { alwaysHere: TalkerWord[] | null; pictures: Record<string, string> };
+export type TalkerOverride = { label?: string; sentence?: string; picture?: string };
+export type TalkerRecording = { word?: string; sentence?: string };
+export type TalkerConfig = {
+  alwaysHere: TalkerWord[] | null;
+  pictures: Record<string, string>;
+  overrides: Record<string, TalkerOverride>;
+  recordings: Record<string, TalkerRecording>;
+};
 export type TalkerState = { student: { id: number; name: string }; config: TalkerConfig; progress: TalkerProgress };
 
 export const defaultNeeds: TalkerWord[] = [
