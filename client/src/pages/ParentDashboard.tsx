@@ -158,16 +158,21 @@ export default function ParentDashboard() {
         </div>
 
         {data.student.isEyeGazeUser && (
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border-2 border-teal-400/40 bg-teal-900/30 p-5 flex flex-wrap items-center gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="rounded-2xl border-2 border-teal-400/40 bg-teal-900/30 p-5 flex flex-col gap-4">
               <div className="text-5xl" aria-hidden="true">🗣️</div>
-              <div className="flex-1 min-w-[180px]"><h3 className="text-xl font-bold text-white">Talker · Grown-up tools</h3><p className="text-sm text-teal-100">Add familiar Talker pictures, teach daily words, and track vocabulary progress.</p></div>
-              <Button onClick={() => window.location.hash = "#/eye-gaze-parent"}>Open Talker tools</Button>
+              <div className="flex-1"><h3 className="text-xl font-bold text-white">Talker · Grown-up tools</h3><p className="text-sm text-teal-100 mt-1">Add familiar Talker pictures, teach daily words, and track vocabulary progress.</p></div>
+              <Button className="w-full" onClick={() => window.location.hash = "#/eye-gaze-parent"}>Open Talker tools</Button>
             </div>
-            <div className="rounded-2xl border-2 border-violet-400/40 bg-violet-900/30 p-5 flex flex-wrap items-center gap-4">
+            <div className="rounded-2xl border-2 border-violet-400/40 bg-violet-900/30 p-5 flex flex-col gap-4">
               <div className="text-5xl" aria-hidden="true">🏠</div>
-              <div className="flex-1 min-w-[180px]"><h3 className="text-xl font-bold text-white">Build My World</h3><p className="text-sm text-violet-100">Photograph real rooms, objects, and routines so your child can learn through a personal I‑Spy world.</p></div>
-              <Button onClick={() => window.location.hash = "#/my-world"}>Set up My World</Button>
+              <div className="flex-1"><h3 className="text-xl font-bold text-white">Build My World</h3><p className="text-sm text-violet-100 mt-1">Photograph real rooms, objects, and routines so your child can learn through a personal I‑Spy world.</p></div>
+              <Button className="w-full" onClick={() => window.location.hash = "#/my-world"}>Set up My World</Button>
+            </div>
+            <div className="rounded-2xl border-2 border-sky-400/40 bg-sky-900/30 p-5 flex flex-col gap-4">
+              <div className="text-5xl" aria-hidden="true">🔒</div>
+              <div className="flex-1"><h3 className="text-xl font-bold text-white">Profile & A.R.I.S.E. TV</h3><p className="text-sm text-sky-100 mt-1">Choose which areas your child can open, approve their TV videos, and set an optional daily TV limit.</p></div>
+              <Button className="w-full" onClick={() => window.location.hash = "#/eye-gaze-parent-controls"}>Open profile controls</Button>
             </div>
           </div>
         )}
