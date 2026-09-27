@@ -68,8 +68,8 @@ function cheer(label:string){
 }
 function SliceToken({item}:{item:FlyingThing}){
   return <div className={"relative "+(item.sliced?"opacity-15 scale-150":"")}>
-    <div className={"absolute -inset-3 rounded-full blur-xl opacity-50 "+(item.isTarget?"bg-cyan-300":"bg-white")}/>
-    <div className={"relative w-18 h-18 sm:w-24 sm:h-24 rounded-full border-4 shadow-2xl grid place-items-center text-5xl sm:text-6xl overflow-hidden "+(item.isTarget?"bg-gradient-to-br from-white via-cyan-50 to-cyan-200 border-cyan-100":"bg-gradient-to-br from-white via-slate-100 to-slate-300 border-white")}>
+    <div className="absolute -inset-3 rounded-full blur-xl opacity-40 bg-white"/>
+    <div className="relative w-18 h-18 sm:w-24 sm:h-24 rounded-full border-4 shadow-2xl grid place-items-center text-5xl sm:text-6xl overflow-hidden bg-gradient-to-br from-white via-slate-100 to-slate-300 border-white">
       <div className="absolute inset-x-3 top-2 h-3 bg-white/70 rounded-full blur-[1px]"/>
       <span className="relative drop-shadow-lg">{item.emoji}</span>
     </div>
@@ -136,7 +136,7 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
       const source=isTarget?mission.target:mission.distractors[Math.floor(Math.random()*mission.distractors.length)];
       const x=10+Math.random()*80,toward=(50-x)*.0026;
       const item:FlyingThing={...source,id:nextId.current++,x,y:108,vx:toward+(Math.random()-.5)*.15,vy:speed.launch*(.9+Math.random()*.2),isTarget,sliced:false,rotation:Math.random()*30-15};
-      updateThings(c=>[...c,item]);sfx("launch");
+      updateThings(c=>[...c,item]);
     },speed.spawn);
     return()=>window.clearInterval(timer);
   },[started,missionComplete,gameOver,mission,speed.launch,speed.spawn,updateThings,sfx]);
