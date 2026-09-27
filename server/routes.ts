@@ -1753,6 +1753,12 @@ export async function registerRoutes(
         hairColor:"#171717",
         eyeColor:"#3f2a1d",
       },
+      avatar3d: {
+        url: "",
+        avatarId: "",
+        provider: "",
+        updatedAt: "",
+      },
       spent: 0,
     };
   }
@@ -1784,8 +1790,17 @@ export async function registerRoutes(
       hairColor:hairColors.includes(String(source.look?.hairColor))?String(source.look.hairColor):base.look.hairColor,
       eyeColor:eyeColors.includes(String(source.look?.eyeColor))?String(source.look.eyeColor):base.look.eyeColor,
     };
+    const rawAvatar3d=source.avatar3d&&typeof source.avatar3d==="object"?source.avatar3d:{};
+    const rawUrl=String(rawAvatar3d.url||"").trim();
+    const avatarUrl=(rawUrl.startsWith("https://")||rawUrl.startsWith("data:model/"))&&rawUrl.length<=6000000?rawUrl:"";
+    const avatar3d={
+      url:avatarUrl,
+      avatarId:String(rawAvatar3d.avatarId||"").slice(0,160),
+      provider:String(rawAvatar3d.provider||"").slice(0,40),
+      updatedAt:String(rawAvatar3d.updatedAt||"").slice(0,80),
+    };
     const spent=Math.max(0,Number(source.spent)||0);
-    return {purchased,equipped,furniture,look,spent};
+    return {purchased,equipped,furniture,look,avatar3d,spent};
   }
 
   async function getAvatarWorldPayload(userId:number) {
@@ -1864,6 +1879,17 @@ export async function registerRoutes(
       }else if(action==="furniture"){
         const ids=Array.isArray(req.body?.itemIds)?req.body.itemIds.map(String):[];
         nextRaw.furniture=ids.filter((id:string)=>payload.state.purchased.includes(id)&&AVATAR_WORLD_CATALOG.find(entry=>entry.id===id)?.type==="furniture").slice(0,12);
+      }else if(action==="avatar3d"){
+        const url=String(req.body?.avatar?.url||"").trim();
+        if(!((url.startsWith("https://")||url.startsWith("data:model/"))&&url.length<=6000000)){
+          return res.status(400).json({message:"The 3D avatar export was not valid."});
+        }
+        nextRaw.avatar3d={
+          url,
+          avatarId:String(req.body?.avatar?.avatarId||"").slice(0,160),
+          provider:"avaturn",
+          updatedAt:new Date().toISOString(),
+        };
       }else{
         return res.status(400).json({message:"Unknown customization action."});
       }
