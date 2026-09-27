@@ -78,9 +78,9 @@ const MISSIONS: Mission[] = [
 ];
 
 const SPEED = {
-  easy: { fall: 0.64, spawn: 1080, label: "Easy", description: "Slow · lots of response time" },
-  medium: { fall: 0.98, spawn: 760, label: "Medium", description: "Steady runner speed" },
-  hard: { fall: 1.48, spawn: 500, label: "Hard", description: "Fast · quick response" },
+  easy: { fall: 0.48, spawn: 1380, label: "Easy", description: "Toddler assist · slow + gentle auto-catch" },
+  medium: { fall: 0.90, spawn: 820, label: "Medium", description: "Steady runner speed" },
+  hard: { fall: 1.42, spawn: 520, label: "Hard", description: "Fast · quick response" },
 } as const;
 
 const BUDDY_EMOJI: Record<BuddyPreset, string> = { puppy:"🐶", dino:"🦕", robot:"🤖", bunny:"🐰" };
@@ -92,17 +92,43 @@ function celebrationLine(label: string) {
 
 function RunnerAvatar({ jumping }: { jumping: boolean }) {
   return (
-    <div className={"relative w-20 h-28 transition-transform duration-200 " + (jumping ? "-translate-y-32 rotate-[-8deg]" : "")}>
-      <div className="absolute left-1/2 -translate-x-1/2 top-0 w-11 h-11 rounded-full bg-amber-200 border-4 border-white shadow-xl">
-        <div className="absolute left-2 top-4 w-1.5 h-1.5 bg-slate-900 rounded-full" />
-        <div className="absolute right-2 top-4 w-1.5 h-1.5 bg-slate-900 rounded-full" />
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-2 w-4 h-1.5 bg-rose-500 rounded-full" />
-      </div>
-      <div className="absolute left-1/2 -translate-x-1/2 top-9 w-12 h-12 rounded-xl bg-gradient-to-b from-cyan-300 to-blue-600 border-4 border-white shadow-lg" />
-      <div className="absolute left-[21px] top-[75px] w-5 h-12 bg-slate-800 rounded-full rotate-[12deg] origin-top" />
-      <div className="absolute right-[21px] top-[75px] w-5 h-12 bg-slate-800 rounded-full rotate-[-18deg] origin-top" />
-      <div className="absolute left-[5px] top-[50px] w-6 h-4 bg-amber-200 rounded-full rotate-[-22deg]" />
-      <div className="absolute right-[5px] top-[50px] w-6 h-4 bg-amber-200 rounded-full rotate-[24deg]" />
+    <div className={"relative w-24 h-32 transition-transform duration-200 drop-shadow-2xl " + (jumping ? "-translate-y-32 rotate-[-6deg] scale-105" : "")}>
+      <svg viewBox="0 0 120 160" className="w-full h-full overflow-visible" role="img" aria-label="Friendly runner">
+        <defs>
+          <linearGradient id="runnerShirt" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#67e8f9" />
+            <stop offset="55%" stopColor="#2563eb" />
+            <stop offset="100%" stopColor="#4338ca" />
+          </linearGradient>
+          <linearGradient id="runnerShorts" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#334155" />
+            <stop offset="100%" stopColor="#0f172a" />
+          </linearGradient>
+          <filter id="runnerShadow"><feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity=".35"/></filter>
+        </defs>
+        <ellipse cx="60" cy="151" rx="34" ry="7" fill="rgba(15,23,42,.28)" />
+        <g filter="url(#runnerShadow)">
+          <path d="M44 91 C39 108 34 125 27 145" stroke="#1e293b" strokeWidth="15" strokeLinecap="round" />
+          <path d="M76 91 C82 110 86 126 94 145" stroke="#1e293b" strokeWidth="15" strokeLinecap="round" />
+          <path d="M20 145 Q31 139 43 145 L42 153 Q27 157 16 152 Z" fill="#ffffff" />
+          <path d="M82 145 Q96 139 107 146 L105 153 Q91 157 80 152 Z" fill="#ffffff" />
+          <path d="M37 73 L18 98" stroke="#f2bd84" strokeWidth="13" strokeLinecap="round" />
+          <path d="M83 73 L104 94" stroke="#f2bd84" strokeWidth="13" strokeLinecap="round" />
+          <path d="M38 65 Q60 53 82 65 L80 103 Q61 114 40 103 Z" fill="url(#runnerShirt)" stroke="#ffffff" strokeWidth="4" />
+          <path d="M39 99 Q60 108 81 99 L78 119 Q59 126 42 118 Z" fill="url(#runnerShorts)" />
+          <circle cx="60" cy="43" r="29" fill="#f2bd84" stroke="#ffffff" strokeWidth="5" />
+          <path d="M33 40 Q35 10 62 10 Q89 12 88 42 Q73 29 55 30 Q43 30 33 40 Z" fill="#172554" />
+          <path d="M35 32 Q58 14 86 31" stroke="#22d3ee" strokeWidth="7" strokeLinecap="round" />
+          <circle cx="50" cy="45" r="3.5" fill="#172554" />
+          <circle cx="70" cy="45" r="3.5" fill="#172554" />
+          <path d="M51 58 Q60 66 70 57" fill="none" stroke="#9f1239" strokeWidth="4" strokeLinecap="round" />
+          <circle cx="42" cy="54" r="4" fill="#fb7185" opacity=".55" />
+          <circle cx="78" cy="54" r="4" fill="#fb7185" opacity=".55" />
+          <path d="M45 70 L75 70" stroke="#facc15" strokeWidth="4" strokeLinecap="round" />
+          <circle cx="60" cy="84" r="8" fill="#facc15" stroke="#ffffff" strokeWidth="3" />
+          <path d="M57 80 L60 87 L65 82" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      </svg>
     </div>
   );
 }
@@ -135,6 +161,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
   const [missionComplete,setMissionComplete]=useState(false);
   const [gameOver,setGameOver]=useState(false);
   const [soundOn,setSoundOn]=useState(true);
+  const [captureBurst,setCaptureBurst]=useState<{label:string;emoji:string;id:number}|null>(null);
 
   const touchStart=useRef<{x:number;y:number}|null>(null);
   const nextId=useRef(1);
@@ -223,7 +250,13 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
       let got:FallingThing|null=null; let wrong:FallingThing|null=null;
       setThings(current=>current.map(item=>{
         const nextY=item.y+speed.fall;
-        if(!item.handled&&nextY>=78&&nextY<=94&&item.lane===laneRef.current&&!jumpingRef.current){
+        if (difficulty === "easy" && item.isTarget && !item.handled && nextY >= 62 && nextY < 78 && !jumpingRef.current) {
+          laneRef.current = item.lane;
+          setLane(item.lane);
+        }
+        const captureStart = difficulty === "easy" ? 72 : 78;
+        const captureEnd = difficulty === "easy" ? 97 : 94;
+        if(!item.handled&&nextY>=captureStart&&nextY<=captureEnd&&item.lane===laneRef.current&&!jumpingRef.current){
           if(item.isTarget)got=item;else wrong=item;
           return {...item,y:nextY,handled:true};
         }
@@ -233,18 +266,23 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
       if(got){
         const item=got as FallingThing; const nextCaught=caughtRef.current+1;
         caughtRef.current=nextCaught; setCaught(nextCaught); setScore(v=>v+(difficulty==="hard"?40:difficulty==="medium"?25:15));
-        setFlash("good"); sfx("catch"); const line=celebrationLine(item.label); setMessage(line); say(line); window.setTimeout(()=>setFlash(null),300);
+        setFlash("good"); sfx("catch");
+        const burstId=Date.now(); setCaptureBurst({label:item.label,emoji:item.emoji,id:burstId});
+        navigator.vibrate?.(45);
+        const line=celebrationLine(item.label); setMessage(line); say(line);
+        window.setTimeout(()=>setFlash(null),500);
+        window.setTimeout(()=>setCaptureBurst(current=>current?.id===burstId?null:current),900);
         if(nextCaught>=mission.goal){
           missionCompleteRef.current=true;setMissionComplete(true);setThings([]);sfx("complete");
           setMessage("Level complete!");say("Level complete! You found all the "+mission.target.label+"s. Great job!");
         }
       }
       if(wrong){
-        const item=wrong as FallingThing; const next=Math.max(0,heartsRef.current-1);
+        const item=wrong as FallingThing; const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);
         heartsRef.current=next;setHearts(next);setFlash("wrong");sfx("wrong");
         setMessage("That is a "+item.label+". Find "+mission.target.label+"!");
         say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);window.setTimeout(()=>setFlash(null),350);
-        if(next<=0){gameOverRef.current=true;setGameOver(true);setStarted(false);setThings([]);say("Nice try. Let's run that level again.");}
+        if(difficulty!=="easy"&&next<=0){gameOverRef.current=true;setGameOver(true);setStarted(false);setThings([]);say("Nice try. Let's run that level again.");}
       }
     },32);
     return()=>window.clearInterval(timer);
@@ -253,7 +291,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
   useEffect(()=>()=>{stopSpeaking();void audioRef.current?.close();},[]);
 
   const resetLevel=(index:number,resetScore=false)=>{
-    setMissionIndex(index);setCaught(0);caughtRef.current=0;setHearts(3);heartsRef.current=3;setLane(1);setThings([]);setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;
+    setMissionIndex(index);setCaught(0);caughtRef.current=0;setHearts(3);heartsRef.current=3;setLane(1);setThings([]);setCaptureBurst(null);setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;
     if(resetScore)setScore(0);
     setMessage("Get ready!");
   };
@@ -356,11 +394,13 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
 
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-slate-950/85 border border-white/20 px-4 py-2 font-black text-sm sm:text-base whitespace-nowrap shadow-xl">{mission.target.emoji} {mission.action}</div>
 
-          {things.map(item=><div key={item.id} className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-[left] duration-75" style={{left:["24%","50%","76%"][item.lane],top:item.y+"%"}}><TargetToken item={item}/></div>)}
+          {things.map(item=><div key={item.id} className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-[left] duration-75" style={{left:["24%","50%","76%"][item.lane],top:item.y+"%",transform:"translate(-50%,-50%) scale("+(difficulty==="easy"&&item.isTarget?1.28:1)+")"}}><TargetToken item={item}/></div>)}
 
           <div className="absolute z-40 -translate-x-1/2 transition-[left] duration-150 ease-out" style={{left:["24%","50%","76%"][lane],bottom:"4%"}}><RunnerAvatar jumping={jumping}/></div>
 
-          {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-amber-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-violet-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You found all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play World 1 again":"Next world →"}</button></div></div>}
+          {captureBurst&&<div className="absolute inset-0 z-45 pointer-events-none grid place-items-center"><div className="rounded-[2rem] bg-emerald-500/95 border-4 border-white text-white px-7 py-5 text-center shadow-[0_0_55px_rgba(52,211,153,.8)] animate-bounce"><div className="text-7xl">{captureBurst.emoji}</div><div className="text-3xl sm:text-4xl font-black">✓ CAPTURED!</div><div className="text-xl font-black uppercase">{captureBurst.label}</div></div></div>}
+          {difficulty==="easy"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-emerald-100/95 text-emerald-900 border-2 border-white px-4 py-2 text-xs sm:text-sm font-black shadow-lg">🧸 TODDLER ASSIST ON · targets gently pull into your lane</div>}
+                    {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-amber-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-violet-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You found all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play World 1 again":"Next world →"}</button></div></div>}
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs sm:text-sm font-black text-white/70"><div className="rounded-xl bg-slate-900 p-2">← Swipe left</div><div className="rounded-xl bg-slate-900 p-2">↑ Jump</div><div className="rounded-xl bg-slate-900 p-2">Swipe right →</div></div>
