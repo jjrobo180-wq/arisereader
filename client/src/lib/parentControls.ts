@@ -5,6 +5,8 @@ export type ParentControls = {
   enabled: boolean;
   allowedPaths: string[];
   tvDailyMinutes: number;
+  tvAgeRange: "2-4" | "5-7" | "8-10" | "11-13";
+  tvTopics: string[];
   videos: FamilyVideo[];
 };
 
@@ -20,7 +22,14 @@ export const CONTROLLED_FEATURES = [
 ];
 
 export function defaultParentControls(): ParentControls {
-  return { enabled: false, allowedPaths: CONTROLLED_FEATURES.map(item => item.path), tvDailyMinutes: 0, videos: [] };
+  return {
+    enabled: false,
+    allowedPaths: CONTROLLED_FEATURES.map(item => item.path),
+    tvDailyMinutes: 0,
+    tvAgeRange: "2-4",
+    tvTopics: ["animals", "numbers", "letters", "feelings"],
+    videos: [],
+  };
 }
 
 const CACHE_KEY = "arise-eye-gaze-family-settings-cache";
@@ -32,6 +41,8 @@ export function cachedParentControls(): ParentControls {
       enabled: !!raw.enabled,
       allowedPaths: Array.isArray(raw.allowedPaths) ? raw.allowedPaths : defaultParentControls().allowedPaths,
       tvDailyMinutes: Math.max(0, Math.min(240, Number(raw.tvDailyMinutes ?? 0) || 0)),
+      tvAgeRange: ["2-4","5-7","8-10","11-13"].includes(raw.tvAgeRange) ? raw.tvAgeRange : "2-4",
+      tvTopics: Array.isArray(raw.tvTopics) && raw.tvTopics.length ? raw.tvTopics : ["animals","numbers","letters","feelings"],
       videos: Array.isArray(raw.videos) ? raw.videos : [],
     };
   } catch { return defaultParentControls(); }
