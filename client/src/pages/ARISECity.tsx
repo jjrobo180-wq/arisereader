@@ -507,6 +507,7 @@ function GameModal({
 export default function ARISECity() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const gamesPath = user?.is_eye_gaze_user ? "/eye-gaze-games" : "/library";
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const keysRef = useRef<Record<string, boolean>>({});
@@ -1109,7 +1110,7 @@ export default function ARISECity() {
       <div className="min-h-screen bg-[#07111f] text-white">
         <style>{cityStyles}</style>
         <div className="max-w-7xl mx-auto px-4 sm:px-7 py-6 sm:py-10">
-          <button type="button" onClick={() => navigate("/eye-gaze-games")} className="mb-6 min-h-[48px] px-4 rounded-2xl bg-white/10 border border-white/10 font-black flex items-center gap-2">
+          <button type="button" onClick={() => navigate(gamesPath)} className="mb-6 min-h-[48px] px-4 rounded-2xl bg-white/10 border border-white/10 font-black flex items-center gap-2">
             <ArrowLeft className="w-5 h-5" /> Games
           </button>
 
@@ -1204,7 +1205,7 @@ export default function ARISECity() {
       )}
 
       <div className="absolute z-[125] top-3 left-3 right-3 flex items-start gap-2 sm:gap-3 pointer-events-none">
-        <button type="button" onClick={() => navigate("/eye-gaze-games")} className="pointer-events-auto min-h-[48px] px-3 sm:px-4 rounded-2xl bg-slate-950/80 backdrop-blur border border-white/15 font-black flex items-center gap-2 shadow-xl">
+        <button type="button" onClick={() => navigate(gamesPath)} className="pointer-events-auto min-h-[48px] px-3 sm:px-4 rounded-2xl bg-slate-950/80 backdrop-blur border border-white/15 font-black flex items-center gap-2 shadow-xl">
           <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">Games</span>
         </button>
 
