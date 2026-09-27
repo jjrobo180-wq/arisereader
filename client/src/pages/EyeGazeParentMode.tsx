@@ -218,12 +218,12 @@ export default function EyeGazeParentMode() {
       <div className="max-w-5xl mx-auto">
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
-            <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-home")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black">⌂ Home</button>
+            <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-talker")} className="min-h-16 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] px-5 text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
             <div className="mr-auto"><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="text-3xl sm:text-4xl font-black">Learning Zone</h1><p className="font-bold text-slate-600 mt-1">Grown-up tools for {state.student.name}</p></div>
             <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black">Profile</button>
           </div>
           <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="Learning Zone">
-            <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-talker")} className="min-h-14 rounded-2xl bg-slate-100 font-black">🗣️ Talk</button>
+            <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-talker")} className="min-h-14 rounded-2xl bg-slate-100 font-black">🗣️ Talker</button>
             <button type="button" role="tab" aria-selected="false" onClick={() => { sessionStorage.setItem("eye-gaze-talker-open-learn", "1"); navigate("/eye-gaze-talker"); }} className="min-h-14 rounded-2xl bg-slate-100 font-black">📚 Learn</button>
             <button type="button" role="tab" aria-selected="true" className="min-h-14 rounded-2xl bg-amber-300 text-amber-950 font-black">👨‍👩‍👧 Grown-up</button>
           </div>
