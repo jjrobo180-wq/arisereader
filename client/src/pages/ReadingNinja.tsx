@@ -3,15 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Heart, RotateCcw, Star, Volume2, VolumeX, Zap } from "lucide-react";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
 
-type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
-type BuddyConfig = {
-  type: "preset" | "upload";
-  preset: BuddyPreset;
-  name: string;
-  imageData: string | null;
-  voiceEnabled: boolean;
-  calmMode?: boolean;
-};
 type Difficulty = "easy" | "medium" | "hard";
 type Thing = { label: string; emoji: string };
 type Theme = { name:string; badge:string; background:string; glow:string; decor:string[] };
@@ -61,7 +52,6 @@ const SPEED={
   medium:{launch:-2.35,gravity:.045,spawn:820,label:"Medium",description:"Classic arcade speed"},
   hard:{launch:-2.85,gravity:.059,spawn:540,label:"Hard",description:"Fast objects · quick response"},
 } as const;
-const BUDDY_EMOJI:Record<BuddyPreset,string>={puppy:"🐶",dino:"🦕",robot:"🤖",bunny:"🐰"};
 
 function cheer(label:string){
   const lines=["Got the "+label+"!","Yes! "+label+"!","Perfect! "+label+"!","Nice! "+label+"!"];
@@ -79,7 +69,7 @@ function SliceToken({item,large=false}:{item:FlyingThing;large?:boolean}){
   </div>;
 }
 
-export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:BuddyConfig}){
+export default function ReadingNinja({onBack}:{onBack:()=>void}){
   const [difficulty,setDifficulty]=useState<Difficulty>("easy");
   const [started,setStarted]=useState(false);
   const [setupStep,setSetupStep]=useState<"difficulty"|"level">("difficulty");
@@ -124,8 +114,8 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
   },[soundOn]);
 
   const say=useCallback((text:string,calm=false)=>{
-    if(!buddy.voiceEnabled)return;stopSpeaking();void speakCharacterAI(text,{calmMode:calm||!!buddy.calmMode,onFallback:()=>{if(!("speechSynthesis" in window))return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.92;window.speechSynthesis.speak(u);}});
-  },[buddy.voiceEnabled,buddy.calmMode]);
+    stopSpeaking();void speakCharacterAI(text,{calmMode:calm,onFallback:()=>{if(!("speechSynthesis" in window))return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.92;window.speechSynthesis.speak(u);}});
+  },[]);
 
   const announceMission=useCallback(()=>{setMessage(mission.prompt+"!");say("Level "+(missionIndex+1)+". "+mission.theme.name+". "+mission.prompt+". Swipe through only the "+mission.target.label+"s.",difficulty==="easy");},[mission,missionIndex,say,difficulty]);
 
@@ -161,7 +151,7 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
     updateThings(c=>c.map(x=>x.id===item.id?{...x,sliced:true}:x));burst(item);
     if(item.isTarget){
       const next=slicedRef.current+1;slicedRef.current=next;setSlicedCount(next);setScore(v=>v+(difficulty==="hard"?45:difficulty==="medium"?30:20));sfx("slice");
-      const line=cheer(item.label);setMessage(line);celebrateEyeGaze(!!buddy.calmMode);
+      const line=cheer(item.label);setMessage(line);celebrateEyeGaze(false);
       if(next>=mission.goal){missionCompleteRef.current=true;setMissionComplete(true);updateThings([]);sfx("complete");setMessage("Level complete!");say("Level complete! You got all the "+mission.target.label+"s. Great job!");}
     }else{
       const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);heartsRef.current=next;setHearts(next);sfx("wrong");setMessage("That is a "+item.label+". Keep looking for "+mission.target.label+"!");say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
@@ -196,7 +186,6 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
   const retry=()=>{setStarted(true);resetLevel(missionIndex,false);};
   const nextMission=()=>resetLevel((missionIndex+1)%MISSIONS.length,false);
 
-  const buddyVisual=buddy.type==="upload"&&buddy.imageData?<img src={buddy.imageData} alt={buddy.name} className="w-full h-full object-cover rounded-full"/>:<span>{BUDDY_EMOJI[buddy.preset]||"🐶"}</span>;
   const progress=Math.min(100,(slicedCount/mission.goal)*100);
   const trailPoints=trail.map(p=>p.x+","+p.y).join(" ");
 
