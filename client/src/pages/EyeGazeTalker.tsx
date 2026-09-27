@@ -146,7 +146,7 @@ export default function EyeGazeTalker() {
   const [notice, setNotice] = useState("");
   const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {}, overrides: {}, recordings: {} });
   const [libraryMode, setLibraryMode] = useState<"places" | "emotions" | "all" | "simple">("places");
-  const [grownupToken, setGrownupToken] = useState("");
+  const [grownupToken, setGrownupToken] = useState(() => sessionStorage.getItem("talker-grownup-token") || "");
   const [editOpen, setEditOpen] = useState(false);
   const [editWord, setEditWord] = useState<Word | null>(null);
   const [editLabel, setEditLabel] = useState("");
@@ -390,6 +390,7 @@ export default function EyeGazeTalker() {
         answer: Number(mathAnswer),
       });
       setGrownupToken(result.grownupToken);
+      sessionStorage.setItem("talker-grownup-token", result.grownupToken);
       gateDialog.current?.close();
       setGateOpen(false);
       setChallenge(null);
