@@ -338,7 +338,7 @@ export default function EyeGazeMyWorld() {
     return result as { path: string; mediaType: MediaType; url: string | null };
   };
 
-  const saveWorlds = async (finish = false) => {
+  const saveWorlds = async (finish = false, draftWorlds: MyWorld[] = worlds) => {
     if (!authToken) return;
     setSaving(true);
     setNotice("");
@@ -346,12 +346,12 @@ export default function EyeGazeMyWorld() {
       const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/config`, {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json", ...grownupHeader },
-        body: JSON.stringify({ worlds, setupComplete: finish || !!data?.setupComplete }),
+        body: JSON.stringify({ worlds: draftWorlds, setupComplete: finish || !!data?.setupComplete }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || "Could not save My World.");
-      setWorlds(result.worlds || worlds);
-      setData(prev => prev ? { ...prev, setupComplete: result.setupComplete, worlds: result.worlds || worlds } : prev);
+      setWorlds(result.worlds || draftWorlds);
+      setData(prev => prev ? { ...prev, setupComplete: result.setupComplete, worlds: result.worlds || draftWorlds } : prev);
       setNotice(finish ? "My World is ready for your child!" : "Saved.");
     } catch (error: any) {
       setNotice(error?.message || "Could not save My World.");
@@ -387,7 +387,10 @@ export default function EyeGazeMyWorld() {
       if (!file.type.startsWith("image/")) throw new Error("Use a photo for the room/background.");
       const prepared = await prepareRoomPhoto(file);
       const uploaded = await uploadMedia(prepared, builderWorld.name);
-      setWorlds(prev => prev.map(w => w.id === builderWorld.id ? { ...w, backgroundPath: uploaded.path, backgroundUrl: uploaded.url } : w));
+      const nextWorlds = worlds.map(w => w.id === builderWorld.id ? { ...w, backgroundPath: uploaded.path, backgroundUrl: uploaded.url } : w);
+      setWorlds(nextWorlds);
+      await saveWorlds(false, nextWorlds);
+      setNotice("Room photo uploaded and saved. Tap objects in the photo, or let AI find them.");
     } catch (error: any) {
       setNotice(error?.message || "Could not upload the room photo.");
     } finally {
@@ -480,7 +483,9 @@ export default function EyeGazeMyWorld() {
         h,
         source: "manual",
       };
-      setWorlds(prev => prev.map(world => world.id === builderWorld.id ? { ...world, items: [...world.items, item] } : world));
+      const nextWorlds = worlds.map(world => world.id === builderWorld.id ? { ...world, items: [...world.items, item] } : world);
+      setWorlds(nextWorlds);
+      await saveWorlds(false, nextWorlds);
       setTapTagPoint(null);
       setItemLabel("");
       setItemPhrase("");
@@ -601,8 +606,12 @@ export default function EyeGazeMyWorld() {
           source: "ai" as const,
           confidence: Number(obj.confidence) || null,
         }));
-      setWorlds(prev => prev.map(world => world.id === builderWorld.id ? { ...world, items: [...world.items, ...suggestions] } : world));
-      setNotice(suggestions.length ? `AI suggested ${suggestions.length} objects. Review the boxes, words, and sentences before saving.` : "AI did not find any new clear objects. You can tag them manually.");
+      if (suggestions.length) {
+        const nextWorlds = worlds.map(world => world.id === builderWorld.id ? { ...world, items: [...world.items, ...suggestions] } : world);
+        setWorlds(nextWorlds);
+        await saveWorlds(false, nextWorlds);
+      }
+      setNotice(suggestions.length ? `AI found ${suggestions.length} objects and saved them. Tap any suggestion to rename, resize, or delete it.` : "AI did not find any new clear objects. Just tap an object in the photo to add it yourself.");
     } catch (error: any) {
       setNotice(error?.message || "AI tagging is unavailable right now. Manual tagging still works.");
     } finally {
