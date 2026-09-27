@@ -2105,9 +2105,18 @@ Generate exactly 10 questions.`;
             <Brain className="w-4 h-4" />
             <span className="hidden sm:inline">Progress</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/library")} className="flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (window.history.length > 1) window.history.back();
+              else navigate("/");
+            }}
+            className="flex-shrink-0"
+            title="Go back to the page you came from"
+          >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Library</span>
+            <span className="hidden sm:inline">Back</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => navigate("/polls")} className="flex-shrink-0">
             <BarChart3 className="w-4 h-4" />
