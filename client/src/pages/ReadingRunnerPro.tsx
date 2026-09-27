@@ -149,6 +149,7 @@ function TargetToken({ item }: { item: FallingThing }) {
 export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
   const [difficulty,setDifficulty]=useState<Difficulty>("easy");
   const [started,setStarted]=useState(false);
+  const [setupStep,setSetupStep]=useState<"difficulty"|"level">("difficulty");
   const [missionIndex,setMissionIndex]=useState(0);
   const [lane,setLane]=useState(1);
   const [jumping,setJumping]=useState(false);
@@ -337,7 +338,17 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
     setMessage("Get ready!");
   };
   const enterImmersive=()=>{ try { const el=document.documentElement as any; const request=el.requestFullscreen||el.webkitRequestFullscreen; if(request) void request.call(el).catch?.(()=>{}); } catch {} };
-  const startGame=()=>{stopSpeaking();enterImmersive();setStarted(true);startedRef.current=true;resetLevel(0,true);};
+  const startGame=()=>{stopSpeaking();enterImmersive();setStarted(true);startedRef.current=true;resetLevel(missionIndex,true);};
+  const openSetup=(step:"difficulty"|"level"="level")=>{
+    setStarted(false);
+    startedRef.current=false;
+    updateThings([]);
+    setMissionComplete(false);
+    missionCompleteRef.current=false;
+    setGameOver(false);
+    gameOverRef.current=false;
+    setSetupStep(step);
+  };
   const retry=()=>{setStarted(true);startedRef.current=true;resetLevel(missionIndex,false);};
   const nextMission=()=>resetLevel((missionIndex+1)%MISSIONS.length,false);
 
@@ -353,40 +364,58 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
 
   if(!started&&!gameOver){
     return(
-      <div className="min-h-screen text-white px-4 py-5 overflow-hidden relative" style={{background:"radial-gradient(circle at 70% 10%, #154a73, #06111f 58%, #02050a)"}}>
+      <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden text-white p-3 sm:p-5" style={{background:"radial-gradient(circle at 70% 10%, #154a73, #06111f 58%, #02050a)"}}>
+        <style>{"@keyframes runnerSetupIn{from{opacity:.25;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}} .runner-setup-in{animation:runnerSetupIn .22s ease-out}"}</style>
         <div className="absolute inset-0 opacity-30 pointer-events-none" style={{backgroundImage:"linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px, transparent 1px)",backgroundSize:"42px 42px"}} />
-        <div className="max-w-6xl mx-auto relative">
-          <div className="flex justify-between gap-3">
-            <button type="button" onClick={onBack} className="min-h-12 px-4 rounded-2xl bg-slate-950/80 border border-white/20 font-black flex items-center gap-2 shadow-xl"><ArrowLeft className="w-5 h-5"/> Games</button>
-            <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-12 h-12 rounded-2xl bg-slate-950/80 border border-white/20 grid place-items-center">{soundOn?<Volume2/>:<VolumeX/>}</button>
+        <div className="relative max-w-4xl mx-auto h-full flex flex-col">
+          <div className="flex items-center justify-between gap-2 flex-shrink-0">
+            <button type="button" onClick={onBack} className="min-h-11 px-3 sm:px-4 rounded-2xl bg-slate-950/80 border border-white/20 font-black flex items-center gap-2 shadow-xl"><ArrowLeft className="w-5 h-5"/> Games</button>
+            <div className="rounded-full bg-white/10 border border-white/15 px-3 py-2 text-xs font-black">READING RUNNER</div>
+            <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/80 border border-white/20 grid place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
           </div>
 
-          <div className="mt-5 grid lg:grid-cols-[1.05fr_.95fr] gap-5">
-            <section className="rounded-[2.3rem] bg-slate-950/88 border-2 border-cyan-300/30 p-6 sm:p-8 shadow-2xl backdrop-blur">
-              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-300/15 border border-cyan-200/30 px-3 py-1 text-xs font-black uppercase tracking-widest text-cyan-200"><Zap className="w-4 h-4"/> 15 WORLD ADVENTURE</div>
-              <h1 className="text-5xl sm:text-7xl font-black mt-4 tracking-tight">Reading<br/><span className="text-cyan-300">Runner</span></h1>
-              <p className="text-lg sm:text-xl font-bold text-white/80 mt-4">Hear the mission. Swipe through a real course. Collect only the right targets and jump the rest.</p>
-              <div className="grid sm:grid-cols-3 gap-3 mt-7">
-                {(Object.keys(SPEED) as Difficulty[]).map(level=><button key={level} type="button" onClick={()=>setDifficulty(level)} className={"rounded-2xl border-2 p-4 text-left min-h-24 transition " +(difficulty===level?"border-cyan-300 bg-cyan-300/15 shadow-lg":"border-white/15 bg-white/5")}><div className="font-black text-xl">{SPEED[level].label}</div><div className="text-sm text-white/65 mt-1">{SPEED[level].description}</div></button>)}
-              </div>
-              <button type="button" onClick={startGame} className="mt-6 w-full min-h-17 rounded-2xl bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 text-slate-950 text-xl font-black shadow-[0_0_35px_rgba(80,220,255,.35)]">▶ Start World 1</button>
-            </section>
-
-            <section className="rounded-[2.3rem] overflow-hidden border-2 border-white/20 bg-slate-900 shadow-2xl">
-              <div className="relative h-72 overflow-hidden" style={{background:THEMES.city.sky}}>
-                <div className="absolute inset-x-0 bottom-[35%] h-[22%]" style={{background:THEMES.city.horizon}} />
-                <div className="absolute inset-x-0 bottom-0 h-[36%]" style={{background:THEMES.city.ground}} />
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[72%] h-[62%] origin-bottom" style={{background:THEMES.city.road,clipPath:"polygon(38% 0,62% 0,100% 100%,0 100%)"}} />
-                <div className="absolute inset-x-0 bottom-[37%] flex justify-around text-5xl">{THEMES.city.scenery.map((x,i)=><span key={i}>{x}</span>)}</div>
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-5 scale-75"><RunnerAvatar jumping={false}/></div>
-                <div className="absolute top-4 right-4 rounded-full bg-slate-950/75 px-3 py-1 text-xs font-black">LEVEL 1 · {THEMES.city.name}</div>
-              </div>
-              <div className="p-5 bg-slate-950">
-                <h2 className="text-xl font-black">15 changing worlds</h2>
-                <div className="flex gap-2 overflow-x-auto mt-3 pb-2">{MISSIONS.map((m,i)=><div key={i} className="flex-shrink-0 rounded-xl bg-white/8 px-3 py-2 text-center"><div className="text-2xl">{m.theme.badge}</div><div className="text-[10px] font-black">L{i+1}</div></div>)}</div>
-                <div className="grid grid-cols-3 gap-2 mt-3 text-center text-xs font-black text-white/70"><div className="rounded-xl bg-white/5 p-2">← → Move</div><div className="rounded-xl bg-white/5 p-2">↑ Jump</div><div className="rounded-xl bg-white/5 p-2">🔊 Sound FX</div></div>
-              </div>
-            </section>
+          <div className="flex-1 min-h-0 grid place-items-center py-3">
+            {setupStep==="difficulty" ? (
+              <section key="difficulty" className="runner-setup-in w-full max-w-3xl rounded-[2rem] bg-slate-950/92 border-2 border-cyan-300/30 p-5 sm:p-8 shadow-2xl">
+                <p className="text-xs font-black uppercase tracking-[.18em] text-cyan-300">Step 1 of 2</p>
+                <h1 className="text-3xl sm:text-5xl font-black mt-2">How fast should we run?</h1>
+                <p className="font-bold text-white/65 mt-2">Choose one. Easy is built for young learners and gives lots of time.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+                  {(Object.keys(SPEED) as Difficulty[]).map(level=>(
+                    <button key={level} type="button" onClick={()=>setDifficulty(level)} className={"min-h-24 rounded-2xl border-3 p-4 text-left transition touch-manipulation "+(difficulty===level?"border-cyan-300 bg-cyan-300/20 ring-4 ring-cyan-300/15":"border-white/15 bg-white/5")}>
+                      <div className="text-2xl font-black">{level==="easy"?"🧸":level==="medium"?"🏃":"⚡"} {SPEED[level].label}</div>
+                      <div className="text-sm font-bold text-white/65 mt-1">{SPEED[level].description}</div>
+                      {difficulty===level&&<div className="text-cyan-200 font-black mt-2">✓ Selected</div>}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={()=>setSetupStep("level")} className="mt-5 w-full min-h-16 rounded-2xl bg-cyan-300 text-slate-950 text-xl font-black shadow-xl">Next: choose a world →</button>
+              </section>
+            ) : (
+              <section key="level" className="runner-setup-in w-full max-w-4xl h-full max-h-[760px] rounded-[2rem] bg-slate-950/92 border-2 border-cyan-300/30 p-4 sm:p-6 shadow-2xl flex flex-col min-h-0">
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <button type="button" onClick={()=>setSetupStep("difficulty")} className="min-h-11 rounded-xl bg-white/10 px-3 font-black">← Speed</button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black uppercase tracking-[.18em] text-cyan-300">Step 2 of 2</p>
+                    <h1 className="text-2xl sm:text-4xl font-black">Choose a world</h1>
+                  </div>
+                  <div className="rounded-full bg-cyan-300 text-slate-950 px-3 py-2 text-xs font-black">{SPEED[difficulty].label}</div>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
+                  {MISSIONS.map((m,i)=>(
+                    <button key={i} type="button" onClick={()=>setMissionIndex(i)} className={"min-h-[92px] rounded-2xl border-2 p-2 text-center touch-manipulation "+(missionIndex===i?"border-cyan-300 bg-cyan-300/20 ring-4 ring-cyan-300/10":"border-white/10 bg-white/5")}>
+                      <div className="text-3xl sm:text-4xl">{m.theme.badge}</div>
+                      <div className="font-black text-xs mt-1">LEVEL {i+1}</div>
+                      <div className="text-[10px] font-bold text-white/60 truncate">{m.theme.name}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="pt-3 flex-shrink-0">
+                  <div className="rounded-xl bg-white/5 px-3 py-2 text-center font-black text-sm truncate">{MISSIONS[missionIndex].target.emoji} {MISSIONS[missionIndex].action}</div>
+                  <button type="button" onClick={startGame} className="mt-2 w-full min-h-16 rounded-2xl bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 text-slate-950 text-xl font-black shadow-xl">▶ Start Level {missionIndex+1}</button>
+                </div>
+              </section>
+            )}
           </div>
         </div>
       </div>
@@ -394,29 +423,27 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
   }
 
   if(gameOver){
-    return <div className="min-h-screen bg-[#050914] text-white grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🏁</div><h1 className="text-4xl font-black mt-3">Run it again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl font-black text-amber-300 mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-cyan-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
+    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#050914] text-white grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🏁</div><h1 className="text-4xl font-black mt-3">Run it again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl font-black text-amber-300 mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-cyan-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-violet-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
   }
 
   return(
     <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-[#030712] text-white p-2 sm:p-5 select-none">
       <style>{"@keyframes roadMove{from{transform:translateY(-35px)}to{transform:translateY(0)}} @keyframes floatScene{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}} .road-stripes{animation:roadMove .55s linear infinite}.scene-float{animation:floatScene 3s ease-in-out infinite}"}</style>
       <div className="max-w-6xl mx-auto h-full flex flex-col">
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mb-2 sm:mb-3 flex-shrink-0">
-          <button type="button" onClick={onBack} className="min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Games</button>
-          <div className="rounded-xl bg-cyan-300 text-slate-950 px-3 py-2 font-black">LEVEL {missionIndex+1}/{MISSIONS.length}</div>
-          <div className="rounded-xl bg-emerald-400 text-slate-950 px-4 py-2 font-black text-lg shadow-lg">🎯 {caught}/{mission.goal}</div>
-          <div className="flex-1 min-w-[120px]"><div className="text-[10px] sm:text-xs uppercase tracking-widest font-black text-cyan-300">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div><div className="text-sm sm:text-2xl font-black truncate">{mission.action}</div></div>
-          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
-          <div className="flex items-center gap-1 rounded-xl bg-rose-500/15 px-3 py-2">{Array.from({length:3}).map((_,i)=><Heart key={i} className={"w-5 h-5 "+(i<hearts?"fill-rose-400 text-rose-400":"text-white/20")}/>)}</div>
-          <div className="rounded-xl bg-amber-400/15 text-amber-300 px-3 py-2 font-black"><Star className="w-4 h-4 inline fill-current mr-1"/>{score}</div>
+        <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+          <button type="button" onClick={()=>openSetup("level")} className="min-h-10 sm:min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black text-sm flex items-center gap-1.5 flex-shrink-0">☰ <span className="hidden sm:inline">Setup</span></button>
+          <button type="button" onClick={announceMission} className="flex-1 min-w-0 min-h-10 sm:min-h-11 rounded-xl bg-slate-900 border border-white/15 px-3 text-left">
+            <div className="text-[9px] sm:text-xs uppercase tracking-wider font-black text-cyan-300 truncate">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div>
+            <div className="text-xs sm:text-base font-black truncate">{mission.target.emoji} {mission.action}</div>
+          </button>
+          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
         </div>
 
-        <div className="rounded-xl sm:rounded-2xl bg-slate-900 border border-white/10 p-2 sm:p-3 mb-2 sm:mb-3 shadow-lg flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center text-3xl overflow-hidden flex-shrink-0">{buddyVisual}</div>
-            <div className="flex-1 min-w-0"><div className="font-black truncate">{message}</div><div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden"><div className="h-full transition-all" style={{width:progress+"%",background:mission.theme.accent}}/></div><div className="mt-1 flex items-center gap-2"><span className="rounded-full bg-emerald-400 text-slate-950 px-3 py-1 text-sm font-black">CAPTURED {caught} / {mission.goal}</span><span className="text-xs font-bold text-white/55">{mission.target.label}s</span></div></div>
-            <button type="button" onClick={announceMission} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center"><Volume2 className="w-5 h-5"/></button>
-          </div>
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 flex-shrink-0 text-center">
+          <div className="rounded-xl bg-cyan-300 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Level</div><div className="font-black text-sm sm:text-base">{missionIndex+1}/{MISSIONS.length}</div></div>
+          <div className="rounded-xl bg-emerald-400 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Caught</div><div className="font-black text-sm sm:text-base">{caught}/{mission.goal}</div></div>
+          <div className="rounded-xl bg-rose-500/20 text-rose-200 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Hearts</div><div className="font-black text-sm sm:text-base">❤️ {hearts}</div></div>
+          <div className="rounded-xl bg-amber-400/15 text-amber-300 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Score</div><div className="font-black text-sm sm:text-base">{score}</div></div>
         </div>
 
         <div
@@ -446,7 +473,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
                     {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-amber-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-violet-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You found all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play World 1 again":"Next world →"}</button></div></div>}
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs sm:text-sm font-black text-white/70"><div className="rounded-xl bg-slate-900 p-2">← Swipe left</div><div className="rounded-xl bg-slate-900 p-2">↑ Jump</div><div className="rounded-xl bg-slate-900 p-2">Swipe right →</div></div>
+        <div className="hidden sm:grid mt-3 grid-cols-3 gap-2 text-center text-xs sm:text-sm font-black text-white/70"><div className="rounded-xl bg-slate-900 p-2">← Swipe left</div><div className="rounded-xl bg-slate-900 p-2">↑ Jump</div><div className="rounded-xl bg-slate-900 p-2">Swipe right →</div></div>
       </div>
     </div>
   );
