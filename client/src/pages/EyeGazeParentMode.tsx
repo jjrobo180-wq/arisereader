@@ -218,8 +218,8 @@ export default function EyeGazeParentMode() {
       <div className="max-w-5xl mx-auto">
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="mr-auto"><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="text-3xl sm:text-4xl font-black">Learning Zone</h1><p className="font-bold text-slate-600 mt-1">Grown-up tools for {state.student.name}</p></div>
             <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-home")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black">⌂ Home</button>
+            <div className="mr-auto"><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="text-3xl sm:text-4xl font-black">Learning Zone</h1><p className="font-bold text-slate-600 mt-1">Grown-up tools for {state.student.name}</p></div>
             <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black">Profile</button>
           </div>
           <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="Learning Zone">
