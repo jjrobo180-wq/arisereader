@@ -203,6 +203,8 @@ export default function EyeGazeMyWorld() {
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
   const [focusedItem, setFocusedItem] = useState<WorldItem | null>(null);
+  const [tapTagPoint, setTapTagPoint] = useState<{ x: number; y: number } | null>(null);
+  const [editingBuilderItemId, setEditingBuilderItemId] = useState<string | null>(null);
 
   const isParent = user?.role === "parent";
   const canBuild = isParent || !!grownupToken;
@@ -435,6 +437,88 @@ export default function EyeGazeMyWorld() {
     };
   };
 
+  const tapRoomToTag = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!builderWorld) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-world-tag]")) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const point = {
+      x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
+    };
+    setTapTagPoint(point);
+    setEditingBuilderItemId(null);
+    setItemLabel("");
+    setItemPhrase("");
+    setItemFile(null);
+    setNotice("What did you tap? Name it below.");
+  };
+
+  const saveTappedTag = async () => {
+    if (!builderWorld || !tapTagPoint || !itemLabel.trim()) return;
+    setUploading(true);
+    setNotice("");
+    try {
+      let uploaded: { path: string; mediaType: MediaType; url: string | null } | null = null;
+      if (itemFile) {
+        const prepared = itemFile.type.startsWith("image/") ? await prepareRoomPhoto(itemFile) : itemFile;
+        uploaded = await uploadMedia(prepared, itemLabel);
+      }
+      const label = itemLabel.trim();
+      const w = 16;
+      const h = 16;
+      const item: WorldItem = {
+        id: `${slug(label)}-${Date.now().toString(36)}`,
+        label,
+        phrase: itemPhrase.trim() || `This is ${label}.`,
+        mediaPath: uploaded?.path || null,
+        mediaUrl: uploaded?.url || null,
+        mediaType: uploaded?.mediaType || null,
+        x: Math.max(0, Math.min(100 - w, tapTagPoint.x - w / 2)),
+        y: Math.max(0, Math.min(100 - h, tapTagPoint.y - h / 2)),
+        w,
+        h,
+        source: "manual",
+      };
+      setWorlds(prev => prev.map(world => world.id === builderWorld.id ? { ...world, items: [...world.items, item] } : world));
+      setTapTagPoint(null);
+      setItemLabel("");
+      setItemPhrase("");
+      setItemFile(null);
+      setEditingBuilderItemId(item.id);
+      setNotice(`${label} added. Tap another object in the photo to keep going.`);
+    } catch (error: any) {
+      setNotice(error?.message || "Could not add that object.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resizeTaggedItem = (itemId: string, factor: number) => {
+    if (!builderWorld) return;
+    setWorlds(prev => prev.map(world => {
+      if (world.id !== builderWorld.id) return world;
+      return {
+        ...world,
+        items: world.items.map(item => {
+          if (item.id !== itemId) return item;
+          const old = safeBox(item);
+          const cx = old.x + old.w / 2;
+          const cy = old.y + old.h / 2;
+          const w = Math.max(7, Math.min(45, old.w * factor));
+          const h = Math.max(7, Math.min(45, old.h * factor));
+          return {
+            ...item,
+            x: Math.max(0, Math.min(100 - w, cx - w / 2)),
+            y: Math.max(0, Math.min(100 - h, cy - h / 2)),
+            w,
+            h,
+          };
+        }),
+      };
+    }));
+  };
+
   const startTagBox = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!builderWorld || !placingItemId) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -654,8 +738,8 @@ export default function EyeGazeMyWorld() {
                 <p className="mt-3 text-lg font-bold text-white/90">Take or upload a normal or panoramic photo of a real room. Tag the actual objects inside the photo—bed, shoes, TV, cup, toys—and My World turns those exact spots into interactive learning targets. AI Auto‑Tag can suggest objects for you to review.</p>
                 <div className="grid sm:grid-cols-3 gap-3 mt-5">
                   <div className="rounded-2xl bg-white/15 p-4"><Camera className="w-7 h-7 mb-2" /><strong className="block">1. Photograph a place</strong><span className="text-sm">Bedroom, kitchen, bathroom, classroom area.</span></div>
-                  <div className="rounded-2xl bg-white/15 p-4"><MapPin className="w-7 h-7 mb-2" /><strong className="block">2. Box the objects</strong><span className="text-sm">Draw around the real bed, shoes, TV, cup, toothbrush, toys, and more.</span></div>
-                  <div className="rounded-2xl bg-white/15 p-4"><WandSparkles className="w-7 h-7 mb-2" /><strong className="block">3. Or let AI help</strong><span className="text-sm">AI can suggest object boxes, words, and simple sentences. You review before saving.</span></div>
+                  <div className="rounded-2xl bg-white/15 p-4"><MapPin className="w-7 h-7 mb-2" /><strong className="block">2. Tap an object</strong><span className="text-sm">Tap the real bed, shoes, TV, cup, toothbrush, toys, and name what you tapped.</span></div>
+                  <div className="rounded-2xl bg-white/15 p-4"><WandSparkles className="w-7 h-7 mb-2" /><strong className="block">3. Or let AI find them</strong><span className="text-sm">AI can find common objects for you. Keep, rename, resize, or delete a suggestion with one tap.</span></div>
                 </div>
               </div>
             </section>
@@ -700,7 +784,7 @@ export default function EyeGazeMyWorld() {
                       </div>
                       <label className="mt-4 min-h-14 rounded-2xl border-2 border-dashed border-blue-200 bg-sky-50 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
                         <Camera className="w-5 h-5" /> {builderWorld.backgroundUrl ? "Replace room photo" : "Take / upload room photo"}
-                        <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={e => uploadBackground(e.target.files?.[0])} />
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => uploadBackground(e.target.files?.[0])} />
                       </label>
                     </section>
 
