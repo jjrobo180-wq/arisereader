@@ -514,6 +514,38 @@ export default function EyeGazeTalker() {
     setRecordingKind(null);
   };
 
+  const renderWordTile = (word: Word, options: { compact?: boolean; color?: string } = {}) => {
+    const resolved = resolveWord(word);
+    const compact = !!options.compact;
+    return (
+      <div key={(resolved.baseLabel || resolved.label) + "-" + (options.color || "")} className="relative">
+        <button
+          data-talker-dwell
+          type="button"
+          onClick={() => choose(resolved)}
+          aria-label={"Say " + resolved.label}
+          style={options.color ? { backgroundColor: options.color } : undefined}
+          className={`relative w-full ${compact ? "min-h-28 sm:min-h-32" : "min-h-44"} rounded-3xl bg-white border-2 border-sky-100 hover:border-sky-500 px-2 py-3 flex flex-col items-center justify-center gap-2 shadow-sm`}
+        >
+          {picture(resolved)
+            ? <img src={picture(resolved)!} alt="" className={compact ? "w-16 h-16 rounded-2xl object-cover" : "w-24 h-24 rounded-2xl object-cover"} />
+            : <span className={compact ? "text-4xl sm:text-5xl" : "text-6xl sm:text-7xl"} aria-hidden="true">{resolved.picture}</span>}
+          <span className={compact ? "font-black text-base sm:text-lg leading-tight" : "text-xl sm:text-2xl font-black"}>{resolved.label}</span>
+          <span className="text-[10px] font-black tracking-wider text-[#4c7788]">{compact ? "MORE →" : "KEEP LEARNING →"}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => void beginEdit(resolved)}
+          aria-label={"Grown-up edit " + resolved.label}
+          className="absolute z-20 top-2 right-2 w-9 h-9 rounded-full bg-white/95 border-2 border-amber-300 shadow grid place-items-center text-base"
+          title="Grown-up edit"
+        >
+          ✏️
+        </button>
+      </div>
+    );
+  };
+
   if (view === "learn") return (
     <div className="talker-page min-h-screen bg-[#f3f8fa] text-[#193d57] px-3 sm:px-6 pb-10">
       <style>{`.talker-page button:focus-visible { outline: 4px solid #255bd5; outline-offset: 3px; } .talker-page button.talker-dwelling { outline: 4px solid #255bd5; outline-offset: 3px; overflow: hidden; } .talker-page button.talker-dwelling::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: #2676e236; transform-origin: left; animation: talker-fill var(--talker-wait) linear forwards; } @keyframes talker-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }`}</style>
@@ -554,19 +586,81 @@ export default function EyeGazeTalker() {
 
         <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative mt-6 w-full min-h-24 rounded-3xl bg-gradient-to-r from-[#ddf5f4] to-[#e3eefa] border-2 border-teal-200 p-4 flex items-center gap-4 text-left"><span className="text-5xl" aria-hidden="true">📚</span><span><strong className="block text-2xl font-black">Learning Zone</strong><span className="font-bold">Pictures, word sounds, sentences, and your turn to talk</span></span><span className="ml-auto text-2xl" aria-hidden="true">→</span></button>
 
-        <section aria-label="Everyday words" className="mt-7">
-          <p className="text-sm font-black tracking-widest text-[#477586] mb-3">ALWAYS HERE</p>
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
-            {needs.map(word => <button data-talker-dwell key={word.id} type="button" onClick={() => choose(word)} aria-label={`Say ${word.label}`} className="relative rounded-2xl bg-white border-2 border-sky-100 min-h-28 sm:min-h-32 px-1 py-3 flex flex-col justify-center items-center gap-1 shadow-sm hover:border-sky-500">{picture(word) ? <img src={picture(word)!} alt="" className="w-16 h-16 rounded-2xl object-cover" /> : <span className="text-4xl sm:text-5xl" aria-hidden="true">{word.picture}</span>}<span className="font-black text-base sm:text-lg leading-tight">{word.label}</span><span className="text-[10px] font-black tracking-wider text-[#4c7788]">MORE →</span></button>)}
+        <section className="mt-7" aria-label="Talker library view">
+          <div className="rounded-3xl bg-white border-2 border-sky-100 p-3 sm:p-4">
+            <p className="text-xs font-black tracking-widest text-[#477586] mb-3">SHOW ME</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([
+                ["simple", "⚡", "Simple", "Just the basics"],
+                ["places", "📍", "Where we're going", "Words by place"],
+                ["emotions", "😊", "Emotions", "How I feel"],
+                ["all", "🧩", "All", "Whole button library"],
+              ] as const).map(([id, icon, label, hint]) => (
+                <button
+                  data-talker-dwell
+                  key={id}
+                  type="button"
+                  onClick={() => { setLibraryMode(id); setPlaceId(null); }}
+                  className={`relative min-h-20 rounded-2xl border-2 p-3 text-left ${libraryMode === id ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-100 bg-white"}`}
+                >
+                  <span className="text-2xl mr-2">{icon}</span><strong className="font-black">{label}</strong>
+                  <span className="block text-xs font-bold text-[#5c7c88] mt-1">{hint}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="mt-9" aria-labelledby="talker-place-title">
-          <div className="flex flex-wrap justify-between items-end gap-3 mb-5"><div><p className="text-sm font-black tracking-widest text-[#477586]">{place ? "MY PLACES / " + place.label.toUpperCase() : "CHOOSE A PLACE"}</p><h2 id="talker-place-title" className="font-black text-3xl sm:text-4xl tracking-tight">{place ? place.label : "Where are we going?"}</h2><p className="text-[#547886] font-bold">{place ? "Choose a picture to hear a word." : "Pick a place or say what you need."}</p></div>{place && <button data-talker-dwell type="button" onClick={() => setPlaceId(null)} className="relative min-h-14 rounded-2xl bg-white border-2 border-sky-100 px-5 font-black">← All places</button>}</div>
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            {place ? place.words.map(word => <button data-talker-dwell key={word.label} type="button" onClick={() => choose(word)} aria-label={`Say ${word.label}`} style={{ backgroundColor: place.color }} className="relative min-h-44 rounded-3xl border-2 border-transparent hover:border-sky-500 flex flex-col items-center justify-center gap-2 shadow-sm">{picture(word) ? <img src={picture(word)!} alt="" className="w-28 h-28 rounded-2xl object-cover" /> : <span className="text-7xl sm:text-8xl" aria-hidden="true">{word.picture}</span>}<span className="text-xl sm:text-2xl font-black">{word.label}</span><span className="text-[10px] font-black tracking-wider text-[#4c7788]">KEEP LEARNING →</span></button>) : places.map(item => <button data-talker-dwell key={item.id} type="button" onClick={() => setPlaceId(item.id)} style={{ backgroundColor: item.color }} className="relative min-h-40 rounded-3xl border-2 border-transparent hover:border-sky-500 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 p-3 shadow-sm"><span className="text-6xl sm:text-7xl" aria-hidden="true">{item.picture}</span><span className="text-center sm:text-left"><strong className="block text-xl sm:text-2xl font-black">{item.label}</strong><small className="font-bold text-[#527483]">{item.hint}</small></span></button>)}
-          </div>
-        </section>
+        {libraryMode === "simple" && (
+          <section className="mt-7" aria-label="Simplified Talker">
+            <div className="mb-4"><p className="text-sm font-black tracking-widest text-[#477586]">SIMPLIFIED</p><h2 className="font-black text-3xl">Easy access</h2><p className="font-bold text-[#547886]">A smaller set of high-use buttons. Kids can switch views anytime.</p></div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{visibleSimpleWords.map(word => renderWordTile(word))}</div>
+          </section>
+        )}
+
+        {libraryMode === "emotions" && (
+          <section className="mt-7" aria-label="Emotion words">
+            <div className="mb-4"><p className="text-sm font-black tracking-widest text-[#477586]">EMOTIONS</p><h2 className="font-black text-3xl">How do I feel?</h2></div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{visibleEmotionWords.map(word => renderWordTile(word))}</div>
+          </section>
+        )}
+
+        {libraryMode === "all" && (
+          <section className="mt-7" aria-label="All Talker words">
+            <div className="mb-4"><p className="text-sm font-black tracking-widest text-[#477586]">ALL BUTTONS</p><h2 className="font-black text-3xl">Whole Talker library</h2></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">{allLibraryWords.map(word => renderWordTile(word))}</div>
+          </section>
+        )}
+
+        {libraryMode === "places" && (
+          <>
+            <section aria-label="Everyday words" className="mt-7">
+              <p className="text-sm font-black tracking-widest text-[#477586] mb-3">ALWAYS HERE</p>
+              <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">{needs.map(word => renderWordTile(word, { compact: true }))}</div>
+            </section>
+
+            <section className="mt-9" aria-labelledby="talker-place-title">
+              <div className="flex flex-wrap justify-between items-end gap-3 mb-5">
+                <div>
+                  <p className="text-sm font-black tracking-widest text-[#477586]">{currentPlace ? "MY PLACES / " + currentPlace.label.toUpperCase() : "WHERE WE'RE GOING"}</p>
+                  <h2 id="talker-place-title" className="font-black text-3xl sm:text-4xl tracking-tight">{currentPlace ? currentPlace.label : "Choose a place"}</h2>
+                  <p className="text-[#547886] font-bold">{currentPlace ? "Choose a picture to hear a word." : "Tap where you are going to show just those words."}</p>
+                </div>
+                {currentPlace && <button data-talker-dwell type="button" onClick={() => setPlaceId(null)} className="relative min-h-14 rounded-2xl bg-white border-2 border-sky-100 px-5 font-black">← All places</button>}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                {currentPlace
+                  ? currentPlace.words.map(word => renderWordTile(word, { color: currentPlace.color }))
+                  : resolvedPlaces.map(item => (
+                    <button data-talker-dwell key={item.id} type="button" onClick={() => setPlaceId(item.id)} style={{ backgroundColor: item.color }} className="relative min-h-40 rounded-3xl border-2 border-transparent hover:border-sky-500 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 p-3 shadow-sm">
+                      <span className="text-6xl sm:text-7xl" aria-hidden="true">{item.picture}</span>
+                      <span className="text-center sm:text-left"><strong className="block text-xl sm:text-2xl font-black">{item.label}</strong><small className="font-bold text-[#527483]">{item.hint}</small></span>
+                    </button>
+                  ))}
+              </div>
+            </section>
+          </>
+        )}
         <p className="text-center text-sm text-[#5c7c88] font-bold mt-8">Voice is AI-generated when available. Your device voice is the backup.</p>
         <p className="text-center mt-2"><a className="font-bold text-[#246779] underline" href="/animal-sounds/credits.html" target="_blank" rel="noopener noreferrer">Animal sound credits</a></p>
         {notice && <p role="status" className="text-center font-black text-[#315772] mt-2">{notice}</p>}
