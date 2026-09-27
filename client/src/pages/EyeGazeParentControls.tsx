@@ -88,6 +88,7 @@ export default function EyeGazeParentControls() {
       const grownupToken = sessionStorage.getItem("talker-grownup-token") || "";
       const result = await saveFamilySettings(token, controls, grownupToken);
       setControls(result.settings);
+      window.dispatchEvent(new CustomEvent("arise-parent-controls-updated", { detail: result.settings }));
       setMessage("✓ Child profile controls saved.");
     } catch (err: any) {
       setError(err.message || "Could not save controls.");
