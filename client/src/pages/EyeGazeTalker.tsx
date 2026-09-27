@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { defaultNeeds, talkerPicture, talkerRequest, type TalkerConfig, type TalkerState, type TalkerWord } from "@/lib/talkerState";
 import EyeGazeLearningZone from "./EyeGazeLearningZone";
 
-type Word = { label: string; picture: string; sentence: string; imageData?: string | null };
+type Word = { label: string; picture: string; sentence: string; imageData?: string | null; baseLabel?: string };
 type Place = { id: string; label: string; picture: string; hint: string; color: string; words: Word[] };
 
 const animalSounds: Record<string, string> = {
@@ -68,6 +68,28 @@ export const places: Place[] = [
   ] },
 ];
 
+const emotionWords: Word[] = [
+  { label: "Happy", picture: "😊", sentence: "I feel happy." },
+  { label: "Sad", picture: "😢", sentence: "I feel sad." },
+  { label: "Mad", picture: "😠", sentence: "I feel mad." },
+  { label: "Scared", picture: "😨", sentence: "I feel scared." },
+  { label: "Tired", picture: "🥱", sentence: "I feel tired." },
+  { label: "Sick", picture: "🤒", sentence: "I feel sick." },
+  { label: "Excited", picture: "🤩", sentence: "I feel excited." },
+  { label: "Calm", picture: "😌", sentence: "I feel calm." },
+];
+
+const simpleWords: Word[] = [
+  { label: "Yes", picture: "👍", sentence: "Yes." },
+  { label: "No", picture: "👎", sentence: "No." },
+  { label: "Help", picture: "🤝", sentence: "Help me." },
+  { label: "More", picture: "➕", sentence: "More, please." },
+  { label: "Stop", picture: "✋", sentence: "Stop, please." },
+  { label: "Bathroom", picture: "🚽", sentence: "Bathroom, please." },
+  { label: "Eat", picture: "🍽️", sentence: "I want to eat." },
+  { label: "Drink", picture: "🥤", sentence: "I want a drink." },
+];
+
 
 function uniqueByLabel(words: Word[]) {
   const seen = new Set<string>();
@@ -122,20 +144,49 @@ export default function EyeGazeTalker() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"ai" | "device" | "checking">("checking");
   const [notice, setNotice] = useState("");
-  const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {} });
+  const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {}, overrides: {}, recordings: {} });
+  const [libraryMode, setLibraryMode] = useState<"places" | "emotions" | "all" | "simple">("places");
+  const [grownupToken, setGrownupToken] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editWord, setEditWord] = useState<Word | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editSentence, setEditSentence] = useState("");
+  const [gateOpen, setGateOpen] = useState(false);
+  const [challenge, setChallenge] = useState<{ challengeId: string; question: string } | null>(null);
+  const [mathAnswer, setMathAnswer] = useState("");
+  const [gateError, setGateError] = useState("");
+  const [gateLoading, setGateLoading] = useState(false);
+  const [recordingKind, setRecordingKind] = useState<"word" | "sentence" | null>(null);
+  const [recordingDrafts, setRecordingDrafts] = useState<{ word?: string; sentence?: string }>({});
+  const editDialog = useRef<HTMLDialogElement>(null);
+  const gateDialog = useRef<HTMLDialogElement>(null);
+  const parentRecorder = useRef<MediaRecorder | null>(null);
+  const parentStream = useRef<MediaStream | null>(null);
   const wordDialog = useRef<HTMLDialogElement>(null);
   const settingsDialog = useRef<HTMLDialogElement>(null);
   const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dwellTarget = useRef<HTMLButtonElement | null>(null);
   const animalAudio = useRef<HTMLAudioElement | null>(null);
   const place = places.find(item => item.id === placeId);
-  const needs: TalkerWord[] = familyConfig.alwaysHere ?? defaultNeeds;
-  const picture = (word: Word) => talkerPicture(word, familyConfig.pictures);
+  const rawNeeds: TalkerWord[] = familyConfig.alwaysHere ?? defaultNeeds;
+  const wordKey = (word: Word) => (word.baseLabel || word.label).trim().toLowerCase();
+  const resolveWord = (word: Word): Word => {
+    const baseLabel = word.baseLabel || word.label;
+    const override = familyConfig.overrides?.[baseLabel.trim().toLowerCase()] || {};
+    return { ...word, ...override, baseLabel };
+  };
+  const needs: TalkerWord[] = rawNeeds.map(word => resolveWord(word) as TalkerWord);
+  const picture = (word: Word) => talkerPicture(resolveWord(word), familyConfig.pictures);
+  const resolvedPlaces = places.map(item => ({ ...item, words: item.words.map(resolveWord) }));
+  const currentPlace = resolvedPlaces.find(item => item.id === placeId);
+  const allLibraryWords = uniqueByLabel([...needs, ...emotionWords.map(resolveWord), ...resolvedPlaces.flatMap(item => item.words)]);
+  const visibleSimpleWords = simpleWords.map(resolveWord);
+  const visibleEmotionWords = emotionWords.map(resolveWord);
 
   useEffect(() => {
     let active = true;
     void talkerRequest<TalkerState>(token).then(state => {
-      if (active) setFamilyConfig(state.config);
+      if (active) setFamilyConfig({ alwaysHere: state.config?.alwaysHere ?? null, pictures: state.config?.pictures || {}, overrides: state.config?.overrides || {}, recordings: state.config?.recordings || {} });
     }).catch(() => { if (active) setNotice("Family pictures could not load. Try reopening the talker."); });
     return () => { active = false; };
   }, [token]);
@@ -143,7 +194,7 @@ export default function EyeGazeTalker() {
   useEffect(() => {
     if (voiceStatus !== "ai") return;
     const lines = placeId
-      ? places.find(item => item.id === placeId)?.words.flatMap(word => [word.label, word.sentence]) || []
+      ? resolvedPlaces.find(item => item.id === placeId)?.words.flatMap(word => [word.label, word.sentence]) || []
       : needs.flatMap(word => [word.label, word.sentence]);
     let cancelled = false;
     // Keep requests small and staggered so the first words are ready quickly.
@@ -172,6 +223,14 @@ export default function EyeGazeTalker() {
   useEffect(() => {
     if (settingsOpen) settingsDialog.current?.showModal();
   }, [settingsOpen]);
+
+  useEffect(() => {
+    if (editOpen) editDialog.current?.showModal();
+  }, [editOpen]);
+
+  useEffect(() => {
+    if (gateOpen) gateDialog.current?.showModal();
+  }, [gateOpen]);
 
   useEffect(() => {
     localStorage.setItem("eye-gaze-talker-dwell", dwell ? "on" : "off");
@@ -242,12 +301,26 @@ export default function EyeGazeTalker() {
     });
   };
 
+  const playFamilyRecording = (word: Word, kind: "word" | "sentence", fallback: () => void) => {
+    const audioData = familyConfig.recordings?.[wordKey(word)]?.[kind];
+    if (!audioData) { fallback(); return; }
+    stopSpeaking();
+    const audio = new Audio(audioData);
+    void audio.play().catch(fallback);
+  };
+
+  const sayWord = (word: Word, kind: "word" | "sentence" = "word") => {
+    const resolved = resolveWord(word);
+    const text = kind === "word" ? resolved.label : resolved.sentence;
+    playFamilyRecording(resolved, kind, () => say(text));
+  };
+
   const choose = (word: Word) => {
-    setSelected(word);
-    if (voiceStatus === "ai") void preloadCharacterAI(word.sentence).catch(() => null);
-    // Farm calls are short and familiar; zoo calls are available on demand.
-    say(word.label, ["Cow", "Dog", "Cat", "Sheep", "Duck", "Rooster"].includes(word.label)
-      ? () => playAnimal(word.label) : undefined);
+    const resolved = resolveWord(word);
+    setSelected(resolved);
+    if (voiceStatus === "ai") void preloadCharacterAI(resolved.sentence).catch(() => null);
+    playFamilyRecording(resolved, "word", () => say(resolved.label, ["Cow", "Dog", "Cat", "Sheep", "Duck", "Rooster"].includes(resolved.label)
+      ? () => playAnimal(resolved.label) : undefined));
   };
 
   const recordLearning = (word: string, outcome: "correct" | "retry" | "practiced", prompt = 1) => {
