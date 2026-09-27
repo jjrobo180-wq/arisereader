@@ -145,7 +145,8 @@ export default function EyeGazeTV() {
       {videos.map((video,i)=><article key={video.id} className="relative h-[100dvh] snap-start snap-always bg-slate-950 overflow-hidden">
         {i === index ? <div id={`arise-tv-player-${i}`} className="absolute inset-0 w-full h-full pointer-events-none" /> :
           <img src={`https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`} onError={e=>{e.currentTarget.src=`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;}} alt="" className="absolute inset-0 w-full h-full object-contain bg-black" />}
-        <div className="absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-black via-black/55 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 z-20 touch-pan-y" aria-hidden="true" />
+        <div className="absolute inset-x-0 bottom-0 z-[21] h-52 bg-gradient-to-t from-black via-black/55 to-transparent pointer-events-none" />
         <div className="absolute z-30 left-4 right-20 bottom-8 pointer-events-none">
           <span className="inline-block rounded-full bg-cyan-300 text-slate-950 px-3 py-1 text-xs font-black">✓ GROWN-UP APPROVED</span>
           <h2 className="text-2xl sm:text-4xl font-black mt-2 leading-tight">{video.title}</h2>
