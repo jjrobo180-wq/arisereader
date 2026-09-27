@@ -21,6 +21,8 @@ export type TalkerConfig = {
   pictures: Record<string, string>;
   overrides: Record<string, TalkerOverride>;
   recordings: Record<string, TalkerRecording>;
+  pageOrder?: string[];
+  buttonOrder?: Record<string, string[]>;
 };
 export type TalkerState = { student: { id: number; name: string }; config: TalkerConfig; progress: TalkerProgress };
 
