@@ -1,7 +1,11 @@
+import { API_BASE } from "@/lib/queryClient";
+
+export type FamilyVideo = { id: string; title: string; channel: string; topic: string };
 export type ParentControls = {
   enabled: boolean;
   allowedPaths: string[];
   tvDailyMinutes: number;
+  videos: FamilyVideo[];
 };
 
 export const CONTROLLED_FEATURES = [
@@ -15,31 +19,51 @@ export const CONTROLLED_FEATURES = [
   { path: "/leaderboard", label: "My Progress", emoji: "⭐" },
 ];
 
-const key = (studentId?: number | string) => `arise-parent-controls-${studentId || "default"}`;
-
 export function defaultParentControls(): ParentControls {
-  return { enabled: false, allowedPaths: CONTROLLED_FEATURES.map(item => item.path), tvDailyMinutes: 30 };
-}
-
-export function loadParentControls(studentId?: number | string): ParentControls {
-  try {
-    const saved = JSON.parse(localStorage.getItem(key(studentId)) || "null");
-    if (!saved) return defaultParentControls();
-    return {
-      enabled: !!saved.enabled,
-      allowedPaths: Array.isArray(saved.allowedPaths) ? saved.allowedPaths : defaultParentControls().allowedPaths,
-      tvDailyMinutes: Math.max(0, Math.min(240, Number(saved.tvDailyMinutes ?? 30))),
-    };
-  } catch { return defaultParentControls(); }
-}
-
-export function saveParentControls(studentId: number | string | undefined, controls: ParentControls) {
-  localStorage.setItem(key(studentId), JSON.stringify(controls));
-  window.dispatchEvent(new CustomEvent("arise-parent-controls-updated", { detail: controls }));
+  return { enabled: false, allowedPaths: CONTROLLED_FEATURES.map(item => item.path), tvDailyMinutes: 30, videos: [] };
 }
 
 export function pathAllowed(path: string, controls: ParentControls) {
   if (!controls.enabled) return true;
-  if (path === "/eye-gaze-home" || path === "/eye-gaze-account" || path === "/eye-gaze-parent") return true;
+  if (path === "/eye-gaze-home" || path === "/eye-gaze-account" || path === "/eye-gaze-parent" || path === "/eye-gaze-parent-controls") return true;
   return controls.allowedPaths.some(allowed => path === allowed || path.startsWith(allowed + "/"));
+}
+
+async function request<T>(token: string | null | undefined, path: string, init?: RequestInit): Promise<T> {
+  if (!token) throw new Error("Please sign in again.");
+  const res = await fetch(`${API_BASE}${path}`, {
+    cache: "no-store",
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.headers || {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || "A.R.I.S.E. could not load that setting.");
+  return data as T;
+}
+
+export async function fetchFamilySettings(token: string | null | undefined) {
+  return request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings");
+}
+
+export async function saveFamilySettings(token: string | null | undefined, settings: ParentControls, grownupToken?: string) {
+  return request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings", {
+    method: "POST",
+    headers: grownupToken ? { "X-Talker-Grownup-Token": grownupToken } : {},
+    body: JSON.stringify(settings),
+  });
+}
+
+export async function getTvUsage(token: string | null | undefined) {
+  return request<{ seconds: number; minutes: number }>(token, "/api/eye-gaze/tv-usage");
+}
+
+export async function addTvUsage(token: string | null | undefined, seconds: number) {
+  return request<{ seconds: number; minutes: number }>(token, "/api/eye-gaze/tv-usage", {
+    method: "POST",
+    body: JSON.stringify({ seconds }),
+  });
 }
