@@ -834,7 +834,7 @@ export default function EyeGazeTalker() {
               <h3 className="text-xl font-black">🎙️ Family voice for the word</h3>
               <p className="text-sm font-bold text-[#547886] mt-1">Record yourself saying just the word. This replaces the AI voice for this word only.</p>
               <div className="grid sm:grid-cols-3 gap-2 mt-3">
-                <button type="button" onClick={() => recordingKind === "word" ? stopParentRecording() : void startParentRecording("word")} className={\`min-h-12 rounded-2xl font-black \${recordingKind === "word" ? "bg-rose-500 text-white" : "bg-violet-600 text-white"}\`}>{recordingKind === "word" ? "■ Stop" : "● Record word"}</button>
+                <button type="button" onClick={() => recordingKind === "word" ? stopParentRecording() : void startParentRecording("word")} className={"min-h-12 rounded-2xl font-black " + (recordingKind === "word" ? "bg-rose-500 text-white" : "bg-violet-600 text-white")}>{recordingKind === "word" ? "■ Stop" : "● Record word"}</button>
                 <button type="button" disabled={!recordingDrafts.word} onClick={() => previewRecording("word")} className="min-h-12 rounded-2xl bg-white border-2 border-violet-100 font-black disabled:opacity-40">▶ Preview</button>
                 <button type="button" onClick={() => setRecordingDrafts(previous => ({ ...previous, word: undefined }))} className="min-h-12 rounded-2xl bg-white border-2 border-violet-100 font-black">✨ Use AI voice</button>
               </div>
@@ -845,7 +845,7 @@ export default function EyeGazeTalker() {
               <h3 className="text-xl font-black">🎙️ Family voice for the sentence</h3>
               <p className="text-sm font-bold text-[#547886] mt-1">You can separately record the full sentence. Otherwise the sentence keeps using AI.</p>
               <div className="grid sm:grid-cols-3 gap-2 mt-3">
-                <button type="button" onClick={() => recordingKind === "sentence" ? stopParentRecording() : void startParentRecording("sentence")} className={\`min-h-12 rounded-2xl font-black \${recordingKind === "sentence" ? "bg-rose-500 text-white" : "bg-teal-600 text-white"}\`}>{recordingKind === "sentence" ? "■ Stop" : "● Record sentence"}</button>
+                <button type="button" onClick={() => recordingKind === "sentence" ? stopParentRecording() : void startParentRecording("sentence")} className={"min-h-12 rounded-2xl font-black " + (recordingKind === "sentence" ? "bg-rose-500 text-white" : "bg-teal-600 text-white")}>{recordingKind === "sentence" ? "■ Stop" : "● Record sentence"}</button>
                 <button type="button" disabled={!recordingDrafts.sentence} onClick={() => previewRecording("sentence")} className="min-h-12 rounded-2xl bg-white border-2 border-teal-100 font-black disabled:opacity-40">▶ Preview</button>
                 <button type="button" onClick={() => setRecordingDrafts(previous => ({ ...previous, sentence: undefined }))} className="min-h-12 rounded-2xl bg-white border-2 border-teal-100 font-black">✨ Use AI voice</button>
               </div>
