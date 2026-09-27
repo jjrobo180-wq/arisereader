@@ -1,3 +1,7 @@
+import { fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
+import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
+import EyeGazeLessons from "@/pages/EyeGazeLessons";
+import EyeGazeAccessGate from "@/components/EyeGazeAccessGate";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X, Zap, Flag, LockKeyhole, Sparkles } from "lucide-react";
@@ -66,7 +70,7 @@ function BuddyCoach({ buddy, message }: { buddy: BuddyConfig; message: string })
       onEnd: () => setTalking(false),
       onFallback: () => {
         setTalking(false);
-        setBuddyMessage("Natural AI voice is unavailable. Check the server AI voice configuration.");
+        // Keep the visible directions available if speech is unavailable.
       },
     });
   };
@@ -636,6 +640,7 @@ function MatchPairs({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig 
     setLocked(true);
     if (firstCard.pair === card.pair && firstCard.kind !== card.kind) {
       setCards(prev => prev.map(c => c.id === first || c.id === id ? { ...c, matched: true } : c));
+      celebrateEyeGaze(!!buddy.calmMode);
       setMessage("Yes! Those match. Nice reading! Pick another card.");
       setFirst(null);
       setLocked(false);
@@ -704,6 +709,7 @@ function WordPop({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) 
     if (word === current.target) {
       setLocked(true);
       setStars(s => s + 1);
+      celebrateEyeGaze(!!buddy.calmMode);
       setFeedback(`POP! You found ${current.target}! Great job!`);
       setTimeout(() => {
         setRound(r => (r + 1) % POP_ROUNDS.length);
@@ -759,6 +765,7 @@ function SentenceBuilder({ onBack, buddy }: { onBack: () => void; buddy: BuddyCo
     if (word === current.words[nextIndex]) {
       const next = [...built, word];
       setBuilt(next);
+      celebrateEyeGaze(!!buddy.calmMode);
       setMessage(next.length === current.words.length ? "You built the whole sentence! Read it with me." : `Yes! ${word} goes there. Now choose the next word.`);
     } else {
       setMessage("Good try. That word comes later or does not belong here. Choose another word.");
@@ -851,8 +858,15 @@ function GameShell({
 }
 
 export default function EyeGazeGames() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const [permissions,setPermissions]=useState<ParentControls|null>(null);
+  const [permissionsFailed,setPermissionsFailed]=useState(false);
+  const isChild=!!user?.is_eye_gaze_user && user.role === "student" && !user.isAdmin;
+  useEffect(()=>{let active=true;if(isChild)void fetchFamilySettings(token).then(result=>{if(active)setPermissions(result.settings);}).catch(()=>{if(active)setPermissionsFailed(true);});return()=>{active=false;};},[token,isChild]);
+  const canPlay=!isChild || (!!permissions && pathAllowed("/eye-gaze-games",permissions));
+  const canLearn=!isChild || (!!permissions && pathAllowed("/library",permissions));
   const [, navigate] = useLocation();
+  const [panel, setPanel] = useState<"games" | "lessons">(()=>new URLSearchParams(window.location.search).get("tab")==="lessons"?"lessons":"games");
   const [game, setGame] = useState<GameId>(null);
   const [showBuddySetup, setShowBuddySetup] = useState(false);
   const [buddy, setBuddy] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true, calmMode: false });
@@ -934,18 +948,20 @@ export default function EyeGazeGames() {
     reader.readAsDataURL(file);
   };
 
-  if (game === "runner") return <ReadingRunnerPro onBack={() => setGame(null)} buddy={buddy} />;
-  if (game === "ninja") return <ReadingNinja onBack={() => setGame(null)} buddy={buddy} />;
-  if (game === "match") return <MatchPairs onBack={() => setGame(null)} buddy={buddy} />;
-  if (game === "pop") return <WordPop onBack={() => setGame(null)} buddy={buddy} />;
-  if (game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
+  if(isChild && !permissions)return <div className="p-8 font-bold">{permissionsFailed?"Could not load activity permissions. Please reopen Games.":"Loading activities…"}</div>;
+  const activePanel = panel === "games" && !canPlay ? "lessons" : panel === "lessons" && !canLearn ? "games" : panel;
+  if (canPlay && game === "runner") return <ReadingRunnerPro onBack={() => setGame(null)} buddy={buddy} />;
+  if (canPlay && game === "ninja") return <ReadingNinja onBack={() => setGame(null)} buddy={buddy} />;
+  if (canPlay && game === "match") return <MatchPairs onBack={() => setGame(null)} buddy={buddy} />;
+  if (canPlay && game === "pop") return <WordPop onBack={() => setGame(null)} buddy={buddy} />;
+  if (canPlay && game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b-2 border-slate-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/library")}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> Library
+          <Button variant="ghost" size="sm" onClick={() => navigate("/eye-gaze-home")}>
+            <ArrowLeft className="w-4 h-4 mr-1" /> Home
           </Button>
           <div className="flex-1">
             <h1 className="font-black text-lg flex items-center gap-2">
@@ -956,7 +972,13 @@ export default function EyeGazeGames() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-5xl mx-auto px-4 pt-5">
+        <div className="grid grid-cols-2 gap-3 rounded-3xl bg-white p-2 border-2 border-teal-200" role="tablist" aria-label="Games and lessons">
+          <button role="tab" aria-selected={activePanel==="games"} disabled={!canPlay} onClick={()=>setPanel("games")} className={`min-h-16 rounded-2xl text-lg font-black disabled:opacity-40 ${activePanel==="games"?"bg-teal-800 text-white":"text-slate-700 bg-slate-100"}`}>🎮 Games</button>
+          <button role="tab" aria-selected={activePanel==="lessons"} disabled={!canLearn} onClick={()=>setPanel("lessons")} className={`min-h-16 rounded-2xl text-lg font-black disabled:opacity-40 ${activePanel==="lessons"?"bg-teal-800 text-white":"text-slate-700 bg-slate-100"}`}>📚 Lessons & books</button>
+        </div>
+      </div>
+      {activePanel === "lessons" ? <EyeGazeAccessGate path="/library"><EyeGazeLessons embedded /></EyeGazeAccessGate> : <main className="max-w-5xl mx-auto px-4 py-6">
         <Card className="mb-6 bg-white text-slate-950 border-2 border-violet-200 shadow-lg">
           <CardContent className="p-5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -1111,7 +1133,7 @@ export default function EyeGazeGames() {
             <p className="text-xs font-bold text-emerald-700 mt-4">Sentence order · comprehension</p><div className="mt-4 rounded-xl bg-emerald-600 text-white px-4 py-3 text-center font-black">PLAY SENTENCE BUILDER →</div>
           </button>
         </div>
-      </main>
+      </main>}
 
       {showBuddySetup && (
         <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-center justify-center">

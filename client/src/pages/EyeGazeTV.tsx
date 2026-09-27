@@ -87,8 +87,9 @@ export default function EyeGazeTV() {
     try {
       const topics = settings.tvTopics.length ? settings.tvTopics : ["animals"];
       const topic = preferredTopic || topics[topicTurn % topics.length];
-      const params = new URLSearchParams({ topic });
-      const cursor = topicCursor[topic];
+      const params = new URLSearchParams({ topic, channelTurn: String(topicTurn) });
+      const cursorKey = `${topic}:${topicTurn % Math.max(1, settings.tvChannels?.length || 1)}`;
+      const cursor = topicCursor[cursorKey];
       if (cursor) params.set("pageToken", cursor);
 
       const res = await fetch(`${API_BASE}/api/eye-gaze/youtube-shorts?${params.toString()}`, {
@@ -110,7 +111,7 @@ export default function EyeGazeTV() {
 
       addUnique(items);
       setAutomaticDiscovery(data.automaticDiscovery !== false);
-      setTopicCursor(current => ({ ...current, [topic]: data.nextPageToken || null }));
+      setTopicCursor(current => ({ ...current, [cursorKey]: data.nextPageToken || null }));
       setTopicTurn(turn => turn + 1);
     } catch (err: any) {
       setError(err.message || "Could not load more Shorts.");
@@ -141,7 +142,7 @@ export default function EyeGazeTV() {
   useEffect(() => {
     if (!settings) return;
     void loadMore(settings.tvTopics[0]);
-  }, [settings?.tvAgeRange, settings?.tvTopics.join("|")]);
+  }, [settings?.tvAgeRange, settings?.tvTopics.join("|"), settings?.tvChannels?.join("|")]);
 
   useEffect(() => {
     if (shorts.length - index <= 6 && settings) void loadMore();

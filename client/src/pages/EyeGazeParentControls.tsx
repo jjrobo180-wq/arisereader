@@ -1,3 +1,4 @@
+import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels } from "@shared/youtubeChannels";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -41,7 +42,7 @@ export default function EyeGazeParentControls() {
     void fetchFamilySettings(token)
       .then(result => {
         if (!active) return;
-        setControls(result.settings);
+        setControls({ ...result.settings, tvChannels: normalizeYoutubeChannels(result.settings.tvChannels) });
         setStudentName(result.student.name || "your child");
       })
       .catch(err => { if (active) setError(err.message); })
@@ -88,7 +89,7 @@ export default function EyeGazeParentControls() {
     try {
       const grownupToken = sessionStorage.getItem("talker-grownup-token") || "";
       const result = await saveFamilySettings(token, controls, grownupToken);
-      setControls(result.settings);
+      setControls({ ...result.settings, tvChannels: normalizeYoutubeChannels(result.settings.tvChannels) });
       window.dispatchEvent(new CustomEvent("arise-parent-controls-updated", { detail: result.settings }));
       setMessage("✓ Child profile controls saved.");
     } catch (err: any) {
@@ -172,7 +173,7 @@ export default function EyeGazeParentControls() {
 
       <section className="mt-5 rounded-[2rem] bg-white border-2 border-sky-100 p-5 sm:p-7 shadow-sm">
         <h2 className="text-2xl font-black">A.R.I.S.E. Shorts</h2>
-        <p className="font-bold text-slate-600 mt-1">Choose the age and learning topics. A.R.I.S.E. finds real educational YouTube Shorts that match those settings and keeps loading more as the child swipes.</p>
+        <p className="font-bold text-slate-600 mt-1">Choose channels, age, and learning topics. A.R.I.S.E. finds real educational YouTube Shorts that match those settings and keeps loading more as the child swipes.</p>
 
         <div className="mt-5">
           <h3 className="text-lg font-black">1. Age range</h3>
@@ -217,8 +218,26 @@ export default function EyeGazeParentControls() {
           </div>
         </div>
 
+        <div className="mt-6">
+          <h3 className="text-lg font-black">3. Choose channels</h3>
+          <p className="text-sm font-bold text-slate-600">Only selected channels appear in the automatic feed. Age and topic choices still apply. Shorts you add yourself below are always included.</p>
+          <div className="flex flex-wrap gap-3 mt-3">
+            <button type="button" onClick={()=>setControls(c=>({...c,tvChannels:YOUTUBE_CHANNEL_OPTIONS.map(ch=>ch.id)}))} className="min-h-12 rounded-xl bg-teal-100 px-4 font-black">Select all</button>
+            <button type="button" onClick={()=>setControls(c=>({...c,tvChannels:[]}))} className="min-h-12 rounded-xl bg-slate-100 px-4 font-black">Clear channels</button>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3 mt-3">
+            {YOUTUBE_CHANNEL_OPTIONS.map(channel=>{
+              const selected=controls.tvChannels.includes(channel.id);
+              return <button key={channel.id} type="button" aria-pressed={selected} onClick={()=>setControls(c=>({...c,tvChannels:selected?c.tvChannels.filter(id=>id!==channel.id):[...c.tvChannels,channel.id]}))} className={`min-h-24 rounded-2xl border-4 p-4 text-left ${selected?"bg-teal-50 border-teal-600":"bg-white border-slate-200"}`}>
+                <span className="text-3xl mr-3">{channel.emoji}</span><strong>{channel.name}</strong><span className="block mt-2 text-sm font-bold">{selected?"✓ Included":"Not included"}</span>
+              </button>;
+            })}
+          </div>
+          {!controls.tvChannels.length && <p className="mt-3 font-bold text-amber-900">Only your individually approved Shorts will play. Select a channel to turn automatic discovery back on.</p>}
+        </div>
+
         <div className="mt-6 rounded-3xl bg-slate-50 border-2 border-slate-200 p-4">
-          <h3 className="text-lg font-black">3. Optional: add specific YouTube Shorts</h3>
+          <h3 className="text-lg font-black">4. Optional: add specific YouTube Shorts</h3>
           <p className="text-sm font-bold text-slate-500 mt-1">These get mixed into the automatic YouTube Shorts feed. Paste a specific Short you approve.</p>
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
           <label className="font-black sm:col-span-2">YouTube Short link<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/shorts/…" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
@@ -238,7 +257,7 @@ export default function EyeGazeParentControls() {
               <button onClick={()=>setControls(c=>({...c,videos:c.videos.filter((_,i)=>i!==index)}))} className="w-10 h-9 rounded-lg bg-rose-100 text-rose-800 font-black">×</button>
             </div>
           </div>)}
-          {!controls.videos.length && <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 font-bold text-sky-900">No specific YouTube Shorts added — that's okay. A.R.I.S.E. will still find YouTube Shorts from the age and topics above.</div>}
+          {!controls.videos.length && <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 font-bold text-sky-900">No individual Shorts added. The automatic feed uses only your selected channels, age, and topics.</div>}
         </div>
         </div>
 

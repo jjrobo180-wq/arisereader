@@ -3,7 +3,7 @@ import { Redirect } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
-export default function EyeGazeAccessGate({ path, children }: { path: string; children: React.ReactNode }) {
+export default function EyeGazeAccessGate({ path, anyOf, children }: { path: string; anyOf?: string[]; children: React.ReactNode }) {
   const { user, token } = useAuth();
   const [controls, setControls] = useState<ParentControls | null>(null);
 
@@ -23,6 +23,6 @@ export default function EyeGazeAccessGate({ path, children }: { path: string; ch
 
   if (!isChild) return <>{children}</>;
   if (!controls) return <div className="min-h-screen grid place-items-center bg-slate-50 font-black text-slate-700">Loading your learning plan…</div>;
-  if (!pathAllowed(path, controls)) return <Redirect to="/eye-gaze-home" />;
+  if (!(anyOf || [path]).some(item => pathAllowed(item, controls))) return <Redirect to="/eye-gaze-home" />;
   return <>{children}</>;
 }

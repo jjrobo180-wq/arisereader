@@ -1,3 +1,4 @@
+import { useEyeGazeBackground } from "@/lib/eyeGazeAppearance";
 import { ReactNode, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -6,6 +7,7 @@ import { BookOpen, Gamepad2, Home, LogOut, MessageCircle, Trophy, UserRound, Use
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
+  const background = useEyeGazeBackground();
   const { user, token, logout } = useAuth();
   const [location, navigate] = useLocation();
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
@@ -70,21 +72,22 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
 
   const nav = [
     { label: "Home", icon: Home, path: "/eye-gaze-home" },
-    { label: "Lessons", icon: BookOpen, path: "/library" },
-    { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
     { label: "Talker", icon: MessageCircle, path: "/eye-gaze-talker" },
+    { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
     { label: "Progress", icon: Trophy, path: "/leaderboard" },
     { label: "My Buddy", icon: Users, path: "/eye-gaze-buddy" },
     { label: "Profile", icon: UserRound, path: "/eye-gaze-account" },
   ];
-  const visibleNav = nav.filter(item => item.path === "/eye-gaze-account" || pathAllowed(item.path, parentControls));
-  const mobileNav = visibleNav.filter(item => ["Home", "Lessons", "Games", "Talker", "Profile"].includes(item.label));
+  const visibleNav = nav.filter(item => item.path === "/eye-gaze-account" || (item.path === "/eye-gaze-games" && pathAllowed("/library", parentControls)) || pathAllowed(item.path, parentControls));
+  const mobileNav = visibleNav.filter(item => ["Home", "Talker", "Games", "Profile"].includes(item.label));
 
   return (
-    <div data-eye-gaze-shell className="min-h-screen bg-[#f7fbff] text-slate-900">
+    <div data-eye-gaze-shell className="min-h-screen text-slate-900" style={{ backgroundColor: background }}>
       <style>{`
         [data-eye-gaze-shell] {
-          --background: 210 100% 98%;
+          --background: 150 39% 93%;
+          --primary: 173 80% 24%;
+          --primary-foreground: 0 0% 100%;
           --foreground: 222 47% 11%;
           --card: 0 0% 100%;
           --card-foreground: 222 47% 11%;
@@ -92,12 +95,12 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
           --muted-foreground: 215 16% 47%;
           --border: 214 32% 91%;
         }
-        [data-eye-gaze-shell] .eye-gaze-page { background: #f7fbff; color: #0f172a; }
+        [data-eye-gaze-shell] .eye-gaze-page { background: transparent; color: #0f172a; }
         [data-eye-gaze-shell] .eye-gaze-page > div > header { display: none !important; }
         [data-eye-gaze-shell] .eye-gaze-page > div { min-height: 0 !important; background: transparent !important; }
         [data-eye-gaze-shell] .eye-gaze-page main { max-width: 100% !important; }
       `}</style>
-      {!immersive && <header className="sticky top-0 z-[70] bg-white/95 backdrop-blur border-b border-sky-100 shadow-sm">
+      {!immersive && <header className="sticky top-0 z-[70] bg-[#fffaf0]/95 backdrop-blur border-b border-teal-200 shadow-sm">
         <div className="max-w-[1600px] mx-auto h-20 px-4 sm:px-6 flex items-center gap-3">
           <button type="button" onClick={() => navigate("/eye-gaze-home")} className="flex items-center gap-3 mr-auto min-w-0" aria-label="A.R.I.S.E. Reader Home">
             <div className="w-12 h-12 rounded-2xl bg-slate-950 flex items-center justify-center shadow-sm flex-shrink-0 border-2 border-amber-300"><BookOpen className="w-7 h-7 text-amber-300" /></div>
@@ -111,13 +114,13 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
         </div>
       </header>}
       <div className={immersive ? "w-full min-w-0" : "max-w-[1600px] mx-auto flex min-w-0"}>
-        {!immersive && <aside className="hidden xl:flex w-28 flex-shrink-0 flex-col items-center gap-4 py-6 px-3 border-r border-sky-100 bg-white/70 min-h-[calc(100vh-5rem)]">
-          {visibleNav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`w-full min-h-[88px] rounded-3xl flex flex-col items-center justify-center gap-2 font-black text-xs text-center px-1 transition-colors ${active ? "bg-violet-500 text-white" : "text-slate-500 hover:bg-blue-50"}`}><Icon className="w-7 h-7" />{item.label}</button>; })}
+        {!immersive && <aside className="hidden xl:flex w-28 flex-shrink-0 flex-col items-center gap-4 py-6 px-3 border-r border-teal-200 bg-white/70 min-h-[calc(100vh-5rem)]">
+          {visibleNav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`w-full min-h-[88px] rounded-3xl flex flex-col items-center justify-center gap-2 font-black text-xs text-center px-1 transition-colors ${active ? "bg-teal-700 text-white" : "text-slate-500 hover:bg-teal-50"}`}><Icon className="w-7 h-7" />{item.label}</button>; })}
         </aside>}
         <div className={immersive ? "flex-1 min-w-0" : "eye-gaze-page flex-1 min-w-0"}>{children}</div>
       </div>
-      {!immersive && <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-sky-100 px-1 py-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobileNav.length)}, minmax(0, 1fr))` }}>
-        {mobileNav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`min-h-[64px] rounded-2xl flex flex-col items-center justify-center text-[11px] font-black transition-colors ${active ? "bg-violet-100 text-violet-800" : "text-slate-500"}`}><Icon className="w-5 h-5 mb-1" />{item.label}</button>; })}
+      {!immersive && <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-teal-200 px-1 py-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobileNav.length)}, minmax(0, 1fr))` }}>
+        {mobileNav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`min-h-[64px] rounded-2xl flex flex-col items-center justify-center text-[11px] font-black transition-colors ${active ? "bg-teal-100 text-teal-950" : "text-slate-500"}`}><Icon className="w-5 h-5 mb-1" />{item.label}</button>; })}
       </nav>}
     </div>
   );

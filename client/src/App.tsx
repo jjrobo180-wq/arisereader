@@ -1,3 +1,5 @@
+import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
+import QuickHome from "@/components/QuickHome";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -242,7 +244,7 @@ function AppRoutes() {
         {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-home" /> : <ProtectedRoute><Polls /></ProtectedRoute>}
       </Route>
       <Route path="/library">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><EyeGazeLessons /></EyeGazeAccessGate> : <Library />}</ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-games?tab=lessons" /> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/course/:id">
         <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><CoursePage /></EyeGazeAccessGate> : <CoursePage />}</ProtectedRoute>
@@ -255,7 +257,7 @@ function AppRoutes() {
       </Route>
       <Route path="/profile">
         <ProtectedRoute>
-          {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-buddy" /> : <Profile />}
+          {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-account" /> : <Profile />}
         </ProtectedRoute>
       </Route>
       <Route path="/admin">
@@ -271,7 +273,7 @@ function AppRoutes() {
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-buddy"><EyeGazeBuddy /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-games">
-        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><EyeGazeGames /></EyeGazeAccessGate></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games" anyOf={["/eye-gaze-games", "/library"]}><EyeGazeGames /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-tv">
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-tv"><EyeGazeTV /></EyeGazeAccessGate></ProtectedRoute>
@@ -395,6 +397,8 @@ function AppInner() {
       <Router hook={useHashLocation}>
         <EyeGazeSiteShell>
           <AppRoutes />
+          <QuickHome />
+          <EyeGazeCelebrations />
         </EyeGazeSiteShell>
       </Router>
     </>

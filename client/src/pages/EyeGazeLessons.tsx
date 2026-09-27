@@ -32,7 +32,7 @@ function lessonVisual(title: string) {
   return "🧩";
 }
 
-export default function EyeGazeLessons() {
+export default function EyeGazeLessons({ embedded = false }: { embedded?: boolean }) {
   const { token } = useAuth();
   const [, navigate] = useLocation();
   const [books, setBooks] = useState<any[]>([]);
@@ -56,7 +56,7 @@ export default function EyeGazeLessons() {
       setBooks(Array.isArray(b) ? b : []);
       setQuizzes(Array.isArray(q) ? q : []);
       setCustom((Array.isArray(c) ? c : []).filter((x: any) => x.quiz_type !== "regular"));
-    }).finally(() => setLoading(false));
+    }).catch(() => { setBooks([]); setQuizzes([]); setCustom([]); }).finally(() => setLoading(false));
   }, [token]);
 
   const lessons = useMemo(() => [
@@ -76,7 +76,7 @@ export default function EyeGazeLessons() {
 
   return (
     <main className="max-w-[1350px] mx-auto px-4 sm:px-6 py-5 space-y-4">
-      <section className="rounded-[2rem] bg-gradient-to-r from-sky-100 via-white to-violet-100 border border-sky-100 p-5 sm:p-6">
+      {!embedded && <section className="rounded-[2rem] bg-gradient-to-r from-sky-100 via-white to-violet-100 border border-sky-100 p-5 sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <div className="w-20 h-20 rounded-[1.7rem] bg-white shadow flex items-center justify-center text-5xl">📚</div>
           <div className="flex-1">
@@ -88,9 +88,9 @@ export default function EyeGazeLessons() {
             <Gamepad2 className="w-5 h-5" /> Reading Games
           </button>
         </div>
-      </section>
+      </section>}
 
-      <section className="grid sm:grid-cols-2 gap-3">
+      {!embedded && <section className="grid sm:grid-cols-2 gap-3">
         <button type="button" onClick={() => navigate("/my-world")} className="rounded-3xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-100 to-sky-50 p-4 flex items-center gap-4 text-left hover:border-emerald-400">
           <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-4xl flex-shrink-0">🏠</div>
           <div>
@@ -105,7 +105,7 @@ export default function EyeGazeLessons() {
             <div className="text-sm font-bold text-slate-600">Practice familiar pictures, words, and phrases</div>
           </div>
         </button>
-      </section>
+      </section>}
 
       <section className="rounded-3xl bg-white border border-sky-100 p-2 flex gap-2">
         <button type="button" onClick={() => { setTab("lessons"); setSearch(""); }} className={`flex-1 min-h-[54px] rounded-2xl font-black transition-colors ${tab === "lessons" ? "bg-blue-600 text-white" : "bg-sky-50 text-blue-800"}`}>
