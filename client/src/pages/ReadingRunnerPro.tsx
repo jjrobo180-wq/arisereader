@@ -3,16 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Heart, RotateCcw, Star, Volume2, VolumeX, Zap } from "lucide-react";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
 
-type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
-type BuddyConfig = {
-  type: "preset" | "upload";
-  preset: BuddyPreset;
-  name: string;
-  imageData: string | null;
-  voiceEnabled: boolean;
-  calmMode?: boolean;
-};
-
 type Difficulty = "easy" | "medium" | "hard";
 type Thing = { label: string; emoji: string };
 type Theme = {
@@ -84,7 +74,6 @@ const SPEED = {
   hard: { fall: 1.42, spawn: 520, label: "Hard", description: "Fast · quick response" },
 } as const;
 
-const BUDDY_EMOJI: Record<BuddyPreset, string> = { puppy:"🐶", dino:"🦕", robot:"🤖", bunny:"🐰" };
 
 function celebrationLine(label: string) {
   const lines = ["Got a " + label + "!","Yes! " + label + "!","Great catch! " + label + "!","You found the " + label + "!"];
@@ -147,7 +136,7 @@ function TargetToken({ item }: { item: FallingThing }) {
   );
 }
 
-export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
+export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
   const [difficulty,setDifficulty]=useState<Difficulty>("easy");
   const [started,setStarted]=useState(false);
   const [setupStep,setSetupStep]=useState<"difficulty"|"level">("difficulty");
@@ -212,13 +201,12 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
   },[soundOn]);
 
   const say=useCallback((text:string,calm=false)=>{
-    if(!buddy.voiceEnabled)return;
     stopSpeaking();
-    void speakCharacterAI(text,{calmMode:calm||!!buddy.calmMode,onFallback:()=>{
+    void speakCharacterAI(text,{calmMode:calm,onFallback:()=>{
       if(!("speechSynthesis" in window))return;
       window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=.92; window.speechSynthesis.speak(u);
     }});
-  },[buddy.voiceEnabled,buddy.calmMode]);
+  },[]);
 
   const announceMission=useCallback(()=>{
     setMessage(mission.action+"!");
@@ -296,7 +284,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
         navigator.vibrate?.(45);
         const line=celebrationLine(item.label);
         setMessage("Captured "+nextCaught+" of "+mission.goal+"! "+line);
-        celebrateEyeGaze(!!buddy.calmMode);
+        celebrateEyeGaze(false);
         window.setTimeout(()=>setFlash(null),500);
         window.setTimeout(()=>setCaptureBurst(current=>current?.id===burstId?null:current),900);
         if(nextCaught>=mission.goal){
@@ -360,7 +348,6 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
   };
 
   const playerLeft=["16.66%","50%","83.33%"][lane];
-  const buddyVisual=buddy.type==="upload"&&buddy.imageData?<img src={buddy.imageData} alt={buddy.name} className="w-full h-full object-cover rounded-full" />:<span>{BUDDY_EMOJI[buddy.preset]||"🐶"}</span>;
   const progress=Math.min(100,(caught/mission.goal)*100);
 
   if(!started&&!gameOver){
