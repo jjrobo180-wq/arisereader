@@ -919,6 +919,8 @@ export async function registerRoutes(
   // These short-lived tokens are only an editing gate, not account authentication.
   const myWorldChallenges = new Map<string, { studentId: number; answer: number; expiresAt: number }>();
   const myWorldGrownupPasses = new Map<string, { studentId: number; expiresAt: number }>();
+  const talkerChallenges = new Map<string, { studentId: number; answer: number; expiresAt: number }>();
+  const talkerGrownupPasses = new Map<string, { studentId: number; expiresAt: number }>();
   // Seed data on startup
   await seedData();
   await storage.seedEyeGazeQuizzes();
@@ -5535,9 +5537,63 @@ Important:
     }
   });
 
-  const emptyTalker = { config: { alwaysHere: null, pictures: {} }, progress: { words: {}, history: [] } };
+  const emptyTalker = { config: { alwaysHere: null, pictures: {}, overrides: {}, recordings: {} }, progress: { words: {}, history: [] } };
   const validTalkerPhoto = (value: unknown) => typeof value === 'string'
     && value.length < 90_000 && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(value);
+
+
+  const validTalkerAudio = (value: unknown) => typeof value === 'string'
+    && value.length < 280_000
+    && /^data:audio\/(?:webm|mp4|ogg|mpeg);base64,[A-Za-z0-9+/]+=*$/.test(value);
+
+  function validTalkerGrownupPass(req: any, studentId: number) {
+    if (req.user?.role === 'parent') return true;
+    const token = String(req.headers['x-talker-grownup-token'] || '');
+    const pass = talkerGrownupPasses.get(token);
+    if (!pass) return false;
+    if (pass.expiresAt <= Date.now()) {
+      talkerGrownupPasses.delete(token);
+      return false;
+    }
+    return pass.studentId === studentId;
+  }
+
+  app.get('/api/eye-gaze/talker-state/grownup-challenge', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Talker account.' });
+      const a = 2 + Math.floor(Math.random() * 8);
+      const b = 2 + Math.floor(Math.random() * 8);
+      const challengeId = randomBytes(18).toString('hex');
+      talkerChallenges.set(challengeId, { studentId: child.id, answer: a + b, expiresAt: Date.now() + 5 * 60_000 });
+      res.set('Cache-Control', 'no-store');
+      res.json({ challengeId, question: `${a} + ${b} = ?` });
+    } catch {
+      res.status(503).json({ message: 'Could not open the grown-up check.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/talker-state/grownup-challenge', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Talker account.' });
+      const challengeId = String(req.body?.challengeId || '');
+      const challenge = talkerChallenges.get(challengeId);
+      talkerChallenges.delete(challengeId);
+      if (!challenge || challenge.studentId !== child.id || challenge.expiresAt <= Date.now()) {
+        return res.status(400).json({ message: 'That question expired. Try a new one.' });
+      }
+      if (Number(req.body?.answer) !== challenge.answer) {
+        return res.status(400).json({ message: 'Not quite. Try a new grown-up question.' });
+      }
+      const grownupToken = randomBytes(24).toString('hex');
+      talkerGrownupPasses.set(grownupToken, { studentId: child.id, expiresAt: Date.now() + 30 * 60_000 });
+      res.set('Cache-Control', 'no-store');
+      res.json({ grownupToken, expiresInSeconds: 1800 });
+    } catch {
+      res.status(503).json({ message: 'Could not verify the grown-up check.' });
+    }
+  });
 
   app.get('/api/eye-gaze/talker-state', authMiddleware, async (req: any, res) => {
     try {
@@ -5558,11 +5614,16 @@ Important:
     try {
       const child = await talkerStudent(req);
       if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!validTalkerGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to edit Talker words.' });
       const submitted = req.body || {};
       if (!Array.isArray(submitted.alwaysHere) || submitted.alwaysHere.length > 24
         || !submitted.pictures || typeof submitted.pictures !== 'object' || Array.isArray(submitted.pictures)
-        || Object.keys(submitted.pictures).length > 50) {
-        return res.status(400).json({ message: 'Please use up to 24 buttons and 50 pictures.' });
+        || Object.keys(submitted.pictures).length > 50
+        || !submitted.overrides || typeof submitted.overrides !== 'object' || Array.isArray(submitted.overrides)
+        || Object.keys(submitted.overrides).length > 120
+        || !submitted.recordings || typeof submitted.recordings !== 'object' || Array.isArray(submitted.recordings)
+        || Object.keys(submitted.recordings).length > 120) {
+        return res.status(400).json({ message: 'Please keep Talker customization within the supported limits.' });
       }
       const ids = new Set<string>();
       const alwaysHere = [];
@@ -5585,8 +5646,28 @@ Important:
         }
         pictures[key] = value as string;
       }
-      const config = { alwaysHere, pictures };
-      if (JSON.stringify(config).length > 1_450_000) return res.status(413).json({ message: 'Too many pictures. Remove a few before saving.' });
+      const overrides: Record<string, { label?: string; sentence?: string; picture?: string }> = {};
+      for (const [key, raw] of Object.entries(submitted.overrides)) {
+        if (!/^[a-z0-9 _-]{1,60}$/.test(key) || !raw || typeof raw !== 'object') return res.status(400).json({ message: 'One word edit could not be saved.' });
+        const value: any = raw;
+        const label = String(value.label || '').trim().slice(0, 40);
+        const sentence = String(value.sentence || '').trim().slice(0, 180);
+        const picture = String(value.picture || '').slice(0, 16);
+        overrides[key] = { ...(label ? { label } : {}), ...(sentence ? { sentence } : {}), ...(picture ? { picture } : {}) };
+      }
+
+      const recordings: Record<string, { word?: string; sentence?: string }> = {};
+      for (const [key, raw] of Object.entries(submitted.recordings)) {
+        if (!/^[a-z0-9 _-]{1,60}$/.test(key) || !raw || typeof raw !== 'object') return res.status(400).json({ message: 'One voice recording could not be saved.' });
+        const value: any = raw;
+        const wordAudio = value.word && validTalkerAudio(value.word) ? String(value.word) : '';
+        const sentenceAudio = value.sentence && validTalkerAudio(value.sentence) ? String(value.sentence) : '';
+        if ((value.word && !wordAudio) || (value.sentence && !sentenceAudio)) return res.status(400).json({ message: 'Keep each parent voice recording short.' });
+        recordings[key] = { ...(wordAudio ? { word: wordAudio } : {}), ...(sentenceAudio ? { sentence: sentenceAudio } : {}) };
+      }
+
+      const config = { alwaysHere, pictures, overrides, recordings };
+      if (JSON.stringify(config).length > 4_500_000) return res.status(413).json({ message: 'Too many Talker photos or recordings. Remove a few before saving.' });
       const { error } = await getAdminSupabase().from('eye_gaze_talker_state').upsert({
         student_id: child.id, config, updated_at: new Date().toISOString(),
       }, { onConflict: 'student_id' });
