@@ -229,12 +229,13 @@ export default function EyeGazeTalker() {
   const [learningFeedback, setLearningFeedback] = useState("");
   const [learningRound, setLearningRound] = useState(0);
   const [words, setWords] = useState<string[]>([]);
+  const [sentenceBuilderEnabled] = useState(() => localStorage.getItem("eye-gaze-talker-sentence-builder") === "on");
   const [dwell, setDwell] = useState(() => localStorage.getItem("eye-gaze-talker-dwell") !== "off");
   const [dwellMs, setDwellMs] = useState(() => Number(localStorage.getItem("eye-gaze-talker-time")) || 1800);
   const [voiceStatus, setVoiceStatus] = useState<"ai" | "device" | "checking">("checking");
   const [notice, setNotice] = useState("");
   const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {}, overrides: {}, recordings: {}, pageOrder: [], buttonOrder: {} });
-  const [libraryMode, setLibraryMode] = useState<"places" | "categories" | "recent" | "all" | "simple">("simple");
+  const [libraryMode, setLibraryMode] = useState<"places" | "categories" | "recent" | "all" | "simple">("categories");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [recentKeys, setRecentKeys] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem("eye-gaze-talker-recent") || "[]").slice(0, 16); } catch { return []; }
@@ -670,8 +671,8 @@ export default function EyeGazeTalker() {
       <div className="max-w-[1100px] mx-auto pt-4">
         <div className="rounded-3xl bg-white border-2 border-teal-100 p-2 sm:p-3 flex flex-wrap items-center gap-2 mb-4">
           <button type="button" onClick={() => { stopSpeaking(); setView("talk"); }} className="min-h-16 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] px-5 text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
-          <div className="flex-1 grid grid-cols-3 gap-2 min-w-[260px]" role="tablist" aria-label="Learning Zone">
-            <button type="button" role="tab" aria-selected="false" onClick={() => { stopSpeaking(); setView("talk"); }} className="min-h-12 rounded-2xl bg-slate-100 font-black">🗣️ Talker</button>
+          <div className="flex-1 grid grid-cols-3 gap-2 min-w-[260px]" role="tablist" aria-label="My Talker">
+            <button type="button" role="tab" aria-selected="false" onClick={() => { stopSpeaking(); setView("talk"); }} className="min-h-12 rounded-2xl bg-slate-100 font-black">🗣️ My Talker</button>
             <button type="button" role="tab" aria-selected="true" className="min-h-12 rounded-2xl bg-teal-700 text-white font-black">📚 Learn</button>
             <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-parent")} className="min-h-12 rounded-2xl bg-amber-100 font-black">👨‍👩‍👧 Grown-up</button>
           </div>
@@ -694,31 +695,33 @@ export default function EyeGazeTalker() {
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
             <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-home")} className="relative min-h-16 px-5 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
-            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">Learning Zone — Talker</h1></div></div>
+            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My Talker</h1></div></div>
             <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">Profile</button>
           </div>
-          <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="Learning Zone">
-            <button type="button" role="tab" aria-selected="true" className="min-h-14 rounded-2xl bg-teal-700 text-white font-black">🗣️ Talker</button>
+          <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="My Talker">
+            <button type="button" role="tab" aria-selected="true" className="min-h-14 rounded-2xl bg-teal-700 text-white font-black">🗣️ My Talker</button>
             <button type="button" role="tab" aria-selected="false" onClick={() => setView("learn")} className="min-h-14 rounded-2xl bg-slate-100 font-black">📚 Learn</button>
             <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-parent")} className="min-h-14 rounded-2xl bg-amber-100 font-black">👨‍👩‍👧 Grown-up</button>
           </div>
         </header>
 
-        <section aria-label="My words" className="rounded-[1.5rem] bg-[#193d57] p-4 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center gap-3 text-white">
-          <div className="font-black tracking-wider text-sm lg:w-28">MY WORDS</div>
-          <div className="min-h-16 flex-1 rounded-2xl bg-white text-[#193d57] p-3 flex flex-wrap items-center gap-2 font-black text-lg" aria-live="polite">
-            {words.length ? words.map((word, i) => <span key={`${word}-${i}`} className="bg-[#e0f3f0] rounded-xl px-3 py-1">{word}</span>) : <span className="text-slate-500">Pick pictures to make a sentence</span>}
-          </div>
-          <div className="flex gap-2">
-            <button data-talker-dwell type="button" disabled={!words.length} onClick={() => say(words.join(" ") + ".")} className="relative flex-1 lg:flex-none min-h-14 px-5 rounded-2xl bg-[#ffd766] text-[#193d57] font-black disabled:opacity-50">▶ Say it</button>
-            <button data-talker-dwell type="button" disabled={!words.length} onClick={() => setWords([])} className="relative min-h-14 px-5 rounded-2xl bg-[#315772] text-white font-black disabled:opacity-50">Clear</button>
-          </div>
-        </section>
+        {sentenceBuilderEnabled && (
+          <section aria-label="My words sentence builder" className="rounded-[1.5rem] bg-[#193d57] p-4 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center gap-3 text-white">
+            <div className="font-black tracking-wider text-sm lg:w-28">MY WORDS</div>
+            <div className="min-h-16 flex-1 rounded-2xl bg-white text-[#193d57] p-3 flex flex-wrap items-center gap-2 font-black text-lg" aria-live="polite">
+              {words.length ? words.map((word, i) => <span key={`${word}-${i}`} className="bg-[#e0f3f0] rounded-xl px-3 py-1">{word}</span>) : <span className="text-slate-500">Pick pictures to build a sentence</span>}
+            </div>
+            <div className="flex gap-2">
+              <button data-talker-dwell type="button" disabled={!words.length} onClick={() => say(words.join(" ") + ".")} className="relative flex-1 lg:flex-none min-h-14 px-5 rounded-2xl bg-[#ffd766] text-[#193d57] font-black disabled:opacity-50">▶ Say it</button>
+              <button data-talker-dwell type="button" disabled={!words.length} onClick={() => setWords([])} className="relative min-h-14 px-5 rounded-2xl bg-[#315772] text-white font-black disabled:opacity-50">Clear</button>
+            </div>
+          </section>
+        )}
 
         <section className="mt-7" aria-label="Talker library view">
-          <div className="rounded-3xl bg-white border-2 border-sky-100 p-3 sm:p-4">
-            <p className="text-xs font-black tracking-widest text-[#477586] mb-3">SHOW ME</p>
-            <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto sm:overflow-visible pb-1">
+          <div className="rounded-2xl bg-white border border-sky-100 p-2">
+            <p className="text-[10px] font-black tracking-widest text-[#477586] mb-1 px-1">SHOW</p>
+            <div className="flex sm:grid sm:grid-cols-5 gap-1.5 overflow-x-auto sm:overflow-visible pb-1">
               {([
                 ["simple", "⚡", "Simple", "Just the basics"],
                 ["categories", "🗂️", "Categories", "People, food, feelings…"],
@@ -736,10 +739,9 @@ export default function EyeGazeTalker() {
                     setLearningFeedback("");
                     if (id !== "categories") setActiveCategory(null);
                   }}
-                  className={`relative min-w-[145px] sm:min-w-0 min-h-20 rounded-2xl border-2 p-3 text-left ${libraryMode === id ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-100 bg-white"}`}
+                  className={`relative min-w-[108px] sm:min-w-0 min-h-12 rounded-xl border-2 px-2.5 py-2 text-left flex items-center gap-2 ${libraryMode === id ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-100 bg-white"}`}
                 >
-                  <span className="text-2xl mr-2">{icon}</span><strong className="font-black">{label}</strong>
-                  <span className="block text-xs font-bold text-[#5c7c88] mt-1">{hint}</span>
+                  <span className="text-lg">{icon}</span><strong className="font-black text-xs sm:text-sm">{label}</strong>
                 </button>
               ))}
             </div>
@@ -823,8 +825,6 @@ export default function EyeGazeTalker() {
             </section>
           </>
         )}
-        <p className="text-center text-sm text-[#5c7c88] font-bold mt-8">Voice is AI-generated when available. Your device voice is the backup.</p>
-        <p className="text-center mt-2"><a className="font-bold text-[#246779] underline" href="/animal-sounds/credits.html" target="_blank" rel="noopener noreferrer">Animal sound credits</a></p>
         {notice && <p role="status" className="text-center font-black text-[#315772] mt-2">{notice}</p>}
       </div>
 
@@ -857,7 +857,7 @@ export default function EyeGazeTalker() {
                     <button data-talker-dwell type="button" onClick={() => { stopSpeaking(); playAnimal(selected.label); }} className="relative min-h-16 rounded-2xl w-full bg-[#e0f3e7] mt-3 font-black text-lg">🐾 Hear animal sound</button>
                   )}
 
-                  <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); closeWord(); }} className="relative min-h-14 mt-2 px-4 w-full text-[#246779] font-black underline">+ Add to my words</button>
+                  {sentenceBuilderEnabled && <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); closeWord(); }} className="relative min-h-14 mt-2 px-4 w-full text-[#246779] font-black underline">+ Add to my words</button>}
 
                   <button
                     data-talker-dwell
@@ -940,7 +940,7 @@ export default function EyeGazeTalker() {
                       <div className="mt-3 rounded-2xl bg-white border-2 border-emerald-100 p-4 text-xl font-black">{selected.sentence}</div>
                       <div className="grid sm:grid-cols-2 gap-2 mt-3">
                         <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "sentence"); recordLearning(selected.label, "practiced"); }} className="relative min-h-14 rounded-2xl bg-emerald-600 text-white font-black">▶ Hear sentence</button>
-                        <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); say(`You added ${selected.label} to your words.`); }} className="relative min-h-14 rounded-2xl bg-white border-2 border-emerald-200 font-black">+ Use in My Words</button>
+                        {sentenceBuilderEnabled && <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); say(`You added ${selected.label} to your words.`); }} className="relative min-h-14 rounded-2xl bg-white border-2 border-emerald-200 font-black">+ Use in My Words</button>}
                       </div>
                     </section>
                   </div>
