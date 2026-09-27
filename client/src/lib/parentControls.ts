@@ -20,7 +20,7 @@ export const CONTROLLED_FEATURES = [
 ];
 
 export function defaultParentControls(): ParentControls {
-  return { enabled: false, allowedPaths: CONTROLLED_FEATURES.map(item => item.path), tvDailyMinutes: 30, videos: [] };
+  return { enabled: false, allowedPaths: CONTROLLED_FEATURES.map(item => item.path), tvDailyMinutes: 0, videos: [] };
 }
 
 const CACHE_KEY = "arise-eye-gaze-family-settings-cache";
@@ -31,7 +31,7 @@ export function cachedParentControls(): ParentControls {
     return {
       enabled: !!raw.enabled,
       allowedPaths: Array.isArray(raw.allowedPaths) ? raw.allowedPaths : defaultParentControls().allowedPaths,
-      tvDailyMinutes: Math.max(0, Math.min(240, Number(raw.tvDailyMinutes ?? 30) || 0)),
+      tvDailyMinutes: Math.max(0, Math.min(240, Number(raw.tvDailyMinutes ?? 0) || 0)),
       videos: Array.isArray(raw.videos) ? raw.videos : [],
     };
   } catch { return defaultParentControls(); }
