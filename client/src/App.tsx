@@ -262,7 +262,7 @@ function AppRoutes() {
         <ProtectedRoute><Admin /></ProtectedRoute>
       </Route>
       <Route path="/progress">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeProgress /> : <GrowthCheck />}</ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-home">
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
