@@ -1701,6 +1701,182 @@ export async function registerRoutes(
     });
   });
 
+
+  // ─── A.R.I.S.E. Avatar World ─────────────────────────────────────
+  // Regular-student cosmetic progression powered by completed quizzes.
+  // Purchases and coin balances are validated server-side.
+  const AVATAR_WORLD_CATALOG = [
+    { id:"hoodie-midnight", type:"top", name:"Midnight Hoodie", price:140, rarity:"rare" },
+    { id:"hoodie-neon", type:"top", name:"Neon Pulse Hoodie", price:260, rarity:"epic" },
+    { id:"jacket-varsity", type:"top", name:"A.R.I.S.E. Varsity", price:420, rarity:"legendary" },
+    { id:"pants-cargo", type:"bottom", name:"Tech Cargo Pants", price:160, rarity:"rare" },
+    { id:"pants-black", type:"bottom", name:"Black Street Pants", price:80, rarity:"common" },
+    { id:"shoes-white", type:"shoes", name:"Cloud Sneakers", price:120, rarity:"rare" },
+    { id:"shoes-neon", type:"shoes", name:"Glow Runners", price:320, rarity:"epic" },
+    { id:"hat-cap", type:"hat", name:"A.R.I.S.E. Cap", price:90, rarity:"common" },
+    { id:"hat-beanie", type:"hat", name:"Night Beanie", price:130, rarity:"rare" },
+    { id:"hat-crown", type:"hat", name:"Reader Crown", price:650, rarity:"legendary" },
+    { id:"glasses-shades", type:"glasses", name:"Future Shades", price:180, rarity:"rare" },
+    { id:"glasses-clear", type:"glasses", name:"Clear Frames", price:100, rarity:"common" },
+    { id:"chain-silver", type:"accessory", name:"Silver Reader Chain", price:220, rarity:"epic" },
+    { id:"headphones-cyan", type:"accessory", name:"Cyan Headphones", price:260, rarity:"epic" },
+    { id:"watch-smart", type:"accessory", name:"Smart Watch", price:150, rarity:"rare" },
+    { id:"bag-tech", type:"accessory", name:"Tech Backpack", price:190, rarity:"rare" },
+    { id:"car-street", type:"car", name:"Street Bolt", price:850, rarity:"rare" },
+    { id:"car-electric", type:"car", name:"Volt X", price:1450, rarity:"epic" },
+    { id:"car-super", type:"car", name:"Nova GT", price:2600, rarity:"legendary" },
+    { id:"car-suv", type:"car", name:"Summit SUV", price:1750, rarity:"epic" },
+    { id:"home-studio", type:"home", name:"City Studio", price:600, rarity:"rare" },
+    { id:"home-loft", type:"home", name:"Skyline Loft", price:1500, rarity:"epic" },
+    { id:"home-modern", type:"home", name:"Modern House", price:2600, rarity:"legendary" },
+    { id:"furniture-desk", type:"furniture", name:"Creator Desk", price:160, rarity:"common" },
+    { id:"furniture-sofa", type:"furniture", name:"Cloud Sofa", price:220, rarity:"rare" },
+    { id:"furniture-books", type:"furniture", name:"Reader Wall", price:280, rarity:"epic" },
+    { id:"furniture-neon", type:"furniture", name:"Neon Wall Sign", price:360, rarity:"epic" },
+  ] as const;
+
+  const AVATAR_WORLD_FREE = new Set([
+    "top-basic","bottom-basic","shoes-basic","car-none","home-basic"
+  ]);
+
+  function avatarWorldDefaultState() {
+    return {
+      purchased: [] as string[],
+      equipped: {
+        top:"top-basic", bottom:"bottom-basic", shoes:"shoes-basic",
+        hat:"", glasses:"", accessory:"", car:"car-none", home:"home-basic"
+      } as Record<string,string>,
+      furniture: [] as string[],
+      look: {
+        skin:"#9b6244",
+        hair:"fade",
+        hairColor:"#171717",
+        eyeColor:"#3f2a1d",
+      },
+      spent: 0,
+    };
+  }
+
+  function normalizeAvatarWorldState(raw:any) {
+    const base=avatarWorldDefaultState();
+    const source=raw&&typeof raw==="object"?raw:{};
+    const validIds=new Set(AVATAR_WORLD_CATALOG.map(item=>item.id));
+    const purchased=Array.isArray(source.purchased)
+      ? Array.from(new Set(source.purchased.map(String).filter((id:string)=>validIds.has(id)))).slice(0,100)
+      : [];
+    const purchasedSet=new Set(purchased);
+    const allowed=(id:any)=>AVATAR_WORLD_FREE.has(String(id))||purchasedSet.has(String(id));
+    const equipped={...base.equipped};
+    for(const slot of ["top","bottom","shoes","hat","glasses","accessory","car","home"]){
+      const candidate=String(source.equipped?.[slot]||"");
+      if(candidate&&allowed(candidate)) equipped[slot]=candidate;
+    }
+    const furniture=Array.isArray(source.furniture)
+      ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>purchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
+      : [];
+    const skinOptions=["#f4c7a1","#d89a73","#b97750","#9b6244","#74432e","#4c2a20","#2e1a16"];
+    const hairOptions=["fade","curls","locs","waves","afro","braids"];
+    const hairColors=["#171717","#3b2417","#6b3d24","#8f6545"];
+    const eyeColors=["#3f2a1d","#5b3b24","#305b66","#475569"];
+    const look={
+      skin:skinOptions.includes(String(source.look?.skin))?String(source.look.skin):base.look.skin,
+      hair:hairOptions.includes(String(source.look?.hair))?String(source.look.hair):base.look.hair,
+      hairColor:hairColors.includes(String(source.look?.hairColor))?String(source.look.hairColor):base.look.hairColor,
+      eyeColor:eyeColors.includes(String(source.look?.eyeColor))?String(source.look.eyeColor):base.look.eyeColor,
+    };
+    const spent=Math.max(0,Number(source.spent)||0);
+    return {purchased,equipped,furniture,look,spent};
+  }
+
+  async function getAvatarWorldPayload(userId:number) {
+    const detail=await storage.getStudentDetail(userId);
+    if(!detail) throw new Error("Student not found.");
+    const quizzesTaken=Math.max(0,Number(detail.quizzesTaken)||0);
+    const totalPoints=Math.max(0,Number(detail.totalPoints)||0);
+    const level=Math.min(50,Math.floor(quizzesTaken/2)+1);
+    const quizzesIntoLevel=quizzesTaken%2;
+    const nextLevelAt=level>=50?null:quizzesTaken+(2-quizzesIntoLevel);
+    // Every completed quiz pays 100 coins. Every level reached adds 150 bonus coins.
+    const lifetimeCoins=quizzesTaken*100+level*150;
+    const raw=await storage.getSetting("avatar_world_"+userId);
+    let parsed:any=null;
+    if(raw){try{parsed=JSON.parse(raw);}catch{}}
+    const state=normalizeAvatarWorldState(parsed||{});
+    const wallet=Math.max(0,lifetimeCoins-state.spent);
+    return {
+      economy:{level,quizzesTaken,totalPoints,lifetimeCoins,wallet,nextLevelAt,coinsPerQuiz:100,levelBonus:150},
+      state,
+      catalog:AVATAR_WORLD_CATALOG,
+    };
+  }
+
+  app.get("/api/avatar-world", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user) return res.status(403).json({message:"Avatar World is for regular student accounts."});
+      res.set("Cache-Control","no-store");
+      res.json(await getAvatarWorldPayload(req.user.id));
+    }catch(error:any){
+      console.error("[avatar-world] load:",error?.message);
+      res.status(500).json({message:"Could not load Avatar World."});
+    }
+  });
+
+  app.post("/api/avatar-world/purchase", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user) return res.status(403).json({message:"Avatar World is for regular student accounts."});
+      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===String(req.body?.itemId||""));
+      if(!item) return res.status(400).json({message:"That item does not exist."});
+      const payload=await getAvatarWorldPayload(req.user.id);
+      if(payload.state.purchased.includes(item.id)) return res.json(payload);
+      if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
+      const next={...payload.state,purchased:[...payload.state.purchased,item.id],spent:payload.state.spent+item.price};
+      await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
+      res.set("Cache-Control","no-store");
+      res.json(await getAvatarWorldPayload(req.user.id));
+    }catch(error:any){
+      console.error("[avatar-world] purchase:",error?.message);
+      res.status(500).json({message:"Could not complete that purchase."});
+    }
+  });
+
+  app.post("/api/avatar-world/customize", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user) return res.status(403).json({message:"Avatar World is for regular student accounts."});
+      const payload=await getAvatarWorldPayload(req.user.id);
+      const nextRaw={...payload.state};
+      const action=String(req.body?.action||"");
+      if(action==="look"){
+        nextRaw.look={...payload.state.look,...(req.body?.look||{})};
+      }else if(action==="equip"){
+        const slot=String(req.body?.slot||"");
+        const itemId=String(req.body?.itemId||"");
+        const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===itemId);
+        const slotType:Record<string,string>={top:"top",bottom:"bottom",shoes:"shoes",hat:"hat",glasses:"glasses",accessory:"accessory",car:"car",home:"home"};
+        if(!slotType[slot]) return res.status(400).json({message:"Unknown equipment slot."});
+        if(itemId===""){
+          if(["hat","glasses","accessory"].includes(slot)) nextRaw.equipped={...payload.state.equipped,[slot]:""};
+          else return res.status(400).json({message:"That slot needs an item."});
+        }else if(AVATAR_WORLD_FREE.has(itemId)){
+          nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
+        }else if(item&&item.type===slotType[slot]&&payload.state.purchased.includes(itemId)){
+          nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
+        }else return res.status(400).json({message:"Unlock that item before equipping it."});
+      }else if(action==="furniture"){
+        const ids=Array.isArray(req.body?.itemIds)?req.body.itemIds.map(String):[];
+        nextRaw.furniture=ids.filter((id:string)=>payload.state.purchased.includes(id)&&AVATAR_WORLD_CATALOG.find(entry=>entry.id===id)?.type==="furniture").slice(0,12);
+      }else{
+        return res.status(400).json({message:"Unknown customization action."});
+      }
+      const normalized=normalizeAvatarWorldState(nextRaw);
+      await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(normalized));
+      res.set("Cache-Control","no-store");
+      res.json(await getAvatarWorldPayload(req.user.id));
+    }catch(error:any){
+      console.error("[avatar-world] customize:",error?.message);
+      res.status(500).json({message:"Could not save customization."});
+    }
+  });
+
   // ─── Student Engagement Hub ───────────────────────────────────────
   // Daily missions, levels, streaks, personal bests, mystery rewards,
   // and a 3-question quick challenge. Uses existing settings +
