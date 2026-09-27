@@ -203,7 +203,7 @@ function DwellButton({
       disabled={disabled}
       aria-label={ariaLabel}
       {...dwell}
-      className={`relative min-h-[88px] rounded-2xl border-2 p-4 text-xl font-black transition-all focus:outline-none focus:ring-4 focus:ring-primary/30 disabled:opacity-40 disabled:cursor-default hover:border-primary ${className}`}
+      className={`relative min-h-[88px] rounded-2xl border-4 border-slate-300 bg-white text-slate-950 shadow-lg p-4 text-xl font-black transition-all focus:outline-none focus:ring-4 focus:ring-sky-300 disabled:opacity-40 disabled:cursor-default hover:border-sky-500 hover:bg-sky-50 ${className}`}
     >
       {children}
       {!disabled && (
@@ -670,7 +670,7 @@ function MatchPairs({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig 
               key={card.id}
               onSelect={() => selectCard(card.id)}
               disabled={!!card.matched || locked}
-              className={`${card.matched ? "bg-green-500/15 border-green-500/40" : selected ? "bg-primary/15 border-primary" : "bg-card border-border"}`}
+              className={`${card.matched ? "bg-green-500/15 border-green-500/40" : selected ? "bg-primary/15 border-primary" : "bg-white text-slate-950 border-slate-300 shadow-md"}`}
               ariaLabel={card.kind === "picture" ? `Picture for ${card.pair}` : card.label}
             >
               <div className={card.kind === "picture" ? "text-5xl" : "text-2xl tracking-wide"}>
@@ -718,7 +718,7 @@ function WordPop({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) 
   return (
     <GameShell title="Word Pop" subtitle="Find the target word and pop it." onBack={onBack}>
       <BuddyCoach buddy={buddy} message={feedback} />
-      <div className="rounded-2xl border border-border bg-card p-5 text-center mb-5">
+      <div className="rounded-2xl border-2 border-blue-200 bg-sky-50 text-slate-950 shadow-md p-5 text-center mb-5">
         <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold">Find this word</p>
         <div className="text-4xl sm:text-5xl font-black mt-2 tracking-wider">{current.target}</div>
         <div className="flex justify-center gap-1 mt-3">
@@ -786,12 +786,12 @@ function SentenceBuilder({ onBack, buddy }: { onBack: () => void; buddy: BuddyCo
 
       </div>
 
-      <div className="min-h-[90px] rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-4 mb-5 flex flex-wrap items-center justify-center gap-2">
+      <div className="min-h-[90px] rounded-2xl border-4 border-dashed border-sky-300 bg-sky-50 text-slate-950 shadow-inner p-4 mb-5 flex flex-wrap items-center justify-center gap-2">
         {built.length === 0 ? (
           <span className="text-sm text-muted-foreground">Your sentence will appear here</span>
         ) : (
           built.map((word, i) => (
-            <span key={i} className="px-4 py-3 rounded-xl bg-card border border-border text-xl font-black">{word}</span>
+            <span key={i} className="px-4 py-3 rounded-xl bg-white text-slate-950 border-2 border-slate-300 shadow-sm text-xl font-black">{word}</span>
           ))
         )}
       </div>
@@ -799,7 +799,7 @@ function SentenceBuilder({ onBack, buddy }: { onBack: () => void; buddy: BuddyCo
       {!complete && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {bank.map((word, i) => (
-            <DwellButton key={`${word}-${i}`} onSelect={() => chooseWord(word)} className="bg-card border-border">
+            <DwellButton key={`${word}-${i}`} onSelect={() => chooseWord(word)} className="bg-white text-slate-950 border-slate-300 shadow-md">
               {word}
             </DwellButton>
           ))}
@@ -835,7 +835,8 @@ function GameShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-5">
+    <div className="min-h-[calc(100dvh-4rem)] bg-slate-100 text-slate-950 px-3 sm:px-4 py-4 sm:py-5">
+      <div className="max-w-4xl mx-auto rounded-[2rem] bg-white border-2 border-slate-200 shadow-xl p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-5">
         <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="w-4 h-4 mr-1" /> Games</Button>
         <div>
@@ -844,6 +845,7 @@ function GameShell({
         </div>
       </div>
       {children}
+      </div>
     </div>
   );
 }
@@ -929,8 +931,8 @@ export default function EyeGazeGames() {
   if (game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 bg-card/90 backdrop-blur border-b border-border">
+    <div className="min-h-screen bg-slate-100 text-slate-950">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b-2 border-slate-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate("/library")}>
             <ArrowLeft className="w-4 h-4 mr-1" /> Library
@@ -945,7 +947,7 @@ export default function EyeGazeGames() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <Card className="mb-6 border-primary/30">
+        <Card className="mb-6 bg-white text-slate-950 border-2 border-violet-200 shadow-lg">
           <CardContent className="p-5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <BuddyAvatar buddy={buddy} />
@@ -961,7 +963,7 @@ export default function EyeGazeGames() {
           </CardContent>
         </Card>
 
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-6 flex items-start gap-3">
+        <div className="rounded-2xl border-2 border-sky-200 bg-white shadow-md p-4 mb-6 flex items-start gap-3">
           <Eye className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-bold">Different ways to play</p>
@@ -1063,40 +1065,40 @@ export default function EyeGazeGames() {
           <button
             type="button"
             onClick={() => setGame("match")}
-            className="rounded-2xl border-2 border-purple-500/30 bg-card p-6 text-left hover:border-purple-400 transition-colors min-h-[230px]"
+            className="rounded-2xl border-4 border-purple-300 bg-white text-slate-950 shadow-xl p-6 text-left hover:border-purple-500 hover:-translate-y-1 transition-all min-h-[230px]"
           >
-            <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-purple-100 border-2 border-purple-200 flex items-center justify-center mb-4">
               <Grid2X2 className="w-8 h-8 text-purple-400" />
             </div>
             <h2 className="text-xl font-black">Match Pairs</h2>
-            <p className="text-sm text-muted-foreground mt-2">Match words like CAT, DOG, and BOOK with their pictures.</p>
-            <p className="text-xs font-bold text-purple-400 mt-4">Matching · word recognition</p>
+            <p className="text-sm text-slate-600 font-semibold mt-2">Match words like CAT, DOG, and BOOK with their pictures.</p>
+            <p className="text-xs font-bold text-purple-700 mt-4">Matching · word recognition</p><div className="mt-4 rounded-xl bg-purple-600 text-white px-4 py-3 text-center font-black">PLAY MATCH PAIRS →</div>
           </button>
 
           <button
             type="button"
             onClick={() => setGame("pop")}
-            className="rounded-2xl border-2 border-blue-500/30 bg-card p-6 text-left hover:border-blue-400 transition-colors min-h-[230px]"
+            className="rounded-2xl border-4 border-blue-300 bg-white text-slate-950 shadow-xl p-6 text-left hover:border-blue-500 hover:-translate-y-1 transition-all min-h-[230px]"
           >
-            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-blue-100 border-2 border-blue-200 flex items-center justify-center mb-4">
               <CircleDot className="w-8 h-8 text-blue-400" />
             </div>
             <h2 className="text-xl font-black">Word Pop</h2>
-            <p className="text-sm text-muted-foreground mt-2">Find the matching word from four big bubbles and pop it.</p>
-            <p className="text-xs font-bold text-blue-400 mt-4">Sight words · discrimination</p>
+            <p className="text-sm text-slate-600 font-semibold mt-2">Find the matching word from four big bubbles and pop it.</p>
+            <p className="text-xs font-bold text-blue-700 mt-4">Sight words · discrimination</p><div className="mt-4 rounded-xl bg-blue-600 text-white px-4 py-3 text-center font-black">PLAY WORD POP →</div>
           </button>
 
           <button
             type="button"
             onClick={() => setGame("sentence")}
-            className="rounded-2xl border-2 border-green-500/30 bg-card p-6 text-left hover:border-green-400 transition-colors min-h-[230px]"
+            className="rounded-2xl border-4 border-emerald-300 bg-white text-slate-950 shadow-xl p-6 text-left hover:border-emerald-500 hover:-translate-y-1 transition-all min-h-[230px]"
           >
-            <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 border-2 border-emerald-200 flex items-center justify-center mb-4">
               <Type className="w-8 h-8 text-green-400" />
             </div>
             <h2 className="text-xl font-black">Sentence Builder</h2>
-            <p className="text-sm text-muted-foreground mt-2">Use a picture clue and choose word tiles to build a sentence.</p>
-            <p className="text-xs font-bold text-green-400 mt-4">Sentence order · comprehension</p>
+            <p className="text-sm text-slate-600 font-semibold mt-2">Use a picture clue and choose word tiles to build a sentence.</p>
+            <p className="text-xs font-bold text-emerald-700 mt-4">Sentence order · comprehension</p><div className="mt-4 rounded-xl bg-emerald-600 text-white px-4 py-3 text-center font-black">PLAY SENTENCE BUILDER →</div>
           </button>
         </div>
       </main>
