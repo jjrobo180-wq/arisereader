@@ -42,7 +42,12 @@ export default function EyeGazeParentMode() {
     void talkerRequest<TalkerState>(token).then(result => {
       if (!active) return;
       setState(result);
-      setDraft({ alwaysHere: result.config.alwaysHere ?? defaultNeeds.map(item => ({ ...item })), pictures: result.config.pictures || {} });
+      setDraft({
+        alwaysHere: result.config.alwaysHere ?? defaultNeeds.map(item => ({ ...item })),
+        pictures: result.config.pictures || {},
+        overrides: result.config.overrides || {},
+        recordings: result.config.recordings || {},
+      });
     }).catch(err => { if (active) setError(err.message); });
     return () => { active = false; stopSpeaking(); };
   }, [token]);
@@ -88,7 +93,14 @@ export default function EyeGazeParentMode() {
   const save = async () => {
     setSaving(true); setError(""); setMessage("");
     try {
-      const result = await talkerRequest<{ config: TalkerConfig }>(token, "/config", "POST", draft);
+      const grownupToken = sessionStorage.getItem("talker-grownup-token") || "";
+      const result = await talkerRequest<{ config: TalkerConfig }>(
+        token,
+        "/config",
+        "POST",
+        draft,
+        grownupToken ? { "X-Talker-Grownup-Token": grownupToken } : {},
+      );
       setDraft(result.config);
       setState(previous => previous && ({ ...previous, config: result.config }));
       setMessage("Pictures and buttons saved to your child's talker.");
