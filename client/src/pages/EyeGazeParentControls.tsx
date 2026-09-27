@@ -9,6 +9,7 @@ import {
   saveFamilySettings,
   type ParentControls,
 } from "@/lib/parentControls";
+import { SHORT_AGE_OPTIONS, SHORT_TOPIC_OPTIONS } from "@/lib/ariseShorts";
 
 function youtubeId(value: string) {
   const v = value.trim();
@@ -170,15 +171,62 @@ export default function EyeGazeParentControls() {
       </section>
 
       <section className="mt-5 rounded-[2rem] bg-white border-2 border-sky-100 p-5 sm:p-7 shadow-sm">
-        <h2 className="text-2xl font-black">A.R.I.S.E. TV feed</h2>
-        <p className="font-bold text-slate-600 mt-1">Only videos in this list appear in the child's vertical feed. Paste individual YouTube video links—not playlists or channels.</p>
+        <h2 className="text-2xl font-black">A.R.I.S.E. Shorts</h2>
+        <p className="font-bold text-slate-600 mt-1">Choose the age and learning topics. A.R.I.S.E. continuously creates short, narrated vertical lessons for the child's feed.</p>
+
+        <div className="mt-5">
+          <h3 className="text-lg font-black">1. Age range</h3>
+          <div className="grid sm:grid-cols-2 gap-2 mt-2">
+            {SHORT_AGE_OPTIONS.map(option => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setControls(current => ({ ...current, tvAgeRange: option.id }))}
+                className={`min-h-20 rounded-2xl border-4 p-3 text-left ${controls.tvAgeRange === option.id ? "bg-violet-100 border-violet-500 ring-4 ring-violet-200" : "bg-white border-slate-200"}`}
+              >
+                <strong className="block text-lg">{option.label}</strong>
+                <span className="block text-xs font-bold text-slate-500 mt-1">{option.note}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <h3 className="text-lg font-black">2. What should show up?</h3>
+          <p className="text-sm font-bold text-slate-500">Pick as many topics as you want. The feed keeps rotating through them.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+            {SHORT_TOPIC_OPTIONS.map(topic => {
+              const selected = controls.tvTopics.includes(topic.id);
+              return (
+                <button
+                  key={topic.id}
+                  type="button"
+                  onClick={() => setControls(current => {
+                    const already = current.tvTopics.includes(topic.id);
+                    const next = already ? current.tvTopics.filter(item => item !== topic.id) : [...current.tvTopics, topic.id];
+                    return { ...current, tvTopics: next.length ? next : [topic.id] };
+                  })}
+                  className={`min-h-20 rounded-2xl border-4 p-3 text-left ${selected ? "bg-sky-100 border-sky-500" : "bg-white border-slate-200"}`}
+                >
+                  <span className="text-3xl">{topic.emoji}</span>
+                  <strong className="block text-sm sm:text-base mt-1">{topic.label}</strong>
+                  <span className="text-xs font-black text-slate-500">{selected ? "✓ INCLUDED" : "Tap to include"}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-3xl bg-slate-50 border-2 border-slate-200 p-4">
+          <h3 className="text-lg font-black">3. Optional: add specific YouTube Shorts</h3>
+          <p className="text-sm font-bold text-slate-500 mt-1">These get mixed into the A.R.I.S.E.-generated Shorts feed. Paste a specific Short you approve.</p>
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
-          <label className="font-black sm:col-span-2">YouTube video link<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=…" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
+          <label className="font-black sm:col-span-2">YouTube Short link<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/shorts/…" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
           <label className="font-black">Title<input value={videoTitle} onChange={e=>setVideoTitle(e.target.value)} placeholder="Counting to 10" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
           <label className="font-black">Channel/source<input value={videoChannel} onChange={e=>setVideoChannel(e.target.value)} className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
           <label className="font-black sm:col-span-2">Topic<input value={videoTopic} onChange={e=>setVideoTopic(e.target.value)} placeholder="Numbers, animals, speech…" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
         </div>
-        <button onClick={addVideo} className="mt-3 w-full min-h-14 rounded-2xl bg-sky-700 text-white font-black">+ Add video to child's feed</button>
+        <button onClick={addVideo} className="mt-3 w-full min-h-14 rounded-2xl bg-sky-700 text-white font-black">+ Add approved YouTube Short</button>
 
         <div className="space-y-3 mt-5">
           {controls.videos.map((video,index)=><div key={video.id} className="rounded-2xl border-2 border-slate-200 p-3 flex items-center gap-3">
@@ -190,11 +238,12 @@ export default function EyeGazeParentControls() {
               <button onClick={()=>setControls(c=>({...c,videos:c.videos.filter((_,i)=>i!==index)}))} className="w-10 h-9 rounded-lg bg-rose-100 text-rose-800 font-black">×</button>
             </div>
           </div>)}
-          {!controls.videos.length && <div className="rounded-2xl bg-amber-50 border-2 border-amber-200 p-4 font-bold text-amber-900">No TV videos are approved yet. The child will see an empty TV screen until you add one.</div>}
+          {!controls.videos.length && <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 font-bold text-sky-900">No specific YouTube Shorts added — that's okay. A.R.I.S.E. will still continuously create Shorts from the age and topics above.</div>}
+        </div>
         </div>
 
         <div className="mt-5 border-t pt-5">
-          <h3 className="text-lg font-black">Daily TV limit</h3><p className="text-sm font-bold text-slate-500">0 means no daily limit.</p>
+          <h3 className="text-lg font-black">Daily Shorts limit</h3><p className="text-sm font-bold text-slate-500">0 means no daily limit.</p>
           <div className="grid grid-cols-4 gap-2 mt-3">{[0,15,30,60].map(n=><button key={n} onClick={()=>setControls(c=>({...c,tvDailyMinutes:n}))} className={`min-h-12 rounded-xl border-2 font-black ${controls.tvDailyMinutes===n?"bg-sky-100 border-sky-500":"bg-white border-slate-200"}`}>{n===0?"None":`${n} min`}</button>)}</div>
         </div>
       </section>
