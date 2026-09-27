@@ -216,12 +216,19 @@ export default function EyeGazeParentMode() {
   return (
     <div className="min-h-screen bg-[#f3f8fa] text-[#193d57] px-3 sm:px-6 pb-12">
       <div className="max-w-5xl mx-auto">
-        <header className="flex flex-wrap items-center justify-between gap-3 py-6">
-          <div><p className="text-sm font-black tracking-widest text-teal-700">MY WORLD TALKER · GROWN-UP TOOLS</p><h1 className="text-3xl sm:text-4xl font-black">Learn together, {state.student.name}</h1><p className="font-bold text-slate-600 mt-1">Personal pictures, daily words, and a record of what your child knows.</p></div>
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={() => navigate("/eye-gaze-parent-controls")} className="min-h-12 rounded-2xl bg-violet-700 text-white px-4 font-black">🔒 Profile & TV Controls</button>
-            <button onClick={() => navigate("/eye-gaze-talker")} className="min-h-12 rounded-2xl bg-teal-600 text-white px-4 font-black">Open child's talker</button>
-            <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="min-h-12 rounded-2xl bg-white px-4 font-black">← Profile</button>
+        <header className="py-4 sm:py-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="mr-auto"><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="text-3xl sm:text-4xl font-black">Learning Zone</h1><p className="font-bold text-slate-600 mt-1">Grown-up tools for {state.student.name}</p></div>
+            <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-home")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black">⌂ Home</button>
+            <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="min-h-12 rounded-2xl bg-white border-2 border-slate-200 px-4 font-black">Profile</button>
+          </div>
+          <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="Learning Zone">
+            <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-talker")} className="min-h-14 rounded-2xl bg-slate-100 font-black">🗣️ Talk</button>
+            <button type="button" role="tab" aria-selected="false" onClick={() => { sessionStorage.setItem("eye-gaze-talker-open-learn", "1"); navigate("/eye-gaze-talker"); }} className="min-h-14 rounded-2xl bg-slate-100 font-black">📚 Learn</button>
+            <button type="button" role="tab" aria-selected="true" className="min-h-14 rounded-2xl bg-amber-300 text-amber-950 font-black">👨‍👩‍👧 Grown-up</button>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <button onClick={() => navigate("/eye-gaze-parent-controls")} className="min-h-11 rounded-2xl bg-violet-100 text-violet-900 border border-violet-200 px-4 font-black">🔒 Parent controls</button>
           </div>
         </header>
 
