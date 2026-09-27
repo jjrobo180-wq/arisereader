@@ -218,7 +218,11 @@ export default function EyeGazeParentMode() {
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-wrap items-center justify-between gap-3 py-6">
           <div><p className="text-sm font-black tracking-widest text-teal-700">MY WORLD TALKER · GROWN-UP TOOLS</p><h1 className="text-3xl sm:text-4xl font-black">Learn together, {state.student.name}</h1><p className="font-bold text-slate-600 mt-1">Personal pictures, daily words, and a record of what your child knows.</p></div>
-          <div className="flex gap-2 flex-wrap"><button onClick={() => navigate("/eye-gaze-talker")} className="min-h-12 rounded-2xl bg-teal-600 text-white px-4 font-black">Open child's talker</button><button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/profile")} className="min-h-12 rounded-2xl bg-white px-4 font-black">← Profile</button></div>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => navigate("/eye-gaze-parent-controls")} className="min-h-12 rounded-2xl bg-violet-700 text-white px-4 font-black">🔒 Profile & TV Controls</button>
+            <button onClick={() => navigate("/eye-gaze-talker")} className="min-h-12 rounded-2xl bg-teal-600 text-white px-4 font-black">Open child's talker</button>
+            <button onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="min-h-12 rounded-2xl bg-white px-4 font-black">← Profile</button>
+          </div>
         </header>
 
         <nav aria-label="Grown-up tools" className="flex flex-wrap gap-2 mb-5">
