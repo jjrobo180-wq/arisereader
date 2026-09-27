@@ -10,7 +10,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
-  const immersive = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-parent");
+  const immersive = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv");
 
   useEffect(() => {
     if (!isEyeGazer || !token) return;

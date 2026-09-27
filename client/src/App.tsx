@@ -57,6 +57,7 @@ import EyeGazeMyWorld from "./pages/EyeGazeMyWorld";
 import EyeGazeBuddy from "./pages/EyeGazeBuddy";
 import EyeGazeTalker from "./pages/EyeGazeTalker";
 import EyeGazeParentMode from "./pages/EyeGazeParentMode";
+import EyeGazeTV from "./pages/EyeGazeTV";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
@@ -268,6 +269,9 @@ function AppRoutes() {
       </Route>
       <Route path="/eye-gaze-games">
         <ProtectedRoute><EyeGazeGames /></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-tv">
+        <ProtectedRoute><EyeGazeTV /></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-account">
         <ProtectedRoute><EyeGazeAccount /></ProtectedRoute>
