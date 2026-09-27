@@ -146,6 +146,31 @@ function RoomCrop({ world, item, className = "" }: { world: MyWorld; item: World
   );
 }
 
+async function prepareRoomPhoto(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) throw new Error("Choose a room photo.");
+  if (file.size <= 8 * 1024 * 1024 && ["image/jpeg", "image/png", "image/webp"].includes(file.type)) return file;
+
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const maxEdge = 3200;
+    const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("This device could not prepare the photo.");
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", 0.84));
+    if (!blob) throw new Error("This photo could not be prepared.");
+    return new File([blob], "my-world-room.jpg", { type: "image/jpeg" });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export default function EyeGazeMyWorld() {
   const { user, token } = useAuth();
   const [, navigate] = useLocation();
@@ -168,7 +193,7 @@ export default function EyeGazeMyWorld() {
   const [targetIndex, setTargetIndex] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [stars, setStars] = useState(0);
-  const [grownupToken, setGrownupToken] = useState("");
+  const [grownupToken, setGrownupToken] = useState(() => sessionStorage.getItem("my-world-grownup-token") || "");
   const [gateOpen, setGateOpen] = useState(false);
   const [challenge, setChallenge] = useState<{ challengeId: string; question: string } | null>(null);
   const [mathAnswer, setMathAnswer] = useState("");
@@ -279,6 +304,7 @@ export default function EyeGazeMyWorld() {
         return;
       }
       setGrownupToken(result.grownupToken || "");
+      if (result.grownupToken) sessionStorage.setItem("my-world-grownup-token", result.grownupToken);
       setGateOpen(false);
       setChallenge(null);
       setMathAnswer("");
@@ -357,7 +383,8 @@ export default function EyeGazeMyWorld() {
     setNotice("");
     try {
       if (!file.type.startsWith("image/")) throw new Error("Use a photo for the room/background.");
-      const uploaded = await uploadMedia(file, builderWorld.name);
+      const prepared = await prepareRoomPhoto(file);
+      const uploaded = await uploadMedia(prepared, builderWorld.name);
       setWorlds(prev => prev.map(w => w.id === builderWorld.id ? { ...w, backgroundPath: uploaded.path, backgroundUrl: uploaded.url } : w));
     } catch (error: any) {
       setNotice(error?.message || "Could not upload the room photo.");
