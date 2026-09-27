@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -30,7 +30,7 @@ export default function EyeGazeTV() {
   const [settings, setSettings] = useState<ParentControls | null>(null);
   const [shorts, setShorts] = useState<ShortItem[]>([]);
   const [index, setIndex] = useState(0);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [playerReady, setPlayerReady] = useState(false);
   const [usageMinutes, setUsageMinutes] = useState(0);
@@ -41,6 +41,9 @@ export default function EyeGazeTV() {
   const [topicTurn, setTopicTurn] = useState(0);
 
   const playerRef = useRef<any>(null);
+  const playerHostRef = useRef<HTMLDivElement | null>(null);
+  const [playerError, setPlayerError] = useState("");
+  const [playerAttempt, setPlayerAttempt] = useState(0);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const usageTimerRef = useRef<number | null>(null);
   const loadingRef = useRef(false);
@@ -142,59 +145,91 @@ export default function EyeGazeTV() {
     if (!current || limited) return;
     let cancelled = false;
     setPlayerReady(false);
+    setPlayerError("");
+    const host = playerHostRef.current;
+    if (!host) return;
+    let player: any = null;
+    let apiPoll: number | undefined;
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) setPlayerError("This Short is taking too long to load. Try again or swipe up.");
+    }, 15000);
 
     const createPlayer = () => {
-      if (cancelled || !window.YT?.Player) return;
-      try { playerRef.current?.destroy?.(); } catch {}
-
-      playerRef.current = new window.YT.Player(`arise-short-player-${index}`, {
-        videoId: current.id,
-        width: "100%",
-        height: "100%",
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          enablejsapi: 1,
-          origin: window.location.origin,
-          rel: 0,
-          playsinline: 1,
-          modestbranding: 1,
-          fs: 0,
-          disablekb: 1,
-          loop: 1,
-          playlist: current.id,
-        },
-        events: {
-          onReady: (event: any) => {
-            setPlayerReady(true);
-            try {
-              if (muted) event.target.mute?.(); else event.target.unMute?.();
-              event.target.playVideo?.();
-            } catch {}
+      if (cancelled || !window.YT?.Player || player) return;
+      // YouTube replaces its target node. React must own only the outer host,
+      // otherwise swiping/removing a failed clip throws removeChild NotFoundError.
+      const target = document.createElement("div");
+      host.replaceChildren(target);
+      try {
+        player = new window.YT.Player(target, {
+          videoId: current.id,
+          width: "100%",
+          height: "100%",
+          playerVars: {
+            autoplay: 1,
+            mute: muted ? 1 : 0,
+            controls: 0,
+            enablejsapi: 1,
+            origin: window.location.origin,
+            rel: 0,
+            playsinline: 1,
+            modestbranding: 1,
+            fs: 0,
+            disablekb: 1,
+            loop: 1,
+            playlist: current.id,
           },
-          onStateChange: (event: any) => {
-            setPlaying(event.data === 1);
-            if (event.data === 1 || event.data === 2 || event.data === 3) setPlayerReady(true);
-          },
-          onError: () => {
-            const badId = current.id;
-            failedIdsRef.current.add(badId);
-            setPlayerReady(false);
-            setPlaying(false);
-            setShorts(existing => {
-              const next = existing.filter(item => item.id !== badId);
-              const nextIndex = Math.max(0, Math.min(index, next.length - 1));
+          events: {
+            onReady: (event: any) => {
+              if (cancelled) return;
+              window.clearTimeout(timeout);
+              setPlayerError("");
+              setPlayerReady(true);
+              try {
+                if (muted) event.target.mute?.(); else event.target.unMute?.();
+                event.target.playVideo?.();
+              } catch {}
+            },
+            onAutoplayBlocked: () => {
+              if (cancelled) return;
+              window.clearTimeout(timeout);
+              setPlayerReady(true);
+              setPlaying(false);
+            },
+            onStateChange: (event: any) => {
+              if (cancelled) return;
+              setPlaying(event.data === 1);
+              if (event.data === 1 || event.data === 2 || event.data === 3) setPlayerReady(true);
+            },
+            onError: (event: any) => {
+              if (cancelled) return;
+              window.clearTimeout(timeout);
+              setPlayerReady(false);
+              setPlaying(false);
+              // Only unavailable/unembeddable videos belong on the skip list.
+              // Configuration or transient player errors need a retry, not a loop.
+              if (![100, 101, 150].includes(event.data)) {
+                setPlayerError("YouTube could not play this Short. Try again or swipe up.");
+                return;
+              }
+              const badId = current.id;
+              failedIdsRef.current.add(badId);
+              const remaining = shorts.filter(item => item.id !== badId);
+              const nextIndex = Math.max(0, Math.min(index, remaining.length - 1));
+              setShorts(existing => existing.filter(item => item.id !== badId));
               setIndex(nextIndex);
               window.requestAnimationFrame(() => {
                 const el = feedRef.current;
-                if (el) el.scrollTo({ top: nextIndex * el.clientHeight, behavior: "auto" });
+                if (el) el.scrollTo({ top: nextIndex * el.clientHeight, behavior: "instant" });
               });
-              return next;
-            });
-            window.setTimeout(() => void loadMore(), 80);
+            },
           },
-        },
-      });
+        });
+        playerRef.current = player;
+      } catch {
+        window.clearTimeout(timeout);
+        if (!cancelled) setPlayerError("YouTube could not start. Tap Try again.");
+      }
     };
 
     if (window.YT?.Player) createPlayer();
@@ -205,18 +240,26 @@ export default function EyeGazeTV() {
         script.async = true;
         document.head.appendChild(script);
       }
-      const previous = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => { previous?.(); createPlayer(); };
+      // Avoid stacking global callbacks for each swipe or failed video.
+      apiPoll = window.setInterval(() => {
+        if (window.YT?.Player) {
+          window.clearInterval(apiPoll);
+          createPlayer();
+        }
+      }, 100);
     }
 
     return () => {
       cancelled = true;
-      try { playerRef.current?.destroy?.(); } catch {}
-      playerRef.current = null;
+      window.clearTimeout(timeout);
+      window.clearInterval(apiPoll);
+      try { player?.destroy?.(); } catch {}
+      host.replaceChildren();
+      if (playerRef.current === player) playerRef.current = null;
       setPlaying(false);
       setPlayerReady(false);
     };
-  }, [current?.id, limited]);
+  }, [current?.feedKey, limited, playerAttempt]);
 
   useEffect(() => {
     try {
@@ -270,7 +313,11 @@ export default function EyeGazeTV() {
     </div>
   </main>;
 
-  if (!settings) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center font-black">Loading A.R.I.S.E. Shorts…</main>;
+  if (!settings) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center font-black p-6">
+    <div className="text-center"><p>{error || "Loading A.R.I.S.E. Shorts…"}</p>
+      {error && <button onClick={()=>navigate("/eye-gaze-home")} className="mt-4 rounded-2xl bg-white text-slate-950 p-4">Back Home</button>}
+    </div>
+  </main>;
 
   if (!shorts.length && !loadingMore) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center p-6">
     <div className="max-w-lg text-center">
@@ -301,15 +348,20 @@ export default function EyeGazeTV() {
         const active = i === index;
         return <article key={item.feedKey || `${item.id}-${i}`} className="relative h-[100dvh] snap-start snap-always bg-black overflow-hidden">
           {active
-            ? <div id={`arise-short-player-${i}`} className="absolute inset-0 w-full h-full pointer-events-none" />
-            : <img src={`https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
-          {active && !playerReady && <div className="absolute inset-0 z-10 bg-black grid place-items-center pointer-events-none">
+            ? <div ref={playerHostRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+            : Math.abs(i - index) <= 2 ? <img loading="lazy" src={`https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" /> : null}
+          {active && !playerReady && !playerError && <div className="absolute inset-0 z-10 bg-black grid place-items-center pointer-events-none">
             <div className="text-center">
               <div className="w-12 h-12 mx-auto rounded-full border-4 border-cyan-300 border-t-transparent animate-spin" />
               <p className="mt-3 text-sm font-black text-white/80">Loading next Short…</p>
             </div>
           </div>}
           <div className="absolute inset-0 z-20 touch-pan-y" aria-hidden="true" />
+          {active && playerError && <div role="alert" className="absolute inset-0 z-30 grid place-items-center bg-black/90 p-6">
+            <div className="text-center max-w-sm"><p className="font-bold">{playerError}</p>
+              <button onClick={()=>setPlayerAttempt(value=>value+1)} className="mt-4 min-h-14 rounded-2xl bg-cyan-300 text-slate-950 px-6 font-black">Try again</button>
+            </div>
+          </div>}
           <div className="absolute inset-x-0 bottom-0 z-[21] h-64 bg-gradient-to-t from-black via-black/65 to-transparent pointer-events-none" />
 
           <div className="absolute z-30 left-4 right-24 bottom-8 pointer-events-none">
