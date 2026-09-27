@@ -165,6 +165,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
 
   const touchStart=useRef<{x:number;y:number}|null>(null);
   const nextId=useRef(1);
+  const thingsRef=useRef<FallingThing[]>([]);
   const laneRef=useRef(lane);
   const jumpingRef=useRef(jumping);
   const heartsRef=useRef(hearts);
@@ -183,6 +184,13 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
   useEffect(()=>{startedRef.current=started;},[started]);
   useEffect(()=>{missionCompleteRef.current=missionComplete;},[missionComplete]);
   useEffect(()=>{gameOverRef.current=gameOver;},[gameOver]);
+
+  const updateThings=useCallback((next:FallingThing[]|((current:FallingThing[])=>FallingThing[]))=>{
+    const value=typeof next==="function" ? next(thingsRef.current) : next;
+    thingsRef.current=value;
+    setThings(value);
+    return value;
+  },[]);
 
   const sfx=useCallback((kind:"catch"|"wrong"|"jump"|"move"|"complete")=>{
     if(!soundOn) return;
@@ -239,59 +247,92 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
     const timer=window.setInterval(()=>{
       const isTarget=Math.random()<.48;
       const source=isTarget?mission.target:mission.distractors[Math.floor(Math.random()*mission.distractors.length)];
-      setThings(current=>[...current.filter(i=>i.y<105),{...source,id:nextId.current++,lane:Math.floor(Math.random()*3),y:-10,isTarget,handled:false}]);
+      updateThings(current=>[...current.filter(i=>i.y<105),{...source,id:nextId.current++,lane:Math.floor(Math.random()*3),y:-10,isTarget,handled:false}]);
     },speed.spawn);
     return()=>window.clearInterval(timer);
-  },[started,gameOver,missionComplete,mission,speed.spawn]);
+  },[started,gameOver,missionComplete,mission,speed.spawn,updateThings]);
 
   useEffect(()=>{
     if(!started||gameOver||missionComplete)return;
     const timer=window.setInterval(()=>{
-      let got:FallingThing|null=null; let wrong:FallingThing|null=null;
-      setThings(current=>current.map(item=>{
+      let got:FallingThing|null=null;
+      let wrong:FallingThing|null=null;
+      const nextThings:FallingThing[]=[];
+
+      for(const item of thingsRef.current){
         const nextY=item.y+speed.fall;
         if (difficulty === "easy" && item.isTarget && !item.handled && nextY >= 62 && nextY < 78 && !jumpingRef.current) {
-          laneRef.current = item.lane;
+          laneRef.current=item.lane;
           setLane(item.lane);
         }
-        const captureStart = difficulty === "easy" ? 72 : 78;
-        const captureEnd = difficulty === "easy" ? 97 : 94;
+
+        const captureStart=difficulty==="easy"?72:78;
+        const captureEnd=difficulty==="easy"?97:94;
+        let nextItem={...item,y:nextY};
+
         if(!item.handled&&nextY>=captureStart&&nextY<=captureEnd&&item.lane===laneRef.current&&!jumpingRef.current){
-          if(item.isTarget)got=item;else wrong=item;
-          return {...item,y:nextY,handled:true};
+          nextItem={...nextItem,handled:true};
+          if(item.isTarget&&!got) got=nextItem;
+          else if(!item.isTarget&&!wrong) wrong=nextItem;
         }
-        return {...item,y:nextY};
-      }).filter(item=>item.y<108&&!(item.handled&&item.y>96)));
+
+        if(nextItem.y<108&&!(nextItem.handled&&nextItem.y>96)) nextThings.push(nextItem);
+      }
+
+      updateThings(nextThings);
 
       if(got){
-        const item=got as FallingThing; const nextCaught=caughtRef.current+1;
-        caughtRef.current=nextCaught; setCaught(nextCaught); setScore(v=>v+(difficulty==="hard"?40:difficulty==="medium"?25:15));
-        setFlash("good"); sfx("catch");
-        const burstId=Date.now(); setCaptureBurst({label:item.label,emoji:item.emoji,id:burstId});
+        const item=got;
+        const nextCaught=caughtRef.current+1;
+        caughtRef.current=nextCaught;
+        setCaught(nextCaught);
+        setScore(v=>v+(difficulty==="hard"?40:difficulty==="medium"?25:15));
+        setFlash("good");
+        sfx("catch");
+        const burstId=Date.now();
+        setCaptureBurst({label:item.label,emoji:item.emoji,id:burstId});
         navigator.vibrate?.(45);
-        const line=celebrationLine(item.label); setMessage(line); say(line);
+        const line=celebrationLine(item.label);
+        setMessage("Captured "+nextCaught+" of "+mission.goal+"! "+line);
+        say(line);
         window.setTimeout(()=>setFlash(null),500);
         window.setTimeout(()=>setCaptureBurst(current=>current?.id===burstId?null:current),900);
         if(nextCaught>=mission.goal){
-          missionCompleteRef.current=true;setMissionComplete(true);setThings([]);sfx("complete");
-          setMessage("Level complete!");say("Level complete! You found all the "+mission.target.label+"s. Great job!");
+          missionCompleteRef.current=true;
+          setMissionComplete(true);
+          updateThings([]);
+          sfx("complete");
+          setMessage("Level complete! "+nextCaught+" of "+mission.goal+" captured.");
+          say("Level complete! You found all the "+mission.target.label+"s. Great job!");
         }
       }
+
       if(wrong){
-        const item=wrong as FallingThing; const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);
-        heartsRef.current=next;setHearts(next);setFlash("wrong");sfx("wrong");
+        const item=wrong;
+        const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);
+        heartsRef.current=next;
+        setHearts(next);
+        setFlash("wrong");
+        sfx("wrong");
         setMessage("That is a "+item.label+". Find "+mission.target.label+"!");
-        say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);window.setTimeout(()=>setFlash(null),350);
-        if(difficulty!=="easy"&&next<=0){gameOverRef.current=true;setGameOver(true);setStarted(false);setThings([]);say("Nice try. Let's run that level again.");}
+        say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
+        window.setTimeout(()=>setFlash(null),350);
+        if(difficulty!=="easy"&&next<=0){
+          gameOverRef.current=true;
+          setGameOver(true);
+          setStarted(false);
+          updateThings([]);
+          say("Nice try. Let's run that level again.");
+        }
       }
     },32);
     return()=>window.clearInterval(timer);
-  },[started,gameOver,missionComplete,speed.fall,difficulty,mission,say,sfx]);
+  },[started,gameOver,missionComplete,speed.fall,difficulty,mission,say,sfx,updateThings]);
 
   useEffect(()=>()=>{stopSpeaking();void audioRef.current?.close();},[]);
 
   const resetLevel=(index:number,resetScore=false)=>{
-    setMissionIndex(index);setCaught(0);caughtRef.current=0;setHearts(3);heartsRef.current=3;setLane(1);setThings([]);setCaptureBurst(null);setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;
+    setMissionIndex(index);setCaught(0);caughtRef.current=0;setHearts(3);heartsRef.current=3;setLane(1);updateThings([]);setCaptureBurst(null);setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;
     if(resetScore)setScore(0);
     setMessage("Get ready!");
   };
@@ -362,6 +403,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <button type="button" onClick={onBack} className="min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Games</button>
           <div className="rounded-xl bg-cyan-300 text-slate-950 px-3 py-2 font-black">LEVEL {missionIndex+1}/{MISSIONS.length}</div>
+          <div className="rounded-xl bg-emerald-400 text-slate-950 px-4 py-2 font-black text-lg shadow-lg">🎯 {caught}/{mission.goal}</div>
           <div className="flex-1 min-w-[180px]"><div className="text-xs uppercase tracking-widest font-black text-cyan-300">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div><div className="text-xl sm:text-2xl font-black">{mission.action}</div></div>
           <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
           <div className="flex items-center gap-1 rounded-xl bg-rose-500/15 px-3 py-2">{Array.from({length:3}).map((_,i)=><Heart key={i} className={"w-5 h-5 "+(i<hearts?"fill-rose-400 text-rose-400":"text-white/20")}/>)}</div>
@@ -371,7 +413,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
         <div className="rounded-2xl bg-slate-900 border border-white/10 p-3 mb-3 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center text-3xl overflow-hidden flex-shrink-0">{buddyVisual}</div>
-            <div className="flex-1 min-w-0"><div className="font-black truncate">{message}</div><div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden"><div className="h-full transition-all" style={{width:progress+"%",background:mission.theme.accent}}/></div><div className="text-xs font-bold text-white/55 mt-1">{caught} / {mission.goal} {mission.target.label}s</div></div>
+            <div className="flex-1 min-w-0"><div className="font-black truncate">{message}</div><div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden"><div className="h-full transition-all" style={{width:progress+"%",background:mission.theme.accent}}/></div><div className="mt-1 flex items-center gap-2"><span className="rounded-full bg-emerald-400 text-slate-950 px-3 py-1 text-sm font-black">CAPTURED {caught} / {mission.goal}</span><span className="text-xs font-bold text-white/55">{mission.target.label}s</span></div></div>
             <button type="button" onClick={announceMission} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center"><Volume2 className="w-5 h-5"/></button>
           </div>
         </div>
