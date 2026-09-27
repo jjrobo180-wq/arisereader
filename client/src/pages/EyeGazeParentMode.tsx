@@ -232,6 +232,12 @@ export default function EyeGazeParentMode() {
           </div>
         </header>
 
+        <section className="mb-5 rounded-3xl bg-gradient-to-r from-cyan-100 via-white to-amber-50 border-2 border-cyan-100 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="text-5xl">🚽</div>
+          <div className="flex-1"><p className="text-xs font-black tracking-widest text-teal-700">FAMILY TOOL</p><h2 className="text-2xl font-black">Potty Coach & Tracker</h2><p className="font-bold text-slate-600">Timers, visual steps, progress patterns, parent coaching, songs and videos.</p></div>
+          <button onClick={() => navigate("/eye-gaze-potty")} className="min-h-14 rounded-2xl bg-teal-700 text-white px-5 font-black">Open Potty Coach →</button>
+        </section>
+
         <nav aria-label="Grown-up tools" className="flex flex-wrap gap-2 mb-5">
           {(["today", "customize", "progress"] as const).map(item => <button key={item} onClick={() => { setTab(item); setMessage(""); }} aria-current={tab === item ? "page" : undefined} className={`min-h-14 rounded-2xl px-5 font-black ${tab === item ? "bg-[#193d57] text-white" : "bg-white border border-slate-200"}`}>{item === "today" ? "📅 Today's words" : item === "customize" ? "📸 Pictures & buttons" : "📈 Progress"}</button>)}
         </nav>
