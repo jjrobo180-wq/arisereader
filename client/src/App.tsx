@@ -78,6 +78,7 @@ import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import FypSideTab from "./components/FypSideTab";
 import PointsSideTab from "./components/PointsSideTab";
+import AvatarWorldSideTab from "./components/AvatarWorldSideTab";
 import LeaderboardPopup from "./components/LeaderboardPopup";
 import About from "./pages/About";
 import FypPage from "./pages/FypPage";
@@ -85,6 +86,7 @@ import FypSharePage from "./pages/FypSharePage";
 import FypMyBooksPage from "./pages/FypMyBooksPage";
 import ReadingClub from "./pages/ReadingClub";
 import TTSAudioBooks from "./pages/TTSAudioBooks";
+import AvatarWorld from "./pages/AvatarWorld";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -249,6 +251,11 @@ function AppRoutes() {
       <Route path="/library">
         <ProtectedRoute>{user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-games?tab=lessons" /> : <Library />}</ProtectedRoute>
       </Route>
+      <Route path="/avatar-world">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><AvatarWorld /></ProtectedRoute>
+          : <Redirect to="/" />}
+      </Route>
       <Route path="/course/:id">
         <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><CoursePage /></EyeGazeAccessGate> : <CoursePage />}</ProtectedRoute>
       </Route>
@@ -403,6 +410,7 @@ function AppInner() {
       {isStudent && !isEyeGazeStudent && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
       {isStudent && !isEyeGazeStudent && <FypSideTab />}
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
+      {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
       {isStudent && !isEyeGazeStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isEyeGazeStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
