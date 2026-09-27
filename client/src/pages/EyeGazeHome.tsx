@@ -10,7 +10,7 @@ const ACTIONS=[
  {title:"My World",subtitle:"Learn with my real rooms, pictures & videos",emoji:"🏠",path:"/my-world",tone:"from-emerald-100 to-lime-50 border-emerald-200"},
  {title:"Lessons",subtitle:"Pictures, words & reading",emoji:"📚",path:"/library",tone:"from-sky-100 to-blue-50 border-sky-200"},
  {title:"Games",subtitle:"Play and practice",emoji:"🎮",path:"/eye-gaze-games",tone:"from-amber-100 to-orange-50 border-amber-200"},
- {title:"A.R.I.S.E. Shorts",subtitle:"Swipe through learning Shorts made for me",emoji:"📺",path:"/eye-gaze-tv",tone:"from-fuchsia-100 to-violet-50 border-fuchsia-200"},
+ {title:"A.R.I.S.E. Shorts",subtitle:"Swipe through learning YouTube Shorts picked for me",emoji:"📺",path:"/eye-gaze-tv",tone:"from-fuchsia-100 to-violet-50 border-fuchsia-200"},
  {title:"Flash Cards",subtitle:"Swipe, see it & hear it",emoji:"🃏",path:"/eye-gaze-flashcards",tone:"from-cyan-100 to-sky-50 border-cyan-200"},
  {title:"My Buddy",subtitle:"Choose my learning friend",emoji:"🐶",path:"/eye-gaze-buddy",tone:"from-violet-100 to-fuchsia-50 border-violet-200"},
  {title:"My Progress",subtitle:"See what I learned",emoji:"⭐",path:"/leaderboard",tone:"from-yellow-100 to-amber-50 border-yellow-200"},
