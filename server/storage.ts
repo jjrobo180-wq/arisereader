@@ -812,6 +812,20 @@ export class DatabaseStorage implements IStorage {
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // Session entries cache the mapped user for two minutes. Clear every active
+    // session for this user so /api/me and the app header immediately see the
+    // new display name instead of restoring the old cached name.
+    const { data: sessions } = await supabase
+      .from("sessions")
+      .select("token")
+      .eq("user_id", userId);
+    for (const session of sessions || []) {
+      if (session?.token) cache.delete("session_" + session.token);
+    }
+    cache.delete("allUsers");
+    cache.delete("leaderboard");
+
     return data;
   }
 
