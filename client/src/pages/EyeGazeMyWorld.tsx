@@ -450,6 +450,7 @@ export default function EyeGazeMyWorld() {
       y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
     };
     setTapTagPoint(point);
+    navigator.vibrate?.(35);
     setEditingBuilderItemId(null);
     setItemLabel("");
     setItemPhrase("");
@@ -630,6 +631,20 @@ export default function EyeGazeMyWorld() {
     setWorlds(nextWorlds);
     void saveWorlds(false, nextWorlds);
     if (placingItemId === itemId) setPlacingItemId(null);
+    if (editingBuilderItemId === itemId) setEditingBuilderItemId(null);
+  };
+
+  const clearAiFinds = () => {
+    if (!builderWorld) return;
+    const aiCount = builderWorld.items.filter(item => item.source === "ai").length;
+    if (!aiCount) return;
+    const nextWorlds = worlds.map(world => world.id === builderWorld.id
+      ? { ...world, items: world.items.filter(item => item.source !== "ai") }
+      : world);
+    setWorlds(nextWorlds);
+    setEditingBuilderItemId(null);
+    void saveWorlds(false, nextWorlds);
+    setNotice("AI suggestions removed. Your manually added objects were kept.");
   };
 
   const record = (item: WorldItem, outcome: "correct" | "retry" | "explored") => {
@@ -808,15 +823,26 @@ export default function EyeGazeMyWorld() {
                             <h3 className="text-2xl sm:text-3xl font-black text-blue-950">Tap something in the photo</h3>
                             <p className="text-sm sm:text-base font-bold text-slate-500 mt-1">Tap the bed, shoes, TV, cup, toy—anything you want your child to learn. Then just name it.</p>
                           </div>
-                          <button
-                            type="button"
-                            disabled={aiLoading || !builderWorld.backgroundPath}
-                            onClick={() => void runAiTagging()}
-                            className="min-h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 font-black flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg"
-                          >
-                            <WandSparkles className="w-5 h-5" />
-                            {aiLoading ? "AI is finding things…" : "✨ Find objects with AI"}
-                          </button>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            {builderWorld.items.some(item => item.source === "ai") && (
+                              <button
+                                type="button"
+                                onClick={clearAiFinds}
+                                className="min-h-14 rounded-2xl bg-white border-2 border-rose-200 text-rose-700 px-4 font-black"
+                              >
+                                🗑 Remove all AI finds
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={aiLoading || !builderWorld.backgroundPath}
+                              onClick={() => void runAiTagging()}
+                              className="min-h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 font-black flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg"
+                            >
+                              <WandSparkles className="w-5 h-5" />
+                              {aiLoading ? "AI is checking carefully…" : "✨ Find clear objects with AI"}
+                            </button>
+                          </div>
                         </div>
 
                         <div className="rounded-3xl overflow-x-auto bg-slate-950 border-4 border-slate-900 shadow-xl">
@@ -830,56 +856,102 @@ export default function EyeGazeMyWorld() {
                               const box = safeBox(item);
                               const active = editingBuilderItemId === item.id;
                               return (
-                                <button
-                                  data-world-tag
-                                  key={item.id}
-                                  type="button"
-                                  onClick={event => {
-                                    event.stopPropagation();
-                                    setEditingBuilderItemId(item.id);
-                                    setTapTagPoint(null);
-                                    setNotice(item.source === "ai" ? "AI suggestion selected. Rename, resize, or delete it below." : item.label + " selected.");
-                                  }}
-                                  style={{ left: box.x + "%", top: box.y + "%", width: box.w + "%", height: box.h + "%" }}
-                                  className={"absolute rounded-2xl border-4 transition-all shadow-lg " + (active ? "border-cyan-300 bg-cyan-300/25 ring-4 ring-white/90" : item.source === "ai" ? "border-violet-300 bg-violet-400/16" : "border-amber-300 bg-amber-300/12")}
-                                  aria-label={"Edit " + item.label}
-                                >
-                                  <span className="absolute left-1 top-1 max-w-[95%] truncate rounded-lg bg-slate-950/85 text-white px-2 py-1 text-[11px] font-black">
-                                    {item.source === "ai" ? "✨ " : ""}{item.label}
-                                  </span>
-                                </button>
+                                <div key={item.id}>
+                                  <button
+                                    data-world-tag
+                                    type="button"
+                                    onClick={event => {
+                                      event.stopPropagation();
+                                      setEditingBuilderItemId(item.id);
+                                      setTapTagPoint(null);
+                                      navigator.vibrate?.(25);
+                                      setNotice(item.source === "ai" ? "AI suggestion selected. Keep it, rename it, resize it, or remove it." : item.label + " selected.");
+                                    }}
+                                    style={{ left: box.x + "%", top: box.y + "%", width: box.w + "%", height: box.h + "%" }}
+                                    className={"absolute rounded-2xl border-4 transition-all shadow-lg " + (active ? "border-cyan-300 bg-cyan-300/25 ring-4 ring-white/90" : item.source === "ai" ? "border-violet-300 bg-violet-400/16" : "border-amber-300 bg-amber-300/12")}
+                                    aria-label={"Edit " + item.label}
+                                  >
+                                    <span className="absolute left-1 top-1 max-w-[78%] truncate rounded-lg bg-slate-950/85 text-white px-2 py-1 text-[11px] font-black">
+                                      {item.source === "ai" ? "✨ " : ""}{item.label}
+                                    </span>
+                                  </button>
+                                  {item.source === "ai" && (
+                                    <button
+                                      data-world-tag
+                                      type="button"
+                                      onClick={event => { event.stopPropagation(); removeItem(item.id); }}
+                                      style={{ left: "calc(" + (box.x + box.w) + "% - 18px)", top: "calc(" + box.y + "% - 10px)" }}
+                                      className="absolute z-30 w-9 h-9 rounded-full bg-rose-600 text-white border-2 border-white shadow-xl grid place-items-center text-lg font-black"
+                                      aria-label={"Remove AI suggestion " + item.label}
+                                      title="Remove this AI suggestion"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </div>
                               );
                             })}
 
                             {tapTagPoint && (
                               <div
-                                className="absolute w-16 h-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-cyan-300 bg-cyan-300/25 ring-4 ring-white/80 pointer-events-none animate-pulse"
+                                className="absolute w-[18%] h-[18%] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[5px] border-cyan-300 bg-cyan-300/20 ring-4 ring-white/90 pointer-events-none animate-pulse shadow-2xl"
                                 style={{ left: tapTagPoint.x + "%", top: tapTagPoint.y + "%" }}
                               >
-                                <span className="absolute inset-0 grid place-items-center text-2xl">＋</span>
+                                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500 text-white w-12 h-12 grid place-items-center text-3xl font-black shadow-lg">✓</span>
                               </div>
                             )}
                           </div>
                         </div>
 
                         {tapTagPoint && (
-                          <div className="mt-4 rounded-3xl bg-cyan-50 border-2 border-cyan-200 p-4 sm:p-5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-2xl bg-cyan-500 text-white grid place-items-center text-2xl font-black">＋</div>
-                              <div><h4 className="text-xl font-black text-blue-950">What did you tap?</h4><p className="text-sm font-bold text-slate-500">That’s it—name the object. My World creates the touch area for you.</p></div>
-                            </div>
-                            <div className="grid sm:grid-cols-2 gap-3 mt-4">
-                              <input autoFocus value={itemLabel} onChange={e => setItemLabel(e.target.value)} placeholder="Example: Shoes" className="min-h-14 rounded-2xl border-2 border-cyan-200 bg-white px-4 text-lg font-black" />
-                              <input value={itemPhrase} onChange={e => setItemPhrase(e.target.value)} placeholder={itemLabel.trim() ? "Example: These are my " + itemLabel.trim().toLowerCase() + "." : "Optional sentence"} className="min-h-14 rounded-2xl border-2 border-cyan-200 bg-white px-4 font-bold" />
-                            </div>
-                            <label className="mt-3 min-h-12 rounded-2xl bg-white border-2 border-cyan-100 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
-                              {itemFile?.type.startsWith("video/") ? <Video className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
-                              {itemFile ? itemFile.name : "Optional: add a teaching photo/video"}
-                              <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={e => setItemFile(e.target.files?.[0] || null)} />
-                            </label>
-                            <div className="grid sm:grid-cols-2 gap-2 mt-4">
-                              <button type="button" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }} className="min-h-13 rounded-2xl bg-white border-2 border-slate-200 font-black">Cancel</button>
-                              <button type="button" disabled={uploading || !itemLabel.trim()} onClick={() => void saveTappedTag()} className="min-h-13 rounded-2xl bg-cyan-600 text-white font-black disabled:opacity-50">{uploading ? "Saving…" : "✓ Add this object"}</button>
+                          <div className="fixed inset-0 z-[100] bg-slate-950/70 backdrop-blur-sm p-3 sm:p-6 grid place-items-center" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }}>
+                            <div className="w-full max-w-2xl rounded-[2rem] bg-white border-4 border-cyan-300 shadow-2xl overflow-hidden" onClick={event => event.stopPropagation()}>
+                              <div className="bg-cyan-500 text-white px-5 py-4 flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-xs font-black uppercase tracking-widest text-cyan-100">Tap confirmed ✓</p>
+                                  <h4 className="text-2xl sm:text-3xl font-black">You tapped here</h4>
+                                </div>
+                                <button type="button" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }} className="w-12 h-12 rounded-full bg-white/20 text-3xl font-black" aria-label="Close">×</button>
+                              </div>
+
+                              <div className="grid sm:grid-cols-[240px_1fr] gap-5 p-5">
+                                <div>
+                                  <RoomCrop
+                                    world={builderWorld}
+                                    item={{
+                                      id: "tap-preview",
+                                      label: "Tapped area",
+                                      phrase: "",
+                                      x: Math.max(0, Math.min(82, tapTagPoint.x - 9)),
+                                      y: Math.max(0, Math.min(82, tapTagPoint.y - 9)),
+                                      w: 18,
+                                      h: 18,
+                                      source: "manual",
+                                    }}
+                                    className="w-full h-52 rounded-3xl border-4 border-cyan-100 shadow-inner"
+                                  />
+                                  <p className="text-center mt-2 text-sm font-black text-cyan-800">Is this the object you meant?</p>
+                                </div>
+
+                                <div>
+                                  <label className="block text-xl font-black text-blue-950">What is this?
+                                    <input autoFocus value={itemLabel} onChange={e => setItemLabel(e.target.value)} placeholder="Example: Shoes" className="mt-2 w-full min-h-16 rounded-2xl border-3 border-cyan-200 bg-cyan-50 px-4 text-xl font-black" />
+                                  </label>
+                                  <label className="block mt-3 font-black text-slate-600">Optional sentence
+                                    <input value={itemPhrase} onChange={e => setItemPhrase(e.target.value)} placeholder={itemLabel.trim() ? "Example: These are my " + itemLabel.trim().toLowerCase() + "." : "Example: I put on my shoes."} className="mt-2 w-full min-h-13 rounded-2xl border-2 border-slate-200 bg-white px-4 font-bold" />
+                                  </label>
+                                  <label className="mt-3 min-h-12 rounded-2xl bg-violet-50 border-2 border-violet-100 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
+                                    {itemFile?.type.startsWith("video/") ? <Video className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
+                                    {itemFile ? itemFile.name : "Optional teaching photo/video"}
+                                    <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={e => setItemFile(e.target.files?.[0] || null)} />
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3 p-5 pt-0">
+                                <button type="button" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }} className="min-h-14 rounded-2xl bg-slate-100 text-slate-700 font-black">← Tap again</button>
+                                <button type="button" disabled={uploading || !itemLabel.trim()} onClick={() => void saveTappedTag()} className="min-h-14 rounded-2xl bg-cyan-600 text-white text-lg font-black disabled:opacity-50">{uploading ? "Saving…" : "✓ Yes, add it"}</button>
+                              </div>
                             </div>
                           </div>
                         )}
