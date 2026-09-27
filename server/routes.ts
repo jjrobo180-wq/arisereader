@@ -5619,6 +5619,7 @@ Important:
 
   function defaultEyeGazeFamilySettings() {
     return {
+      version: 2,
       enabled: false,
       allowedPaths: [...EYE_GAZE_FEATURE_PATHS],
       tvDailyMinutes: 0,
@@ -5651,7 +5652,12 @@ Important:
       };
     }).filter(Boolean) : [];
 
+    if ((Number(source.version) || 1) < 2 && !allowed.includes('/eye-gaze-life-skills')) {
+      allowed.push('/eye-gaze-life-skills');
+    }
+
     return {
+      version: 2,
       enabled: !!source.enabled,
       allowedPaths: Array.from(new Set(allowed)),
       tvDailyMinutes: Math.max(0, Math.min(240, Number(source.tvDailyMinutes ?? 0) || 0)),
