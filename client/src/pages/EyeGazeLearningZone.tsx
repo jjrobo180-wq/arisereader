@@ -337,7 +337,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
     <div className="max-w-[1100px] mx-auto pb-8">
       <header className="flex flex-wrap gap-3 items-center justify-between py-3">
         <div>
-          <p className="text-sm tracking-widest font-black text-teal-700">LEARNING ZONE</p>
+          <p className="text-sm tracking-widest font-black text-teal-700">MY TALKER • LEARN</p>
           <h2 className="text-3xl sm:text-4xl font-black">{step === 0 ? "Pick a word to learn" : "Let's learn " + lesson.word}</h2>
         </div>
         <div className="flex gap-2">
