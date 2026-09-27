@@ -5673,6 +5673,8 @@ Important:
     }
   });
 
+  console.log('[youtube-shorts] API discovery configured:', !!(process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY));
+
   const CURATED_YOUTUBE_SHORTS = [
     { id: 'dOIrnsoY21g', title: 'Phonetic Sounds', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
     { id: 'NDjKigOxvec', title: 'Learn the Alphabet A to Z', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
@@ -5732,7 +5734,7 @@ Important:
       const requestedTopic = String(req.query?.topic || '');
       const topic = settings.tvTopics.includes(requestedTopic) ? requestedTopic : settings.tvTopics[0] || 'animals';
       const pageToken = String(req.query?.pageToken || '');
-      const apiKey = String(process.env.YOUTUBE_API_KEY || '').trim();
+      const apiKey = String(process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
 
       if (!apiKey) {
         const items = CURATED_YOUTUBE_SHORTS
