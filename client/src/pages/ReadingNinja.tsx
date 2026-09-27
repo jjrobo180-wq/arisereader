@@ -178,7 +178,8 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
   },[handleHit]);
 
   const resetLevel=(index:number,resetScore=false)=>{setMissionIndex(index);setSlicedCount(0);slicedRef.current=0;setHearts(3);heartsRef.current=3;setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;updateThings([]);setTrail([]);setBursts([]);if(resetScore)setScore(0);setMessage("Get ready!");};
-  const startGame=()=>{stopSpeaking();setStarted(true);resetLevel(missionIndex,true);};
+  const enterImmersive=()=>{ try { const el=document.documentElement as any; const request=el.requestFullscreen||el.webkitRequestFullscreen; if(request) void request.call(el).catch?.(()=>{}); } catch {} };
+  const startGame=()=>{stopSpeaking();enterImmersive();setStarted(true);resetLevel(missionIndex,true);};
   const retry=()=>{setStarted(true);resetLevel(missionIndex,false);};
   const nextMission=()=>resetLevel((missionIndex+1)%MISSIONS.length,false);
 
@@ -239,27 +240,27 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
     return <div className="min-h-screen bg-[#070611] text-white grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🥷</div><h1 className="text-4xl font-black mt-3">Try the arena again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl text-amber-300 font-black mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-pink-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>{setGameOver(false);gameOverRef.current=false;setStarted(false);}} className="mt-2 w-full min-h-12 rounded-2xl bg-fuchsia-600/80 font-black">☰ Choose another level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
   }
 
-  return <div className="min-h-screen bg-[#050611] text-white p-3 sm:p-5 select-none">
+  return <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-[#050611] text-white p-2 sm:p-5 select-none">
     <style>{"@keyframes burstPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}} @keyframes decorFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-10px) rotate(3deg)}} .burst-pop{animation:burstPop .5s ease-out forwards}.decor-float{animation:decorFloat 4s ease-in-out infinite}"}</style>
-    <div className="max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center gap-3 mb-3">
+    <div className="max-w-6xl mx-auto h-full flex flex-col">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mb-2 sm:mb-3 flex-shrink-0">
         <button type="button" onClick={onBack} className="min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Games</button>
         <button type="button" onClick={()=>{setStarted(false);updateThings([]);setMissionComplete(false);missionCompleteRef.current=false;}} className="min-h-11 px-3 rounded-xl bg-fuchsia-600 text-white border border-fuchsia-300/30 font-black">☰ Levels</button>
         <div className="rounded-xl bg-pink-300 text-slate-950 px-3 py-2 font-black">LEVEL {missionIndex+1}/{MISSIONS.length}</div>
-        <div className="flex-1 min-w-[180px]"><div className="text-xs uppercase tracking-widest font-black text-pink-300">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div><div className="text-xl sm:text-2xl font-black">{mission.prompt}</div></div>
+        <div className="flex-1 min-w-[120px]"><div className="text-[10px] sm:text-xs uppercase tracking-widest font-black text-pink-300">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div><div className="text-sm sm:text-2xl font-black truncate">{mission.prompt}</div></div>
         <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
         <div className="flex items-center gap-1 rounded-xl bg-rose-500/15 px-3 py-2">{Array.from({length:3}).map((_,i)=><Heart key={i} className={"w-5 h-5 "+(i<hearts?"fill-rose-400 text-rose-400":"text-white/20")}/>)}</div>
         <div className="rounded-xl bg-amber-400/15 text-amber-300 px-3 py-2 font-black"><Star className="w-4 h-4 inline fill-current mr-1"/>{score}</div>
       </div>
 
-      <div className="rounded-2xl bg-slate-900 border border-white/10 p-3 mb-3">
+      <div className="rounded-xl sm:rounded-2xl bg-slate-900 border border-white/10 p-2 sm:p-3 mb-2 sm:mb-3 flex-shrink-0">
         <div className="flex items-center gap-3"><div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center text-3xl overflow-hidden flex-shrink-0">{buddyVisual}</div><div className="flex-1 min-w-0"><div className="font-black truncate">{message}</div><div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden"><div className="h-full transition-all" style={{width:progress+"%",background:mission.theme.glow}}/></div><div className="text-xs font-bold text-white/55 mt-1">{slicedCount} / {mission.goal} {mission.target.label}s</div></div><button type="button" onClick={announceMission} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center"><Volume2 className="w-5 h-5"/></button></div>
       </div>
 
       <div
         ref={arenaRef}
-        className="relative overflow-hidden rounded-[2rem] border-4 border-white/15 touch-none cursor-crosshair shadow-2xl"
-        style={{height:"min(72vh,760px)",minHeight:540,background:mission.theme.background}}
+        className="relative flex-1 min-h-0 overflow-hidden rounded-2xl sm:rounded-[2rem] border-4 border-white/15 touch-none cursor-crosshair shadow-2xl"
+        style={{background:mission.theme.background}}
         onPointerDown={e=>{setSlicing(true);slicingRef.current=true;e.currentTarget.setPointerCapture?.(e.pointerId);sliceAt(e.clientX,e.clientY);}}
         onPointerMove={e=>{if(slicingRef.current)sliceAt(e.clientX,e.clientY);}}
         onPointerUp={e=>{if(slicingRef.current)sliceAt(e.clientX,e.clientY);slicingRef.current=false;setSlicing(false);}}
@@ -284,7 +285,7 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
                 {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You sliced all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play Level 1 again":"Next arena →"}</button></div></div>}
       </div>
 
-      <div className="mt-3 rounded-xl bg-slate-900 p-3 text-center text-sm font-black text-white/70">Swipe through only {mission.target.emoji} {mission.target.label}s. Wrong objects cost a heart.</div>
+      <div className="hidden sm:block mt-3 rounded-xl bg-slate-900 p-3 text-center text-sm font-black text-white/70 flex-shrink-0">Swipe through only {mission.target.emoji} {mission.target.label}s. Wrong objects cost a heart.</div>
     </div>
   </div>;
 }
