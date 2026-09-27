@@ -172,7 +172,7 @@ export default function EyeGazeParentControls() {
 
       <section className="mt-5 rounded-[2rem] bg-white border-2 border-sky-100 p-5 sm:p-7 shadow-sm">
         <h2 className="text-2xl font-black">A.R.I.S.E. Shorts</h2>
-        <p className="font-bold text-slate-600 mt-1">Choose the age and learning topics. A.R.I.S.E. continuously creates short, narrated vertical lessons for the child's feed.</p>
+        <p className="font-bold text-slate-600 mt-1">Choose the age and learning topics. A.R.I.S.E. finds real educational YouTube Shorts that match those settings and keeps loading more as the child swipes.</p>
 
         <div className="mt-5">
           <h3 className="text-lg font-black">1. Age range</h3>
@@ -193,7 +193,7 @@ export default function EyeGazeParentControls() {
 
         <div className="mt-5">
           <h3 className="text-lg font-black">2. What should show up?</h3>
-          <p className="text-sm font-bold text-slate-500">Pick as many topics as you want. The feed keeps rotating through them.</p>
+          <p className="text-sm font-bold text-slate-500">Pick as many topics as you want. A.R.I.S.E. uses these topics when finding YouTube Shorts.</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
             {SHORT_TOPIC_OPTIONS.map(topic => {
               const selected = controls.tvTopics.includes(topic.id);
@@ -219,7 +219,7 @@ export default function EyeGazeParentControls() {
 
         <div className="mt-6 rounded-3xl bg-slate-50 border-2 border-slate-200 p-4">
           <h3 className="text-lg font-black">3. Optional: add specific YouTube Shorts</h3>
-          <p className="text-sm font-bold text-slate-500 mt-1">These get mixed into the A.R.I.S.E.-generated Shorts feed. Paste a specific Short you approve.</p>
+          <p className="text-sm font-bold text-slate-500 mt-1">These get mixed into the automatic YouTube Shorts feed. Paste a specific Short you approve.</p>
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
           <label className="font-black sm:col-span-2">YouTube Short link<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/shorts/…" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
           <label className="font-black">Title<input value={videoTitle} onChange={e=>setVideoTitle(e.target.value)} placeholder="Counting to 10" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
@@ -238,7 +238,7 @@ export default function EyeGazeParentControls() {
               <button onClick={()=>setControls(c=>({...c,videos:c.videos.filter((_,i)=>i!==index)}))} className="w-10 h-9 rounded-lg bg-rose-100 text-rose-800 font-black">×</button>
             </div>
           </div>)}
-          {!controls.videos.length && <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 font-bold text-sky-900">No specific YouTube Shorts added — that's okay. A.R.I.S.E. will still continuously create Shorts from the age and topics above.</div>}
+          {!controls.videos.length && <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 font-bold text-sky-900">No specific YouTube Shorts added — that's okay. A.R.I.S.E. will still find YouTube Shorts from the age and topics above.</div>}
         </div>
         </div>
 
