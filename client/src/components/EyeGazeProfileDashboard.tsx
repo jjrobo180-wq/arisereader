@@ -161,13 +161,13 @@ export default function EyeGazeProfileDashboard({ displayName }: { displayName: 
           <div className="flex-1 text-center md:text-left">
             <p className="text-sm font-black uppercase tracking-widest text-violet-600">My Buddy</p>
             <h1 className="text-3xl sm:text-5xl font-black text-blue-950 mt-1">{draft.name}</h1>
-            <p className="text-lg font-bold text-slate-600 mt-2">Pick the friend who helps teach games and gives directions.</p>
+            <p className="text-lg font-bold text-slate-600 mt-2">Pick your learning friend, hear their voice, and customize them here.</p>
             <div className="mt-5 flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
               <button type="button" onClick={() => speak(`Hi ${firstName}! I'm ${draft.name}. Let's learn together!`)} className="min-h-[54px] rounded-2xl bg-blue-100 text-blue-800 px-5 font-black inline-flex items-center justify-center gap-2">
                 <Volume2 className="w-5 h-5" /> Hear Buddy
               </button>
-              <button type="button" onClick={() => navigate("/eye-gaze-games")} className="min-h-[54px] rounded-2xl bg-amber-400 text-blue-950 px-5 font-black inline-flex items-center justify-center gap-2">
-                <Gamepad2 className="w-5 h-5" /> Play With Buddy
+              <button type="button" onClick={() => speak(`You can do it, ${firstName}! I'm ${draft.name}, and I'm cheering for you!`)} className="min-h-[54px] rounded-2xl bg-amber-400 text-blue-950 px-5 font-black inline-flex items-center justify-center gap-2">
+                ⭐ Cheer Me On
               </button>
             </div>
           </div>
@@ -222,7 +222,7 @@ export default function EyeGazeProfileDashboard({ displayName }: { displayName: 
             </div>
             <div className="text-left">
               <div className="font-black text-blue-950">Voice {draft.voiceEnabled ? "On" : "Off"}</div>
-              <div className="text-xs text-slate-500">Buddy speaks during activities</div>
+              <div className="text-xs text-slate-500">Buddy voice stays on this My Buddy page</div>
             </div>
           </button>
 
