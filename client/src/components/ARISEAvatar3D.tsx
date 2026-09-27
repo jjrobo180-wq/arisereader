@@ -103,8 +103,8 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false}
       mesh(new THREE.CapsuleGeometry(.26,.95,8,18),pants,-.28,1.05,0);
       mesh(new THREE.CapsuleGeometry(.26,.95,8,18),pants,.28,1.05,0);
       // Shoes
-      const leftShoe=mesh(new THREE.RoundedBoxGeometry?.(.52,.22,.85,4,.08) || new THREE.BoxGeometry(.52,.22,.85),shoes,-.28,.35,.16);
-      const rightShoe=mesh(new THREE.RoundedBoxGeometry?.(.52,.22,.85,4,.08) || new THREE.BoxGeometry(.52,.22,.85),shoes,.28,.35,.16);
+      const leftShoe=mesh(new THREE.BoxGeometry(.52,.22,.85),shoes,-.28,.35,.16);
+      const rightShoe=mesh(new THREE.BoxGeometry(.52,.22,.85),shoes,.28,.35,.16);
       leftShoe.rotation.x=-.02;rightShoe.rotation.x=-.02;
 
       // Torso
@@ -219,7 +219,7 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false}
         mesh(new THREE.BoxGeometry(.12,.15,.10),dark,.97,2.15,.06,0,0,-.06);
       }
       if(equipped.accessory==="bag-tech"){
-        mesh(new THREE.RoundedBoxGeometry?.(.72,.92,.30,4,.06) || new THREE.BoxGeometry(.72,.92,.30),mat("#111827",.5,.08),0,2.35,-.52);
+        mesh(new THREE.BoxGeometry(.72,.92,.30),mat("#111827",.5,.08),0,2.35,-.52);
       }
 
       // subtle chest logo
