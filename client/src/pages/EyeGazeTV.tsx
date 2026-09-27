@@ -25,7 +25,7 @@ export default function EyeGazeTV() {
   const feedRef = useRef<HTMLDivElement | null>(null);
   const usageTimerRef = useRef<number | null>(null);
 
-  const limited = !!settings?.enabled && !!settings.tvDailyMinutes && usageMinutes >= settings.tvDailyMinutes;
+  const limited = !!settings?.tvDailyMinutes && usageMinutes >= settings.tvDailyMinutes;
 
   useEffect(() => {
     let active = true;
