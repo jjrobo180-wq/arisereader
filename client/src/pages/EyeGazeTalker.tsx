@@ -261,6 +261,13 @@ export default function EyeGazeTalker() {
   const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dwellTarget = useRef<HTMLButtonElement | null>(null);
   const animalAudio = useRef<HTMLAudioElement | null>(null);
+  const safeShowModal = (dialog: HTMLDialogElement | null) => {
+    if (!dialog || dialog.open) return;
+    try { dialog.showModal(); }
+    catch {
+      try { dialog.show(); } catch {}
+    }
+  };
   const place = places.find(item => item.id === placeId);
   const rawNeeds: TalkerWord[] = familyConfig.alwaysHere ?? defaultNeeds;
   const wordKey = (word: Word) => (word.baseLabel || word.label).trim().toLowerCase();
@@ -331,20 +338,20 @@ export default function EyeGazeTalker() {
       setLearningOpen(false);
       setLearningFeedback("");
       setLearningRound(0);
-      wordDialog.current?.showModal();
+      safeShowModal(wordDialog.current);
     }
   }, [selected]);
 
   useEffect(() => {
-    if (settingsOpen) settingsDialog.current?.showModal();
+    if (settingsOpen) safeShowModal(settingsDialog.current);
   }, [settingsOpen]);
 
   useEffect(() => {
-    if (editOpen) editDialog.current?.showModal();
+    if (editOpen) safeShowModal(editDialog.current);
   }, [editOpen]);
 
   useEffect(() => {
-    if (gateOpen) gateDialog.current?.showModal();
+    if (gateOpen) safeShowModal(gateDialog.current);
   }, [gateOpen]);
 
   useEffect(() => {
@@ -683,7 +690,7 @@ export default function EyeGazeTalker() {
         <header className="flex flex-wrap items-center justify-between gap-3 py-4 sm:py-5">
           <div className="flex items-center gap-3"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My World <span className="text-[#137f96]">Talker</span></h1></div>
           <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-            <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/profile")} className="relative min-h-12 px-3 rounded-2xl bg-white border-2 border-slate-200 font-black text-sm sm:text-base">← Profile</button>
+            <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-3 rounded-2xl bg-white border-2 border-slate-200 font-black text-sm sm:text-base">← Profile</button>
             <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-parent")} className="relative min-h-12 px-3 rounded-2xl bg-amber-100 border-2 border-amber-300 font-black text-sm sm:text-base">👨‍👩‍👧 Grown-up</button>
             <button data-talker-dwell type="button" onClick={() => setSettingsOpen(true)} className="relative min-h-12 px-3 rounded-2xl bg-white border-2 border-slate-200 font-black text-sm sm:text-base">⚙ Settings</button>
             <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative min-h-12 px-3 rounded-2xl bg-teal-600 text-white font-black text-sm sm:text-base">📚 Learn</button>
@@ -718,7 +725,12 @@ export default function EyeGazeTalker() {
                   data-talker-dwell
                   key={id}
                   type="button"
-                  onClick={() => { setLibraryMode(id); setPlaceId(null); if (id !== "categories") setActiveCategory(null); }}
+                  onClick={() => {
+                    setLibraryMode(id);
+                    setPlaceId(null);
+                    setLearningFeedback("");
+                    if (id !== "categories") setActiveCategory(null);
+                  }}
                   className={`relative min-w-[145px] sm:min-w-0 min-h-20 rounded-2xl border-2 p-3 text-left ${libraryMode === id ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-100 bg-white"}`}
                 >
                   <span className="text-2xl mr-2">{icon}</span><strong className="font-black">{label}</strong>
@@ -903,7 +915,11 @@ export default function EyeGazeTalker() {
                             data-talker-dwell
                             key={`related-${word.label}`}
                             type="button"
-                            onClick={() => choose(word)}
+                            onClick={() => {
+                              setLearningOpen(false);
+                              setLearningFeedback("");
+                              choose(word);
+                            }}
                             className="relative min-h-28 rounded-2xl bg-white border-2 border-sky-100 hover:border-sky-500 flex items-center gap-3 p-3 text-left"
                           >
                             {picture(word) ? <img src={picture(word)!} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" /> : <span className="text-4xl flex-shrink-0" aria-hidden="true">{word.picture}</span>}
