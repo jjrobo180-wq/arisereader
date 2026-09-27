@@ -5673,6 +5673,155 @@ Important:
     }
   });
 
+  const CURATED_YOUTUBE_SHORTS = [
+    { id: 'dOIrnsoY21g', title: 'Phonetic Sounds', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
+    { id: 'NDjKigOxvec', title: 'Learn the Alphabet A to Z', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
+    { id: 'AGXxNbcvT2M', title: 'Meet Twenty One', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
+    { id: '8lib0VIxihw', title: '1 + 1 = 2', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
+  ];
+
+  const YOUTUBE_TOPIC_QUERY: Record<string, string> = {
+    animals: 'kids animals educational #shorts',
+    letters: 'kids phonics alphabet educational #shorts',
+    numbers: 'kids counting math educational #shorts',
+    feelings: 'kids feelings emotions social emotional learning #shorts',
+    speech: 'kids speech communication words educational #shorts',
+    'daily-life': 'kids daily living routines educational #shorts',
+    science: 'kids science facts educational #shorts',
+    'colors-shapes': 'kids colors shapes educational #shorts',
+    social: 'kids social skills educational #shorts',
+    safety: 'kids safety educational #shorts',
+    reading: 'kids reading vocabulary educational #shorts',
+  };
+
+  const TRUSTED_YOUTUBE_CHANNELS = [
+    'Alphablocks',
+    'Numberblocks',
+    'Sesame Street',
+    'PBS KIDS',
+    'SciShow Kids',
+    'Nat Geo Kids',
+    'National Geographic Kids',
+    'Homeschool Pop',
+    'Crash Course Kids',
+  ];
+
+  function youtubeAgeWords(ageRange: string) {
+    if (ageRange === '2-4') return 'preschool toddler';
+    if (ageRange === '5-7') return 'kindergarten first grade';
+    if (ageRange === '8-10') return 'elementary kids';
+    return 'middle school kids';
+  }
+
+  function isoDurationSeconds(value: string) {
+    const match = String(value || '').match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+    if (!match) return 99999;
+    return (Number(match[1] || 0) * 3600) + (Number(match[2] || 0) * 60) + Number(match[3] || 0);
+  }
+
+  app.get('/api/eye-gaze/youtube-shorts', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+
+      const raw = await storage.getSetting(`eye_gaze_family_settings_${child.id}`);
+      let parsed: any = null;
+      if (raw) { try { parsed = JSON.parse(raw); } catch {} }
+      const settings = normalizeEyeGazeFamilySettings(parsed || defaultEyeGazeFamilySettings());
+
+      const requestedTopic = String(req.query?.topic || '');
+      const topic = settings.tvTopics.includes(requestedTopic) ? requestedTopic : settings.tvTopics[0] || 'animals';
+      const pageToken = String(req.query?.pageToken || '');
+      const apiKey = String(process.env.YOUTUBE_API_KEY || '').trim();
+
+      if (!apiKey) {
+        const items = CURATED_YOUTUBE_SHORTS
+          .filter(item => item.topic === topic && item.ageRanges.includes(settings.tvAgeRange))
+          .map(item => ({
+            id: item.id,
+            title: item.title,
+            channel: item.channel,
+            topic: item.topic,
+            source: 'curated',
+          }));
+
+        return res.json({
+          items,
+          nextPageToken: null,
+          topic,
+          ageRange: settings.tvAgeRange,
+          automaticDiscovery: false,
+          message: items.length
+            ? 'Showing curated educational YouTube Shorts. Automatic discovery needs a YouTube API key.'
+            : 'Automatic YouTube Shorts discovery needs a YouTube API key.',
+        });
+      }
+
+      const query = `${YOUTUBE_TOPIC_QUERY[topic] || YOUTUBE_TOPIC_QUERY.animals} ${youtubeAgeWords(settings.tvAgeRange)}`;
+      const searchParams = new URLSearchParams({
+        part: 'snippet',
+        type: 'video',
+        maxResults: '25',
+        q: query,
+        order: 'relevance',
+        safeSearch: 'strict',
+        videoDuration: 'short',
+        videoEmbeddable: 'true',
+        videoSyndicated: 'true',
+        relevanceLanguage: 'en',
+        regionCode: 'US',
+        key: apiKey,
+      });
+      if (pageToken) searchParams.set('pageToken', pageToken);
+
+      const searchResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?${searchParams.toString()}`);
+      const searchJson: any = await searchResponse.json().catch(() => ({}));
+      if (!searchResponse.ok) throw new Error(searchJson?.error?.message || 'YouTube search failed.');
+
+      const ids = (searchJson.items || []).map((item: any) => item?.id?.videoId).filter(Boolean);
+      if (!ids.length) return res.json({ items: [], nextPageToken: searchJson.nextPageToken || null, topic, ageRange: settings.tvAgeRange, automaticDiscovery: true });
+
+      const detailsParams = new URLSearchParams({
+        part: 'snippet,contentDetails,status',
+        id: ids.join(','),
+        key: apiKey,
+      });
+      const detailsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?${detailsParams.toString()}`);
+      const detailsJson: any = await detailsResponse.json().catch(() => ({}));
+      if (!detailsResponse.ok) throw new Error(detailsJson?.error?.message || 'YouTube video details failed.');
+
+      const items = (detailsJson.items || [])
+        .filter((video: any) => {
+          const duration = isoDurationSeconds(video?.contentDetails?.duration);
+          const channel = String(video?.snippet?.channelTitle || '');
+          const title = String(video?.snippet?.title || '');
+          const description = String(video?.snippet?.description || '');
+          const shortSignal = /#shorts?\b/i.test(title + ' ' + description) || duration <= 90;
+          const trusted = TRUSTED_YOUTUBE_CHANNELS.some(name => channel.toLowerCase() === name.toLowerCase());
+          return duration > 0 && duration <= 180 && shortSignal && trusted && video?.status?.embeddable !== false;
+        })
+        .map((video: any) => ({
+          id: String(video.id),
+          title: String(video.snippet?.title || 'Learning Short').replace(/#shorts?/ig, '').trim(),
+          channel: String(video.snippet?.channelTitle || 'Educational channel'),
+          topic,
+          source: 'youtube',
+        }));
+
+      res.set('Cache-Control', 'private, max-age=300');
+      res.json({
+        items,
+        nextPageToken: searchJson.nextPageToken || null,
+        topic,
+        ageRange: settings.tvAgeRange,
+        automaticDiscovery: true,
+      });
+    } catch (error: any) {
+      console.error('[eye-gaze-youtube-shorts]', error?.message);
+      res.status(503).json({ message: 'Could not load YouTube Shorts right now.' });
+    }
+  });
+
   app.get('/api/eye-gaze/tv-usage', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
