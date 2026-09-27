@@ -342,7 +342,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
         </div>
         <div className="flex gap-2">
           {step > 0 && <button data-talker-dwell type="button" onClick={restart} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">↺ New word</button>}
-          <button data-talker-dwell type="button" onClick={() => { stopPractice(); onBack(); }} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">← Talk</button>
+          <button data-talker-dwell type="button" onClick={() => { stopPractice(); onBack(); }} className="relative min-h-16 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] px-5 text-lg sm:text-xl font-black shadow-sm">⬅ BACK TO TALKER</button>
         </div>
       </header>
 
