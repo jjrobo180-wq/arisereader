@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
 import { Redirect } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { defaultParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
+import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeAccessGate({ path, children }: { path: string; children: React.ReactNode }) {
   const { user, token } = useAuth();
   const [controls, setControls] = useState<ParentControls | null>(null);
-  const [failed, setFailed] = useState(false);
+
 
   const isChild = !!user && !!user.is_eye_gaze_user && user.role === "student" && !user.isAdmin;
   useEffect(() => {
     let active = true;
     if (!isChild) {
-      setControls(defaultParentControls());
+      setControls(cachedParentControls());
       return;
     }
     void fetchFamilySettings(token)
       .then(result => { if (active) setControls(result.settings); })
-      .catch(() => { if (active) { setControls(defaultParentControls()); setFailed(true); } });
+      .catch(() => { if (active) setControls(cachedParentControls()); });
     return () => { active = false; };
   }, [isChild, token, user?.id]);
 
