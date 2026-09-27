@@ -231,7 +231,6 @@ export default function EyeGazeTalker() {
   const [words, setWords] = useState<string[]>([]);
   const [dwell, setDwell] = useState(() => localStorage.getItem("eye-gaze-talker-dwell") !== "off");
   const [dwellMs, setDwellMs] = useState(() => Number(localStorage.getItem("eye-gaze-talker-time")) || 1800);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"ai" | "device" | "checking">("checking");
   const [notice, setNotice] = useState("");
   const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {}, overrides: {}, recordings: {}, pageOrder: [], buttonOrder: {} });
@@ -257,7 +256,6 @@ export default function EyeGazeTalker() {
   const parentRecorder = useRef<MediaRecorder | null>(null);
   const parentStream = useRef<MediaStream | null>(null);
   const wordDialog = useRef<HTMLDialogElement>(null);
-  const settingsDialog = useRef<HTMLDialogElement>(null);
   const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dwellTarget = useRef<HTMLButtonElement | null>(null);
   const animalAudio = useRef<HTMLAudioElement | null>(null);
@@ -343,10 +341,6 @@ export default function EyeGazeTalker() {
   }, [selected]);
 
   useEffect(() => {
-    if (settingsOpen) safeShowModal(settingsDialog.current);
-  }, [settingsOpen]);
-
-  useEffect(() => {
     if (editOpen) safeShowModal(editDialog.current);
   }, [editOpen]);
 
@@ -423,18 +417,19 @@ export default function EyeGazeTalker() {
     });
   };
 
-  const playFamilyRecording = (word: Word, kind: "word" | "sentence", fallback: () => void) => {
+  const playFamilyRecording = (word: Word, kind: "word" | "sentence", fallback: () => void, onEnd?: () => void) => {
     const audioData = familyConfig.recordings?.[wordKey(word)]?.[kind];
     if (!audioData) { fallback(); return; }
     stopSpeaking();
     const audio = new Audio(audioData);
+    audio.onended = () => onEnd?.();
     void audio.play().catch(fallback);
   };
 
-  const sayWord = (word: Word, kind: "word" | "sentence" = "word") => {
+  const sayWord = (word: Word, kind: "word" | "sentence" = "word", onEnd?: () => void) => {
     const resolved = resolveWord(word);
     const text = kind === "word" ? resolved.label : resolved.sentence;
-    playFamilyRecording(resolved, kind, () => say(text));
+    playFamilyRecording(resolved, kind, () => say(text, onEnd), onEnd);
   };
 
   const choose = (word: Word) => {
@@ -447,8 +442,9 @@ export default function EyeGazeTalker() {
     });
     setSelected(resolved);
     if (voiceStatus === "ai") void preloadCharacterAI(resolved.sentence).catch(() => null);
-    playFamilyRecording(resolved, "word", () => say(resolved.label, ["Cow", "Dog", "Cat", "Sheep", "Duck", "Rooster"].includes(resolved.label)
-      ? () => playAnimal(resolved.label) : undefined));
+    // A single tap speaks the button label once, then its full sentence once.
+    // Animal sounds remain available as their own optional button in the word card.
+    sayWord(resolved, "word", () => sayWord(resolved, "sentence"));
   };
 
   const recordLearning = (word: string, outcome: "correct" | "retry" | "practiced", prompt = 1) => {
@@ -482,8 +478,6 @@ export default function EyeGazeTalker() {
     setLearningFeedback("");
     setLearningRound(0);
   };
-  const closeSettings = () => { settingsDialog.current?.close(); setSettingsOpen(false); };
-
   const beginEdit = async (word: Word) => {
     const resolved = resolveWord(word);
     setEditWord(resolved);
@@ -673,7 +667,17 @@ export default function EyeGazeTalker() {
   if (view === "learn") return (
     <div className="talker-page min-h-screen bg-[#f3f8fa] text-[#193d57] px-3 sm:px-6 pb-10">
       <style>{`.talker-page button:focus-visible { outline: 4px solid #255bd5; outline-offset: 3px; } .talker-page button.talker-dwelling { outline: 4px solid #255bd5; outline-offset: 3px; overflow: hidden; } .talker-page button.talker-dwelling::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: #2676e236; transform-origin: left; animation: talker-fill var(--talker-wait) linear forwards; } @keyframes talker-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }`}</style>
-      <EyeGazeLearningZone say={say} onBack={() => { stopSpeaking(); setView("talk"); }} />
+      <div className="max-w-[1100px] mx-auto pt-4">
+        <div className="rounded-3xl bg-white border-2 border-teal-100 p-2 sm:p-3 flex flex-wrap items-center gap-2 mb-4">
+          <button type="button" onClick={() => navigate("/eye-gaze-home")} className="min-h-12 rounded-2xl bg-slate-100 px-4 font-black">⌂ Home</button>
+          <div className="flex-1 grid grid-cols-3 gap-2 min-w-[260px]" role="tablist" aria-label="Learning Zone">
+            <button type="button" role="tab" aria-selected="false" onClick={() => { stopSpeaking(); setView("talk"); }} className="min-h-12 rounded-2xl bg-slate-100 font-black">🗣️ Talk</button>
+            <button type="button" role="tab" aria-selected="true" className="min-h-12 rounded-2xl bg-teal-700 text-white font-black">📚 Learn</button>
+            <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-parent")} className="min-h-12 rounded-2xl bg-amber-100 font-black">👨‍👩‍👧 Grown-up</button>
+          </div>
+        </div>
+        <EyeGazeLearningZone say={say} onBack={() => { stopSpeaking(); setView("talk"); }} />
+      </div>
     </div>
   );
 
@@ -687,13 +691,16 @@ export default function EyeGazeTalker() {
         @keyframes talker-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
       `}</style>
       <div className="max-w-[1450px] mx-auto">
-        <header className="flex flex-wrap items-center justify-between gap-3 py-4 sm:py-5">
-          <div className="flex items-center gap-3"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My World <span className="text-[#137f96]">Talker</span></h1></div>
-          <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-            <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-3 rounded-2xl bg-white border-2 border-slate-200 font-black text-sm sm:text-base">← Profile</button>
-            <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-parent")} className="relative min-h-12 px-3 rounded-2xl bg-amber-100 border-2 border-amber-300 font-black text-sm sm:text-base">👨‍👩‍👧 Grown-up</button>
-            <button data-talker-dwell type="button" onClick={() => setSettingsOpen(true)} className="relative min-h-12 px-3 rounded-2xl bg-white border-2 border-slate-200 font-black text-sm sm:text-base">⚙ Settings</button>
-            <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative min-h-12 px-3 rounded-2xl bg-teal-600 text-white font-black text-sm sm:text-base">📚 Learn</button>
+        <header className="py-4 sm:py-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">Learning Zone</h1></div></div>
+            <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-home")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">⌂ Home</button>
+            <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">Profile</button>
+          </div>
+          <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="Learning Zone">
+            <button type="button" role="tab" aria-selected="true" className="min-h-14 rounded-2xl bg-teal-700 text-white font-black">🗣️ Talk</button>
+            <button type="button" role="tab" aria-selected="false" onClick={() => setView("learn")} className="min-h-14 rounded-2xl bg-slate-100 font-black">📚 Learn</button>
+            <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-parent")} className="min-h-14 rounded-2xl bg-amber-100 font-black">👨‍👩‍👧 Grown-up</button>
           </div>
         </header>
 
@@ -707,8 +714,6 @@ export default function EyeGazeTalker() {
             <button data-talker-dwell type="button" disabled={!words.length} onClick={() => setWords([])} className="relative min-h-14 px-5 rounded-2xl bg-[#315772] text-white font-black disabled:opacity-50">Clear</button>
           </div>
         </section>
-
-        <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative mt-4 sm:mt-6 w-full min-h-20 sm:min-h-24 rounded-3xl bg-gradient-to-r from-[#ddf5f4] to-[#e3eefa] border-2 border-teal-200 p-4 flex items-center gap-4 text-left"><span className="text-5xl" aria-hidden="true">📚</span><span><strong className="block text-2xl font-black">Learning Zone</strong><span className="font-bold">Pictures, word sounds, sentences, and your turn to talk</span></span><span className="ml-auto text-2xl" aria-hidden="true">→</span></button>
 
         <section className="mt-7" aria-label="Talker library view">
           <div className="rounded-3xl bg-white border-2 border-sky-100 p-3 sm:p-4">
@@ -1022,13 +1027,6 @@ export default function EyeGazeTalker() {
         )}
       </dialog>
 
-      <dialog ref={settingsDialog} onClose={() => setSettingsOpen(false)} aria-labelledby="talker-settings-title" className="rounded-[2rem] p-6 w-[min(92vw,480px)] max-h-[90vh] overflow-y-auto text-[#193d57] backdrop:bg-[#0b293bc2]">
-        <div className="flex justify-between items-center"><h2 id="talker-settings-title" className="text-3xl font-black">Settings</h2><button data-talker-dwell type="button" onClick={closeSettings} aria-label="Close settings" className="relative w-14 h-14 rounded-full bg-[#eef4f6] text-3xl font-black">×</button></div>
-        <p className="font-bold mt-4">How do you choose a picture?</p>
-        <div className="grid gap-2 mt-3"><button data-talker-dwell type="button" onClick={() => setDwell(true)} className={`relative min-h-16 rounded-2xl border-2 font-black ${dwell ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-200"}`}>👁 Look and wait</button><button data-talker-dwell type="button" onClick={() => setDwell(false)} className={`relative min-h-16 rounded-2xl border-2 font-black ${!dwell ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-200"}`}>☝ Tap or click</button></div>
-        <label htmlFor="talker-wait-time" className="block font-black mt-5">Wait time</label><select id="talker-wait-time" value={dwellMs} onChange={event => setDwellMs(Number(event.target.value))} disabled={!dwell} className="w-full border-2 border-sky-200 rounded-xl p-3 mt-2 bg-white font-bold"><option value={1200}>1.2 seconds</option><option value={1800}>1.8 seconds</option><option value={2500}>2.5 seconds</option><option value={3500}>3.5 seconds</option></select>
-        <p className="text-sm font-bold text-[#547886] mt-4">Eye gaze works when the device moves the on-screen pointer. Keep your gaze on a picture until the color fills. Touch and switch clicks also work.</p><button data-talker-dwell type="button" onClick={closeSettings} className="relative w-full min-h-16 rounded-2xl bg-[#137f96] text-white font-black mt-5">Done</button>
-      </dialog>
     </div>
   );
 }
