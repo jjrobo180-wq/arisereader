@@ -24,15 +24,26 @@ w.fetch=async()=>({ok:true,json:async()=>({items:Array.from({length:10},(_,i)=>(
 w.HTMLElement.prototype.scrollTo=function({top}){this.scrollTop=top};
 w.YT={Player:class {
  constructor(target,options){if(typeof target==='string')target=w.document.getElementById(target);this.options=options;this.frame=w.document.createElement('iframe');target.replaceWith(this.frame);players.push(this);w.setTimeout(()=>options.events.onReady({target:this}),10)}
- getIframe(){return this.frame} destroy(){this.frame.remove()} mute(){this.muted=true} unMute(){this.muted=false} playVideo(){this.plays=(this.plays||0)+1;this.options.events.onStateChange({data:1})} pauseVideo(){this.options.events.onStateChange({data:2})}
+ loadVideoById({videoId}){this.videoId=videoId;this.loads=(this.loads||0)+1;this.playVideo()} getVideoData(){return {video_id:this.videoId||this.options.videoId}} seekTo(){} getIframe(){return this.frame} destroy(){this.frame.remove()} mute(){this.muted=true} unMute(){this.muted=false} playVideo(){this.plays=(this.plays||0)+1;this.options.events.onStateChange({data:1})} pauseVideo(){this.options.events.onStateChange({data:2})}
 }};
 const wait=()=>new Promise(r=>setTimeout(r,100));
 try {
  w.eval(script); await wait(); await wait();
  assert.ok(players.length>0,'player mounts');
+ const firstPlayer=players.at(-1);
+ w.document.querySelector('button[aria-label="Turn sound on"]').click();await wait();
+ assert.equal(firstPlayer.muted,false);
+ const initialPlayerCount=players.length;
  const scroll=async n=>{const feed=w.document.querySelector('article').parentElement;Object.defineProperty(feed,'clientHeight',{value:800,configurable:true});feed.scrollTop=n*800;feed.dispatchEvent(new w.Event('scroll',{bubbles:true}));await wait();};
  for(const n of [1,2,3,2,1,0]) {await scroll(n);assert.deepEqual(errors,[],"swipe must not trigger DOM removal errors");assert.equal(w.document.querySelectorAll("iframe").length,1,"each feed entry must keep a live player, including duplicate IDs");}
  assert.deepEqual(errors,[], 'swiping must not crash React');
+ assert.equal(players.length,initialPlayerCount,'swipes must reuse the sound-authorized iframe');
+ assert.equal(firstPlayer.muted,false,'sound stays on after repeated swipes');
+ assert.ok(firstPlayer.loads>=6,'each entry loads in the persistent player');
+ w.document.querySelector('button[aria-label="Mute"]').click();await wait();
+ await scroll(3);
+ assert.equal(firstPlayer.muted,true,'deliberate mute stays muted on next clip');
+ w.document.querySelector('button[aria-label="Turn sound on"]').click();await wait();
  assert.equal(w.document.querySelectorAll('iframe').length,1);
  players.at(-1).options.events.onError({data:100});await wait();
  assert.deepEqual(errors,[], 'unavailable video skip must not crash');
@@ -46,7 +57,7 @@ try {
  const active=players.at(-1);
  assert.ok(active.plays>0, 'Short starts on ready without tapping Play');
  assert.ok(active.frame.getAttribute('allow').includes('autoplay'));
- w.document.querySelector('button[aria-label="Turn sound on"]').click();await wait();
+ if(active.muted) w.document.querySelector('button[aria-label="Turn sound on"]').click();await wait();
  assert.equal(active.muted,false,'sound tap unmutes immediately');
  const plays=active.plays;
  active.options.events.onAutoplayBlocked({target:active});await wait();
@@ -56,7 +67,7 @@ try {
  active.options.events.onAutoplayBlocked({target:active});await wait();
  assert.equal(active.plays,plays+1,'retry must be bounded');
  // Old asynchronous events must not remove or stop a later active player.
- const old=players.at(-1);await scroll(2);
+ const old=players.at(-2);await scroll(2);
  const count=players.length;old.options.events.onError({data:100});await wait();
  assert.equal(players.length,count);
  w.root.unmount();await wait();
