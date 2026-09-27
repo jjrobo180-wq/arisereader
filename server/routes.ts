@@ -5603,7 +5603,7 @@ Important:
     return {
       enabled: false,
       allowedPaths: [...EYE_GAZE_FEATURE_PATHS],
-      tvDailyMinutes: 30,
+      tvDailyMinutes: 0,
       videos: [],
     };
   }
@@ -5627,7 +5627,7 @@ Important:
     return {
       enabled: !!source.enabled,
       allowedPaths: Array.from(new Set(allowed)),
-      tvDailyMinutes: Math.max(0, Math.min(240, Number(source.tvDailyMinutes ?? 30) || 0)),
+      tvDailyMinutes: Math.max(0, Math.min(240, Number(source.tvDailyMinutes ?? 0) || 0)),
       videos,
     };
   }
