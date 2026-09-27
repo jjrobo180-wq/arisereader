@@ -72,14 +72,14 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
 
   const nav = [
     { label: "Home", icon: Home, path: "/eye-gaze-home" },
-    { label: "Talker", icon: MessageCircle, path: "/eye-gaze-talker" },
+    { label: "My Talker", icon: MessageCircle, path: "/eye-gaze-talker" },
     { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
     { label: "Progress", icon: Trophy, path: "/leaderboard" },
     { label: "My Buddy", icon: Users, path: "/eye-gaze-buddy" },
     { label: "Profile", icon: UserRound, path: "/eye-gaze-account" },
   ];
   const visibleNav = nav.filter(item => item.path === "/eye-gaze-account" || (item.path === "/eye-gaze-games" && pathAllowed("/library", parentControls)) || pathAllowed(item.path, parentControls));
-  const mobileNav = visibleNav.filter(item => ["Home", "Talker", "Games", "Profile"].includes(item.label));
+  const mobileNav = visibleNav.filter(item => ["Home", "My Talker", "Games", "Profile"].includes(item.label));
 
   return (
     <div data-eye-gaze-shell className="min-h-screen text-slate-900" style={{ backgroundColor: background }}>
