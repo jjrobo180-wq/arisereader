@@ -1752,6 +1752,9 @@ export async function registerRoutes(
         hair:"fade",
         hairColor:"#171717",
         eyeColor:"#3f2a1d",
+        face:"oval",
+        build:"athletic",
+        brows:"natural",
       },
       avatar3d: {
         url: "",
@@ -1780,15 +1783,21 @@ export async function registerRoutes(
     const furniture=Array.isArray(source.furniture)
       ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>purchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
       : [];
-    const skinOptions=["#f4c7a1","#d89a73","#b97750","#9b6244","#74432e","#4c2a20","#2e1a16"];
-    const hairOptions=["fade","curls","locs","waves","afro","braids"];
-    const hairColors=["#171717","#3b2417","#6b3d24","#8f6545"];
-    const eyeColors=["#3f2a1d","#5b3b24","#305b66","#475569"];
+    const skinOptions=["#f4c7a1","#e7b184","#d89a73","#b97750","#9b6244","#74432e","#5b3326","#4c2a20","#2e1a16"];
+    const hairOptions=["fade","curls","locs","waves","afro","braids","short","buzz"];
+    const hairColors=["#111111","#171717","#2a1b13","#3b2417","#6b3d24","#8f6545","#b5814e"];
+    const eyeColors=["#2b1a12","#3f2a1d","#5b3b24","#305b66","#475569","#355b39"];
+    const faceOptions=["oval","round","square","long"];
+    const buildOptions=["slim","athletic","broad"];
+    const browOptions=["natural","straight","bold"];
     const look={
       skin:skinOptions.includes(String(source.look?.skin))?String(source.look.skin):base.look.skin,
       hair:hairOptions.includes(String(source.look?.hair))?String(source.look.hair):base.look.hair,
       hairColor:hairColors.includes(String(source.look?.hairColor))?String(source.look.hairColor):base.look.hairColor,
       eyeColor:eyeColors.includes(String(source.look?.eyeColor))?String(source.look.eyeColor):base.look.eyeColor,
+      face:faceOptions.includes(String(source.look?.face))?String(source.look.face):base.look.face,
+      build:buildOptions.includes(String(source.look?.build))?String(source.look.build):base.look.build,
+      brows:browOptions.includes(String(source.look?.brows))?String(source.look.brows):base.look.brows,
     };
     const rawAvatar3d=source.avatar3d&&typeof source.avatar3d==="object"?source.avatar3d:{};
     const rawUrl=String(rawAvatar3d.url||"").trim();
@@ -1879,18 +1888,7 @@ export async function registerRoutes(
       }else if(action==="furniture"){
         const ids=Array.isArray(req.body?.itemIds)?req.body.itemIds.map(String):[];
         nextRaw.furniture=ids.filter((id:string)=>payload.state.purchased.includes(id)&&AVATAR_WORLD_CATALOG.find(entry=>entry.id===id)?.type==="furniture").slice(0,12);
-      }else if(action==="avatar3d"){
-        const url=String(req.body?.avatar?.url||"").trim();
-        if(!((url.startsWith("https://")||url.startsWith("data:model/"))&&url.length<=6000000)){
-          return res.status(400).json({message:"The 3D avatar export was not valid."});
-        }
-        nextRaw.avatar3d={
-          url,
-          avatarId:String(req.body?.avatar?.avatarId||"").slice(0,160),
-          provider:"avaturn",
-          updatedAt:new Date().toISOString(),
-        };
-      }else{
+}else{
         return res.status(400).json({message:"Unknown customization action."});
       }
       const normalized=normalizeAvatarWorldState(nextRaw);
