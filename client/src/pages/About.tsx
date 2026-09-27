@@ -88,6 +88,42 @@ export default function About() {
             <p className="text-sm text-muted-foreground">The educator, the father, and the student who never forgot what it felt like to love reading.</p>
           </div>
 
+          {/* Educator profile */}
+          <div className="grid md:grid-cols-[280px_1fr] gap-6 sm:gap-8 px-6 sm:px-8 pt-8 items-center">
+            <div className="relative mx-auto md:mx-0 w-full max-w-[280px]">
+              <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-primary/35 via-orange-400/20 to-violet-500/25 blur-xl" />
+              <img
+                src="/about/mr-j-portrait.webp"
+                alt="Mr. J, creator of A.R.I.S.E. Reader"
+                className="relative w-full aspect-[3/4] object-cover rounded-2xl border-2 border-primary/20 shadow-xl"
+              />
+              <div className="absolute left-3 right-3 bottom-3 rounded-xl bg-background/90 backdrop-blur px-3 py-2 border border-white/10 shadow-lg text-center">
+                <p className="text-sm font-bold">Educator • Mentor • Creator</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-primary uppercase tracking-[0.18em] mb-2">Built from the classroom</p>
+              <h3 className="text-2xl sm:text-3xl font-bold leading-tight">
+                A.R.I.S.E. was created by an educator who works beside students every day.
+              </h3>
+              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mt-4">
+                The ideas behind A.R.I.S.E. come from real classrooms, real conversations, and watching what happens when students are given encouragement, choice, support, and a reason to be proud of their progress.
+              </p>
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {[
+                  ["📚", "Reading"],
+                  ["🤝", "Support"],
+                  ["⭐", "Confidence"],
+                ].map(([icon, label]) => (
+                  <div key={label} className="rounded-xl bg-primary/5 border border-primary/15 px-2 py-3 text-center">
+                    <div className="text-2xl">{icon}</div>
+                    <div className="text-xs font-semibold mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Story content */}
           <div className="px-6 sm:px-8 py-8 space-y-6">
 
@@ -140,6 +176,54 @@ export default function About() {
               </p>
             </div>
 
+          </div>
+
+          {/* Classroom gallery */}
+          <div className="border-t border-border bg-muted/15 px-6 sm:px-8 py-8">
+            <div className="flex items-start gap-3 mb-6">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-violet-600 flex items-center justify-center shadow">
+                <BookOpen className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">In the classroom</p>
+                <h3 className="text-xl sm:text-2xl font-bold mt-1">The work behind the mission</h3>
+                <p className="text-sm text-muted-foreground mt-1">A.R.I.S.E. is grounded in relationships, encouragement, and showing up for students.</p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              {[
+                {
+                  src: "/about/mr-j-classroom-1.webp",
+                  alt: "Mr. J working with students at a classroom table",
+                  caption: "Learning is stronger when students feel supported.",
+                },
+                {
+                  src: "/about/mr-j-classroom-2.webp",
+                  alt: "Mr. J working alongside students in a classroom",
+                  caption: "Building confidence through real relationships.",
+                },
+                {
+                  src: "/about/mr-j-classroom-3.webp",
+                  alt: "Mr. J helping a student with classroom work",
+                  caption: "Meeting students where they are and helping them grow.",
+                },
+              ].map((photo) => (
+                <figure key={photo.src} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                  <div className="overflow-hidden">
+                    <img
+                      src={photo.src}
+                      alt={photo.alt}
+                      loading="lazy"
+                      className="w-full h-64 sm:h-72 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <figcaption className="p-4 text-xs sm:text-sm text-muted-foreground leading-relaxed font-medium">
+                    {photo.caption}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </div>
       </div>
