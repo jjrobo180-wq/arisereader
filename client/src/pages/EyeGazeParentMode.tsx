@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
 import { defaultNeeds, resizeTalkerPhoto, talkerPicture, talkerRequest, type TalkerConfig, type TalkerProgress, type TalkerState, type TalkerWord } from "@/lib/talkerState";
 import { lessons } from "./EyeGazeLearningZone";
-import { places } from "./EyeGazeTalker";
+import { places, talkerCategories, defaultTalkerPageOrder } from "./EyeGazeTalker";
 
 type WordChoice = { word: string; icon: string; sentence: string; first?: string; choices?: string[] };
 type Tab = "today" | "customize" | "progress";
@@ -28,7 +28,7 @@ export default function EyeGazeParentMode() {
   const [, navigate] = useLocation();
   const [tab, setTab] = useState<Tab>("today");
   const [state, setState] = useState<TalkerState | null>(null);
-  const [draft, setDraft] = useState<TalkerConfig>({ alwaysHere: defaultNeeds, pictures: {} });
+  const [draft, setDraft] = useState<TalkerConfig>({ alwaysHere: defaultNeeds, pictures: {}, overrides: {}, recordings: {}, pageOrder: [], buttonOrder: {} });
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -36,6 +36,8 @@ export default function EyeGazeParentMode() {
   const [question, setQuestion] = useState(0);
   const [editing, setEditing] = useState<string | null>(null);
   const [photoWord, setPhotoWord] = useState("Milk");
+  const [layoutSearch, setLayoutSearch] = useState("");
+  const [layoutPageId, setLayoutPageId] = useState("people");
 
   useEffect(() => {
     let active = true;
@@ -47,6 +49,8 @@ export default function EyeGazeParentMode() {
         pictures: result.config.pictures || {},
         overrides: result.config.overrides || {},
         recordings: result.config.recordings || {},
+        pageOrder: result.config.pageOrder || [],
+        buttonOrder: result.config.buttonOrder || {},
       });
     }).catch(err => { if (active) setError(err.message); });
     return () => { active = false; stopSpeaking(); };
@@ -62,6 +66,76 @@ export default function EyeGazeParentMode() {
     }
     return entries;
   }, [draft.alwaysHere]);
+
+  const configuredPageOrder = draft.pageOrder?.length ? draft.pageOrder : defaultTalkerPageOrder;
+  const talkerPageOrder = [
+    ...configuredPageOrder.filter(id => talkerCategories.some(category => category.id === id)),
+    ...defaultTalkerPageOrder.filter(id => !configuredPageOrder.includes(id)),
+  ];
+  const orderedPages = talkerPageOrder
+    .map(id => talkerCategories.find(category => category.id === id))
+    .filter(Boolean) as typeof talkerCategories;
+
+  const buttonKey = (label: string) => label.trim().toLowerCase();
+  const orderedPageWords = (pageId: string) => {
+    const page = talkerCategories.find(category => category.id === pageId);
+    if (!page) return [];
+    const configured = draft.buttonOrder?.[pageId] || [];
+    if (!configured.length) return [...page.words];
+    const rank = new Map(configured.map((key, index) => [key, index]));
+    return [...page.words].sort((a, b) => (rank.get(buttonKey(a.label)) ?? 999) - (rank.get(buttonKey(b.label)) ?? 999));
+  };
+
+  const layoutCatalog = talkerCategories.flatMap(category =>
+    category.words.map(word => ({ category, word }))
+  );
+  const normalizedSearch = layoutSearch.trim().toLowerCase();
+  const layoutResults = normalizedSearch
+    ? layoutCatalog.filter(item =>
+        item.word.label.toLowerCase().includes(normalizedSearch)
+        || item.word.sentence.toLowerCase().includes(normalizedSearch)
+        || item.category.label.toLowerCase().includes(normalizedSearch)
+      ).slice(0, 30)
+    : [];
+
+  const moveArrayItem = <T,>(items: T[], from: number, to: number) => {
+    if (from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+  };
+
+  const movePage = (pageId: string, direction: -1 | 1) => {
+    setDraft(previous => {
+      const current = previous.pageOrder?.length ? [...previous.pageOrder] : [...defaultTalkerPageOrder];
+      for (const id of defaultTalkerPageOrder) if (!current.includes(id)) current.push(id);
+      const index = current.indexOf(pageId);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return previous;
+      return { ...previous, pageOrder: moveArrayItem(current, index, nextIndex) };
+    });
+  };
+
+  const movePageButton = (pageId: string, key: string, direction: -1 | 1) => {
+    setDraft(previous => {
+      const page = talkerCategories.find(category => category.id === pageId);
+      if (!page) return previous;
+      const defaultKeys = page.words.map(word => buttonKey(word.label));
+      const current = previous.buttonOrder?.[pageId]?.length ? [...previous.buttonOrder[pageId]] : defaultKeys;
+      for (const id of defaultKeys) if (!current.includes(id)) current.push(id);
+      const index = current.indexOf(key);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return previous;
+      return {
+        ...previous,
+        buttonOrder: {
+          ...(previous.buttonOrder || {}),
+          [pageId]: moveArrayItem(current, index, nextIndex),
+        },
+      };
+    });
+  };
 
   const progress = state?.progress || { words: {}, history: [] };
   const todaysWords = state ? dailyChoices(catalog, progress, state.student.id) : [];
@@ -166,6 +240,90 @@ export default function EyeGazeParentMode() {
         </div>}
 
         {tab === "customize" && <div className="space-y-5">
+          <section className="rounded-3xl bg-white border-2 border-violet-100 p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-violet-700">Talker layout</p>
+                <h2 className="text-2xl sm:text-3xl font-black">Search & arrange pages</h2>
+                <p className="font-bold text-slate-600 mt-1">Move whole pages, then arrange the buttons inside each page. Save when the layout feels right.</p>
+              </div>
+              <button disabled={saving} onClick={() => void save()} className="min-h-12 rounded-2xl bg-violet-600 text-white px-5 font-black disabled:opacity-50">{saving ? "Saving…" : "Save layout"}</button>
+            </div>
+
+            <label className="block mt-5 font-black">Search Talker buttons
+              <input
+                value={layoutSearch}
+                onChange={event => setLayoutSearch(event.target.value)}
+                placeholder="Search Mom, milk, bathroom, happy…"
+                className="mt-2 w-full min-h-14 rounded-2xl border-2 border-violet-100 px-4 text-lg font-bold"
+              />
+            </label>
+
+            {layoutResults.length > 0 && (
+              <div className="mt-3 rounded-2xl border-2 border-violet-100 overflow-hidden">
+                {layoutResults.map(({ category, word }) => (
+                  <button
+                    key={category.id + "-" + word.label}
+                    type="button"
+                    onClick={() => { setLayoutPageId(category.id); setLayoutSearch(""); }}
+                    className="w-full min-h-14 px-4 border-b last:border-b-0 border-violet-50 flex items-center gap-3 text-left hover:bg-violet-50"
+                  >
+                    <span className="text-3xl">{word.picture}</span>
+                    <span className="flex-1"><strong className="block">{word.label}</strong><small className="font-bold text-slate-500">{category.label} · {word.sentence}</small></span>
+                    <span className="font-black text-violet-700">Open page →</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="grid lg:grid-cols-[.9fr_1.1fr] gap-4 mt-5">
+              <div>
+                <h3 className="font-black text-lg">Page order</h3>
+                <p className="text-sm font-bold text-slate-500 mb-3">This controls the order children see under Categories.</p>
+                <div className="space-y-2">
+                  {orderedPages.map((page, index) => (
+                    <div key={page.id} className={"rounded-2xl border-2 p-3 flex items-center gap-3 " + (layoutPageId === page.id ? "border-violet-400 bg-violet-50" : "border-slate-100")}>
+                      <button type="button" onClick={() => setLayoutPageId(page.id)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+                        <span className="text-3xl">{page.icon}</span>
+                        <span><strong className="block">{page.label}</strong><small className="font-bold text-slate-500">{page.words.length} buttons</small></span>
+                      </button>
+                      <div className="flex gap-1">
+                        <button type="button" disabled={index === 0} onClick={() => movePage(page.id, -1)} className="w-11 h-11 rounded-xl bg-white border font-black disabled:opacity-30" aria-label={"Move " + page.label + " up"}>↑</button>
+                        <button type="button" disabled={index === orderedPages.length - 1} onClick={() => movePage(page.id, 1)} className="w-11 h-11 rounded-xl bg-white border font-black disabled:opacity-30" aria-label={"Move " + page.label + " down"}>↓</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                {(() => {
+                  const page = talkerCategories.find(category => category.id === layoutPageId) || talkerCategories[0];
+                  const pageWords = orderedPageWords(page.id);
+                  return (
+                    <>
+                      <h3 className="font-black text-lg">{page.icon} Buttons on {page.label}</h3>
+                      <p className="text-sm font-bold text-slate-500 mb-3">Move the most important buttons toward the top.</p>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {pageWords.map((word, index) => {
+                          const key = buttonKey(word.label);
+                          return (
+                            <div key={key} className="rounded-2xl border-2 border-slate-100 p-3 flex items-center gap-2">
+                              <span className="text-3xl">{word.picture}</span>
+                              <strong className="flex-1 min-w-0 truncate">{word.label}</strong>
+                              <button type="button" disabled={index === 0} onClick={() => movePageButton(page.id, key, -1)} className="w-10 h-10 rounded-xl bg-slate-50 border font-black disabled:opacity-30" aria-label={"Move " + word.label + " up"}>↑</button>
+                              <button type="button" disabled={index === pageWords.length - 1} onClick={() => movePageButton(page.id, key, 1)} className="w-10 h-10 rounded-xl bg-slate-50 border font-black disabled:opacity-30" aria-label={"Move " + word.label + " down"}>↓</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </section>
+
           <section className="rounded-3xl bg-white border-2 border-teal-100 p-5 sm:p-7"><h2 className="text-2xl font-black">Use familiar pictures</h2><p className="font-bold text-slate-600 mt-1">Choose a talker word, then upload a photo of your child's own cup, pet, toy, or favorite place. The photo replaces its picture wherever that word appears.</p>
             <div className="flex flex-wrap items-center gap-3 mt-5"><select aria-label="Picture to replace" value={photoWord} onChange={event => setPhotoWord(event.target.value)} className="min-h-14 rounded-2xl border-2 border-teal-200 bg-white p-3 font-bold">{photoLabels.map(label => <option key={label} value={label}>{label}</option>)}</select><label className="min-h-14 rounded-2xl bg-teal-600 text-white px-5 flex items-center font-black cursor-pointer">📸 Upload photo<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ""; }} /></label>{draft.pictures[photoWord.toLowerCase()] && <button onClick={() => setDraft(previous => { const pictures = { ...previous.pictures }; delete pictures[photoWord.toLowerCase()]; return { ...previous, pictures }; })} className="min-h-14 rounded-2xl bg-white border px-4 font-bold">Use original picture</button>}</div>
             <div className="flex items-center gap-3 mt-4">{draft.pictures[photoWord.toLowerCase()] ? <img src={draft.pictures[photoWord.toLowerCase()]} alt={`Uploaded picture for ${photoWord}`} className="w-24 h-24 rounded-2xl object-cover" /> : <span className="text-6xl" aria-hidden="true">{places.flatMap(place => place.words).find(word => word.label === photoWord)?.picture || "💬"}</span>}<span className="font-black text-xl">{photoWord}</span></div><p className="text-sm font-bold text-slate-500 mt-3">Pictures stay with this child's account and linked parent. Images are resized before saving.</p></section>
