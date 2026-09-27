@@ -23,6 +23,24 @@ export function defaultParentControls(): ParentControls {
   return { enabled: false, allowedPaths: CONTROLLED_FEATURES.map(item => item.path), tvDailyMinutes: 30, videos: [] };
 }
 
+const CACHE_KEY = "arise-eye-gaze-family-settings-cache";
+export function cachedParentControls(): ParentControls {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+    if (!raw || typeof raw !== "object") return defaultParentControls();
+    return {
+      enabled: !!raw.enabled,
+      allowedPaths: Array.isArray(raw.allowedPaths) ? raw.allowedPaths : defaultParentControls().allowedPaths,
+      tvDailyMinutes: Math.max(0, Math.min(240, Number(raw.tvDailyMinutes ?? 30) || 0)),
+      videos: Array.isArray(raw.videos) ? raw.videos : [],
+    };
+  } catch { return defaultParentControls(); }
+}
+
+function cache(settings: ParentControls) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(settings)); } catch {}
+}
+
 export function pathAllowed(path: string, controls: ParentControls) {
   if (!controls.enabled) return true;
   if (path === "/eye-gaze-home" || path === "/eye-gaze-account" || path === "/eye-gaze-parent" || path === "/eye-gaze-parent-controls") return true;
@@ -46,15 +64,19 @@ async function request<T>(token: string | null | undefined, path: string, init?:
 }
 
 export async function fetchFamilySettings(token: string | null | undefined) {
-  return request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings");
+  const result = await request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings");
+  cache(result.settings);
+  return result;
 }
 
 export async function saveFamilySettings(token: string | null | undefined, settings: ParentControls, grownupToken?: string) {
-  return request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings", {
+  const result = await request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings", {
     method: "POST",
     headers: grownupToken ? { "X-Talker-Grownup-Token": grownupToken } : {},
     body: JSON.stringify(settings),
   });
+  cache(result.settings);
+  return result;
 }
 
 export async function getTvUsage(token: string | null | undefined) {
