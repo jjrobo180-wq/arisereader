@@ -651,11 +651,11 @@ export default function EyeGazeTalker() {
           onClick={() => choose(resolved)}
           aria-label={"Say " + resolved.label}
           style={options.color ? { backgroundColor: options.color } : undefined}
-          className={`relative w-full ${compact ? "min-h-28 sm:min-h-32" : "min-h-44"} rounded-3xl bg-white border-2 border-sky-100 hover:border-sky-500 px-2 py-3 flex flex-col items-center justify-center gap-2 shadow-sm`}
+          className={`relative w-full ${compact ? "min-h-24 sm:min-h-32" : "min-h-36 sm:min-h-44"} rounded-3xl bg-white border-2 border-sky-100 hover:border-sky-500 px-2 py-3 flex flex-col items-center justify-center gap-2 shadow-sm`}
         >
           {picture(resolved)
-            ? <img src={picture(resolved)!} alt="" className={compact ? "w-16 h-16 rounded-2xl object-cover" : "w-24 h-24 rounded-2xl object-cover"} />
-            : <span className={compact ? "text-4xl sm:text-5xl" : "text-6xl sm:text-7xl"} aria-hidden="true">{resolved.picture}</span>}
+            ? <img src={picture(resolved)!} alt="" className={compact ? "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover" : "w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover"} />
+            : <span className={compact ? "text-4xl sm:text-5xl" : "text-5xl sm:text-7xl"} aria-hidden="true">{resolved.picture}</span>}
           <span className={compact ? "font-black text-base sm:text-lg leading-tight" : "text-xl sm:text-2xl font-black"}>{resolved.label}</span>
           <span className="text-[10px] font-black tracking-wider text-[#4c7788]">{compact ? "MORE →" : "KEEP LEARNING →"}</span>
         </button>
@@ -682,11 +682,11 @@ export default function EyeGazeTalker() {
       <div className="max-w-[1450px] mx-auto">
         <header className="flex flex-wrap items-center justify-between gap-3 py-4 sm:py-5">
           <div className="flex items-center gap-3"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My World <span className="text-[#137f96]">Talker</span></h1></div>
-          <div className="flex gap-2">
-            <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/profile")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">← My profile</button>
-            <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-parent")} className="relative min-h-12 px-4 rounded-2xl bg-amber-100 border-2 border-amber-300 font-black">👨‍👩‍👧 Grown-up tools</button>
-            <button data-talker-dwell type="button" onClick={() => setSettingsOpen(true)} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">⚙ Settings</button>
-            <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative min-h-12 px-4 rounded-2xl bg-teal-600 text-white font-black">📚 Learning Zone</button>
+          <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+            <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/profile")} className="relative min-h-12 px-3 rounded-2xl bg-white border-2 border-slate-200 font-black text-sm sm:text-base">← Profile</button>
+            <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-parent")} className="relative min-h-12 px-3 rounded-2xl bg-amber-100 border-2 border-amber-300 font-black text-sm sm:text-base">👨‍👩‍👧 Grown-up</button>
+            <button data-talker-dwell type="button" onClick={() => setSettingsOpen(true)} className="relative min-h-12 px-3 rounded-2xl bg-white border-2 border-slate-200 font-black text-sm sm:text-base">⚙ Settings</button>
+            <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative min-h-12 px-3 rounded-2xl bg-teal-600 text-white font-black text-sm sm:text-base">📚 Learn</button>
           </div>
         </header>
 
@@ -701,12 +701,12 @@ export default function EyeGazeTalker() {
           </div>
         </section>
 
-        <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative mt-6 w-full min-h-24 rounded-3xl bg-gradient-to-r from-[#ddf5f4] to-[#e3eefa] border-2 border-teal-200 p-4 flex items-center gap-4 text-left"><span className="text-5xl" aria-hidden="true">📚</span><span><strong className="block text-2xl font-black">Learning Zone</strong><span className="font-bold">Pictures, word sounds, sentences, and your turn to talk</span></span><span className="ml-auto text-2xl" aria-hidden="true">→</span></button>
+        <button data-talker-dwell type="button" onClick={() => setView("learn")} className="relative mt-4 sm:mt-6 w-full min-h-20 sm:min-h-24 rounded-3xl bg-gradient-to-r from-[#ddf5f4] to-[#e3eefa] border-2 border-teal-200 p-4 flex items-center gap-4 text-left"><span className="text-5xl" aria-hidden="true">📚</span><span><strong className="block text-2xl font-black">Learning Zone</strong><span className="font-bold">Pictures, word sounds, sentences, and your turn to talk</span></span><span className="ml-auto text-2xl" aria-hidden="true">→</span></button>
 
         <section className="mt-7" aria-label="Talker library view">
           <div className="rounded-3xl bg-white border-2 border-sky-100 p-3 sm:p-4">
             <p className="text-xs font-black tracking-widest text-[#477586] mb-3">SHOW ME</p>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto sm:overflow-visible pb-1">
               {([
                 ["simple", "⚡", "Simple", "Just the basics"],
                 ["categories", "🗂️", "Categories", "People, food, feelings…"],
@@ -719,7 +719,7 @@ export default function EyeGazeTalker() {
                   key={id}
                   type="button"
                   onClick={() => { setLibraryMode(id); setPlaceId(null); if (id !== "categories") setActiveCategory(null); }}
-                  className={`relative min-h-20 rounded-2xl border-2 p-3 text-left ${libraryMode === id ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-100 bg-white"}`}
+                  className={`relative min-w-[145px] sm:min-w-0 min-h-20 rounded-2xl border-2 p-3 text-left ${libraryMode === id ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-100 bg-white"}`}
                 >
                   <span className="text-2xl mr-2">{icon}</span><strong className="font-black">{label}</strong>
                   <span className="block text-xs font-bold text-[#5c7c88] mt-1">{hint}</span>
@@ -781,7 +781,7 @@ export default function EyeGazeTalker() {
           <>
             <section aria-label="Everyday words" className="mt-7">
               <p className="text-sm font-black tracking-widest text-[#477586] mb-3">ALWAYS HERE</p>
-              <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">{needs.map(word => renderWordTile(word, { compact: true }))}</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">{needs.map(word => renderWordTile(word, { compact: true }))}</div>
             </section>
 
             <section className="mt-9" aria-labelledby="talker-place-title">
