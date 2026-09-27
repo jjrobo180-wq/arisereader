@@ -541,14 +541,6 @@ export default function EyeGazeGames() {
         </div>
       </div>
       {activePanel === "lessons" ? <EyeGazeAccessGate path="/library"><EyeGazeLessons embedded /></EyeGazeAccessGate> : <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="rounded-2xl border-2 border-sky-200 bg-white shadow-md p-4 mb-6 flex items-start gap-3">
-          <Eye className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-bold">Different ways to play</p>
-            <p className="text-sm text-muted-foreground">Choice games support tap or eye-gaze dwell. Reading Runner and Reading Ninja use swipes and movement instead of answer buttons.</p>
-          </div>
-        </div>
-
         <section className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-slate-300 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-6 sm:p-8 text-white shadow-lg mb-5 min-h-[160px]" aria-label="A.R.I.S.E. City coming later">
           <div className="absolute right-4 bottom-[-22px] text-[120px] sm:text-[150px] opacity-20">🏙️</div>
           <div className="relative max-w-2xl">
