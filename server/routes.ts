@@ -5604,6 +5604,8 @@ Important:
       enabled: false,
       allowedPaths: [...EYE_GAZE_FEATURE_PATHS],
       tvDailyMinutes: 0,
+      tvAgeRange: '2-4',
+      tvTopics: ['animals', 'numbers', 'letters', 'feelings'],
       videos: [],
     };
   }
@@ -5613,6 +5615,12 @@ Important:
     const allowed = Array.isArray(source.allowedPaths)
       ? source.allowedPaths.map((value: any) => String(value)).filter((value: string) => EYE_GAZE_FEATURE_PATHS.includes(value))
       : [...EYE_GAZE_FEATURE_PATHS];
+    const ageRanges = ['2-4', '5-7', '8-10', '11-13'];
+    const topicIds = ['animals', 'letters', 'numbers', 'feelings', 'speech', 'daily-life', 'science', 'colors-shapes', 'social', 'safety', 'reading'];
+    const tvAgeRange = ageRanges.includes(String(source.tvAgeRange)) ? String(source.tvAgeRange) : '2-4';
+    const tvTopics = Array.isArray(source.tvTopics)
+      ? Array.from(new Set(source.tvTopics.map((value: any) => String(value)).filter((value: string) => topicIds.includes(value)))).slice(0, topicIds.length)
+      : ['animals', 'numbers', 'letters', 'feelings'];
     const videos = Array.isArray(source.videos) ? source.videos.slice(0, 100).map((video: any) => {
       const id = String(video?.id || '').trim();
       if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return null;
@@ -5628,6 +5636,8 @@ Important:
       enabled: !!source.enabled,
       allowedPaths: Array.from(new Set(allowed)),
       tvDailyMinutes: Math.max(0, Math.min(240, Number(source.tvDailyMinutes ?? 0) || 0)),
+      tvAgeRange,
+      tvTopics: tvTopics.length ? tvTopics : ['animals'],
       videos,
     };
   }
