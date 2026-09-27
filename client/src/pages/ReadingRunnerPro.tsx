@@ -110,8 +110,8 @@ function RunnerAvatar({ jumping }: { jumping: boolean }) {
 function TargetToken({ item }: { item: FallingThing }) {
   return (
     <div className={"relative transition-all " + (item.handled ? "opacity-25 scale-75" : "")}>
-      <div className={"absolute -inset-2 rounded-[1.5rem] blur-md opacity-50 " + (item.isTarget ? "bg-emerald-300" : "bg-white")} />
-      <div className={"relative w-17 h-17 sm:w-21 sm:h-21 rounded-[1.4rem] border-4 shadow-2xl grid place-items-center text-4xl sm:text-5xl " + (item.isTarget ? "bg-gradient-to-br from-white to-emerald-100 border-emerald-200" : "bg-gradient-to-br from-white to-slate-200 border-white")}>
+      <div className="absolute -inset-2 rounded-[1.5rem] blur-md opacity-40 bg-white" />
+      <div className="relative w-17 h-17 sm:w-21 sm:h-21 rounded-[1.4rem] border-4 shadow-2xl grid place-items-center text-4xl sm:text-5xl bg-gradient-to-br from-white to-slate-200 border-white">
         <span className="drop-shadow">{item.emoji}</span>
         <div className="absolute inset-x-2 top-1 h-2 rounded-full bg-white/70 blur-[1px]" />
       </div>
