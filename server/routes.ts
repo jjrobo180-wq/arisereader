@@ -5677,10 +5677,89 @@ Important:
 
   const CURATED_YOUTUBE_SHORTS = [
     { id: 'dOIrnsoY21g', title: 'Phonetic Sounds', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
-    { id: 'NDjKigOxvec', title: 'Learn the Alphabet A to Z', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
+    { id: 'rNokoVYDRIA', title: 'Read the Signs', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
     { id: 'AGXxNbcvT2M', title: 'Meet Twenty One', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
-    { id: '8lib0VIxihw', title: '1 + 1 = 2', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
+    { id: 'ynhbcUJLdQk', title: 'Meet Twenty One', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
+    { id: 'U5txAW1tl4k', title: 'Summer Sums', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
+    { id: 'wvrI4e6UXXA', title: 'Build Numberblock Sixteen', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
   ];
+
+  const TRUSTED_YOUTUBE_RSS_CHANNELS = [
+    { id: 'UC_qs3c0ehDvZkbiEbOj6Drg', name: 'Alphablocks', ageRanges: ['2-4','5-7'], topics: ['letters','reading'] },
+    { id: 'UCrNnkOwFBnCS1awGjq_iJGQ', name: 'PBS KIDS', ageRanges: ['2-4','5-7','8-10'], topics: ['feelings','animals','science','social','safety','reading','daily-life'] },
+    { id: 'UCoookXUzPciGrEZEXmh4Jjg', name: 'Sesame Street', ageRanges: ['2-4','5-7'], topics: ['feelings','letters','numbers','social','daily-life'] },
+    { id: 'UCRFIPG2u1DxKLNuE3y2SjHA', name: 'SciShow Kids', ageRanges: ['5-7','8-10'], topics: ['science','animals'] },
+  ];
+
+  let youtubeRssCache: { at: number; items: any[] } = { at: 0, items: [] };
+
+  function decodeYoutubeXml(value: string) {
+    return String(value || '')
+      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .trim();
+  }
+
+  function classifyYoutubeShortTopic(title: string, description: string, channelTopics: string[]) {
+    const text = `${title} ${description}`.toLowerCase();
+    const tests: Array<[string, RegExp]> = [
+      ['letters', /phonics|alphabet|letter|spell|word|read|reading|sound/],
+      ['numbers', /number|count|math|sum|add|subtract|plus|minus/],
+      ['feelings', /feel|emotion|happy|sad|angry|calm|worry|scared|excited/],
+      ['animals', /animal|dog|cat|bird|fish|bug|insect|zoo|wildlife|dinosaur/],
+      ['science', /science|space|planet|weather|experiment|nature|earth|body|plant/],
+      ['social', /friend|share|kind|turn|together|help|social/],
+      ['safety', /safe|safety|cross|danger|emergency/],
+      ['daily-life', /brush|wash|sleep|bedtime|eat|food|routine|clean/],
+      ['reading', /story|book|read|vocabulary/],
+    ];
+    for (const [topic, regex] of tests) if (regex.test(text) && channelTopics.includes(topic)) return topic;
+    return channelTopics[0] || 'reading';
+  }
+
+  async function loadTrustedYoutubeRssShorts() {
+    if (youtubeRssCache.items.length && Date.now() - youtubeRssCache.at < 10 * 60_000) return youtubeRssCache.items;
+
+    const settled = await Promise.allSettled(TRUSTED_YOUTUBE_RSS_CHANNELS.map(async channel => {
+      const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`, {
+        signal: AbortSignal.timeout(6000),
+        headers: { 'User-Agent': 'A.R.I.S.E Reader/1.0' },
+      });
+      if (!response.ok) return [];
+      const xml = await response.text();
+      const entries = xml.match(/<entry>[\s\S]*?<\/entry>/g) || [];
+      return entries.flatMap(entry => {
+        const id = entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1]?.trim() || '';
+        const title = decodeYoutubeXml(entry.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '');
+        const description = decodeYoutubeXml(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || '');
+        if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return [];
+        if (!/#shorts?\b/i.test(`${title} ${description}`)) return [];
+        return [{
+          id,
+          title: title.replace(/#shorts?/ig, '').replace(/\s{2,}/g, ' ').trim() || 'Learning Short',
+          channel: channel.name,
+          topic: classifyYoutubeShortTopic(title, description, channel.topics),
+          ageRanges: channel.ageRanges,
+          source: 'youtube-rss',
+        }];
+      });
+    }));
+
+    const seen = new Set<string>();
+    const items = settled.flatMap(result => result.status === 'fulfilled' ? result.value : [])
+      .filter((item: any) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+
+    youtubeRssCache = { at: Date.now(), items };
+    return items;
+  }
 
   const YOUTUBE_TOPIC_QUERY: Record<string, string> = {
     animals: 'kids animals educational #shorts',
@@ -5737,25 +5816,48 @@ Important:
       const apiKey = String(process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
 
       if (!apiKey) {
-        const items = CURATED_YOUTUBE_SHORTS
-          .filter(item => item.topic === topic && item.ageRanges.includes(settings.tvAgeRange))
-          .map(item => ({
-            id: item.id,
-            title: item.title,
-            channel: item.channel,
-            topic: item.topic,
-            source: 'curated',
-          }));
+        const rssItems = await loadTrustedYoutubeRssShorts().catch(() => []);
+        const curated = CURATED_YOUTUBE_SHORTS.map(item => ({ ...item, source: 'curated' }));
+        const combined = [...rssItems, ...curated];
 
+        const seen = new Set<string>();
+        const eligible = combined.filter((item: any) => {
+          if (!item?.ageRanges?.includes(settings.tvAgeRange)) return false;
+          if (!settings.tvTopics.includes(item.topic)) return false;
+          if (!/^[A-Za-z0-9_-]{11}$/.test(String(item.id || ''))) return false;
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+
+        const preferred = eligible.filter((item: any) => item.topic === topic);
+        const other = eligible.filter((item: any) => item.topic !== topic);
+        const ordered = [...preferred, ...other];
+        const rawOffset = Math.max(0, Number.parseInt(pageToken || '0', 10) || 0);
+        const offset = ordered.length ? rawOffset % ordered.length : 0;
+        const pageSize = Math.min(12, Math.max(1, ordered.length));
+        const items = ordered.length
+          ? Array.from({ length: pageSize }, (_, i) => ordered[(offset + i) % ordered.length]).map((item: any) => ({
+              id: item.id,
+              title: item.title,
+              channel: item.channel,
+              topic: item.topic,
+              source: item.source,
+            }))
+          : [];
+        const nextOffset = ordered.length ? (offset + pageSize) % ordered.length : 0;
+
+        res.set('Cache-Control', 'private, max-age=300');
         return res.json({
           items,
-          nextPageToken: null,
+          nextPageToken: ordered.length ? String(nextOffset) : null,
           topic,
           ageRange: settings.tvAgeRange,
           automaticDiscovery: false,
+          source: rssItems.length ? 'trusted-youtube-rss' : 'curated',
           message: items.length
-            ? 'Showing curated educational YouTube Shorts. Automatic discovery needs a YouTube API key.'
-            : 'Automatic YouTube Shorts discovery needs a YouTube API key.',
+            ? 'Showing real Shorts from trusted educational YouTube channels.'
+            : 'No trusted educational YouTube Shorts matched these settings right now.',
         });
       }
 
