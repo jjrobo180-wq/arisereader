@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { addTvUsage, fetchFamilySettings, getTvUsage, type FamilyVideo, type ParentControls } from "@/lib/parentControls";
 
-type ShortItem = FamilyVideo & { source?: "youtube" | "curated" | "parent" };
+type ShortItem = FamilyVideo & { source?: "youtube" | "youtube-rss" | "curated" | "parent"; feedKey?: string };
 type TopicCursor = Record<string, string | null>;
 
 declare global {
@@ -32,6 +32,7 @@ export default function EyeGazeTV() {
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [playerReady, setPlayerReady] = useState(false);
   const [usageMinutes, setUsageMinutes] = useState(0);
   const [error, setError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
@@ -43,20 +44,28 @@ export default function EyeGazeTV() {
   const feedRef = useRef<HTMLDivElement | null>(null);
   const usageTimerRef = useRef<number | null>(null);
   const loadingRef = useRef(false);
+  const batchRef = useRef(0);
+  const failedIdsRef = useRef(new Set<string>());
 
   const limited = !!settings?.tvDailyMinutes && usageMinutes >= settings.tvDailyMinutes;
   const current = shorts[index];
 
   const addUnique = (incoming: ShortItem[]) => {
+    const clean = incoming.filter(item => item?.id && !failedIdsRef.current.has(item.id));
+    if (!clean.length) return;
+
+    const batch = ++batchRef.current;
     setShorts(existing => {
       const seen = new Set(existing.map(item => item.id));
-      const next = [...existing];
-      for (const item of incoming) {
-        if (!item?.id || seen.has(item.id)) continue;
-        seen.add(item.id);
-        next.push(item);
-      }
-      return next;
+      const unseen = clean.filter(item => !seen.has(item.id));
+      const chosen = unseen.length ? unseen : clean;
+      return [
+        ...existing,
+        ...chosen.map((item, n) => ({
+          ...item,
+          feedKey: item.feedKey || `${item.id}-${batch}-${n}`,
+        })),
+      ];
     });
   };
 
@@ -109,7 +118,11 @@ export default function EyeGazeTV() {
         if (!active) return;
         setSettings(family.settings);
         setUsageMinutes(usage.minutes || 0);
-        const parentShorts: ShortItem[] = (family.settings.videos || []).map(video => ({ ...video, source: "parent" }));
+        const parentShorts: ShortItem[] = (family.settings.videos || []).map((video, n) => ({
+          ...video,
+          source: "parent",
+          feedKey: `parent-${video.id}-${n}`,
+        }));
         setShorts(parentShorts);
       })
       .catch(err => { if (active) setError(err.message || "Could not load A.R.I.S.E. Shorts."); });
@@ -128,6 +141,7 @@ export default function EyeGazeTV() {
   useEffect(() => {
     if (!current || limited) return;
     let cancelled = false;
+    setPlayerReady(false);
 
     const createPlayer = () => {
       if (cancelled || !window.YT?.Player) return;
@@ -140,6 +154,8 @@ export default function EyeGazeTV() {
         playerVars: {
           autoplay: 1,
           controls: 0,
+          enablejsapi: 1,
+          origin: window.location.origin,
           rel: 0,
           playsinline: 1,
           modestbranding: 1,
@@ -150,17 +166,32 @@ export default function EyeGazeTV() {
         },
         events: {
           onReady: (event: any) => {
+            setPlayerReady(true);
             try {
               if (muted) event.target.mute?.(); else event.target.unMute?.();
               event.target.playVideo?.();
             } catch {}
           },
-          onStateChange: (event: any) => setPlaying(event.data === 1),
+          onStateChange: (event: any) => {
+            setPlaying(event.data === 1);
+            if (event.data === 1 || event.data === 2 || event.data === 3) setPlayerReady(true);
+          },
           onError: () => {
-            window.setTimeout(() => {
-              const el = feedRef.current;
-              if (el && index < shorts.length - 1) el.scrollTo({ top: (index + 1) * el.clientHeight, behavior: "smooth" });
-            }, 500);
+            const badId = current.id;
+            failedIdsRef.current.add(badId);
+            setPlayerReady(false);
+            setPlaying(false);
+            setShorts(existing => {
+              const next = existing.filter(item => item.id !== badId);
+              const nextIndex = Math.max(0, Math.min(index, next.length - 1));
+              setIndex(nextIndex);
+              window.requestAnimationFrame(() => {
+                const el = feedRef.current;
+                if (el) el.scrollTo({ top: nextIndex * el.clientHeight, behavior: "auto" });
+              });
+              return next;
+            });
+            window.setTimeout(() => void loadMore(), 80);
           },
         },
       });
@@ -183,6 +214,7 @@ export default function EyeGazeTV() {
       try { playerRef.current?.destroy?.(); } catch {}
       playerRef.current = null;
       setPlaying(false);
+      setPlayerReady(false);
     };
   }, [current?.id, limited]);
 
@@ -267,10 +299,16 @@ export default function EyeGazeTV() {
     <div ref={feedRef} onScroll={onScroll} className="h-full overflow-y-auto snap-y snap-mandatory overscroll-y-contain scroll-smooth">
       {shorts.map((item, i) => {
         const active = i === index;
-        return <article key={item.id} className="relative h-[100dvh] snap-start snap-always bg-black overflow-hidden">
+        return <article key={item.feedKey || `${item.id}-${i}`} className="relative h-[100dvh] snap-start snap-always bg-black overflow-hidden">
           {active
             ? <div id={`arise-short-player-${i}`} className="absolute inset-0 w-full h-full pointer-events-none" />
             : <img src={`https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
+          {active && !playerReady && <div className="absolute inset-0 z-10 bg-black grid place-items-center pointer-events-none">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto rounded-full border-4 border-cyan-300 border-t-transparent animate-spin" />
+              <p className="mt-3 text-sm font-black text-white/80">Loading next Short…</p>
+            </div>
+          </div>}
           <div className="absolute inset-0 z-20 touch-pan-y" aria-hidden="true" />
           <div className="absolute inset-x-0 bottom-0 z-[21] h-64 bg-gradient-to-t from-black via-black/65 to-transparent pointer-events-none" />
 
