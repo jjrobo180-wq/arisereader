@@ -5542,7 +5542,7 @@ Important:
     }
   });
 
-  const emptyTalker = { config: { alwaysHere: null, pictures: {}, overrides: {}, recordings: {} }, progress: { words: {}, history: [] } };
+  const emptyTalker = { config: { alwaysHere: null, pictures: {}, overrides: {}, recordings: {}, pageOrder: [], buttonOrder: {} }, progress: { words: {}, history: [] } };
   const validTalkerPhoto = (value: unknown) => typeof value === 'string'
     && value.length < 90_000 && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(value);
 
@@ -5625,13 +5625,18 @@ Important:
         .select('config').eq('student_id', child.id).maybeSingle();
       const submittedOverrides = submitted.overrides ?? existingTalker?.config?.overrides ?? {};
       const submittedRecordings = submitted.recordings ?? existingTalker?.config?.recordings ?? {};
+      const submittedPageOrder = submitted.pageOrder ?? existingTalker?.config?.pageOrder ?? [];
+      const submittedButtonOrder = submitted.buttonOrder ?? existingTalker?.config?.buttonOrder ?? {};
       if (!Array.isArray(submitted.alwaysHere) || submitted.alwaysHere.length > 24
         || !submitted.pictures || typeof submitted.pictures !== 'object' || Array.isArray(submitted.pictures)
         || Object.keys(submitted.pictures).length > 50
         || !submittedOverrides || typeof submittedOverrides !== 'object' || Array.isArray(submittedOverrides)
         || Object.keys(submittedOverrides).length > 120
         || !submittedRecordings || typeof submittedRecordings !== 'object' || Array.isArray(submittedRecordings)
-        || Object.keys(submittedRecordings).length > 120) {
+        || Object.keys(submittedRecordings).length > 120
+        || !Array.isArray(submittedPageOrder) || submittedPageOrder.length > 20
+        || !submittedButtonOrder || typeof submittedButtonOrder !== 'object' || Array.isArray(submittedButtonOrder)
+        || Object.keys(submittedButtonOrder).length > 20) {
         return res.status(400).json({ message: 'Please keep Talker customization within the supported limits.' });
       }
       const ids = new Set<string>();
@@ -5675,7 +5680,17 @@ Important:
         recordings[key] = { ...(wordAudio ? { word: wordAudio } : {}), ...(sentenceAudio ? { sentence: sentenceAudio } : {}) };
       }
 
-      const config = { alwaysHere, pictures, overrides, recordings };
+      const pageOrder = submittedPageOrder.map((value: any) => String(value).trim().toLowerCase().slice(0, 32)).filter((value: string) => /^[a-z0-9_-]+$/.test(value));
+      const buttonOrder: Record<string, string[]> = {};
+      for (const [page, rawOrder] of Object.entries(submittedButtonOrder)) {
+        const pageKey = String(page).trim().toLowerCase().slice(0, 32);
+        if (!/^[a-z0-9_-]+$/.test(pageKey) || !Array.isArray(rawOrder) || rawOrder.length > 120) {
+          return res.status(400).json({ message: 'One Talker page order could not be saved.' });
+        }
+        buttonOrder[pageKey] = rawOrder.map((value: any) => String(value).trim().toLowerCase().slice(0, 60)).filter(Boolean);
+      }
+
+      const config = { alwaysHere, pictures, overrides, recordings, pageOrder, buttonOrder };
       if (JSON.stringify(config).length > 4_500_000) return res.status(413).json({ message: 'Too many Talker photos or recordings. Remove a few before saving.' });
       const { error } = await getAdminSupabase().from('eye_gaze_talker_state').upsert({
         student_id: child.id, config, updated_at: new Date().toISOString(),
