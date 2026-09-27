@@ -34,8 +34,15 @@ export default function EyeGazeAccount() {
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [dwell, setDwell] = useState(() => localStorage.getItem("eye-gaze-talker-dwell") !== "off");
+  const [dwellMs, setDwellMs] = useState(() => Number(localStorage.getItem("eye-gaze-talker-time")) || 1800);
 
   const authToken = token || getTokenFromCookie();
+
+  useEffect(() => {
+    localStorage.setItem("eye-gaze-talker-dwell", dwell ? "on" : "off");
+    localStorage.setItem("eye-gaze-talker-time", String(dwellMs));
+  }, [dwell, dwellMs]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -169,7 +176,7 @@ export default function EyeGazeAccount() {
             </label>
           </div>
           <div className="flex-1 text-center sm:text-left">
-            <p className="text-sm font-black uppercase tracking-widest text-violet-600">My Profile</p>
+            <p className="text-sm font-black uppercase tracking-widest text-violet-600">Profile & Settings</p>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900">{user?.displayName || user?.username || "Reader"}</h1>
             <p className="text-slate-600 font-bold">@{user?.username}</p>
             <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
@@ -199,10 +206,28 @@ export default function EyeGazeAccount() {
         <div className="flex flex-wrap gap-3 mt-4"><button onClick={saveBackground} disabled={savingColor} className="min-h-12 rounded-2xl bg-teal-800 text-white px-5 font-black disabled:opacity-50">{savingColor?"Saving…":"Save background"}</button><button onClick={()=>setBackground(DEFAULT_EYE_GAZE_BACKGROUND)} className="min-h-12 rounded-2xl bg-slate-100 text-slate-900 px-5 font-black">Default mint</button></div>
         {colorMessage&&<p role="status" className="mt-3 font-bold text-slate-700">{colorMessage}</p>}
       </section>
+      <section className="rounded-3xl bg-white border-2 border-sky-200 p-5 shadow-sm">
+        <h2 className="text-2xl font-black text-slate-900">👁️ How I choose buttons</h2>
+        <p className="mt-2 font-bold text-slate-600">Talker access settings live here so the Talk screen can stay simple.</p>
+        <div className="grid sm:grid-cols-2 gap-3 mt-4">
+          <button type="button" onClick={()=>setDwell(true)} aria-pressed={dwell} className={`min-h-16 rounded-2xl border-2 font-black ${dwell ? "border-teal-700 bg-teal-50 text-teal-900" : "border-slate-200 bg-white"}`}>👁 Look and wait</button>
+          <button type="button" onClick={()=>setDwell(false)} aria-pressed={!dwell} className={`min-h-16 rounded-2xl border-2 font-black ${!dwell ? "border-teal-700 bg-teal-50 text-teal-900" : "border-slate-200 bg-white"}`}>☝️ Tap or click</button>
+        </div>
+        {dwell && <label className="block mt-4 font-black text-slate-700">Look-and-wait time
+          <select value={dwellMs} onChange={event=>setDwellMs(Number(event.target.value))} className="mt-2 w-full min-h-12 rounded-2xl border-2 border-sky-100 bg-white px-4 font-bold">
+            <option value={1200}>1.2 seconds</option>
+            <option value={1800}>1.8 seconds</option>
+            <option value={2500}>2.5 seconds</option>
+            <option value={3500}>3.5 seconds</option>
+          </select>
+        </label>}
+        <p className="mt-3 text-sm font-bold text-slate-500">Changes save automatically on this device.</p>
+      </section>
+
       <section className="rounded-3xl bg-white border-2 border-amber-200 p-5 shadow-sm">
-        <h2 className="text-2xl font-black text-slate-900">👨‍👩‍👧 Parent permissions</h2>
-        <p className="mt-2 font-bold text-slate-600">Choose allowed activities, video channels, and daily video time. A grown-up check protects these settings.</p>
-        <button onClick={()=>navigate("/eye-gaze-parent-controls")} className="mt-4 min-h-14 rounded-2xl bg-teal-800 text-white px-5 font-black">Open parent permissions</button>
+        <h2 className="text-2xl font-black text-slate-900">👨‍👩‍👧 Parent controls</h2>
+        <p className="mt-2 font-bold text-slate-600">Choose allowed activities, video channels, and daily video time. A grown-up check protects these controls.</p>
+        <button onClick={()=>navigate("/eye-gaze-parent-controls")} className="mt-4 min-h-14 rounded-2xl bg-teal-800 text-white px-5 font-black">Open parent controls</button>
       </section>
 
       <div className="grid lg:grid-cols-2 gap-5">
