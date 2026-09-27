@@ -24,7 +24,7 @@ w.fetch=async()=>({ok:true,json:async()=>({items:Array.from({length:10},(_,i)=>(
 w.HTMLElement.prototype.scrollTo=function({top}){this.scrollTop=top};
 w.YT={Player:class {
  constructor(target,options){if(typeof target==='string')target=w.document.getElementById(target);this.options=options;this.frame=w.document.createElement('iframe');target.replaceWith(this.frame);players.push(this);w.setTimeout(()=>options.events.onReady({target:this}),10)}
- destroy(){this.frame.remove()} mute(){} unMute(){} playVideo(){this.options.events.onStateChange({data:1})} pauseVideo(){this.options.events.onStateChange({data:2})}
+ getIframe(){return this.frame} destroy(){this.frame.remove()} mute(){this.muted=true} unMute(){this.muted=false} playVideo(){this.plays=(this.plays||0)+1;this.options.events.onStateChange({data:1})} pauseVideo(){this.options.events.onStateChange({data:2})}
 }};
 const wait=()=>new Promise(r=>setTimeout(r,100));
 try {
@@ -43,8 +43,18 @@ try {
  assert.equal(players.length,before,'configuration error must not loop');
  [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Try again').click();await wait();
  assert.equal(players.length,before+1);
- players.at(-1).options.events.onAutoplayBlocked();await wait();
- assert.ok(w.document.querySelector('button[aria-label="Play"]'));
+ const active=players.at(-1);
+ assert.ok(active.plays>0, 'Short starts on ready without tapping Play');
+ assert.ok(active.frame.getAttribute('allow').includes('autoplay'));
+ w.document.querySelector('button[aria-label="Turn sound on"]').click();await wait();
+ assert.equal(active.muted,false,'sound tap unmutes immediately');
+ const plays=active.plays;
+ active.options.events.onAutoplayBlocked({target:active});await wait();
+ assert.equal(active.muted,true,'blocked autoplay retries muted');
+ assert.equal(active.plays,plays+1,'blocked Short restarts without tapping Play');
+ assert.ok(w.document.querySelector('button[aria-label="Pause"]'));
+ active.options.events.onAutoplayBlocked({target:active});await wait();
+ assert.equal(active.plays,plays+1,'retry must be bounded');
  // Old asynchronous events must not remove or stop a later active player.
  const old=players.at(-1);await scroll(2);
  const count=players.length;old.options.events.onError({data:100});await wait();
