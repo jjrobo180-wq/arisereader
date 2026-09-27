@@ -141,6 +141,7 @@ export default function EyeGazeParentMode() {
   const todaysWords = state ? dailyChoices(catalog, progress, state.student.id) : [];
   const focus = catalog.find(item => item.word === selected) || todaysWords[0];
   const known = Object.values(progress.words).filter(item => item.status === "known");
+  const focusStatus = focus ? progress.words[focus.word.toLowerCase()]?.status : undefined;
   const practicedToday = progress.history.filter(item => new Date(item.at).toLocaleDateString() === new Date().toLocaleDateString()).length;
   const photoLabels = Array.from(new Set([...places.flatMap(place => place.words.map(word => word.label)), ...defaultNeeds.map(item => item.label), ...(draft.alwaysHere || []).map(item => item.label)])).sort();
 
@@ -158,7 +159,13 @@ export default function EyeGazeParentMode() {
     try {
       const result = await talkerRequest<{ progress: TalkerProgress }>(token, "/practice", "POST", { word, outcome, prompt });
       setState(previous => previous && ({ ...previous, progress: result.progress }));
-      setMessage(outcome === "known" ? `${word} marked as known. Great work!` : outcome === "retry" ? `Let's try ${word} again.` : `Saved ${word} practice.`);
+      setMessage(
+        outcome === "known" ? `✓ Saved: ${word} is marked KNOWN.`
+        : outcome === "learning" ? `✓ Saved: ${word} is still LEARNING.`
+        : outcome === "retry" ? `✓ Saved: keep practicing ${word}.`
+        : outcome === "correct" ? `✓ Saved: ${word} response recorded.`
+        : `✓ Saved ${word} practice.`
+      );
       if (prompt && outcome === "correct") setQuestion(previous => Math.min(2, previous + 1));
     } catch (err: any) { setError(err.message); }
     finally { setSaving(false); }
@@ -234,7 +241,20 @@ export default function EyeGazeParentMode() {
               {question === 0 && focus.choices && <div className="grid grid-cols-3 gap-2 mt-4">{focus.choices.map(choice => <button disabled={saving} onClick={() => void record(focus.word, choice === focus.word ? "correct" : "retry", 1)} key={choice} className="min-h-28 bg-white rounded-2xl border-2 border-sky-100 font-black flex flex-col justify-center items-center"><span className="text-4xl">{lessons.find(item => item.word === choice)?.icon || "❔"}</span>{choice}</button>)}</div>}
               <div className="flex flex-wrap gap-2 mt-4"><button disabled={saving} onClick={() => void record(focus.word, "correct", question + 1)} className="min-h-14 bg-emerald-600 text-white rounded-2xl px-5 font-black">✓ Got it</button><button disabled={saving} onClick={() => void record(focus.word, "retry", question + 1)} className="min-h-14 bg-white rounded-2xl px-5 font-black">Practice more</button><button onClick={() => setQuestion((question + 1) % 3)} className="min-h-14 rounded-2xl px-4 font-bold underline">Next question →</button></div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t border-sky-200"><p className="font-bold flex-1">Parent check: Does your child use this word reliably? You decide when it's known.</p><button disabled={saving} onClick={() => void record(focus.word, "known")} className="min-h-14 rounded-2xl bg-[#193d57] text-white px-5 font-black">⭐ Mark {focus.word} known</button><button disabled={saving} onClick={() => void record(focus.word, "learning")} className="min-h-14 rounded-2xl bg-white px-5 font-black">Still learning</button></div>
+            <div className="mt-6 pt-5 border-t border-sky-200">
+              <div className={"rounded-2xl border-2 p-4 mb-4 flex items-center gap-3 " + (focusStatus === "known" ? "bg-emerald-50 border-emerald-300 text-emerald-900" : focusStatus === "learning" ? "bg-amber-50 border-amber-300 text-amber-900" : "bg-white border-slate-200 text-slate-600")}>
+                <span className="text-3xl">{focusStatus === "known" ? "⭐" : focusStatus === "learning" ? "🟡" : "○"}</span>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest">Current parent status</p>
+                  <p className="text-xl font-black">{focusStatus === "known" ? "KNOWN ✓" : focusStatus === "learning" ? "STILL LEARNING ✓" : "Not marked yet"}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="font-bold flex-1">Parent check: Does your child use this word reliably? You decide when it's known.</p>
+                <button disabled={saving} onClick={() => void record(focus.word, "known")} className={"min-h-14 rounded-2xl px-5 font-black border-2 " + (focusStatus === "known" ? "bg-emerald-600 border-emerald-600 text-white ring-4 ring-emerald-100" : "bg-[#193d57] border-[#193d57] text-white")}>{saving ? "Saving…" : focusStatus === "known" ? "✓ Marked known" : "⭐ Mark " + focus.word + " known"}</button>
+                <button disabled={saving} onClick={() => void record(focus.word, "learning")} className={"min-h-14 rounded-2xl px-5 font-black border-2 " + (focusStatus === "learning" ? "bg-amber-300 border-amber-400 text-amber-950 ring-4 ring-amber-100" : "bg-white border-slate-200")}>{saving ? "Saving…" : focusStatus === "learning" ? "✓ Still learning saved" : "Still learning"}</button>
+              </div>
+            </div>
             {lessons.some(item => item.word === focus.word) && <button className="mt-4 font-black text-teal-800 underline" onClick={() => { localStorage.setItem("eye-gaze-learning-word", focus.word); sessionStorage.setItem("eye-gaze-talker-open-learn", "1"); navigate("/eye-gaze-talker"); }}>Open picture and phonics Learning Zone →</button>}
           </section>}
         </div>}
