@@ -245,13 +245,13 @@ function AppRoutes() {
         <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><EyeGazeLessons /></EyeGazeAccessGate> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/course/:id">
-        <ProtectedRoute><CoursePage /></ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><CoursePage /></EyeGazeAccessGate> : <CoursePage />}</ProtectedRoute>
       </Route>
       <Route path="/quiz/:id">
         <ProtectedRoute><Quiz /></ProtectedRoute>
       </Route>
       <Route path="/read/:id">
-        <ProtectedRoute><ReadBook /></ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><ReadBook /></EyeGazeAccessGate> : <ReadBook />}</ProtectedRoute>
       </Route>
       <Route path="/profile">
         <ProtectedRoute>
@@ -304,7 +304,7 @@ function AppRoutes() {
         {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeParentControls /></ProtectedRoute> : <Redirect to="/" />}
       </Route>
       <Route path="/eye-gaze-quiz/:id">
-        <ProtectedRoute><EyeGazeQuiz /></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/library"><EyeGazeQuiz /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/quiz-builder">
         <ProtectedRoute><QuizBuilder /></ProtectedRoute>
@@ -313,7 +313,7 @@ function AppRoutes() {
         <ProtectedRoute><QuizBuilder /></ProtectedRoute>
       </Route>
       <Route path="/custom-quiz/:id">
-        <ProtectedRoute><CustomEyeGazeQuiz /></ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><CustomEyeGazeQuiz /></EyeGazeAccessGate> : <CustomEyeGazeQuiz />}</ProtectedRoute>
       </Route>
       <Route path="/student-profile/:id">
         <ProtectedRoute><StudentProfileView /></ProtectedRoute>
