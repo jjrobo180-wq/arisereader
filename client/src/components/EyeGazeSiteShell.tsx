@@ -11,7 +11,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const [gameImmersive, setGameImmersive] = useState(false);
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
-  const immersiveRoute = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv");
+  const immersiveRoute = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-parent-controls");
   const immersive = immersiveRoute || (location === "/eye-gaze-games" && gameImmersive);
 
   useEffect(() => {
