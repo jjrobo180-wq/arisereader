@@ -39,11 +39,11 @@ export function talkerPicture(word: { label: string; picture: string; imageData?
   return word.imageData || pictures[word.label.trim().toLowerCase()] || null;
 }
 
-export async function talkerRequest<T>(token: string | null, path = "", method = "GET", body?: unknown): Promise<T> {
+export async function talkerRequest<T>(token: string | null, path = "", method = "GET", body?: unknown, extraHeaders: Record<string, string> = {}): Promise<T> {
   if (!token) throw new Error("Please sign in to save your family's talker.");
   const response = await fetch(`${API_BASE}/api/eye-gaze/talker-state${path}`, {
     method,
-    headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+    headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}), ...extraHeaders },
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
   });
