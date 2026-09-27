@@ -626,7 +626,9 @@ export default function EyeGazeMyWorld() {
 
   const removeItem = (itemId: string) => {
     if (!builderWorld) return;
-    setWorlds(prev => prev.map(w => w.id === builderWorld.id ? { ...w, items: w.items.filter(i => i.id !== itemId) } : w));
+    const nextWorlds = worlds.map(w => w.id === builderWorld.id ? { ...w, items: w.items.filter(i => i.id !== itemId) } : w);
+    setWorlds(nextWorlds);
+    void saveWorlds(false, nextWorlds);
     if (placingItemId === itemId) setPlacingItemId(null);
   };
 
@@ -901,7 +903,7 @@ export default function EyeGazeMyWorld() {
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
                                     <button type="button" onClick={() => resizeTaggedItem(item.id, .78)} className="min-h-11 rounded-xl bg-sky-50 border border-sky-100 font-black">− Smaller</button>
                                     <button type="button" onClick={() => resizeTaggedItem(item.id, 1.28)} className="min-h-11 rounded-xl bg-sky-50 border border-sky-100 font-black">＋ Bigger</button>
-                                    <button type="button" onClick={() => { setEditingBuilderItemId(null); setNotice("Saved in this draft. Tap Save at the top when you are done."); }} className="min-h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 font-black">✓ Done</button>
+                                    <button type="button" onClick={() => { setEditingBuilderItemId(null); void saveWorlds(false); }} className="min-h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 font-black">✓ Done & Save</button>
                                     <button type="button" onClick={() => { removeItem(item.id); setEditingBuilderItemId(null); }} className="min-h-11 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 font-black">Delete</button>
                                   </div>
                                 </div>
