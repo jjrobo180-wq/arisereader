@@ -788,117 +788,136 @@ export default function EyeGazeMyWorld() {
                       </label>
                     </section>
 
+
                     {builderWorld.backgroundUrl && (
-                      <section className="rounded-[2rem] bg-white border border-sky-100 p-4">
+                      <section className="rounded-[2rem] bg-white border border-sky-100 p-4 sm:p-5">
                         <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
                           <div className="flex-1">
-                            <h3 className="text-xl font-black">Tag the exact object</h3>
-                            <p className="text-sm font-bold text-slate-500">
-                              {placingItemId
-                                ? "Drag a box around the selected object. A quick tap makes a starter box you can redraw."
-                                : "Choose an item below, then draw a box around that real object in the room."}
-                            </p>
+                            <p className="text-xs font-black uppercase tracking-widest text-blue-600">Tap-to-teach setup</p>
+                            <h3 className="text-2xl sm:text-3xl font-black text-blue-950">Tap something in the photo</h3>
+                            <p className="text-sm sm:text-base font-bold text-slate-500 mt-1">Tap the bed, shoes, TV, cup, toy—anything you want your child to learn. Then just name it.</p>
                           </div>
                           <button
                             type="button"
                             disabled={aiLoading || !builderWorld.backgroundPath}
                             onClick={() => void runAiTagging()}
-                            className="min-h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 font-black flex items-center justify-center gap-2 disabled:opacity-50"
+                            className="min-h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 font-black flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg"
                           >
                             <WandSparkles className="w-5 h-5" />
-                            {aiLoading ? "AI is looking..." : "AI Auto‑Tag Room"}
+                            {aiLoading ? "AI is finding things…" : "✨ Find objects with AI"}
                           </button>
                         </div>
 
-                        <div className="rounded-3xl overflow-x-auto bg-slate-100 border-2 border-slate-100">
+                        <div className="rounded-3xl overflow-x-auto bg-slate-950 border-4 border-slate-900 shadow-xl">
                           <div
-                            className={`relative min-w-[680px] md:min-w-full ${placingItemId ? "touch-none cursor-crosshair ring-4 ring-inset ring-blue-300" : "touch-pan-x"}`}
-                            onPointerDown={startTagBox}
-                            onPointerMove={moveTagBox}
-                            onPointerUp={finishTagBox}
-                            onPointerCancel={cancelTagBox}
+                            className="relative min-w-[680px] md:min-w-full cursor-crosshair"
+                            onClick={tapRoomToTag}
                           >
                             <img src={builderWorld.backgroundUrl} alt={builderWorld.name} className="block w-full h-auto select-none pointer-events-none" draggable={false} />
 
                             {builderWorld.items.map(item => {
                               const box = safeBox(item);
+                              const active = editingBuilderItemId === item.id;
                               return (
                                 <button
+                                  data-world-tag
                                   key={item.id}
                                   type="button"
-                                  onPointerDown={event => event.stopPropagation()}
-                                  onClick={event => { event.stopPropagation(); setPlacingItemId(item.id); }}
-                                  style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%`, pointerEvents: placingItemId ? "none" : "auto" }}
-                                  className={`absolute border-4 rounded-xl shadow-sm flex items-start justify-start p-1 text-left transition-all ${placingItemId === item.id ? "border-blue-500 bg-blue-500/20 ring-2 ring-white" : item.source === "ai" ? "border-violet-400 bg-violet-400/10" : "border-amber-400 bg-amber-300/10"}`}
-                                  aria-label={`Retag ${item.label}`}
+                                  onClick={event => {
+                                    event.stopPropagation();
+                                    setEditingBuilderItemId(item.id);
+                                    setTapTagPoint(null);
+                                    setNotice(item.source === "ai" ? "AI suggestion selected. Rename, resize, or delete it below." : item.label + " selected.");
+                                  }}
+                                  style={{ left: box.x + "%", top: box.y + "%", width: box.w + "%", height: box.h + "%" }}
+                                  className={"absolute rounded-2xl border-4 transition-all shadow-lg " + (active ? "border-cyan-300 bg-cyan-300/25 ring-4 ring-white/90" : item.source === "ai" ? "border-violet-300 bg-violet-400/16" : "border-amber-300 bg-amber-300/12")}
+                                  aria-label={"Edit " + item.label}
                                 >
-                                  <span className="max-w-full truncate rounded-lg bg-slate-950/80 text-white px-2 py-1 text-[11px] font-black">
+                                  <span className="absolute left-1 top-1 max-w-[95%] truncate rounded-lg bg-slate-950/85 text-white px-2 py-1 text-[11px] font-black">
                                     {item.source === "ai" ? "✨ " : ""}{item.label}
                                   </span>
                                 </button>
                               );
                             })}
 
-                            {drawStart && drawCurrent && (() => {
-                              const x = Math.min(drawStart.x, drawCurrent.x);
-                              const y = Math.min(drawStart.y, drawCurrent.y);
-                              const w = Math.abs(drawCurrent.x - drawStart.x);
-                              const h = Math.abs(drawCurrent.y - drawStart.y);
-                              return <div className="absolute border-4 border-blue-600 bg-blue-400/20 rounded-xl pointer-events-none" style={{ left: `${x}%`, top: `${y}%`, width: `${Math.max(1, w)}%`, height: `${Math.max(1, h)}%` }} />;
-                            })()}
+                            {tapTagPoint && (
+                              <div
+                                className="absolute w-16 h-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-cyan-300 bg-cyan-300/25 ring-4 ring-white/80 pointer-events-none animate-pulse"
+                                style={{ left: tapTagPoint.x + "%", top: tapTagPoint.y + "%" }}
+                              >
+                                <span className="absolute inset-0 grid place-items-center text-2xl">＋</span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <p className="mt-3 text-xs font-bold text-slate-500">AI boxes are suggestions, not final answers. Review them and redraw any box that misses the object.</p>
+
+                        {tapTagPoint && (
+                          <div className="mt-4 rounded-3xl bg-cyan-50 border-2 border-cyan-200 p-4 sm:p-5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-2xl bg-cyan-500 text-white grid place-items-center text-2xl font-black">＋</div>
+                              <div><h4 className="text-xl font-black text-blue-950">What did you tap?</h4><p className="text-sm font-bold text-slate-500">That’s it—name the object. My World creates the touch area for you.</p></div>
+                            </div>
+                            <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                              <input autoFocus value={itemLabel} onChange={e => setItemLabel(e.target.value)} placeholder="Example: Shoes" className="min-h-14 rounded-2xl border-2 border-cyan-200 bg-white px-4 text-lg font-black" />
+                              <input value={itemPhrase} onChange={e => setItemPhrase(e.target.value)} placeholder={itemLabel.trim() ? "Example: These are my " + itemLabel.trim().toLowerCase() + "." : "Optional sentence"} className="min-h-14 rounded-2xl border-2 border-cyan-200 bg-white px-4 font-bold" />
+                            </div>
+                            <label className="mt-3 min-h-12 rounded-2xl bg-white border-2 border-cyan-100 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
+                              {itemFile?.type.startsWith("video/") ? <Video className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
+                              {itemFile ? itemFile.name : "Optional: add a teaching photo/video"}
+                              <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={e => setItemFile(e.target.files?.[0] || null)} />
+                            </label>
+                            <div className="grid sm:grid-cols-2 gap-2 mt-4">
+                              <button type="button" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }} className="min-h-13 rounded-2xl bg-white border-2 border-slate-200 font-black">Cancel</button>
+                              <button type="button" disabled={uploading || !itemLabel.trim()} onClick={() => void saveTappedTag()} className="min-h-13 rounded-2xl bg-cyan-600 text-white font-black disabled:opacity-50">{uploading ? "Saving…" : "✓ Add this object"}</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {editingBuilderItemId && (() => {
+                          const item = builderWorld.items.find(candidate => candidate.id === editingBuilderItemId);
+                          if (!item) return null;
+                          return (
+                            <div className="mt-4 rounded-3xl bg-white border-2 border-violet-100 p-4 sm:p-5 shadow-sm">
+                              <div className="flex flex-col sm:flex-row gap-4">
+                                <RoomCrop world={builderWorld} item={item} className="w-full sm:w-36 h-32 rounded-2xl border-2 border-violet-100 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-xl font-black text-blue-950">Edit {item.label}</h4>
+                                    {item.source === "ai" && <span className="rounded-full bg-violet-100 text-violet-700 px-2 py-1 text-[10px] font-black uppercase">✨ AI found</span>}
+                                  </div>
+                                  <div className="grid sm:grid-cols-2 gap-2">
+                                    <input value={item.label} onChange={e => updateItem(item.id, { label: e.target.value.slice(0,40) })} className="min-h-12 rounded-xl border-2 border-slate-200 px-3 font-black" aria-label="Object name" />
+                                    <input value={item.phrase} onChange={e => updateItem(item.id, { phrase: e.target.value.slice(0,160) })} className="min-h-12 rounded-xl border-2 border-slate-200 px-3 font-bold" aria-label="Object sentence" />
+                                  </div>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                                    <button type="button" onClick={() => resizeTaggedItem(item.id, .78)} className="min-h-11 rounded-xl bg-sky-50 border border-sky-100 font-black">− Smaller</button>
+                                    <button type="button" onClick={() => resizeTaggedItem(item.id, 1.28)} className="min-h-11 rounded-xl bg-sky-50 border border-sky-100 font-black">＋ Bigger</button>
+                                    <button type="button" onClick={() => { setEditingBuilderItemId(null); setNotice("Saved in this draft. Tap Save at the top when you are done."); }} className="min-h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 font-black">✓ Done</button>
+                                    <button type="button" onClick={() => { removeItem(item.id); setEditingBuilderItemId(null); }} className="min-h-11 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 font-black">Delete</button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <span className="font-black text-slate-500 text-sm">{builderWorld.items.length} learning objects</span>
+                          {builderWorld.items.map(item => (
+                            <button
+                              key={"chip-"+item.id}
+                              type="button"
+                              onClick={() => { setEditingBuilderItemId(item.id); setTapTagPoint(null); }}
+                              className={"min-h-10 rounded-full px-3 border-2 text-sm font-black " + (editingBuilderItemId === item.id ? "border-violet-500 bg-violet-100" : "border-slate-100 bg-slate-50")}
+                            >
+                              {item.source === "ai" ? "✨ " : ""}{item.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <p className="mt-4 text-xs font-bold text-slate-500">Tip: AI suggestions are editable. You do not need to draw boxes—tap a suggestion and use Smaller/Bigger only if its touch area needs adjustment.</p>
                       </section>
                     )}
-
-                    <section className="rounded-[2rem] bg-white border border-sky-100 p-5">
-                      <h3 className="text-xl font-black">Add or review learning objects</h3>
-                      <p className="text-sm font-bold text-slate-500 mt-1">The room photo becomes the object's picture automatically. Add a separate photo/video only when you want extra teaching media for a routine, such as putting on shoes.</p>
-                      <div className="grid sm:grid-cols-2 gap-3 mt-4">
-                        <input value={itemLabel} onChange={e => setItemLabel(e.target.value)} placeholder="Word: Bed, Shoes, TV..." className="min-h-12 rounded-2xl border-2 border-slate-200 px-4 font-bold" />
-                        <input value={itemPhrase} onChange={e => setItemPhrase(e.target.value)} placeholder="Sentence: I put on my shoes." className="min-h-12 rounded-2xl border-2 border-slate-200 px-4 font-bold" />
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                        <label className="flex-1 min-h-12 rounded-2xl bg-violet-50 border-2 border-violet-100 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
-                          {itemFile?.type.startsWith("video/") ? <Video className="w-5 h-5" /> : <Upload className="w-5 h-5" />} {itemFile ? itemFile.name : "Optional extra photo / short video"}
-                          <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={e => setItemFile(e.target.files?.[0] || null)} />
-                        </label>
-                        <button type="button" disabled={uploading || !itemLabel.trim()} onClick={addItem} className="min-h-12 rounded-2xl bg-violet-600 text-white px-5 font-black disabled:opacity-50"><Plus className="w-4 h-4 inline mr-1" /> Add & tag</button>
-                      </div>
-
-                      <div className="grid lg:grid-cols-2 gap-3 mt-5">
-                        {builderWorld.items.map(item => (
-                          <div key={item.id} className={`rounded-2xl border-2 p-3 ${placingItemId === item.id ? "border-blue-500 bg-blue-50" : item.source === "ai" ? "border-violet-200 bg-violet-50/40" : "border-slate-100"}`}>
-                            <div className="flex gap-3">
-                              <button type="button" onClick={() => setPlacingItemId(item.id)} className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                                <RoomCrop world={builderWorld} item={item} className="w-full h-full rounded-xl" />
-                              </button>
-                              <div className="flex-1 min-w-0 space-y-2">
-                                <div className="flex items-center gap-2">
-                                  {item.source === "ai" && <span className="rounded-full bg-violet-100 text-violet-700 px-2 py-1 text-[10px] font-black uppercase">✨ AI suggestion</span>}
-                                  {item.mediaType === "video" && <span className="rounded-full bg-sky-100 text-sky-700 px-2 py-1 text-[10px] font-black uppercase">🎥 Extra video</span>}
-                                </div>
-                                <input
-                                  value={item.label}
-                                  onChange={e => updateItem(item.id, { label: e.target.value.slice(0, 40) })}
-                                  aria-label="Learning word"
-                                  className="w-full min-h-10 rounded-xl border-2 border-slate-200 px-3 font-black"
-                                />
-                                <input
-                                  value={item.phrase}
-                                  onChange={e => updateItem(item.id, { phrase: e.target.value.slice(0, 160) })}
-                                  aria-label="Learning sentence"
-                                  className="w-full min-h-10 rounded-xl border-2 border-slate-200 px-3 text-sm font-bold"
-                                />
-                              </div>
-                              <button type="button" onClick={() => removeItem(item.id)} className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 grid place-items-center flex-shrink-0" aria-label={`Delete ${item.label}`}><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                            <button type="button" onClick={() => { setPlacingItemId(item.id); setNotice(`Draw a new box around ${item.label}.`); }} className="mt-3 w-full min-h-11 rounded-xl bg-white border-2 border-blue-100 text-blue-700 font-black flex items-center justify-center gap-2"><Focus className="w-4 h-4" /> Draw / adjust object box</button>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
                   </>
                 )}
               </div>
