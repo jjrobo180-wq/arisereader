@@ -40,8 +40,6 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [heard, setHeard] = useState("");
-  const [mouthHelper, setMouthHelper] = useState(() => localStorage.getItem("eye-gaze-mouth-helper") !== "off");
-  const [mouthTalking, setMouthTalking] = useState(false);
   const [micReady, setMicReady] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const activeStream = useRef<MediaStream | null>(null);
@@ -70,10 +68,6 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
     return () => { cancelled = true; };
   }, [lesson.word]);
 
-  useEffect(() => {
-    localStorage.setItem("eye-gaze-mouth-helper", mouthHelper ? "on" : "off");
-  }, [mouthHelper]);
-
   useEffect(() => () => {
     alive.current = false;
     practiceId.current++;
@@ -93,11 +87,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
   };
 
   const sayWithMouth = (text: string, onEnd?: () => void) => {
-    if (mouthHelper) setMouthTalking(true);
-    say(text, () => {
-      setMouthTalking(false);
-      onEnd?.();
-    });
+    say(text, onEnd);
   };
 
   const prepareMicrophone = async () => {
@@ -345,8 +335,6 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
 
   return (
     <div className="max-w-[1100px] mx-auto pb-8">
-      <style>{"@keyframes mouthTalk { 0%,100% { height:10px; border-radius:999px; } 50% { height:38px; border-radius:45%; } } .mouth-talking { animation: mouthTalk .28s ease-in-out infinite; }"}</style>
-
       <header className="flex flex-wrap gap-3 items-center justify-between py-3">
         <div>
           <p className="text-sm tracking-widest font-black text-teal-700">LEARNING ZONE</p>
@@ -354,7 +342,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
         </div>
         <div className="flex gap-2">
           {step > 0 && <button data-talker-dwell type="button" onClick={restart} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">↺ New word</button>}
-          <button data-talker-dwell type="button" onClick={() => { stopPractice(); onBack(); }} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">← Talker</button>
+          <button data-talker-dwell type="button" onClick={() => { stopPractice(); onBack(); }} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">← Talk</button>
         </div>
       </header>
 
@@ -368,23 +356,11 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
         </div>
       )}
 
-      {step > 0 && mouthHelper && (
-        <div className="rounded-3xl bg-violet-50 border-2 border-violet-100 p-3 mb-4 flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full bg-amber-200 border-4 border-white shadow relative flex-shrink-0">
-            <div className="absolute left-4 top-6 w-3 h-3 rounded-full bg-slate-900" />
-            <div className="absolute right-4 top-6 w-3 h-3 rounded-full bg-slate-900" />
-            <div className={"absolute left-1/2 -translate-x-1/2 bottom-4 w-9 bg-rose-700 " + (mouthTalking ? "mouth-talking" : "h-2 rounded-full")} />
-          </div>
-          <div className="flex-1"><p className="font-black text-violet-900">Mouth Helper</p><p className="text-sm font-bold text-violet-700">{mouthTalking ? "Watch my mouth while you listen." : "I pop up when the word is spoken."}</p></div>
-          <button type="button" onClick={() => setMouthHelper(false)} className="min-h-11 rounded-xl bg-white px-3 font-black">Hide</button>
-        </div>
-      )}
-
       {step === 0 && (
         <section className="rounded-3xl bg-white p-5 sm:p-6 border-2 border-teal-100">
-          <div className="flex justify-between gap-3 items-center mb-4">
-            <div><p className="font-black text-[#477586]">TRY THESE WORDS</p><p className="text-sm font-bold text-slate-500">Picking a word also prepares the microphone so the final speaking step can listen automatically.</p></div>
-            <button type="button" onClick={() => setMouthHelper(value => !value)} className="min-h-11 rounded-xl bg-violet-50 border border-violet-100 px-3 font-black">{mouthHelper ? "🙂 Mouth helper ON" : "🙂 Mouth helper OFF"}</button>
+          <div className="mb-4">
+            <p className="font-black text-[#477586]">TRY THESE WORDS</p>
+            <p className="text-sm font-bold text-slate-500">Pick one word. You will hear it, see it, use it in a sentence, find it, and practice saying it.</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {lessons.map(item => (
