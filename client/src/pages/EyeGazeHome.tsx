@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { loadParentControls, pathAllowed, type ParentControls } from "@/lib/parentControls";
+import { defaultParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 function getTokenFromCookie(): string | null { try { const match=document.cookie.match(/arise_session=([^;]+)/); if(!match)return null; return JSON.parse(atob(match[1])).token||null; } catch{return null;} }
 const ACTIONS=[
@@ -18,8 +18,8 @@ const ACTIONS=[
 export default function EyeGazeHome(){
  const {user,token}=useAuth(); const [,navigate]=useLocation();
  const [stats,setStats]=useState({totalPoints:user?.totalPoints||0,activities:0,rank:null as number|null});
- const [controls,setControls]=useState<ParentControls>(()=>loadParentControls(user?.id));
- useEffect(()=>{const refresh=()=>setControls(loadParentControls(user?.id));refresh();window.addEventListener("arise-parent-controls-updated",refresh);return()=>window.removeEventListener("arise-parent-controls-updated",refresh);},[user?.id]);
+ const [controls,setControls]=useState<ParentControls>(defaultParentControls());
+ useEffect(()=>{let active=true;void fetchFamilySettings(token).then(result=>{if(active)setControls(result.settings);}).catch(()=>{});return()=>{active=false;};},[token,user?.id]);
  useEffect(()=>{const authToken=token||getTokenFromCookie();if(!authToken)return;Promise.all([
   fetch(`${API_BASE}/api/profile`,{headers:{Authorization:`Bearer ${authToken}`},cache:"no-store"}).then(r=>r.ok?r.json():null),
   fetch(`${API_BASE}/api/eye-gaze-band-rank`,{headers:{Authorization:`Bearer ${authToken}`},cache:"no-store"}).then(r=>r.ok?r.json():null),
