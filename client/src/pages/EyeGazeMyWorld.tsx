@@ -333,19 +333,31 @@ export default function EyeGazeMyWorld() {
 
   const uploadMedia = async (file: File, label: string) => {
     if (!authToken) throw new Error("Please sign in again.");
-    const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/upload`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": file.type,
-        "X-My-World-Label": label,
-        ...grownupHeader,
-      },
-      body: file,
-    });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(result.message || "Could not upload that file.");
-    return result as { path: string; mediaType: MediaType; url: string | null };
+    let lastError = "Could not upload that file.";
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch(`${API_BASE}/api/eye-gaze/my-world/upload`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": file.type || "application/octet-stream",
+            "X-My-World-Label": label,
+            ...grownupHeader,
+          },
+          body: file,
+        });
+        const result = await res.json().catch(() => ({}));
+        if (res.ok) return result as { path: string; mediaType: MediaType; url: string | null };
+        lastError = result.message || `Upload failed (${res.status}).`;
+        if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) break;
+      } catch (error: any) {
+        lastError = error?.message || "The upload connection stopped.";
+      }
+      if (attempt === 1) await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    throw new Error(lastError);
   };
 
   const saveWorlds = async (finish = false, draftWorlds: MyWorld[] = worlds) => {
@@ -392,10 +404,11 @@ export default function EyeGazeMyWorld() {
   const uploadBackground = async (file?: File) => {
     if (!file || !builderWorld) return;
     setUploading(true);
-    setNotice("");
+    setNotice("Preparing your photo…");
     try {
       if (!file.type.startsWith("image/")) throw new Error("Use a photo for the room/background.");
       const prepared = await prepareRoomPhoto(file);
+      setNotice("Uploading your photo…");
       const uploaded = await uploadMedia(prepared, builderWorld.name);
       const nextWorlds = worlds.map(w => w.id === builderWorld.id ? { ...w, backgroundPath: uploaded.path, backgroundUrl: uploaded.url } : w);
       setWorlds(nextWorlds);
@@ -882,10 +895,45 @@ export default function EyeGazeMyWorld() {
                         <div className="flex-1"><h2 className="text-2xl font-black text-blue-950">{builderWorld.name}</h2><p className="text-sm font-bold text-slate-500">Normal and panoramic room photos both work.</p></div>
                         <button type="button" onClick={() => removeWorld(builderWorld.id)} className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 grid place-items-center" aria-label="Delete place"><Trash2 className="w-5 h-5" /></button>
                       </div>
-                      <label className="mt-4 min-h-14 rounded-2xl border-2 border-dashed border-blue-200 bg-sky-50 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
-                        <Camera className="w-5 h-5" /> {builderWorld.backgroundUrl ? "Replace room photo" : "Take / upload room photo"}
-                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => uploadBackground(e.target.files?.[0])} />
-                      </label>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <label className={"min-h-14 rounded-2xl border-2 border-dashed border-blue-200 bg-sky-50 px-3 flex items-center justify-center gap-2 font-black cursor-pointer text-center " + (uploading ? "opacity-60 pointer-events-none" : "")}>
+                          <Upload className="w-5 h-5 flex-shrink-0" /> {builderWorld.backgroundUrl ? "Choose replacement" : "Choose photo"}
+                          <input
+                            type="file"
+                            accept="image/*,.heic,.heif"
+                            className="hidden"
+                            disabled={uploading}
+                            onChange={e => {
+                              const input = e.currentTarget;
+                              const file = input.files?.[0];
+                              input.value = "";
+                              if (file) void uploadBackground(file);
+                            }}
+                          />
+                        </label>
+                        <label className={"min-h-14 rounded-2xl border-2 border-blue-200 bg-blue-600 text-white px-3 flex items-center justify-center gap-2 font-black cursor-pointer text-center " + (uploading ? "opacity-60 pointer-events-none" : "")}>
+                          <Camera className="w-5 h-5 flex-shrink-0" /> Take photo
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            disabled={uploading}
+                            onChange={e => {
+                              const input = e.currentTarget;
+                              const file = input.files?.[0];
+                              input.value = "";
+                              if (file) void uploadBackground(file);
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {uploading && (
+                        <div className="mt-3 rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3 font-black text-blue-800 flex items-center gap-3" role="status">
+                          <span className="w-5 h-5 rounded-full border-2 border-blue-600 border-t-transparent animate-spin flex-shrink-0" />
+                          {notice || "Uploading photo…"}
+                        </div>
+                      )}
                     </section>
 
 
