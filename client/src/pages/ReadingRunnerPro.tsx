@@ -1,3 +1,4 @@
+import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Heart, RotateCcw, Star, Volume2, VolumeX, Zap } from "lucide-react";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
@@ -295,7 +296,7 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
         navigator.vibrate?.(45);
         const line=celebrationLine(item.label);
         setMessage("Captured "+nextCaught+" of "+mission.goal+"! "+line);
-        say(line);
+        celebrateEyeGaze(!!buddy.calmMode);
         window.setTimeout(()=>setFlash(null),500);
         window.setTimeout(()=>setCaptureBurst(current=>current?.id===burstId?null:current),900);
         if(nextCaught>=mission.goal){

@@ -1,3 +1,5 @@
+import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
+import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage } from "./storage";
@@ -5115,6 +5117,21 @@ export async function registerRoutes(
   });
 
 
+  app.get("/api/eye-gaze/appearance", authMiddleware, async (req: any, res) => {
+    try {
+      const background = normalizeEyeGazeBackground(await storage.getSetting(`eye_gaze_background_${req.user.id}`));
+      res.set("Cache-Control", "no-store").json({ background });
+    } catch { res.status(503).json({ message: "Could not load your colors." }); }
+  });
+  app.post("/api/eye-gaze/appearance", authMiddleware, async (req: any, res) => {
+    if (typeof req.body?.background !== 'string' || !/^#[0-9a-f]{6}$/i.test(req.body.background)) return res.status(400).json({ message: "Choose a valid background color." });
+    try {
+      const background = normalizeEyeGazeBackground(req.body.background);
+      await storage.upsertSetting(`eye_gaze_background_${req.user.id}`, background);
+      res.set("Cache-Control", "no-store").json({ background });
+    } catch { res.status(503).json({ message: "Could not save your colors." }); }
+  });
+
   app.get("/api/eye-gaze/profile-photo", authMiddleware, async (req: any, res) => {
     try {
       const imageData = await storage.getSetting(`eye_gaze_profile_photo_${req.user.id}`);
@@ -5606,6 +5623,7 @@ Important:
       tvDailyMinutes: 0,
       tvAgeRange: '2-4',
       tvTopics: ['animals', 'numbers', 'letters', 'feelings'],
+      tvChannels: normalizeYoutubeChannels(undefined),
       videos: [],
     };
   }
@@ -5616,10 +5634,10 @@ Important:
       ? source.allowedPaths.map((value: any) => String(value)).filter((value: string) => EYE_GAZE_FEATURE_PATHS.includes(value))
       : [...EYE_GAZE_FEATURE_PATHS];
     const ageRanges = ['2-4', '5-7', '8-10', '11-13'];
-    const topicIds = ['animals', 'letters', 'numbers', 'feelings', 'speech', 'daily-life', 'science', 'colors-shapes', 'social', 'safety', 'reading'];
+    const topicIds = ['animals', 'letters', 'numbers', 'feelings', 'speech', 'daily-life', 'science', 'colors-shapes', 'social', 'safety', 'reading', 'music'];
     const tvAgeRange = ageRanges.includes(String(source.tvAgeRange)) ? String(source.tvAgeRange) : '2-4';
     const tvTopics = Array.isArray(source.tvTopics)
-      ? Array.from(new Set(source.tvTopics.map((value: any) => String(value)).filter((value: string) => topicIds.includes(value)))).slice(0, topicIds.length)
+      ? Array.from(new Set<string>(source.tvTopics.map((value: any) => String(value)).filter((value: string) => topicIds.includes(value)))).slice(0, topicIds.length)
       : ['animals', 'numbers', 'letters', 'feelings'];
     const videos = Array.isArray(source.videos) ? source.videos.slice(0, 100).map((video: any) => {
       const id = String(video?.id || '').trim();
@@ -5637,6 +5655,7 @@ Important:
       allowedPaths: Array.from(new Set(allowed)),
       tvDailyMinutes: Math.max(0, Math.min(240, Number(source.tvDailyMinutes ?? 0) || 0)),
       tvAgeRange,
+      tvChannels: normalizeYoutubeChannels(source.tvChannels),
       tvTopics: tvTopics.length ? tvTopics : ['animals'],
       videos,
     };
@@ -5676,6 +5695,8 @@ Important:
   console.log('[youtube-shorts] API discovery configured:', !!(process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY));
 
   const CURATED_YOUTUBE_SHORTS = [
+    { id: 'NFP_RP7Jh5c', title: 'Head, Shoulders, Knees and Toes Celebration', channel: 'Super Simple Songs', topic: 'music', ageRanges: ['2-4','5-7','8-10','11-13'] },
+    { id: 'LzMdmivzDtk', title: 'Butterfly Ladybug Bumblebee', channel: 'Super Simple Songs', topic: 'animals', ageRanges: ['2-4','5-7','8-10','11-13'] },
     { id: 'dOIrnsoY21g', title: 'Phonetic Sounds', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
     { id: 'rNokoVYDRIA', title: 'Read the Signs', channel: 'Alphablocks', topic: 'letters', ageRanges: ['2-4','5-7'] },
     { id: 'AGXxNbcvT2M', title: 'Meet Twenty One', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
@@ -5688,12 +5709,7 @@ Important:
     { id: 'SSeKrWX_Wk0', title: 'A Moment of Calm', channel: 'PBS KIDS', topic: 'feelings', ageRanges: ['2-4','5-7'] },
   ];
 
-  const TRUSTED_YOUTUBE_RSS_CHANNELS = [
-    { id: 'UC_qs3c0ehDvZkbiEbOj6Drg', name: 'Alphablocks', ageRanges: ['2-4','5-7'], topics: ['letters','reading'] },
-    { id: 'UCrNnkOwFBnCS1awGjq_iJGQ', name: 'PBS KIDS', ageRanges: ['2-4','5-7','8-10'], topics: ['feelings','animals','science','social','safety','reading','daily-life'] },
-    { id: 'UCoookXUzPciGrEZEXmh4Jjg', name: 'Sesame Street', ageRanges: ['2-4','5-7'], topics: ['feelings','letters','numbers','social','daily-life'] },
-    { id: 'UCRFIPG2u1DxKLNuE3y2SjHA', name: 'SciShow Kids', ageRanges: ['5-7','8-10'], topics: ['science','animals'] },
-  ];
+  const TRUSTED_YOUTUBE_RSS_CHANNELS = YOUTUBE_CHANNEL_OPTIONS;
 
   let youtubeRssCache: { at: number; items: any[] } = { at: 0, items: [] };
 
@@ -5711,6 +5727,7 @@ Important:
   function classifyYoutubeShortTopic(title: string, description: string, channelTopics: string[]) {
     const text = `${title} ${description}`.toLowerCase();
     const tests: Array<[string, RegExp]> = [
+      ['music', /song|sing|music|dance|rhyme/],
       ['letters', /phonics|alphabet|letter|spell|word|read|reading|sound/],
       ['numbers', /number|count|math|sum|add|subtract|plus|minus/],
       ['feelings', /feel|emotion|happy|sad|angry|calm|worry|scared|excited/],
@@ -5746,6 +5763,7 @@ Important:
           id,
           title: title.replace(/#shorts?/ig, '').replace(/\s{2,}/g, ' ').trim() || 'Learning Short',
           channel: channel.name,
+          channelId: channel.id,
           topic: classifyYoutubeShortTopic(title, description, channel.topics),
           ageRanges: channel.ageRanges,
           source: 'youtube-rss',
@@ -5766,6 +5784,7 @@ Important:
   }
 
   const YOUTUBE_TOPIC_QUERY: Record<string, string> = {
+    music: 'kids songs sing along music #shorts',
     animals: 'kids animals educational #shorts',
     letters: 'kids phonics alphabet educational #shorts',
     numbers: 'kids counting math educational #shorts',
@@ -5779,17 +5798,7 @@ Important:
     reading: 'kids reading vocabulary educational #shorts',
   };
 
-  const TRUSTED_YOUTUBE_CHANNELS = [
-    'Alphablocks',
-    'Numberblocks',
-    'Sesame Street',
-    'PBS KIDS',
-    'SciShow Kids',
-    'Nat Geo Kids',
-    'National Geographic Kids',
-    'Homeschool Pop',
-    'Crash Course Kids',
-  ];
+
 
   function youtubeAgeWords(ageRange: string) {
     if (ageRange === '2-4') return 'preschool toddler';
@@ -5821,13 +5830,14 @@ Important:
 
       if (!apiKey) {
         const rssItems = await loadTrustedYoutubeRssShorts().catch(() => []);
-        const curated = CURATED_YOUTUBE_SHORTS.map(item => ({ ...item, source: 'curated' }));
+        const curated = CURATED_YOUTUBE_SHORTS.map(item => ({ ...item, channelId: YOUTUBE_CHANNEL_OPTIONS.find(c => c.name === item.channel)?.id, source: 'curated' }));
         const combined = [...rssItems, ...curated];
 
         const seen = new Set<string>();
         const eligible = combined.filter((item: any) => {
+          if (!youtubeChannelAllowed(item.channelId, settings.tvChannels)) return false;
           if (!item?.ageRanges?.includes(settings.tvAgeRange)) return false;
-          if (!settings.tvTopics.includes(item.topic)) return false;
+          if (!settings.tvTopics.includes(item.topic) && !(settings.tvTopics.includes('music') && item.channel === 'Super Simple Songs')) return false;
           if (!/^[A-Za-z0-9_-]{11}$/.test(String(item.id || ''))) return false;
           if (seen.has(item.id)) return false;
           seen.add(item.id);
@@ -5836,7 +5846,10 @@ Important:
 
         const preferred = eligible.filter((item: any) => item.topic === topic);
         const other = eligible.filter((item: any) => item.topic !== topic);
-        const ordered = [...preferred, ...other];
+        // Interleave channels so a prolific source cannot crowd out the others.
+        const buckets = settings.tvChannels.map(id => [...preferred, ...other].filter(item => item.channelId === id));
+        const ordered: any[] = [];
+        while (buckets.some(bucket => bucket.length)) for (const bucket of buckets) { const item = bucket.shift(); if (item) ordered.push(item); }
         const rawOffset = Math.max(0, Number.parseInt(pageToken || '0', 10) || 0);
         const offset = ordered.length ? rawOffset % ordered.length : 0;
         const pageSize = Math.min(12, Math.max(1, ordered.length));
@@ -5845,6 +5858,7 @@ Important:
               id: item.id,
               title: item.title,
               channel: item.channel,
+              channelId: item.channelId,
               topic: item.topic,
               source: item.source,
             }))
@@ -5865,9 +5879,12 @@ Important:
         });
       }
 
+      if (!settings.tvChannels.length) return res.json({ items: [], nextPageToken: null, automaticDiscovery: true });
+      const selectedChannel = settings.tvChannels[Math.max(0, Number.parseInt(String(req.query.channelTurn || '0'), 10) || 0) % settings.tvChannels.length];
       const query = `${YOUTUBE_TOPIC_QUERY[topic] || YOUTUBE_TOPIC_QUERY.animals} ${youtubeAgeWords(settings.tvAgeRange)}`;
       const searchParams = new URLSearchParams({
         part: 'snippet',
+        channelId: selectedChannel,
         type: 'video',
         maxResults: '25',
         q: query,
@@ -5905,13 +5922,14 @@ Important:
           const title = String(video?.snippet?.title || '');
           const description = String(video?.snippet?.description || '');
           const shortSignal = /#shorts?\b/i.test(title + ' ' + description) || duration <= 90;
-          const trusted = TRUSTED_YOUTUBE_CHANNELS.some(name => channel.toLowerCase() === name.toLowerCase());
+          const trusted = youtubeChannelAllowed(String(video?.snippet?.channelId || ''), settings.tvChannels);
           return duration > 0 && duration <= 180 && shortSignal && trusted && video?.status?.embeddable !== false;
         })
         .map((video: any) => ({
           id: String(video.id),
           title: String(video.snippet?.title || 'Learning Short').replace(/#shorts?/ig, '').trim(),
           channel: String(video.snippet?.channelTitle || 'Educational channel'),
+          channelId: String(video.snippet?.channelId || ''),
           topic,
           source: 'youtube',
         }));

@@ -1,3 +1,4 @@
+import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Heart, RotateCcw, Star, Volume2, VolumeX, Zap } from "lucide-react";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
@@ -160,7 +161,7 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
     updateThings(c=>c.map(x=>x.id===item.id?{...x,sliced:true}:x));burst(item);
     if(item.isTarget){
       const next=slicedRef.current+1;slicedRef.current=next;setSlicedCount(next);setScore(v=>v+(difficulty==="hard"?45:difficulty==="medium"?30:20));sfx("slice");
-      const line=cheer(item.label);setMessage(line);say(line);
+      const line=cheer(item.label);setMessage(line);celebrateEyeGaze(!!buddy.calmMode);
       if(next>=mission.goal){missionCompleteRef.current=true;setMissionComplete(true);updateThings([]);sfx("complete");setMessage("Level complete!");say("Level complete! You got all the "+mission.target.label+"s. Great job!");}
     }else{
       const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);heartsRef.current=next;setHearts(next);sfx("wrong");setMessage("That is a "+item.label+". Keep looking for "+mission.target.label+"!");say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);

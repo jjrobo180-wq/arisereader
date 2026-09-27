@@ -1,4 +1,5 @@
 export const SHORT_TOPIC_OPTIONS = [
+  { id: "music", label: "Songs & Music", emoji: "🎵" },
   { id: "animals", label: "Animals", emoji: "🐾" },
   { id: "letters", label: "Letters & Phonics", emoji: "🔤" },
   { id: "numbers", label: "Numbers & Counting", emoji: "🔢" },

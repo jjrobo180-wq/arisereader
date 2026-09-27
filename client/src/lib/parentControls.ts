@@ -1,3 +1,4 @@
+import { normalizeYoutubeChannels } from "@shared/youtubeChannels";
 import { API_BASE } from "@/lib/queryClient";
 
 export type FamilyVideo = { id: string; title: string; channel: string; topic: string };
@@ -7,14 +8,15 @@ export type ParentControls = {
   tvDailyMinutes: number;
   tvAgeRange: "2-4" | "5-7" | "8-10" | "11-13";
   tvTopics: string[];
+  tvChannels: string[];
   videos: FamilyVideo[];
 };
 
 export const CONTROLLED_FEATURES = [
   { path: "/eye-gaze-talker", label: "My Talker", emoji: "🗣️" },
   { path: "/my-world", label: "My World", emoji: "🏠" },
-  { path: "/library", label: "Lessons", emoji: "📚" },
-  { path: "/eye-gaze-games", label: "Games", emoji: "🎮" },
+  { path: "/library", label: "Lessons & books (inside Games)", emoji: "📚" },
+  { path: "/eye-gaze-games", label: "Games (inside Games menu)", emoji: "🎮" },
   { path: "/eye-gaze-tv", label: "A.R.I.S.E. TV", emoji: "📺" },
   { path: "/eye-gaze-flashcards", label: "Flash Cards", emoji: "🃏" },
   { path: "/eye-gaze-buddy", label: "My Buddy", emoji: "🐶" },
@@ -28,6 +30,7 @@ export function defaultParentControls(): ParentControls {
     tvDailyMinutes: 0,
     tvAgeRange: "2-4",
     tvTopics: ["animals", "numbers", "letters", "feelings"],
+    tvChannels: normalizeYoutubeChannels(undefined),
     videos: [],
   };
 }
@@ -43,6 +46,7 @@ export function cachedParentControls(): ParentControls {
       tvDailyMinutes: Math.max(0, Math.min(240, Number(raw.tvDailyMinutes ?? 0) || 0)),
       tvAgeRange: ["2-4","5-7","8-10","11-13"].includes(raw.tvAgeRange) ? raw.tvAgeRange : "2-4",
       tvTopics: Array.isArray(raw.tvTopics) && raw.tvTopics.length ? raw.tvTopics : ["animals","numbers","letters","feelings"],
+      tvChannels: normalizeYoutubeChannels(raw.tvChannels),
       videos: Array.isArray(raw.videos) ? raw.videos : [],
     };
   } catch { return defaultParentControls(); }

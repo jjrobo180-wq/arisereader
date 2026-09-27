@@ -1,3 +1,4 @@
+import { useEyeGazeBackground, DEFAULT_EYE_GAZE_BACKGROUND } from "@/lib/eyeGazeAppearance";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +18,11 @@ function getTokenFromCookie(): string | null {
 export default function EyeGazeAccount() {
   const { user, token, logout, refreshUser } = useAuth();
   const [, navigate] = useLocation();
+  const savedBackground = useEyeGazeBackground();
+  const [background, setBackground] = useState(DEFAULT_EYE_GAZE_BACKGROUND);
+  const [colorMessage, setColorMessage] = useState("");
+  const [savingColor, setSavingColor] = useState(false);
+  useEffect(()=>setBackground(savedBackground),[savedBackground]);
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [nameMsg, setNameMsg] = useState("");
   const [nameBusy, setNameBusy] = useState(false);
@@ -62,6 +68,17 @@ export default function EyeGazeAccount() {
     } finally {
       setPhotoBusy(false);
     }
+  };
+
+  const saveBackground = async () => {
+    setSavingColor(true); setColorMessage("");
+    try {
+      const response = await fetch(`${API_BASE}/api/eye-gaze/appearance`, {method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({background})});
+      const data = await response.json();
+      if(!response.ok)throw new Error(data.message || "Could not save color.");
+      window.dispatchEvent(new CustomEvent("eye-gaze-appearance-updated",{detail:data.background}));
+      setColorMessage("Background saved to your profile!");
+    }catch(error:any){setColorMessage(error.message || "Could not save color.");}finally{setSavingColor(false);}
   };
 
   const choosePhoto = (file?: File) => {
@@ -136,7 +153,7 @@ export default function EyeGazeAccount() {
 
   return (
     <main className="px-4 sm:px-6 py-6 max-w-5xl mx-auto space-y-5">
-      <section className="rounded-[2rem] bg-gradient-to-r from-sky-100 via-violet-100 to-amber-100 border-2 border-white shadow-sm p-5 sm:p-7">
+      <section className="rounded-[2rem] bg-gradient-to-r from-teal-100 via-emerald-50 to-amber-50 border-2 border-white shadow-sm p-5 sm:p-7">
         <div className="flex flex-col sm:flex-row items-center gap-5">
           <div className="relative flex-shrink-0">
             {profilePhoto ? (
@@ -169,6 +186,23 @@ export default function EyeGazeAccount() {
             {photoMsg && <p className="mt-2 text-sm font-bold text-slate-600">{photoMsg}</p>}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-3xl bg-white border-2 border-teal-200 p-5 shadow-sm">
+        <h2 className="text-2xl font-black text-slate-900">🎨 My background</h2>
+        <p className="mt-2 font-bold text-slate-600">Pick a color for your Eye Gazer pages. Cards stay easy to read.</p>
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          {[DEFAULT_EYE_GAZE_BACKGROUND,"#fff4d6","#e4efff","#f6e6f3","#d4e9e2","#243c38"].map(color=><button key={color} aria-label={`Choose ${color}`} aria-pressed={background===color} onClick={()=>setBackground(color)} className="h-14 w-14 rounded-2xl border-4 border-slate-300 focus-visible:ring-4 focus-visible:ring-teal-500" style={{backgroundColor:color,outline:background===color?"3px solid #0f766e":"none"}}/>)}
+          <label className="flex items-center gap-3 font-black text-slate-900">Custom color<input aria-label="Custom background color" type="color" value={background} onChange={e=>setBackground(e.target.value)} className="h-14 w-16 rounded-xl cursor-pointer"/></label>
+        </div>
+        <div className="mt-4 rounded-2xl border p-5" style={{backgroundColor:background}}><span className="inline-block rounded-xl bg-white text-slate-900 px-4 py-3 font-black">Your background preview ✨</span></div>
+        <div className="flex flex-wrap gap-3 mt-4"><button onClick={saveBackground} disabled={savingColor} className="min-h-12 rounded-2xl bg-teal-800 text-white px-5 font-black disabled:opacity-50">{savingColor?"Saving…":"Save background"}</button><button onClick={()=>setBackground(DEFAULT_EYE_GAZE_BACKGROUND)} className="min-h-12 rounded-2xl bg-slate-100 text-slate-900 px-5 font-black">Default mint</button></div>
+        {colorMessage&&<p role="status" className="mt-3 font-bold text-slate-700">{colorMessage}</p>}
+      </section>
+      <section className="rounded-3xl bg-white border-2 border-amber-200 p-5 shadow-sm">
+        <h2 className="text-2xl font-black text-slate-900">👨‍👩‍👧 Parent permissions</h2>
+        <p className="mt-2 font-bold text-slate-600">Choose allowed activities, video channels, and daily video time. A grown-up check protects these settings.</p>
+        <button onClick={()=>navigate("/eye-gaze-parent-controls")} className="mt-4 min-h-14 rounded-2xl bg-teal-800 text-white px-5 font-black">Open parent permissions</button>
       </section>
 
       <div className="grid lg:grid-cols-2 gap-5">
