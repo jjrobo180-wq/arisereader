@@ -1,34 +1,162 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ChevronDown, ChevronUp, Play, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { loadParentControls } from "@/lib/parentControls";
+import { addTvUsage, fetchFamilySettings, getTvUsage, type FamilyVideo, type ParentControls } from "@/lib/parentControls";
 
-type Video={id:string;title:string;channel:string;topic:string};
-const DEFAULTS:Video[]=[
- {id:"jwoWBrT-FyU",title:"The Count Counts to Zero",channel:"Sesame Street",topic:"Numbers"},
- {id:"w0VQIJVnoxU",title:"Daniel's Feeling Songs",channel:"PBS KIDS",topic:"Feelings"},
- {id:"-k5R0haCa6o",title:"The Ancient Animal Crossing",channel:"SciShow Kids",topic:"Animals & Earth"},
-];
-const storageKey=(id?:number|string)=>`arise-tv-parent-videos-${id||"default"}`;
-const usageKey=(id?:number|string)=>`arise-tv-usage-${id||"default"}-${new Date().toISOString().slice(0,10)}`;
-function extractId(value:string){const v=value.trim();const m=v.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([A-Za-z0-9_-]{11})/);return m?.[1]||( /^[A-Za-z0-9_-]{11}$/.test(v)?v:"");}
-function loadVideos(id?:number|string):Video[]{try{const saved=JSON.parse(localStorage.getItem(storageKey(id))||"null");return Array.isArray(saved)&&saved.length?saved:DEFAULTS;}catch{return DEFAULTS;}}
-function saveVideos(id:number|string|undefined,v:Video[]){localStorage.setItem(storageKey(id),JSON.stringify(v));}
-export default function EyeGazeTV(){
- const {user}=useAuth();const [,navigate]=useLocation();const [videos,setVideos]=useState<Video[]>(()=>loadVideos(user?.id));const [index,setIndex]=useState(0);const [muted,setMuted]=useState(false);const [url,setUrl]=useState("");const [title,setTitle]=useState("");const [manage,setManage]=useState(false);const [minutes,setMinutes]=useState(0);const startRef=useRef(Date.now());const controls=useMemo(()=>loadParentControls(user?.id),[user?.id]);
- useEffect(()=>{setVideos(loadVideos(user?.id));try{setMinutes(Number(localStorage.getItem(usageKey(user?.id))||0));}catch{}},[user?.id]);
- useEffect(()=>{const timer=window.setInterval(()=>{const delta=(Date.now()-startRef.current)/60000;startRef.current=Date.now();setMinutes(m=>{const next=m+delta;try{localStorage.setItem(usageKey(user?.id),String(next));}catch{}return next;});},15000);return()=>window.clearInterval(timer);},[user?.id]);
- const limited=controls.enabled&&controls.tvDailyMinutes>0&&minutes>=controls.tvDailyMinutes;
- const current=videos[index%Math.max(1,videos.length)];
- const move=(d:number)=>{if(!videos.length)return;setIndex(i=>(i+d+videos.length)%videos.length);};
- const add=()=>{const id=extractId(url);if(!id)return;const next=[...videos,{id,title:title.trim()||"Learning video",channel:"Parent approved",topic:"Learning"}];setVideos(next);saveVideos(user?.id,next);setUrl("");setTitle("");};
- const remove=(i:number)=>{const next=videos.filter((_,x)=>x!==i);setVideos(next);saveVideos(user?.id,next);setIndex(0);};
- if(limited)return <main className="fixed inset-0 z-[120] bg-slate-950 text-white grid place-items-center p-6"><div className="max-w-lg text-center"><div className="text-8xl">🌙</div><h1 className="text-4xl font-black mt-4">TV time is finished for today</h1><p className="text-white/70 font-bold mt-2">A grown-up set today's A.R.I.S.E. TV limit.</p><button onClick={()=>navigate("/eye-gaze-home")} className="mt-6 min-h-14 rounded-2xl bg-white text-slate-950 px-6 font-black">Back Home</button></div></main>;
- return <main className="fixed inset-0 z-[120] h-[100dvh] bg-black text-white overflow-hidden">
-  <header className="absolute z-50 top-0 inset-x-0 p-3 flex items-center gap-2 bg-gradient-to-b from-black/80 to-transparent pointer-events-none"><button onClick={()=>navigate("/eye-gaze-home")} className="pointer-events-auto min-h-11 rounded-full bg-black/60 border border-white/20 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Home</button><div className="flex-1 text-center font-black">A.R.I.S.E. TV</div><button onClick={()=>setMuted(v=>!v)} className="pointer-events-auto w-11 h-11 rounded-full bg-black/60 border border-white/20 grid place-items-center">{muted?<VolumeX/>:<Volume2/>}</button></header>
-  {!current?<div className="h-full grid place-items-center text-center p-6"><div><div className="text-8xl">📺</div><h1 className="text-3xl font-black">No videos yet</h1><p className="text-white/60 font-bold">A grown-up can add approved YouTube videos.</p><button onClick={()=>setManage(true)} className="mt-5 rounded-2xl bg-white text-black px-5 py-3 font-black">Parent: add videos</button></div></div>:<section className="h-full w-full snap-y snap-mandatory overflow-y-auto overscroll-none" onScroll={e=>{const h=e.currentTarget.clientHeight;const next=Math.round(e.currentTarget.scrollTop/h);if(next!==index&&next>=0&&next<videos.length)setIndex(next);}}>{videos.map((video,i)=><article key={`${video.id}-${i}`} className="relative h-[100dvh] snap-start snap-always bg-black grid place-items-center"><iframe title={video.title} className="absolute inset-0 w-full h-full" src={`https://www.youtube-nocookie.com/embed/${video.id}?autoplay=${i===index?1:0}&mute=${muted?1:0}&controls=1&playsinline=1&rel=0&modestbranding=1`} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen/><div className="absolute z-20 left-4 right-20 bottom-8 pointer-events-none drop-shadow-lg"><span className="inline-block rounded-full bg-cyan-300 text-slate-950 px-3 py-1 text-xs font-black">✓ GROWN-UP APPROVED</span><h2 className="text-xl sm:text-3xl font-black mt-2">{video.title}</h2><p className="font-bold text-white/80">{video.channel}</p></div><div className="absolute z-30 right-3 bottom-8 flex flex-col gap-3"><button onClick={()=>move(-1)} className="w-14 h-14 rounded-full bg-black/65 border border-white/20 grid place-items-center"><ChevronUp/></button><button onClick={()=>move(1)} className="w-14 h-14 rounded-full bg-black/65 border border-white/20 grid place-items-center"><ChevronDown/></button></div></article>)}</section>}
-  <button onClick={()=>setManage(true)} className="absolute z-50 top-16 right-3 rounded-full bg-black/65 border border-white/20 px-3 py-2 text-xs font-black">👨‍👩‍👧 Parent</button>
-  {manage&&<div className="absolute inset-0 z-[80] bg-slate-950/98 overflow-y-auto p-4 sm:p-7"><div className="max-w-2xl mx-auto"><div className="flex justify-between items-center"><div><p className="text-xs font-black text-cyan-300 uppercase tracking-widest">Parent video controls</p><h1 className="text-3xl font-black">Choose the whole feed</h1></div><button onClick={()=>setManage(false)} className="rounded-2xl bg-white text-black px-4 py-3 font-black">Done</button></div><div className="mt-5 rounded-3xl bg-white text-slate-950 p-5"><label className="font-black">YouTube link or video ID<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="Paste YouTube link" className="mt-2 w-full min-h-14 rounded-xl border-2 p-3"/></label><label className="font-black block mt-3">Kid-friendly title<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What should the child see?" className="mt-2 w-full min-h-14 rounded-xl border-2 p-3"/></label><button onClick={add} disabled={!extractId(url)} className="mt-3 w-full min-h-14 rounded-xl bg-violet-700 text-white font-black disabled:opacity-40">+ Add approved video</button></div><div className="space-y-2 mt-4">{videos.map((v,i)=><div key={`${v.id}-${i}`} className="rounded-2xl bg-white text-slate-950 p-3 flex items-center gap-3"><img src={`https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`} className="w-24 aspect-video rounded-xl object-cover" alt=""/><strong className="flex-1">{v.title}</strong><button onClick={()=>remove(i)} className="rounded-xl bg-rose-100 text-rose-800 px-3 py-2 font-black">Remove</button></div>)}</div></div></div>}
- </main>;
+declare global {
+  interface Window {
+    YT?: any;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+export default function EyeGazeTV() {
+  const { token } = useAuth();
+  const [, navigate] = useLocation();
+  const [settings, setSettings] = useState<ParentControls | null>(null);
+  const [videos, setVideos] = useState<FamilyVideo[]>([]);
+  const [index, setIndex] = useState(0);
+  const [muted, setMuted] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const [usageMinutes, setUsageMinutes] = useState(0);
+  const [error, setError] = useState("");
+  const playerRef = useRef<any>(null);
+  const feedRef = useRef<HTMLDivElement | null>(null);
+  const usageTimerRef = useRef<number | null>(null);
+
+  const limited = !!settings?.enabled && !!settings.tvDailyMinutes && usageMinutes >= settings.tvDailyMinutes;
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetchFamilySettings(token), getTvUsage(token)])
+      .then(([family, usage]) => {
+        if (!active) return;
+        setSettings(family.settings);
+        setVideos(family.settings.videos || []);
+        setUsageMinutes(usage.minutes || 0);
+      })
+      .catch(err => { if (active) setError(err.message || "Could not load A.R.I.S.E. TV."); });
+    return () => { active = false; };
+  }, [token]);
+
+  useEffect(() => {
+    if (!videos.length || limited) return;
+    let cancelled = false;
+
+    const createPlayer = () => {
+      if (cancelled || !window.YT?.Player) return;
+      try { playerRef.current?.destroy?.(); } catch {}
+      playerRef.current = new window.YT.Player(`arise-tv-player-${index}`, {
+        videoId: videos[index].id,
+        width: "100%",
+        height: "100%",
+        playerVars: { autoplay: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, fs: 0, disablekb: 1 },
+        events: {
+          onReady: (event: any) => {
+            try {
+              if (muted) event.target.mute?.(); else event.target.unMute?.();
+              event.target.playVideo?.();
+            } catch {}
+          },
+          onStateChange: (event: any) => setPlaying(event.data === 1),
+        },
+      });
+    };
+
+    if (window.YT?.Player) createPlayer();
+    else {
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement("script");
+        script.src = "https://www.youtube.com/iframe_api";
+        script.async = true;
+        document.head.appendChild(script);
+      }
+      const previous = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { previous?.(); createPlayer(); };
+    }
+
+    return () => {
+      cancelled = true;
+      setPlaying(false);
+      try { playerRef.current?.destroy?.(); } catch {}
+      playerRef.current = null;
+    };
+  }, [index, videos, limited]);
+
+  useEffect(() => {
+    try {
+      if (muted) playerRef.current?.mute?.();
+      else playerRef.current?.unMute?.();
+    } catch {}
+  }, [muted]);
+
+  useEffect(() => {
+    if (usageTimerRef.current) window.clearInterval(usageTimerRef.current);
+    usageTimerRef.current = null;
+    if (!playing || limited) return;
+
+    usageTimerRef.current = window.setInterval(() => {
+      void addTvUsage(token, 15)
+        .then(result => setUsageMinutes(result.minutes || 0))
+        .catch(() => {});
+    }, 15000);
+
+    return () => {
+      if (usageTimerRef.current) window.clearInterval(usageTimerRef.current);
+      usageTimerRef.current = null;
+    };
+  }, [playing, limited, token]);
+
+  const togglePlay = () => {
+    try {
+      if (playing) playerRef.current?.pauseVideo?.();
+      else playerRef.current?.playVideo?.();
+    } catch {}
+  };
+
+  const onScroll = () => {
+    const el = feedRef.current;
+    if (!el) return;
+    const next = Math.max(0, Math.min(videos.length - 1, Math.round(el.scrollTop / Math.max(1, el.clientHeight))));
+    if (next !== index) setIndex(next);
+  };
+
+  if (limited) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center p-6">
+    <div className="max-w-lg text-center"><div className="text-8xl">🌙</div><h1 className="text-4xl font-black mt-4">TV time is finished for today</h1><p className="text-white/70 font-bold mt-2">Your grown-up set today's A.R.I.S.E. TV limit.</p><button onClick={()=>navigate("/eye-gaze-home")} className="mt-6 min-h-14 rounded-2xl bg-white text-slate-950 px-6 font-black">Back Home</button></div>
+  </main>;
+
+  if (error) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center p-6"><div className="max-w-lg text-center"><div className="text-7xl">📺</div><h1 className="text-3xl font-black mt-3">A.R.I.S.E. TV</h1><p className="mt-3 font-bold text-rose-200">{error}</p><button onClick={()=>navigate("/eye-gaze-home")} className="mt-5 min-h-14 rounded-2xl bg-white text-slate-950 px-6 font-black">Back Home</button></div></main>;
+
+  if (!settings) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center font-black">Loading A.R.I.S.E. TV…</main>;
+
+  if (!videos.length) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center p-6">
+    <div className="max-w-lg text-center"><div className="text-8xl">📺</div><h1 className="text-4xl font-black mt-4">Your TV is ready</h1><p className="text-white/70 font-bold mt-2">A grown-up has not added any learning videos yet.</p><button onClick={()=>navigate("/eye-gaze-home")} className="mt-6 min-h-14 rounded-2xl bg-white text-slate-950 px-6 font-black">Back Home</button></div>
+  </main>;
+
+  return <main className="fixed inset-0 z-[130] h-[100dvh] bg-black text-white overflow-hidden select-none">
+    <header className="absolute z-50 top-0 inset-x-0 p-3 flex items-center gap-3 bg-gradient-to-b from-black/80 via-black/35 to-transparent pointer-events-none">
+      <button onClick={()=>navigate("/eye-gaze-home")} className="pointer-events-auto min-h-12 rounded-full bg-black/70 border border-white/20 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Home</button>
+      <div className="flex-1 text-center"><div className="font-black text-lg">A.R.I.S.E. TV</div><div className="text-[10px] font-black text-white/65">{index+1} of {videos.length}</div></div>
+      <button onClick={()=>setMuted(v=>!v)} className="pointer-events-auto w-12 h-12 rounded-full bg-black/70 border border-white/20 grid place-items-center" aria-label={muted?"Turn sound on":"Mute"}>{muted?<VolumeX/>:<Volume2/>}</button>
+    </header>
+
+    <div ref={feedRef} onScroll={onScroll} className="h-full overflow-y-auto snap-y snap-mandatory overscroll-y-contain scroll-smooth">
+      {videos.map((video,i)=><article key={video.id} className="relative h-[100dvh] snap-start snap-always bg-slate-950 overflow-hidden">
+        {i === index ? <div id={`arise-tv-player-${i}`} className="absolute inset-0 w-full h-full pointer-events-none" /> :
+          <img src={`https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`} onError={e=>{e.currentTarget.src=`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;}} alt="" className="absolute inset-0 w-full h-full object-contain bg-black" />}
+        <div className="absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-black via-black/55 to-transparent pointer-events-none" />
+        <div className="absolute z-30 left-4 right-20 bottom-8 pointer-events-none">
+          <span className="inline-block rounded-full bg-cyan-300 text-slate-950 px-3 py-1 text-xs font-black">✓ GROWN-UP APPROVED</span>
+          <h2 className="text-2xl sm:text-4xl font-black mt-2 leading-tight">{video.title}</h2>
+          <p className="font-bold text-white/80 mt-1">{video.topic} · {video.channel}</p>
+          <p className="text-xs font-bold text-white/55 mt-2">Swipe up for the next video</p>
+        </div>
+        {i === index && <div className="absolute z-40 right-3 bottom-24 flex flex-col gap-3">
+          <button onClick={togglePlay} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid place-items-center shadow-xl" aria-label={playing?"Pause":"Play"}>{playing?<Pause className="w-7 h-7"/>:<Play className="w-7 h-7 fill-current ml-1"/>}</button>
+          <button onClick={()=>setMuted(v=>!v)} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid place-items-center shadow-xl" aria-label={muted?"Turn sound on":"Mute"}>{muted?<VolumeX className="w-7 h-7"/>:<Volume2 className="w-7 h-7"/>}</button>
+        </div>}
+      </article>)}
+    </div>
+  </main>;
 }
