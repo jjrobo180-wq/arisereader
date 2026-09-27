@@ -1,13 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, RotateCcw, Sparkles, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react";
 
 type FidgetId = "popit"|"bubbles"|"spinner"|"slime"|"ripple"|"galaxy"|"clicker"|"stretch"|"liquid"|"kaleido"|"switches"|"tiles";
 
 const FIDGETS:{id:FidgetId;name:string;emoji:string;hint:string}[]=[
-  {id:"popit",name:"Mega Pop-It",emoji:"🫧",hint:"Pop every bubble"},
-  {id:"bubbles",name:"Bubble Wrap",emoji:"🟣",hint:"Tiny satisfying pops"},
-  {id:"spinner",name:"Neon Spinner",emoji:"🌀",hint:"Spin it fast"},
+  {id:"popit",name:"Mega Pop-It",emoji:"🌈",hint:"Big reusable silicone pops"},
+  {id:"bubbles",name:"Bubble Wrap",emoji:"📦",hint:"Crinkle and pop a whole sheet"},
+  {id:"spinner",name:"Fidget Spinner",emoji:"🌀",hint:"Flick it with real momentum"},
   {id:"slime",name:"Galaxy Slime",emoji:"🧪",hint:"Squish and stretch"},
   {id:"ripple",name:"Ripple Pool",emoji:"💧",hint:"Tap the water"},
   {id:"galaxy",name:"Star Maker",emoji:"🌌",hint:"Fill space with stars"},
@@ -34,6 +34,26 @@ function audioPing(freq=420,duration=.07,type:OscillatorType="sine"){
   }catch{}
 }
 
+function audioCrackle(){
+  try{
+    const AudioCtx=(window.AudioContext||(window as any).webkitAudioContext);
+    if(!AudioCtx)return;
+    const ctx=new AudioCtx();
+    const buffer=ctx.createBuffer(1,Math.floor(ctx.sampleRate*.055),ctx.sampleRate);
+    const data=buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*(1-i/data.length);
+    const source=ctx.createBufferSource();
+    const filter=ctx.createBiquadFilter();
+    const gain=ctx.createGain();
+    filter.type="highpass";filter.frequency.value=1100;
+    gain.gain.setValueAtTime(.16,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.055);
+    source.buffer=buffer;source.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+    source.start();source.stop(ctx.currentTime+.06);
+    window.setTimeout(()=>ctx.close().catch(()=>{}),300);
+  }catch{}
+}
+
 export default function EyeGazeFidgetLab(){
   const [,navigate]=useLocation();
   const [selected,setSelected]=useState<FidgetId>("popit");
@@ -41,7 +61,9 @@ export default function EyeGazeFidgetLab(){
   const [haptics,setHaptics]=useState(true);
   const [pop,setPop]=useState<boolean[]>(()=>Array(36).fill(false));
   const [wrap,setWrap]=useState<boolean[]>(()=>Array(40).fill(false));
-  const [spin,setSpin]=useState(0);
+  const [spinAngle,setSpinAngle]=useState(0);
+  const [spinSpeed,setSpinSpeed]=useState(0);
+  const [spinnerSkin,setSpinnerSkin]=useState<"neon"|"metal"|"galaxy">("neon");
   const [squish,setSquish]=useState(0);
   const [ripples,setRipples]=useState<{id:number;x:number;y:number}[]>([]);
   const [stars,setStars]=useState<{id:number;x:number;y:number;s:number}[]>([]);
@@ -52,14 +74,102 @@ export default function EyeGazeFidgetLab(){
   const [switches,setSwitches]=useState<boolean[]>(()=>Array(12).fill(false));
   const [tiles,setTiles]=useState<boolean[]>(()=>Array(48).fill(false));
   const stage=useRef<HTMLDivElement|null>(null);
+  const spinnerRef=useRef<HTMLDivElement|null>(null);
+  const spinAngleRef=useRef(0);
+  const spinVelocityRef=useRef(0);
+  const spinDragRef=useRef<{angle:number;time:number}|null>(null);
 
   const feedback=(freq=420,duration=.07,type:OscillatorType="sine")=>{
     if(sound)audioPing(freq,duration,type);
     if(haptics&&navigator.vibrate)navigator.vibrate(18);
   };
 
+  const popItFeedback=()=>{
+    if(sound)audioPing(210,.09,"sine");
+    if(haptics&&navigator.vibrate)navigator.vibrate(26);
+  };
+
+  const bubbleFeedback=()=>{
+    if(sound)audioCrackle();
+    if(haptics&&navigator.vibrate)navigator.vibrate([10,8,16]);
+  };
+
+  const spinnerPointerAngle=(event:React.PointerEvent)=>{
+    const rect=spinnerRef.current?.getBoundingClientRect();
+    if(!rect)return 0;
+    const x=event.clientX-(rect.left+rect.width/2);
+    const y=event.clientY-(rect.top+rect.height/2);
+    return Math.atan2(y,x)*180/Math.PI;
+  };
+
+  const normalizeDelta=(value:number)=>{
+    let next=value;
+    while(next>180)next-=360;
+    while(next<-180)next+=360;
+    return next;
+  };
+
+  const beginSpin=(event:React.PointerEvent<HTMLDivElement>)=>{
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    spinVelocityRef.current=0;
+    spinDragRef.current={angle:spinnerPointerAngle(event),time:performance.now()};
+  };
+
+  const moveSpin=(event:React.PointerEvent<HTMLDivElement>)=>{
+    const drag=spinDragRef.current;
+    if(!drag)return;
+    const now=performance.now();
+    const angle=spinnerPointerAngle(event);
+    const delta=normalizeDelta(angle-drag.angle);
+    const dt=Math.max(8,now-drag.time);
+    spinAngleRef.current+=delta;
+    setSpinAngle(spinAngleRef.current);
+    spinVelocityRef.current=delta/dt;
+    setSpinSpeed(Math.min(100,Math.abs(spinVelocityRef.current)*70));
+    spinDragRef.current={angle,time:now};
+  };
+
+  const endSpin=(event:React.PointerEvent<HTMLDivElement>)=>{
+    if(!spinDragRef.current)return;
+    spinDragRef.current=null;
+    try{event.currentTarget.releasePointerCapture?.(event.pointerId);}catch{}
+    if(Math.abs(spinVelocityRef.current)<.08)spinVelocityRef.current=spinVelocityRef.current<0?-.45:.45;
+    if(sound)audioPing(150+Math.min(260,Math.abs(spinVelocityRef.current)*180),.11,"sine");
+    if(haptics&&navigator.vibrate)navigator.vibrate(24);
+  };
+
+  const superSpin=()=>{
+    const direction=spinVelocityRef.current<0?-1:1;
+    spinVelocityRef.current=direction*1.75;
+    setSpinSpeed(100);
+    if(sound)audioPing(260,.14,"sawtooth");
+    if(haptics&&navigator.vibrate)navigator.vibrate([20,20,35]);
+  };
+
+  useEffect(()=>{
+    let frame=0;
+    let previous=performance.now();
+    const animate=(now:number)=>{
+      const dt=Math.min(34,Math.max(1,now-previous));
+      previous=now;
+      if(!spinDragRef.current&&Math.abs(spinVelocityRef.current)>.003){
+        spinAngleRef.current+=spinVelocityRef.current*dt;
+        setSpinAngle(spinAngleRef.current);
+        spinVelocityRef.current*=Math.pow(.969,dt/16);
+        setSpinSpeed(Math.min(100,Math.abs(spinVelocityRef.current)*70));
+        if(Math.abs(spinVelocityRef.current)<=.003){
+          spinVelocityRef.current=0;
+          setSpinSpeed(0);
+        }
+      }
+      frame=requestAnimationFrame(animate);
+    };
+    frame=requestAnimationFrame(animate);
+    return()=>cancelAnimationFrame(frame);
+  },[]);
+
   const reset=()=>{
-    setPop(Array(36).fill(false));setWrap(Array(40).fill(false));setSpin(0);setSquish(0);setRipples([]);setStars([]);
+    setPop(Array(36).fill(false));setWrap(Array(40).fill(false));spinAngleRef.current=0;spinVelocityRef.current=0;setSpinAngle(0);setSpinSpeed(0);setSquish(0);setRipples([]);setStars([]);
     setCount(0);setStretch(45);setLiquid(value=>value+1);setKaleido(0);setSwitches(Array(12).fill(false));setTiles(Array(48).fill(false));
   };
 
@@ -75,20 +185,103 @@ export default function EyeGazeFidgetLab(){
   ],[]);
 
   const stageContent=()=>{
-    if(selected==="popit")return <div className="w-full max-w-2xl rounded-[3rem] p-5 sm:p-8 bg-gradient-to-br from-fuchsia-500 via-violet-500 to-cyan-400 shadow-[0_30px_80px_rgba(88,28,135,.35)] border-[10px] border-white/40">
-      <div className="grid grid-cols-6 gap-2 sm:gap-4">{pop.map((on,i)=><button key={i} onClick={()=>{const n=[...pop];n[i]=!n[i];setPop(n);feedback(on?310:520,.06,"sine");}} className={"aspect-square rounded-full border-4 border-white/40 transition-all duration-150 "+(on?"bg-slate-900/35 shadow-inner scale-90":"bg-white/75 shadow-[inset_0_-12px_20px_rgba(0,0,0,.18),0_8px_15px_rgba(0,0,0,.2)] scale-100")} aria-label={"Pop bubble "+(i+1)}/>)}</div>
-    </div>;
+    if(selected==="popit"){
+      const colors=["#ff6b6b","#ff9f43","#feca57","#48db9a","#54a0ff","#a66cff"];
+      return <div className="w-full max-w-[720px]">
+        <div className="rounded-[4rem] p-5 sm:p-8 bg-[#24243a] shadow-[0_35px_100px_rgba(0,0,0,.45)] border-[12px] border-[#39395a]">
+          <div className="rounded-[3rem] overflow-hidden border-8 border-white/10 shadow-inner">
+            {Array.from({length:6}).map((_,row)=><div key={row} className="grid grid-cols-6 gap-2 sm:gap-3 p-2 sm:p-3" style={{background:colors[row]}}>
+              {pop.slice(row*6,row*6+6).map((on,column)=>{
+                const i=row*6+column;
+                return <button key={i} onClick={()=>{const n=[...pop];n[i]=!n[i];setPop(n);popItFeedback();}} aria-label={"Reusable pop "+(i+1)} className="aspect-square rounded-full relative transition-all duration-100 touch-manipulation" style={{
+                  background:on?"radial-gradient(circle at 50% 72%,rgba(0,0,0,.38),rgba(255,255,255,.08) 55%,rgba(0,0,0,.18))":"radial-gradient(circle at 36% 28%,rgba(255,255,255,.92),rgba(255,255,255,.16) 32%,rgba(0,0,0,.16) 74%)",
+                  transform:on?"scale(.78)":"scale(1)",
+                  boxShadow:on?"inset 0 12px 18px rgba(0,0,0,.42), inset 0 -3px 6px rgba(255,255,255,.18)":"inset 0 -13px 20px rgba(0,0,0,.25), inset 0 8px 13px rgba(255,255,255,.45), 0 7px 8px rgba(0,0,0,.2)",
+                  border:"4px solid rgba(255,255,255,.25)"
+                }}><span className="absolute inset-[22%] rounded-full border-2 border-white/20"/></button>;
+              })}
+            </div>)}
+          </div>
+        </div>
+        <div className="mt-4 text-center">
+          <p className="font-black text-white text-lg">Reusable silicone Pop-It</p>
+          <p className="text-white/60 text-sm font-bold">Push in · push back out · repeat forever</p>
+        </div>
+      </div>;
+    }
 
-    if(selected==="bubbles")return <div className="w-full max-w-3xl rounded-[2.5rem] bg-gradient-to-br from-slate-100 to-blue-100 p-5 sm:p-8 shadow-2xl border-4 border-white">
-      <div className="grid grid-cols-8 gap-2 sm:gap-3">{wrap.map((on,i)=><button key={i} onClick={()=>{if(!on){const n=[...wrap];n[i]=true;setWrap(n);feedback(650+((i%5)*45),.045,"triangle");}}} className={"aspect-square rounded-full border transition-all "+(on?"bg-slate-200 border-slate-300 scale-75 opacity-35":"bg-gradient-to-br from-white to-cyan-100 border-white shadow-[inset_0_-7px_10px_rgba(14,165,233,.22),0_5px_9px_rgba(15,23,42,.15)]")}/>)}</div>
-    </div>;
+    if(selected==="bubbles"){
+      const remaining=wrap.filter(value=>!value).length;
+      return <div className="w-full max-w-[760px]">
+        <div className="relative rounded-[1.4rem] p-4 sm:p-6 bg-[linear-gradient(135deg,rgba(255,255,255,.82),rgba(186,230,253,.3),rgba(255,255,255,.68))] border border-white/80 shadow-[0_24px_70px_rgba(15,23,42,.28)] overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 opacity-30 bg-[repeating-linear-gradient(25deg,transparent_0_18px,rgba(255,255,255,.9)_19px,transparent_21px)]"/>
+          <div className="relative grid grid-cols-8 gap-1.5 sm:gap-2.5">
+            {wrap.map((on,i)=><button key={i} disabled={on} onClick={()=>{const n=[...wrap];n[i]=true;setWrap(n);bubbleFeedback();}} aria-label={on?"Popped bubble":"Pop bubble "+(i+1)} className="aspect-square relative rounded-full transition-all duration-100 disabled:cursor-default" style={{
+              transform:on?"scale(.62)":`scale(${i%5===0?1.05:i%3===0?.92:1})`,
+              background:on?"rgba(148,163,184,.11)":"radial-gradient(circle at 31% 24%,rgba(255,255,255,.98) 0 14%,rgba(224,242,254,.76) 28%,rgba(125,211,252,.25) 65%,rgba(255,255,255,.72) 100%)",
+              border:on?"1px solid rgba(148,163,184,.28)":"1px solid rgba(255,255,255,.95)",
+              boxShadow:on?"inset 0 2px 5px rgba(71,85,105,.22)":"inset 0 -6px 12px rgba(14,165,233,.14), inset 0 5px 10px rgba(255,255,255,.9), 0 3px 6px rgba(15,23,42,.16)"
+            }}>
+              {on&&<><span className="absolute left-[20%] right-[20%] top-1/2 h-px bg-slate-400/35 rotate-12"/><span className="absolute left-1/2 top-[20%] bottom-[20%] w-px bg-slate-400/30 -rotate-12"/></>}
+              {!on&&<span className="absolute left-[23%] top-[17%] w-[28%] h-[18%] rounded-full bg-white/80 blur-[1px]"/>}
+            </button>)}
+          </div>
+          <div className="relative mt-4 flex items-center gap-3">
+            <div className="flex-1">
+              <p className="font-black text-slate-800">Real sheet mode</p>
+              <p className="text-sm font-bold text-slate-500">{remaining?remaining+" bubbles left":"Every bubble is popped!"}</p>
+            </div>
+            <button onClick={()=>{setWrap(Array(40).fill(false));if(haptics&&navigator.vibrate)navigator.vibrate(20);}} className="min-h-12 rounded-2xl bg-slate-900 text-white px-4 font-black">{remaining?"NEW SHEET":"UNROLL NEW SHEET"}</button>
+          </div>
+        </div>
+        <p className="mt-3 text-center text-white/60 text-sm font-bold">Each bubble pops once. Start a new sheet when you want more.</p>
+      </div>;
+    }
 
-    if(selected==="spinner")return <button onClick={()=>{setSpin(v=>v+720);feedback(280,.16,"sawtooth");}} className="relative w-[min(72vw,460px)] aspect-square rounded-full bg-slate-950 shadow-[0_35px_100px_rgba(14,165,233,.4)] border-[12px] border-white/10 grid place-items-center overflow-hidden">
-      <div className="absolute inset-[10%] rounded-full transition-transform ease-out" style={{transform:"rotate("+spin+"deg)",transitionDuration:"1300ms"}}>
-        {[0,60,120,180,240,300].map((deg,i)=><div key={deg} className="absolute left-1/2 top-1/2 w-[43%] h-[18%] origin-left rounded-full bg-gradient-to-r from-fuchsia-500 via-cyan-400 to-amber-300 shadow-[0_0_30px_rgba(34,211,238,.65)]" style={{transform:"rotate("+deg+"deg) translateX(8%)"}}/>)}
-      </div>
-      <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-white border-[10px] border-slate-300 shadow-2xl grid place-items-center text-4xl">🌀</div>
-    </button>;
+    if(selected==="spinner"){
+      const skin=spinnerSkin==="metal"
+        ? {body:"linear-gradient(145deg,#f8fafc,#94a3b8 38%,#334155 72%,#e2e8f0)",ring:"#e2e8f0",glow:"rgba(148,163,184,.38)",bearing:"radial-gradient(circle,#f8fafc 0 18%,#64748b 20% 34%,#0f172a 36% 54%,#cbd5e1 56% 74%,#475569 76%)"}
+        : spinnerSkin==="galaxy"
+          ? {body:"radial-gradient(circle at 28% 20%,#f0abfc,#7c3aed 27%,#312e81 55%,#020617 86%)",ring:"#c4b5fd",glow:"rgba(168,85,247,.58)",bearing:"radial-gradient(circle,#f5d0fe 0 17%,#8b5cf6 20% 34%,#111827 36% 54%,#22d3ee 56% 73%,#312e81 76%)"}
+          : {body:"linear-gradient(145deg,#22d3ee,#2563eb 38%,#7c3aed 68%,#ec4899)",ring:"#67e8f9",glow:"rgba(34,211,238,.6)",bearing:"radial-gradient(circle,#ecfeff 0 17%,#22d3ee 20% 34%,#082f49 36% 54%,#a855f7 56% 73%,#111827 76%)"};
+      return <div className="w-full max-w-[700px] flex flex-col items-center">
+        <div className="flex gap-2 mb-5 bg-white/10 rounded-2xl p-1.5 border border-white/10">
+          {(["neon","metal","galaxy"] as const).map(mode=><button key={mode} onClick={()=>setSpinnerSkin(mode)} className={"min-h-10 rounded-xl px-4 font-black text-sm capitalize "+(spinnerSkin===mode?"bg-white text-slate-950":"text-white/75")}>{mode}</button>)}
+        </div>
+        <div
+          ref={spinnerRef}
+          role="button"
+          tabIndex={0}
+          aria-label="Fidget spinner. Drag or flick to spin."
+          onPointerDown={beginSpin}
+          onPointerMove={moveSpin}
+          onPointerUp={endSpin}
+          onPointerCancel={endSpin}
+          className="relative w-[min(76vw,520px)] aspect-square touch-none select-none cursor-grab active:cursor-grabbing grid place-items-center"
+        >
+          {spinSpeed>18&&<div className="absolute inset-[8%] rounded-full border-[10px] border-cyan-300/15 blur-sm" style={{boxShadow:"0 0 "+Math.round(25+spinSpeed*.7)+"px "+skin.glow}}/>}
+          <div className="absolute inset-[8%]" style={{transform:"rotate("+spinAngle+"deg)",willChange:"transform"}}>
+            {[0,120,240].map((deg,i)=><div key={deg} className="absolute left-1/2 top-1/2 w-[44%] h-[25%] origin-left" style={{transform:"rotate("+deg+"deg) translateX(3%)"}}>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-[62%] rounded-full" style={{background:skin.body,boxShadow:"0 0 26px "+skin.glow+", inset 0 5px 11px rgba(255,255,255,.35), inset 0 -8px 13px rgba(0,0,0,.28)"}}/>
+              <div className="absolute right-[1%] top-1/2 -translate-y-1/2 w-[42%] aspect-square rounded-full border-[8px] sm:border-[11px]" style={{background:skin.body,borderColor:skin.ring,boxShadow:"0 0 30px "+skin.glow+", inset 0 7px 12px rgba(255,255,255,.3)"}}>
+                <div className="absolute inset-[23%] rounded-full bg-slate-950 shadow-inner"/>
+              </div>
+            </div>)}
+            <div className="absolute left-1/2 top-1/2 w-[29%] aspect-square -translate-x-1/2 -translate-y-1/2 rounded-full border-[8px] sm:border-[12px]" style={{background:skin.bearing,borderColor:skin.ring,boxShadow:"0 0 30px "+skin.glow+",0 10px 25px rgba(0,0,0,.38)"}}>
+              <div className="absolute inset-[31%] rounded-full bg-white/80 shadow-[inset_0_-5px_8px_rgba(0,0,0,.3)]"/>
+            </div>
+          </div>
+          <div className="absolute inset-0 rounded-full pointer-events-none" style={{background:spinSpeed>45?"conic-gradient(from 0deg,transparent,rgba(34,211,238,.12),transparent,rgba(236,72,153,.1),transparent)":"transparent"}}/>
+        </div>
+        <div className="w-full max-w-lg mt-3">
+          <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-gradient-to-r from-cyan-400 via-violet-400 to-pink-400 transition-[width] duration-75" style={{width:Math.round(spinSpeed)+"%"}}/></div>
+          <div className="mt-3 flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex-1 text-center sm:text-left"><p className="font-black text-lg">Flick the spinner with your finger</p><p className="text-sm font-bold text-white/60">It keeps its momentum and slows down naturally.</p></div>
+            <button onClick={superSpin} className="min-h-12 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 px-5 font-black shadow-lg">⚡ SUPER SPIN</button>
+          </div>
+        </div>
+      </div>;
+    }
 
     if(selected==="slime")return <button onPointerMove={e=>{if(e.buttons){setSquish(v=>(v+5)%100);}}} onClick={()=>{setSquish(v=>(v+23)%100);feedback(180,.12,"sine");}} className="relative w-[min(76vw,560px)] h-[min(58vh,470px)] grid place-items-center">
       <div className="absolute w-[72%] h-[68%] bg-gradient-to-br from-fuchsia-400 via-violet-500 to-cyan-400 shadow-[0_30px_90px_rgba(109,40,217,.48),inset_0_10px_35px_rgba(255,255,255,.35)] transition-all duration-300" style={{borderRadius:(35+(squish%35))+"% "+(65-(squish%25))+"% "+(45+(squish%30))+"% "+(55-(squish%20))+"%",transform:"scale("+(1+(squish%9)/55)+","+(1-(squish%7)/70)+") rotate("+((squish%17)-8)+"deg)"}}/>
