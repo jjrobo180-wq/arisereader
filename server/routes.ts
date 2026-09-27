@@ -5616,13 +5616,17 @@ Important:
       if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
       if (!validTalkerGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to edit Talker words.' });
       const submitted = req.body || {};
+      const { data: existingTalker } = await getAdminSupabase().from('eye_gaze_talker_state')
+        .select('config').eq('student_id', child.id).maybeSingle();
+      const submittedOverrides = submitted.overrides ?? existingTalker?.config?.overrides ?? {};
+      const submittedRecordings = submitted.recordings ?? existingTalker?.config?.recordings ?? {};
       if (!Array.isArray(submitted.alwaysHere) || submitted.alwaysHere.length > 24
         || !submitted.pictures || typeof submitted.pictures !== 'object' || Array.isArray(submitted.pictures)
         || Object.keys(submitted.pictures).length > 50
-        || !submitted.overrides || typeof submitted.overrides !== 'object' || Array.isArray(submitted.overrides)
-        || Object.keys(submitted.overrides).length > 120
-        || !submitted.recordings || typeof submitted.recordings !== 'object' || Array.isArray(submitted.recordings)
-        || Object.keys(submitted.recordings).length > 120) {
+        || !submittedOverrides || typeof submittedOverrides !== 'object' || Array.isArray(submittedOverrides)
+        || Object.keys(submittedOverrides).length > 120
+        || !submittedRecordings || typeof submittedRecordings !== 'object' || Array.isArray(submittedRecordings)
+        || Object.keys(submittedRecordings).length > 120) {
         return res.status(400).json({ message: 'Please keep Talker customization within the supported limits.' });
       }
       const ids = new Set<string>();
@@ -5647,7 +5651,7 @@ Important:
         pictures[key] = value as string;
       }
       const overrides: Record<string, { label?: string; sentence?: string; picture?: string }> = {};
-      for (const [key, raw] of Object.entries(submitted.overrides)) {
+      for (const [key, raw] of Object.entries(submittedOverrides)) {
         if (!/^[a-z0-9 _-]{1,60}$/.test(key) || !raw || typeof raw !== 'object') return res.status(400).json({ message: 'One word edit could not be saved.' });
         const value: any = raw;
         const label = String(value.label || '').trim().slice(0, 40);
@@ -5657,7 +5661,7 @@ Important:
       }
 
       const recordings: Record<string, { word?: string; sentence?: string }> = {};
-      for (const [key, raw] of Object.entries(submitted.recordings)) {
+      for (const [key, raw] of Object.entries(submittedRecordings)) {
         if (!/^[a-z0-9 _-]{1,60}$/.test(key) || !raw || typeof raw !== 'object') return res.status(400).json({ message: 'One voice recording could not be saved.' });
         const value: any = raw;
         const wordAudio = value.word && validTalkerAudio(value.word) ? String(value.word) : '';
