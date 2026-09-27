@@ -38,21 +38,21 @@ const THEMES: Theme[] = [
 
 const m=(prompt:string,target:Thing,distractors:Thing[],theme:Theme,goal=9):Mission=>({prompt,target,distractors,theme,goal});
 const MISSIONS: Mission[] = [
-  m("Slice all the apples",{label:"apple",emoji:"🍎"},[{label:"banana",emoji:"🍌"},{label:"orange",emoji:"🍊"},{label:"grapes",emoji:"🍇"},{label:"pear",emoji:"🍐"}],THEMES[0]),
-  m("Slice all the cats",{label:"cat",emoji:"🐱"},[{label:"dog",emoji:"🐶"},{label:"rabbit",emoji:"🐰"},{label:"frog",emoji:"🐸"},{label:"bear",emoji:"🐻"}],THEMES[1]),
-  m("Slice all the stars",{label:"star",emoji:"⭐"},[{label:"moon",emoji:"🌙"},{label:"planet",emoji:"🪐"},{label:"rocket",emoji:"🚀"},{label:"comet",emoji:"☄️"}],THEMES[2]),
-  m("Slice all the dogs",{label:"dog",emoji:"🐶"},[{label:"cat",emoji:"🐱"},{label:"cow",emoji:"🐮"},{label:"pig",emoji:"🐷"},{label:"fox",emoji:"🦊"}],THEMES[3]),
-  m("Slice all the books",{label:"book",emoji:"📘"},[{label:"pencil",emoji:"✏️"},{label:"backpack",emoji:"🎒"},{label:"scissors",emoji:"✂️"},{label:"ruler",emoji:"📏"}],THEMES[4]),
-  m("Slice all the fish",{label:"fish",emoji:"🐟"},[{label:"crab",emoji:"🦀"},{label:"turtle",emoji:"🐢"},{label:"octopus",emoji:"🐙"},{label:"shell",emoji:"🐚"}],THEMES[5]),
-  m("Slice all the carrots",{label:"carrot",emoji:"🥕"},[{label:"corn",emoji:"🌽"},{label:"tomato",emoji:"🍅"},{label:"potato",emoji:"🥔"},{label:"pepper",emoji:"🫑"}],THEMES[6]),
-  m("Slice all the lollipops",{label:"lollipop",emoji:"🍭"},[{label:"candy",emoji:"🍬"},{label:"cupcake",emoji:"🧁"},{label:"donut",emoji:"🍩"},{label:"cake",emoji:"🎂"}],THEMES[7]),
-  m("Slice all the soccer balls",{label:"soccer ball",emoji:"⚽"},[{label:"basketball",emoji:"🏀"},{label:"football",emoji:"🏈"},{label:"baseball",emoji:"⚾"},{label:"tennis ball",emoji:"🎾"}],THEMES[8]),
-  m("Slice all the monkeys",{label:"monkey",emoji:"🐒"},[{label:"tiger",emoji:"🐯"},{label:"snake",emoji:"🐍"},{label:"parrot",emoji:"🦜"},{label:"frog",emoji:"🐸"}],THEMES[9]),
-  m("Slice all the snowflakes",{label:"snowflake",emoji:"❄️"},[{label:"snowman",emoji:"⛄"},{label:"tree",emoji:"🌲"},{label:"mountain",emoji:"🏔️"},{label:"sled",emoji:"🛷"}],THEMES[10]),
-  m("Slice all the gems",{label:"gem",emoji:"💎"},[{label:"alien",emoji:"👾"},{label:"game",emoji:"🎮"},{label:"joystick",emoji:"🕹️"},{label:"star",emoji:"⭐"}],THEMES[11],10),
-  m("Slice all the pancakes",{label:"pancake",emoji:"🥞"},[{label:"egg",emoji:"🍳"},{label:"milk",emoji:"🥛"},{label:"bread",emoji:"🍞"},{label:"coffee",emoji:"☕"}],THEMES[12]),
-  m("Slice all the suns",{label:"sun",emoji:"☀️"},[{label:"cloud",emoji:"☁️"},{label:"rain",emoji:"🌧️"},{label:"rainbow",emoji:"🌈"},{label:"lightning",emoji:"⚡"}],THEMES[13]),
-  m("Slice all the crowns",{label:"crown",emoji:"👑"},[{label:"gem",emoji:"💎"},{label:"key",emoji:"🗝️"},{label:"castle",emoji:"🏰"},{label:"shield",emoji:"🛡️"}],THEMES[14],10),
+  m("Slice the apples!",{label:"apple",emoji:"🍎"},[{label:"banana",emoji:"🍌"},{label:"orange",emoji:"🍊"},{label:"grapes",emoji:"🍇"},{label:"pear",emoji:"🍐"}],THEMES[0]),
+  m("Find the cats!",{label:"cat",emoji:"🐱"},[{label:"dog",emoji:"🐶"},{label:"rabbit",emoji:"🐰"},{label:"frog",emoji:"🐸"},{label:"bear",emoji:"🐻"}],THEMES[1]),
+  m("Swipe through the stars!",{label:"star",emoji:"⭐"},[{label:"moon",emoji:"🌙"},{label:"planet",emoji:"🪐"},{label:"rocket",emoji:"🚀"},{label:"comet",emoji:"☄️"}],THEMES[2]),
+  m("Catch the dogs with your swipe!",{label:"dog",emoji:"🐶"},[{label:"cat",emoji:"🐱"},{label:"cow",emoji:"🐮"},{label:"pig",emoji:"🐷"},{label:"fox",emoji:"🦊"}],THEMES[3]),
+  m("Spot the books!",{label:"book",emoji:"📘"},[{label:"pencil",emoji:"✏️"},{label:"backpack",emoji:"🎒"},{label:"scissors",emoji:"✂️"},{label:"ruler",emoji:"📏"}],THEMES[4]),
+  m("Get the fish!",{label:"fish",emoji:"🐟"},[{label:"crab",emoji:"🦀"},{label:"turtle",emoji:"🐢"},{label:"octopus",emoji:"🐙"},{label:"shell",emoji:"🐚"}],THEMES[5]),
+  m("Chop the carrots!",{label:"carrot",emoji:"🥕"},[{label:"corn",emoji:"🌽"},{label:"tomato",emoji:"🍅"},{label:"potato",emoji:"🥔"},{label:"pepper",emoji:"🫑"}],THEMES[6]),
+  m("Pop the lollipops!",{label:"lollipop",emoji:"🍭"},[{label:"candy",emoji:"🍬"},{label:"cupcake",emoji:"🧁"},{label:"donut",emoji:"🍩"},{label:"cake",emoji:"🎂"}],THEMES[7]),
+  m("Hit the soccer balls!",{label:"soccer ball",emoji:"⚽"},[{label:"basketball",emoji:"🏀"},{label:"football",emoji:"🏈"},{label:"baseball",emoji:"⚾"},{label:"tennis ball",emoji:"🎾"}],THEMES[8]),
+  m("Find the monkeys!",{label:"monkey",emoji:"🐒"},[{label:"tiger",emoji:"🐯"},{label:"snake",emoji:"🐍"},{label:"parrot",emoji:"🦜"},{label:"frog",emoji:"🐸"}],THEMES[9]),
+  m("Touch the snowflakes!",{label:"snowflake",emoji:"❄️"},[{label:"snowman",emoji:"⛄"},{label:"tree",emoji:"🌲"},{label:"mountain",emoji:"🏔️"},{label:"sled",emoji:"🛷"}],THEMES[10]),
+  m("Collect the gems!",{label:"gem",emoji:"💎"},[{label:"alien",emoji:"👾"},{label:"game",emoji:"🎮"},{label:"joystick",emoji:"🕹️"},{label:"star",emoji:"⭐"}],THEMES[11],10),
+  m("Grab the pancakes!",{label:"pancake",emoji:"🥞"},[{label:"egg",emoji:"🍳"},{label:"milk",emoji:"🥛"},{label:"bread",emoji:"🍞"},{label:"coffee",emoji:"☕"}],THEMES[12]),
+  m("Tap the suns!",{label:"sun",emoji:"☀️"},[{label:"cloud",emoji:"☁️"},{label:"rain",emoji:"🌧️"},{label:"rainbow",emoji:"🌈"},{label:"lightning",emoji:"⚡"}],THEMES[13]),
+  m("Collect the crowns!",{label:"crown",emoji:"👑"},[{label:"gem",emoji:"💎"},{label:"key",emoji:"🗝️"},{label:"castle",emoji:"🏰"},{label:"shield",emoji:"🛡️"}],THEMES[14],10),
 ];
 
 const SPEED={
@@ -163,7 +163,7 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
       const line=cheer(item.label);setMessage(line);say(line);
       if(next>=mission.goal){missionCompleteRef.current=true;setMissionComplete(true);updateThings([]);sfx("complete");setMessage("Level complete!");say("Level complete! You got all the "+mission.target.label+"s. Great job!");}
     }else{
-      const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);heartsRef.current=next;setHearts(next);sfx("wrong");setMessage("That is a "+item.label+". Slice only "+mission.target.label+"!");say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
+      const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);heartsRef.current=next;setHearts(next);sfx("wrong");setMessage("That is a "+item.label+". Keep looking for "+mission.target.label+"!");say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
       if(difficulty!=="easy"&&next<=0){gameOverRef.current=true;setGameOver(true);setStarted(false);updateThings([]);say("Nice try. Let's try that level again.");}
     }
   },[difficulty,mission,say,sfx,updateThings,burst]);
@@ -307,7 +307,15 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-950/85 border border-white/20 px-4 py-2 font-black text-sm sm:text-base whitespace-nowrap shadow-xl">{mission.target.emoji} {mission.prompt}</div>
 
         {difficulty==="easy"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-pink-100/95 text-fuchsia-900 border-2 border-white px-4 py-2 text-xs sm:text-sm font-black shadow-lg">🧸 EASY MODE · bigger target hit area · no lost hearts</div>}
-                {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You sliced all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play Level 1 again":"Next arena →"}</button></div></div>}
+                {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You completed the challenge and found all the {mission.target.label}s!</p><button
+  type="button"
+  onClick={nextMission}
+  className="mt-6 w-full min-h-[88px] sm:min-h-[76px] rounded-[1.75rem] bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white text-xl sm:text-2xl font-black shadow-xl ring-4 ring-fuchsia-200/70 touch-manipulation active:scale-[0.98] transition-transform px-5"
+>
+  {missionIndex===MISSIONS.length-1
+    ? "↻ Play Level 1 Again"
+    : <>NEXT LEVEL →<span className="block text-sm sm:text-base font-bold text-white/80 mt-1">Level {missionIndex+2}: {MISSIONS[(missionIndex+1)%MISSIONS.length].theme.name}</span></>}
+</button></div></div>}
       </div>
 
       <div className="hidden sm:block mt-3 rounded-xl bg-slate-900 p-3 text-center text-sm font-black text-white/70 flex-shrink-0">Swipe through only {mission.target.emoji} {mission.target.label}s. Wrong objects cost a heart.</div>
