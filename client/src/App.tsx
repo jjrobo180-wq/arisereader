@@ -52,7 +52,7 @@ import EyeGazeHome from "./pages/EyeGazeHome";
 import EyeGazeLessons from "./pages/EyeGazeLessons";
 import EyeGazeProgress from "./pages/EyeGazeProgress";
 import EyeGazeAccount from "./pages/EyeGazeAccount";
-import ARISECity from "./pages/ARISECity";
+import ARISECityComingLater from "./pages/ARISECityComingLater";
 import ReadingLevelUp from "./pages/ReadingLevelUp";
 import EyeGazeBuddyWorld from "./pages/EyeGazeBuddyWorld";
 import EyeGazeMyWorld from "./pages/EyeGazeMyWorld";
@@ -285,7 +285,7 @@ function AppRoutes() {
         <ProtectedRoute><EyeGazeAccount /></ProtectedRoute>
       </Route>
       <Route path="/arise-city">
-        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><ARISECity /></EyeGazeAccessGate></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><ARISECityComingLater /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/reading-level-up">
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><ReadingLevelUp /></EyeGazeAccessGate></ProtectedRoute>
