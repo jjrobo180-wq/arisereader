@@ -549,30 +549,7 @@ export default function EyeGazeGames() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate("/my-world")}
-          className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-emerald-300/60 bg-gradient-to-br from-sky-400 via-cyan-400 to-emerald-400 p-6 sm:p-8 text-left text-slate-950 shadow-2xl hover:-translate-y-1 transition-all mb-5 min-h-[270px]"
-        >
-          <div className="absolute right-3 bottom-[-16px] text-[145px] sm:text-[180px] opacity-30">🏠</div>
-          <div className="absolute right-7 top-6 flex gap-2 text-4xl">
-            <span>🥛</span><span>🦁</span><span>⚽</span>
-          </div>
-          <div className="relative max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/45 border border-white/50 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
-              <Sparkles className="w-4 h-4" /> EARLY LEARNER · WORDS + PHRASES
-            </div>
-            <h2 className="text-3xl sm:text-5xl font-black leading-none">My World</h2>
-            <p className="mt-4 text-slate-900/80 text-base sm:text-lg font-bold max-w-xl">
-              Explore familiar places built from your own family photos and short videos. Find real objects, learn their words, and practice everyday routines through I‑Spy.
-            </p>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-slate-950 text-white px-5 py-3 font-black">
-              Explore My World →
-            </div>
-          </div>
-        </button>
-
-        <section className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-slate-300 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-6 sm:p-8 text-white shadow-lg mb-5 min-h-[220px]" aria-label="A.R.I.S.E. City coming later">
+        <section className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-slate-300 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-6 sm:p-8 text-white shadow-lg mb-5 min-h-[160px]" aria-label="A.R.I.S.E. City coming later">
           <div className="absolute right-4 bottom-[-22px] text-[120px] sm:text-[150px] opacity-20">🏙️</div>
           <div className="relative max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-300 text-slate-950 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">COMING LATER</div>
