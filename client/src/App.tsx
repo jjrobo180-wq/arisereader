@@ -58,6 +58,9 @@ import EyeGazeBuddy from "./pages/EyeGazeBuddy";
 import EyeGazeTalker from "./pages/EyeGazeTalker";
 import EyeGazeParentMode from "./pages/EyeGazeParentMode";
 import EyeGazeTV from "./pages/EyeGazeTV";
+import EyeGazeFlashcards from "./pages/EyeGazeFlashcards";
+import EyeGazeParentControls from "./pages/EyeGazeParentControls";
+import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
 import QuizBuilder from "./pages/QuizBuilder";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
@@ -166,7 +169,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   if (!user) return <Redirect to="/" />;
   // A linked parent can also open their child's talker and family tools.
-  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-talker', '/my-world'].includes(location)) {
+  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world'].includes(location)) {
     return <Redirect to="/parent-dashboard" />;
   }
   return <>{children}</>;
@@ -218,7 +221,7 @@ function AppRoutes() {
       </Route>
       <Route path="/leaderboard">
         {user?.is_eye_gaze_user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
-          ? <ProtectedRoute><EyeGazeProgress /></ProtectedRoute>
+          ? <ProtectedRoute><EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate></ProtectedRoute>
           : user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
             ? <ProtectedRoute><StudentProgress /></ProtectedRoute>
             : <LeaderboardPage />}
@@ -239,7 +242,7 @@ function AppRoutes() {
         {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-home" /> : <ProtectedRoute><Polls /></ProtectedRoute>}
       </Route>
       <Route path="/library">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeLessons /> : <Library />}</ProtectedRoute>
+        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><EyeGazeLessons /></EyeGazeAccessGate> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/course/:id">
         <ProtectedRoute><CoursePage /></ProtectedRoute>
@@ -265,34 +268,40 @@ function AppRoutes() {
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-buddy">
-        <ProtectedRoute><EyeGazeBuddy /></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-buddy"><EyeGazeBuddy /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-games">
-        <ProtectedRoute><EyeGazeGames /></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><EyeGazeGames /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-tv">
-        <ProtectedRoute><EyeGazeTV /></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-tv"><EyeGazeTV /></EyeGazeAccessGate></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-flashcards">
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-flashcards"><EyeGazeFlashcards /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-account">
         <ProtectedRoute><EyeGazeAccount /></ProtectedRoute>
       </Route>
       <Route path="/arise-city">
-        <ProtectedRoute><ARISECity /></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><ARISECity /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/reading-level-up">
-        <ProtectedRoute><ReadingLevelUp /></ProtectedRoute>
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><ReadingLevelUp /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/buddy-world">
         <Redirect to="/my-world" />
       </Route>
       <Route path="/my-world">
-        {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeMyWorld /></ProtectedRoute> : <Redirect to="/" />}
+        {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/my-world"><EyeGazeMyWorld /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" />}
       </Route>
       <Route path="/eye-gaze-talker">
-        {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeTalker /></ProtectedRoute> : <Redirect to="/" />}
+        {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-talker"><EyeGazeTalker /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" />}
       </Route>
       <Route path="/eye-gaze-parent">
         {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeParentMode /></ProtectedRoute> : <Redirect to="/" />}
+      </Route>
+      <Route path="/eye-gaze-parent-controls">
+        {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazeParentControls /></ProtectedRoute> : <Redirect to="/" />}
       </Route>
       <Route path="/eye-gaze-quiz/:id">
         <ProtectedRoute><EyeGazeQuiz /></ProtectedRoute>
