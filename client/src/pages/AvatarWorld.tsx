@@ -146,51 +146,85 @@ export default function AvatarWorld(){
       {message&&<div className="mt-3 rounded-2xl bg-white/10 border border-white/15 p-3 text-center font-black flex items-center justify-center gap-2">{message}<button onClick={()=>setMessage("")}><X className="w-4 h-4"/></button></div>}
     </section>
 
-    {tab==="character"&&<section className="max-w-7xl mx-auto p-3 sm:p-5 grid xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)] gap-5">
-      <div className="rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl h-[620px] sm:h-[760px] sticky top-[92px]">
-        <ARISEAvatar3D look={payload.state.look} equipped={payload.state.equipped} className="w-full h-full"/>
-        <div className="pointer-events-none absolute"/>
-      </div>
-
-      <div className="space-y-4">
-        <section className="rounded-[2rem] bg-white/5 border border-white/10 p-5">
-          <h3 className="text-xl font-black">Face & body</h3>
-
-          <p className="text-xs font-black text-white/45 mt-4">SKIN TONE</p>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {["#f4c7a1","#e7b184","#d89a73","#b97750","#9b6244","#74432e","#5b3326","#4c2a20","#2e1a16"].map(v=><button key={v} onClick={()=>pickLook("skin",v)} className={"w-11 h-11 rounded-full border-4 "+(payload.state.look.skin===v?"border-cyan-300 scale-110":"border-white/15")} style={{background:v}} aria-label="Skin tone"/>)}
+    {tab==="character"&&<section className="max-w-7xl mx-auto p-3 sm:p-5">
+      <div className="grid lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,.92fr)] gap-5 items-start">
+        <div className="rounded-[2rem] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
+          <div className="px-5 pt-5 pb-3 border-b border-white/10">
+            <p className="text-xs font-black tracking-widest text-cyan-300">CHARACTER STUDIO</p>
+            <h2 className="text-2xl font-black mt-1">Build your player</h2>
+            <p className="text-sm text-white/55 font-bold mt-1">Use FACE to inspect details closely, or FULL BODY to check the complete look. The viewer stays contained on this card.</p>
           </div>
+          <div className="h-[460px] sm:h-[540px] lg:h-[590px]">
+            <ARISEAvatar3D look={payload.state.look} equipped={payload.state.equipped} className="w-full h-full" initialView="face"/>
+          </div>
+        </div>
 
-          <p className="text-xs font-black text-white/45 mt-5">FACE SHAPE</p>
-          <div className="grid grid-cols-4 gap-2 mt-2">{["oval","round","square","long"].map(v=><button key={v} onClick={()=>pickLook("face",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.face===v?"bg-cyan-300 text-slate-950":"bg-white/10")}>{v}</button>)}</div>
+        <div className="space-y-4">
+          <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-cyan-300 text-slate-950 grid place-items-center font-black">1</div>
+              <div><h3 className="text-xl font-black">Face</h3><p className="text-xs font-bold text-white/45">Skin, structure, brows and eyes</p></div>
+            </div>
 
-          <p className="text-xs font-black text-white/45 mt-5">BUILD</p>
-          <div className="grid grid-cols-3 gap-2 mt-2">{["slim","athletic","broad"].map(v=><button key={v} onClick={()=>pickLook("build",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.build===v?"bg-cyan-300 text-slate-950":"bg-white/10")}>{v}</button>)}</div>
+            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">SKIN TONE</p>
+            <div className="grid grid-cols-9 gap-2 mt-2">
+              {["#f4c7a1","#e7b184","#d89a73","#b97750","#9b6244","#74432e","#5b3326","#4c2a20","#2e1a16"].map(v=><button key={v} onClick={()=>pickLook("skin",v)} className={"aspect-square rounded-full border-[3px] transition-transform "+(payload.state.look.skin===v?"border-cyan-300 scale-110":"border-white/15 hover:scale-105")} style={{background:v}} aria-label="Skin tone"/>)}
+            </div>
 
-          <p className="text-xs font-black text-white/45 mt-5">BROWS</p>
-          <div className="grid grid-cols-3 gap-2 mt-2">{["natural","straight","bold"].map(v=><button key={v} onClick={()=>pickLook("brows",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.brows===v?"bg-cyan-300 text-slate-950":"bg-white/10")}>{v}</button>)}</div>
-        </section>
+            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">FACE SHAPE</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">{["oval","round","square","long"].map(v=><button key={v} onClick={()=>pickLook("face",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.face===v?"bg-cyan-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
 
-        <section className="rounded-[2rem] bg-white/5 border border-white/10 p-5">
-          <h3 className="text-xl font-black">Hair & eyes</h3>
-          <p className="text-xs font-black text-white/45 mt-4">HAIR STYLE</p>
-          <div className="grid grid-cols-4 gap-2 mt-2">{["fade","curls","locs","waves","afro","braids","short","buzz"].map(v=><button key={v} onClick={()=>pickLook("hair",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.hair===v?"bg-violet-300 text-slate-950":"bg-white/10")}>{v}</button>)}</div>
+            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">BROWS</p>
+            <div className="grid grid-cols-3 gap-2 mt-2">{["natural","straight","bold"].map(v=><button key={v} onClick={()=>pickLook("brows",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.brows===v?"bg-cyan-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
 
-          <p className="text-xs font-black text-white/45 mt-5">HAIR COLOR</p>
-          <div className="flex flex-wrap gap-2 mt-2">{["#111111","#171717","#2a1b13","#3b2417","#6b3d24","#8f6545","#b5814e"].map(v=><button key={v} onClick={()=>pickLook("hairColor",v)} className={"w-10 h-10 rounded-full border-4 "+(payload.state.look.hairColor===v?"border-violet-300 scale-110":"border-white/15")} style={{background:v}}/>)}</div>
+            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">EYE COLOR</p>
+            <div className="flex flex-wrap gap-2 mt-2">{["#2b1a12","#3f2a1d","#5b3b24","#305b66","#475569","#355b39"].map(v=><button key={v} onClick={()=>pickLook("eyeColor",v)} className={"w-10 h-10 rounded-full border-[3px] transition-transform "+(payload.state.look.eyeColor===v?"border-cyan-300 scale-110":"border-white/15")} style={{background:v}} aria-label="Eye color"/>)}</div>
+          </section>
 
-          <p className="text-xs font-black text-white/45 mt-5">EYE COLOR</p>
-          <div className="flex flex-wrap gap-2 mt-2">{["#2b1a12","#3f2a1d","#5b3b24","#305b66","#475569","#355b39"].map(v=><button key={v} onClick={()=>pickLook("eyeColor",v)} className={"w-10 h-10 rounded-full border-4 "+(payload.state.look.eyeColor===v?"border-cyan-300 scale-110":"border-white/15")} style={{background:v}}/>)}</div>
-        </section>
+          <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-violet-300 text-slate-950 grid place-items-center font-black">2</div>
+              <div><h3 className="text-xl font-black">Hair & build</h3><p className="text-xs font-bold text-white/45">Change the silhouette and style</p></div>
+            </div>
 
-        {["top","bottom","shoes","hat","glasses","accessory"].map(slot=>{
-          const ownedItems=allItems.filter(x=>x.type===slot&&owned(x.id));
-          if(["hat","glasses","accessory"].includes(slot))ownedItems.unshift({id:"",type:slot,name:"None",price:0,rarity:"starter"});
-          return <section key={slot} className="rounded-[2rem] bg-white/5 border border-white/10 p-5">
-            <div className="flex items-center justify-between gap-3"><h3 className="text-xl font-black capitalize">{slot}</h3><button onClick={()=>{setTab("shop");setShopFilter(slot);}} className="rounded-xl bg-amber-400 text-slate-950 px-3 py-2 text-xs font-black">UNLOCK MORE</button></div>
-            <div className="grid sm:grid-cols-2 gap-2 mt-3">{ownedItems.map(product=><button key={product.id||"none"} onClick={()=>equip(slot,product.id)} className={"min-h-14 rounded-2xl border p-3 text-left "+(payload.state.equipped[slot]===product.id?"bg-cyan-300 text-slate-950 border-cyan-200":"bg-white/5 border-white/10")}><strong className="block">{product.name}</strong><span className="text-[10px] font-black uppercase opacity-55">{product.rarity}</span></button>)}</div>
-          </section>;
-        })}
+            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">HAIR STYLE</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">{["fade","curls","locs","waves","afro","braids","short","buzz"].map(v=><button key={v} onClick={()=>pickLook("hair",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.hair===v?"bg-violet-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
+
+            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">HAIR COLOR</p>
+            <div className="flex flex-wrap gap-2 mt-2">{["#111111","#171717","#2a1b13","#3b2417","#6b3d24","#8f6545","#b5814e"].map(v=><button key={v} onClick={()=>pickLook("hairColor",v)} className={"w-10 h-10 rounded-full border-[3px] "+(payload.state.look.hairColor===v?"border-violet-300 scale-110":"border-white/15")} style={{background:v}} aria-label="Hair color"/>)}</div>
+
+            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">BODY BUILD</p>
+            <div className="grid grid-cols-3 gap-2 mt-2">{["slim","athletic","broad"].map(v=><button key={v} onClick={()=>pickLook("build",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.build===v?"bg-violet-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
+          </section>
+
+          <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-2xl bg-amber-300 text-slate-950 grid place-items-center font-black">3</div>
+              <div><h3 className="text-xl font-black">Style</h3><p className="text-xs font-bold text-white/45">Equip the things you own</p></div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {["top","bottom","shoes","hat","glasses","accessory"].map(slot=>{
+                const equippedItem=getItem(payload.state.equipped[slot]);
+                const count=allItems.filter(x=>x.type===slot&&owned(x.id)).length;
+                return <button key={slot} onClick={()=>{setTab("shop");setShopFilter(slot);}} className="rounded-2xl bg-white/5 border border-white/10 p-4 text-left hover:bg-white/10 transition-colors">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40">{slot}</p>
+                  <p className="font-black mt-1">{equippedItem?.name||"None"}</p>
+                  <p className="text-xs font-bold text-amber-300 mt-2">{count} owned · Open shop →</p>
+                </button>;
+              })}
+            </div>
+
+            <div className="mt-4 grid sm:grid-cols-2 gap-3">
+              {["hat","glasses","accessory"].map(slot=>{
+                const ownedItems=[{id:"",type:slot,name:"None",price:0,rarity:"starter"},...allItems.filter(x=>x.type===slot&&owned(x.id))];
+                return <div key={slot} className="rounded-2xl bg-black/15 border border-white/10 p-3">
+                  <p className="text-[10px] font-black uppercase text-white/40 mb-2">{slot}</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">{ownedItems.map(product=><button key={product.id||"none"} onClick={()=>equip(slot,product.id)} className={"min-w-max rounded-xl px-3 py-2 text-xs font-black "+(payload.state.equipped[slot]===product.id?"bg-cyan-300 text-slate-950":"bg-white/10")}>{product.name}</button>)}</div>
+                </div>;
+              })}
+            </div>
+          </section>
+        </div>
       </div>
     </section>}
 
