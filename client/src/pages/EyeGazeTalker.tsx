@@ -669,9 +669,9 @@ export default function EyeGazeTalker() {
       <style>{`.talker-page button:focus-visible { outline: 4px solid #255bd5; outline-offset: 3px; } .talker-page button.talker-dwelling { outline: 4px solid #255bd5; outline-offset: 3px; overflow: hidden; } .talker-page button.talker-dwelling::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: #2676e236; transform-origin: left; animation: talker-fill var(--talker-wait) linear forwards; } @keyframes talker-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }`}</style>
       <div className="max-w-[1100px] mx-auto pt-4">
         <div className="rounded-3xl bg-white border-2 border-teal-100 p-2 sm:p-3 flex flex-wrap items-center gap-2 mb-4">
-          <button type="button" onClick={() => navigate("/eye-gaze-home")} className="min-h-12 rounded-2xl bg-slate-100 px-4 font-black">⌂ Home</button>
+          <button type="button" onClick={() => { stopSpeaking(); setView("talk"); }} className="min-h-16 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] px-5 text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
           <div className="flex-1 grid grid-cols-3 gap-2 min-w-[260px]" role="tablist" aria-label="Learning Zone">
-            <button type="button" role="tab" aria-selected="false" onClick={() => { stopSpeaking(); setView("talk"); }} className="min-h-12 rounded-2xl bg-slate-100 font-black">🗣️ Talk</button>
+            <button type="button" role="tab" aria-selected="false" onClick={() => { stopSpeaking(); setView("talk"); }} className="min-h-12 rounded-2xl bg-slate-100 font-black">🗣️ Talker</button>
             <button type="button" role="tab" aria-selected="true" className="min-h-12 rounded-2xl bg-teal-700 text-white font-black">📚 Learn</button>
             <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-parent")} className="min-h-12 rounded-2xl bg-amber-100 font-black">👨‍👩‍👧 Grown-up</button>
           </div>
@@ -693,12 +693,12 @@ export default function EyeGazeTalker() {
       <div className="max-w-[1450px] mx-auto">
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
-            <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-home")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">⌂ Home</button>
-            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">Learning Zone</h1></div></div>
+            <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-home")} className="relative min-h-16 px-5 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
+            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">Learning Zone — Talker</h1></div></div>
             <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">Profile</button>
           </div>
           <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="Learning Zone">
-            <button type="button" role="tab" aria-selected="true" className="min-h-14 rounded-2xl bg-teal-700 text-white font-black">🗣️ Talk</button>
+            <button type="button" role="tab" aria-selected="true" className="min-h-14 rounded-2xl bg-teal-700 text-white font-black">🗣️ Talker</button>
             <button type="button" role="tab" aria-selected="false" onClick={() => setView("learn")} className="min-h-14 rounded-2xl bg-slate-100 font-black">📚 Learn</button>
             <button type="button" role="tab" aria-selected="false" onClick={() => navigate("/eye-gaze-parent")} className="min-h-14 rounded-2xl bg-amber-100 font-black">👨‍👩‍👧 Grown-up</button>
           </div>
