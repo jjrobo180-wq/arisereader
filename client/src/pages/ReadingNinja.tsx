@@ -21,15 +21,15 @@ type Burst = { id:number; x:number; y:number; emoji:string; good:boolean };
 const THEMES: Theme[] = [
   {name:"Fruit Dojo",badge:"🍎",background:"radial-gradient(circle at 50% 15%,#ffb26b,#b44b4b 48%,#421d32)",glow:"#ffd06a",decor:["🍃","🥭","🌿","🍊"]},
   {name:"Animal Garden",badge:"🐱",background:"radial-gradient(circle at 50% 10%,#80e3b1,#388f68 48%,#153f3c)",glow:"#84ffd6",decor:["🌼","🌿","🦋","🌳"]},
-  {name:"Galaxy Slice",badge:"⭐",background:"radial-gradient(circle at 50% 20%,#6745c7,#1b1b50 55%,#080b20)",glow:"#b99bff",decor:["🪐","🌙","✨","☄️"]},
+  {name:"Galaxy Hunt",badge:"⭐",background:"radial-gradient(circle at 50% 20%,#6745c7,#1b1b50 55%,#080b20)",glow:"#b99bff",decor:["🪐","🌙","✨","☄️"]},
   {name:"Pet Park",badge:"🐶",background:"radial-gradient(circle at 50% 20%,#80d7ff,#43a16d 58%,#24593c)",glow:"#8cf3ff",decor:["🛝","🌳","🦴","🌼"]},
   {name:"School Lab",badge:"📘",background:"radial-gradient(circle at 50% 10%,#87c8ff,#4b79a8 55%,#263752)",glow:"#9bd4ff",decor:["✏️","🎒","📚","🏫"]},
   {name:"Ocean Splash",badge:"🐟",background:"radial-gradient(circle at 50% 5%,#56d8ff,#157aa9 48%,#073b65)",glow:"#66f1ff",decor:["🪸","🌊","🐚","🫧"]},
   {name:"Farm Chop",badge:"🥕",background:"radial-gradient(circle at 50% 10%,#ffe789,#84b85e 52%,#42643a)",glow:"#fff08a",decor:["🌻","🚜","🌾","🐮"]},
   {name:"Candy Storm",badge:"🍭",background:"radial-gradient(circle at 50% 10%,#ffb2ee,#a15fd2 50%,#472866)",glow:"#ffb8f1",decor:["🍬","🧁","🍩","✨"]},
   {name:"Sports Arena",badge:"⚽",background:"radial-gradient(circle at 50% 10%,#7fd8ff,#2d73a4 45%,#172e4a)",glow:"#a5e8ff",decor:["🏟️","🏆","🎉","🥇"]},
-  {name:"Jungle Slash",badge:"🐒",background:"radial-gradient(circle at 50% 10%,#8ce087,#357a46 50%,#173c2a)",glow:"#aaff8c",decor:["🌴","🦜","🌿","🍃"]},
-  {name:"Snow Slice",badge:"❄️",background:"radial-gradient(circle at 50% 10%,#e9fbff,#83b8d8 50%,#426482)",glow:"#d9fbff",decor:["⛄","🌲","🏔️","✨"]},
+  {name:"Jungle Search",badge:"🐒",background:"radial-gradient(circle at 50% 10%,#8ce087,#357a46 50%,#173c2a)",glow:"#aaff8c",decor:["🌴","🦜","🌿","🍃"]},
+  {name:"Snow Search",badge:"❄️",background:"radial-gradient(circle at 50% 10%,#e9fbff,#83b8d8 50%,#426482)",glow:"#d9fbff",decor:["⛄","🌲","🏔️","✨"]},
   {name:"Neon Arcade",badge:"💎",background:"radial-gradient(circle at 50% 10%,#6024b8,#27144e 54%,#090a19)",glow:"#00f6ff",decor:["👾","🕹️","🎮","⚡"]},
   {name:"Breakfast Rush",badge:"🥞",background:"radial-gradient(circle at 50% 10%,#ffd699,#c97555 55%,#5f3534)",glow:"#ffe0a6",decor:["☕","🍳","🥛","🍞"]},
   {name:"Weather Lab",badge:"☀️",background:"radial-gradient(circle at 50% 10%,#8fdcff,#4e78c5 55%,#273962)",glow:"#ffe970",decor:["🌈","☁️","🌧️","⚡"]},
@@ -38,7 +38,7 @@ const THEMES: Theme[] = [
 
 const m=(prompt:string,target:Thing,distractors:Thing[],theme:Theme,goal=9):Mission=>({prompt,target,distractors,theme,goal});
 const MISSIONS: Mission[] = [
-  m("Slice the apples!",{label:"apple",emoji:"🍎"},[{label:"banana",emoji:"🍌"},{label:"orange",emoji:"🍊"},{label:"grapes",emoji:"🍇"},{label:"pear",emoji:"🍐"}],THEMES[0]),
+  m("Find the apples!",{label:"apple",emoji:"🍎"},[{label:"banana",emoji:"🍌"},{label:"orange",emoji:"🍊"},{label:"grapes",emoji:"🍇"},{label:"pear",emoji:"🍐"}],THEMES[0]),
   m("Find the cats!",{label:"cat",emoji:"🐱"},[{label:"dog",emoji:"🐶"},{label:"rabbit",emoji:"🐰"},{label:"frog",emoji:"🐸"},{label:"bear",emoji:"🐻"}],THEMES[1]),
   m("Swipe through the stars!",{label:"star",emoji:"⭐"},[{label:"moon",emoji:"🌙"},{label:"planet",emoji:"🪐"},{label:"rocket",emoji:"🚀"},{label:"comet",emoji:"☄️"}],THEMES[2]),
   m("Catch the dogs with your swipe!",{label:"dog",emoji:"🐶"},[{label:"cat",emoji:"🐱"},{label:"cow",emoji:"🐮"},{label:"pig",emoji:"🐷"},{label:"fox",emoji:"🦊"}],THEMES[3]),
@@ -63,7 +63,7 @@ const SPEED={
 const BUDDY_EMOJI:Record<BuddyPreset,string>={puppy:"🐶",dino:"🦕",robot:"🤖",bunny:"🐰"};
 
 function cheer(label:string){
-  const lines=["Got the "+label+"!","Yes! "+label+"!","Perfect slice! "+label+"!","Nice! "+label+"!"];
+  const lines=["Got the "+label+"!","Yes! "+label+"!","Perfect! "+label+"!","Nice! "+label+"!"];
   return lines[Math.floor(Math.random()*lines.length)];
 }
 function SliceToken({item,large=false}:{item:FlyingThing;large?:boolean}){
@@ -277,7 +277,7 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
 
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 flex-shrink-0 text-center">
         <div className="rounded-xl bg-pink-300 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Level</div><div className="font-black text-sm sm:text-base">{missionIndex+1}/{MISSIONS.length}</div></div>
-        <div className="rounded-xl bg-emerald-400 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Sliced</div><div className="font-black text-sm sm:text-base">{slicedCount}/{mission.goal}</div></div>
+        <div className="rounded-xl bg-emerald-400 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Found</div><div className="font-black text-sm sm:text-base">{slicedCount}/{mission.goal}</div></div>
         <div className="rounded-xl bg-rose-500/20 text-rose-200 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Hearts</div><div className="font-black text-sm sm:text-base">❤️ {hearts}</div></div>
         <div className="rounded-xl bg-amber-400/15 text-amber-300 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Score</div><div className="font-black text-sm sm:text-base">{score}</div></div>
       </div>
