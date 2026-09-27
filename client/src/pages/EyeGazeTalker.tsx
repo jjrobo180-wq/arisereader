@@ -90,6 +90,96 @@ const simpleWords: Word[] = [
   { label: "Drink", picture: "🥤", sentence: "I want a drink." },
 ];
 
+export type TalkerCategory = { id: string; label: string; icon: string; hint: string; color: string; words: Word[] };
+export const defaultTalkerPageOrder = ["people", "food", "needs", "actions", "emotions", "places", "school", "things"];
+
+const peopleWords: Word[] = [
+  { label: "Mom", picture: "👩", sentence: "I want Mom." },
+  { label: "Dad", picture: "👨", sentence: "I want Dad." },
+  { label: "Grandma", picture: "👵", sentence: "I want Grandma." },
+  { label: "Grandpa", picture: "👴", sentence: "I want Grandpa." },
+  { label: "Sister", picture: "👧", sentence: "I want my sister." },
+  { label: "Brother", picture: "👦", sentence: "I want my brother." },
+  { label: "Teacher", picture: "👩‍🏫", sentence: "I need my teacher." },
+  { label: "Friend", picture: "🧒", sentence: "I want my friend." },
+  { label: "Doctor", picture: "🧑‍⚕️", sentence: "I need the doctor." },
+];
+
+const foodWords: Word[] = [
+  { label: "Water", picture: "💧", sentence: "I want water." },
+  { label: "Milk", picture: "🥛", sentence: "I want milk." },
+  { label: "Apple", picture: "🍎", sentence: "I want an apple." },
+  { label: "Banana", picture: "🍌", sentence: "I want a banana." },
+  { label: "Bread", picture: "🍞", sentence: "I want bread." },
+  { label: "Snack", picture: "🍪", sentence: "I want a snack." },
+  { label: "Pizza", picture: "🍕", sentence: "I want pizza." },
+  { label: "Chicken", picture: "🍗", sentence: "I want chicken." },
+  { label: "Breakfast", picture: "🥞", sentence: "I want breakfast." },
+  { label: "Lunch", picture: "🥪", sentence: "I want lunch." },
+];
+
+const actionWords: Word[] = [
+  { label: "Go", picture: "▶️", sentence: "I want to go." },
+  { label: "Stop", picture: "✋", sentence: "Please stop." },
+  { label: "Help", picture: "🤝", sentence: "I need help." },
+  { label: "More", picture: "➕", sentence: "I want more." },
+  { label: "Eat", picture: "🍽️", sentence: "I want to eat." },
+  { label: "Drink", picture: "🥤", sentence: "I want a drink." },
+  { label: "Play", picture: "🧸", sentence: "I want to play." },
+  { label: "Read", picture: "📖", sentence: "I want to read." },
+  { label: "Sleep", picture: "😴", sentence: "I want to sleep." },
+  { label: "Wait", picture: "⏳", sentence: "Please wait." },
+  { label: "Open", picture: "📂", sentence: "Please open it." },
+  { label: "Close", picture: "📁", sentence: "Please close it." },
+];
+
+const placeWords: Word[] = [
+  { label: "Home", picture: "🏠", sentence: "I want to go home." },
+  { label: "School", picture: "🏫", sentence: "I am going to school." },
+  { label: "Bathroom", picture: "🚽", sentence: "I need the bathroom." },
+  { label: "Kitchen", picture: "🍽️", sentence: "I want to go to the kitchen." },
+  { label: "Bedroom", picture: "🛏️", sentence: "I want my bedroom." },
+  { label: "Store", picture: "🛒", sentence: "I want to go to the store." },
+  { label: "Park", picture: "🛝", sentence: "I want to go to the park." },
+  { label: "Outside", picture: "🌳", sentence: "I want to go outside." },
+  { label: "Zoo", picture: "🦒", sentence: "I want to go to the zoo." },
+];
+
+const schoolWords: Word[] = [
+  { label: "Teacher", picture: "👩‍🏫", sentence: "I need my teacher." },
+  { label: "Friend", picture: "🧒", sentence: "I want my friend." },
+  { label: "Book", picture: "📚", sentence: "I need my book." },
+  { label: "Pencil", picture: "✏️", sentence: "I need a pencil." },
+  { label: "Backpack", picture: "🎒", sentence: "I need my backpack." },
+  { label: "Lunch", picture: "🥪", sentence: "It is time for lunch." },
+  { label: "Break", picture: "🧘", sentence: "I need a break." },
+  { label: "Bathroom", picture: "🚽", sentence: "I need the bathroom." },
+];
+
+const thingWords: Word[] = [
+  { label: "Cup", picture: "🥤", sentence: "I need my cup." },
+  { label: "Spoon", picture: "🥄", sentence: "I need a spoon." },
+  { label: "Book", picture: "📖", sentence: "I want my book." },
+  { label: "Ball", picture: "⚽", sentence: "I want the ball." },
+  { label: "Car", picture: "🚗", sentence: "I want the car." },
+  { label: "Blanket", picture: "🧶", sentence: "I want my blanket." },
+  { label: "Shoes", picture: "👟", sentence: "I need my shoes." },
+  { label: "Backpack", picture: "🎒", sentence: "I need my backpack." },
+  { label: "Phone", picture: "📱", sentence: "I want the phone." },
+  { label: "Toy", picture: "🧸", sentence: "I want my toy." },
+];
+
+export const talkerCategories: TalkerCategory[] = [
+  { id: "people", label: "People", icon: "👨‍👩‍👧", hint: "Mom, Dad, family, helpers", color: "#fde8ef", words: peopleWords },
+  { id: "food", label: "Food & Drink", icon: "🍎", hint: "Things I eat and drink", color: "#fff0da", words: foodWords },
+  { id: "needs", label: "Needs", icon: "🙋", hint: "Help, more, yes, no", color: "#e7f3ff", words: simpleWords },
+  { id: "actions", label: "Actions", icon: "▶️", hint: "Go, stop, play, eat", color: "#e9f8e4", words: actionWords },
+  { id: "emotions", label: "Emotions", icon: "😊", hint: "How I feel", color: "#f3e9ff", words: emotionWords },
+  { id: "places", label: "Places", icon: "📍", hint: "Home, school, park", color: "#e2f7f5", words: placeWords },
+  { id: "school", label: "School", icon: "🎒", hint: "Classroom words", color: "#e8efff", words: schoolWords },
+  { id: "things", label: "Things", icon: "🧸", hint: "Everyday objects", color: "#fff4c9", words: thingWords },
+];
+
 
 function uniqueByLabel(words: Word[]) {
   const seen = new Set<string>();
@@ -144,8 +234,12 @@ export default function EyeGazeTalker() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"ai" | "device" | "checking">("checking");
   const [notice, setNotice] = useState("");
-  const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {}, overrides: {}, recordings: {} });
-  const [libraryMode, setLibraryMode] = useState<"places" | "emotions" | "all" | "simple">("places");
+  const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {}, overrides: {}, recordings: {}, pageOrder: [], buttonOrder: {} });
+  const [libraryMode, setLibraryMode] = useState<"places" | "categories" | "recent" | "all" | "simple">("categories");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [recentKeys, setRecentKeys] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("eye-gaze-talker-recent") || "[]").slice(0, 16); } catch { return []; }
+  });
   const [grownupToken, setGrownupToken] = useState(() => sessionStorage.getItem("talker-grownup-token") || "");
   const [editOpen, setEditOpen] = useState(false);
   const [editWord, setEditWord] = useState<Word | null>(null);
@@ -179,14 +273,28 @@ export default function EyeGazeTalker() {
   const picture = (word: Word) => talkerPicture(resolveWord(word), familyConfig.pictures);
   const resolvedPlaces = places.map(item => ({ ...item, words: item.words.map(resolveWord) }));
   const currentPlace = resolvedPlaces.find(item => item.id === placeId);
-  const allLibraryWords = uniqueByLabel([...needs, ...emotionWords.map(resolveWord), ...resolvedPlaces.flatMap(item => item.words)]);
+  const orderedCategories = (() => {
+    const configured = familyConfig.pageOrder?.length ? familyConfig.pageOrder : defaultTalkerPageOrder;
+    const rank = new Map(configured.map((id, index) => [id, index]));
+    return [...talkerCategories].sort((a, b) => (rank.get(a.id) ?? 999) - (rank.get(b.id) ?? 999));
+  })();
+  const orderedCategoryWords = (category: TalkerCategory) => {
+    const words = category.words.map(resolveWord);
+    const configured = familyConfig.buttonOrder?.[category.id] || [];
+    if (!configured.length) return words;
+    const rank = new Map(configured.map((key, index) => [key, index]));
+    return [...words].sort((a, b) => (rank.get(wordKey(a)) ?? 999) - (rank.get(wordKey(b)) ?? 999));
+  };
+  const allCategoryWords = orderedCategories.flatMap(category => orderedCategoryWords(category));
+  const allLibraryWords = uniqueByLabel([...needs, ...allCategoryWords, ...resolvedPlaces.flatMap(item => item.words)]);
   const visibleSimpleWords = simpleWords.map(resolveWord);
-  const visibleEmotionWords = emotionWords.map(resolveWord);
+  const activeCategoryData = orderedCategories.find(category => category.id === activeCategory) || null;
+  const recentWords = recentKeys.map(key => allLibraryWords.find(word => wordKey(word) === key)).filter(Boolean) as Word[];
 
   useEffect(() => {
     let active = true;
     void talkerRequest<TalkerState>(token).then(state => {
-      if (active) setFamilyConfig({ alwaysHere: state.config?.alwaysHere ?? null, pictures: state.config?.pictures || {}, overrides: state.config?.overrides || {}, recordings: state.config?.recordings || {} });
+      if (active) setFamilyConfig({ alwaysHere: state.config?.alwaysHere ?? null, pictures: state.config?.pictures || {}, overrides: state.config?.overrides || {}, recordings: state.config?.recordings || {}, pageOrder: state.config?.pageOrder || [], buttonOrder: state.config?.buttonOrder || {} });
     }).catch(() => { if (active) setNotice("Family pictures could not load. Try reopening the talker."); });
     return () => { active = false; };
   }, [token]);
@@ -317,6 +425,12 @@ export default function EyeGazeTalker() {
 
   const choose = (word: Word) => {
     const resolved = resolveWord(word);
+    const key = wordKey(resolved);
+    setRecentKeys(previous => {
+      const next = [key, ...previous.filter(item => item !== key)].slice(0, 16);
+      localStorage.setItem("eye-gaze-talker-recent", JSON.stringify(next));
+      return next;
+    });
     setSelected(resolved);
     if (voiceStatus === "ai") void preloadCharacterAI(resolved.sentence).catch(() => null);
     playFamilyRecording(resolved, "word", () => say(resolved.label, ["Cow", "Dog", "Cat", "Sheep", "Duck", "Rooster"].includes(resolved.label)
@@ -482,6 +596,8 @@ export default function EyeGazeTalker() {
         ...(familyConfig.recordings || {}),
         [key]: { ...recordingDrafts },
       },
+      pageOrder: familyConfig.pageOrder || [],
+      buttonOrder: familyConfig.buttonOrder || {},
     };
     try {
       const saved = await talkerRequest<{ config: TalkerConfig }>(
@@ -496,6 +612,8 @@ export default function EyeGazeTalker() {
         pictures: saved.config.pictures || {},
         overrides: saved.config.overrides || {},
         recordings: saved.config.recordings || {},
+        pageOrder: saved.config.pageOrder || [],
+        buttonOrder: saved.config.buttonOrder || {},
       });
       if (selected && wordKey(selected) === key) {
         setSelected({ ...selected, label: editLabel.trim(), sentence: editSentence.trim() });
@@ -533,15 +651,6 @@ export default function EyeGazeTalker() {
             : <span className={compact ? "text-4xl sm:text-5xl" : "text-6xl sm:text-7xl"} aria-hidden="true">{resolved.picture}</span>}
           <span className={compact ? "font-black text-base sm:text-lg leading-tight" : "text-xl sm:text-2xl font-black"}>{resolved.label}</span>
           <span className="text-[10px] font-black tracking-wider text-[#4c7788]">{compact ? "MORE →" : "KEEP LEARNING →"}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => void beginEdit(resolved)}
-          aria-label={"Grown-up edit " + resolved.label}
-          className="absolute z-20 top-2 right-2 w-9 h-9 rounded-full bg-white/95 border-2 border-amber-300 shadow grid place-items-center text-base"
-          title="Grown-up edit"
-        >
-          ✏️
         </button>
       </div>
     );
@@ -590,18 +699,19 @@ export default function EyeGazeTalker() {
         <section className="mt-7" aria-label="Talker library view">
           <div className="rounded-3xl bg-white border-2 border-sky-100 p-3 sm:p-4">
             <p className="text-xs font-black tracking-widest text-[#477586] mb-3">SHOW ME</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {([
                 ["simple", "⚡", "Simple", "Just the basics"],
+                ["categories", "🗂️", "Categories", "People, food, feelings…"],
                 ["places", "📍", "Where we're going", "Words by place"],
-                ["emotions", "😊", "Emotions", "How I feel"],
-                ["all", "🧩", "All", "Whole button library"],
+                ["recent", "🕘", "Recent", "Buttons I just used"],
+                ["all", "🧩", "All", "Whole library"],
               ] as const).map(([id, icon, label, hint]) => (
                 <button
                   data-talker-dwell
                   key={id}
                   type="button"
-                  onClick={() => { setLibraryMode(id); setPlaceId(null); }}
+                  onClick={() => { setLibraryMode(id); setPlaceId(null); if (id !== "categories") setActiveCategory(null); }}
                   className={`relative min-h-20 rounded-2xl border-2 p-3 text-left ${libraryMode === id ? "border-[#137f96] bg-[#ddf5f4]" : "border-slate-100 bg-white"}`}
                 >
                   <span className="text-2xl mr-2">{icon}</span><strong className="font-black">{label}</strong>
@@ -619,10 +729,37 @@ export default function EyeGazeTalker() {
           </section>
         )}
 
-        {libraryMode === "emotions" && (
-          <section className="mt-7" aria-label="Emotion words">
-            <div className="mb-4"><p className="text-sm font-black tracking-widest text-[#477586]">EMOTIONS</p><h2 className="font-black text-3xl">How do I feel?</h2></div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{visibleEmotionWords.map(word => renderWordTile(word))}</div>
+        {libraryMode === "categories" && (
+          <section className="mt-7" aria-label="Talker categories">
+            {!activeCategoryData ? (
+              <>
+                <div className="mb-4"><p className="text-sm font-black tracking-widest text-[#477586]">CATEGORIES</p><h2 className="font-black text-3xl">What do you want to say?</h2><p className="font-bold text-[#547886]">Pick a page. A grown-up can rearrange these pages and the buttons inside them.</p></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {orderedCategories.map(category => (
+                    <button data-talker-dwell key={category.id} type="button" onClick={() => setActiveCategory(category.id)} style={{backgroundColor:category.color}} className="relative min-h-40 rounded-3xl border-2 border-white shadow-sm flex flex-col items-center justify-center p-4 text-center">
+                      <span className="text-6xl" aria-hidden="true">{category.icon}</span>
+                      <strong className="text-xl sm:text-2xl font-black mt-2">{category.label}</strong>
+                      <small className="font-bold text-[#527483] mt-1">{category.hint}</small>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+                  <div><p className="text-sm font-black tracking-widest text-[#477586]">CATEGORY</p><h2 className="font-black text-3xl">{activeCategoryData.icon} {activeCategoryData.label}</h2><p className="font-bold text-[#547886]">{activeCategoryData.hint}</p></div>
+                  <button data-talker-dwell type="button" onClick={() => setActiveCategory(null)} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">← Categories</button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">{orderedCategoryWords(activeCategoryData).map(word => renderWordTile(word, { color: activeCategoryData.color }))}</div>
+              </>
+            )}
+          </section>
+        )}
+
+        {libraryMode === "recent" && (
+          <section className="mt-7" aria-label="Recent Talker buttons">
+            <div className="mb-4"><p className="text-sm font-black tracking-widest text-[#477586]">RECENT</p><h2 className="font-black text-3xl">Just used</h2><p className="font-bold text-[#547886]">The buttons used most recently on this device appear here automatically.</p></div>
+            {recentWords.length ? <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">{recentWords.map(word => renderWordTile(word))}</div> : <div className="rounded-3xl bg-white border-2 border-sky-100 p-8 text-center font-bold text-slate-500">Use a few Talker buttons and they will show up here.</div>}
           </section>
         )}
 
