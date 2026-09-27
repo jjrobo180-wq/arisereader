@@ -5692,6 +5692,108 @@ Important:
     }
   });
 
+
+  function normalizeEyeGazeFlashcards(raw: any) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const sets = Array.isArray(source.sets) ? source.sets.slice(0, 24).map((set: any, setIndex: number) => {
+      const id = String(set?.id || ('set-' + setIndex)).trim().slice(0, 60) || ('set-' + setIndex);
+      const title = String(set?.title || 'My Cards').trim().slice(0, 60) || 'My Cards';
+      const emoji = String(set?.emoji || '🃏').trim().slice(0, 16) || '🃏';
+      const cards = Array.isArray(set?.cards) ? set.cards.slice(0, 80).map((card: any, cardIndex: number) => ({
+        id: String(card?.id || ('card-' + cardIndex)).trim().slice(0, 80) || ('card-' + cardIndex),
+        word: String(card?.word || 'Word').trim().slice(0, 50) || 'Word',
+        icon: String(card?.icon || '⭐').trim().slice(0, 20) || '⭐',
+        phrase: String(card?.phrase || '').trim().slice(0, 140),
+      })) : [];
+      return { id, title, emoji, cards };
+    }) : [];
+    return { sets };
+  }
+
+  app.get('/api/eye-gaze/flashcards', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const raw = await storage.getSetting('eye_gaze_flashcards_' + child.id);
+      let parsed: any = null;
+      if (raw) { try { parsed = JSON.parse(raw); } catch {} }
+      res.set('Cache-Control', 'no-store');
+      res.json(normalizeEyeGazeFlashcards(parsed || {}));
+    } catch (error: any) {
+      console.error('[eye-gaze-flashcards] load:', error?.message);
+      res.status(503).json({ message: 'Could not load flash cards right now.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/flashcards', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const state = normalizeEyeGazeFlashcards(req.body);
+      await storage.upsertSetting('eye_gaze_flashcards_' + child.id, JSON.stringify(state));
+      res.set('Cache-Control', 'no-store');
+      res.json(state);
+    } catch (error: any) {
+      console.error('[eye-gaze-flashcards] save:', error?.message);
+      res.status(503).json({ message: 'Could not save flash cards right now.' });
+    }
+  });
+
+  function normalizePottyState(raw: any) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const plan = source.plan && typeof source.plan === 'object' ? source.plan : {};
+    const logs = Array.isArray(source.logs) ? source.logs.slice(-500).map((entry: any) => {
+      const allowed = ['sit', 'pee', 'poop', 'accident', 'dry', 'refused'];
+      const kind = allowed.includes(String(entry?.kind)) ? String(entry.kind) : 'sit';
+      const atValue = new Date(String(entry?.at || '')).getTime();
+      return {
+        id: String(entry?.id || randomBytes(8).toString('hex')).slice(0, 80),
+        kind,
+        at: Number.isFinite(atValue) ? new Date(atValue).toISOString() : new Date().toISOString(),
+        note: String(entry?.note || '').trim().slice(0, 180),
+      };
+    }) : [];
+    return {
+      plan: {
+        checkMinutes: Math.max(10, Math.min(180, Number(plan.checkMinutes ?? 45) || 45)),
+        sitMinutes: Math.max(1, Math.min(10, Number(plan.sitMinutes ?? 2) || 2)),
+        observeFirst: plan.observeFirst !== false,
+        visualSchedule: plan.visualSchedule !== false,
+      },
+      logs,
+    };
+  }
+
+  app.get('/api/eye-gaze/potty', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const raw = await storage.getSetting('eye_gaze_potty_' + child.id);
+      let parsed: any = null;
+      if (raw) { try { parsed = JSON.parse(raw); } catch {} }
+      const state = normalizePottyState(parsed || {});
+      res.set('Cache-Control', 'no-store');
+      res.json({ student: { id: child.id, name: child.displayName }, ...state });
+    } catch (error: any) {
+      console.error('[eye-gaze-potty] load:', error?.message);
+      res.status(503).json({ message: 'Could not load potty progress right now.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/potty', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const state = normalizePottyState(req.body);
+      await storage.upsertSetting('eye_gaze_potty_' + child.id, JSON.stringify(state));
+      res.set('Cache-Control', 'no-store');
+      res.json({ student: { id: child.id, name: child.displayName }, ...state });
+    } catch (error: any) {
+      console.error('[eye-gaze-potty] save:', error?.message);
+      res.status(503).json({ message: 'Could not save potty progress right now.' });
+    }
+  });
+
   console.log('[youtube-shorts] API discovery configured:', !!(process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY));
 
   const CURATED_YOUTUBE_SHORTS = [
