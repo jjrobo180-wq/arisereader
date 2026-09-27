@@ -665,7 +665,6 @@ function MatchPairs({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig 
 
   return (
     <GameShell title="Match Pairs" subtitle="Match each word with its picture." onBack={onBack}>
-      <BuddyCoach buddy={buddy} message={message} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {cards.map(card => {
@@ -723,7 +722,6 @@ function WordPop({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) 
 
   return (
     <GameShell title="Word Pop" subtitle="Find the target word and pop it." onBack={onBack}>
-      <BuddyCoach buddy={buddy} message={feedback} />
       <div className="rounded-2xl border-2 border-blue-200 bg-sky-50 text-slate-950 shadow-md p-5 text-center mb-5">
         <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold">Find this word</p>
         <div className="text-4xl sm:text-5xl font-black mt-2 tracking-wider">{current.target}</div>
@@ -787,7 +785,6 @@ function SentenceBuilder({ onBack, buddy }: { onBack: () => void; buddy: BuddyCo
 
   return (
     <GameShell title="Sentence Builder" subtitle="Choose words in order to build a sentence." onBack={onBack}>
-      <BuddyCoach buddy={buddy} message={message} />
       <div className="text-center mb-4">
         <div className="text-6xl mb-3" aria-label="Picture clue">{current.picture}</div>
 
@@ -979,22 +976,6 @@ export default function EyeGazeGames() {
         </div>
       </div>
       {activePanel === "lessons" ? <EyeGazeAccessGate path="/library"><EyeGazeLessons embedded /></EyeGazeAccessGate> : <main className="max-w-5xl mx-auto px-4 py-6">
-        <Card className="mb-6 bg-white text-slate-950 border-2 border-violet-200 shadow-lg">
-          <CardContent className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <BuddyAvatar buddy={buddy} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-black uppercase tracking-wide text-primary">My Learning Buddy</p>
-                <h2 className="text-xl font-black">{buddy.name}</h2>
-                <p className="text-sm text-muted-foreground mt-1">Your buddy teaches the games, gives directions, and helps you after each choice.</p>
-              </div>
-              <Button className="h-12" onClick={() => { setBuddyDraft(buddy); setShowBuddySetup(true); }}>
-                Choose / Upload Buddy
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
         <div className="rounded-2xl border-2 border-sky-200 bg-white shadow-md p-4 mb-6 flex items-start gap-3">
           <Eye className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
           <div>
@@ -1026,32 +1007,14 @@ export default function EyeGazeGames() {
           </div>
         </button>
 
-        <button
-          type="button"
-          onClick={() => navigate("/arise-city")}
-          className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-cyan-300/50 bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950 p-6 sm:p-8 text-left text-white shadow-2xl hover:-translate-y-1 transition-all mb-5 min-h-[280px]"
-        >
-          <div className="absolute inset-0 opacity-30" style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px)",
-            backgroundSize: "34px 34px",
-          }} />
-          <div className="absolute right-4 bottom-[-18px] text-[130px] sm:text-[175px] opacity-75">🏙️</div>
-          <div className="absolute right-8 top-6 flex gap-2 text-3xl">
-            <span>💼</span><span>🚙</span><span>🏡</span>
-          </div>
+        <section className="relative overflow-hidden w-full rounded-[2.2rem] border-2 border-slate-300 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-6 sm:p-8 text-white shadow-lg mb-5 min-h-[220px]" aria-label="A.R.I.S.E. City coming later">
+          <div className="absolute right-4 bottom-[-22px] text-[120px] sm:text-[150px] opacity-20">🏙️</div>
           <div className="relative max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-cyan-300/15 border border-cyan-200/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4 text-cyan-200">
-              <Sparkles className="w-4 h-4" /> FLAGSHIP GAME
-            </div>
-            <h2 className="text-3xl sm:text-5xl font-black leading-none">A.R.I.S.E. City</h2>
-            <p className="mt-4 text-white/85 text-base sm:text-lg font-bold max-w-xl">
-              Choose a career, explore a living city, interview for jobs, work shifts, earn money, shop, buy a car and build toward your first home.
-            </p>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-cyan-300 text-slate-950 px-5 py-3 font-black">
-              Enter the City →
-            </div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-amber-300 text-slate-950 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">COMING LATER</div>
+            <h2 className="text-3xl sm:text-4xl font-black">A.R.I.S.E. City</h2>
+            <p className="mt-3 text-white/80 text-base sm:text-lg font-bold max-w-xl">City is parked for now while it is rebuilt and cleaned up. It will return when the experience is ready.</p>
           </div>
-        </button>
+        </section>
 
         <div className="grid lg:grid-cols-2 gap-5 mb-5">
           <button
@@ -1135,88 +1098,6 @@ export default function EyeGazeGames() {
         </div>
       </main>}
 
-      {showBuddySetup && (
-        <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-center justify-center">
-          <Card className="w-full max-w-2xl max-h-[92vh] overflow-y-auto">
-            <CardContent className="p-6 space-y-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl font-black">Choose Your Learning Buddy</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Pick a buddy or upload a favorite picture. This buddy will teach the reading games.</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setShowBuddySetup(false)}><X className="w-5 h-5" /></Button>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {(Object.keys(BUDDY_PRESETS) as BuddyPreset[]).map(key => {
-                  const item = BUDDY_PRESETS[key];
-                  const selected = buddyDraft.type === "preset" && buddyDraft.preset === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setBuddyDraft(prev => ({ ...prev, type: "preset", preset: key, imageData: null, name: prev.name === "Buddy" ? item.label : prev.name }))}
-                      className={`rounded-2xl border-2 p-4 text-center min-h-[135px] ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
-                    >
-                      <div className="text-5xl">{item.emoji}</div>
-                      <div className="font-black mt-2">{item.label}</div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="rounded-2xl border-2 border-dashed border-border p-5">
-                <label className="block font-black mb-2">Or upload a favorite picture</label>
-                <p className="text-xs text-muted-foreground mb-3">PNG, JPG, or WEBP under 1.5 MB. The picture stays attached to this student's Learning Buddy setting.</p>
-                <label className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-muted cursor-pointer font-bold">
-                  <Upload className="w-4 h-4" /> Choose Picture
-                  <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => handleBuddyUpload(e.target.files?.[0])} />
-                </label>
-                {buddyDraft.type === "upload" && buddyDraft.imageData && (
-                  <div className="mt-4 flex items-center gap-3">
-                    <BuddyAvatar buddy={buddyDraft} />
-                    <span className="text-sm font-semibold">Uploaded picture selected</span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold mb-2">What should your buddy be called?</label>
-                <input
-                  value={buddyDraft.name}
-                  maxLength={30}
-                  onChange={(e) => setBuddyDraft(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full h-12 rounded-xl bg-background border border-border px-4 text-base"
-                  placeholder="Buddy"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setBuddyDraft(prev => ({ ...prev, voiceEnabled: !prev.voiceEnabled }))}
-                className="w-full rounded-xl border border-border p-4 flex items-center justify-between gap-3"
-              >
-                <span className="font-bold flex items-center gap-2">
-                  {buddyDraft.voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                  Buddy Voice <span className="text-[10px] font-medium text-muted-foreground ml-1">(AI-generated)</span>
-                </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-black ${buddyDraft.voiceEnabled ? "bg-green-500/15 text-green-400" : "bg-muted text-muted-foreground"}`}>
-                  {buddyDraft.voiceEnabled ? "ON" : "OFF"}
-                </span>
-              </button>
-
-              {buddyMessage && <p className="text-sm font-semibold">{buddyMessage}</p>}
-
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1 h-12" onClick={() => setShowBuddySetup(false)}>Cancel</Button>
-                <Button className="flex-1 h-12" onClick={saveBuddy} disabled={savingBuddy || !buddyDraft.name.trim()}>
-                  {savingBuddy ? "Saving..." : "Use This Buddy"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
