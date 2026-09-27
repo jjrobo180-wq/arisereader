@@ -24,7 +24,7 @@ type HomeAction = {
 };
 
 const ACTIONS: HomeAction[] = [
-  { title: "Learning Zone", subtitle: "Talk, learn, and grown-up tools in one place", emoji: "🌟", path: "/eye-gaze-talker", tone: "from-teal-100 to-cyan-50 border-teal-200", primary: true },
+  { title: "My Talker", subtitle: "Talk, learn words, and communicate", emoji: "🗣️", path: "/eye-gaze-talker", tone: "from-teal-100 to-cyan-50 border-teal-200", primary: true },
   { title: "Games", subtitle: "Play reading games and open lessons & books", emoji: "🎮", path: "/eye-gaze-games", tone: "from-amber-100 to-orange-50 border-amber-200", primary: true },
   { title: "My World", subtitle: "Learn with familiar rooms, pictures & videos", emoji: "🏠", path: "/my-world", tone: "from-emerald-100 to-lime-50 border-emerald-200", primary: true },
   { title: "A.R.I.S.E. Shorts", subtitle: "Learning Shorts picked for me", emoji: "📺", path: "/eye-gaze-tv", tone: "from-teal-50 to-emerald-50 border-teal-100", primary: false },
