@@ -3,12 +3,14 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { BookOpen, Gamepad2, Home, LogOut, MessageCircle, Trophy, UserRound, Users } from "lucide-react";
+import { defaultParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
   const { user, token, logout } = useAuth();
   const [location, navigate] = useLocation();
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [gameImmersive, setGameImmersive] = useState(false);
+  const [parentControls, setParentControls] = useState<ParentControls>(defaultParentControls());
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
   const immersiveRoute = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-parent-controls");
@@ -26,6 +28,23 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   useEffect(() => {
     if (location !== "/eye-gaze-games") setGameImmersive(false);
   }, [location]);
+
+  useEffect(() => {
+    if (!isEyeGazer || !token) return;
+    let active = true;
+    void fetchFamilySettings(token).then(result => {
+      if (active) setParentControls(result.settings);
+    }).catch(() => {});
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<ParentControls>).detail;
+      if (detail) setParentControls(detail);
+    };
+    window.addEventListener("arise-parent-controls-updated", handler);
+    return () => {
+      active = false;
+      window.removeEventListener("arise-parent-controls-updated", handler);
+    };
+  }, [isEyeGazer, token, user?.id]);
 
   useEffect(() => {
     if (!isEyeGazer || !token) return;
@@ -58,6 +77,8 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     { label: "My Buddy", icon: Users, path: "/eye-gaze-buddy" },
     { label: "Profile", icon: UserRound, path: "/eye-gaze-account" },
   ];
+  const visibleNav = nav.filter(item => item.path === "/eye-gaze-account" || pathAllowed(item.path, parentControls));
+  const mobileNav = visibleNav.filter(item => ["Home", "Lessons", "Games", "Talker", "Profile"].includes(item.label));
 
   return (
     <div data-eye-gaze-shell className="min-h-screen bg-[#f7fbff] text-slate-900">
@@ -91,12 +112,12 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
       </header>
       <div className="max-w-[1600px] mx-auto flex min-w-0">
         <aside className="hidden xl:flex w-28 flex-shrink-0 flex-col items-center gap-4 py-6 px-3 border-r border-sky-100 bg-white/70 min-h-[calc(100vh-5rem)]">
-          {nav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`w-full min-h-[88px] rounded-3xl flex flex-col items-center justify-center gap-2 font-black text-xs text-center px-1 transition-colors ${active ? "bg-violet-500 text-white" : "text-slate-500 hover:bg-blue-50"}`}><Icon className="w-7 h-7" />{item.label}</button>; })}
+          {visibleNav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`w-full min-h-[88px] rounded-3xl flex flex-col items-center justify-center gap-2 font-black text-xs text-center px-1 transition-colors ${active ? "bg-violet-500 text-white" : "text-slate-500 hover:bg-blue-50"}`}><Icon className="w-7 h-7" />{item.label}</button>; })}
         </aside>
         <div className="eye-gaze-page flex-1 min-w-0">{children}</div>
       </div>
-      <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-sky-100 px-1 py-2 grid grid-cols-7 gap-1">
-        {nav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`min-h-[64px] rounded-2xl flex flex-col items-center justify-center text-[11px] font-black transition-colors ${active ? "bg-violet-100 text-violet-800" : "text-slate-500"}`}><Icon className="w-5 h-5 mb-1" />{item.label}</button>; })}
+      <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-sky-100 px-1 py-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobileNav.length)}, minmax(0, 1fr))` }}>
+        {mobileNav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`min-h-[64px] rounded-2xl flex flex-col items-center justify-center text-[11px] font-black transition-colors ${active ? "bg-violet-100 text-violet-800" : "text-slate-500"}`}><Icon className="w-5 h-5 mb-1" />{item.label}</button>; })}
       </nav>
     </div>
   );
