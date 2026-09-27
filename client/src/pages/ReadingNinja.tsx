@@ -81,6 +81,7 @@ function SliceToken({item,large=false}:{item:FlyingThing;large?:boolean}){
 export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:BuddyConfig}){
   const [difficulty,setDifficulty]=useState<Difficulty>("easy");
   const [started,setStarted]=useState(false);
+  const [setupStep,setSetupStep]=useState<"difficulty"|"level">("difficulty");
   const [missionIndex,setMissionIndex]=useState(0);
   const [things,setThings]=useState<FlyingThing[]>([]);
   const thingsRef=useRef<FlyingThing[]>([]);
@@ -180,6 +181,17 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
   const resetLevel=(index:number,resetScore=false)=>{setMissionIndex(index);setSlicedCount(0);slicedRef.current=0;setHearts(3);heartsRef.current=3;setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;updateThings([]);setTrail([]);setBursts([]);if(resetScore)setScore(0);setMessage("Get ready!");};
   const enterImmersive=()=>{ try { const el=document.documentElement as any; const request=el.requestFullscreen||el.webkitRequestFullscreen; if(request) void request.call(el).catch?.(()=>{}); } catch {} };
   const startGame=()=>{stopSpeaking();enterImmersive();setStarted(true);resetLevel(missionIndex,true);};
+  const openSetup=(step:"difficulty"|"level"="level")=>{
+    setStarted(false);
+    setGameOver(false);
+    gameOverRef.current=false;
+    setMissionComplete(false);
+    missionCompleteRef.current=false;
+    updateThings([]);
+    setTrail([]);
+    setBursts([]);
+    setSetupStep(step);
+  };
   const retry=()=>{setStarted(true);resetLevel(missionIndex,false);};
   const nextMission=()=>resetLevel((missionIndex+1)%MISSIONS.length,false);
 
@@ -188,73 +200,86 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
   const trailPoints=trail.map(p=>p.x+","+p.y).join(" ");
 
   if(!started&&!gameOver){
-    return <div className="min-h-screen text-white px-4 py-5 relative overflow-hidden" style={{background:"radial-gradient(circle at 30% 0%,#71266d,#170e2e 55%,#050711)"}}>
+    return <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden text-white p-3 sm:p-5" style={{background:"radial-gradient(circle at 30% 0%,#71266d,#170e2e 55%,#050711)"}}>
+      <style>{"@keyframes ninjaSetupIn{from{opacity:.25;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}} .ninja-setup-in{animation:ninjaSetupIn .22s ease-out}"}</style>
       <div className="absolute inset-0 opacity-25 pointer-events-none" style={{backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"38px 38px"}}/>
-      <div className="max-w-6xl mx-auto relative">
-        <div className="flex justify-between gap-3"><button type="button" onClick={onBack} className="min-h-12 px-4 rounded-2xl bg-slate-950/85 border border-white/20 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Games</button><button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-12 h-12 rounded-2xl bg-slate-950/85 border border-white/20 grid place-items-center">{soundOn?<Volume2/>:<VolumeX/>}</button></div>
-        <div className="mt-5 grid lg:grid-cols-[1.05fr_.95fr] gap-5">
-          <section className="rounded-[2.3rem] bg-slate-950/90 border-2 border-pink-300/30 p-6 sm:p-8 shadow-2xl backdrop-blur">
-            <div className="inline-flex items-center gap-2 rounded-full bg-pink-300/15 border border-pink-200/30 px-3 py-1 text-xs font-black uppercase tracking-widest text-pink-200"><Zap className="w-4 h-4"/> 15 SLICE LEVELS</div>
-            <h1 className="text-5xl sm:text-7xl font-black mt-4 tracking-tight">Reading<br/><span className="text-pink-300">Ninja</span></h1>
-            <p className="text-lg sm:text-xl font-bold text-white/80 mt-4">Hear the target, then slash only the correct objects as they launch across the arena.</p>
-            <div className="grid sm:grid-cols-3 gap-3 mt-7">{(Object.keys(SPEED) as Difficulty[]).map(level=><button key={level} type="button" onClick={()=>setDifficulty(level)} className={"rounded-2xl border-2 p-4 text-left min-h-24 "+(difficulty===level?"border-pink-300 bg-pink-300/15":"border-white/15 bg-white/5")}><div className="font-black text-xl">{SPEED[level].label}</div><div className="text-sm text-white/65 mt-1">{SPEED[level].description}</div></button>)}</div>
-            <button type="button" onClick={startGame} className="mt-6 w-full min-h-17 rounded-2xl bg-gradient-to-r from-pink-300 via-fuchsia-400 to-violet-400 text-slate-950 text-xl font-black shadow-[0_0_35px_rgba(255,90,220,.3)]">🥷 Start Level {missionIndex+1}</button>
-          </section>
-          <section className="rounded-[2.3rem] overflow-hidden border-2 border-white/20 bg-slate-950 shadow-2xl">
-            <div className="relative h-72 overflow-hidden" style={{background:THEMES[0].background}}>
-              <div className="absolute inset-x-0 top-5 flex justify-around text-5xl opacity-45">{THEMES[0].decor.map((x,i)=><span key={i}>{x}</span>)}</div>
-              <div className="absolute left-[25%] top-[42%] -rotate-12"><div className="w-24 h-24 rounded-full bg-white/90 border-4 border-white shadow-2xl grid place-items-center text-6xl">🍎</div></div>
-              <div className="absolute right-[22%] top-[28%] rotate-12"><div className="w-20 h-20 rounded-full bg-white/80 border-4 border-white shadow-2xl grid place-items-center text-5xl">🍌</div></div>
-              <div className="absolute left-[18%] bottom-8 right-[18%] h-1 bg-white/80 rotate-[-18deg] shadow-[0_0_18px_white]"/>
-              <div className="absolute top-4 right-4 rounded-full bg-slate-950/75 px-3 py-1 text-xs font-black">LEVEL 1 · {THEMES[0].name}</div>
-            </div>
-            <div className="p-5">
-              <div className="flex items-end justify-between gap-3">
-                <div><h2 className="text-xl font-black">Choose any arena</h2><p className="text-sm font-bold text-white/55">All 15 levels are open. Tap one, then press Start.</p></div>
-                <span className="rounded-full bg-pink-300 text-slate-950 px-3 py-1 text-xs font-black">LEVEL {missionIndex+1}</span>
-              </div>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 max-h-72 overflow-y-auto pr-1">
-                {MISSIONS.map((m,i)=>(
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={()=>setMissionIndex(i)}
-                    className={"min-h-20 rounded-2xl border-2 p-2 text-center transition "+(missionIndex===i?"border-pink-300 bg-pink-300/20 ring-2 ring-pink-200/30":"border-white/10 bg-white/5 hover:bg-white/10")}
-                    aria-label={"Choose level "+(i+1)+": "+m.theme.name}
-                  >
-                    <div className="text-3xl">{m.theme.badge}</div>
-                    <div className="text-[11px] font-black mt-1">L{i+1}</div>
-                    <div className="text-[9px] font-bold text-white/60 truncate">{m.theme.name}</div>
+      <div className="relative max-w-4xl mx-auto h-full flex flex-col">
+        <div className="flex items-center justify-between gap-2 flex-shrink-0">
+          <button type="button" onClick={onBack} className="min-h-11 px-3 sm:px-4 rounded-2xl bg-slate-950/85 border border-white/20 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Games</button>
+          <div className="rounded-full bg-white/10 border border-white/15 px-3 py-2 text-xs font-black">READING NINJA</div>
+          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/85 border border-white/20 grid place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
+        </div>
+
+        <div className="flex-1 min-h-0 grid place-items-center py-3">
+          {setupStep==="difficulty" ? (
+            <section key="difficulty" className="ninja-setup-in w-full max-w-3xl rounded-[2rem] bg-slate-950/92 border-2 border-pink-300/30 p-5 sm:p-8 shadow-2xl">
+              <p className="text-xs font-black uppercase tracking-[.18em] text-pink-300">Step 1 of 2</p>
+              <h1 className="text-3xl sm:text-5xl font-black mt-2">How fast should things fly?</h1>
+              <p className="font-bold text-white/65 mt-2">Choose one. Easy gives bigger targets, slower movement, and no lost hearts.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+                {(Object.keys(SPEED) as Difficulty[]).map(level=>(
+                  <button key={level} type="button" onClick={()=>setDifficulty(level)} className={"min-h-24 rounded-2xl border-3 p-4 text-left transition touch-manipulation "+(difficulty===level?"border-pink-300 bg-pink-300/20 ring-4 ring-pink-300/15":"border-white/15 bg-white/5")}>
+                    <div className="text-2xl font-black">{level==="easy"?"🧸":level==="medium"?"🥷":"⚡"} {SPEED[level].label}</div>
+                    <div className="text-sm font-bold text-white/65 mt-1">{SPEED[level].description}</div>
+                    {difficulty===level&&<div className="text-pink-200 font-black mt-2">✓ Selected</div>}
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-2 mt-4 text-center text-xs font-black text-white/70"><div className="rounded-xl bg-white/5 p-2">👆 Swipe</div><div className="rounded-xl bg-white/5 p-2">✨ Bursts</div><div className="rounded-xl bg-white/5 p-2">🔊 Sound FX</div></div>
-            </div>
-          </section>
+              <button type="button" onClick={()=>setSetupStep("level")} className="mt-5 w-full min-h-16 rounded-2xl bg-pink-300 text-slate-950 text-xl font-black shadow-xl">Next: choose a level →</button>
+            </section>
+          ) : (
+            <section key="level" className="ninja-setup-in w-full max-w-4xl h-full max-h-[760px] rounded-[2rem] bg-slate-950/92 border-2 border-pink-300/30 p-4 sm:p-6 shadow-2xl flex flex-col min-h-0">
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <button type="button" onClick={()=>setSetupStep("difficulty")} className="min-h-11 rounded-xl bg-white/10 px-3 font-black">← Speed</button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[.18em] text-pink-300">Step 2 of 2</p>
+                  <h1 className="text-2xl sm:text-4xl font-black">Choose a level</h1>
+                </div>
+                <div className="rounded-full bg-pink-300 text-slate-950 px-3 py-2 text-xs font-black">{SPEED[difficulty].label}</div>
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
+                {MISSIONS.map((m,i)=>(
+                  <button key={i} type="button" onClick={()=>setMissionIndex(i)} className={"min-h-[92px] rounded-2xl border-2 p-2 text-center touch-manipulation "+(missionIndex===i?"border-pink-300 bg-pink-300/20 ring-4 ring-pink-300/10":"border-white/10 bg-white/5")}>
+                    <div className="text-3xl sm:text-4xl">{m.theme.badge}</div>
+                    <div className="font-black text-xs mt-1">LEVEL {i+1}</div>
+                    <div className="text-[10px] font-bold text-white/60 truncate">{m.theme.name}</div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-3 flex-shrink-0">
+                <div className="rounded-xl bg-white/5 px-3 py-2 text-center font-black text-sm truncate">{MISSIONS[missionIndex].target.emoji} {MISSIONS[missionIndex].prompt}</div>
+                <button type="button" onClick={startGame} className="mt-2 w-full min-h-16 rounded-2xl bg-gradient-to-r from-pink-300 via-fuchsia-400 to-violet-400 text-slate-950 text-xl font-black shadow-xl">🥷 Start Level {missionIndex+1}</button>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>;
   }
 
   if(gameOver){
-    return <div className="min-h-screen bg-[#070611] text-white grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🥷</div><h1 className="text-4xl font-black mt-3">Try the arena again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl text-amber-300 font-black mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-pink-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>{setGameOver(false);gameOverRef.current=false;setStarted(false);}} className="mt-2 w-full min-h-12 rounded-2xl bg-fuchsia-600/80 font-black">☰ Choose another level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
+    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#070611] text-white grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🥷</div><h1 className="text-4xl font-black mt-3">Try the arena again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl text-amber-300 font-black mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-pink-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-fuchsia-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
   }
 
   return <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-[#050611] text-white p-2 sm:p-5 select-none">
     <style>{"@keyframes burstPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}} @keyframes decorFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-10px) rotate(3deg)}} .burst-pop{animation:burstPop .5s ease-out forwards}.decor-float{animation:decorFloat 4s ease-in-out infinite}"}</style>
     <div className="max-w-6xl mx-auto h-full flex flex-col">
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mb-2 sm:mb-3 flex-shrink-0">
-        <button type="button" onClick={onBack} className="min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Games</button>
-        <button type="button" onClick={()=>{setStarted(false);updateThings([]);setMissionComplete(false);missionCompleteRef.current=false;}} className="min-h-11 px-3 rounded-xl bg-fuchsia-600 text-white border border-fuchsia-300/30 font-black">☰ Levels</button>
-        <div className="rounded-xl bg-pink-300 text-slate-950 px-3 py-2 font-black">LEVEL {missionIndex+1}/{MISSIONS.length}</div>
-        <div className="flex-1 min-w-[120px]"><div className="text-[10px] sm:text-xs uppercase tracking-widest font-black text-pink-300">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div><div className="text-sm sm:text-2xl font-black truncate">{mission.prompt}</div></div>
-        <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
-        <div className="flex items-center gap-1 rounded-xl bg-rose-500/15 px-3 py-2">{Array.from({length:3}).map((_,i)=><Heart key={i} className={"w-5 h-5 "+(i<hearts?"fill-rose-400 text-rose-400":"text-white/20")}/>)}</div>
-        <div className="rounded-xl bg-amber-400/15 text-amber-300 px-3 py-2 font-black"><Star className="w-4 h-4 inline fill-current mr-1"/>{score}</div>
+      <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+        <button type="button" onClick={()=>openSetup("level")} className="min-h-10 sm:min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black text-sm flex items-center gap-1.5 flex-shrink-0">☰ <span className="hidden sm:inline">Setup</span></button>
+        <button type="button" onClick={announceMission} className="flex-1 min-w-0 min-h-10 sm:min-h-11 rounded-xl bg-slate-900 border border-white/15 px-3 text-left">
+          <div className="text-[9px] sm:text-xs uppercase tracking-wider font-black text-pink-300 truncate">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div>
+          <div className="text-xs sm:text-base font-black truncate">{mission.target.emoji} {mission.prompt}</div>
+        </button>
+        <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
       </div>
 
-      <div className="rounded-xl sm:rounded-2xl bg-slate-900 border border-white/10 p-2 sm:p-3 mb-2 sm:mb-3 flex-shrink-0">
-        <div className="flex items-center gap-3"><div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center text-3xl overflow-hidden flex-shrink-0">{buddyVisual}</div><div className="flex-1 min-w-0"><div className="font-black truncate">{message}</div><div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden"><div className="h-full transition-all" style={{width:progress+"%",background:mission.theme.glow}}/></div><div className="text-xs font-bold text-white/55 mt-1">{slicedCount} / {mission.goal} {mission.target.label}s</div></div><button type="button" onClick={announceMission} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center"><Volume2 className="w-5 h-5"/></button></div>
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 flex-shrink-0 text-center">
+        <div className="rounded-xl bg-pink-300 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Level</div><div className="font-black text-sm sm:text-base">{missionIndex+1}/{MISSIONS.length}</div></div>
+        <div className="rounded-xl bg-emerald-400 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Sliced</div><div className="font-black text-sm sm:text-base">{slicedCount}/{mission.goal}</div></div>
+        <div className="rounded-xl bg-rose-500/20 text-rose-200 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Hearts</div><div className="font-black text-sm sm:text-base">❤️ {hearts}</div></div>
+        <div className="rounded-xl bg-amber-400/15 text-amber-300 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Score</div><div className="font-black text-sm sm:text-base">{score}</div></div>
       </div>
 
       <div
