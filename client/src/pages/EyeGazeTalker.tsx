@@ -356,6 +356,164 @@ export default function EyeGazeTalker() {
   };
   const closeSettings = () => { settingsDialog.current?.close(); setSettingsOpen(false); };
 
+  const beginEdit = async (word: Word) => {
+    const resolved = resolveWord(word);
+    setEditWord(resolved);
+    setEditLabel(resolved.label);
+    setEditSentence(resolved.sentence);
+    setRecordingDrafts({ ...(familyConfig.recordings?.[wordKey(resolved)] || {}) });
+    setGateError("");
+    if (user?.role === "parent" || grownupToken) {
+      setEditOpen(true);
+      return;
+    }
+    setGateLoading(true);
+    setGateOpen(true);
+    try {
+      const result = await talkerRequest<{ challengeId: string; question: string }>(token, "/grownup-challenge");
+      setChallenge(result);
+      setMathAnswer("");
+    } catch (error: any) {
+      setGateError(error?.message || "Could not open the grown-up check.");
+    } finally {
+      setGateLoading(false);
+    }
+  };
+
+  const submitTalkerGate = async () => {
+    if (!challenge || !mathAnswer.trim()) return;
+    setGateLoading(true);
+    setGateError("");
+    try {
+      const result = await talkerRequest<{ grownupToken: string }>(token, "/grownup-challenge", "POST", {
+        challengeId: challenge.challengeId,
+        answer: Number(mathAnswer),
+      });
+      setGrownupToken(result.grownupToken);
+      gateDialog.current?.close();
+      setGateOpen(false);
+      setChallenge(null);
+      setMathAnswer("");
+      setEditOpen(true);
+      setNotice("Grown-up editing is unlocked for 30 minutes.");
+    } catch (error: any) {
+      setGateError(error?.message || "Not quite. Try a new question.");
+      try {
+        const next = await talkerRequest<{ challengeId: string; question: string }>(token, "/grownup-challenge");
+        setChallenge(next);
+        setMathAnswer("");
+      } catch {}
+    } finally {
+      setGateLoading(false);
+    }
+  };
+
+  const stopParentRecording = () => {
+    if (parentRecorder.current?.state === "recording") parentRecorder.current.stop();
+  };
+
+  const startParentRecording = async (kind: "word" | "sentence") => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setNotice("Voice recording is unavailable in this browser.");
+      return;
+    }
+    try {
+      stopParentRecording();
+      parentStream.current?.getTracks().forEach(track => track.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      parentStream.current = stream;
+      const supported = ["audio/webm", "audio/mp4", "audio/ogg"].find(type => MediaRecorder.isTypeSupported(type));
+      if (!supported) throw new Error("This device does not support a Talker recording format.");
+      const chunks: BlobPart[] = [];
+      const recorder = new MediaRecorder(stream, { mimeType: supported });
+      parentRecorder.current = recorder;
+      setRecordingKind(kind);
+      recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        parentStream.current = null;
+        setRecordingKind(null);
+        const blob = new Blob(chunks, { type: supported });
+        if (blob.size > 180_000) {
+          setNotice("That recording was too long. Keep it short and try again.");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          setRecordingDrafts(previous => ({ ...previous, [kind]: String(reader.result || "") }));
+          setNotice((kind === "word" ? "Word" : "Sentence") + " recording ready. Save the word to use it.");
+        };
+        reader.readAsDataURL(blob);
+      };
+      recorder.start();
+      window.setTimeout(() => {
+        if (recorder.state === "recording") recorder.stop();
+      }, kind === "word" ? 4500 : 8000);
+    } catch (error: any) {
+      setRecordingKind(null);
+      setNotice(error?.message || "Could not start recording.");
+    }
+  };
+
+  const previewRecording = (kind: "word" | "sentence") => {
+    const data = recordingDrafts[kind];
+    if (!data) return;
+    stopSpeaking();
+    const audio = new Audio(data);
+    void audio.play();
+  };
+
+  const saveWordEdit = async () => {
+    if (!editWord || !editLabel.trim() || !editSentence.trim()) return;
+    const key = wordKey(editWord);
+    const nextConfig: TalkerConfig = {
+      alwaysHere: familyConfig.alwaysHere ?? defaultNeeds,
+      pictures: familyConfig.pictures || {},
+      overrides: {
+        ...(familyConfig.overrides || {}),
+        [key]: {
+          label: editLabel.trim().slice(0, 40),
+          sentence: editSentence.trim().slice(0, 180),
+          picture: editWord.picture,
+        },
+      },
+      recordings: {
+        ...(familyConfig.recordings || {}),
+        [key]: { ...recordingDrafts },
+      },
+    };
+    try {
+      const saved = await talkerRequest<{ config: TalkerConfig }>(
+        token,
+        "/config",
+        "POST",
+        nextConfig,
+        grownupToken ? { "X-Talker-Grownup-Token": grownupToken } : {},
+      );
+      setFamilyConfig({
+        alwaysHere: saved.config.alwaysHere ?? null,
+        pictures: saved.config.pictures || {},
+        overrides: saved.config.overrides || {},
+        recordings: saved.config.recordings || {},
+      });
+      if (selected && wordKey(selected) === key) {
+        setSelected({ ...selected, label: editLabel.trim(), sentence: editSentence.trim() });
+      }
+      editDialog.current?.close();
+      setEditOpen(false);
+      setNotice("Talker word updated.");
+    } catch (error: any) {
+      setNotice(error?.message || "Could not save this Talker word.");
+    }
+  };
+
+  const closeEdit = () => {
+    stopParentRecording();
+    editDialog.current?.close();
+    setEditOpen(false);
+    setRecordingKind(null);
+  };
+
   if (view === "learn") return (
     <div className="talker-page min-h-screen bg-[#f3f8fa] text-[#193d57] px-3 sm:px-6 pb-10">
       <style>{`.talker-page button:focus-visible { outline: 4px solid #255bd5; outline-offset: 3px; } .talker-page button.talker-dwelling { outline: 4px solid #255bd5; outline-offset: 3px; overflow: hidden; } .talker-page button.talker-dwelling::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: #2676e236; transform-origin: left; animation: talker-fill var(--talker-wait) linear forwards; } @keyframes talker-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }`}</style>
@@ -437,8 +595,8 @@ export default function EyeGazeTalker() {
                   <p className="text-lg font-bold text-[#3f687a] my-3 text-center">{selected.sentence}</p>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <button data-talker-dwell type="button" onClick={() => { say(selected.label); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#e6f2f4] font-black">🔊 Say word</button>
-                    <button data-talker-dwell type="button" onClick={() => { say(selected.sentence); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white font-black">▶ Say sentence</button>
+                    <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "word"); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#e6f2f4] font-black">🔊 Say word</button>
+                    <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "sentence"); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white font-black">▶ Say sentence</button>
                   </div>
 
                   {animalSounds[selected.label] && (
@@ -523,7 +681,7 @@ export default function EyeGazeTalker() {
                       <h3 className="text-2xl font-black mt-1">Say it in a sentence</h3>
                       <div className="mt-3 rounded-2xl bg-white border-2 border-emerald-100 p-4 text-xl font-black">{selected.sentence}</div>
                       <div className="grid sm:grid-cols-2 gap-2 mt-3">
-                        <button data-talker-dwell type="button" onClick={() => { say(selected.sentence); recordLearning(selected.label, "practiced"); }} className="relative min-h-14 rounded-2xl bg-emerald-600 text-white font-black">▶ Hear sentence</button>
+                        <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "sentence"); recordLearning(selected.label, "practiced"); }} className="relative min-h-14 rounded-2xl bg-emerald-600 text-white font-black">▶ Hear sentence</button>
                         <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); say(`You added ${selected.label} to your words.`); }} className="relative min-h-14 rounded-2xl bg-white border-2 border-emerald-200 font-black">+ Use in My Words</button>
                       </div>
                     </section>
