@@ -5610,6 +5610,7 @@ Important:
     '/my-world',
     '/library',
     '/eye-gaze-games',
+    '/eye-gaze-life-skills',
     '/eye-gaze-tv',
     '/eye-gaze-flashcards',
     '/eye-gaze-buddy',
