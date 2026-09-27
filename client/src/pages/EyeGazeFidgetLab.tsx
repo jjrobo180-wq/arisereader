@@ -84,7 +84,7 @@ export default function EyeGazeFidgetLab(){
     </div>;
 
     if(selected==="spinner")return <button onClick={()=>{setSpin(v=>v+720);feedback(280,.16,"sawtooth");}} className="relative w-[min(72vw,460px)] aspect-square rounded-full bg-slate-950 shadow-[0_35px_100px_rgba(14,165,233,.4)] border-[12px] border-white/10 grid place-items-center overflow-hidden">
-      <div className="absolute inset-[10%] rounded-full transition-transform duration-[1300ms] ease-out" style={{transform:"rotate("+spin+"deg)"}}>
+      <div className="absolute inset-[10%] rounded-full transition-transform ease-out" style={{transform:"rotate("+spin+"deg)",transitionDuration:"1300ms"}}>
         {[0,60,120,180,240,300].map((deg,i)=><div key={deg} className="absolute left-1/2 top-1/2 w-[43%] h-[18%] origin-left rounded-full bg-gradient-to-r from-fuchsia-500 via-cyan-400 to-amber-300 shadow-[0_0_30px_rgba(34,211,238,.65)]" style={{transform:"rotate("+deg+"deg) translateX(8%)"}}/>)}
       </div>
       <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-white border-[10px] border-slate-300 shadow-2xl grid place-items-center text-4xl">🌀</div>
