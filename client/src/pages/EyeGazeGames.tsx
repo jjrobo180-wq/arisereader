@@ -550,6 +550,21 @@ export default function EyeGazeGames() {
           </div>
         </section>
 
+        <button
+          type="button"
+          onClick={() => navigate("/eye-gaze-fidgets")}
+          className="relative overflow-hidden w-full rounded-[2.2rem] border-4 border-cyan-300 bg-gradient-to-br from-slate-950 via-violet-950 to-cyan-950 p-6 sm:p-8 text-left text-white shadow-xl hover:-translate-y-1 transition-all mb-5 min-h-[210px]"
+        >
+          <div className="absolute right-[-8px] bottom-[-36px] text-[150px] opacity-25">🫧</div>
+          <div className="absolute right-24 top-3 text-5xl opacity-80">🌀</div>
+          <div className="relative max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-cyan-300 text-slate-950 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4"><Sparkles className="w-4 h-4"/> SENSORY PLAY</div>
+            <h2 className="text-3xl sm:text-4xl font-black">Fidget Lab</h2>
+            <p className="mt-2 text-white/85 font-bold text-base sm:text-lg">A whole library of satisfying fidgets: pop-its, bubble wrap, slime, ripple water, spinners, glow tiles, switches, liquid orbs and more.</p>
+            <div className="mt-4 inline-flex rounded-2xl bg-white text-violet-800 px-5 py-3 font-black">OPEN FIDGET LAB →</div>
+          </div>
+        </button>
+
         <div className="grid lg:grid-cols-2 gap-5 mb-5">
           <button
             type="button"
