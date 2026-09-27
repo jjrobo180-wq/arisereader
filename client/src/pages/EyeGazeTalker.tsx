@@ -294,7 +294,14 @@ export default function EyeGazeTalker() {
   useEffect(() => {
     let active = true;
     void talkerRequest<TalkerState>(token).then(state => {
-      if (active) setFamilyConfig({ alwaysHere: state.config?.alwaysHere ?? null, pictures: state.config?.pictures || {}, overrides: state.config?.overrides || {}, recordings: state.config?.recordings || {}, pageOrder: state.config?.pageOrder || [], buttonOrder: state.config?.buttonOrder || {} });
+      if (!active) return;
+      setFamilyConfig({ alwaysHere: state.config?.alwaysHere ?? null, pictures: state.config?.pictures || {}, overrides: state.config?.overrides || {}, recordings: state.config?.recordings || {}, pageOrder: state.config?.pageOrder || [], buttonOrder: state.config?.buttonOrder || {} });
+      const historyKeys = [...(state.progress?.history || [])].reverse().map(item => String(item.word || "").trim().toLowerCase()).filter(Boolean);
+      setRecentKeys(previous => {
+        const next = Array.from(new Set([...previous, ...historyKeys])).slice(0, 16);
+        localStorage.setItem("eye-gaze-talker-recent", JSON.stringify(next));
+        return next;
+      });
     }).catch(() => { if (active) setNotice("Family pictures could not load. Try reopening the talker."); });
     return () => { active = false; };
   }, [token]);
