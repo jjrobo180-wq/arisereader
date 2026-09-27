@@ -124,7 +124,8 @@ export default function EyeGazeFlashcards(){
 
   const updateDeck=(nextDeck:Deck)=>{
     const next=decks.map(item=>item.id===nextDeck.id?nextDeck:item);
-    void persist(next);
+    setDecks(next);
+    localStorage.setItem(cacheKey,JSON.stringify(next));
   };
 
   const addDeck=()=>{
@@ -164,7 +165,7 @@ export default function EyeGazeFlashcards(){
 
   if(editing) return <main className="fixed inset-0 z-[130] h-[100dvh] overflow-y-auto bg-slate-100 text-slate-950">
     <header className="sticky top-0 z-20 bg-white border-b p-3 sm:p-4 flex items-center gap-3">
-      <button onClick={()=>setEditing(false)} className="min-h-12 rounded-2xl bg-[#ffd766] border-4 border-[#193d57] px-4 font-black flex items-center gap-2"><X className="w-5 h-5"/> DONE</button>
+      <button onClick={()=>{void persist(decks);setEditing(false);}} className="min-h-12 rounded-2xl bg-[#ffd766] border-4 border-[#193d57] px-4 font-black flex items-center gap-2"><X className="w-5 h-5"/> DONE</button>
       <div className="flex-1"><p className="text-xs font-black text-violet-600">GROWN-UP EDIT</p><h1 className="font-black text-xl sm:text-2xl">{deck.title}</h1></div>
       {saving&&<span className="text-sm font-black text-slate-500">Saving…</span>}
     </header>
