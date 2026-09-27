@@ -336,7 +336,8 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
     if(resetScore)setScore(0);
     setMessage("Get ready!");
   };
-  const startGame=()=>{stopSpeaking();setStarted(true);startedRef.current=true;resetLevel(0,true);};
+  const enterImmersive=()=>{ try { const el=document.documentElement as any; const request=el.requestFullscreen||el.webkitRequestFullscreen; if(request) void request.call(el).catch?.(()=>{}); } catch {} };
+  const startGame=()=>{stopSpeaking();enterImmersive();setStarted(true);startedRef.current=true;resetLevel(0,true);};
   const retry=()=>{setStarted(true);startedRef.current=true;resetLevel(missionIndex,false);};
   const nextMission=()=>resetLevel((missionIndex+1)%MISSIONS.length,false);
 
@@ -397,20 +398,20 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
   }
 
   return(
-    <div className="min-h-screen bg-[#030712] text-white p-3 sm:p-5 select-none">
+    <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-[#030712] text-white p-2 sm:p-5 select-none">
       <style>{"@keyframes roadMove{from{transform:translateY(-35px)}to{transform:translateY(0)}} @keyframes floatScene{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}} .road-stripes{animation:roadMove .55s linear infinite}.scene-float{animation:floatScene 3s ease-in-out infinite}"}</style>
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-wrap items-center gap-3 mb-3">
+      <div className="max-w-6xl mx-auto h-full flex flex-col">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mb-2 sm:mb-3 flex-shrink-0">
           <button type="button" onClick={onBack} className="min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Games</button>
           <div className="rounded-xl bg-cyan-300 text-slate-950 px-3 py-2 font-black">LEVEL {missionIndex+1}/{MISSIONS.length}</div>
           <div className="rounded-xl bg-emerald-400 text-slate-950 px-4 py-2 font-black text-lg shadow-lg">🎯 {caught}/{mission.goal}</div>
-          <div className="flex-1 min-w-[180px]"><div className="text-xs uppercase tracking-widest font-black text-cyan-300">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div><div className="text-xl sm:text-2xl font-black">{mission.action}</div></div>
+          <div className="flex-1 min-w-[120px]"><div className="text-[10px] sm:text-xs uppercase tracking-widest font-black text-cyan-300">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div><div className="text-sm sm:text-2xl font-black truncate">{mission.action}</div></div>
           <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-xl bg-white/10 grid place-items-center">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
           <div className="flex items-center gap-1 rounded-xl bg-rose-500/15 px-3 py-2">{Array.from({length:3}).map((_,i)=><Heart key={i} className={"w-5 h-5 "+(i<hearts?"fill-rose-400 text-rose-400":"text-white/20")}/>)}</div>
           <div className="rounded-xl bg-amber-400/15 text-amber-300 px-3 py-2 font-black"><Star className="w-4 h-4 inline fill-current mr-1"/>{score}</div>
         </div>
 
-        <div className="rounded-2xl bg-slate-900 border border-white/10 p-3 mb-3 shadow-lg">
+        <div className="rounded-xl sm:rounded-2xl bg-slate-900 border border-white/10 p-2 sm:p-3 mb-2 sm:mb-3 shadow-lg flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center text-3xl overflow-hidden flex-shrink-0">{buddyVisual}</div>
             <div className="flex-1 min-w-0"><div className="font-black truncate">{message}</div><div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden"><div className="h-full transition-all" style={{width:progress+"%",background:mission.theme.accent}}/></div><div className="mt-1 flex items-center gap-2"><span className="rounded-full bg-emerald-400 text-slate-950 px-3 py-1 text-sm font-black">CAPTURED {caught} / {mission.goal}</span><span className="text-xs font-bold text-white/55">{mission.target.label}s</span></div></div>
@@ -419,8 +420,8 @@ export default function ReadingRunnerPro({ onBack, buddy }: { onBack: () => void
         </div>
 
         <div
-          className={"relative overflow-hidden rounded-[2rem] border-4 touch-none shadow-2xl "+(flash==="good"?"border-emerald-300":flash==="wrong"?"border-rose-400":"border-white/15")}
-          style={{height:"min(70vh,760px)",minHeight:540,background:mission.theme.sky}}
+          className={"relative flex-1 min-h-0 overflow-hidden rounded-2xl sm:rounded-[2rem] border-4 touch-none shadow-2xl "+(flash==="good"?"border-emerald-300":flash==="wrong"?"border-rose-400":"border-white/15")}
+          style={{background:mission.theme.sky}}
           onPointerDown={e=>{touchStart.current={x:e.clientX,y:e.clientY};}}
           onPointerUp={e=>swipeEnd(e.clientX,e.clientY)}
           onPointerCancel={()=>{touchStart.current=null;}}
