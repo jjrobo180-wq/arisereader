@@ -1229,6 +1229,16 @@ export default function Library() {
                 </button>
               )}
             </div>
+            {!user?.isAdmin && user?.role === 'student' && !user?.is_eye_gaze_user && (
+              <button
+                type="button"
+                onClick={() => navigate("/avatar-world")}
+                className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-500/15 to-violet-500/15 border border-cyan-400/25 hover:bg-cyan-500/20 text-sm font-bold"
+              >
+                <User className="w-4 h-4 text-cyan-500" />
+                <span className="hidden lg:inline">Avatar World</span>
+              </button>
+            )}
             {/* More dropdown - works on both desktop and mobile */}
             <div className="relative" ref={(el) => { mobileMenuRef.current = el; }}>
               <Button variant="ghost" size="sm" onClick={() => setShowMobileMenu(!showMobileMenu)}>
@@ -1249,6 +1259,11 @@ export default function Library() {
                     <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
                       <Trophy className="w-4 h-4" /> My Progress
                       {studentRewards.some(r => r.claimStatus === "approved") && <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />}
+                    </button>
+                  )}
+                  {!user?.isAdmin && user?.role === 'student' && !user?.is_eye_gaze_user && (
+                    <button onClick={() => { navigate("/avatar-world"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#0891b2", fontWeight: 700 }}>
+                      <User className="w-4 h-4" /> Avatar World
                     </button>
                   )}
                   <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
