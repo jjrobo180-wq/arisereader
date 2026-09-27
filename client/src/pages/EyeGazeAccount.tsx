@@ -36,13 +36,15 @@ export default function EyeGazeAccount() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [dwell, setDwell] = useState(() => localStorage.getItem("eye-gaze-talker-dwell") !== "off");
   const [dwellMs, setDwellMs] = useState(() => Number(localStorage.getItem("eye-gaze-talker-time")) || 1800);
+  const [sentenceBuilder, setSentenceBuilder] = useState(() => localStorage.getItem("eye-gaze-talker-sentence-builder") === "on");
 
   const authToken = token || getTokenFromCookie();
 
   useEffect(() => {
     localStorage.setItem("eye-gaze-talker-dwell", dwell ? "on" : "off");
     localStorage.setItem("eye-gaze-talker-time", String(dwellMs));
-  }, [dwell, dwellMs]);
+    localStorage.setItem("eye-gaze-talker-sentence-builder", sentenceBuilder ? "on" : "off");
+  }, [dwell, dwellMs, sentenceBuilder]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -221,6 +223,15 @@ export default function EyeGazeAccount() {
             <option value={3500}>3.5 seconds</option>
           </select>
         </label>}
+        <div className="mt-5 pt-4 border-t border-sky-100">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1">
+              <h3 className="text-lg font-black text-slate-900">🧩 Sentence builder / My Words</h3>
+              <p className="text-sm font-bold text-slate-600">Optional. Keep this off for a calmer My Talker screen. Turn it on to let the child collect words into a sentence.</p>
+            </div>
+            <button type="button" onClick={()=>setSentenceBuilder(value=>!value)} aria-pressed={sentenceBuilder} className={`min-h-14 min-w-32 rounded-2xl border-2 px-5 font-black ${sentenceBuilder ? "bg-emerald-600 border-emerald-600 text-white" : "bg-slate-100 border-slate-300 text-slate-700"}`}>{sentenceBuilder ? "ON ✓" : "OFF"}</button>
+          </div>
+        </div>
         <p className="mt-3 text-sm font-bold text-slate-500">Changes save automatically on this device.</p>
       </section>
 
