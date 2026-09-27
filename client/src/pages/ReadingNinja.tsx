@@ -56,9 +56,9 @@ const MISSIONS: Mission[] = [
 ];
 
 const SPEED={
-  easy:{launch:-1.9,gravity:.034,spawn:1120,label:"Easy",description:"Slow objects · more response time"},
-  medium:{launch:-2.4,gravity:.047,spawn:790,label:"Medium",description:"Classic arcade speed"},
-  hard:{launch:-2.9,gravity:.061,spawn:520,label:"Hard",description:"Fast objects · quick response"},
+  easy:{launch:-1.72,gravity:.030,spawn:1320,label:"Easy",description:"Toddler-friendly · bigger targets + slower flight"},
+  medium:{launch:-2.35,gravity:.045,spawn:820,label:"Medium",description:"Classic arcade speed"},
+  hard:{launch:-2.85,gravity:.059,spawn:540,label:"Hard",description:"Fast objects · quick response"},
 } as const;
 const BUDDY_EMOJI:Record<BuddyPreset,string>={puppy:"🐶",dino:"🦕",robot:"🤖",bunny:"🐰"};
 
@@ -66,14 +66,15 @@ function cheer(label:string){
   const lines=["Got the "+label+"!","Yes! "+label+"!","Perfect slice! "+label+"!","Nice! "+label+"!"];
   return lines[Math.floor(Math.random()*lines.length)];
 }
-function SliceToken({item}:{item:FlyingThing}){
-  return <div className={"relative "+(item.sliced?"opacity-15 scale-150":"")}>
-    <div className="absolute -inset-3 rounded-full blur-xl opacity-40 bg-white"/>
-    <div className="relative w-18 h-18 sm:w-24 sm:h-24 rounded-full border-4 shadow-2xl grid place-items-center text-5xl sm:text-6xl overflow-hidden bg-gradient-to-br from-white via-slate-100 to-slate-300 border-white">
-      <div className="absolute inset-x-3 top-2 h-3 bg-white/70 rounded-full blur-[1px]"/>
-      <span className="relative drop-shadow-lg">{item.emoji}</span>
+function SliceToken({item,large=false}:{item:FlyingThing;large?:boolean}){
+  return <div className={"relative transition-all duration-150 "+(item.sliced?"opacity-10 scale-150":"")}>
+    <div className="absolute -inset-4 rounded-full blur-2xl opacity-35 bg-white"/>
+    <div className={"relative rounded-full border-[5px] shadow-[0_12px_28px_rgba(0,0,0,.38)] grid place-items-center overflow-hidden bg-[radial-gradient(circle_at_32%_25%,#ffffff_0%,#f8fafc_35%,#dbeafe_100%)] border-white "+(large?"w-24 h-24 sm:w-28 sm:h-28":"w-20 h-20 sm:w-24 sm:h-24")}>
+      <div className="absolute inset-x-4 top-2 h-4 bg-white/80 rounded-full blur-[1px]"/>
+      <div className="absolute inset-2 rounded-full border border-sky-100/70"/>
+      <span className={large?"relative text-6xl sm:text-7xl drop-shadow-lg":"relative text-5xl sm:text-6xl drop-shadow-lg"}>{item.emoji}</span>
     </div>
-    <div className="relative mt-1 mx-auto w-max max-w-28 truncate rounded-full bg-slate-950/90 px-2 py-1 text-[10px] sm:text-xs font-black uppercase text-white">{item.label}</div>
+    <div className="relative mt-1 mx-auto w-max max-w-28 truncate rounded-full bg-slate-950/92 border border-white/20 px-3 py-1 text-[10px] sm:text-xs font-black uppercase text-white shadow-lg">{item.label}</div>
   </div>;
 }
 
@@ -161,8 +162,8 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
       const line=cheer(item.label);setMessage(line);say(line);
       if(next>=mission.goal){missionCompleteRef.current=true;setMissionComplete(true);updateThings([]);sfx("complete");setMessage("Level complete!");say("Level complete! You got all the "+mission.target.label+"s. Great job!");}
     }else{
-      const next=Math.max(0,heartsRef.current-1);heartsRef.current=next;setHearts(next);sfx("wrong");setMessage("That is a "+item.label+". Slice only "+mission.target.label+"!");say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
-      if(next<=0){gameOverRef.current=true;setGameOver(true);setStarted(false);updateThings([]);say("Nice try. Let's try that level again.");}
+      const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);heartsRef.current=next;setHearts(next);sfx("wrong");setMessage("That is a "+item.label+". Slice only "+mission.target.label+"!");say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
+      if(difficulty!=="easy"&&next<=0){gameOverRef.current=true;setGameOver(true);setStarted(false);updateThings([]);say("Nice try. Let's try that level again.");}
     }
   },[difficulty,mission,say,sfx,updateThings,burst]);
 
@@ -170,7 +171,9 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
     const arena=arenaRef.current;if(!arena||gameOverRef.current||missionCompleteRef.current)return;const rect=arena.getBoundingClientRect();if(!rect.width||!rect.height)return;
     const x=((clientX-rect.left)/rect.width)*100,y=((clientY-rect.top)/rect.height)*100;
     const point={x,y,id:trailId.current++};setTrail(c=>[...c.slice(-16),point]);window.setTimeout(()=>setTrail(c=>c.filter(p=>p.id!==point.id)),220);
-    const hit=[...thingsRef.current].filter(i=>!i.sliced).sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y)).find(i=>Math.abs(i.x-x)<=8.5&&Math.abs(i.y-y)<=10.5);
+    const hitX=difficulty==="easy"?13:8.5;
+    const hitY=difficulty==="easy"?15:10.5;
+    const hit=[...thingsRef.current].filter(i=>!i.sliced).sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y)).find(i=>Math.abs(i.x-x)<=hitX&&Math.abs(i.y-y)<=hitY);
     if(hit)handleHit(hit);
   },[handleHit]);
 
@@ -244,17 +247,19 @@ export default function ReadingNinja({onBack,buddy}:{onBack:()=>void;buddy:Buddy
         <div className="absolute inset-x-0 top-8 flex justify-around text-5xl sm:text-7xl opacity-25 decor-float">{mission.theme.decor.map((x,i)=><span key={i}>{x}</span>)}</div>
         <div className="absolute bottom-0 inset-x-0 h-[22%] bg-gradient-to-t from-black/40 to-transparent"/>
 
-        {things.map(item=><div key={item.id} className="absolute z-20 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-150 pointer-events-none" style={{left:item.x+"%",top:item.y+"%",transform:"translate(-50%,-50%) rotate("+item.rotation+"deg) "+(item.sliced?"scale(1.4)":"scale(1)")}}><SliceToken item={item}/></div>)}
+        {things.map(item=><div key={item.id} className="absolute z-20 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-150 pointer-events-none" style={{left:item.x+"%",top:item.y+"%",transform:"translate(-50%,-50%) rotate("+item.rotation+"deg) "+(item.sliced?"scale(1.4)":"scale(1)")}}><SliceToken item={item} large={difficulty==="easy"&&item.isTarget}/></div>)}
 
         <svg className="absolute inset-0 z-40 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-          {trailPoints&&<polyline points={trailPoints} fill="none" stroke="white" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" opacity=".9" style={{filter:"drop-shadow(0 0 4px white)"}}/>}
+          <defs><linearGradient id="bladeTrail" x1="0" x2="1"><stop offset="0%" stopColor="#67e8f9"/><stop offset="50%" stopColor="#ffffff"/><stop offset="100%" stopColor="#f0abfc"/></linearGradient></defs>
+          {trailPoints&&<polyline points={trailPoints} fill="none" stroke="url(#bladeTrail)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity=".95" style={{filter:"drop-shadow(0 0 6px white)"}}/>}
         </svg>
 
         {bursts.map(b=><div key={b.id} className={"absolute z-45 -translate-x-1/2 -translate-y-1/2 pointer-events-none burst-pop "+(b.good?"text-emerald-200":"text-rose-200")} style={{left:b.x+"%",top:b.y+"%"}}><div className="text-7xl">{b.good?"✨":"💥"}</div><div className="text-4xl text-center">{b.emoji}</div></div>)}
 
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-950/85 border border-white/20 px-4 py-2 font-black text-sm sm:text-base whitespace-nowrap shadow-xl">{mission.target.emoji} {mission.prompt}</div>
 
-        {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You sliced all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play Level 1 again":"Next arena →"}</button></div></div>}
+        {difficulty==="easy"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-pink-100/95 text-fuchsia-900 border-2 border-white px-4 py-2 text-xs sm:text-sm font-black shadow-lg">🧸 EASY MODE · bigger target hit area · no lost hearts</div>}
+                {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You sliced all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play Level 1 again":"Next arena →"}</button></div></div>}
       </div>
 
       <div className="mt-3 rounded-xl bg-slate-900 p-3 text-center text-sm font-black text-white/70">Swipe through only {mission.target.emoji} {mission.target.label}s. Wrong objects cost a heart.</div>
