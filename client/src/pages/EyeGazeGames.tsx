@@ -15,23 +15,6 @@ import ReadingNinja from "@/pages/ReadingNinja";
 
 type GameId = "runner" | "ninja" | "match" | "pop" | "sentence" | null;
 
-type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
-type BuddyConfig = {
-  type: "preset" | "upload";
-  preset: BuddyPreset;
-  name: string;
-  imageData: string | null;
-  voiceEnabled: boolean;
-  calmMode?: boolean;
-};
-
-const BUDDY_PRESETS: Record<BuddyPreset, { emoji: string; label: string }> = {
-  puppy: { emoji: "🐶", label: "Puppy" },
-  dino: { emoji: "🦖", label: "Dino" },
-  robot: { emoji: "🤖", label: "Robot" },
-  bunny: { emoji: "🐰", label: "Bunny" },
-};
-
 function getTokenFromCookie(): string | null {
   try {
     const match = document.cookie.match(/arise_session=([^;]+)/);
@@ -42,87 +25,6 @@ function getTokenFromCookie(): string | null {
   }
 }
 
-
-function BuddyAvatar({ buddy, size = "large" }: { buddy: BuddyConfig; size?: "small" | "large" }) {
-  const box = size === "large" ? "w-36 h-36 sm:w-44 sm:h-44 text-7xl sm:text-8xl" : "w-14 h-14 text-3xl";
-  if (buddy.type === "upload" && buddy.imageData) {
-    return <img src={buddy.imageData} alt={buddy.name} className={`${box} rounded-2xl object-cover border-2 border-primary/30 bg-card`} />;
-  }
-  const preset = BUDDY_PRESETS[buddy.preset] || BUDDY_PRESETS.puppy;
-  return (
-    <div className={`${box} rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center`} aria-label={preset.label}>
-      {preset.emoji}
-    </div>
-  );
-}
-
-function BuddyCoach({ buddy, message }: { buddy: BuddyConfig; message: string }) {
-  const [talking, setTalking] = useState(false);
-  const success = /yes|great|found|complete|match|built|nice reading|pop!/i.test(message);
-  const retry = /try|does not|close|different/i.test(message);
-
-  const say = () => {
-    if (!buddy.voiceEnabled || !message) return;
-    setTalking(true);
-    speakCharacterAI(message, {
-      calmMode: retry || !!buddy.calmMode,
-      onStart: () => setTalking(true),
-      onEnd: () => setTalking(false),
-      onFallback: () => {
-        setTalking(false);
-        // Keep the visible directions available if speech is unavailable.
-      },
-    });
-  };
-
-  useEffect(() => {
-    say();
-  }, [message, buddy.voiceEnabled]);
-
-  return (
-    <div className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-6 mb-6 transition-all ${
-      success ? "border-green-500/40 bg-green-500/10" : retry ? "border-amber-500/40 bg-amber-500/10" : "border-primary/25 bg-primary/5"
-    }`}>
-      <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-primary/10" />
-      <div className="absolute -bottom-12 -left-10 w-32 h-32 rounded-full bg-amber-400/10" />
-
-      <div className="relative flex flex-col sm:flex-row items-center gap-5">
-        <button
-          type="button"
-          onClick={say}
-          className={`relative flex-shrink-0 rounded-3xl transition-transform focus:outline-none focus:ring-4 focus:ring-primary/30 ${talking ? "scale-105" : "hover:scale-105"}`}
-          aria-label={`Hear ${buddy.name}`}
-        >
-          <div className={talking ? "animate-bounce" : success ? "animate-pulse" : ""}>
-            <BuddyAvatar buddy={buddy} />
-          </div>
-          <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-black whitespace-nowrap ${
-            talking ? "bg-primary text-primary-foreground" : "bg-card border border-border"
-          }`}>
-            {talking ? "TALKING..." : "TAP TO HEAR"}
-          </span>
-        </button>
-
-        <div className="min-w-0 flex-1 w-full">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <p className="text-sm font-black uppercase tracking-wide text-primary">{buddy.name} is teaching</p>
-            {success && <span className="text-xs font-black text-green-400">★ AWESOME!</span>}
-            {retry && <span className="text-xs font-black text-amber-400">YOU'VE GOT THIS</span>}
-          </div>
-
-          <div className="relative rounded-3xl sm:rounded-tl-md bg-card border-2 border-border px-5 py-5 text-xl sm:text-2xl font-black leading-snug min-h-[110px] flex items-center">
-            {message}
-          </div>
-
-          <div className="mt-3 flex items-center gap-2 text-sm font-bold text-muted-foreground">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary">👀</span>
-            <span>Your turn — gaze or tap a big choice below.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 type MatchCard = {
   id: string;
@@ -347,274 +249,7 @@ const RUNNER_LEVELS: Array<{ name: string; world: string; speed: number; questio
   },
 ];
 
-function RunnerBuddy({ buddy, talking, pointing }: { buddy: BuddyConfig; talking: boolean; pointing: boolean }) {
-  const face = buddy.type === "upload" && buddy.imageData
-    ? <img src={buddy.imageData} alt={buddy.name} className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg" />
-    : <div className="w-16 h-16 rounded-full bg-white/95 shadow-lg border-4 border-white flex items-center justify-center text-4xl">{BUDDY_PRESETS[buddy.preset]?.emoji || "🐶"}</div>;
-
-  return (
-    <div className={`relative transition-all duration-500 ${pointing ? "translate-x-[-8px]" : ""}`}>
-      <div className={talking ? "animate-[buddyBob_.35s_ease-in-out_infinite_alternate]" : "animate-[buddyFloat_2s_ease-in-out_infinite]"}>{face}</div>
-      <div className={`absolute left-1/2 -translate-x-1/2 bottom-1 w-5 h-2 rounded-full bg-slate-900/70 transition-transform ${talking ? "scale-y-125 animate-pulse" : "scale-y-50"}`} />
-      {pointing && (
-        <div className="absolute -left-12 top-8 flex items-center">
-          <div className="w-10 h-2 rounded-full bg-amber-300 rotate-[-12deg] origin-right shadow" />
-          <div className="text-2xl -ml-1">👉</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ReadingRunner({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
-  const { user } = useAuth();
-  const storageKey = `arise-reading-runner-${user?.id || "student"}`;
-  const [level, setLevel] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
-      return Math.max(1, Math.min(10, Number(saved.level || 1)));
-    } catch { return 1; }
-  });
-  const [unlockedLevel, setUnlockedLevel] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
-      return Math.max(1, Math.min(10, Number(saved.unlockedLevel || 1)));
-    } catch { return 1; }
-  });
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [coins, setCoins] = useState(() => {
-    try { return Number(JSON.parse(localStorage.getItem(storageKey) || "{}").coins || 0); } catch { return 0; }
-  });
-  const [hearts, setHearts] = useState(3);
-  const [runState, setRunState] = useState<"running" | "jump" | "hit" | "finish">("running");
-  const [feedback, setFeedback] = useState("Ready? Read the sign and pick the right lane!");
-  const [talking, setTalking] = useState(false);
-  const [locked, setLocked] = useState(false);
-  const [showMap, setShowMap] = useState(true);
-
-  const currentLevel = RUNNER_LEVELS[level - 1];
-  const current = currentLevel.questions[questionIndex];
-
-  const speakBuddy = (text: string, calm = false) => {
-    if (!buddy.voiceEnabled) return;
-    setTalking(true);
-    void speakCharacterAI(text, {
-      calmMode: calm || !!buddy.calmMode,
-      onStart: () => setTalking(true),
-      onEnd: () => setTalking(false),
-      onFallback: () => setTalking(false),
-    });
-  };
-
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify({ level, unlockedLevel, coins }));
-  }, [storageKey, level, unlockedLevel, coins]);
-
-  useEffect(() => {
-    if (!showMap) {
-      const intro = `Level ${level}. ${currentLevel.name}. ${current.prompt}`;
-      setFeedback(current.prompt);
-      speakBuddy(intro);
-    }
-  }, [level, showMap]);
-
-  const startLevel = (nextLevel: number) => {
-    if (nextLevel > unlockedLevel) return;
-    setLevel(nextLevel);
-    setQuestionIndex(0);
-    setHearts(3);
-    setRunState("running");
-    setLocked(false);
-    setShowMap(false);
-  };
-
-  const choose = (choice: string) => {
-    if (locked || runState === "finish") return;
-    setLocked(true);
-
-    if (choice === current.answer) {
-      setRunState("jump");
-      setCoins(v => v + 10);
-      setFeedback(`YES! Jump! You got ${current.answer}!`);
-      speakBuddy(`Yes! ${current.answer}! Jump!`);
-
-      setTimeout(() => {
-        const isLast = questionIndex >= currentLevel.questions.length - 1;
-        if (isLast) {
-          const nextUnlock = Math.min(10, Math.max(unlockedLevel, level + 1));
-          setUnlockedLevel(nextUnlock);
-          setRunState("finish");
-          setFeedback(level === 10 ? "CHAMPION! You finished every Reading Runner world!" : `LEVEL ${level} COMPLETE! You unlocked the next world!`);
-          speakBuddy(level === 10 ? "Reading Champion! You did it!" : "Level complete! You unlocked the next world!");
-          setLocked(false);
-        } else {
-          setQuestionIndex(i => i + 1);
-          setRunState("running");
-          setFeedback(currentLevel.questions[questionIndex + 1].prompt);
-          setLocked(false);
-          speakBuddy(currentLevel.questions[questionIndex + 1].prompt);
-        }
-      }, 900);
-    } else {
-      setRunState("hit");
-      setHearts(h => Math.max(0, h - 1));
-      setFeedback("BUMP! Try another lane. Your runner is okay!");
-      speakBuddy("Oops! Bump! Try another lane.", true);
-      setTimeout(() => {
-        setRunState("running");
-        setLocked(false);
-      }, 700);
-    }
-  };
-
-  if (showMap) {
-    return (
-      <GameShell title="Reading Runner" subtitle="Run through 10 reading worlds. Answer correctly to jump obstacles and earn coins." onBack={onBack}>
-        <style>{`
-          @keyframes buddyFloat { from { transform: translateY(0) } 50% { transform: translateY(-8px) } to { transform: translateY(0) } }
-          @keyframes buddyBob { from { transform: translateY(0) rotate(-2deg) } to { transform: translateY(-5px) rotate(2deg) } }
-        `}</style>
-        <div className="rounded-[2rem] overflow-hidden border-2 border-sky-200 bg-gradient-to-br from-sky-100 via-violet-100 to-amber-100 p-5 sm:p-7 mb-6">
-          <div className="flex items-center gap-4">
-            <RunnerBuddy buddy={buddy} talking={false} pointing={false} />
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-violet-600">Adventure Map</p>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Reading Runner</h2>
-              <p className="font-bold text-slate-600 mt-1">⭐ {coins} coins · Level {unlockedLevel} unlocked</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {RUNNER_LEVELS.map((item, i) => {
-            const n = i + 1;
-            const unlocked = n <= unlockedLevel;
-            return (
-              <button
-                key={n}
-                type="button"
-                onClick={() => startLevel(n)}
-                disabled={!unlocked}
-                className={`relative min-h-[150px] rounded-3xl border-2 p-4 text-center transition-all ${unlocked ? "bg-white border-violet-200 hover:-translate-y-1 hover:shadow-lg" : "bg-slate-100 border-slate-200 opacity-60"}`}
-              >
-                <div className="text-5xl mb-2">{item.world}</div>
-                <div className="text-xs font-black uppercase tracking-widest text-violet-600">Level {n}</div>
-                <div className="font-black text-slate-900 mt-1">{item.name}</div>
-                {!unlocked && <LockKeyhole className="w-5 h-5 absolute top-3 right-3 text-slate-400" />}
-                {unlocked && n < unlockedLevel && <CheckCircle2 className="w-5 h-5 absolute top-3 right-3 text-green-500" />}
-              </button>
-            );
-          })}
-        </div>
-      </GameShell>
-    );
-  }
-
-  return (
-    <GameShell title={`Reading Runner · Level ${level}`} subtitle={currentLevel.name} onBack={() => setShowMap(true)}>
-      <style>{`
-        @keyframes roadMove { from { background-position-y: 0 } to { background-position-y: 120px } }
-        @keyframes skylineMove { from { transform: translateX(0) } to { transform: translateX(-80px) } }
-        @keyframes runnerBounce { from { transform: translateY(0) scaleY(1) } to { transform: translateY(-5px) scaleY(.97) } }
-        @keyframes runnerJump { 0% { transform: translateY(0) rotate(0deg) } 45% { transform: translateY(-95px) rotate(-8deg) } 100% { transform: translateY(0) rotate(0deg) } }
-        @keyframes runnerHit { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-10px) rotate(-7deg) } 75% { transform: translateX(10px) rotate(7deg) } }
-        @keyframes obstacleRush { from { transform: translateY(-10px) scale(.45); opacity:.45 } to { transform: translateY(180px) scale(1.15); opacity:1 } }
-        @keyframes coinSpin { from { transform: rotateY(0deg) } to { transform: rotateY(360deg) } }
-        @keyframes buddyFloat { from { transform: translateY(0) } 50% { transform: translateY(-8px) } to { transform: translateY(0) } }
-        @keyframes buddyBob { from { transform: translateY(0) rotate(-2deg) } to { transform: translateY(-5px) rotate(2deg) } }
-      `}</style>
-
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex-1 h-4 rounded-full bg-slate-200 overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500" style={{ width: `${((questionIndex + (runState === "finish" ? 1 : 0)) / currentLevel.questions.length) * 100}%` }} />
-        </div>
-        <div className="font-black text-slate-700 whitespace-nowrap">{questionIndex + 1}/{currentLevel.questions.length}</div>
-      </div>
-
-      <div className="relative rounded-[2rem] overflow-hidden border-4 border-sky-200 shadow-xl bg-gradient-to-b from-sky-300 via-sky-100 to-slate-200 min-h-[520px]">
-        <div className="absolute inset-x-0 top-0 h-36 overflow-hidden">
-          <div className="absolute inset-0 flex items-end gap-4 opacity-75 animate-[skylineMove_4s_linear_infinite]">
-            {Array.from({length: 14}).map((_, i) => (
-              <div key={i} className="w-14 rounded-t-lg bg-slate-500/60" style={{height: `${50 + (i % 4) * 20}px`}} />
-            ))}
-          </div>
-        </div>
-
-        <div className="absolute top-4 left-4 z-20 flex gap-2">
-          <div className="rounded-2xl bg-white/90 px-3 py-2 font-black shadow">🪙 {coins}</div>
-          <div className="rounded-2xl bg-white/90 px-3 py-2 font-black shadow">{Array.from({length: 3}).map((_, i) => <span key={i} className={i < hearts ? "" : "opacity-20"}>❤️</span>)}</div>
-        </div>
-
-        <div className="absolute top-4 right-5 z-20">
-          <RunnerBuddy buddy={buddy} talking={talking} pointing={runState === "running"} />
-        </div>
-
-        <div className="absolute left-1/2 -translate-x-1/2 top-24 w-[74%] h-[420px] bg-slate-700 [clip-path:polygon(32%_0,68%_0,100%_100%,0_100%)] overflow-hidden">
-          <div className="absolute inset-0 opacity-60" style={{
-            backgroundImage: "linear-gradient(to bottom, transparent 0 40px, rgba(255,255,255,.85) 40px 70px, transparent 70px 120px)",
-            backgroundSize: "100% 120px",
-            animation: `roadMove ${Math.max(.45, 1 / currentLevel.speed)}s linear infinite`
-          }} />
-
-          <div className="absolute left-1/3 top-0 bottom-0 border-l-4 border-dashed border-white/60" />
-          <div className="absolute left-2/3 top-0 bottom-0 border-l-4 border-dashed border-white/60" />
-
-          {runState !== "finish" && (
-            <div className="absolute left-1/2 -translate-x-1/2 top-16 animate-[obstacleRush_1.25s_linear_infinite]">
-              <div className="w-24 h-12 bg-orange-500 border-4 border-white rounded-lg shadow-xl flex items-center justify-center text-2xl">🚧</div>
-            </div>
-          )}
-
-          <div className={`absolute left-1/2 -translate-x-1/2 bottom-16 transition-all ${runState === "jump" ? "animate-[runnerJump_.8s_ease-out]" : runState === "hit" ? "animate-[runnerHit_.5s_ease-in-out]" : "animate-[runnerBounce_.28s_ease-in-out_infinite_alternate]"}`}>
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-violet-500 border-4 border-white shadow-xl flex items-center justify-center text-4xl">🏃</div>
-              <div className="absolute -right-4 top-0 text-2xl animate-[coinSpin_1s_linear_infinite]">{runState === "jump" ? "⚡" : ""}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute inset-x-3 bottom-3 z-30">
-          <div className="rounded-3xl bg-white/95 backdrop-blur p-4 shadow-2xl border-2 border-white">
-            <div className="text-center mb-3">
-              <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">{current.skill}</div>
-              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{runState === "finish" ? feedback : current.prompt}</div>
-            </div>
-
-            {runState === "finish" ? (
-              <div className="grid sm:grid-cols-2 gap-3">
-                <button onClick={() => setShowMap(true)} className="min-h-[64px] rounded-2xl bg-violet-600 text-white font-black text-lg">Back to Map</button>
-                {level < 10 && (
-                  <button onClick={() => startLevel(Math.min(10, level + 1))} className="min-h-[64px] rounded-2xl bg-green-500 text-white font-black text-lg">Next Level →</button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {current.choices.map((choice, i) => (
-                  <DwellButton
-                    key={choice}
-                    onSelect={() => choose(choice)}
-                    disabled={locked}
-                    ariaLabel={`Lane ${i + 1}: ${choice}`}
-                    className={`min-h-[92px] sm:min-h-[105px] p-2 sm:p-3 text-base sm:text-xl bg-gradient-to-b ${i === 0 ? "from-rose-50 to-rose-100 border-rose-300" : i === 1 ? "from-sky-50 to-sky-100 border-sky-300" : "from-amber-50 to-amber-100 border-amber-300"} text-slate-900`}
-                  >
-                    <div className="text-[10px] uppercase tracking-widest opacity-60 mb-1">Lane {i + 1}</div>
-                    <div className="font-black break-words">{choice}</div>
-                  </DwellButton>
-                ))}
-              </div>
-            )}
-
-            <div className={`mt-3 text-center font-black text-sm ${runState === "hit" ? "text-amber-600" : runState === "jump" ? "text-green-600" : "text-slate-600"}`}>
-              {feedback}
-            </div>
-          </div>
-        </div>
-      </div>
-    </GameShell>
-  );
-}
-
-function MatchPairs({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
+function MatchPairs({ onBack }: { onBack: () => void }) {
   const [setIndex, setSetIndex] = useState(0);
   const [cards, setCards] = useState(() => MATCH_SETS[0].map(c => ({ ...c })));
   const [first, setFirst] = useState<string | null>(null);
@@ -640,7 +275,7 @@ function MatchPairs({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig 
     setLocked(true);
     if (firstCard.pair === card.pair && firstCard.kind !== card.kind) {
       setCards(prev => prev.map(c => c.id === first || c.id === id ? { ...c, matched: true } : c));
-      celebrateEyeGaze(!!buddy.calmMode);
+      celebrateEyeGaze(false);
       setMessage("Yes! Those match. Nice reading! Pick another card.");
       setFirst(null);
       setLocked(false);
@@ -695,7 +330,7 @@ function MatchPairs({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig 
   );
 }
 
-function WordPop({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
+function WordPop({ onBack }: { onBack: () => void }) {
   const [round, setRound] = useState(0);
   const [stars, setStars] = useState(0);
   const [feedback, setFeedback] = useState("Look at the big word. Then find the exact same word in one of the bubbles.");
@@ -708,7 +343,7 @@ function WordPop({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) 
     if (word === current.target) {
       setLocked(true);
       setStars(s => s + 1);
-      celebrateEyeGaze(!!buddy.calmMode);
+      celebrateEyeGaze(false);
       setFeedback(`POP! You found ${current.target}! Great job!`);
       setTimeout(() => {
         setRound(r => (r + 1) % POP_ROUNDS.length);
@@ -748,7 +383,7 @@ function WordPop({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) 
   );
 }
 
-function SentenceBuilder({ onBack, buddy }: { onBack: () => void; buddy: BuddyConfig }) {
+function SentenceBuilder({ onBack }: { onBack: () => void }) {
   const [round, setRound] = useState(0);
   const [built, setBuilt] = useState<string[]>([]);
   const [message, setMessage] = useState("Look at the picture. We are going to build a sentence one word at a time. Choose the first word.");
@@ -763,7 +398,7 @@ function SentenceBuilder({ onBack, buddy }: { onBack: () => void; buddy: BuddyCo
     if (word === current.words[nextIndex]) {
       const next = [...built, word];
       setBuilt(next);
-      celebrateEyeGaze(!!buddy.calmMode);
+      celebrateEyeGaze(false);
       setMessage(next.length === current.words.length ? "You built the whole sentence! Read it with me." : `Yes! ${word} goes there. Now choose the next word.`);
     } else {
       setMessage("Good try. That word comes later or does not belong here. Choose another word.");
@@ -865,12 +500,6 @@ export default function EyeGazeGames() {
   const [, navigate] = useLocation();
   const [panel, setPanel] = useState<"games" | "lessons">(()=>new URLSearchParams(window.location.search).get("tab")==="lessons"?"lessons":"games");
   const [game, setGame] = useState<GameId>(null);
-  const [showBuddySetup, setShowBuddySetup] = useState(false);
-  const [buddy, setBuddy] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true, calmMode: false });
-  const [buddyDraft, setBuddyDraft] = useState<BuddyConfig>({ type: "preset", preset: "puppy", name: "Buddy", imageData: null, voiceEnabled: true, calmMode: false });
-  const [savingBuddy, setSavingBuddy] = useState(false);
-  const [buddyMessage, setBuddyMessage] = useState("");
-
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("eye-gaze-game-immersive", { detail: { active: !!game } }));
   }, [game]);
@@ -881,77 +510,13 @@ export default function EyeGazeGames() {
     };
   }, []);
 
-  useEffect(() => {
-    const authToken = token || getTokenFromCookie();
-    if (!authToken) return;
-    fetch(`${API_BASE}/api/eye-gaze/learning-buddy`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-      cache: "no-store",
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data) return;
-        setBuddy(data);
-        setBuddyDraft(data);
-      })
-      .catch(() => {});
-  }, [token]);
-
-  const saveBuddy = async () => {
-    const authToken = token || getTokenFromCookie();
-    if (!authToken) return;
-    setSavingBuddy(true);
-    setBuddyMessage("");
-    try {
-      const res = await fetch(`${API_BASE}/api/eye-gaze/learning-buddy`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify(buddyDraft),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Could not save buddy.");
-      setBuddy(data);
-      setBuddyDraft(data);
-      setBuddyMessage("Learning Buddy saved!");
-      setShowBuddySetup(false);
-      if (data.voiceEnabled) {
-        speakCharacterAI(`Hi! I'm ${data.name}. Let's learn together!`, {
-          calmMode: !!data.calmMode,
-          onFallback: () => setBuddyMessage("Natural AI voice is unavailable. Check the server AI voice configuration."),
-        });
-      }
-    } catch (e: any) {
-      setBuddyMessage(e.message || "Could not save buddy.");
-    } finally {
-      setSavingBuddy(false);
-    }
-  };
-
-  const handleBuddyUpload = (file?: File) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setBuddyMessage("Please choose an image file.");
-      return;
-    }
-    if (file.size > 1_500_000) {
-      setBuddyMessage("Please choose a picture under 1.5 MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBuddyDraft(prev => ({ ...prev, type: "upload", imageData: String(reader.result || "") }));
-      setBuddyMessage("");
-    };
-    reader.readAsDataURL(file);
-  };
-
   if(isChild && !permissions)return <div className="p-8 font-bold">{permissionsFailed?"Could not load activity permissions. Please reopen Games.":"Loading activities…"}</div>;
   const activePanel = panel === "games" && !canPlay ? "lessons" : panel === "lessons" && !canLearn ? "games" : panel;
-  if (canPlay && game === "runner") return <ReadingRunnerPro onBack={() => setGame(null)} buddy={buddy} />;
-  if (canPlay && game === "ninja") return <ReadingNinja onBack={() => setGame(null)} buddy={buddy} />;
-  if (canPlay && game === "match") return <MatchPairs onBack={() => setGame(null)} buddy={buddy} />;
-  if (canPlay && game === "pop") return <WordPop onBack={() => setGame(null)} buddy={buddy} />;
-  if (canPlay && game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} buddy={buddy} />;
+  if (canPlay && game === "runner") return <ReadingRunnerPro onBack={() => setGame(null)} />;
+  if (canPlay && game === "ninja") return <ReadingNinja onBack={() => setGame(null)} />;
+  if (canPlay && game === "match") return <MatchPairs onBack={() => setGame(null)} />;
+  if (canPlay && game === "pop") return <WordPop onBack={() => setGame(null)} />;
+  if (canPlay && game === "sentence") return <SentenceBuilder onBack={() => setGame(null)} />;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
