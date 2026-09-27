@@ -234,7 +234,7 @@ export default function EyeGazeTalker() {
   const [voiceStatus, setVoiceStatus] = useState<"ai" | "device" | "checking">("checking");
   const [notice, setNotice] = useState("");
   const [familyConfig, setFamilyConfig] = useState<TalkerConfig>({ alwaysHere: null, pictures: {}, overrides: {}, recordings: {}, pageOrder: [], buttonOrder: {} });
-  const [libraryMode, setLibraryMode] = useState<"places" | "categories" | "recent" | "all" | "simple">("categories");
+  const [libraryMode, setLibraryMode] = useState<"places" | "categories" | "recent" | "all" | "simple">("simple");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [recentKeys, setRecentKeys] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem("eye-gaze-talker-recent") || "[]").slice(0, 16); } catch { return []; }
@@ -693,8 +693,8 @@ export default function EyeGazeTalker() {
       <div className="max-w-[1450px] mx-auto">
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">Learning Zone</h1></div></div>
             <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-home")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">⌂ Home</button>
+            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">Learning Zone</h1></div></div>
             <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">Profile</button>
           </div>
           <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="Learning Zone">
@@ -851,10 +851,7 @@ export default function EyeGazeTalker() {
                   <h2 id="talker-selected-word" className="text-4xl font-black mt-3 text-center">{selected.label}</h2>
                   <p className="text-lg font-bold text-[#3f687a] my-3 text-center">{selected.sentence}</p>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "word"); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#e6f2f4] font-black">🔊 Say word</button>
-                    <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "sentence"); recordLearning(selected.label, "practiced"); }} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white font-black">▶ Say sentence</button>
-                  </div>
+                  <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "word", () => sayWord(selected, "sentence")); recordLearning(selected.label, "practiced"); }} className="relative w-full min-h-16 rounded-2xl bg-[#137f96] text-white font-black">🔊 Replay word + sentence</button>
 
                   {animalSounds[selected.label] && (
                     <button data-talker-dwell type="button" onClick={() => { stopSpeaking(); playAnimal(selected.label); }} className="relative min-h-16 rounded-2xl w-full bg-[#e0f3e7] mt-3 font-black text-lg">🐾 Hear animal sound</button>
