@@ -30,36 +30,37 @@ export const lessons: Lesson[] = [
 
 type Props = { say: (text: string, onEnd?: () => void) => void; onBack: () => void };
 
+const STEPS = ["Choose", "Hear", "See", "Sounds", "Sentence", "Find", "Say"] as const;
+
 export default function EyeGazeLearningZone({ say, onBack }: Props) {
   const { token } = useAuth();
   const [word, setWord] = useState(() => localStorage.getItem("eye-gaze-learning-word") || "Milk");
+  const [step, setStep] = useState(0);
   const [answer, setAnswer] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [heard, setHeard] = useState("");
+  const [mouthHelper, setMouthHelper] = useState(() => localStorage.getItem("eye-gaze-mouth-helper") !== "off");
+  const [mouthTalking, setMouthTalking] = useState(false);
+  const [micReady, setMicReady] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
-  const stream = useRef<MediaStream | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const audioContext = useRef<AudioContext | null>(null);
+  const activeStream = useRef<MediaStream | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const practiceId = useRef(0);
   const alive = useRef(true);
-  const practiceActive = useRef(false);
   const lesson = lessons.find(item => item.word === word) || lessons[0];
 
   useEffect(() => {
     localStorage.setItem("eye-gaze-learning-word", lesson.word);
-    practiceActive.current = false;
-    practiceId.current++;
-    if (timer.current) clearTimeout(timer.current);
-    if (recorder.current?.state === "recording") recorder.current.stop();
-    stream.current?.getTracks().forEach(track => track.stop());
-    void audioContext.current?.close();
-    setBusy(false); setAnswer(null); setFeedback(""); setHeard("");
-    const lines = [lesson.word, `Can you say ${lesson.word}?`, `I heard ${lesson.word}!`,
-      `Let's try ${lesson.word}. Start with ${lesson.first}. ${lesson.word}.`,
-      ...lesson.phrases, ...lesson.pictures.map(picture => picture.caption),
-      `${lesson.word} begins with the sound ${lesson.first}. Listen: ${lesson.word}.`,
-      `${lesson.syllables.replaceAll(" · ", ". ")}. ${lesson.word}.`];
+    const lines = [
+      lesson.word,
+      "Can you say " + lesson.word + "?",
+      "I heard " + lesson.word + "!",
+      "Let's try " + lesson.word + ". Start with " + lesson.first + ". " + lesson.word + ".",
+      ...lesson.phrases,
+      ...lesson.pictures.map(picture => picture.caption),
+      lesson.word + " begins with the sound " + lesson.first + ". Listen: " + lesson.word + ".",
+    ];
     let cancelled = false;
     void (async () => {
       for (let i = 0; i < lines.length && !cancelled; i += 3) {
@@ -68,129 +69,419 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
     })();
     return () => { cancelled = true; };
   }, [lesson.word]);
+
+  useEffect(() => {
+    localStorage.setItem("eye-gaze-mouth-helper", mouthHelper ? "on" : "off");
+  }, [mouthHelper]);
+
   useEffect(() => () => {
     alive.current = false;
-    practiceActive.current = false;
     practiceId.current++;
-    if (timer.current) clearTimeout(timer.current);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
     if (recorder.current?.state === "recording") recorder.current.stop();
-    stream.current?.getTracks().forEach(track => track.stop());
-    void audioContext.current?.close();
+    activeStream.current?.getTracks().forEach(track => track.stop());
   }, []);
 
-  const startListening = (media: MediaStream, type: string, id: number, practiced: Lesson) => {
-    if (!alive.current || id !== practiceId.current || !practiceActive.current) { media.getTracks().forEach(track => track.stop()); return; }
-    try {
-      const chunks: BlobPart[] = [];
-      let heardVoice = false;
-      const active = new MediaRecorder(media, { mimeType: type });
-      recorder.current = active;
-      active.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
-      active.onstop = async () => {
-        if (timer.current) clearTimeout(timer.current);
-        timer.current = null;
-        void audioContext.current?.close();
-        audioContext.current = null;
-        media.getTracks().forEach(track => track.stop());
-        stream.current = null;
-        if (!alive.current || id !== practiceId.current || !practiceActive.current) return;
-        if (!heardVoice) { setBusy(false); setFeedback("I didn't catch a voice. Try again when you're ready."); return; }
-        const audio = new Blob(chunks, { type });
-        if (audio.size < 500) { setBusy(false); setFeedback("I couldn't hear that time. Try again when you're ready."); return; }
-        setFeedback("Checking what I heard…");
-        try {
-          const response = await fetch(`${API_BASE}/api/eye-gaze/listen`, { method: "POST", headers: { "Content-Type": type, Authorization: `Bearer ${token}` }, body: audio, cache: "no-store" });
-          const result = await response.json();
-          if (!alive.current || id !== practiceId.current) return;
-          if (!response.ok) throw new Error(result.message || "I couldn't listen that time.");
-          const transcript = String(result.heard || "").trim();
-          setHeard(transcript);
-          if (!transcript) { setFeedback("I couldn't hear a word. Let's listen and try again."); setBusy(false); return; }
-          const matched = transcript.toLowerCase().split(/[^a-z]+/).includes(practiced.word.toLowerCase());
-          const message = matched ? `I heard ${practiced.word}! Let's say it together.` : `I heard “${transcript}.” Listen to ${practiced.word}. Start with ${practiced.first}, then try again.`;
-          setFeedback(message);
-          setBusy(false);
-          void talkerRequest(token, "/practice", "POST", { word: practiced.word, outcome: matched ? "correct" : "retry", prompt: 2 }).catch(() => {});
-          say(matched ? `I heard ${practiced.word}!` : `Let's try ${practiced.word}. Start with ${practiced.first}. ${practiced.word}.`);
-        } catch (error: any) { if (id === practiceId.current) { setBusy(false); setFeedback(error?.message || "I couldn't listen that time. Try again."); } }
-      };
-      active.start();
-      setFeedback("I'm listening. Say the word now.");
-
-      // Stop as soon as speech ends; a generous timeout also helps quieter kids.
-      const context = audioContext.current || new AudioContext();
-      audioContext.current = context;
-      void context.resume();
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 1024;
-      const source = context.createMediaStreamSource(media);
-      source.connect(analyser);
-      const samples = new Float32Array(analyser.fftSize);
-      const started = performance.now();
-      let speakingSince = 0;
-      let lastVoiceAt = 0;
-      let noiseFloor = 0.004;
-      const poll = () => {
-        if (active.state !== "recording" || id !== practiceId.current) return;
-        analyser.getFloatTimeDomainData(samples);
-        let energy = 0;
-        for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) energy += samples[sampleIndex] * samples[sampleIndex];
-        const rms = Math.sqrt(energy / samples.length);
-        const now = performance.now();
-        if (now - started < 250) noiseFloor = Math.max(noiseFloor, rms);
-        const voice = rms > Math.max(0.009, noiseFloor * 2.2);
-        if (voice) {
-          if (!speakingSince) speakingSince = now;
-          if (now - speakingSince > 140) heardVoice = true;
-          lastVoiceAt = now;
-        } else speakingSince = 0;
-        if ((heardVoice && now - lastVoiceAt > 700 && now - started > 800) || now - started > 6500) {
-          active.stop();
-        } else timer.current = setTimeout(poll, 60);
-      };
-      timer.current = setTimeout(poll, 60);
-    } catch { if (recorder.current?.state === "recording") recorder.current.stop(); media.getTracks().forEach(track => track.stop()); setFeedback("The microphone couldn't start. You can still listen and use pictures."); setBusy(false); }
+  const stopPractice = () => {
+    practiceId.current++;
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    retryTimer.current = null;
+    if (recorder.current?.state === "recording") recorder.current.stop();
+    activeStream.current?.getTracks().forEach(track => track.stop());
+    activeStream.current = null;
+    setBusy(false);
   };
 
-  const ask = async () => {
-    if (busy) return;
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { setFeedback("This browser cannot use the microphone here. You can still listen and use pictures."); return; }
-    const type = ["audio/webm", "audio/mp4", "audio/ogg"].find(candidate => MediaRecorder.isTypeSupported(candidate));
-    if (!type) { setFeedback("This microphone format isn't supported. You can still listen and use pictures."); return; }
-    const id = ++practiceId.current;
-    setBusy(true);
-    setFeedback(""); setHeard("");
-    practiceActive.current = true;
+  const sayWithMouth = (text: string, onEnd?: () => void) => {
+    if (mouthHelper) setMouthTalking(true);
+    say(text, () => {
+      setMouthTalking(false);
+      onEnd?.();
+    });
+  };
+
+  const prepareMicrophone = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return false;
     try {
-      audioContext.current = new AudioContext();
-      void audioContext.current.resume();
-      // Request permission on the initial tap, before the AI speaks. Only
-      // record after the prompt ends, so its own voice cannot be transcribed.
       const media = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!alive.current || id !== practiceId.current) { media.getTracks().forEach(track => track.stop()); return; }
-      stream.current = media;
-      setFeedback(`Listen, then say ${lesson.word}. The microphone starts by itself.`);
-      say(`Can you say ${lesson.word}?`, () => startListening(media, type, id, lesson));
-    } catch { if (id === practiceId.current) { void audioContext.current?.close(); audioContext.current = null; setBusy(false); setFeedback("Microphone permission wasn't available. You can still listen and use pictures."); } }
+      media.getTracks().forEach(track => track.stop());
+      setMicReady(true);
+      return true;
+    } catch {
+      setMicReady(false);
+      return false;
+    }
+  };
+
+  const selectLesson = async (nextWord: string) => {
+    stopPractice();
+    setWord(nextWord);
+    setStep(1);
+    setAnswer(null);
+    setFeedback("");
+    setHeard("");
+    void prepareMicrophone();
+  };
+
+  const advanceAfterSpeech = (text: string, nextStep: number) => {
+    setBusy(true);
+    sayWithMouth(text, () => {
+      if (!alive.current) return;
+      setBusy(false);
+      setStep(nextStep);
+    });
+  };
+
+  const scheduleRetry = (id: number, practiced: Lesson, reason: string) => {
+    if (!alive.current || id !== practiceId.current) return;
+    setFeedback(reason);
+    setBusy(true);
+    sayWithMouth("Let's try " + practiced.word + " again. Start with " + practiced.first + ". " + practiced.word + ".", () => {
+      if (!alive.current || id !== practiceId.current) return;
+      retryTimer.current = setTimeout(() => void beginSpeechAttempt(id, practiced, false), 350);
+    });
+  };
+
+  const beginSpeechAttempt = async (existingId?: number, practiced: Lesson = lesson, announce = true) => {
+    if (!alive.current) return;
+    const id = existingId ?? ++practiceId.current;
+    if (existingId === undefined) {
+      setFeedback("");
+      setHeard("");
+    }
+    setBusy(true);
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setBusy(false);
+      setFeedback("This browser cannot use the microphone here. Tap Try microphone again after microphone access is available.");
+      return;
+    }
+
+    const type = ["audio/webm", "audio/mp4", "audio/ogg"].find(candidate => MediaRecorder.isTypeSupported(candidate));
+    if (!type) {
+      setBusy(false);
+      setFeedback("This microphone format is not supported on this device.");
+      return;
+    }
+
+    try {
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!alive.current || id !== practiceId.current) {
+        media.getTracks().forEach(track => track.stop());
+        return;
+      }
+      setMicReady(true);
+      activeStream.current = media;
+
+      const listenNow = () => {
+        if (!alive.current || id !== practiceId.current) {
+          media.getTracks().forEach(track => track.stop());
+          return;
+        }
+        const chunks: BlobPart[] = [];
+        const active = new MediaRecorder(media, { mimeType: type });
+        recorder.current = active;
+        let heardVoice = false;
+        let audioContext: AudioContext | null = null;
+        let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+        active.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+        active.onstop = async () => {
+          if (pollTimer) clearTimeout(pollTimer);
+          void audioContext?.close();
+          media.getTracks().forEach(track => track.stop());
+          activeStream.current = null;
+          if (!alive.current || id !== practiceId.current) return;
+
+          if (!heardVoice) {
+            scheduleRetry(id, practiced, "I didn't hear a voice yet. Let's say it again.");
+            return;
+          }
+
+          const audio = new Blob(chunks, { type });
+          if (audio.size < 450) {
+            scheduleRetry(id, practiced, "I couldn't hear that clearly. Let's try again.");
+            return;
+          }
+
+          setFeedback("Checking what I heard…");
+          try {
+            const response = await fetch(API_BASE + "/api/eye-gaze/listen", {
+              method: "POST",
+              headers: { "Content-Type": type, Authorization: "Bearer " + token },
+              body: audio,
+              cache: "no-store",
+            });
+            const result = await response.json();
+            if (!alive.current || id !== practiceId.current) return;
+            if (!response.ok) throw new Error(result.message || "I couldn't listen that time.");
+
+            const transcript = String(result.heard || "").trim();
+            setHeard(transcript);
+            const pieces = transcript.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+            const matched = pieces.includes(practiced.word.toLowerCase());
+
+            void talkerRequest(token, "/practice", "POST", {
+              word: practiced.word,
+              outcome: matched ? "correct" : "retry",
+              prompt: 2,
+            }).catch(() => {});
+
+            if (matched) {
+              setFeedback("I heard " + practiced.word + "! Great talking!");
+              setBusy(true);
+              sayWithMouth("I heard " + practiced.word + "! Great talking!", () => {
+                if (!alive.current || id !== practiceId.current) return;
+                setBusy(false);
+                setStep(7);
+              });
+            } else {
+              scheduleRetry(id, practiced, transcript
+                ? "I heard “" + transcript + ".” Let's try " + practiced.word + " again."
+                : "I didn't catch the word. Let's try again.");
+            }
+          } catch (error: any) {
+            setBusy(false);
+            setFeedback(error?.message || "I couldn't check that recording. Tap Try microphone again.");
+          }
+        };
+
+        active.start();
+        setFeedback("🎙️ I'm listening. Say " + practiced.word + ".");
+
+        try {
+          audioContext = new AudioContext();
+          void audioContext.resume();
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 1024;
+          const source = audioContext.createMediaStreamSource(media);
+          source.connect(analyser);
+          const samples = new Float32Array(analyser.fftSize);
+          const started = performance.now();
+          let speakingSince = 0;
+          let lastVoiceAt = 0;
+          let noiseFloor = 0.004;
+
+          const poll = () => {
+            if (active.state !== "recording" || id !== practiceId.current) return;
+            analyser.getFloatTimeDomainData(samples);
+            let energy = 0;
+            for (let i = 0; i < samples.length; i++) energy += samples[i] * samples[i];
+            const rms = Math.sqrt(energy / samples.length);
+            const now = performance.now();
+            if (now - started < 250) noiseFloor = Math.max(noiseFloor, rms);
+            const voice = rms > Math.max(0.009, noiseFloor * 2.0);
+            if (voice) {
+              if (!speakingSince) speakingSince = now;
+              if (now - speakingSince > 120) heardVoice = true;
+              lastVoiceAt = now;
+            } else {
+              speakingSince = 0;
+            }
+            if ((heardVoice && now - lastVoiceAt > 700 && now - started > 800) || now - started > 6000) {
+              if (active.state === "recording") active.stop();
+            } else {
+              pollTimer = setTimeout(poll, 60);
+            }
+          };
+          pollTimer = setTimeout(poll, 60);
+        } catch {
+          retryTimer.current = setTimeout(() => {
+            if (active.state === "recording") active.stop();
+          }, 5000);
+        }
+      };
+
+      if (announce) {
+        sayWithMouth("Your turn. Say " + practiced.word + ".", listenNow);
+      } else {
+        listenNow();
+      }
+    } catch {
+      setMicReady(false);
+      setBusy(false);
+      setFeedback("Microphone access is not available yet. Tap Try microphone again.");
+    }
+  };
+
+  useEffect(() => {
+    if (step !== 6) return;
+    const id = ++practiceId.current;
+    retryTimer.current = setTimeout(() => void beginSpeechAttempt(id, lesson, true), 450);
+    return () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
+  }, [step, lesson.word]);
+
+  const chooseAnswer = (choice: string) => {
+    setAnswer(choice);
+    const correct = choice === lesson.word;
+    void talkerRequest(token, "/practice", "POST", {
+      word: lesson.word,
+      outcome: correct ? "correct" : "retry",
+      prompt: 1,
+    }).catch(() => {});
+
+    if (correct) {
+      setFeedback("You found " + lesson.word + "!");
+      setBusy(true);
+      sayWithMouth("Yes! You found " + lesson.word + ".", () => {
+        setBusy(false);
+        setStep(6);
+      });
+    } else {
+      setFeedback("Good try. Find " + lesson.word + ".");
+      say("Good try. Find " + lesson.word + ".");
+    }
+  };
+
+  const restart = () => {
+    stopPractice();
+    setStep(0);
+    setAnswer(null);
+    setFeedback("");
+    setHeard("");
   };
 
   return (
-    <div className="max-w-[1450px] mx-auto space-y-5 pb-8">
-      <header className="flex flex-wrap gap-3 items-center justify-between py-3"><div><p className="text-sm tracking-widest font-black text-teal-700">LEARNING ZONE</p><h2 className="text-3xl sm:text-4xl font-black">Let's learn a word!</h2></div><button data-talker-dwell type="button" onClick={() => { practiceActive.current = false; onBack(); }} className="relative min-h-14 rounded-2xl bg-white border-2 border-sky-100 px-5 font-black">← Back to talker</button></header>
+    <div className="max-w-[1100px] mx-auto pb-8">
+      <style>{"@keyframes mouthTalk { 0%,100% { height:10px; border-radius:999px; } 50% { height:38px; border-radius:45%; } } .mouth-talking { animation: mouthTalk .28s ease-in-out infinite; }"}</style>
 
-      <section className="bg-white rounded-3xl p-4 sm:p-6 border-2 border-teal-100"><p className="font-black text-[#477586] mb-3">TRY THESE WORDS</p><div className="grid grid-cols-3 gap-2 sm:gap-3">{lessons.slice(0, 3).map(item => <button data-talker-dwell type="button" key={item.word} onClick={() => setWord(item.word)} className={`relative rounded-3xl min-h-28 border-4 flex flex-col items-center justify-center font-black text-lg ${lesson.word === item.word ? "border-teal-500 bg-teal-50" : "border-slate-100"}`}><span className="text-5xl" aria-hidden="true">{item.icon}</span>{item.word}</button>)}</div><label htmlFor="choose-learning-word" className="block font-black mt-5 mb-2">Grown-up: choose another word</label><select id="choose-learning-word" value={lesson.word} onChange={event => setWord(event.target.value)} className="w-full sm:w-72 min-h-14 bg-white border-2 border-teal-200 rounded-2xl px-4 font-bold">{lessons.map(item => <option key={item.word} value={item.word}>{item.word}</option>)}</select></section>
+      <header className="flex flex-wrap gap-3 items-center justify-between py-3">
+        <div>
+          <p className="text-sm tracking-widest font-black text-teal-700">LEARNING ZONE</p>
+          <h2 className="text-3xl sm:text-4xl font-black">{step === 0 ? "Pick a word to learn" : "Let's learn " + lesson.word}</h2>
+        </div>
+        <div className="flex gap-2">
+          {step > 0 && <button data-talker-dwell type="button" onClick={restart} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">↺ New word</button>}
+          <button data-talker-dwell type="button" onClick={() => { stopPractice(); onBack(); }} className="relative min-h-12 rounded-2xl bg-white border-2 border-sky-100 px-4 font-black">← Talker</button>
+        </div>
+      </header>
 
-      <section className="rounded-3xl bg-gradient-to-r from-teal-100 to-sky-100 p-5 sm:p-8 flex flex-col sm:flex-row gap-5 items-center"><div className="w-36 h-36 rounded-3xl bg-white grid place-items-center text-8xl" role="img" aria-label={lesson.word}>{lesson.icon}</div><div className="text-center sm:text-left flex-1"><h3 className="font-black text-4xl sm:text-5xl">{lesson.word}</h3><p className="text-xl font-bold text-[#315772]">Tap to hear the whole word.</p><button data-talker-dwell type="button" onClick={() => say(lesson.word)} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white px-7 mt-3 font-black text-xl">🔊 Hear {lesson.word}</button></div></section>
+      {step > 0 && (
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-5">
+          {STEPS.map((label, index) => (
+            <div key={label} className={"rounded-xl p-2 text-center text-[10px] sm:text-xs font-black " + (index === step ? "bg-teal-600 text-white" : index < step ? "bg-emerald-100 text-emerald-800" : "bg-white text-slate-400")}>
+              <span className="block text-base sm:text-lg">{index < step ? "✓" : index + 1}</span>{label}
+            </div>
+          ))}
+        </div>
+      )}
 
-      <section aria-label="Pictures of the word" className="rounded-3xl bg-white p-5 sm:p-6"><h3 className="text-2xl font-black mb-3">Look at the pictures</h3><div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{lesson.pictures.map((picture, index) => <button data-talker-dwell key={index} type="button" onClick={() => say(picture.caption)} className="relative min-h-44 rounded-3xl bg-[#eff8f8] border-2 border-teal-100 hover:border-teal-500 flex flex-col items-center justify-center gap-2 p-3"><span className="text-6xl" aria-hidden="true">{picture.icon}</span><span className="font-black text-lg">{picture.caption}</span></button>)}</div></section>
+      {step > 0 && mouthHelper && (
+        <div className="rounded-3xl bg-violet-50 border-2 border-violet-100 p-3 mb-4 flex items-center gap-4">
+          <div className="w-20 h-20 rounded-full bg-amber-200 border-4 border-white shadow relative flex-shrink-0">
+            <div className="absolute left-4 top-6 w-3 h-3 rounded-full bg-slate-900" />
+            <div className="absolute right-4 top-6 w-3 h-3 rounded-full bg-slate-900" />
+            <div className={"absolute left-1/2 -translate-x-1/2 bottom-4 w-9 bg-rose-700 " + (mouthTalking ? "mouth-talking" : "h-2 rounded-full")} />
+          </div>
+          <div className="flex-1"><p className="font-black text-violet-900">Mouth Helper</p><p className="text-sm font-bold text-violet-700">{mouthTalking ? "Watch my mouth while you listen." : "I pop up when the word is spoken."}</p></div>
+          <button type="button" onClick={() => setMouthHelper(false)} className="min-h-11 rounded-xl bg-white px-3 font-black">Hide</button>
+        </div>
+      )}
 
-      <section className="grid md:grid-cols-2 gap-4"><div className="rounded-3xl bg-[#fff1c8] p-5 sm:p-6"><h3 className="text-2xl font-black">Hear the sounds</h3><p className="text-lg font-bold mt-2">{lesson.sounds}</p><p className="font-bold mt-3">First sound: <strong>{lesson.first}</strong></p><button data-talker-dwell type="button" onClick={() => say(`${lesson.word} begins with the sound ${lesson.first}. Listen: ${lesson.word}.`)} className="relative min-h-16 bg-white rounded-2xl px-5 mt-4 font-black">🔊 Hear first sound</button></div><div className="rounded-3xl bg-[#eee8fa] p-5 sm:p-6"><h3 className="text-2xl font-black">Clap the word</h3><p className="text-2xl font-black mt-3">{lesson.syllables}</p><button data-talker-dwell type="button" onClick={() => say(`${lesson.syllables.replaceAll(" · ", ". ")}. ${lesson.word}.`)} className="relative min-h-16 bg-white rounded-2xl px-5 mt-4 font-black">👏 Hear the parts</button></div></section>
+      {step === 0 && (
+        <section className="rounded-3xl bg-white p-5 sm:p-6 border-2 border-teal-100">
+          <div className="flex justify-between gap-3 items-center mb-4">
+            <div><p className="font-black text-[#477586]">TRY THESE WORDS</p><p className="text-sm font-bold text-slate-500">Picking a word also prepares the microphone so the final speaking step can listen automatically.</p></div>
+            <button type="button" onClick={() => setMouthHelper(value => !value)} className="min-h-11 rounded-xl bg-violet-50 border border-violet-100 px-3 font-black">{mouthHelper ? "🙂 Mouth helper ON" : "🙂 Mouth helper OFF"}</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {lessons.map(item => (
+              <button data-talker-dwell type="button" key={item.word} onClick={() => void selectLesson(item.word)} className="relative rounded-3xl min-h-32 border-4 border-slate-100 hover:border-teal-500 flex flex-col items-center justify-center font-black text-lg">
+                <span className="text-5xl" aria-hidden="true">{item.icon}</span>{item.word}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
-      <section className="rounded-3xl bg-white p-5 sm:p-6"><h3 className="text-2xl font-black mb-3">Say it in a sentence</h3><div className="grid sm:grid-cols-3 gap-3">{lesson.phrases.map(phrase => <button data-talker-dwell key={phrase} type="button" onClick={() => say(phrase)} className="relative min-h-28 rounded-2xl border-2 border-sky-100 hover:border-sky-500 bg-sky-50 p-4 text-lg font-black text-left">🔊 {phrase}</button>)}</div></section>
+      {step === 1 && (
+        <section className="rounded-[2rem] bg-gradient-to-br from-teal-100 to-sky-100 p-6 sm:p-10 text-center">
+          <div className="text-8xl sm:text-9xl">{lesson.icon}</div>
+          <h3 className="text-4xl sm:text-6xl font-black mt-4">{lesson.word}</h3>
+          <p className="text-xl font-bold text-[#315772] mt-3">Tap to hear the whole word.</p>
+          <button data-talker-dwell type="button" disabled={busy} onClick={() => advanceAfterSpeech(lesson.word, 2)} className="relative mt-5 w-full min-h-20 rounded-3xl bg-[#137f96] text-white text-2xl font-black disabled:opacity-50">🔊 Hear {lesson.word}</button>
+        </section>
+      )}
 
-      <section className="rounded-3xl bg-[#e0f3e7] p-5 sm:p-6"><h3 className="text-2xl font-black">Find {lesson.word}</h3><button data-talker-dwell type="button" onClick={() => say(`Can you find ${lesson.word}?`)} className="relative rounded-2xl bg-white min-h-14 px-4 mt-2 font-black">🔊 Hear the question</button><div className="grid grid-cols-3 gap-2 sm:gap-3 mt-4">{lesson.choices.map(choice => <button data-talker-dwell type="button" key={choice} onClick={() => { setAnswer(choice); void talkerRequest(token, "/practice", "POST", { word: lesson.word, outcome: choice === lesson.word ? "correct" : "retry", prompt: 1 }).catch(() => {}); say(choice === lesson.word ? `Yes! You found ${lesson.word}.` : `Good try. Let's find ${lesson.word}.`); }} className={`relative rounded-3xl min-h-32 sm:min-h-40 border-4 ${answer === choice ? (choice === lesson.word ? "border-emerald-500" : "border-amber-400") : "border-white"} bg-white flex flex-col items-center justify-center p-2`}><span className="text-5xl" aria-hidden="true">{lessons.find(item => item.word === choice)?.icon || "❔"}</span><span className="font-black text-lg">{choice}</span></button>)}</div>{answer && <p role="status" className="font-black mt-3 text-xl">{answer === lesson.word ? `You found ${lesson.word}!` : `Let's look for ${lesson.word}.`}</p>}</section>
+      {step === 2 && (
+        <section className="rounded-[2rem] bg-white p-5 sm:p-8 text-center">
+          <h3 className="text-3xl font-black">Look at {lesson.word}</h3>
+          <p className="font-bold text-slate-500 mt-1">Tap a picture to hear what you see.</p>
+          <div className="grid sm:grid-cols-3 gap-3 mt-5">
+            {lesson.pictures.map((picture, index) => (
+              <button data-talker-dwell key={index} type="button" onClick={() => say(picture.caption)} className="relative min-h-48 rounded-3xl bg-[#eff8f8] border-2 border-teal-100 flex flex-col items-center justify-center gap-3 p-3">
+                <span className="text-7xl">{picture.icon}</span><span className="font-black text-lg">{picture.caption}</span>
+              </button>
+            ))}
+          </div>
+          <button data-talker-dwell type="button" onClick={() => setStep(3)} className="relative mt-5 w-full min-h-16 rounded-2xl bg-teal-600 text-white font-black text-xl">Next: hear the sounds →</button>
+        </section>
+      )}
 
-      <section className="rounded-3xl bg-[#e3eefa] p-5 sm:p-6"><h3 className="text-2xl font-black">Your turn to talk</h3><p className="font-bold mt-2">The AI asks, then listens automatically. Say the word and pause; feedback follows without another button.</p><div className="flex flex-wrap gap-3 mt-4"><button data-talker-dwell type="button" onClick={() => void ask()} disabled={busy} className="relative min-h-16 rounded-2xl bg-[#137f96] text-white px-6 font-black disabled:opacity-50">🎙️ Ask me to say {lesson.word}</button><button data-talker-dwell type="button" onClick={() => say(lesson.word)} disabled={busy} className="relative min-h-16 rounded-2xl bg-white px-6 font-black disabled:opacity-50">🔊 Hear it again</button></div>{feedback && <p role="status" className="text-lg font-black mt-4">{feedback}</p>}{heard && <p className="font-bold">The microphone heard: “{heard}”</p>}<p className="text-sm font-bold text-[#4c687b] mt-4">A grown-up can allow microphone access. Short recordings are sent for transcription and are not saved by this app. Speech recognition may mishear children's voices; it is practice, not a speech assessment.</p></section>
+      {step === 3 && (
+        <section className="rounded-[2rem] bg-[#fff1c8] p-6 sm:p-10 text-center">
+          <h3 className="text-3xl font-black">Hear the sounds</h3>
+          <div className="text-3xl sm:text-5xl font-black mt-5">{lesson.sounds}</div>
+          <p className="text-xl font-bold mt-4">First sound: <strong>{lesson.first}</strong></p>
+          <button data-talker-dwell type="button" disabled={busy} onClick={() => advanceAfterSpeech(lesson.word + " begins with the sound " + lesson.first + ". Listen: " + lesson.word + ".", 4)} className="relative mt-6 w-full min-h-20 rounded-3xl bg-white font-black text-xl disabled:opacity-50">🔊 Hear the sounds</button>
+        </section>
+      )}
+
+      {step === 4 && (
+        <section className="rounded-[2rem] bg-sky-50 p-6 sm:p-10 text-center">
+          <h3 className="text-3xl font-black">Hear {lesson.word} in a sentence</h3>
+          <div className="grid gap-3 mt-5">
+            {lesson.phrases.map((phrase, index) => (
+              <button data-talker-dwell key={phrase} type="button" disabled={busy} onClick={() => advanceAfterSpeech(phrase, index === 0 ? 5 : 4)} className="relative min-h-20 rounded-3xl bg-white border-2 border-sky-100 p-4 text-xl font-black disabled:opacity-50">
+                🔊 {phrase}
+                {index === 0 && <span className="block text-xs text-sky-700 mt-1">Tap this one to continue</span>}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {step === 5 && (
+        <section className="rounded-[2rem] bg-[#e0f3e7] p-6 sm:p-10 text-center">
+          <h3 className="text-3xl font-black">Find {lesson.word}</h3>
+          <p className="font-bold text-slate-600 mt-2">Choose the right picture. A correct answer moves straight to speaking practice.</p>
+          <button data-talker-dwell type="button" onClick={() => say("Can you find " + lesson.word + "?")} className="relative rounded-2xl bg-white min-h-14 px-4 mt-4 font-black">🔊 Hear the question</button>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-5">
+            {lesson.choices.map(choice => (
+              <button data-talker-dwell type="button" key={choice} disabled={busy} onClick={() => chooseAnswer(choice)} className={"relative rounded-3xl min-h-40 border-4 bg-white flex flex-col items-center justify-center p-2 " + (answer === choice ? (choice === lesson.word ? "border-emerald-500" : "border-amber-400") : "border-white")}>
+                <span className="text-6xl">{lessons.find(item => item.word === choice)?.icon || "❔"}</span><span className="font-black text-lg mt-2">{choice}</span>
+              </button>
+            ))}
+          </div>
+          {feedback && <p className="text-xl font-black mt-4">{feedback}</p>}
+        </section>
+      )}
+
+      {step === 6 && (
+        <section className="rounded-[2rem] bg-gradient-to-br from-violet-100 to-sky-100 p-6 sm:p-10 text-center">
+          <div className="text-8xl">{lesson.icon}</div>
+          <h3 className="text-4xl font-black mt-3">Say “{lesson.word}”</h3>
+          <p className="text-lg font-bold text-slate-600 mt-2">{micReady ? "The microphone starts by itself. Say the word, then pause." : "The microphone will try to start automatically."}</p>
+          <div className={"mt-5 rounded-3xl p-5 font-black text-xl " + (busy ? "bg-rose-100 text-rose-800" : "bg-white")}>{feedback || "Getting ready to listen…"}</div>
+          {heard && <p className="font-bold mt-3">I heard: “{heard}”</p>}
+          {!busy && feedback.includes("microphone") && <button type="button" onClick={() => void beginSpeechAttempt(undefined, lesson, true)} className="mt-4 min-h-14 rounded-2xl bg-violet-600 text-white px-5 font-black">🎙️ Try microphone again</button>}
+          <p className="text-xs font-bold text-[#547886] mt-5">Speech recognition can mishear children's voices. This is supportive practice, not a speech assessment. Recordings are sent for transcription and are not saved by this app.</p>
+        </section>
+      )}
+
+      {step === 7 && (
+        <section className="rounded-[2rem] bg-gradient-to-br from-emerald-100 to-amber-100 p-7 sm:p-12 text-center">
+          <div className="text-8xl">🌟</div>
+          <h3 className="text-4xl sm:text-5xl font-black mt-3">You said {lesson.word}!</h3>
+          <p className="text-xl font-bold text-slate-600 mt-2">Great work listening, finding, and talking.</p>
+          <div className="grid sm:grid-cols-2 gap-3 mt-6">
+            <button data-talker-dwell type="button" onClick={() => { setStep(1); setFeedback(""); setHeard(""); }} className="relative min-h-16 rounded-2xl bg-white font-black">Practice {lesson.word} again</button>
+            <button data-talker-dwell type="button" onClick={restart} className="relative min-h-16 rounded-2xl bg-emerald-600 text-white font-black">Learn another word →</button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
