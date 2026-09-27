@@ -5327,8 +5327,13 @@ export async function registerRoutes(
       if (!apiKey) return res.status(503).json({ message: 'AI Auto-Tag is not configured right now.' });
 
       const adminDb = getAdminSupabase();
-      const { data: signed, error: signedError } = await adminDb.storage.from(MY_WORLD_BUCKET).createSignedUrl(backgroundPath, 600);
-      if (signedError || !signed?.signedUrl) throw signedError || new Error('Could not read the room photo.');
+      const { data: roomBlob, error: roomError } = await adminDb.storage.from(MY_WORLD_BUCKET).download(backgroundPath);
+      if (roomError || !roomBlob) throw roomError || new Error('Could not read the room photo.');
+      const roomBytes = Buffer.from(await roomBlob.arrayBuffer());
+      if (!roomBytes.length) throw new Error('The room photo was empty.');
+      const ext = backgroundPath.split('.').pop()?.toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      const roomDataUrl = `data:${mime};base64,${roomBytes.toString('base64')}`;
 
       const prompt = `Analyze this family-provided photo of a place called "${worldName}" for an early-learning accessibility activity.
 
@@ -5363,7 +5368,7 @@ Important:
             role: 'user',
             content: [
               { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: signed.signedUrl, detail: 'high' } },
+              { type: 'image_url', image_url: { url: roomDataUrl, detail: 'high' } },
             ],
           }],
         }),
