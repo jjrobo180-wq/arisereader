@@ -5450,7 +5450,10 @@ Important:
     }
   });
 
-  app.post('/api/eye-gaze/my-world/upload', authMiddleware, async (req: any, res) => {
+  app.post('/api/eye-gaze/my-world/upload', authMiddleware, raw({
+    type: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'video/mp4', 'video/webm', 'video/quicktime', 'application/octet-stream'],
+    limit: '25mb',
+  }), async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
       if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
@@ -5461,14 +5464,27 @@ Important:
         'image/jpeg': { ext: 'jpg', type: 'image' },
         'image/png': { ext: 'png', type: 'image' },
         'image/webp': { ext: 'webp', type: 'image' },
+        'image/heic': { ext: 'heic', type: 'image' },
+        'image/heif': { ext: 'heif', type: 'image' },
         'video/mp4': { ext: 'mp4', type: 'video' },
         'video/webm': { ext: 'webm', type: 'video' },
         'video/quicktime': { ext: 'mov', type: 'video' },
       };
-      const format = allowed[contentType];
+      let format = allowed[contentType];
       const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
-      if (!format || !body.length) return res.status(400).json({ message: 'Choose a JPG, PNG, WEBP, MP4, WEBM, or MOV file.' });
-      if (body.length > 20 * 1024 * 1024) return res.status(413).json({ message: 'Keep My World photos/videos under 20 MB.' });
+
+      // Some mobile browsers omit a useful MIME type. Sniff the common image signatures
+      // rather than rejecting a valid camera/library photo before it reaches storage.
+      if (!format && contentType === 'application/octet-stream' && body.length >= 12) {
+        const head = body.subarray(0, 16);
+        const ascii = head.toString('ascii');
+        if (head[0] === 0xff && head[1] === 0xd8) format = { ext: 'jpg', type: 'image' };
+        else if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) format = { ext: 'png', type: 'image' };
+        else if (ascii.startsWith('RIFF') && ascii.includes('WEBP')) format = { ext: 'webp', type: 'image' };
+      }
+
+      if (!format || !body.length) return res.status(400).json({ message: 'That photo did not reach A.R.I.S.E. Please choose it again.' });
+      if (body.length > 25 * 1024 * 1024) return res.status(413).json({ message: 'Keep My World photos/videos under 25 MB.' });
 
       await ensureMyWorldBucket();
       const requested = String(req.headers['x-my-world-label'] || 'media').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32) || 'media';
