@@ -3,6 +3,7 @@ import { API_BASE } from "@/lib/queryClient";
 
 export type FamilyVideo = { id: string; title: string; channel: string; topic: string };
 export type ParentControls = {
+  version?: number;
   enabled: boolean;
   allowedPaths: string[];
   tvDailyMinutes: number;
@@ -26,6 +27,7 @@ export const CONTROLLED_FEATURES = [
 
 export function defaultParentControls(): ParentControls {
   return {
+    version: 2,
     enabled: false,
     allowedPaths: CONTROLLED_FEATURES.map(item => item.path),
     tvDailyMinutes: 0,
@@ -42,6 +44,7 @@ export function cachedParentControls(): ParentControls {
     const raw = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
     if (!raw || typeof raw !== "object") return defaultParentControls();
     return {
+      version: Number(raw.version) || 1,
       enabled: !!raw.enabled,
       allowedPaths: Array.isArray(raw.allowedPaths) ? raw.allowedPaths : defaultParentControls().allowedPaths,
       tvDailyMinutes: Math.max(0, Math.min(240, Number(raw.tvDailyMinutes ?? 0) || 0)),
