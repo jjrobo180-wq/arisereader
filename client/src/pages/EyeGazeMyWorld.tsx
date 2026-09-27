@@ -205,6 +205,16 @@ export default function EyeGazeMyWorld() {
   const [focusedItem, setFocusedItem] = useState<WorldItem | null>(null);
   const [tapTagPoint, setTapTagPoint] = useState<{ x: number; y: number } | null>(null);
   const [editingBuilderItemId, setEditingBuilderItemId] = useState<string | null>(null);
+  const tagGestureRef = useRef<null | {
+    itemId: string;
+    mode: "move" | "resize";
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startBox: { x: number; y: number; w: number; h: number };
+    photoRect: DOMRect;
+    moved: boolean;
+  }>(null);
 
   const isParent = user?.role === "parent";
   const canBuild = isParent || !!grownupToken;
@@ -419,7 +429,9 @@ export default function EyeGazeMyWorld() {
         h: 18,
         source: "manual",
       };
-      setWorlds(prev => prev.map(w => w.id === builderWorld.id ? { ...w, items: [...w.items, item] } : w));
+      const nextWorlds = worlds.map(w => w.id === builderWorld.id ? { ...w, items: [...w.items, item] } : w);
+      setWorlds(nextWorlds);
+      await saveWorlds(false, nextWorlds);
       setPlacingItemId(item.id);
       setItemLabel("");
       setItemPhrase("");
@@ -579,6 +591,68 @@ export default function EyeGazeMyWorld() {
       ...world,
       items: world.items.map(item => item.id === itemId ? { ...item, ...patch } : item),
     } : world));
+  };
+
+  const startTagGesture = (event: React.PointerEvent<HTMLElement>, item: WorldItem, mode: "move" | "resize") => {
+    if (!builderWorld) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const photo = event.currentTarget.closest("[data-world-photo]") as HTMLElement | null;
+    if (!photo) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    tagGestureRef.current = {
+      itemId: item.id,
+      mode,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startBox: safeBox(item),
+      photoRect: photo.getBoundingClientRect(),
+      moved: false,
+    };
+    setEditingBuilderItemId(item.id);
+    setTapTagPoint(null);
+    navigator.vibrate?.(18);
+  };
+
+  const moveTagGesture = (event: React.PointerEvent<HTMLElement>) => {
+    const gesture = tagGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId || !builderWorld) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const dx = ((event.clientX - gesture.startClientX) / Math.max(1, gesture.photoRect.width)) * 100;
+    const dy = ((event.clientY - gesture.startClientY) / Math.max(1, gesture.photoRect.height)) * 100;
+    if (Math.abs(dx) + Math.abs(dy) > .8) gesture.moved = true;
+
+    setWorlds(previous => previous.map(world => {
+      if (world.id !== builderWorld.id) return world;
+      return {
+        ...world,
+        items: world.items.map(item => {
+          if (item.id !== gesture.itemId) return item;
+          const b = gesture.startBox;
+          if (gesture.mode === "move") {
+            return { ...item, x: Math.max(0, Math.min(100 - b.w, b.x + dx)), y: Math.max(0, Math.min(100 - b.h, b.y + dy)) };
+          }
+          const w = Math.max(7, Math.min(60, b.w + dx));
+          const h = Math.max(7, Math.min(60, b.h + dy));
+          return { ...item, w, h, x: Math.min(b.x, 100 - w), y: Math.min(b.y, 100 - h) };
+        }),
+      };
+    }));
+  };
+
+  const finishTagGesture = (event: React.PointerEvent<HTMLElement>) => {
+    const gesture = tagGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    tagGestureRef.current = null;
+    if (gesture.moved) {
+      navigator.vibrate?.(28);
+      window.setTimeout(() => void saveWorlds(false), 0);
+      setNotice(gesture.mode === "move" ? "Position saved." : "Touch area resized and saved.");
+    }
   };
 
   const runAiTagging = async () => {
@@ -787,10 +861,10 @@ export default function EyeGazeMyWorld() {
 
           {worlds.length > 0 && (
             <section className="grid lg:grid-cols-[260px_1fr] gap-4">
-              <aside className="rounded-[2rem] bg-white border border-sky-100 p-3 space-y-2 h-fit">
-                <div className="px-2 py-1 text-xs font-black uppercase tracking-widest text-slate-400">My places</div>
+              <aside className="rounded-[2rem] bg-white border border-sky-100 p-3 flex lg:block gap-2 overflow-x-auto lg:overflow-visible h-fit">
+                <div className="hidden lg:block px-2 py-1 text-xs font-black uppercase tracking-widest text-slate-400">My places</div>
                 {worlds.map(world => (
-                  <button key={world.id} type="button" onClick={() => { setBuilderWorldId(world.id); setPlacingItemId(null); }} className={`w-full rounded-2xl p-3 flex items-center gap-3 text-left border-2 ${builderWorldId === world.id ? "border-blue-500 bg-blue-50" : "border-transparent bg-slate-50"}`}>
+                  <button key={world.id} type="button" onClick={() => { setBuilderWorldId(world.id); setPlacingItemId(null); }} className={`min-w-[190px] lg:min-w-0 lg:w-full rounded-2xl p-3 flex items-center gap-3 text-left border-2 ${builderWorldId === world.id ? "border-blue-500 bg-blue-50" : "border-transparent bg-slate-50"}`}>
                     <span className="text-3xl">{world.icon}</span>
                     <span className="flex-1 min-w-0"><strong className="block truncate">{world.name}</strong><small className="text-slate-500">{world.items.length} learning items</small></span>
                   </button>
@@ -845,9 +919,10 @@ export default function EyeGazeMyWorld() {
                           </div>
                         </div>
 
-                        <div className="rounded-3xl overflow-x-auto bg-slate-950 border-4 border-slate-900 shadow-xl">
+                        <div className="rounded-3xl overflow-hidden bg-slate-950 border-4 border-slate-900 shadow-xl">
                           <div
-                            className="relative min-w-[680px] md:min-w-full cursor-crosshair"
+                            data-world-photo
+                            className="relative w-full cursor-crosshair touch-none select-none"
                             onClick={tapRoomToTag}
                           >
                             <img src={builderWorld.backgroundUrl} alt={builderWorld.name} className="block w-full h-auto select-none pointer-events-none" draggable={false} />
@@ -865,16 +940,33 @@ export default function EyeGazeMyWorld() {
                                       setEditingBuilderItemId(item.id);
                                       setTapTagPoint(null);
                                       navigator.vibrate?.(25);
-                                      setNotice(item.source === "ai" ? "AI suggestion selected. Keep it, rename it, resize it, or remove it." : item.label + " selected.");
+                                      setNotice("Selected " + item.label + ". Drag the box to move it. Drag the blue corner to resize it.");
                                     }}
-                                    style={{ left: box.x + "%", top: box.y + "%", width: box.w + "%", height: box.h + "%" }}
-                                    className={"absolute rounded-2xl border-4 transition-all shadow-lg " + (active ? "border-cyan-300 bg-cyan-300/25 ring-4 ring-white/90" : item.source === "ai" ? "border-violet-300 bg-violet-400/16" : "border-amber-300 bg-amber-300/12")}
+                                    onPointerDown={event => startTagGesture(event, item, "move")}
+                                    onPointerMove={moveTagGesture}
+                                    onPointerUp={finishTagGesture}
+                                    onPointerCancel={finishTagGesture}
+                                    style={{ left: box.x + "%", top: box.y + "%", width: box.w + "%", height: box.h + "%", touchAction: "none" }}
+                                    className={"absolute rounded-2xl border-4 shadow-lg " + (active ? "z-20 border-cyan-300 bg-cyan-300/25 ring-4 ring-white/90" : item.source === "ai" ? "border-violet-300 bg-violet-400/16" : "border-amber-300 bg-amber-300/12")}
                                     aria-label={"Edit " + item.label}
                                   >
                                     <span className="absolute left-1 top-1 max-w-[78%] truncate rounded-lg bg-slate-950/85 text-white px-2 py-1 text-[11px] font-black">
                                       {item.source === "ai" ? "✨ " : ""}{item.label}
                                     </span>
                                   </button>
+                                  {active && (
+                                    <button
+                                      data-world-tag
+                                      type="button"
+                                      onPointerDown={event => startTagGesture(event, item, "resize")}
+                                      onPointerMove={moveTagGesture}
+                                      onPointerUp={finishTagGesture}
+                                      onPointerCancel={finishTagGesture}
+                                      style={{ left: "calc(" + (box.x + box.w) + "% - 24px)", top: "calc(" + (box.y + box.h) + "% - 24px)", touchAction: "none" }}
+                                      className="absolute z-40 w-12 h-12 rounded-full bg-cyan-500 text-white border-4 border-white shadow-2xl grid place-items-center text-xl font-black"
+                                      aria-label={"Resize " + item.label}
+                                    >↘</button>
+                                  )}
                                   {item.source === "ai" && (
                                     <button
                                       data-world-tag
@@ -965,7 +1057,7 @@ export default function EyeGazeMyWorld() {
                                 <RoomCrop world={builderWorld} item={item} className="w-full sm:w-36 h-32 rounded-2xl border-2 border-violet-100 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <h4 className="text-xl font-black text-blue-950">Edit {item.label}</h4>
+                                    <div><h4 className="text-xl font-black text-blue-950">Edit {item.label}</h4><p className="text-xs font-bold text-cyan-700">On the photo: drag the tag to move it · drag ↘ to resize</p></div>
                                     {item.source === "ai" && <span className="rounded-full bg-violet-100 text-violet-700 px-2 py-1 text-[10px] font-black uppercase">✨ AI found</span>}
                                   </div>
                                   <div className="grid sm:grid-cols-2 gap-2">
@@ -1084,8 +1176,8 @@ export default function EyeGazeMyWorld() {
 
         <section className="rounded-[2rem] overflow-hidden bg-slate-200 border-4 border-white shadow-xl">
           {selectedWorld.backgroundUrl ? (
-            <div className="overflow-x-auto bg-slate-100">
-              <div className="relative min-w-[640px] md:min-w-full">
+            <div className="overflow-hidden bg-slate-100">
+              <div className="relative w-full">
                 <img src={selectedWorld.backgroundUrl} alt={selectedWorld.name} className="block w-full h-auto select-none" draggable={false} />
 
                 {selectedWorld.items.map(item => {
