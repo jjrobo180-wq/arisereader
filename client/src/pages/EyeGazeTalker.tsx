@@ -676,7 +676,8 @@ export default function EyeGazeTalker() {
 
           return (
             <>
-              <div className="flex justify-end">
+              <div className="flex justify-between items-center gap-2">
+                <button type="button" onClick={() => void beginEdit(selected)} className="min-h-11 rounded-2xl bg-amber-100 border-2 border-amber-300 px-4 font-black">✏️ Grown-up edit</button>
                 <button data-talker-dwell type="button" onClick={closeWord} aria-label="Close word card" className="relative w-14 h-14 rounded-full bg-[#eef4f6] text-3xl font-black">×</button>
               </div>
 
@@ -785,6 +786,79 @@ export default function EyeGazeTalker() {
             </>
           );
         })()}
+      </dialog>
+
+      <dialog ref={gateDialog} onClose={() => setGateOpen(false)} aria-labelledby="talker-gate-title" className="rounded-[2rem] p-6 w-[min(92vw,480px)] text-[#193d57] backdrop:bg-[#0b293bc2]">
+        <div className="text-center">
+          <div className="text-6xl" aria-hidden="true">🧑‍🧒</div>
+          <p className="text-xs font-black uppercase tracking-widest text-amber-700 mt-3">Grown-up check</p>
+          <h2 id="talker-gate-title" className="text-3xl font-black mt-1">Quick edit unlock</h2>
+          <p className="font-bold text-[#547886] mt-2">Answer one simple math question. No parent account is required.</p>
+          <div className="mt-5 rounded-3xl bg-amber-50 border-2 border-amber-200 p-5">
+            <div className="text-5xl font-black">{challenge?.question || (gateLoading ? "Loading…" : "Try again")}</div>
+            <input
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={mathAnswer}
+              onChange={event => setMathAnswer(event.target.value.replace(/[^0-9-]/g, "").slice(0, 3))}
+              onKeyDown={event => { if (event.key === "Enter") void submitTalkerGate(); }}
+              placeholder="Answer"
+              aria-label="Math answer"
+              className="mt-4 w-full min-h-16 rounded-2xl border-2 border-amber-200 px-4 text-center text-3xl font-black"
+            />
+          </div>
+          {gateError && <p role="alert" className="mt-3 rounded-2xl bg-rose-50 border border-rose-200 p-3 font-bold text-rose-700">{gateError}</p>}
+          <button type="button" disabled={gateLoading || !challenge || !mathAnswer.trim()} onClick={() => void submitTalkerGate()} className="mt-4 w-full min-h-14 rounded-2xl bg-amber-500 text-slate-950 font-black disabled:opacity-50">{gateLoading ? "Checking…" : "Unlock editing"}</button>
+          <button type="button" onClick={() => { gateDialog.current?.close(); setGateOpen(false); }} className="mt-2 w-full min-h-12 rounded-2xl bg-slate-100 font-black">Cancel</button>
+        </div>
+      </dialog>
+
+      <dialog ref={editDialog} onClose={() => setEditOpen(false)} aria-labelledby="talker-edit-title" className="rounded-[2rem] p-5 sm:p-6 w-[min(94vw,620px)] max-h-[92vh] overflow-y-auto text-[#193d57] backdrop:bg-[#0b293bc2]">
+        {editWord && (
+          <>
+            <div className="flex justify-between items-center gap-3">
+              <div><p className="text-xs font-black uppercase tracking-widest text-amber-700">Grown-up quick edit</p><h2 id="talker-edit-title" className="text-3xl font-black">Edit this Talker button</h2></div>
+              <button type="button" onClick={closeEdit} className="w-12 h-12 rounded-full bg-[#eef4f6] text-2xl font-black">×</button>
+            </div>
+
+            <div className="grid gap-4 mt-5">
+              <label className="font-black">Word / button label
+                <input value={editLabel} maxLength={40} onChange={event => setEditLabel(event.target.value)} className="mt-2 w-full min-h-14 rounded-2xl border-2 border-sky-100 px-4 text-lg font-black" />
+              </label>
+              <label className="font-black">Sentence
+                <textarea value={editSentence} maxLength={180} rows={3} onChange={event => setEditSentence(event.target.value)} className="mt-2 w-full rounded-2xl border-2 border-sky-100 p-4 text-lg font-bold resize-none" />
+              </label>
+            </div>
+
+            <section className="mt-5 rounded-3xl bg-violet-50 border-2 border-violet-100 p-4">
+              <h3 className="text-xl font-black">🎙️ Family voice for the word</h3>
+              <p className="text-sm font-bold text-[#547886] mt-1">Record yourself saying just the word. This replaces the AI voice for this word only.</p>
+              <div className="grid sm:grid-cols-3 gap-2 mt-3">
+                <button type="button" onClick={() => recordingKind === "word" ? stopParentRecording() : void startParentRecording("word")} className={\`min-h-12 rounded-2xl font-black \${recordingKind === "word" ? "bg-rose-500 text-white" : "bg-violet-600 text-white"}\`}>{recordingKind === "word" ? "■ Stop" : "● Record word"}</button>
+                <button type="button" disabled={!recordingDrafts.word} onClick={() => previewRecording("word")} className="min-h-12 rounded-2xl bg-white border-2 border-violet-100 font-black disabled:opacity-40">▶ Preview</button>
+                <button type="button" onClick={() => setRecordingDrafts(previous => ({ ...previous, word: undefined }))} className="min-h-12 rounded-2xl bg-white border-2 border-violet-100 font-black">✨ Use AI voice</button>
+              </div>
+              <p className="text-xs font-bold text-violet-700 mt-2">{recordingDrafts.word ? "Family recording selected." : "AI voice selected."}</p>
+            </section>
+
+            <section className="mt-4 rounded-3xl bg-teal-50 border-2 border-teal-100 p-4">
+              <h3 className="text-xl font-black">🎙️ Family voice for the sentence</h3>
+              <p className="text-sm font-bold text-[#547886] mt-1">You can separately record the full sentence. Otherwise the sentence keeps using AI.</p>
+              <div className="grid sm:grid-cols-3 gap-2 mt-3">
+                <button type="button" onClick={() => recordingKind === "sentence" ? stopParentRecording() : void startParentRecording("sentence")} className={\`min-h-12 rounded-2xl font-black \${recordingKind === "sentence" ? "bg-rose-500 text-white" : "bg-teal-600 text-white"}\`}>{recordingKind === "sentence" ? "■ Stop" : "● Record sentence"}</button>
+                <button type="button" disabled={!recordingDrafts.sentence} onClick={() => previewRecording("sentence")} className="min-h-12 rounded-2xl bg-white border-2 border-teal-100 font-black disabled:opacity-40">▶ Preview</button>
+                <button type="button" onClick={() => setRecordingDrafts(previous => ({ ...previous, sentence: undefined }))} className="min-h-12 rounded-2xl bg-white border-2 border-teal-100 font-black">✨ Use AI voice</button>
+              </div>
+              <p className="text-xs font-bold text-teal-700 mt-2">{recordingDrafts.sentence ? "Family recording selected." : "AI voice selected."}</p>
+            </section>
+
+            <div className="grid sm:grid-cols-2 gap-2 mt-5">
+              <button type="button" onClick={closeEdit} className="min-h-14 rounded-2xl bg-slate-100 font-black">Cancel</button>
+              <button type="button" disabled={!editLabel.trim() || !editSentence.trim() || !!recordingKind} onClick={() => void saveWordEdit()} className="min-h-14 rounded-2xl bg-[#137f96] text-white font-black disabled:opacity-50">Save this word</button>
+            </div>
+            <p className="text-xs font-bold text-[#547886] mt-3">Voice recordings stay in this student's private Talker settings. Tap “Use AI voice” at any time to remove the family recording for that part.</p>
+          </>
+        )}
       </dialog>
 
       <dialog ref={settingsDialog} onClose={() => setSettingsOpen(false)} aria-labelledby="talker-settings-title" className="rounded-[2rem] p-6 w-[min(92vw,480px)] max-h-[90vh] overflow-y-auto text-[#193d57] backdrop:bg-[#0b293bc2]">
