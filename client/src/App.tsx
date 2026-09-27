@@ -61,6 +61,8 @@ import EyeGazeTalker from "./pages/EyeGazeTalker";
 import EyeGazeParentMode from "./pages/EyeGazeParentMode";
 import EyeGazeTV from "./pages/EyeGazeTV";
 import EyeGazeFlashcards from "./pages/EyeGazeFlashcards";
+import EyeGazeFidgetLab from "./pages/EyeGazeFidgetLab";
+import EyeGazePottyCoach from "./pages/EyeGazePottyCoach";
 import EyeGazeParentControls from "./pages/EyeGazeParentControls";
 import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
 import QuizBuilder from "./pages/QuizBuilder";
@@ -171,7 +173,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   if (!user) return <Redirect to="/" />;
   // A linked parent can also open their child's talker and family tools.
-  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world'].includes(location)) {
+  if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-potty'].includes(location)) {
     return <Redirect to="/parent-dashboard" />;
   }
   return <>{children}</>;
@@ -280,6 +282,12 @@ function AppRoutes() {
       </Route>
       <Route path="/eye-gaze-flashcards">
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-flashcards"><EyeGazeFlashcards /></EyeGazeAccessGate></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-fidgets">
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><EyeGazeFidgetLab /></EyeGazeAccessGate></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-potty">
+        {user?.is_eye_gaze_user || user?.role === 'parent' ? <ProtectedRoute><EyeGazePottyCoach /></ProtectedRoute> : <Redirect to="/" />}
       </Route>
       <Route path="/eye-gaze-account">
         <ProtectedRoute><EyeGazeAccount /></ProtectedRoute>
