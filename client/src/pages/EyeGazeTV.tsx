@@ -40,6 +40,8 @@ export default function EyeGazeTV() {
   const [topicCursor, setTopicCursor] = useState<TopicCursor>({});
   const [topicTurn, setTopicTurn] = useState(0);
 
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
   const playerRef = useRef<any>(null);
   const playerHostRef = useRef<HTMLDivElement | null>(null);
   const [playerError, setPlayerError] = useState("");
@@ -149,6 +151,7 @@ export default function EyeGazeTV() {
     const host = playerHostRef.current;
     if (!host) return;
     let player: any = null;
+    let retriedMutedAutoplay = false;
     let apiPoll: number | undefined;
     const timeout = window.setTimeout(() => {
       if (!cancelled) setPlayerError("This Short is taking too long to load. Try again or swipe up.");
@@ -186,15 +189,27 @@ export default function EyeGazeTV() {
               setPlayerError("");
               setPlayerReady(true);
               try {
-                if (muted) event.target.mute?.(); else event.target.unMute?.();
+                if (mutedRef.current) event.target.mute?.(); else event.target.unMute?.();
                 event.target.playVideo?.();
               } catch {}
             },
-            onAutoplayBlocked: () => {
+            onAutoplayBlocked: (event: any) => {
               if (cancelled) return;
               window.clearTimeout(timeout);
               setPlayerReady(true);
               setPlaying(false);
+              // If sound caused the browser to block a new Short, retry silently
+              // once. Do not leave every swipe waiting for the Play button.
+              if (!retriedMutedAutoplay) {
+                retriedMutedAutoplay = true;
+                mutedRef.current = true;
+                setMuted(true);
+                try {
+                  const activePlayer = event?.target || player;
+                  activePlayer?.mute?.();
+                  activePlayer?.playVideo?.();
+                } catch {}
+              }
             },
             onStateChange: (event: any) => {
               if (cancelled) return;
@@ -226,6 +241,7 @@ export default function EyeGazeTV() {
           },
         });
         playerRef.current = player;
+        player.getIframe?.()?.setAttribute("allow", "autoplay; encrypted-media; picture-in-picture");
       } catch {
         window.clearTimeout(timeout);
         if (!cancelled) setPlayerError("YouTube could not start. Tap Try again.");
@@ -261,12 +277,20 @@ export default function EyeGazeTV() {
     };
   }, [current?.feedKey, limited, playerAttempt]);
 
-  useEffect(() => {
+  const toggleSound = () => {
+    const nextMuted = !mutedRef.current;
+    mutedRef.current = nextMuted;
+    setMuted(nextMuted);
+    // Send playback commands during the tap itself so mobile browsers can
+    // recognize the user's interaction instead of losing it in an effect.
     try {
-      if (muted) playerRef.current?.mute?.();
-      else playerRef.current?.unMute?.();
+      if (nextMuted) playerRef.current?.mute?.();
+      else {
+        playerRef.current?.unMute?.();
+        playerRef.current?.playVideo?.();
+      }
     } catch {}
-  }, [muted]);
+  };
 
   useEffect(() => {
     if (usageTimerRef.current) window.clearInterval(usageTimerRef.current);
@@ -338,7 +362,7 @@ export default function EyeGazeTV() {
         <div className="font-black text-lg">A.R.I.S.E. Shorts</div>
         <div className="text-[10px] font-black text-white/65">Real YouTube Shorts · Ages {settings.tvAgeRange}</div>
       </div>
-      <button onClick={()=>setMuted(value=>!value)} className="pointer-events-auto w-12 h-12 rounded-full bg-black/70 border border-white/20 grid place-items-center" aria-label={muted?"Turn sound on":"Mute"}>
+      <button onClick={toggleSound} className="pointer-events-auto w-12 h-12 rounded-full bg-black/70 border border-white/20 grid place-items-center" aria-label={muted?"Turn sound on":"Mute"}>
         {muted?<VolumeX/>:<Volume2/>}
       </button>
     </header>
@@ -377,7 +401,7 @@ export default function EyeGazeTV() {
             <button onClick={togglePlay} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid place-items-center shadow-xl" aria-label={playing?"Pause":"Play"}>
               {playing?<Pause className="w-7 h-7"/>:<Play className="w-7 h-7 fill-current ml-1"/>}
             </button>
-            <button onClick={()=>setMuted(value=>!value)} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid place-items-center shadow-xl" aria-label={muted?"Turn sound on":"Mute"}>
+            <button onClick={toggleSound} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid place-items-center shadow-xl" aria-label={muted?"Turn sound on":"Mute"}>
               {muted?<VolumeX className="w-7 h-7"/>:<Volume2 className="w-7 h-7"/>}
             </button>
           </div>}
