@@ -5335,22 +5335,31 @@ export async function registerRoutes(
       const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       const roomDataUrl = `data:${mime};base64,${roomBytes.toString('base64')}`;
 
-      const prompt = `Analyze this family-provided photo of a place called "${worldName}" for an early-learning accessibility activity.
+      const prompt = `Analyze this family-provided photo of a place called "${worldName}" for a young child's early-learning communication activity.
 
-Identify 5 to 12 clear, useful, child-friendly OBJECTS that are visibly present and easy to point to, such as bed, shoes, TV, cup, chair, table, toothbrush, sink, door, toy, backpack, etc.
+Your priority is ACCURACY, not quantity. Identify ONLY clear everyday objects you can genuinely see and locate with high confidence. It is completely acceptable to return only 1, 2, or 3 objects. NEVER invent extra objects just to fill a list.
+
+Good examples: bed, shoes, TV, cup, chair, table, toothbrush, sink, door, toy, backpack, fridge, couch, lamp, ball.
+Do not tag vague regions such as "wall", "floor", "room", "corner", "background", or tiny/cluttered objects that are difficult to point to.
 
 For each object:
-- Give a short label that a young child can learn.
-- Give one simple first-person or functional sentence, such as "I put on my shoes." or "I sleep in my bed."
-- Give an approximate bounding rectangle as percentages of the ENTIRE ORIGINAL IMAGE:
+- Use one short child-friendly noun as the label.
+- Give one simple functional sentence, such as "I put on my shoes." or "I sleep in my bed."
+- Give a bounding rectangle as percentages of the ENTIRE ORIGINAL IMAGE:
   x = left edge, y = top edge, w = width, h = height, each from 0 to 100.
-- Keep boxes reasonably tight around the object.
-- confidence is 0 to 1.
+- Make the box tightly surround the visible object, not a large surrounding area.
+- confidence must reflect visual certainty. Only include an object if confidence is at least 0.72.
+
+Before returning an object, silently verify:
+1. The object is visibly present.
+2. The label matches what is actually visible.
+3. The box is centered on that object.
+4. A parent could tap that box and reasonably mean that object.
 
 Important:
 - Do NOT identify, name, describe, infer, or tag people, faces, private documents, screens with personal information, medication labels, addresses, or other sensitive personal details.
-- Prefer everyday objects useful for communication and routines.
-- Panoramic/wide photos are allowed; coordinates must still refer to the full image.
+- Prefer large, distinct, routine-related objects useful for communication.
+- Panoramic/wide photos are allowed; coordinates still refer to the full image.
 - Return JSON only in this exact shape:
 {"objects":[{"label":"Shoes","phrase":"I put on my shoes.","x":10,"y":64,"w":18,"h":20,"confidence":0.9}]}`;
 
@@ -5361,7 +5370,7 @@ Important:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4.1-mini',
+          model: 'gpt-4.1',
           temperature: 0.1,
           response_format: { type: 'json_object' },
           messages: [{
@@ -5385,7 +5394,7 @@ Important:
       let parsed: any = {};
       try { parsed = JSON.parse(content); } catch { parsed = {}; }
 
-      const rawObjects = Array.isArray(parsed?.objects) ? parsed.objects.slice(0, 14) : [];
+      const rawObjects = Array.isArray(parsed?.objects) ? parsed.objects.slice(0, 8) : [];
       const objects = rawObjects.map((obj: any, index: number) => {
         const label = String(obj?.label || '').trim().slice(0, 40);
         if (!label) return null;
@@ -5405,7 +5414,7 @@ Important:
           confidence: Math.max(0, Math.min(1, Number(obj?.confidence) || 0.5)),
           source: 'ai',
         };
-      }).filter(Boolean);
+      }).filter((obj: any) => obj && obj.confidence >= 0.72);
 
       res.set('Cache-Control', 'no-store');
       res.json({
