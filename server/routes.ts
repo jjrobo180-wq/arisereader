@@ -5588,6 +5588,112 @@ Important:
     return pass.studentId === studentId;
   }
 
+  const EYE_GAZE_FEATURE_PATHS = [
+    '/eye-gaze-talker',
+    '/my-world',
+    '/library',
+    '/eye-gaze-games',
+    '/eye-gaze-tv',
+    '/eye-gaze-flashcards',
+    '/eye-gaze-buddy',
+    '/leaderboard',
+  ];
+
+  function defaultEyeGazeFamilySettings() {
+    return {
+      enabled: false,
+      allowedPaths: [...EYE_GAZE_FEATURE_PATHS],
+      tvDailyMinutes: 30,
+      videos: [],
+    };
+  }
+
+  function normalizeEyeGazeFamilySettings(raw: any) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const allowed = Array.isArray(source.allowedPaths)
+      ? source.allowedPaths.map((value: any) => String(value)).filter((value: string) => EYE_GAZE_FEATURE_PATHS.includes(value))
+      : [...EYE_GAZE_FEATURE_PATHS];
+    const videos = Array.isArray(source.videos) ? source.videos.slice(0, 100).map((video: any) => {
+      const id = String(video?.id || '').trim();
+      if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return null;
+      return {
+        id,
+        title: String(video?.title || 'Learning video').trim().slice(0, 120) || 'Learning video',
+        channel: String(video?.channel || 'Parent approved').trim().slice(0, 80) || 'Parent approved',
+        topic: String(video?.topic || 'Learning').trim().slice(0, 60) || 'Learning',
+      };
+    }).filter(Boolean) : [];
+
+    return {
+      enabled: !!source.enabled,
+      allowedPaths: Array.from(new Set(allowed)),
+      tvDailyMinutes: Math.max(0, Math.min(240, Number(source.tvDailyMinutes ?? 30) || 0)),
+      videos,
+    };
+  }
+
+  app.get('/api/eye-gaze/family-settings', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const raw = await storage.getSetting(`eye_gaze_family_settings_${child.id}`);
+      let parsed: any = null;
+      if (raw) { try { parsed = JSON.parse(raw); } catch {} }
+      const settings = normalizeEyeGazeFamilySettings(parsed || defaultEyeGazeFamilySettings());
+      res.set('Cache-Control', 'no-store');
+      res.json({ student: { id: child.id, name: child.displayName }, settings });
+    } catch (error: any) {
+      console.error('[eye-gaze-family-settings] load:', error?.message);
+      res.status(503).json({ message: 'Could not load family settings right now.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/family-settings', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!validTalkerGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to change child profile controls.' });
+      const settings = normalizeEyeGazeFamilySettings(req.body);
+      await storage.upsertSetting(`eye_gaze_family_settings_${child.id}`, JSON.stringify(settings));
+      res.set('Cache-Control', 'no-store');
+      res.json({ student: { id: child.id, name: child.displayName }, settings });
+    } catch (error: any) {
+      console.error('[eye-gaze-family-settings] save:', error?.message);
+      res.status(503).json({ message: 'Could not save family settings. Please try again.' });
+    }
+  });
+
+  app.get('/api/eye-gaze/tv-usage', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const day = new Date().toISOString().slice(0, 10);
+      const raw = await storage.getSetting(`eye_gaze_tv_usage_${child.id}_${day}`);
+      const seconds = Math.max(0, Number(raw || 0) || 0);
+      res.set('Cache-Control', 'no-store');
+      res.json({ seconds, minutes: seconds / 60 });
+    } catch {
+      res.status(503).json({ message: 'Could not load TV time.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/tv-usage', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'TV time is recorded from the child profile.' });
+      const addSeconds = Math.max(1, Math.min(30, Math.round(Number(req.body?.seconds || 0))));
+      const day = new Date().toISOString().slice(0, 10);
+      const key = `eye_gaze_tv_usage_${child.id}_${day}`;
+      const raw = await storage.getSetting(key);
+      const seconds = Math.max(0, Number(raw || 0) || 0) + addSeconds;
+      await storage.upsertSetting(key, String(seconds));
+      res.set('Cache-Control', 'no-store');
+      res.json({ seconds, minutes: seconds / 60 });
+    } catch {
+      res.status(503).json({ message: 'Could not record TV time.' });
+    }
+  });
+
   app.get('/api/eye-gaze/talker-state/grownup-challenge', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
