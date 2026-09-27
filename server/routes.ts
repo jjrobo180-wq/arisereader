@@ -5682,6 +5682,10 @@ Important:
     { id: 'ynhbcUJLdQk', title: 'Meet Twenty One', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
     { id: 'U5txAW1tl4k', title: 'Summer Sums', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
     { id: 'wvrI4e6UXXA', title: 'Build Numberblock Sixteen', channel: 'Numberblocks', topic: 'numbers', ageRanges: ['2-4','5-7'] },
+    { id: 'Uxl0NPgOJag', title: 'A is for Anteater', channel: 'PBS KIDS', topic: 'animals', ageRanges: ['2-4','5-7'] },
+    { id: 'ePxxwRqDx3w', title: 'How Do You Take Care of a Bunny?', channel: 'PBS KIDS', topic: 'animals', ageRanges: ['2-4','5-7'] },
+    { id: 'pjMt5KaUX-Q', title: 'Feeling Faces', channel: 'PBS KIDS', topic: 'feelings', ageRanges: ['2-4','5-7'] },
+    { id: 'SSeKrWX_Wk0', title: 'A Moment of Calm', channel: 'PBS KIDS', topic: 'feelings', ageRanges: ['2-4','5-7'] },
   ];
 
   const TRUSTED_YOUTUBE_RSS_CHANNELS = [
