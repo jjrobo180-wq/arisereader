@@ -133,7 +133,7 @@ export default function EyeGazePottyCoach(){
   return <main className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-emerald-50 text-slate-950">
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b shadow-sm">
       <div className="max-w-6xl mx-auto p-3 sm:p-4 flex items-center gap-3">
-        <button onClick={()=>navigate(user?.role==="parent"?"/parent-dashboard":"/eye-gaze-parent")} className="min-h-14 rounded-2xl bg-[#ffd766] border-4 border-[#193d57] px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> BACK</button>
+        <button onClick={()=>navigate(user?.role==="parent"?"/parent-dashboard":"/eye-gaze-life-skills")} className="min-h-14 rounded-2xl bg-[#ffd766] border-4 border-[#193d57] px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> BACK</button>
         <div className="flex-1"><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. FAMILY TOOLS</p><h1 className="text-xl sm:text-3xl font-black">Potty Coach & Tracker 🚽</h1></div>
         {saving&&<span className="text-xs font-black text-slate-500">Saving…</span>}
       </div>
