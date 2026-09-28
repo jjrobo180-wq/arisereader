@@ -50,7 +50,10 @@ function authorMatch(expected:string,actual:string){
 }
 function titleMatch(expected:string,actual:string){
   const e=normalize(expected),a=normalize(actual);
-  return !!e&&e===a;
+  if(!e)return false;
+  // BookFinder lists some classics under several slash-separated titles.
+  // Match a complete alternate title, never a loose substring.
+  return actual.split("/").some(alias => normalize(alias.replace(/\s*\(unabridged\)\s*/gi,""))===e) || e===a;
 }
 function parseNumber(value:string|null|undefined){
   if(!value)return null;
@@ -169,15 +172,20 @@ export function calculateARPoints(bookLevel:number,wordCount:number){
 }
 export async function lookupARBook(title:string,author:string):Promise<ARBookMetadata>{
   try{
-    let links=await searchBookfinder((title+" "+author).trim());
-    if(!links.length)links=await searchBookfinder(title);
-    if(!links.length)return {quizNumber:null,bookLevel:null,wordCount:null,points:null,sourceUrl:null,status:"not_found"};
     const candidates:any[]=[];
-    for(const url of links.slice(0,12)){
-      try{
-        const detail=await readDetail(url);
-        if(titleMatch(title,detail.title)&&authorMatch(author,detail.author))candidates.push(detail);
-      }catch{}
+    const visited=new Set<string>();
+    for(const query of [(title+" "+author).trim(),title]){
+      const links=await searchBookfinder(query);
+      for(const url of links.slice(0,24)){
+        if(visited.has(url))continue;
+        visited.add(url);
+        try{
+          const detail=await readDetail(url);
+          if(titleMatch(title,detail.title)&&authorMatch(author,detail.author))candidates.push(detail);
+        }catch{}
+      }
+      // An exact title and author match needs no broader second search.
+      if(candidates.length)break;
     }
     if(!candidates.length)return {quizNumber:null,bookLevel:null,wordCount:null,points:null,sourceUrl:null,status:"not_found"};
     const unique=new Map<string,any>();
