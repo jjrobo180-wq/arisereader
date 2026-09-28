@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import type * as z from "zod/mini";
 
@@ -18,7 +18,7 @@ export const books = sqliteTable("books", {
   ageGroup: text("age_group").notNull(),
   coverUrl: text("cover_url"),
   description: text("description"),
-  pointsValue: integer("points_value").notNull().default(10),
+  pointsValue: real("points_value").notNull().default(0),
 });
 
 export const questions = sqliteTable("questions", {
