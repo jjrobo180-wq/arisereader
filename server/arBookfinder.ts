@@ -165,9 +165,47 @@ export async function saveARMetadata(bookId:number,metadata:ARBookMetadata){
     ar_points:metadata.points,ar_match_status:metadata.status,ar_source_url:metadata.sourceUrl,
     ar_verified_at:new Date().toISOString(),
   };
-  if((metadata.status==="exact"||metadata.status==="formula")&&metadata.points!=null)update.points_value=metadata.points;
+  const verified=(metadata.status==="exact"||metadata.status==="formula")&&metadata.points!=null;
+  if(verified)update.points_value=metadata.points;
   const {error}=await supabase.from("books").update(update).eq("id",bookId);
   if(error)throw new Error(error.message);
+
+  // Keep already-completed regular book quizzes aligned with the newly verified AR value.
+  // Apply only the delta to users.total_points so manual awards and other bonuses remain untouched.
+  if(verified){
+    const bookPoints=Number(metadata.points);
+    const {data:attempts,error:attemptError}=await supabase
+      .from("attempts")
+      .select("id,user_id,score,total,points_earned")
+      .eq("book_id",bookId);
+    if(attemptError)throw new Error(attemptError.message);
+    const deltas=new Map<number,number>();
+    for(const attempt of attempts||[]){
+      const total=Number(attempt.total||0);
+      const score=Number(attempt.score||0);
+      const passingScore=Math.ceil(total*(total>10?.70:.60));
+      const newPoints=score>=passingScore&&total>0
+        ? Math.round((bookPoints*(score/total))*10)/10
+        : 0;
+      const oldPoints=Number(attempt.points_earned||0);
+      if(Math.abs(newPoints-oldPoints)>.001){
+        const {error:updateError}=await supabase.from("attempts")
+          .update({points_earned:newPoints}).eq("id",attempt.id);
+        if(updateError)throw new Error(updateError.message);
+        deltas.set(attempt.user_id,(deltas.get(attempt.user_id)||0)+(newPoints-oldPoints));
+      }
+    }
+    for(const [userId,delta] of deltas){
+      const {data:userRow,error:userError}=await supabase.from("users")
+        .select("total_points").eq("id",userId).single();
+      if(userError)throw new Error(userError.message);
+      const current=Number(userRow?.total_points||0);
+      const next=Math.max(0,Math.round((current+delta)*10)/10);
+      const {error:updateUserError}=await supabase.from("users")
+        .update({total_points:next}).eq("id",userId);
+      if(updateUserError)throw new Error(updateUserError.message);
+    }
+  }
 }
 export async function verifyAndSaveARBook(bookId:number,title:string,author:string){
   const metadata=await lookupARBook(title,author);
