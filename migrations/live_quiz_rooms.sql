@@ -41,7 +41,10 @@ create table if not exists public.live_answers (
   foreign key (session_id,user_id) references public.live_players(session_id,user_id) on delete cascade
 );
 
+create index if not exists live_quizzes_teacher_date on public.live_quizzes(teacher_id,created_at desc);
 create index if not exists live_sessions_teacher_date on public.live_sessions(teacher_id,created_at desc);
+create index if not exists live_sessions_quiz on public.live_sessions(quiz_id);
+create index if not exists live_players_user on public.live_players(user_id);
 create index if not exists live_answers_question on public.live_answers(session_id,question_index);
 
 alter table public.live_quizzes enable row level security;
