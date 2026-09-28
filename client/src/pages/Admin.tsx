@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { safeBack } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -2108,19 +2109,7 @@ Generate exactly 10 questions.`;
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              const currentUrl = window.location.href;
-              if (window.history.length <= 1) {
-                navigate("/library", { replace: true });
-                return;
-              }
-              window.history.back();
-              window.setTimeout(() => {
-                if (window.location.href === currentUrl) {
-                  navigate("/library", { replace: true });
-                }
-              }, 250);
-            }}
+            onClick={() => safeBack(navigate)}
             className="flex-shrink-0"
             title="Go back to the page you came from"
           >
