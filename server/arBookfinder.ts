@@ -282,5 +282,17 @@ export async function debugBookfinderForms(){
     value:decodeHtml(tag.match(/\\bvalue=["']([^"']*)["']/i)?.[1]||""),
     checked:/\\bchecked(?:=|\\s|>)/i.test(tag),
   })).filter(x=>x.name);
-  return {url:userTypeUrl,cookie:first.cookie,userTypeInputs:userTypeInputs.slice(0,40),htmlHint:stripTags(first.html).slice(0,500)};
+  const studentIndex=first.html.toLowerCase().indexOf("student");
+  const teacherIndex=first.html.toLowerCase().indexOf("teacher");
+  const forms=(first.html.match(/<form\\b[^>]*>/gi)||[]).slice(0,10);
+  const buttons=(first.html.match(/<(?:button|a)\\b[^>]*>[\\s\\S]{0,300}?<\\/(?:button|a)>/gi)||[]).slice(0,30);
+  const scripts=(first.html.match(/<script\\b[^>]*src=["'][^"']+["'][^>]*>/gi)||[]).slice(0,30);
+  return {
+    url:userTypeUrl,cookie:first.cookie,pageLength:first.html.length,
+    userTypeInputs:userTypeInputs.slice(0,40),
+    forms,buttons,scripts,
+    studentContext:studentIndex>=0?first.html.slice(Math.max(0,studentIndex-800),studentIndex+1600):"",
+    teacherContext:teacherIndex>=0?first.html.slice(Math.max(0,teacherIndex-800),teacherIndex+1600):"",
+    htmlHint:stripTags(first.html).slice(0,500)
+  };
 }
