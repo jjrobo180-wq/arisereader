@@ -199,18 +199,30 @@ export default function Polls() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-card/80 backdrop-blur border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <BrandText />
+      <header className="sticky top-0 z-40 bg-card/90 backdrop-blur border-b border-border">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => safeBack(navigate, "/library")}
+            className="shrink-0 h-9 px-2 sm:px-3 font-bold"
+            aria-label="Back to Library"
+          >
+            <ArrowLeft className="w-4 h-4 sm:mr-1" />
+            <span className="hidden sm:inline">Back</span>
+          </Button>
+
+          <div className="min-w-0 flex-1">
+            <div className="sm:hidden flex items-center gap-1.5 font-black text-sm">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <span>Polls</span>
+            </div>
+            <div className="hidden sm:block"><BrandText /></div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex shrink-0 items-center gap-1">
             <NotificationBell />
-            <Button variant="ghost" size="sm" onClick={() => safeBack(navigate, "/library")} className="text-xs">
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back
-            </Button>
-            <Button variant="ghost" size="sm" onClick={logout} className="text-xs">
+            <Button variant="ghost" size="sm" onClick={logout} className="hidden sm:inline-flex text-xs">
               Logout
             </Button>
           </div>
