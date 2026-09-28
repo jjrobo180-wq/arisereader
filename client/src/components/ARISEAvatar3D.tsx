@@ -35,6 +35,7 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
       try{
         const THREE:any=await import(/* @vite-ignore */ "https://esm.sh/three@0.180.0");
         const loaderMod:any=await import(/* @vite-ignore */ "https://esm.sh/three@0.180.0/examples/jsm/loaders/OBJLoader.js");
+        const geoUtils:any=await import(/* @vite-ignore */ "https://esm.sh/three@0.180.0/examples/jsm/utils/BufferGeometryUtils.js");
         if(disposed||!host)return;
 
         const canvasWrap=host.querySelector("[data-canvas-host]") as HTMLDivElement|null;
@@ -46,8 +47,8 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
         scene.fog=new THREE.Fog(0x07101c,9,18);
 
         const camera=new THREE.PerspectiveCamera(view==="face"?25:29,1,.1,100);
-        let cameraDistance=view==="face"?2.15:(compact?7.2:7.7);
-        const targetY=view==="face"?4.15:2.36;
+        let cameraDistance=view==="face"?2.65:(compact?8.0:8.4);
+        const targetY=view==="face"?4.07:2.42;
         camera.position.set(0,targetY+.03,cameraDistance);
         camera.lookAt(0,targetY,0);
 
@@ -92,7 +93,13 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
 
         root.traverse((node:any)=>{
           if(!node.isMesh)return;
-          node.geometry.computeVertexNormals?.();
+          try{
+            node.geometry=geoUtils.mergeVertices(node.geometry,1e-4);
+            node.geometry.computeVertexNormals?.();
+            if(node.geometry.attributes.normal)node.geometry.attributes.normal.needsUpdate=true;
+          }catch{
+            node.geometry.computeVertexNormals?.();
+          }
           const name=String(node.name||node.parent?.name||"");
           if(name==="body"||(!bodyMesh&&name.toLowerCase().includes("body")))bodyMesh=node;
           if(name==="helper-tights")tightsMesh=node;
@@ -137,12 +144,12 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
 
         const skinMat=new THREE.MeshPhysicalMaterial({
           color:new THREE.Color(look.skin),
-          roughness:.62,
+          roughness:.72,
           metalness:0,
-          clearcoat:.035,
-          clearcoatRoughness:.92,
-          sheen:.08,
-          sheenRoughness:.95,
+          clearcoat:.018,
+          clearcoatRoughness:1,
+          sheen:.025,
+          sheenRoughness:1,
           sheenColor:new THREE.Color(look.skin),
         });
         body.material=skinMat;
@@ -184,10 +191,10 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
         const pupilMat=new THREE.MeshStandardMaterial({color:0x050607,roughness:.25});
         const addEye=(x:number)=>{
           const g=new THREE.Group();g.position.set(x,eyeY,eyeZ);avatar.add(g);
-          const white=new THREE.Mesh(new THREE.SphereGeometry(.065,32,24),eyeWhite);white.scale.set(1.18,.82,.64);g.add(white);
-          const iris=new THREE.Mesh(new THREE.SphereGeometry(.031,28,20),irisMat);iris.position.z=.052;iris.scale.z=.4;g.add(iris);
-          const pupil=new THREE.Mesh(new THREE.SphereGeometry(.013,20,14),pupilMat);pupil.position.z=.068;pupil.scale.z=.25;g.add(pupil);
-          const glint=new THREE.Mesh(new THREE.SphereGeometry(.0048,12,8),new THREE.MeshBasicMaterial({color:0xffffff}));glint.position.set(-.009,.009,.078);g.add(glint);
+          const white=new THREE.Mesh(new THREE.SphereGeometry(.040,32,24),eyeWhite);white.scale.set(1.14,.73,.52);g.add(white);
+          const iris=new THREE.Mesh(new THREE.SphereGeometry(.018,28,20),irisMat);iris.position.z=.031;iris.scale.set(1,.90,.28);g.add(iris);
+          const pupil=new THREE.Mesh(new THREE.SphereGeometry(.0075,20,14),pupilMat);pupil.position.z=.039;pupil.scale.z=.18;g.add(pupil);
+          const glint=new THREE.Mesh(new THREE.SphereGeometry(.0025,12,8),new THREE.MeshBasicMaterial({color:0xffffff}));glint.position.set(-.005,.005,.044);g.add(glint);
         };
         addEye(lx);addEye(rx);
 
@@ -200,44 +207,53 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
           brow.position.set(x,eyeY+.105,eyeZ+.055);brow.rotation.z=Math.PI/2+rot;brow.scale.y=.65;avatar.add(brow);
         }
 
-        // Hair follows the real cranium instead of replacing it.
+        // Hair stays tight to the actual skull so it does not become a helmet.
         const topY=bodyWorldBox.max.y;
         const headCenterX=0;
-        const headZ=bodyWorldBox.max.z-.25;
-        const capMaterial=new THREE.MeshPhysicalMaterial({color:new THREE.Color(look.hairColor),roughness:.88,metalness:0});
+        const headZ=bodyWorldBox.max.z-.31;
+        const capMaterial=new THREE.MeshPhysicalMaterial({color:new THREE.Color(look.hairColor),roughness:.93,metalness:0});
+        const hairGroup=new THREE.Group();
+        avatar.add(hairGroup);
+        const scalpBase=new THREE.Mesh(new THREE.SphereGeometry(.285,40,28,0,Math.PI*2,0,Math.PI*.62),capMaterial);
+        scalpBase.position.set(headCenterX,topY-.30,headZ-.08);
+        scalpBase.scale.set(1.03,.78,.89);
+        hairGroup.add(scalpBase);
+
         if(look.hair==="afro"){
-          for(let a=0;a<18;a++){
-            const theta=(a/18)*Math.PI*2;
-            const r=.27+(a%3)*.025;
-            const puff=new THREE.Mesh(new THREE.SphereGeometry(.13,18,14),capMaterial);
-            puff.position.set(Math.cos(theta)*r,topY-.22+Math.sin(a*1.7)*.04,headZ+Math.sin(theta)*.16);
-            avatar.add(puff);
+          scalpBase.visible=false;
+          for(let a=0;a<24;a++){
+            const theta=(a/24)*Math.PI*2;
+            const ring=a%2===0?.27:.22;
+            const puff=new THREE.Mesh(new THREE.SphereGeometry(.070,16,12),capMaterial);
+            puff.position.set(Math.cos(theta)*ring,topY-.23+Math.sin(a*1.5)*.025,headZ-.07+Math.sin(theta)*.14);
+            hairGroup.add(puff);
           }
-          const crown=new THREE.Mesh(new THREE.SphereGeometry(.35,28,20),capMaterial);crown.position.set(0,topY-.14,headZ-.02);crown.scale.set(1.05,.72,.86);avatar.add(crown);
+          const crown=new THREE.Mesh(new THREE.SphereGeometry(.26,28,20),capMaterial);
+          crown.position.set(0,topY-.20,headZ-.07);crown.scale.set(1.04,.66,.90);hairGroup.add(crown);
         }else if(look.hair==="locs"||look.hair==="braids"){
-          const cap=new THREE.Mesh(new THREE.SphereGeometry(.34,32,22),capMaterial);cap.position.set(0,topY-.18,headZ-.02);cap.scale.set(1,.48,.84);avatar.add(cap);
-          const count=look.hair==="locs"?10:14;
+          scalpBase.scale.y=.62;
+          const count=look.hair==="locs"?9:13;
           for(let i=0;i<count;i++){
             const t=i/(count-1);
-            const strand=new THREE.Mesh(new THREE.CapsuleGeometry(look.hair==="locs"?.028:.018,.40,6,12),capMaterial);
-            strand.position.set((t-.5)*.62,topY-.42,headZ+.02-Math.abs(t-.5)*.08);
-            strand.rotation.z=(t-.5)*.16;avatar.add(strand);
+            const strand=new THREE.Mesh(new THREE.CapsuleGeometry(look.hair==="locs"?.016:.010,.24,5,10),capMaterial);
+            strand.position.set((t-.5)*.47,topY-.42,headZ-.03-Math.abs(t-.5)*.05);
+            strand.rotation.z=(t-.5)*.12;hairGroup.add(strand);
           }
-        }else{
-          const cap=new THREE.Mesh(new THREE.SphereGeometry(.35,36,24),capMaterial);
-          cap.position.set(headCenterX,topY-.18,headZ-.03);
-          cap.scale.set(1,look.hair==="buzz"?.20:look.hair==="waves"?.27:look.hair==="short"?.31:look.hair==="curls"?.43:.28,.86);
-          avatar.add(cap);
-          if(look.hair==="curls"){
-            for(let i=0;i<12;i++){
-              const theta=(i/12)*Math.PI*2;
-              const curl=new THREE.Mesh(new THREE.SphereGeometry(.065,16,12),capMaterial);
-              curl.position.set(Math.cos(theta)*.28,topY-.10+Math.sin(i*2.2)*.035,headZ+Math.sin(theta)*.12);
-              avatar.add(curl);
-            }
+        }else if(look.hair==="curls"){
+          scalpBase.scale.y=.72;
+          for(let i=0;i<18;i++){
+            const theta=(i/18)*Math.PI*2;
+            const curl=new THREE.Mesh(new THREE.SphereGeometry(.045,14,10),capMaterial);
+            curl.position.set(Math.cos(theta)*.23,topY-.26+Math.sin(i*2.1)*.018,headZ-.06+Math.sin(theta)*.11);
+            hairGroup.add(curl);
           }
+        }else if(look.hair==="buzz"){
+          scalpBase.scale.y=.42;
+        }else if(look.hair==="waves"){
+          scalpBase.scale.y=.49;
+        }else if(look.hair==="short"||look.hair==="fade"){
+          scalpBase.scale.y=.56;
         }
-
         // Clothes are fitted shells cloned from the actual human body, so they follow
         // the real silhouette instead of looking like giant capsules.
         const cloneShell=(color:string,lowY:number,highY:number,expand:number)=>{
@@ -295,7 +311,7 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
         const wheel=(e:WheelEvent)=>{
           e.preventDefault();
           e.stopPropagation();
-          const min=view==="face"?1.45:5.8,max=view==="face"?3.1:9.2;
+          const min=view==="face"?2.15:6.7,max=view==="face"?3.8:10.2;
           cameraDistance=Math.min(max,Math.max(min,cameraDistance+e.deltaY*.0028));
         };
         renderer.domElement.addEventListener("pointerdown",down);
@@ -313,7 +329,7 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
           e.preventDefault();e.stopPropagation();
           const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
           if(pinch){
-            const min=view==="face"?1.45:5.8,max=view==="face"?3.1:9.2;
+            const min=view==="face"?2.15:6.7,max=view==="face"?3.8:10.2;
             cameraDistance=Math.min(max,Math.max(min,cameraDistance+(pinch-d)*.007));
           }
           pinch=d;
