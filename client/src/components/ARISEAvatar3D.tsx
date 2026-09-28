@@ -110,6 +110,9 @@ export default function ARISEAvatar3D({characterId,equipped,className="",compact
         const frontZ=box.max.z;
 
         // Local A.R.I.S.E. accessories layered over the fixed base character.
+        // Head-worn items are anchored to the actual rigged Head bone instead of
+        // guessing from the full-body bounds. This keeps hats, glasses and
+        // headphones fitted to every character and moving with the idle animation.
         const accessoryRoot=new THREE.Group();
         avatar.add(accessoryRoot);
         const darkMat=new THREE.MeshPhysicalMaterial({color:0x111827,roughness:.48,metalness:.12});
@@ -117,45 +120,94 @@ export default function ARISEAvatar3D({characterId,equipped,className="",compact
         const silverMat=new THREE.MeshPhysicalMaterial({color:0xd7dee8,roughness:.2,metalness:.82});
         const goldMat=new THREE.MeshPhysicalMaterial({color:0xf4c34f,roughness:.23,metalness:.68});
 
-        const headY=topY-size.y*.075;
-        const eyeY=topY-size.y*.115;
-        const headRadius=Math.max(.16,Math.min(size.x*.19,size.y*.075));
-        const faceZ=frontZ+Math.max(.025,size.z*.012);
+        model.updateMatrixWorld(true);
+        const headBone=model.getObjectByName("Head");
+        let headMesh:any=null;
+        model.traverse((obj:any)=>{
+          if(!headMesh&&obj.isMesh&&/_Head$/i.test(String(obj.name||"")))headMesh=obj;
+        });
+
+        const headWorldBox=headMesh
+          ? new THREE.Box3().setFromObject(headMesh,true)
+          : new THREE.Box3(
+              new THREE.Vector3(center.x-size.x*.13,topY-size.y*.19,center.z-size.z*.13),
+              new THREE.Vector3(center.x+size.x*.13,topY,center.z+size.z*.13),
+            );
+        const headWorldSize=headWorldBox.getSize(new THREE.Vector3());
+        const headWorldCenter=headWorldBox.getCenter(new THREE.Vector3());
+
+        let headParent:any=accessoryRoot;
+        let headCenter=new THREE.Vector3(center.x,topY-size.y*.095,center.z);
+        let headTopY=topY;
+        let faceZ=frontZ;
+        let headRadius=Math.max(.16,Math.min(size.x*.19,size.y*.075));
+        let headHeight=Math.max(headRadius*1.7,size.y*.15);
+
+        if(headBone){
+          headParent=headBone;
+          const worldScale=headBone.getWorldScale(new THREE.Vector3());
+          const safeX=Math.max(.001,Math.abs(worldScale.x));
+          const safeY=Math.max(.001,Math.abs(worldScale.y));
+
+          headCenter=headBone.worldToLocal(headWorldCenter.clone());
+          const topLocal=headBone.worldToLocal(new THREE.Vector3(headWorldCenter.x,headWorldBox.max.y,headWorldCenter.z));
+          const faceLocal=headBone.worldToLocal(new THREE.Vector3(headWorldCenter.x,headWorldCenter.y,headWorldBox.max.z));
+
+          headRadius=Math.max(.045,(headWorldSize.x/safeX)*.52);
+          headHeight=Math.max(headRadius*1.65,headWorldSize.y/safeY);
+          headTopY=topLocal.y;
+          faceZ=faceLocal.z;
+        }
+
+        const eyeY=headCenter.y+headHeight*.08;
 
         if(equipped.hat==="hat-cap"){
-          const cap=new THREE.Mesh(new THREE.CylinderGeometry(headRadius*.88,headRadius,headRadius*.34,40),darkMat);
-          cap.position.set(center.x,headY+headRadius*.42,center.z);accessoryRoot.add(cap);
-          const bill=new THREE.Mesh(new THREE.BoxGeometry(headRadius*1.3,headRadius*.14,headRadius*.70),darkMat);
-          bill.position.set(center.x,headY+headRadius*.32,faceZ+headRadius*.44);accessoryRoot.add(bill);
+          const capHeight=headRadius*.34;
+          const cap=new THREE.Mesh(new THREE.CylinderGeometry(headRadius*.88,headRadius,capHeight,40),darkMat);
+          cap.position.set(headCenter.x,headTopY+capHeight*.16,headCenter.z);
+          headParent.add(cap);
+
+          const billDepth=headRadius*.72;
+          const bill=new THREE.Mesh(new THREE.BoxGeometry(headRadius*1.34,headRadius*.13,billDepth),darkMat);
+          bill.position.set(headCenter.x,headTopY-headRadius*.02,faceZ+headRadius*.25);
+          headParent.add(bill);
         }else if(equipped.hat==="hat-beanie"){
-          const beanie=new THREE.Mesh(new THREE.SphereGeometry(headRadius*1.05,40,28),darkMat);
-          beanie.position.set(center.x,headY+headRadius*.26,center.z);beanie.scale.set(1,.58,.92);accessoryRoot.add(beanie);
+          const beanie=new THREE.Mesh(new THREE.SphereGeometry(headRadius*1.04,40,28),darkMat);
+          beanie.position.set(headCenter.x,headTopY+headRadius*.04,headCenter.z);
+          beanie.scale.set(1,.60,.94);
+          headParent.add(beanie);
         }else if(equipped.hat==="hat-crown"){
-          const crown=new THREE.Mesh(new THREE.CylinderGeometry(headRadius*.70,headRadius*.92,headRadius*.75,8,1,true),goldMat);
-          crown.position.set(center.x,headY+headRadius*.65,center.z);crown.rotation.y=Math.PI/8;accessoryRoot.add(crown);
+          const crownHeight=headRadius*.78;
+          const crown=new THREE.Mesh(new THREE.CylinderGeometry(headRadius*.70,headRadius*.91,crownHeight,8,1,true),goldMat);
+          crown.position.set(headCenter.x,headTopY+crownHeight*.38,headCenter.z);
+          crown.rotation.y=Math.PI/8;
+          headParent.add(crown);
         }
 
         if(equipped.glasses){
           const frameMat=equipped.glasses==="glasses-shades"?darkMat:silverMat;
-          const spacing=headRadius*.55;
-          const r=headRadius*.34;
-          for(const x of [center.x-spacing,center.x+spacing]){
+          const spacing=headRadius*.49;
+          const r=headRadius*.30;
+          for(const x of [headCenter.x-spacing,headCenter.x+spacing]){
             const ring=new THREE.Mesh(new THREE.TorusGeometry(r,r*.09,8,30),frameMat);
-            ring.position.set(x,eyeY,faceZ+headRadius*.60);accessoryRoot.add(ring);
+            ring.position.set(x,eyeY,faceZ+headRadius*.035);
+            headParent.add(ring);
           }
           const bridge=new THREE.Mesh(new THREE.BoxGeometry(spacing*.55,r*.10,r*.08),frameMat);
-          bridge.position.set(center.x,eyeY,faceZ+headRadius*.60);accessoryRoot.add(bridge);
+          bridge.position.set(headCenter.x,eyeY,faceZ+headRadius*.035);
+          headParent.add(bridge);
         }
 
         if(equipped.accessory==="headphones-cyan"){
-          const phones=new THREE.Mesh(new THREE.TorusGeometry(headRadius*1.15,headRadius*.12,12,48,Math.PI),cyanMat);
-          phones.position.set(center.x,headY-headRadius*.10,center.z);accessoryRoot.add(phones);
+          const phones=new THREE.Mesh(new THREE.TorusGeometry(headRadius*1.12,headRadius*.12,12,48,Math.PI),cyanMat);
+          phones.position.set(headCenter.x,headCenter.y+headHeight*.14,headCenter.z);
+          headParent.add(phones);
         }else if(equipped.accessory==="chain-silver"){
           const chain=new THREE.Mesh(new THREE.TorusGeometry(size.x*.16,size.x*.012,10,48,Math.PI),silverMat);
-          chain.position.set(center.x,topY-size.y*.245,faceZ+headRadius*.08);chain.rotation.x=Math.PI/2;chain.rotation.z=Math.PI;chain.scale.y=1.25;accessoryRoot.add(chain);
+          chain.position.set(center.x,topY-size.y*.245,frontZ+headRadius*.08);chain.rotation.x=Math.PI/2;chain.rotation.z=Math.PI;chain.scale.y=1.25;accessoryRoot.add(chain);
         }else if(equipped.accessory==="watch-smart"){
           const watch=new THREE.Mesh(new THREE.BoxGeometry(size.x*.065,size.y*.035,size.z*.06),darkMat);
-          watch.position.set(box.max.x-size.x*.06,topY-size.y*.48,faceZ);accessoryRoot.add(watch);
+          watch.position.set(box.max.x-size.x*.06,topY-size.y*.48,frontZ);accessoryRoot.add(watch);
         }else if(equipped.accessory==="bag-tech"){
           const bag=new THREE.Mesh(new THREE.BoxGeometry(size.x*.42,size.y*.24,size.z*.22),darkMat);
           bag.position.set(center.x,topY-size.y*.40,box.min.z-size.z*.06);accessoryRoot.add(bag);
