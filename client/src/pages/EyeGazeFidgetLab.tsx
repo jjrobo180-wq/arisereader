@@ -418,67 +418,126 @@ export default function EyeGazeFidgetLab(){
       {!stars.length&&<div className="absolute inset-0 grid place-items-center text-white/70 font-black text-xl">Tap anywhere to make stars ✨</div>}
     </div>;
 
-    if(selected==="reveal")return <div className="w-full max-w-[860px]">
-      <div className="mb-4 flex flex-col xl:flex-row gap-3 xl:items-center">
-        <div className="flex-1">
-          <p className="text-xs font-black tracking-[.18em] text-cyan-300">PICTURE REVEAL</p>
-          <h2 className="text-2xl sm:text-3xl font-black">Tap every tile. Find the surprise!</h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(["all","food","animals","vehicles","toys","home","school","nature"] as RevealCategory[]).map(category=><button key={category} onClick={()=>{
-            if(revealTimer.current)window.clearTimeout(revealTimer.current);
-            setRevealCategory(category);setRevealIndex(0);setRevealComplete(false);setRevealTiles(Array(revealSize*revealSize).fill(false));
-            feedback(390,.04,"sine");
-          }} className={"min-h-10 rounded-full px-3 text-xs font-black capitalize border "+(revealCategory===category?"bg-cyan-300 text-slate-950 border-cyan-100":"bg-white/10 text-white border-white/10")}>{category}</button>)}
-        </div>
-      </div>
-
-      <div className="grid xl:grid-cols-[1fr_220px] gap-4 items-start">
-        <div className="relative aspect-square max-h-[min(68vh,720px)] mx-auto w-full rounded-[2.2rem] overflow-hidden border-[8px] border-white/20 shadow-[0_30px_90px_rgba(34,211,238,.22)] bg-slate-950">
-          {revealTiles.some(Boolean)&&<div className="absolute inset-0 grid place-items-center overflow-hidden" style={{background:revealItem.bg}}>
-            <div className="absolute inset-[7%] rounded-[2rem] border-4 border-white/60 bg-white/15 shadow-[inset_0_0_60px_rgba(255,255,255,.35)]"/>
-            <div className="relative z-10 text-center select-none">
-              <div className="text-[clamp(8rem,32vw,18rem)] leading-none drop-shadow-[0_16px_20px_rgba(15,23,42,.18)]">{revealItem.emoji}</div>
-              <div className={"mt-3 inline-flex rounded-full bg-slate-950/80 text-white px-5 py-2 font-black text-xl sm:text-2xl transition-all "+(revealComplete?"opacity-100 scale-100":"opacity-0 scale-90")}>{revealItem.name}</div>
-            </div>
-          </div>}
-
-          <div className="absolute inset-0 grid" style={{gridTemplateColumns:`repeat(${revealSize},minmax(0,1fr))`,gridTemplateRows:`repeat(${revealSize},minmax(0,1fr))`}}>
-            {revealTiles.map((open,i)=><button key={revealRound+"-"+i} disabled={open||revealComplete} onClick={()=>tapReveal(i)} aria-label={open?"Revealed":"Reveal tile "+(i+1)} className={"relative border-2 border-slate-950 transition-all duration-300 "+(open?"opacity-0 scale-75 pointer-events-none":"opacity-100 scale-100 active:scale-90")} style={{
-              background:`linear-gradient(145deg,hsl(${(i*37+revealRound*23)%360} 88% 52%),hsl(${(i*37+95+revealRound*23)%360} 82% 38%))`,
-              boxShadow:"inset 0 3px 10px rgba(255,255,255,.28), inset 0 -8px 14px rgba(0,0,0,.24)"
-            }}>
-              <span className="absolute inset-[16%] rounded-2xl border-2 border-white/30"/>
-              <span className="absolute left-[28%] top-[22%] w-[24%] h-[16%] rounded-full bg-white/30 blur-[1px]"/>
-            </button>)}
-          </div>
-
-          {revealComplete&&<div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
-            {Array.from({length:26}).map((_,i)=><span key={i} className="absolute animate-[ping_1.2s_ease-out_forwards] text-2xl sm:text-3xl" style={{left:(4+(i*37)%92)+"%",top:(5+(i*53)%88)+"%",animationDelay:(i%8)*.06+"s"}}>{["✨","⭐","🎉","🎊"][i%4]}</span>)}
-          </div>}
+    if(selected==="reveal"){
+      const opened=revealTiles.filter(Boolean).length;
+      const total=revealTiles.length;
+      const percent=Math.round((opened/Math.max(1,total))*100);
+      return <div className="w-full max-w-[920px]">
+        <div className="mb-4">
+          <p className="text-[11px] font-black tracking-[.2em] text-cyan-300">REVEAL TILES</p>
+          <h2 className="text-2xl sm:text-4xl font-black leading-tight">Tap the tiles. Discover the picture.</h2>
+          <p className="mt-1 text-sm sm:text-base font-bold text-white/55">The picture stays completely covered until you uncover each square.</p>
         </div>
 
-        <aside className="rounded-[2rem] bg-white/10 border border-white/10 p-4 space-y-4">
-          <div>
-            <p className="text-[10px] font-black tracking-widest text-white/45">ROUND</p>
-            <p className="text-3xl font-black">{revealRound}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-black tracking-widest text-white/45 mb-2">TILE SIZE</p>
-            <div className="grid grid-cols-2 gap-2">{([3,4,5,6] as const).map(size=><button key={size} onClick={()=>{
+        <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
+          {(["all","food","animals","vehicles","toys","home","school","nature"] as RevealCategory[]).map(category=><button
+            key={category}
+            onClick={()=>{
               if(revealTimer.current)window.clearTimeout(revealTimer.current);
-              setRevealSize(size);setRevealComplete(false);setRevealTiles(Array(size*size).fill(false));feedback(360+size*35,.04,"sine");
-            }} className={"min-h-11 rounded-xl font-black "+(revealSize===size?"bg-white text-slate-950":"bg-white/10")}>{size}×{size}</button>)}</div>
+              setRevealCategory(category);
+              setRevealIndex(0);
+              setRevealComplete(false);
+              setRevealTiles(Array(revealSize*revealSize).fill(false));
+              feedback(390,.04,"sine");
+            }}
+            className={"min-w-max min-h-11 rounded-2xl px-4 text-sm font-black capitalize border transition-all "+(revealCategory===category?"bg-cyan-300 text-slate-950 border-cyan-100 shadow-[0_0_22px_rgba(103,232,249,.28)]":"bg-white/8 text-white border-white/10")}
+          >{category}</button>)}
+        </div>
+
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_220px] gap-4 items-start">
+          <div className="relative w-full max-w-[720px] aspect-square mx-auto rounded-[2.4rem] overflow-hidden border-[10px] border-slate-700/80 bg-slate-950 shadow-[0_35px_110px_rgba(0,0,0,.42)]">
+            {opened>0&&<div className="absolute inset-0 z-0 overflow-hidden" style={{background:revealItem.bg}}>
+              <div className="absolute inset-[4%] rounded-[2rem] border-[5px] border-white/55 bg-white/16 shadow-[inset_0_0_80px_rgba(255,255,255,.38)]"/>
+              <div className="absolute inset-0 grid place-items-center select-none pointer-events-none">
+                <span
+                  aria-hidden="true"
+                  className="leading-none drop-shadow-[0_22px_22px_rgba(15,23,42,.20)]"
+                  style={{fontSize:"clamp(13rem,58vw,30rem)",transform:"translateY(-1%)"}}
+                >{revealItem.emoji}</span>
+              </div>
+            </div>}
+
+            <div className="absolute inset-0 z-20 grid bg-slate-950" style={{
+              gridTemplateColumns:"repeat("+revealSize+",minmax(0,1fr))",
+              gridTemplateRows:"repeat("+revealSize+",minmax(0,1fr))"
+            }}>
+              {revealTiles.map((open,i)=>{
+                const hue=(i*43+revealRound*29)%360;
+                return <button
+                  key={revealRound+"-"+i}
+                  disabled={open||revealComplete}
+                  onClick={()=>tapReveal(i)}
+                  aria-label={open?"Picture section revealed":"Reveal picture tile "+(i+1)}
+                  className={"relative overflow-hidden border-[2px] sm:border-[3px] border-slate-950 transition-[transform,opacity] duration-200 touch-manipulation "+(open?"opacity-0 pointer-events-none":"opacity-100 active:scale-[.92]")}
+                  style={{
+                    background:"linear-gradient(145deg,hsl("+hue+" 86% 58%) 0%,hsl("+((hue+52)%360)+" 84% 45%) 58%,hsl("+((hue+90)%360)+" 78% 34%) 100%)",
+                    boxShadow:"inset 0 5px 13px rgba(255,255,255,.35), inset 0 -12px 20px rgba(0,0,0,.30)"
+                  }}
+                >
+                  <span className="absolute inset-[13%] rounded-[24%] border-[3px] border-white/28 shadow-[inset_0_3px_8px_rgba(255,255,255,.16)]"/>
+                  <span className="absolute left-[20%] top-[15%] w-[32%] h-[18%] rounded-full bg-white/30 blur-[2px]"/>
+                  <span className="absolute right-[15%] bottom-[14%] w-[26%] h-[15%] rounded-full bg-black/10 blur-[2px]"/>
+                </button>;
+              })}
+            </div>
+
+            {opened===0&&<div className="absolute inset-0 z-30 pointer-events-none grid place-items-center">
+              <div className="rounded-full bg-slate-950/82 border border-white/15 px-5 py-3 text-center shadow-xl backdrop-blur">
+                <p className="text-lg sm:text-xl font-black">Tap any tile to start</p>
+              </div>
+            </div>}
+
+            {revealComplete&&<div className="absolute inset-0 z-40 pointer-events-none">
+              <div className="absolute inset-x-0 bottom-5 flex justify-center">
+                <div className="rounded-full bg-slate-950/88 border border-white/15 px-6 py-3 text-xl sm:text-3xl font-black shadow-2xl">{revealItem.name}</div>
+              </div>
+              {Array.from({length:34}).map((_,i)=><span
+                key={i}
+                className="absolute animate-[ping_1.25s_ease-out_forwards] text-2xl sm:text-4xl"
+                style={{left:(3+(i*37)%94)+"%",top:(3+(i*61)%90)+"%",animationDelay:(i%10)*.045+"s"}}
+              >{["✨","⭐","🎉","🎊"][i%4]}</span>)}
+            </div>}
           </div>
-          <div className="rounded-2xl bg-black/20 p-3">
-            <p className="text-xs font-black text-white/55">PROGRESS</p>
-            <div className="mt-2 h-3 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-violet-400 transition-all" style={{width:(revealTiles.filter(Boolean).length/revealTiles.length*100)+"%"}}/></div>
-            <p className="mt-2 text-sm font-black">{revealTiles.filter(Boolean).length} / {revealTiles.length} tiles</p>
-          </div>
-          <button onClick={()=>nextReveal()} className="w-full min-h-12 rounded-2xl bg-amber-300 text-slate-950 font-black">NEW PICTURE</button>
-        </aside>
-      </div>
-    </div>;
+
+          <aside className="rounded-[2rem] bg-white/8 border border-white/10 p-4 space-y-4">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[10px] font-black tracking-widest text-white/40">ROUND</p>
+                <p className="text-3xl font-black">{revealRound}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black tracking-widest text-white/40">REVEALED</p>
+                <p className="text-2xl font-black text-cyan-300">{percent}%</p>
+              </div>
+            </div>
+
+            <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-violet-400 to-fuchsia-400 transition-all duration-200" style={{width:percent+"%"}}/>
+            </div>
+            <p className="text-sm font-black text-white/65">{opened} of {total} tiles</p>
+
+            <div>
+              <p className="text-[10px] font-black tracking-widest text-white/40 mb-2">BOARD SIZE</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([3,4,5,6] as const).map(size=><button
+                  key={size}
+                  onClick={()=>{
+                    if(revealTimer.current)window.clearTimeout(revealTimer.current);
+                    setRevealSize(size);
+                    setRevealComplete(false);
+                    setRevealTiles(Array(size*size).fill(false));
+                    feedback(360+size*35,.04,"sine");
+                  }}
+                  className={"min-h-12 rounded-xl font-black "+(revealSize===size?"bg-white text-slate-950":"bg-white/10 text-white")}
+                >{size}×{size}</button>)}
+              </div>
+            </div>
+
+            <button onClick={()=>nextReveal()} className="w-full min-h-14 rounded-2xl bg-amber-300 text-slate-950 font-black shadow-lg">NEW PICTURE</button>
+          </aside>
+        </div>
+      </div>;
+    }
 
     if(selected==="clicker")return <div className="text-center">
       <div className="text-7xl sm:text-9xl font-black text-white drop-shadow-2xl mb-5 tabular-nums">{count}</div>
