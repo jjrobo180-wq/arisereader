@@ -223,13 +223,18 @@ export default function ARISEAvatar3D({characterId,equipped,className="",compact
           mixer.clipAction(idle).play();
         }
 
-        // Camera framing stays inside the viewer and starts head-to-toe.
+        // Camera framing: FULL BODY must always launch with comfortable
+        // head-to-toe breathing room, especially on narrow mobile screens.
         const targetY=view==="face"?topY-size.y*.105:center.y;
         let distance=view==="face"
-          ? Math.max(1.6,size.y*.36)
-          : Math.max(5.3,size.y*1.40);
-        const minDistance=view==="face"?Math.max(1.1,size.y*.28):Math.max(4.2,size.y*1.08);
-        const maxDistance=view==="face"?Math.max(3.6,size.y*.72):Math.max(9.5,size.y*2.05);
+          ? Math.max(1.75,size.y*.40)
+          : Math.max(7.4,size.y*1.82);
+        const minDistance=view==="face"
+          ? Math.max(1.25,size.y*.30)
+          : Math.max(6.2,size.y*1.48);
+        const maxDistance=view==="face"
+          ? Math.max(4.0,size.y*.82)
+          : Math.max(12.0,size.y*2.65);
         camera.position.set(0,targetY,distance);
         camera.lookAt(0,targetY,0);
 
