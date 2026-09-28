@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { safeBack } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Play, Pause, Square, Type, Headphones, BookOpen, Volume2, SkipBack, SkipForward } from "lucide-react";
@@ -376,7 +377,7 @@ export default function TTSAudioBooks() {
       <header className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => safeBack(navigate)}
             className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1"
           >
             <ArrowLeft className="w-3 h-3" /> Back
