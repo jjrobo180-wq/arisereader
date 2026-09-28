@@ -5,7 +5,7 @@ export function BrandText() {
   const emoji = getMascotEmoji();
   const band = getTeacherBand();
   return (
-    <span className="font-bold text-base sm:text-lg tracking-wide whitespace-nowrap">
+    <span className="font-bold text-sm sm:text-base lg:text-lg tracking-wide whitespace-nowrap">
       {emoji && <span className="mr-1">{emoji}</span>}
       A.R.I.S.E<span className="text-primary"> {suffix}</span>
       {band && <span className="text-xs text-muted-foreground ml-2">({band} Band)</span>}
