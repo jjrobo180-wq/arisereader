@@ -214,18 +214,31 @@ export async function verifyAndSaveARBook(bookId:number,title:string,author:stri
 }
 export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:number}={}){
   const limit=Math.max(1,Math.min(options.limit??50,250));
-  const delayMs=Math.max(250,options.delayMs??650);
+  const delayMs=Math.max(350,options.delayMs??750);
   const {data,error}=await supabase.from("books").select("id,title,author,ar_match_status")
     .in("ar_match_status",["unverified","error"]).order("id",{ascending:true}).limit(limit);
   if(error)throw new Error(error.message);
-  let matched=0,notFound=0,ambiguous=0,errors=0;
+
+  // Avoid repeating the same Bookfinder lookup for duplicate title/author rows.
+  const groups=new Map<string,any[]>();
   for(const book of data||[]){
-    const metadata=await verifyAndSaveARBook(book.id,book.title,book.author);
-    if(metadata.status==="exact"||metadata.status==="formula")matched++;
-    else if(metadata.status==="not_found")notFound++;
-    else if(metadata.status==="ambiguous")ambiguous++;
-    else errors++;
+    const key=normalize(book.title)+"|"+normalize(book.author);
+    const list=groups.get(key)||[];
+    list.push(book);groups.set(key,list);
+  }
+
+  let matched=0,notFound=0,ambiguous=0,errors=0;
+  for(const books of groups.values()){
+    const first=books[0];
+    const metadata=await lookupARBook(first.title,first.author);
+    for(const book of books){
+      await saveARMetadata(book.id,metadata);
+      if(metadata.status==="exact"||metadata.status==="formula")matched++;
+      else if(metadata.status==="not_found")notFound++;
+      else if(metadata.status==="ambiguous")ambiguous++;
+      else errors++;
+    }
     await new Promise(r=>setTimeout(r,delayMs));
   }
-  return {processed:(data||[]).length,matched,notFound,ambiguous,errors};
+  return {processed:(data||[]).length,uniqueLookups:groups.size,matched,notFound,ambiguous,errors};
 }
