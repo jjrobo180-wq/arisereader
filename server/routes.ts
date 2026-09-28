@@ -7,6 +7,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
+import { verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { raw } from "express";
@@ -21,6 +22,15 @@ function gradeToBand(grade: string): string | null {
   if (["6", "7", "8"].includes(g)) return "6-8";
   if (["9", "10", "11", "12"].includes(g)) return "9-12";
   return null;
+}
+
+function arPassingScore(total: number): number {
+  return Math.ceil(total * (total > 10 ? 0.70 : 0.60));
+}
+
+function arPointsForScore(bookPoints: number, score: number, total: number): number {
+  if (!total || score < arPassingScore(total)) return 0;
+  return Math.round((Number(bookPoints || 0) * (score / total)) * 10) / 10;
 }
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const PROXY_URL = process.env.CUSTOM_CRED_API_RESEND_COM_URL || "";
@@ -128,24 +138,8 @@ Rules:
       return { error: "AI generated invalid questions" };
     }
 
-    // Calculate points based on grade level, vocab, and length
-    const studentGradeNum = parseInt(studentGrade || "5");
-    const bookGradeNum = parseInt(bookGradeLevel);
-    const gradeDiff = studentGradeNum - bookGradeNum; // positive = book is below student grade
-    let pointsValue = 10; // base
-    if (gradeDiff <= -2) {
-      // Book is 2+ grades above student → harder, more points
-      pointsValue = 30;
-    } else if (gradeDiff <= -1) {
-      // Book is 1 grade above → moderately harder
-      pointsValue = 20;
-    } else {
-      // Book is at or near grade level
-      // Adjust for vocab and length
-      if (vocabComplexity >= 3 && lengthCategory >= 3) pointsValue = 20;
-      else if (vocabComplexity >= 3 || lengthCategory >= 3) pointsValue = 15;
-      else pointsValue = 10;
-    }
+    // AR points are assigned from verified AR Bookfinder metadata when the book quiz is saved.
+    const pointsValue = 0;
 
     // Validate and clean up questions
     const validQuestions = questions.slice(0, 10).map((q: any) => {
@@ -1610,7 +1604,7 @@ export async function registerRoutes(
 
     // No grade band restriction — all students can take any quiz
     const book = await storage.getBook(bookId);
-    const effectivePoints = book?.pointsValue || 10;
+    const effectivePoints = Number(book?.pointsValue ?? 0);
 
     const { answers } = req.body; // { questionId: "A"|"B"|"C"|"D" }
     if (!answers || typeof answers !== "object") {
@@ -1630,12 +1624,12 @@ export async function registerRoutes(
       }
     }
 
-    const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, answers, effectivePoints || undefined);
+    const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, answers, effectivePoints);
     res.json({
       score,
       total: allQuestions.length,
       points: attempt.pointsEarned,
-      bookPoints: effectivePoints || book?.pointsValue || 10,
+      bookPoints: effectivePoints,
       passed: attempt.passed,
       passingScore: attempt.passingScore,
       bookTitle: book?.title,
@@ -1652,7 +1646,7 @@ export async function registerRoutes(
 
     const quizResults = attempts.map(a => {
       const book = bookMap.get(a.bookId);
-      const passingScore = Math.ceil((a.totalQuestions || 10) * 0.7);
+      const passingScore = arPassingScore(a.totalQuestions || 10);
       const passed = a.score >= passingScore;
       return {
         bookId: a.bookId,
@@ -1660,7 +1654,7 @@ export async function registerRoutes(
         author: book?.author || "",
         coverUrl: book?.coverUrl,
         readUrl: book?.readUrl,
-        pointsValue: book?.pointsValue || 10,
+        pointsValue: Number(book?.pointsValue ?? 0),
         score: a.score,
         total: a.totalQuestions,
         pointsEarned: a.pointsEarned ?? 0,
@@ -2035,7 +2029,7 @@ export async function registerRoutes(
 
       const passedQuizzes = attempts.filter((a: any) => {
         const total = a.totalQuestions || 10;
-        return a.score >= Math.ceil(total * 0.7);
+        return a.score >= arPassingScore(total);
       }).length;
 
       const badgeDefs = [
@@ -2341,7 +2335,7 @@ export async function registerRoutes(
 
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = Math.ceil((a.totalQuestions || 10) * 0.7);
+        const passingScore = arPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -2349,7 +2343,7 @@ export async function registerRoutes(
           author: book?.author || "",
           coverUrl: book?.coverUrl,
           readUrl: book?.readUrl,
-          pointsValue: book?.pointsValue || 10,
+          pointsValue: Number(book?.pointsValue ?? 0),
           score: a.score,
           total: a.totalQuestions,
           pointsEarned: a.pointsEarned ?? 0,
@@ -3677,10 +3671,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Correct answer must be A, B, C, or D" });
       }
     }
-    const pts = [10, 20, 30].includes(Number(pointsValue)) ? Number(pointsValue) : 20;
-    const derivedAgeGroup = pts === 10 ? "Ages 3-6" : pts === 20 ? "Ages 6-9" : "Ages 9-12";
+    const derivedAgeGroup = gradeBand || "Custom";
     const book = await storage.createBookWithQuestions(
-      { title, author, ageGroup: derivedAgeGroup, coverUrl, description, pointsValue: pts, readUrl: readUrl || null },
+      { title, author, ageGroup: derivedAgeGroup, coverUrl, description, pointsValue: 0, readUrl: readUrl || null },
       quizQuestions
     );
     // Save grade band if provided
@@ -4551,7 +4544,8 @@ export async function registerRoutes(
           ageGroup: pending.age_group,
           coverUrl: pending.cover_url,
           description: `Quiz for "${pending.book_title}" by ${pending.author}`,
-          pointsValue: pending.quiz_type === 'iarise' ? 2 : 10,
+          pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
+          skipAR: pending.quiz_type === 'iarise',
           readUrl: null,
         }, questions);
 
@@ -4671,8 +4665,11 @@ export async function registerRoutes(
       const { error: insertError } = await supabase.from('questions').insert(questionRows);
       if (insertError) throw new Error(insertError.message);
 
-      // Update points value
-      await supabase.from('books').update({ points_value: result.pointsValue || 10 }).eq('id', bookId);
+      // Refresh verified AR metadata instead of assigning AI-guessed points.
+      const refreshedBook = await storage.getBook(bookId);
+      if (refreshedBook) {
+        await verifyAndSaveARBook(bookId, refreshedBook.title, refreshedBook.author);
+      }
 
       // Clear cache
       clearCache('allBooks');
@@ -4881,12 +4878,12 @@ export async function registerRoutes(
       }
     }
     const total = (questions || []).length;
-    const passingScore = Math.ceil(total * 0.7);
+    const passingScore = arPassingScore(total);
     const passed = newScore >= passingScore;
     const { data: book } = await supabase.from("books").select("points_value").eq("id", review.book_id).single();
-    const bookPoints = book?.points_value || 10;
-    const newPoints = passed ? bookPoints : 0;
-    const oldPoints = attempt.points_earned || 0;
+    const bookPoints = Number(book?.points_value ?? 0);
+    const newPoints = arPointsForScore(bookPoints, newScore, total);
+    const oldPoints = Number(attempt.points_earned || 0);
     // Update the attempt
     await supabase.from("attempts").update({
       score: newScore,
@@ -7627,7 +7624,8 @@ Important:
           title: pending.book_title, author: pending.author,
           ageGroup: pending.age_group, coverUrl: pending.cover_url,
           description: `Quiz for "${pending.book_title}" by ${pending.author}`,
-          pointsValue: pending.quiz_type === 'iarise' ? 2 : 10, readUrl: null,
+          pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
+          skipAR: pending.quiz_type === 'iarise', readUrl: null,
         }, questions);
         try {
           const rawBands = await storage.getSetting('book_grade_bands');
@@ -7797,7 +7795,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = Math.ceil((a.totalQuestions || 10) * 0.7);
+        const passingScore = arPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -7805,7 +7803,7 @@ Important:
           author: book?.author || "",
           coverUrl: book?.coverUrl,
           readUrl: book?.readUrl,
-          pointsValue: book?.pointsValue || 10,
+          pointsValue: Number(book?.pointsValue ?? 0),
           score: a.score,
           total: a.totalQuestions,
           pointsEarned: a.pointsEarned ?? 0,
@@ -7882,7 +7880,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const passed = attempts
         .filter(a => {
-          const passingScore = Math.ceil((a.totalQuestions || 10) * 0.7);
+          const passingScore = arPassingScore(a.totalQuestions || 10);
           return a.score >= passingScore;
         })
         .map(a => {
@@ -8070,7 +8068,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = Math.ceil((a.totalQuestions || 10) * 0.7);
+        const passingScore = arPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -8078,7 +8076,7 @@ Important:
           author: book?.author || "",
           coverUrl: book?.coverUrl,
           readUrl: book?.readUrl,
-          pointsValue: book?.pointsValue || 10,
+          pointsValue: Number(book?.pointsValue ?? 0),
           score: a.score,
           total: a.totalQuestions,
           pointsEarned: a.pointsEarned ?? 0,
