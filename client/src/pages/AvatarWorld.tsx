@@ -123,12 +123,12 @@ export default function AvatarWorld(){
       </div>
     </header>
 
-    <section className="max-w-7xl mx-auto px-3 sm:px-5 pt-5">
-      <div className="rounded-[2rem] border border-cyan-300/20 bg-gradient-to-r from-cyan-400/10 via-violet-500/10 to-fuchsia-500/10 p-4 sm:p-5">
+    <section className="max-w-7xl mx-auto px-3 sm:px-5 pt-3 sm:pt-5">
+      <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-cyan-300/20 bg-gradient-to-r from-cyan-400/10 via-violet-500/10 to-fuchsia-500/10 p-3 sm:p-5">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex-1">
             <p className="text-xs font-black tracking-widest text-cyan-300">YOUR CHARACTER. YOUR READING PROGRESS.</p>
-            <h2 className="text-2xl sm:text-3xl font-black mt-1">{user?.displayName||"Reader"}, build your world.</h2>
+            <h2 className="text-xl sm:text-3xl font-black mt-1">{user?.displayName||"Reader"}, build your world.</h2>
             <p className="text-white/65 font-bold mt-1">Every completed quiz earns <span className="text-amber-300">100 Reader Coins</span>. Every new level adds <span className="text-amber-300">150 bonus coins</span>.</p>
           </div>
           <div className="min-w-[260px]">
@@ -138,31 +138,35 @@ export default function AvatarWorld(){
         </div>
       </div>
 
-      <nav className="mt-4 grid grid-cols-4 gap-2 rounded-3xl bg-white/5 border border-white/10 p-2">
+      <nav className="mt-3 grid grid-cols-4 gap-1.5 rounded-2xl bg-white/5 border border-white/10 p-1.5">
         {([
           ["character",UserRound,"Character"],["shop",ShoppingBag,"Shop"],["garage",Car,"Garage"],["home",Home,"Home"]
-        ] as const).map(([id,Icon,label])=><button key={id} onClick={()=>setTab(id)} className={"min-h-16 rounded-2xl font-black flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 "+(tab===id?"bg-white text-slate-950 shadow-lg":"text-white/70 hover:bg-white/10")}><Icon className="w-5 h-5"/>{label}</button>)}
+        ] as const).map(([id,Icon,label])=><button key={id} onClick={()=>setTab(id)} className={"min-h-12 sm:min-h-14 rounded-xl font-black text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 "+(tab===id?"bg-white text-slate-950 shadow-lg":"text-white/70 hover:bg-white/10")}><Icon className="w-5 h-5"/>{label}</button>)}
       </nav>
       {message&&<div className="mt-3 rounded-2xl bg-white/10 border border-white/15 p-3 text-center font-black flex items-center justify-center gap-2">{message}<button onClick={()=>setMessage("")}><X className="w-4 h-4"/></button></div>}
     </section>
 
-    {tab==="character"&&<section className="max-w-7xl mx-auto p-3 sm:p-5">
+    {tab==="character"&&<section className="max-w-7xl mx-auto p-3 sm:p-5 pt-3">
       <div className="grid lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,.92fr)] gap-5 items-start">
         <div className="rounded-[2rem] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
           <div className="px-5 pt-5 pb-3 border-b border-white/10">
-            <p className="text-xs font-black tracking-widest text-cyan-300">CHARACTER STUDIO</p>
-            <h2 className="text-2xl font-black mt-1">Build your player</h2>
-            <p className="text-sm text-white/55 font-bold mt-1">Use FACE to inspect details closely, or FULL BODY to check the complete look. The viewer stays contained on this card.</p>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] sm:text-xs font-black tracking-widest text-cyan-300">A.R.I.S.E. PLAYER STUDIO</p>
+                <h2 className="text-xl sm:text-2xl font-black mt-1">Build your player</h2>
+              </div>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black tracking-widest text-white/55">GAME CHARACTER</span>
+            </div>
           </div>
-          <div className="h-[460px] sm:h-[540px] lg:h-[590px]">
-            <ARISEAvatar3D look={payload.state.look} equipped={payload.state.equipped} className="w-full h-full" initialView="face"/>
+          <div className="h-[430px] sm:h-[520px] lg:h-[580px] bg-[radial-gradient(circle_at_50%_30%,rgba(20,184,166,.18),transparent_38%)]">
+            <ARISEAvatar3D look={payload.state.look} equipped={payload.state.equipped} className="w-full h-full" initialView="full"/>
           </div>
         </div>
 
         <div className="space-y-4">
           <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-cyan-300 text-slate-950 grid place-items-center font-black">1</div>
+              <div className="w-2 h-8 rounded-full bg-cyan-300"/>
               <div><h3 className="text-xl font-black">Face</h3><p className="text-xs font-bold text-white/45">Skin, structure, brows and eyes</p></div>
             </div>
 
@@ -183,7 +187,7 @@ export default function AvatarWorld(){
 
           <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-violet-300 text-slate-950 grid place-items-center font-black">2</div>
+              <div className="w-2 h-8 rounded-full bg-violet-300"/>
               <div><h3 className="text-xl font-black">Hair & build</h3><p className="text-xs font-bold text-white/45">Change the silhouette and style</p></div>
             </div>
 
@@ -199,7 +203,7 @@ export default function AvatarWorld(){
 
           <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-2xl bg-amber-300 text-slate-950 grid place-items-center font-black">3</div>
+              <div className="w-2 h-8 rounded-full bg-amber-300"/>
               <div><h3 className="text-xl font-black">Style</h3><p className="text-xs font-bold text-white/45">Equip the things you own</p></div>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
