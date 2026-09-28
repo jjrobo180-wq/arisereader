@@ -3,21 +3,18 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import ARISEAvatar3D from "@/components/ARISEAvatar3D";
+import { AVATAR_CHARACTERS, getAvatarCharacter } from "@/lib/avatarCharacters";
 import { ArrowLeft, Car, Check, Coins, Home, Lock, RotateCcw, ShoppingBag, UserRound, X } from "lucide-react";
 
 type CatalogItem={id:string;type:string;name:string;price:number;rarity:string};
-type Look={skin:string;hair:string;hairColor:string;eyeColor:string;face:string;build:string;brows:string};
 type Payload={
   economy:{level:number;quizzesTaken:number;totalPoints:number;lifetimeCoins:number;wallet:number;nextLevelAt:number|null;coinsPerQuiz:number;levelBonus:number};
-  state:{purchased:string[];equipped:Record<string,string>;furniture:string[];look:Look;spent:number;avatar3d?:any};
+  state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];spent:number};
   catalog:CatalogItem[];
 };
 type Tab="character"|"shop"|"garage"|"home";
 
 const FREE_ITEMS:CatalogItem[]=[
-  {id:"top-basic",type:"top",name:"A.R.I.S.E. Tee",price:0,rarity:"starter"},
-  {id:"bottom-basic",type:"bottom",name:"Classic Jeans",price:0,rarity:"starter"},
-  {id:"shoes-basic",type:"shoes",name:"Starter Sneakers",price:0,rarity:"starter"},
   {id:"car-none",type:"car",name:"No Car",price:0,rarity:"starter"},
   {id:"home-basic",type:"home",name:"Starter Room",price:0,rarity:"starter"},
 ];
@@ -101,7 +98,7 @@ export default function AvatarWorld(){
   const allItems=useMemo(()=>[...FREE_ITEMS,...(payload?.catalog||[])],[payload]);
   const owned=(id:string)=>FREE_ITEMS.some(x=>x.id===id)||!!payload?.state.purchased.includes(id);
   const getItem=(id:string)=>allItems.find(x=>x.id===id);
-  const shopItems=(payload?.catalog||[]).filter(x=>shopFilter==="all"||x.type===shopFilter);
+  const shopItems=(payload?.catalog||[]).filter(x=>["hat","glasses","accessory","car","home","furniture"].includes(x.type)&&(shopFilter==="all"||x.type===shopFilter));
 
   if(loading)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center"><div className="text-center"><div className="w-14 h-14 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto"/><p className="font-black mt-4">Loading Avatar World…</p></div></main>;
   if(!payload)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center p-6"><div className="text-center"><p className="text-xl font-black">{message||"Avatar World is unavailable."}</p><button onClick={()=>navigate("/library")} className="mt-4 rounded-2xl bg-white text-slate-950 px-5 py-3 font-black">Back to Library</button></div></main>;
@@ -110,8 +107,8 @@ export default function AvatarWorld(){
   const homeId=payload.state.equipped.home||"home-basic";
   const quizzesIntoLevel=payload.economy.quizzesTaken%2;
 
-  const pickLook=(key:keyof Look,value:string)=>customize({action:"look",look:{[key]:value}});
   const equip=(slot:string,itemId:string)=>customize({action:"equip",slot,itemId});
+  const selectCharacter=(characterId:string)=>customize({action:"character",characterId});
 
   return <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554,#0f172a_50%,#020617)] text-white">
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/85 backdrop-blur-xl">
@@ -147,83 +144,60 @@ export default function AvatarWorld(){
     </section>
 
     {tab==="character"&&<section className="max-w-7xl mx-auto p-3 sm:p-5 pt-3">
-      <div className="grid lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,.92fr)] gap-5 items-start">
+      <div className="grid xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,.92fr)] gap-5 items-start">
         <div className="rounded-[2rem] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
-          <div className="px-5 pt-5 pb-3 border-b border-white/10">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] sm:text-xs font-black tracking-widest text-cyan-300">A.R.I.S.E. PLAYER STUDIO</p>
-                <h2 className="text-xl sm:text-2xl font-black mt-1">Build your player</h2>
-              </div>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black tracking-widest text-white/55">GAME CHARACTER</span>
+          <div className="px-5 pt-5 pb-3 border-b border-white/10 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] sm:text-xs font-black tracking-widest text-cyan-300">MY CHARACTER</p>
+              <h2 className="text-xl sm:text-2xl font-black mt-1">{getAvatarCharacter(payload.state.selectedCharacter).name}</h2>
+              <p className="text-xs font-bold text-white/45 mt-1">{getAvatarCharacter(payload.state.selectedCharacter).subtitle}</p>
             </div>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black tracking-widest text-white/55">FIXED CHARACTER</span>
           </div>
           <div className="h-[430px] sm:h-[520px] lg:h-[580px] bg-[radial-gradient(circle_at_50%_30%,rgba(20,184,166,.18),transparent_38%)]">
-            <ARISEAvatar3D look={payload.state.look} equipped={payload.state.equipped} className="w-full h-full" initialView="full"/>
+            <ARISEAvatar3D characterId={payload.state.selectedCharacter} equipped={payload.state.equipped} className="w-full h-full" initialView="full"/>
           </div>
         </div>
 
         <div className="space-y-4">
           <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-8 rounded-full bg-cyan-300"/>
-              <div><h3 className="text-xl font-black">Face</h3><p className="text-xs font-bold text-white/45">Skin, structure, brows and eyes</p></div>
-            </div>
-
-            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">SKIN TONE</p>
-            <div className="grid grid-cols-9 gap-2 mt-2">
-              {["#f4c7a1","#e7b184","#d89a73","#b97750","#9b6244","#74432e","#5b3326","#4c2a20","#2e1a16"].map(v=><button key={v} onClick={()=>pickLook("skin",v)} className={"aspect-square rounded-full border-[3px] transition-transform "+(payload.state.look.skin===v?"border-cyan-300 scale-110":"border-white/15 hover:scale-105")} style={{background:v}} aria-label="Skin tone"/>)}
-            </div>
-
-            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">FACE SHAPE</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">{["oval","round","square","long"].map(v=><button key={v} onClick={()=>pickLook("face",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.face===v?"bg-cyan-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
-
-            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">BROWS</p>
-            <div className="grid grid-cols-3 gap-2 mt-2">{["natural","straight","bold"].map(v=><button key={v} onClick={()=>pickLook("brows",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.brows===v?"bg-cyan-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
-
-            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">EYE COLOR</p>
-            <div className="flex flex-wrap gap-2 mt-2">{["#2b1a12","#3f2a1d","#5b3b24","#305b66","#475569","#355b39"].map(v=><button key={v} onClick={()=>pickLook("eyeColor",v)} className={"w-10 h-10 rounded-full border-[3px] transition-transform "+(payload.state.look.eyeColor===v?"border-cyan-300 scale-110":"border-white/15")} style={{background:v}} aria-label="Eye color"/>)}</div>
-          </section>
-
-          <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-8 rounded-full bg-violet-300"/>
-              <div><h3 className="text-xl font-black">Hair & build</h3><p className="text-xs font-bold text-white/45">Change the silhouette and style</p></div>
-            </div>
-
-            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">HAIR STYLE</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">{["fade","curls","locs","waves","afro","braids","short","buzz"].map(v=><button key={v} onClick={()=>pickLook("hair",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.hair===v?"bg-violet-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
-
-            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">HAIR COLOR</p>
-            <div className="flex flex-wrap gap-2 mt-2">{["#111111","#171717","#2a1b13","#3b2417","#6b3d24","#8f6545","#b5814e"].map(v=><button key={v} onClick={()=>pickLook("hairColor",v)} className={"w-10 h-10 rounded-full border-[3px] "+(payload.state.look.hairColor===v?"border-violet-300 scale-110":"border-white/15")} style={{background:v}} aria-label="Hair color"/>)}</div>
-
-            <p className="text-[11px] font-black text-white/45 mt-5 tracking-wider">BODY BUILD</p>
-            <div className="grid grid-cols-3 gap-2 mt-2">{["slim","athletic","broad"].map(v=><button key={v} onClick={()=>pickLook("build",v)} className={"min-h-11 rounded-xl font-black capitalize "+(payload.state.look.build===v?"bg-violet-300 text-slate-950":"bg-white/10 hover:bg-white/15")}>{v}</button>)}</div>
-          </section>
-
-          <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-2 h-8 rounded-full bg-amber-300"/>
-              <div><h3 className="text-xl font-black">Style</h3><p className="text-xs font-bold text-white/45">Equip the things you own</p></div>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {["top","bottom","shoes","hat","glasses","accessory"].map(slot=>{
-                const equippedItem=getItem(payload.state.equipped[slot]);
-                const count=allItems.filter(x=>x.type===slot&&owned(x.id)).length;
-                return <button key={slot} onClick={()=>{setTab("shop");setShopFilter(slot);}} className="rounded-2xl bg-white/5 border border-white/10 p-4 text-left hover:bg-white/10 transition-colors">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40">{slot}</p>
-                  <p className="font-black mt-1">{equippedItem?.name||"None"}</p>
-                  <p className="text-xs font-bold text-amber-300 mt-2">{count} owned · Open shop →</p>
+            <h3 className="text-xl font-black">Choose your character</h3>
+            <p className="text-sm text-white/55 font-bold mt-1">Every character is free. Their face, skin, hair, body and base outfit are locked exactly as designed.</p>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              {AVATAR_CHARACTERS.map(character=>{
+                const active=payload.state.selectedCharacter===character.id;
+                return <button
+                  key={character.id}
+                  onClick={()=>selectCharacter(character.id)}
+                  className={"rounded-2xl border p-3 text-left transition-all "+(active?"bg-cyan-300 text-slate-950 border-cyan-200 shadow-lg":"bg-white/5 border-white/10 hover:bg-white/10")}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={"w-11 h-11 rounded-xl grid place-items-center text-2xl "+(active?"bg-slate-950/10":"bg-black/20")}>{character.icon}</div>
+                    <div className="min-w-0">
+                      <strong className="block text-sm sm:text-base leading-tight">{character.name}</strong>
+                      <span className={"block text-[10px] sm:text-xs font-bold mt-1 "+(active?"text-slate-700":"text-white/45")}>{character.subtitle}</span>
+                    </div>
+                  </div>
+                  {active&&<div className="mt-2 flex items-center gap-1 text-xs font-black"><Check className="w-4 h-4"/> SELECTED</div>}
                 </button>;
               })}
             </div>
+          </section>
 
-            <div className="mt-4 grid sm:grid-cols-2 gap-3">
+          <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
+            <h3 className="text-xl font-black">Accessories only</h3>
+            <p className="text-sm text-white/55 font-bold mt-1">Accessories can be changed. The character itself cannot.</p>
+            <div className="space-y-3 mt-4">
               {["hat","glasses","accessory"].map(slot=>{
                 const ownedItems=[{id:"",type:slot,name:"None",price:0,rarity:"starter"},...allItems.filter(x=>x.type===slot&&owned(x.id))];
                 return <div key={slot} className="rounded-2xl bg-black/15 border border-white/10 p-3">
-                  <p className="text-[10px] font-black uppercase text-white/40 mb-2">{slot}</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">{ownedItems.map(product=><button key={product.id||"none"} onClick={()=>equip(slot,product.id)} className={"min-w-max rounded-xl px-3 py-2 text-xs font-black "+(payload.state.equipped[slot]===product.id?"bg-cyan-300 text-slate-950":"bg-white/10")}>{product.name}</button>)}</div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/45">{slot}</p>
+                    <button onClick={()=>{setTab("shop");setShopFilter(slot);}} className="text-[10px] font-black text-amber-300">SHOP →</button>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {ownedItems.map(product=><button key={product.id||"none"} onClick={()=>equip(slot,product.id)} className={"min-w-max rounded-xl px-3 py-2 text-xs font-black "+(payload.state.equipped[slot]===product.id?"bg-cyan-300 text-slate-950":"bg-white/10")}>{product.name}</button>)}
+                  </div>
                 </div>;
               })}
             </div>
@@ -237,7 +211,7 @@ export default function AvatarWorld(){
         <div className="flex-1"><p className="text-xs font-black tracking-widest text-amber-300">EARNED THROUGH READING</p><h2 className="text-3xl font-black">Avatar & World Shop</h2><p className="text-white/60 font-bold mt-1">No real money. Students unlock everything with Reader Coins earned from quizzes.</p></div>
         <div className="rounded-2xl bg-amber-400 text-slate-950 px-4 py-3 font-black flex items-center gap-2"><Coins className="w-5 h-5"/>{payload.economy.wallet.toLocaleString()} coins</div>
       </div>
-      <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","top","bottom","shoes","hat","glasses","accessory","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
+      <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","hat","glasses","accessory","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
         {shopItems.map(product=>{
           const isOwned=owned(product.id),canAfford=payload.economy.wallet>=product.price;
@@ -259,7 +233,7 @@ export default function AvatarWorld(){
           <div className="absolute top-5 left-5 z-20"><p className="text-xs font-black text-cyan-300">MY GARAGE</p><h2 className="text-3xl font-black">{getItem(carId)?.name||"No car equipped"}</h2></div>
           {carId==="car-none"?<div className="absolute inset-0 grid place-items-center"><div className="text-center"><div className="text-8xl">🏁</div><h3 className="text-2xl font-black mt-3">Your garage is empty.</h3><button onClick={()=>{setTab("shop");setShopFilter("car");}} className="mt-4 rounded-2xl bg-amber-400 text-slate-950 px-5 py-3 font-black">Shop Cars</button></div></div>:<>
             <div className="absolute inset-x-0 top-[12%] flex justify-center z-10" onPointerDown={e=>{carDrag.current={x:e.clientX,rotation:carRotation};e.currentTarget.setPointerCapture?.(e.pointerId);}} onPointerMove={e=>{if(carDrag.current)setCarRotation(carDrag.current.rotation+(e.clientX-carDrag.current.x)*.7);}} onPointerUp={()=>carDrag.current=null} onPointerCancel={()=>carDrag.current=null}><div className="touch-none cursor-grab active:cursor-grabbing"><CarStage id={carId} rotation={carRotation}/></div></div>
-            <div className={"absolute left-[4%] bottom-[1%] w-[290px] h-[430px] z-10 transition-all duration-1000 "+(entering?"translate-x-[360px] scale-[.55] opacity-25":"")}><ARISEAvatar3D look={payload.state.look} equipped={payload.state.equipped} compact className="w-full h-full rounded-3xl overflow-hidden"/></div>
+            <div className={"absolute left-[4%] bottom-[1%] w-[290px] h-[430px] z-10 transition-all duration-1000 "+(entering?"translate-x-[360px] scale-[.55] opacity-25":"")}><ARISEAvatar3D characterId={payload.state.selectedCharacter} equipped={payload.state.equipped} compact className="w-full h-full rounded-3xl overflow-hidden"/></div>
             {inCar&&<div className="absolute inset-x-0 bottom-[8%] z-20 flex justify-center"><div className="rounded-3xl bg-black/65 backdrop-blur px-6 py-4 text-center border border-cyan-300/20"><h3 className="text-xl font-black">Your character is in the car.</h3><p className="text-white/55 text-sm font-bold">Drag the car above for the 360° view.</p></div></div>}
             <div className="absolute right-5 bottom-5 z-30 flex gap-2">{!inCar?<button disabled={entering} onClick={()=>{setEntering(true);window.setTimeout(()=>setInCar(true),1000);}} className="min-h-14 rounded-2xl bg-cyan-300 text-slate-950 px-5 font-black">{entering?"GETTING IN…":"GET IN CAR"}</button>:<button onClick={()=>{setInCar(false);setEntering(false);}} className="min-h-14 rounded-2xl bg-white text-slate-950 px-5 font-black">GET OUT</button>}<button onClick={()=>setCarRotation(0)} className="min-h-14 w-14 rounded-2xl bg-white/10 border border-white/15 grid place-items-center"><RotateCcw/></button></div>
           </>}
@@ -277,7 +251,7 @@ export default function AvatarWorld(){
           {payload.state.furniture.includes("furniture-books")&&<div className="absolute right-[3%] top-[18%] w-[22%] h-[38%] bg-amber-950 p-2 grid grid-rows-4 gap-2 shadow-2xl">{[0,1,2,3].map(i=><div key={i} className="bg-gradient-to-r from-cyan-400 via-amber-300 to-fuchsia-400"/>)}</div>}
           {payload.state.furniture.includes("furniture-neon")&&<div className="absolute left-[8%] top-[22%] text-3xl sm:text-5xl font-black text-cyan-300 drop-shadow-[0_0_16px_rgba(34,211,238,.8)]">READ • RISE • REPEAT</div>}
           {payload.state.furniture.includes("furniture-sofa")&&<div className="absolute left-[30%] bottom-[9%] w-[34%] h-[20%] rounded-[2rem] bg-violet-600 border-t-[18px] border-violet-400 shadow-2xl"/>}
-          <div className="absolute right-[2%] bottom-[1%] w-[310px] h-[450px] z-10"><ARISEAvatar3D look={payload.state.look} equipped={payload.state.equipped} compact className="w-full h-full rounded-3xl overflow-hidden"/></div>
+          <div className="absolute right-[2%] bottom-[1%] w-[310px] h-[450px] z-10"><ARISEAvatar3D characterId={payload.state.selectedCharacter} equipped={payload.state.equipped} compact className="w-full h-full rounded-3xl overflow-hidden"/></div>
         </div>
         <aside className="space-y-3"><h3 className="text-xl font-black">My Places</h3>{allItems.filter(x=>x.type==="home"&&owned(x.id)).map(home=><button key={home.id} onClick={()=>equip("home",home.id)} className={"w-full rounded-2xl p-4 border text-left "+(homeId===home.id?"bg-cyan-400 text-slate-950 border-cyan-200":"bg-white/5 border-white/10")}><strong>{home.name}</strong><span className="block text-xs font-black opacity-60 uppercase">{home.rarity}</span></button>)}
           <h3 className="text-xl font-black pt-3">Furniture</h3>{(payload.catalog||[]).filter(x=>x.type==="furniture"&&owned(x.id)).map(furn=>{const active=payload.state.furniture.includes(furn.id);return <button key={furn.id} onClick={()=>customize({action:"furniture",itemIds:active?payload.state.furniture.filter(id=>id!==furn.id):[...payload.state.furniture,furn.id]})} className={"w-full rounded-2xl p-4 border text-left "+(active?"bg-emerald-400 text-slate-950 border-emerald-200":"bg-white/5 border-white/10")}><div className="flex items-center justify-between"><strong>{furn.name}</strong>{active&&<Check className="w-5 h-5"/>}</div></button>})}
