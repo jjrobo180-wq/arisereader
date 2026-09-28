@@ -1,17 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-
-type Look={
-  skin:string;
-  hair:string;
-  hairColor:string;
-  eyeColor:string;
-  face:string;
-  build:string;
-  brows:string;
-};
+import { getAvatarCharacter } from "@/lib/avatarCharacters";
 
 type Props={
-  look:Look;
+  characterId:string;
   equipped:Record<string,string>;
   className?:string;
   compact?:boolean;
@@ -24,7 +15,9 @@ function bell(x:number,c:number,w:number){
   return Math.exp(-(d*d));
 }
 
-export default function ARISEAvatar3D({look,equipped,className="",compact=false,initialView="full",controls=true}:Props){
+export default function ARISEAvatar3D({characterId,equipped,className="",compact=false,initialView="full",controls=true}:Props){
+  const character=getAvatarCharacter(characterId);
+  const look=character;
   const hostRef=useRef<HTMLDivElement|null>(null);
   const [view,setView]=useState<"full"|"face">(initialView);
   const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
@@ -84,7 +77,7 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
 
         const [objText,targetText]=await Promise.all([
           fetch("/avatar/makehuman-base.obj",{cache:"force-cache"}).then(r=>{if(!r.ok)throw new Error("human mesh");return r.text();}),
-          fetch("/avatar/arise-neutral-male-young.target",{cache:"force-cache"}).then(r=>{if(!r.ok)throw new Error("human morph");return r.text();})
+          fetch(character.morph==="female"?"/avatar/arise-neutral-female-young.target":"/avatar/arise-neutral-male-young.target",{cache:"force-cache"}).then(r=>{if(!r.ok)throw new Error("human morph");return r.text();})
         ]);
         if(disposed)return;
 
@@ -273,9 +266,9 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
           }
         }
 
-        const topColor=equipped.top==="jacket-varsity"?"#0f766e":equipped.top==="hoodie-neon"?"#5b2db6":equipped.top==="hoodie-midnight"?"#111827":"#177f7b";
-        const pantsColor=equipped.bottom==="pants-cargo"?"#44515d":"#1e326d";
-        const shoeColor=equipped.shoes==="shoes-neon"?"#63e4ee":equipped.shoes==="shoes-white"?"#eff2f6":"#d2dae4";
+        const topColor=character.palette.top;
+        const pantsColor=character.palette.bottom;
+        const shoeColor=character.palette.boots;
         const topMat=new THREE.MeshPhysicalMaterial({color:new THREE.Color(topColor),roughness:.62,clearcoat:.035});
         const pantsMat=new THREE.MeshPhysicalMaterial({color:new THREE.Color(pantsColor),roughness:.72});
         const shoeMat=new THREE.MeshPhysicalMaterial({color:new THREE.Color(shoeColor),roughness:.48});
@@ -301,20 +294,78 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
         const belt=new THREE.Mesh(new THREE.CylinderGeometry(.41,.40,.095,40),darkMat);belt.position.set(0,2.04,0);belt.scale.z=.72;avatar.add(belt);
         const buckle=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.055),accentMat);buckle.position.set(0,2.04,frontZ+.015);avatar.add(buckle);
 
-        if(equipped.top==="jacket-varsity"||equipped.top==="hoodie-midnight"||equipped.top==="hoodie-neon"){
-          const vest=new THREE.Mesh(new THREE.BoxGeometry(.72,.84,.20),new THREE.MeshPhysicalMaterial({color:equipped.top==="hoodie-neon"?0x2f2255:0x27303b,roughness:.72}));
-          vest.position.set(0,2.92,frontZ-.01);vest.scale.x=1.08;avatar.add(vest);
-          for(const x of [-.23,.23]){
-            const pocket=new THREE.Mesh(new THREE.BoxGeometry(.22,.18,.065),darkMat);pocket.position.set(x,2.84,frontZ+.115);avatar.add(pocket);
-          }
-          const collar=new THREE.Mesh(new THREE.TorusGeometry(.20,.045,10,32,Math.PI*1.55),topMat);
-          collar.position.set(0,3.55,.02);collar.rotation.x=Math.PI/2;collar.rotation.z=Math.PI*.22;avatar.add(collar);
-        }
+        // Permanent costume details. These belong to the character and cannot be edited.
+        const trimMat=new THREE.MeshPhysicalMaterial({color:new THREE.Color(character.palette.trim),roughness:.56,metalness:.03});
+        const charAccent=new THREE.MeshPhysicalMaterial({color:new THREE.Color(character.palette.accent),roughness:.50,metalness:.08});
+        const addBox=(w:number,h:number,d:number,x:number,y:number,z:number,material:any,ry=0)=>{
+          const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);m.position.set(x,y,z);m.rotation.y=ry;m.castShadow=true;avatar.add(m);return m;
+        };
+        const addCape=(color:string,width=.92,length=1.55)=>{
+          const capeMat=new THREE.MeshPhysicalMaterial({color:new THREE.Color(color),roughness:.72,side:THREE.DoubleSide});
+          const cape=new THREE.Mesh(new THREE.PlaneGeometry(width,length,1,5),capeMat);
+          cape.position.set(0,2.82,box.min.z-.05);cape.rotation.x=-.05;avatar.add(cape);
+        };
 
-        if(equipped.bottom==="pants-cargo"){
-          for(const x of [-.30,.30]){
-            const pocket=new THREE.Mesh(new THREE.BoxGeometry(.20,.26,.065),pantsMat);pocket.position.set(x,1.50,frontZ-.02);avatar.add(pocket);
-            const knee=new THREE.Mesh(new THREE.BoxGeometry(.23,.15,.07),darkMat);knee.position.set(x,1.04,frontZ-.015);avatar.add(knee);
+        if(character.costume==="forest"){
+          addBox(.76,.66,.16,0,2.88,frontZ-.01,charAccent);
+          addBox(.48,.10,.06,0,3.36,frontZ+.04,trimMat);
+          for(const x of [-.25,.25])addBox(.18,.18,.07,x,2.69,frontZ+.10,darkMat);
+          const hood=new THREE.Mesh(new THREE.TorusGeometry(.24,.055,12,34,Math.PI*1.55),topMat);hood.position.set(0,3.56,.01);hood.rotation.x=Math.PI/2;hood.rotation.z=Math.PI*.22;avatar.add(hood);
+        }else if(character.costume==="detective"){
+          addBox(.80,1.12,.16,0,2.78,frontZ-.01,topMat);
+          for(const x of [-.25,.25])addBox(.20,.18,.06,x,2.55,frontZ+.10,darkMat);
+          const lapelL=addBox(.12,.56,.035,-.14,3.08,frontZ+.11,trimMat,-.25);
+          const lapelR=addBox(.12,.56,.035,.14,3.08,frontZ+.11,trimMat,.25);
+          addCape("#3b424d",.86,1.25);
+        }else if(character.costume==="king"){
+          addBox(.78,.76,.17,0,2.95,frontZ-.01,topMat);
+          for(const x of [-.39,.39]){
+            const pauldron=new THREE.Mesh(new THREE.SphereGeometry(.18,24,18),trimMat);pauldron.position.set(x,3.22,.00);pauldron.scale.set(1.25,.55,1);avatar.add(pauldron);
+          }
+          addCape("#7b2636",.95,1.60);
+          const circlet=new THREE.Mesh(new THREE.TorusGeometry(.25,.018,8,34),charAccent);circlet.position.set(0,topY-.20,headCenterZ-.01);circlet.rotation.x=Math.PI/2;avatar.add(circlet);
+        }else if(character.costume==="mythic"){
+          addBox(.66,.58,.14,0,2.93,frontZ-.01,topMat);
+          const sash=addBox(.12,1.05,.05,-.10,2.86,frontZ+.10,charAccent,-.34);
+          addCape("#7a4732",.72,1.18);
+          for(const x of [-.28,.28])addBox(.18,.10,.055,x,1.16,frontZ+.05,trimMat);
+        }else if(character.costume==="voyager"){
+          addBox(.74,.78,.16,0,2.90,frontZ-.01,topMat);
+          const wrap=addBox(.72,.14,.055,0,2.55,frontZ+.11,charAccent);
+          addCape("#6f5f48",.78,1.22);
+          for(const x of [-.26,.26])addBox(.18,.21,.06,x,1.54,frontZ+.04,darkMat);
+        }else if(character.costume==="sailor"){
+          addBox(.80,.78,.17,0,2.92,frontZ-.01,topMat);
+          const sash=addBox(.12,1.00,.05,.10,2.84,frontZ+.12,charAccent,.30);
+          for(const x of [-.25,.25])addBox(.19,.18,.065,x,2.65,frontZ+.10,darkMat);
+          const collar=new THREE.Mesh(new THREE.TorusGeometry(.21,.035,10,34,Math.PI*1.65),trimMat);collar.position.set(0,3.55,.01);collar.rotation.x=Math.PI/2;collar.rotation.z=Math.PI*.17;avatar.add(collar);
+        }else if(character.costume==="wonder"){
+          // Alice: fixed blue dress with cream apron and collar.
+          const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.58,.86,1.38,48),topMat);skirt.position.set(0,1.82,0);skirt.scale.z=.72;skirt.castShadow=true;avatar.add(skirt);
+          addBox(.62,.72,.14,0,3.02,frontZ-.01,topMat);
+          addBox(.45,.68,.045,0,2.72,frontZ+.11,trimMat);
+          addBox(.52,.10,.045,0,3.35,frontZ+.10,trimMat);
+          const bow=new THREE.Mesh(new THREE.TorusGeometry(.11,.026,8,24,Math.PI),charAccent);bow.position.set(0,3.38,frontZ+.14);bow.rotation.z=Math.PI;avatar.add(bow);
+        }else if(character.costume==="vampire"){
+          addBox(.76,.86,.16,0,2.91,frontZ-.01,topMat);
+          addBox(.46,.58,.04,0,3.02,frontZ+.11,trimMat);
+          addCape("#2b1120",1.02,1.78);
+          const collarL=addBox(.18,.42,.035,-.15,3.47,frontZ+.09,charAccent,-.32);
+          const collarR=addBox(.18,.42,.035,.15,3.47,frontZ+.09,charAccent,.32);
+        }else if(character.costume==="monster"){
+          addBox(.86,.94,.18,0,2.84,frontZ-.01,topMat);
+          for(const x of [-.25,.25])addBox(.20,.20,.065,x,2.56,frontZ+.10,charAccent);
+          addBox(.50,.09,.05,0,3.36,frontZ+.10,trimMat);
+          // Book-inspired: no bolts or movie-specific monster details.
+          const stitchMat=new THREE.MeshStandardMaterial({color:0x211f1d,roughness:.9});
+          for(let i=-2;i<=2;i++)addBox(.015,.12,.018,i*.045,2.82,frontZ+.13,stitchMat,i*.08);
+        }else if(character.costume==="musketeer"){
+          addBox(.82,.82,.17,0,2.92,frontZ-.01,topMat);
+          addBox(.12,.74,.045,0,2.92,frontZ+.11,trimMat);
+          addBox(.64,.10,.045,0,3.30,frontZ+.10,trimMat);
+          addCape("#233760",.92,1.30);
+          for(const x of [-.36,.36]){
+            const shoulder=new THREE.Mesh(new THREE.SphereGeometry(.16,22,16),charAccent);shoulder.position.set(x,3.20,0);shoulder.scale.set(1.25,.50,1);avatar.add(shoulder);
           }
         }
 
@@ -427,7 +478,7 @@ export default function ARISEAvatar3D({look,equipped,className="",compact=false,
 
     void boot();
     return()=>{disposed=true;cleanup();};
-  },[look.skin,look.hair,look.hairColor,look.eyeColor,look.face,look.build,look.brows,equipped.top,equipped.bottom,equipped.shoes,equipped.hat,equipped.glasses,equipped.accessory,compact,view]);
+  },[characterId,equipped.hat,equipped.glasses,equipped.accessory,compact,view]);
 
   return <div ref={hostRef} className={"relative overflow-hidden "+className} aria-label="Interactive A.R.I.S.E. stylized realistic 3D character">
     <div data-canvas-host className="absolute inset-0"/>
