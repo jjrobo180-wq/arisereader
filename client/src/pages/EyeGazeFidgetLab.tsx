@@ -446,18 +446,18 @@ export default function EyeGazeFidgetLab(){
 
         <div className="grid xl:grid-cols-[minmax(0,1fr)_220px] gap-4 items-start">
           <div className="relative w-full max-w-[720px] aspect-square mx-auto rounded-[2.4rem] overflow-hidden border-[10px] border-slate-700/80 bg-slate-950 shadow-[0_35px_110px_rgba(0,0,0,.42)]">
-            {opened>0&&<div className="absolute inset-0 z-0 overflow-hidden" style={{background:revealItem.bg}}>
+            <div className="absolute inset-0 z-0 overflow-hidden" style={{background:revealItem.bg}}>
               <div className="absolute inset-[4%] rounded-[2rem] border-[5px] border-white/55 bg-white/16 shadow-[inset_0_0_80px_rgba(255,255,255,.38)]"/>
               <div className="absolute inset-0 grid place-items-center select-none pointer-events-none">
                 <span
                   aria-hidden="true"
                   className="leading-none drop-shadow-[0_22px_22px_rgba(15,23,42,.20)]"
-                  style={{fontSize:"clamp(13rem,58vw,30rem)",transform:"translateY(-1%)"}}
+                  style={{fontSize:"clamp(16rem,72vw,38rem)",transform:"translateY(-1%) scale(1.08)"}}
                 >{revealItem.emoji}</span>
               </div>
-            </div>}
+            </div>
 
-            <div className="absolute inset-0 z-20 grid bg-slate-950" style={{
+            <div className="absolute inset-0 z-20 grid bg-transparent" style={{
               gridTemplateColumns:"repeat("+revealSize+",minmax(0,1fr))",
               gridTemplateRows:"repeat("+revealSize+",minmax(0,1fr))"
             }}>
