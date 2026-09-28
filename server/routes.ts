@@ -10097,14 +10097,21 @@ Important:
   // AR Bookfinder catalog alignment status + controlled manual batch.
   app.get("/api/admin/ar-sync-status", authMiddleware, adminMiddleware, async (_req: any, res: any) => {
     try {
-      const { data, error } = await supabase.from("books").select("ar_match_status");
-      if (error) throw new Error(error.message);
       const counts: Record<string, number> = { exact: 0, formula: 0, not_found: 0, ambiguous: 0, error: 0, unverified: 0 };
-      for (const row of data || []) {
-        const key = row.ar_match_status || "unverified";
-        counts[key] = (counts[key] || 0) + 1;
+      let total = 0;
+      for (const status of ["exact", "formula", "not_found", "ambiguous", "error", "unverified"]) {
+        const { count, error } = await supabase.from("books")
+          .select("id", { count: "exact", head: true }).eq("ar_match_status", status);
+        if (error) throw new Error(error.message);
+        counts[status] = count || 0;
+        total += counts[status];
       }
-      res.json({ total: (data || []).length, counts });
+      const { count: unset, error: unsetError } = await supabase.from("books")
+        .select("id", { count: "exact", head: true }).is("ar_match_status", null);
+      if (unsetError) throw new Error(unsetError.message);
+      counts.unverified += unset || 0;
+      total += unset || 0;
+      res.json({ total, counts });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

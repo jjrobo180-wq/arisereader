@@ -258,7 +258,8 @@ export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:numb
   const limit=Math.max(1,Math.min(options.limit??50,250));
   const delayMs=Math.max(350,options.delayMs??750);
   const {data,error}=await supabase.from("books").select("id,title,author,ar_match_status")
-    .in("ar_match_status",["unverified","error","formula"]).order("id",{ascending:true}).limit(limit);
+    .or("ar_match_status.is.null,ar_match_status.in.(unverified,error,formula)")
+    .order("id",{ascending:true}).limit(limit);
   if(error)throw new Error(error.message);
 
   // Avoid repeating the same Bookfinder lookup for duplicate title/author rows.
