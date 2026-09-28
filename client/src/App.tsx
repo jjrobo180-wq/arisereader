@@ -185,6 +185,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
+  // Eye-gaze mode is a student experience. Admin/teacher/parent accounts may
+  // carry eye-gaze data while testing or managing a child, but that must not
+  // override their primary role when they open normal site pages.
+  const isEyeGazeStudent = !!user && user.role === 'student' && !user.isAdmin && !!user.is_eye_gaze_user;
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
@@ -195,7 +199,7 @@ function AppRoutes() {
   return (
     <Switch>
       <Route path="/saved">
-        {user?.is_eye_gaze_user ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
+        {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/">
         {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.is_eye_gaze_user ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
@@ -235,22 +239,22 @@ function AppRoutes() {
             : <LeaderboardPage />}
       </Route>
       <Route path="/competition">
-        {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-games" replace /> : <Competition />}
+        {isEyeGazeStudent ? <Redirect to="/eye-gaze-games" replace /> : <Competition />}
       </Route>
       <Route path="/about">
         <About />
       </Route>
       <Route path="/reading-club">
-        {user?.is_eye_gaze_user ? <Redirect to="/library" replace /> : <ReadingClub />}
+        {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ReadingClub />}
       </Route>
       <Route path="/tts-audiobooks">
-        {user?.is_eye_gaze_user ? <Redirect to="/library" replace /> : <TTSAudioBooks />}
+        {isEyeGazeStudent ? <Redirect to="/library" replace /> : <TTSAudioBooks />}
       </Route>
       <Route path="/polls">
-        {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-home" replace /> : <ProtectedRoute><Polls /></ProtectedRoute>}
+        {isEyeGazeStudent ? <Redirect to="/eye-gaze-home" replace /> : <ProtectedRoute><Polls /></ProtectedRoute>}
       </Route>
       <Route path="/library">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-games?tab=lessons" replace /> : <Library />}</ProtectedRoute>
+        <ProtectedRoute>{isEyeGazeStudent ? <Redirect to="/eye-gaze-games?tab=lessons" replace /> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/avatar-world">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
@@ -258,24 +262,24 @@ function AppRoutes() {
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/course/:id">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><CoursePage /></EyeGazeAccessGate> : <CoursePage />}</ProtectedRoute>
+        <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/library"><CoursePage /></EyeGazeAccessGate> : <CoursePage />}</ProtectedRoute>
       </Route>
       <Route path="/quiz/:id">
         <ProtectedRoute><Quiz /></ProtectedRoute>
       </Route>
       <Route path="/read/:id">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><ReadBook /></EyeGazeAccessGate> : <ReadBook />}</ProtectedRoute>
+        <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/library"><ReadBook /></EyeGazeAccessGate> : <ReadBook />}</ProtectedRoute>
       </Route>
       <Route path="/profile">
         <ProtectedRoute>
-          {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-account" replace /> : <Profile />}
+          {isEyeGazeStudent ? <Redirect to="/eye-gaze-account" replace /> : <Profile />}
         </ProtectedRoute>
       </Route>
       <Route path="/admin">
         <ProtectedRoute><Admin /></ProtectedRoute>
       </Route>
       <Route path="/progress">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>
+        <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-home">
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
@@ -341,7 +345,7 @@ function AppRoutes() {
         <ProtectedRoute><QuizBuilder /></ProtectedRoute>
       </Route>
       <Route path="/custom-quiz/:id">
-        <ProtectedRoute>{user?.is_eye_gaze_user ? <EyeGazeAccessGate path="/library"><CustomEyeGazeQuiz /></EyeGazeAccessGate> : <CustomEyeGazeQuiz />}</ProtectedRoute>
+        <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/library"><CustomEyeGazeQuiz /></EyeGazeAccessGate> : <CustomEyeGazeQuiz />}</ProtectedRoute>
       </Route>
       <Route path="/student-profile/:id">
         <ProtectedRoute><StudentProfileView /></ProtectedRoute>
@@ -353,7 +357,7 @@ function AppRoutes() {
         <ProtectedRoute><StudentCertificates /></ProtectedRoute>
       </Route>
       <Route path="/fyp">
-        {user?.is_eye_gaze_user ? <Redirect to="/eye-gaze-home" replace /> : <ProtectedRoute><FypPage /></ProtectedRoute>}
+        {isEyeGazeStudent ? <Redirect to="/eye-gaze-home" replace /> : <ProtectedRoute><FypPage /></ProtectedRoute>}
       </Route>
       <Route path="/fyp/share/:token">
         {(params) => <FypSharePage token={params.token} />}
