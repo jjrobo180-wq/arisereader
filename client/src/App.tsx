@@ -1,5 +1,4 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
-import QuickHome from "@/components/QuickHome";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -77,7 +76,6 @@ import ParentTutorialPopup from "./components/ParentTutorialPopup";
 import GuidedTour from "./components/GuidedTour";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
-import FypSideTab from "./components/FypSideTab";
 import PointsSideTab from "./components/PointsSideTab";
 import AvatarWorldSideTab from "./components/AvatarWorldSideTab";
 import LeaderboardPopup from "./components/LeaderboardPopup";
@@ -418,7 +416,6 @@ function AppInner() {
     <>
       {/* All students get GuidedTour (replaces old FypAnnouncementPopup) */}
       {isStudent && !isEyeGazeStudent && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
-      {isStudent && !isEyeGazeStudent && <FypSideTab />}
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
       {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
       {isStudent && !isEyeGazeStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
@@ -427,7 +424,6 @@ function AppInner() {
       <Router hook={useHashLocation}>
         <EyeGazeSiteShell>
           <AppRoutes />
-          <QuickHome />
           <EyeGazeCelebrations />
         </EyeGazeSiteShell>
       </Router>
