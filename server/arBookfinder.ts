@@ -275,24 +275,39 @@ export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:numb
 export async function debugBookfinderForms(){
   const userTypeUrl=BASE+"/UserType.aspx?RedirectURL=%2Fdefault.aspx";
   const first=await fetchPage(userTypeUrl,{},"");
-  const inputTags=first.html.match(/<input\\b[^>]*>/gi)||[];
+  const inputTags=first.html.match(/<input\b[^>]*>/gi)||[];
   const userTypeInputs=inputTags.map(tag=>({
-    type:tag.match(/\\btype=["']([^"']+)["']/i)?.[1]||"",
-    name:tag.match(/\\bname=["']([^"']+)["']/i)?.[1]||"",
-    value:decodeHtml(tag.match(/\\bvalue=["']([^"']*)["']/i)?.[1]||""),
-    checked:/\\bchecked(?:=|\\s|>)/i.test(tag),
+    type:tag.match(/\btype=["']([^"']+)["']/i)?.[1]||"",
+    name:tag.match(/\bname=["']([^"']+)["']/i)?.[1]||"",
+    value:decodeHtml(tag.match(/\bvalue=["']([^"']*)["']/i)?.[1]||""),
   })).filter(x=>x.name);
-  const studentIndex=first.html.toLowerCase().indexOf("student");
-  const teacherIndex=first.html.toLowerCase().indexOf("teacher");
-  const forms=(first.html.match(/<form\\b[^>]*>/gi)||[]).slice(0,10);
-  const buttons=(first.html.match(/<(?:button|a)\\b[^>]*>[\\s\\S]{0,300}?<\\/(?:button|a)>/gi)||[]).slice(0,30);
-  const scripts=(first.html.match(/<script\\b[^>]*src=["'][^"']+["'][^>]*>/gi)||[]).slice(0,30);
+
+  const candidates=["Teacher","teacher","TEACHER","3","2","Parent","parent","1","Student","student"];
+  const cookieTests:any[]=[];
+  for(const value of candidates){
+    try{
+      const page=await fetchPage(SEARCH_URL,{},"BFUserType="+encodeURIComponent(value));
+      const text=stripTags(page.html).toLowerCase();
+      cookieTests.push({
+        value,
+        hasQuickSearch:text.includes("quick search"),
+        hasSearch:text.includes("search"),
+        hasKeyword:page.html.includes("txtKeyWords"),
+        hasUserPrompt:text.includes("please tell us who you are"),
+        cookie:page.cookie,
+        pageLength:page.html.length,
+      });
+    }catch(error:any){
+      cookieTests.push({value,error:error?.message||String(error)});
+    }
+  }
   return {
-    url:userTypeUrl,cookie:first.cookie,pageLength:first.html.length,
+    url:userTypeUrl,
+    cookie:first.cookie,
+    pageLength:first.html.length,
     userTypeInputs:userTypeInputs.slice(0,40),
-    forms,buttons,scripts,
-    studentContext:studentIndex>=0?first.html.slice(Math.max(0,studentIndex-800),studentIndex+1600):"",
-    teacherContext:teacherIndex>=0?first.html.slice(Math.max(0,teacherIndex-800),teacherIndex+1600):"",
-    htmlHint:stripTags(first.html).slice(0,500)
+    hasStudent:first.html.toLowerCase().includes("student"),
+    hasTeacher:first.html.toLowerCase().includes("teacher"),
+    cookieTests,
   };
 }
