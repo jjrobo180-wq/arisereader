@@ -1774,8 +1774,16 @@ export async function registerRoutes(
     const furniture=Array.isArray(source.furniture)
       ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>purchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
       : [];
-    const spent=Math.max(0,Number(source.spent)||0);
-    return {purchased,selectedCharacter,equipped,furniture,spent};
+    const legacyCharacterSpend=purchased.reduce((sum:number,id:string)=>{
+      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
+      return sum+(item&&["top","bottom","shoes"].includes(item.type)?item.price:0);
+    },0);
+    const spent=Math.max(0,(Number(source.spent)||0)-legacyCharacterSpend);
+    const activePurchased=purchased.filter((id:string)=>{
+      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
+      return !!item&&AVATAR_WORLD_SHOP_TYPES.has(item.type);
+    });
+    return {purchased:activePurchased,selectedCharacter,equipped,furniture,spent};
   }
 
   async function getAvatarWorldPayload(userId:number) {
