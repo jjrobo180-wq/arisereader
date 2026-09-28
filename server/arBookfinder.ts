@@ -50,10 +50,7 @@ function authorMatch(expected:string,actual:string){
 }
 function titleMatch(expected:string,actual:string){
   const e=normalize(expected),a=normalize(actual);
-  if(!e)return false;
-  // BookFinder lists some classics under several slash-separated titles.
-  // Match a complete alternate title, never a loose substring.
-  return actual.split("/").some(alias => normalize(alias.replace(/\s*\(unabridged\)\s*/gi,""))===e) || e===a;
+  return !!e&&e===a;
 }
 function parseNumber(value:string|null|undefined){
   if(!value)return null;
@@ -172,20 +169,15 @@ export function calculateARPoints(bookLevel:number,wordCount:number){
 }
 export async function lookupARBook(title:string,author:string):Promise<ARBookMetadata>{
   try{
+    let links=await searchBookfinder((title+" "+author).trim());
+    if(!links.length)links=await searchBookfinder(title);
+    if(!links.length)return {quizNumber:null,bookLevel:null,wordCount:null,points:null,sourceUrl:null,status:"not_found"};
     const candidates:any[]=[];
-    const visited=new Set<string>();
-    for(const query of [(title+" "+author).trim(),title]){
-      const links=await searchBookfinder(query);
-      for(const url of links.slice(0,24)){
-        if(visited.has(url))continue;
-        visited.add(url);
-        try{
-          const detail=await readDetail(url);
-          if(titleMatch(title,detail.title)&&authorMatch(author,detail.author))candidates.push(detail);
-        }catch{}
-      }
-      // An exact title and author match needs no broader second search.
-      if(candidates.length)break;
+    for(const url of links.slice(0,12)){
+      try{
+        const detail=await readDetail(url);
+        if(titleMatch(title,detail.title)&&authorMatch(author,detail.author))candidates.push(detail);
+      }catch{}
     }
     if(!candidates.length)return {quizNumber:null,bookLevel:null,wordCount:null,points:null,sourceUrl:null,status:"not_found"};
     const unique=new Map<string,any>();
@@ -197,11 +189,10 @@ export async function lookupARBook(title:string,author:string):Promise<ARBookMet
     const pointSets=new Set(exact.map(c=>String(c.quizNumber??"")+"|"+String(c.points??"")));
     if(pointSets.size>1)return {quizNumber:null,bookLevel:null,wordCount:null,points:null,sourceUrl:null,status:"ambiguous"};
     const best=exact[0];
-    // A computed estimate is not the published AR BookFinder point value. Some
-    // short books have a minimum point award, and editions may differ.
+    const formulaPoints=best.points??(best.bookLevel!=null&&best.wordCount!=null?calculateARPoints(best.bookLevel,best.wordCount):null);
     return {
-      quizNumber:best.quizNumber,bookLevel:best.bookLevel,wordCount:best.wordCount,points:best.points,
-      sourceUrl:best.url,status:best.points!=null?"exact":"ambiguous",
+      quizNumber:best.quizNumber,bookLevel:best.bookLevel,wordCount:best.wordCount,points:formulaPoints,
+      sourceUrl:best.url,status:best.points!=null?"exact":formulaPoints!=null?"formula":"ambiguous",
       matchedTitle:best.title,matchedAuthor:best.author,
     };
   }catch(error){
@@ -215,7 +206,7 @@ export async function saveARMetadata(bookId:number,metadata:ARBookMetadata){
     ar_points:metadata.points,ar_match_status:metadata.status,ar_source_url:metadata.sourceUrl,
     ar_verified_at:new Date().toISOString(),
   };
-  const verified=metadata.status==="exact"&&metadata.points!=null;
+  const verified=(metadata.status==="exact"||metadata.status==="formula")&&metadata.points!=null;
   if(verified)update.points_value=metadata.points;
   const {error}=await supabase.from("books").update(update).eq("id",bookId);
   if(error)throw new Error(error.message);
@@ -266,8 +257,7 @@ export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:numb
   const limit=Math.max(1,Math.min(options.limit??50,250));
   const delayMs=Math.max(350,options.delayMs??750);
   const {data,error}=await supabase.from("books").select("id,title,author,ar_match_status")
-    .or("ar_match_status.is.null,ar_match_status.in.(unverified,error,formula)")
-    .order("id",{ascending:true}).limit(limit);
+    .in("ar_match_status",["unverified","error"]).order("id",{ascending:true}).limit(limit);
   if(error)throw new Error(error.message);
 
   // Avoid repeating the same Bookfinder lookup for duplicate title/author rows.
@@ -284,7 +274,7 @@ export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:numb
     const metadata=await lookupARBook(first.title,first.author);
     for(const book of books){
       await saveARMetadata(book.id,metadata);
-      if(metadata.status==="exact")matched++;
+      if(metadata.status==="exact"||metadata.status==="formula")matched++;
       else if(metadata.status==="not_found")notFound++;
       else if(metadata.status==="ambiguous")ambiguous++;
       else errors++;
