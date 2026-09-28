@@ -119,39 +119,10 @@ async function fetchText(url:string,init:RequestInit={},cookie="BFUserType=Teach
   return (await fetchPage(url,init,cookie)).html;
 }
 function namedControlValue(html:string,name:string){
-  const safe=name.replace(/[.*+?^$()|[\]\\]/g,"\\async function fetchText(url:string,init:RequestInit={}){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),12000);
-  try{
-    const res=await fetch(url,{
-      ...init,signal:controller.signal,redirect:"follow",
-      headers:{
-        "User-Agent":"Mozilla/5.0 (compatible; ARISEReader/1.0; educational reading platform)",
-        "Accept":"text/html,application/xhtml+xml","Accept-Language":"en-US,en;q=0.9",
-        "Cookie":"BFUserType=Teacher",...(init.headers||{}),
-      },
-    });
-    if(!res.ok)throw new Error("AR Bookfinder HTTP "+res.status);
-    return await res.text();
-  }finally{clearTimeout(timer);}
-}
-async function searchBookfinder(query:string){
-  const initial=await fetchText(SEARCH_URL);
-  const params=new URLSearchParams(inputFields(initial));
-  params.set("ctl00$ContentPlaceHolder1$txtKeyWords",query);
-  params.set("ctl00$clientDateDay",String(new Date().getDate()));
-  params.set("ctl00$clientDateHour",String(new Date().getHours()));
-  params.set("ctl00$ContentPlaceHolder1$btnDoIt","Go");
-  const html=await fetchText(SEARCH_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded","Origin":BASE,"Referer":SEARCH_URL},
-    body:params.toString(),
-  });
-  return detailLinks(html);
-}");
-  const re=new RegExp("<(?:input|button)\\b[^>]*\\bname=[\"']"+safe+"[\"'][^>]*>","i");
+  const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const re=new RegExp("<(?:input|button)\\b[^>]*\\bname=[\"\']"+escaped+"[\"\'][^>]*>","i");
   const tag=html.match(re)?.[0]||"";
-  return decodeHtml(tag.match(/\\bvalue=[\"']([^\"']*)[\"']/i)?.[1]||"");
+  return decodeHtml(tag.match(/\bvalue=["\']([^"\']*)["\']/i)?.[1]||"");
 }
 async function searchBookfinder(query:string){
   const initialPage=await fetchPage(SEARCH_URL);
