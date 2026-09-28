@@ -98,7 +98,7 @@ export default function AvatarWorld(){
   const allItems=useMemo(()=>[...FREE_ITEMS,...(payload?.catalog||[])],[payload]);
   const owned=(id:string)=>FREE_ITEMS.some(x=>x.id===id)||!!payload?.state.purchased.includes(id);
   const getItem=(id:string)=>allItems.find(x=>x.id===id);
-  const shopItems=(payload?.catalog||[]).filter(x=>["hat","glasses","accessory","car","home","furniture"].includes(x.type)&&(shopFilter==="all"||x.type===shopFilter));
+  const shopItems=(payload?.catalog||[]).filter(x=>["car","home","furniture"].includes(x.type)&&(shopFilter==="all"||x.type===shopFilter));
 
   if(loading)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center"><div className="text-center"><div className="w-14 h-14 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto"/><p className="font-black mt-4">Loading Avatar World…</p></div></main>;
   if(!payload)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center p-6"><div className="text-center"><p className="text-xl font-black">{message||"Avatar World is unavailable."}</p><button onClick={()=>navigate("/library")} className="mt-4 rounded-2xl bg-white text-slate-950 px-5 py-3 font-black">Back to Library</button></div></main>;
@@ -185,21 +185,11 @@ export default function AvatarWorld(){
           </section>
 
           <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
-            <h3 className="text-xl font-black">Accessories only</h3>
-            <p className="text-sm text-white/55 font-bold mt-1">Accessories can be changed. The character itself cannot.</p>
-            <div className="space-y-3 mt-4">
-              {["hat","glasses","accessory"].map(slot=>{
-                const ownedItems=[{id:"",type:slot,name:"None",price:0,rarity:"starter"},...allItems.filter(x=>x.type===slot&&owned(x.id))];
-                return <div key={slot} className="rounded-2xl bg-black/15 border border-white/10 p-3">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/45">{slot}</p>
-                    <button onClick={()=>{setTab("shop");setShopFilter(slot);}} className="text-[10px] font-black text-amber-300">SHOP →</button>
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {ownedItems.map(product=><button key={product.id||"none"} onClick={()=>equip(slot,product.id)} className={"min-w-max rounded-xl px-3 py-2 text-xs font-black "+(payload.state.equipped[slot]===product.id?"bg-cyan-300 text-slate-950":"bg-white/10")}>{product.name}</button>)}
-                  </div>
-                </div>;
-              })}
+            <h3 className="text-xl font-black">Fixed character system</h3>
+            <p className="text-sm text-white/55 font-bold mt-1">Characters work like complete game skins: pick the character you want, and that character always keeps the same face, hair, body, outfit, and look.</p>
+            <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
+              <p className="text-sm font-black text-cyan-200">No wearable customization</p>
+              <p className="text-xs font-bold text-white/55 mt-1">Hats, glasses, wearable accessories, clothing swaps, and body changes are disabled so every character stays consistent.</p>
             </div>
           </section>
         </div>
@@ -208,14 +198,14 @@ export default function AvatarWorld(){
 
     {tab==="shop"&&<section className="max-w-7xl mx-auto p-3 sm:p-5">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-        <div className="flex-1"><p className="text-xs font-black tracking-widest text-amber-300">EARNED THROUGH READING</p><h2 className="text-3xl font-black">Avatar & World Shop</h2><p className="text-white/60 font-bold mt-1">No real money. Students unlock everything with Reader Coins earned from quizzes.</p></div>
+        <div className="flex-1"><p className="text-xs font-black tracking-widest text-amber-300">EARNED THROUGH READING</p><h2 className="text-3xl font-black">World Shop</h2><p className="text-white/60 font-bold mt-1">Characters stay fixed. Reader Coins unlock world items like cars, homes, and furniture only.</p></div>
         <div className="rounded-2xl bg-amber-400 text-slate-950 px-4 py-3 font-black flex items-center gap-2"><Coins className="w-5 h-5"/>{payload.economy.wallet.toLocaleString()} coins</div>
       </div>
-      <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","hat","glasses","accessory","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
+      <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
         {shopItems.map(product=>{
           const isOwned=owned(product.id),canAfford=payload.economy.wallet>=product.price;
-          const icon=product.type==="car"?"🏎️":product.type==="home"?"🏡":product.type==="furniture"?"🛋️":product.type==="hat"?"🧢":product.type==="glasses"?"🕶️":product.type==="shoes"?"👟":product.type==="accessory"?"🎧":"🧥";
+          const icon=product.type==="car"?"🏎️":product.type==="home"?"🏡":"🛋️";
           return <article key={product.id} className={"rounded-[2rem] overflow-hidden border-2 bg-gradient-to-br "+(rarityClass[product.rarity]||rarityClass.common)}>
             <div className="h-44 grid place-items-center bg-black/25 relative"><div className="text-7xl">{icon}</div><span className="absolute top-3 right-3 rounded-full bg-black/40 px-3 py-1 text-[10px] font-black uppercase">{product.rarity}</span></div>
             <div className="p-4 bg-slate-950/85"><h3 className="text-lg font-black">{product.name}</h3><p className="text-xs font-black text-white/45 uppercase">{product.type}</p>
