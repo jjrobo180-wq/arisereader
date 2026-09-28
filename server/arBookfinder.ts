@@ -273,41 +273,39 @@ export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:numb
 }
 
 export async function debugBookfinderForms(){
-  const userTypeUrl=BASE+"/UserType.aspx?RedirectURL=%2Fdefault.aspx";
-  const first=await fetchPage(userTypeUrl,{},"");
-  const inputTags=first.html.match(/<input\b[^>]*>/gi)||[];
-  const userTypeInputs=inputTags.map(tag=>({
+  const teacherCookie="BFUserType=Teacher";
+  const searchPage=await fetchPage(SEARCH_URL,{},teacherCookie);
+  const html=searchPage.html;
+  const inputs=(html.match(/<input\b[^>]*>/gi)||[]).map(tag=>({
     type:tag.match(/\btype=["']([^"']+)["']/i)?.[1]||"",
     name:tag.match(/\bname=["']([^"']+)["']/i)?.[1]||"",
+    id:tag.match(/\bid=["']([^"']+)["']/i)?.[1]||"",
     value:decodeHtml(tag.match(/\bvalue=["']([^"']*)["']/i)?.[1]||""),
-  })).filter(x=>x.name);
+  })).filter(x=>x.name||x.id);
 
-  const candidates=["Teacher","teacher","TEACHER","3","2","Parent","parent","1","Student","student"];
-  const cookieTests:any[]=[];
-  for(const value of candidates){
-    try{
-      const page=await fetchPage(SEARCH_URL,{},"BFUserType="+encodeURIComponent(value));
-      const text=stripTags(page.html).toLowerCase();
-      cookieTests.push({
-        value,
-        hasQuickSearch:text.includes("quick search"),
-        hasSearch:text.includes("search"),
-        hasKeyword:page.html.includes("txtKeyWords"),
-        hasUserPrompt:text.includes("please tell us who you are"),
-        cookie:page.cookie,
-        pageLength:page.html.length,
-      });
-    }catch(error:any){
-      cookieTests.push({value,error:error?.message||String(error)});
-    }
-  }
+  const params=new URLSearchParams(inputFields(html));
+  params.set("ctl00$ContentPlaceHolder1$txtKeyWords","Frindle");
+  params.set("ctl00$clientDateDay",String(new Date().getDate()));
+  params.set("ctl00$clientDateHour",String(new Date().getHours()));
+  const button=inputs.find(x=>/btnDoIt/i.test(x.name)||/btnDoIt/i.test(x.id));
+  if(button?.name)params.set(button.name,button.value||"Go");
+
+  const posted=await fetchPage(SEARCH_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded","Origin":BASE,"Referer":SEARCH_URL},
+    body:params.toString(),
+  },searchPage.cookie);
+
+  const postedText=stripTags(posted.html);
   return {
-    url:userTypeUrl,
-    cookie:first.cookie,
-    pageLength:first.html.length,
-    userTypeInputs:userTypeInputs.slice(0,40),
-    hasStudent:first.html.toLowerCase().includes("student"),
-    hasTeacher:first.html.toLowerCase().includes("teacher"),
-    cookieTests,
+    searchCookie:searchPage.cookie,
+    pageLength:html.length,
+    relevantInputs:inputs.filter(x=>/keyword|search|doit|clientdate|viewstate|eventvalidation/i.test(x.name+" "+x.id)).slice(0,60),
+    formTags:(html.match(/<form\b[^>]*>/gi)||[]).slice(0,5),
+    postLength:posted.html.length,
+    postHasFrindle:postedText.toLowerCase().includes("frindle"),
+    postHasNoResults:/no\s+(?:books|results)|0\s+results/i.test(postedText),
+    postDetailLinks:detailLinks(posted.html).slice(0,20),
+    postTextHint:postedText.slice(0,1500),
   };
 }
