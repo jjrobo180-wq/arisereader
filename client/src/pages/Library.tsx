@@ -1156,205 +1156,146 @@ export default function Library() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header data-tour={isStudentHeader ? "welcome" : undefined} className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
+      <header data-tour={isStudentHeader ? "welcome" : undefined} className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2">
-          <div className="flex items-center justify-between min-h-12 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <BrandText />
-            {isStudentHeader && (
-              <button
-                type="button"
-                onClick={() => navigate("/profile")}
-                className="hidden md:flex min-w-0 items-center gap-2 border-l border-border pl-3 text-left"
-                title="Open my profile"
-              >
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-lg text-primary">
-                  {getMascotEmoji() ? <span aria-label="School mascot">{getMascotEmoji()}</span> : <GraduationCap className="h-4 w-4" />}
-                </div>
-                <div className="min-w-0 leading-tight">
-                  <div className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Student</div>
-                  <div className="max-w-[170px] truncate text-sm font-black text-foreground">{user.displayName}</div>
-                </div>
-              </button>
-            )}
-            {userBand && !user?.isAdmin && (
-              <button
-                onClick={() => setShowBandInfo(!showBandInfo)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/25 transition-colors"
-                title="Click to learn about grade bands"
-                data-testid="band-badge"
-                data-tour="band-badge"
-              >
-                <GraduationCap className="w-3 h-3" />
-                {userBand} Band
-              </button>
-            )}
-            {showBandInfo && userBand && (
-              <div className="absolute top-16 left-3 z-50 max-w-xs rounded-xl bg-card border border-border shadow-lg p-4 text-left">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-primary">Your Grade Band: {userBand}</span>
-                  <button onClick={() => setShowBandInfo(false)} className="text-muted-foreground hover:text-foreground">×</button>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Grade bands group students by reading level so you compete with peers at your level.
-                  <br /><br />
-                  <strong className="text-foreground">K-2:</strong> Kindergarten–2nd grade (Early Readers)<br />
-                  <strong className="text-foreground">3-5:</strong> 3rd–5th grade (Elementary)<br />
-                  <strong className="text-foreground">6-8:</strong> 6th–8th grade (Middle School)<br />
-                  <strong className="text-foreground">9-12:</strong> 9th–12th grade (High School)<br /><br />
-                  Your library, leaderboard, and quizzes are all filtered to your band. You can request a band change from your Profile page.
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-1 sm:gap-3">
-            {isStudentHeader && (
-              <div data-tour="points" className="hidden sm:flex items-center overflow-hidden rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                <div className="flex items-center gap-1.5 px-2.5 py-2 text-xs font-black">
-                  <Trophy className="h-4 w-4" />
-                  <span>{totalPoints}</span>
-                  <span className="hidden xl:inline text-[10px] font-bold opacity-70">points</span>
-                </div>
-                <div className="h-6 w-px bg-primary/20" />
-                <div className="flex items-center gap-1.5 px-2.5 py-2 text-xs font-black">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{results.length}</span>
-                  <span className="hidden xl:inline text-[10px] font-bold opacity-70">quizzes</span>
-                </div>
-              </div>
-            )}
-            <NotificationBell onNavigate={(type, id) => {
-              if (user?.isAdmin) {
-                // Store the notification context for Admin to pick up
-                sessionStorage.setItem('admin_notif', JSON.stringify({ type, id }));
-                navigate("/admin");
-              } else {
-                navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile");
-              }
-            }} />
-            <Button variant="outline" size="sm" onClick={() => { fetchMessages(); setShowInbox(true); }} className="relative">
-              <Inbox className="w-4 h-4 sm:mr-1" />
-              <span className="hidden sm:inline">Inbox</span>
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
-              )}
-            </Button>
-            {!isStudentHeader && (
-              <div data-tour="points" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/20 text-primary font-semibold text-sm">
-                <Trophy className="w-4 h-4" />
-                {totalPoints} pts
-              </div>
-            )}
-            <div className="hidden sm:flex items-center relative" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "0.5rem" }}>
-              <button data-tour="fyp" onClick={() => navigate("/fyp")} className="flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-primary/10 rounded-l-lg">
-                <Sparkles className="w-4 h-4 mr-1" style={{ color: "#f59e0b" }} />
-                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>F.Y.P</span>
-              </button>
-              <button onClick={() => { window.location.hash = '/saved'; }} className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-primary/10 rounded-r-lg border-l border-primary/20">
-                <Bookmark className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
-                <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Books</span>
-              </button>
-              {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
-                <button onClick={() => navigate("/leaderboard")} className="flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-primary/10 rounded-r-lg border-l border-primary/20">
-                  <Trophy className="w-3.5 h-3.5" style={{ color: "#f59e0b" }} />
-                  <span className="hidden md:inline" style={{ color: "#f59e0b", fontWeight: 600 }}>My Progress</span>
-                  {studentRewards.some(r => r.claimStatus === "approved") && (
-                    <span className="ml-0.5 w-2 h-2 rounded-full bg-green-500" />
-                  )}
-                </button>
-              )}
+          <div className="flex items-center justify-between min-h-11 gap-2">
+            <div className="min-w-0 flex items-center">
+              <BrandText />
             </div>
-            {!user?.isAdmin && user?.role === 'student' && !user?.is_eye_gaze_user && (
-              <button
-                type="button"
-                onClick={() => navigate("/avatar-world")}
-                className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-500/15 to-violet-500/15 border border-cyan-400/25 hover:bg-cyan-500/20 text-sm font-bold"
-              >
-                <User className="w-4 h-4 text-cyan-500" />
-                <span className="hidden lg:inline">Avatar World</span>
-              </button>
-            )}
-            {/* More dropdown - works on both desktop and mobile */}
-            <div className="relative" ref={(el) => { mobileMenuRef.current = el; }}>
-              <Button variant="ghost" size="sm" onClick={() => setShowMobileMenu(!showMobileMenu)}>
-                <MoreVertical className="w-4 h-4" />
+
+            <div className="flex items-center gap-1.5">
+              <NotificationBell onNavigate={(type, id) => {
+                if (user?.isAdmin) {
+                  sessionStorage.setItem('admin_notif', JSON.stringify({ type, id }));
+                  navigate("/admin");
+                } else {
+                  navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile");
+                }
+              }} />
+              <Button variant="ghost" size="sm" onClick={() => { fetchMessages(); setShowInbox(true); }} className="relative h-9 w-9 p-0" aria-label="Inbox">
+                <Inbox className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                )}
               </Button>
-              {showMobileMenu && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl bg-card border border-border shadow-lg z-50 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-border sm:hidden">
-                    <span className="text-sm font-semibold text-primary">{totalPoints} pts</span>
+
+              <div className="relative" ref={(el) => { mobileMenuRef.current = el; }}>
+                <Button variant="ghost" size="sm" onClick={() => setShowMobileMenu(!showMobileMenu)} className="h-9 w-9 p-0" aria-label="More">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+                {showMobileMenu && (
+                  <div className="absolute right-0 mt-2 w-56 max-h-[75vh] overflow-y-auto rounded-xl bg-card border border-border shadow-lg z-50 overflow-hidden">
+                    {isStudentHeader && (
+                      <div className="px-4 py-3 border-b border-border bg-primary/5">
+                        <div className="font-black text-sm truncate">{user.displayName}</div>
+                        <div className="mt-1 flex items-center gap-3 text-xs font-bold text-primary">
+                          <span>{totalPoints} pts</span>
+                          <span>{results.length} quizzes</span>
+                          {userBand && <span>{userBand}</span>}
+                        </div>
+                      </div>
+                    )}
+                    <button data-tour="fyp" onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                      <Sparkles className="w-4 h-4" /> A.R.I.S.E F.Y.P
+                    </button>
+                    <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
+                      <Bookmark className="w-4 h-4" /> My Books
+                    </button>
+                    {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
+                      <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                        <Trophy className="w-4 h-4" /> My Progress
+                        {studentRewards.some(r => r.claimStatus === "approved") && <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />}
+                      </button>
+                    )}
+                    {!user?.isAdmin && user?.role === 'student' && !user?.is_eye_gaze_user && (
+                      <button onClick={() => { navigate("/avatar-world"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#0891b2", fontWeight: 700 }}>
+                        <User className="w-4 h-4" /> Avatar World
+                      </button>
+                    )}
+                    <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                      <Brain className="w-4 h-4" /> Growth Check
+                    </button>
+                    <button onClick={() => { navigate("/competition"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                      <Gift className="w-4 h-4" /> Competition
+                    </button>
+                    <button onClick={() => { navigate("/reading-club"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                      <GraduationCap className="w-4 h-4" /> Reading Club
+                    </button>
+                    <button onClick={() => { navigate("/tts-audiobooks"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
+                      <Headphones className="w-4 h-4" /> TTS Audio Books
+                    </button>
+                    <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" /> Polls
+                    </button>
+                    <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                      <User className="w-4 h-4" /> {user?.is_eye_gaze_user ? "My Eye Gaze Home" : "Account"}
+                    </button>
+                    {user?.isAdmin && (
+                      <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                        <Settings className="w-4 h-4" /> Admin
+                      </button>
+                    )}
+                    {user?.role === 'teacher' && (
+                      <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                        <Settings className="w-4 h-4" /> Teacher
+                      </button>
+                    )}
+                    <div className="px-2 py-1">
+                      <ReportProblemButton variant="ghost" size="sm" />
+                    </div>
+                    <button onClick={handleLogout} data-testid="button-logout" className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
+                      <LogOut className="w-4 h-4" /> Logout
+                    </button>
                   </div>
-                  <button onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2 sm:hidden" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <Sparkles className="w-4 h-4" /> A.R.I.S.E F.Y.P
-                  </button>
-                  <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2 sm:hidden" style={{ color: "#f59e0b" }}>
-                    <Bookmark className="w-4 h-4" /> My Books
-                  </button>
-                  {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
-                    <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                      <Trophy className="w-4 h-4" /> My Progress
-                      {studentRewards.some(r => r.claimStatus === "approved") && <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />}
-                    </button>
-                  )}
-                  {!user?.isAdmin && user?.role === 'student' && !user?.is_eye_gaze_user && (
-                    <button onClick={() => { navigate("/avatar-world"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#0891b2", fontWeight: 700 }}>
-                      <User className="w-4 h-4" /> Avatar World
-                    </button>
-                  )}
-                  <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <Brain className="w-4 h-4" /> Growth Check
-                  </button>
-                  <button onClick={() => { navigate("/competition"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <Gift className="w-4 h-4" /> Competition
-                  </button>
-                  <button onClick={() => { navigate("/reading-club"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <GraduationCap className="w-4 h-4" /> Reading Club
-                  </button>
-                  <button onClick={() => { navigate("/tts-audiobooks"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <Headphones className="w-4 h-4" /> TTS Audio Books
-                  </button>
-                  <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" /> Polls
-                  </button>
-                  <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <User className="w-4 h-4" /> {user?.is_eye_gaze_user ? "My Eye Gaze Home" : "Account"}
-                  </button>
-                  {user?.isAdmin && (
-                    <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                      <Settings className="w-4 h-4" /> Admin
-                    </button>
-                  )}
-                  {user?.role === 'teacher' && (
-                    <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                      <Settings className="w-4 h-4" /> Teacher
-                    </button>
-                  )}
-                  <div className="px-2 py-1">
-                    <ReportProblemButton variant="ghost" size="sm" />
-                  </div>
-                  <button onClick={handleLogout} data-testid="button-logout" className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <LogOut className="w-4 h-4" /> Logout
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-          </div>
+
           {isStudentHeader && (
-            <div className="md:hidden mt-1 flex items-center justify-between gap-3 border-t border-border/70 pt-2">
-              <div className="min-w-0 flex items-center gap-2">
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-base text-primary">
-                  {getMascotEmoji() ? <span>{getMascotEmoji()}</span> : <GraduationCap className="h-4 w-4" />}
-                </div>
-                <div className="min-w-0 leading-tight">
-                  <div className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">Student</div>
-                  <div className="max-w-[145px] truncate text-sm font-black text-foreground">{user.displayName}</div>
-                </div>
+            <button
+              type="button"
+              onClick={() => navigate("/profile")}
+              className="mt-1 w-full rounded-xl border border-primary/15 bg-primary/5 px-2.5 py-2 flex items-center gap-2.5 text-left hover:bg-primary/10 transition-colors"
+              title="Open my profile"
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-lg text-primary">
+                {getMascotEmoji() ? <span aria-label="School mascot">{getMascotEmoji()}</span> : <GraduationCap className="h-4 w-4" />}
               </div>
-              <div data-tour="points" className="flex shrink-0 items-center gap-3 text-xs font-black">
-                <span className="inline-flex items-center gap-1 text-primary"><Trophy className="h-3.5 w-3.5" />{totalPoints}</span>
-                <span className="inline-flex items-center gap-1 text-primary"><CheckCircle2 className="h-3.5 w-3.5" />{results.length}</span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-black text-foreground">{user.displayName}</div>
+                <div className="text-[10px] font-bold text-muted-foreground">Student account</div>
               </div>
+              <div data-tour="points" className="flex shrink-0 items-center gap-2.5 text-[11px] font-black text-primary">
+                <span className="inline-flex items-center gap-1"><Trophy className="h-3.5 w-3.5" />{totalPoints}</span>
+                <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />{results.length}</span>
+                {userBand && (
+                  <span
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowBandInfo(!showBandInfo); }}
+                    className="hidden sm:inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1"
+                    data-tour="band-badge"
+                  >
+                    <GraduationCap className="h-3 w-3" />{userBand}
+                  </span>
+                )}
+              </div>
+            </button>
+          )}
+
+          {showBandInfo && userBand && (
+            <div className="absolute top-[6.7rem] left-3 z-50 max-w-xs rounded-xl bg-card border border-border shadow-lg p-4 text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-primary">Your Grade Band: {userBand}</span>
+                <button onClick={() => setShowBandInfo(false)} className="text-muted-foreground hover:text-foreground">×</button>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Grade bands group students by reading level so you compete with peers at your level.
+                <br /><br />
+                <strong className="text-foreground">K-2:</strong> Kindergarten–2nd grade<br />
+                <strong className="text-foreground">3-5:</strong> 3rd–5th grade<br />
+                <strong className="text-foreground">6-8:</strong> 6th–8th grade<br />
+                <strong className="text-foreground">9-12:</strong> 9th–12th grade
+              </p>
             </div>
           )}
         </div>
