@@ -739,7 +739,13 @@ export class DatabaseStorage implements IStorage {
       try { arMetadata = await lookupARBook(book.title, book.author); } catch {}
     }
     const arMatched = arMetadata && (arMetadata.status === "exact" || arMetadata.status === "formula") && arMetadata.points != null;
-    const resolvedPoints = arMatched ? Number(arMetadata.points) : Number(book.pointsValue || 0);
+    // New regular book quizzes use an official AR value only when Bookfinder verifies it.
+    // Internal/special quizzes may explicitly opt out with skipAR.
+    const resolvedPoints = book.skipAR
+      ? Number(book.pointsValue || 0)
+      : arMatched
+        ? Number(arMetadata.points)
+        : 0;
     const { data: created, error: bookError } = await supabase
       .from("books")
       .insert({
