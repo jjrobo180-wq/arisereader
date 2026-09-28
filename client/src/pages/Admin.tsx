@@ -2109,8 +2109,17 @@ Generate exactly 10 questions.`;
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (window.history.length > 1) window.history.back();
-              else navigate("/");
+              const currentUrl = window.location.href;
+              if (window.history.length <= 1) {
+                navigate("/library", { replace: true });
+                return;
+              }
+              window.history.back();
+              window.setTimeout(() => {
+                if (window.location.href === currentUrl) {
+                  navigate("/library", { replace: true });
+                }
+              }, 250);
             }}
             className="flex-shrink-0"
             title="Go back to the page you came from"
