@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { BarChart3, PlusCircle, X, CheckCircle2, Trash2, Clock, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, PlusCircle, X, CheckCircle2, Trash2, Clock, Users } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import { NotificationBell } from "@/components/NotificationBell";
+import { safeBack } from "@/lib/navigation";
 
 interface PollOption {
   id: string;
@@ -205,8 +206,9 @@ export default function Polls() {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <Button variant="ghost" size="sm" onClick={() => navigate("/library")} className="text-xs">
-              Library
+            <Button variant="ghost" size="sm" onClick={() => safeBack(navigate, "/library")} className="text-xs">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Back
             </Button>
             <Button variant="ghost" size="sm" onClick={logout} className="text-xs">
               Logout
