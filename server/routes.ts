@@ -3195,7 +3195,7 @@ export async function registerRoutes(
       const recommendations: string[] = [];
       if (availableQuizzes.length > 0) {
         const sample = availableQuizzes.slice(0, 3).map((b: any) => b.title);
-        recommendations.push(`Take ${Math.min(availableQuizzes.length, 3)} more quiz${availableQuizzes.length > 1 ? 'zes' : ''} to earn ${availableQuizzes.slice(0, 3).reduce((s: number, b: any) => s + (b.pointsValue || 10), 0)} points. Start with "${sample[0]}".`);
+        recommendations.push(`Take ${Math.min(availableQuizzes.length, 3)} more quiz${availableQuizzes.length > 1 ? 'zes' : ''} to earn ${availableQuizzes.slice(0, 3).reduce((s: number, b: any) => s + Number(b.pointsValue ?? 0), 0)} points. Start with "${sample[0]}".`);
       }
       if (eggActive && !eggClaim) {
         recommendations.push('Find the hidden Easter Egg in the FYP feed for +2 bonus points!');
@@ -4842,7 +4842,7 @@ export async function registerRoutes(
     res.json({
       review,
       attempt,
-      book: { title: book?.title || "Unknown", pointsValue: book?.points_value || 10 },
+      book: { title: book?.title || "Unknown", pointsValue: Number(book?.points_value ?? 0) },
       student: { displayName: user?.display_name || "Unknown", username: user?.username || "" },
       questions: (questions || []).map((q: any) => ({
         id: q.id,
