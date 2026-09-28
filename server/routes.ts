@@ -10183,8 +10183,24 @@ Important:
   // Temporary startup smoke check: lookup only, does not modify any book row.
   setTimeout(() => {
     void lookupARBook("Frindle", "Andrew Clements")
-      .then(result => console.log("[AR smoke test Frindle]", JSON.stringify(result)))
-      .catch(error => console.error("[AR smoke test Frindle] failed:", error?.message || error));
+      .then(async result => {
+        console.log("[AR smoke test Frindle]", JSON.stringify(result));
+        await storage.upsertSetting("ar_bookfinder_smoke_result", JSON.stringify({
+          checkedAt: new Date().toISOString(),
+          title: "Frindle",
+          author: "Andrew Clements",
+          result,
+        }));
+      })
+      .catch(async error => {
+        console.error("[AR smoke test Frindle] failed:", error?.message || error);
+        await storage.upsertSetting("ar_bookfinder_smoke_result", JSON.stringify({
+          checkedAt: new Date().toISOString(),
+          title: "Frindle",
+          author: "Andrew Clements",
+          error: error?.message || String(error),
+        }));
+      });
   }, 3000);
 
   return httpServer;
