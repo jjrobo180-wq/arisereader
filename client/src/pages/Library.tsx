@@ -1166,18 +1166,14 @@ export default function Library() {
             <button
               type="button"
               onClick={() => navigate("/profile")}
-              className="min-w-0 flex-1 flex items-center gap-2 sm:gap-3 rounded-xl border border-primary/15 bg-primary/5 px-2 sm:px-3 py-1.5 text-left hover:bg-primary/10 transition-colors"
+              className="min-w-0 flex-1 flex items-center gap-1.5 sm:gap-3 rounded-xl border border-primary/15 bg-primary/5 px-1.5 sm:px-3 py-1.5 text-left hover:bg-primary/10 transition-colors"
               title="Open my profile"
             >
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-base text-primary">
-                {getMascotEmoji() ? <span aria-label="School mascot">{getMascotEmoji()}</span> : <GraduationCap className="h-4 w-4" />}
-              </div>
-
               <div className="min-w-0">
                 <div className="max-w-[105px] sm:max-w-[180px] truncate text-xs sm:text-sm font-black text-foreground">{user.displayName}</div>
               </div>
 
-              <div data-tour="points" className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-black text-primary">
+              <div data-tour="points" className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs font-black text-primary">
                 <span className="inline-flex items-center gap-1">
                   <Trophy className="h-3.5 w-3.5" />
                   {totalPoints}
