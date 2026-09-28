@@ -1465,6 +1465,11 @@ export default function Library() {
         </div>
 
         <EngagementHub />
+        {user?.role === "student" && !user?.is_eye_gaze_user && (
+          <button onClick={() => navigate("/live-quiz")} className="mb-6 flex min-h-12 items-center gap-2 rounded-xl bg-orange-600 px-5 font-bold text-white hover:bg-orange-700">
+            Join a live classroom quiz
+          </button>
+        )}
 
         {/* Create a Quiz - students only */}
         {!(user?.role === 'teacher' || user?.isAdmin) && (

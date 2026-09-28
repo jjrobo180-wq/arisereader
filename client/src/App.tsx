@@ -67,6 +67,7 @@ import EyeGazeLifeSkills from "./pages/EyeGazeLifeSkills";
 import EyeGazeParentControls from "./pages/EyeGazeParentControls";
 import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
 import QuizBuilder from "./pages/QuizBuilder";
+import LiveQuiz from "./pages/LiveQuiz";
 import CustomEyeGazeQuiz from "./pages/CustomEyeGazeQuiz";
 import StudentProfileView from "./pages/StudentProfileView";
 import StudentMessages from "./pages/StudentMessages";
@@ -329,6 +330,12 @@ function AppRoutes() {
       </Route>
       <Route path="/quiz-builder">
         <ProtectedRoute><QuizBuilder /></ProtectedRoute>
+      </Route>
+      <Route path="/live-quiz">
+        <ProtectedRoute><LiveQuiz /></ProtectedRoute>
+      </Route>
+      <Route path="/live-quiz/:id">
+        <ProtectedRoute><LiveQuiz /></ProtectedRoute>
       </Route>
       <Route path="/quiz-builder/:id">
         <ProtectedRoute><QuizBuilder /></ProtectedRoute>
