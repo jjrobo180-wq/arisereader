@@ -3,7 +3,7 @@
 // 3-5: need 18 more quizzes (currently 82)
 // 9-12: need 54 more quizzes (currently 46)
 // Each book needs 10 multiple choice questions
-// Point values: 10, 15, 20 (distribute evenly)
+// Legacy seed script: generated books do not receive AR points unless verified later.
 
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
@@ -249,7 +249,7 @@ async function insertBooksAndQuestions(books, band) {
           id: bookId,
           title: book.title,
           author: book.author,
-          points_value: book.points,
+          points_value: 0,
           cover_url: null,
           description: book.desc,
           age_group: band,
