@@ -1,5 +1,6 @@
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
+import { lookupARBook } from "./arBookfinder";
 
 let bookQuizzes: any[] = [];
 
@@ -99,7 +100,7 @@ function mapUser(row: any) {
     password: row.password,
     displayName: row.display_name,
     isAdmin: row.is_admin,
-    totalPoints: row.total_points,
+    totalPoints: Number(row.total_points || 0),
     createdAt: row.created_at,
     assessment_prompt_seen_at: row.assessment_prompt_seen_at,
     is_eye_gaze_user: row.is_eye_gaze_user,
@@ -121,8 +122,15 @@ function mapBook(row: any) {
     ageGroup: row.age_group,
     coverUrl: row.cover_url,
     description: row.description,
-    pointsValue: row.points_value ?? 0,
+    pointsValue: Number(row.points_value ?? 0),
     readUrl: row.read_url || null,
+    arQuizNumber: row.ar_quiz_number ?? null,
+    arBookLevel: row.ar_book_level == null ? null : Number(row.ar_book_level),
+    arWordCount: row.ar_word_count ?? null,
+    arPoints: row.ar_points == null ? null : Number(row.ar_points),
+    arMatchStatus: row.ar_match_status || "unverified",
+    arSourceUrl: row.ar_source_url || null,
+    arVerifiedAt: row.ar_verified_at || null,
   };
 }
 
@@ -149,7 +157,7 @@ function mapAttempt(row: any) {
     bookId: row.book_id,
     score: row.score,
     totalQuestions: row.total,
-    pointsEarned: row.points_earned || 0,
+    pointsEarned: Number(row.points_earned || 0),
     completedAt: row.completed_at,
   };
 }
@@ -431,9 +439,12 @@ export class DatabaseStorage implements IStorage {
       const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).single());
       bookPoints = book?.points_value || 10;
     }
-    const passingScore = Math.ceil(total * 0.7);
+    const passingPercent = total > 10 ? 0.70 : 0.60;
+    const passingScore = Math.ceil(total * passingPercent);
     const passed = score >= passingScore;
-    const pointsEarned = passed ? bookPoints : 0;
+    const pointsEarned = passed && total > 0
+      ? Math.round((bookPoints * (score / total)) * 10) / 10
+      : 0;
     const data = await fetchSingle(
       supabase.from("attempts").insert({
         user_id: userId,
@@ -448,8 +459,8 @@ export class DatabaseStorage implements IStorage {
     // Update user's total_points
     if (passed && pointsEarned > 0) {
       const { data: userData } = await supabase.from("users").select("total_points").eq("id", userId).single();
-      const currentPoints = userData?.total_points || 0;
-      await supabase.from("users").update({ total_points: currentPoints + pointsEarned }).eq("id", userId).then(() => {}, () => {});
+      const currentPoints = Number(userData?.total_points || 0);
+      await supabase.from("users").update({ total_points: Math.round((currentPoints + pointsEarned) * 10) / 10 }).eq("id", userId).then(() => {}, () => {});
     }
     clearCache("leaderboard");
     clearCache("allUsers");
@@ -723,6 +734,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBookWithQuestions(book: any, quizQuestions: any[]) {
+    let arMetadata: any = null;
+    if (!book.skipAR && book.title && book.author) {
+      try { arMetadata = await lookupARBook(book.title, book.author); } catch {}
+    }
+    const arMatched = arMetadata && (arMetadata.status === "exact" || arMetadata.status === "formula") && arMetadata.points != null;
+    const resolvedPoints = arMatched ? Number(arMetadata.points) : Number(book.pointsValue || 0);
     const { data: created, error: bookError } = await supabase
       .from("books")
       .insert({
@@ -731,8 +748,15 @@ export class DatabaseStorage implements IStorage {
         age_group: book.ageGroup,
         cover_url: book.coverUrl || null,
         description: book.description || "",
-        points_value: book.pointsValue || 10,
+        points_value: resolvedPoints,
         read_url: book.readUrl || null,
+        ar_quiz_number: arMetadata?.quizNumber ?? null,
+        ar_book_level: arMetadata?.bookLevel ?? null,
+        ar_word_count: arMetadata?.wordCount ?? null,
+        ar_points: arMetadata?.points ?? null,
+        ar_match_status: arMetadata?.status || "unverified",
+        ar_source_url: arMetadata?.sourceUrl ?? null,
+        ar_verified_at: arMetadata ? new Date().toISOString() : null,
       })
       .select()
       .single();
