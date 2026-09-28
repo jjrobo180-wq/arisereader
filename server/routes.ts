@@ -1735,33 +1735,21 @@ export async function registerRoutes(
     { id:"furniture-neon", type:"furniture", name:"Neon Wall Sign", price:360, rarity:"epic" },
   ] as const;
 
-  const AVATAR_WORLD_FREE = new Set([
-    "top-basic","bottom-basic","shoes-basic","car-none","home-basic"
+  const AVATAR_WORLD_FREE = new Set(["car-none","home-basic"]);
+  const AVATAR_WORLD_CHARACTERS = new Set([
+    "robin-hood","sherlock-holmes","king-arthur","hercules","odysseus",
+    "sinbad","alice","dracula","frankenstein","musketeer"
   ]);
+  const AVATAR_WORLD_SHOP_TYPES = new Set(["hat","glasses","accessory","car","home","furniture"]);
 
   function avatarWorldDefaultState() {
     return {
       purchased: [] as string[],
+      selectedCharacter:"robin-hood",
       equipped: {
-        top:"top-basic", bottom:"bottom-basic", shoes:"shoes-basic",
         hat:"", glasses:"", accessory:"", car:"car-none", home:"home-basic"
       } as Record<string,string>,
       furniture: [] as string[],
-      look: {
-        skin:"#9b6244",
-        hair:"fade",
-        hairColor:"#171717",
-        eyeColor:"#3f2a1d",
-        face:"oval",
-        build:"athletic",
-        brows:"natural",
-      },
-      avatar3d: {
-        url: "",
-        avatarId: "",
-        provider: "",
-        updatedAt: "",
-      },
       spent: 0,
     };
   }
@@ -1775,41 +1763,19 @@ export async function registerRoutes(
       : [];
     const purchasedSet=new Set(purchased);
     const allowed=(id:any)=>AVATAR_WORLD_FREE.has(String(id))||purchasedSet.has(String(id));
+    const selectedCharacter=AVATAR_WORLD_CHARACTERS.has(String(source.selectedCharacter||""))
+      ? String(source.selectedCharacter)
+      : base.selectedCharacter;
     const equipped={...base.equipped};
-    for(const slot of ["top","bottom","shoes","hat","glasses","accessory","car","home"]){
+    for(const slot of ["hat","glasses","accessory","car","home"]){
       const candidate=String(source.equipped?.[slot]||"");
       if(candidate&&allowed(candidate)) equipped[slot]=candidate;
     }
     const furniture=Array.isArray(source.furniture)
       ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>purchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
       : [];
-    const skinOptions=["#f4c7a1","#e7b184","#d89a73","#b97750","#9b6244","#74432e","#5b3326","#4c2a20","#2e1a16"];
-    const hairOptions=["fade","curls","locs","waves","afro","braids","short","buzz"];
-    const hairColors=["#111111","#171717","#2a1b13","#3b2417","#6b3d24","#8f6545","#b5814e"];
-    const eyeColors=["#2b1a12","#3f2a1d","#5b3b24","#305b66","#475569","#355b39"];
-    const faceOptions=["oval","round","square","long"];
-    const buildOptions=["slim","athletic","broad"];
-    const browOptions=["natural","straight","bold"];
-    const look={
-      skin:skinOptions.includes(String(source.look?.skin))?String(source.look.skin):base.look.skin,
-      hair:hairOptions.includes(String(source.look?.hair))?String(source.look.hair):base.look.hair,
-      hairColor:hairColors.includes(String(source.look?.hairColor))?String(source.look.hairColor):base.look.hairColor,
-      eyeColor:eyeColors.includes(String(source.look?.eyeColor))?String(source.look.eyeColor):base.look.eyeColor,
-      face:faceOptions.includes(String(source.look?.face))?String(source.look.face):base.look.face,
-      build:buildOptions.includes(String(source.look?.build))?String(source.look.build):base.look.build,
-      brows:browOptions.includes(String(source.look?.brows))?String(source.look.brows):base.look.brows,
-    };
-    const rawAvatar3d=source.avatar3d&&typeof source.avatar3d==="object"?source.avatar3d:{};
-    const rawUrl=String(rawAvatar3d.url||"").trim();
-    const avatarUrl=(rawUrl.startsWith("https://")||rawUrl.startsWith("data:model/"))&&rawUrl.length<=6000000?rawUrl:"";
-    const avatar3d={
-      url:avatarUrl,
-      avatarId:String(rawAvatar3d.avatarId||"").slice(0,160),
-      provider:String(rawAvatar3d.provider||"").slice(0,40),
-      updatedAt:String(rawAvatar3d.updatedAt||"").slice(0,80),
-    };
     const spent=Math.max(0,Number(source.spent)||0);
-    return {purchased,equipped,furniture,look,avatar3d,spent};
+    return {purchased,selectedCharacter,equipped,furniture,spent};
   }
 
   async function getAvatarWorldPayload(userId:number) {
@@ -1849,7 +1815,7 @@ export async function registerRoutes(
     try{
       if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user) return res.status(403).json({message:"Avatar World is for regular student accounts."});
       const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===String(req.body?.itemId||""));
-      if(!item) return res.status(400).json({message:"That item does not exist."});
+      if(!item||!AVATAR_WORLD_SHOP_TYPES.has(item.type)) return res.status(400).json({message:"That item is not available in Avatar World."});
       const payload=await getAvatarWorldPayload(req.user.id);
       if(payload.state.purchased.includes(item.id)) return res.json(payload);
       if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
@@ -1869,14 +1835,16 @@ export async function registerRoutes(
       const payload=await getAvatarWorldPayload(req.user.id);
       const nextRaw={...payload.state};
       const action=String(req.body?.action||"");
-      if(action==="look"){
-        nextRaw.look={...payload.state.look,...(req.body?.look||{})};
+      if(action==="character"){
+        const characterId=String(req.body?.characterId||"");
+        if(!AVATAR_WORLD_CHARACTERS.has(characterId)) return res.status(400).json({message:"Unknown character."});
+        nextRaw.selectedCharacter=characterId;
       }else if(action==="equip"){
         const slot=String(req.body?.slot||"");
         const itemId=String(req.body?.itemId||"");
         const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===itemId);
-        const slotType:Record<string,string>={top:"top",bottom:"bottom",shoes:"shoes",hat:"hat",glasses:"glasses",accessory:"accessory",car:"car",home:"home"};
-        if(!slotType[slot]) return res.status(400).json({message:"Unknown equipment slot."});
+        const slotType:Record<string,string>={hat:"hat",glasses:"glasses",accessory:"accessory",car:"car",home:"home"};
+        if(!slotType[slot]) return res.status(400).json({message:"Only accessories and world items can be changed."});
         if(itemId===""){
           if(["hat","glasses","accessory"].includes(slot)) nextRaw.equipped={...payload.state.equipped,[slot]:""};
           else return res.status(400).json({message:"That slot needs an item."});
@@ -1888,7 +1856,7 @@ export async function registerRoutes(
       }else if(action==="furniture"){
         const ids=Array.isArray(req.body?.itemIds)?req.body.itemIds.map(String):[];
         nextRaw.furniture=ids.filter((id:string)=>payload.state.purchased.includes(id)&&AVATAR_WORLD_CATALOG.find(entry=>entry.id===id)?.type==="furniture").slice(0,12);
-}else{
+      }else{
         return res.status(400).json({message:"Unknown customization action."});
       }
       const normalized=normalizeAvatarWorldState(nextRaw);
