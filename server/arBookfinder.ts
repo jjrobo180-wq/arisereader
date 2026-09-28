@@ -276,36 +276,28 @@ export async function debugBookfinderForms(){
   const teacherCookie="BFUserType=Teacher";
   const searchPage=await fetchPage(SEARCH_URL,{},teacherCookie);
   const html=searchPage.html;
-  const inputs=(html.match(/<input\b[^>]*>/gi)||[]).map(tag=>({
-    type:tag.match(/\btype=["']([^"']+)["']/i)?.[1]||"",
-    name:tag.match(/\bname=["']([^"']+)["']/i)?.[1]||"",
-    id:tag.match(/\bid=["']([^"']+)["']/i)?.[1]||"",
-    value:decodeHtml(tag.match(/\bvalue=["']([^"']*)["']/i)?.[1]||""),
-  })).filter(x=>x.name||x.id);
-
   const params=new URLSearchParams(inputFields(html));
   params.set("ctl00$ContentPlaceHolder1$txtKeyWords","Frindle");
   params.set("ctl00$clientDateDay",String(new Date().getDate()));
   params.set("ctl00$clientDateHour",String(new Date().getHours()));
-  const button=inputs.find(x=>/btnDoIt/i.test(x.name)||/btnDoIt/i.test(x.id));
-  if(button?.name)params.set(button.name,button.value||"Go");
-
+  params.set("ctl00$ContentPlaceHolder1$btnDoIt","Search");
   const posted=await fetchPage(SEARCH_URL,{
     method:"POST",
     headers:{"Content-Type":"application/x-www-form-urlencoded","Origin":BASE,"Referer":SEARCH_URL},
     body:params.toString(),
   },searchPage.cookie);
-
-  const postedText=stripTags(posted.html);
-  return {
-    searchCookie:searchPage.cookie,
-    pageLength:html.length,
-    relevantInputs:inputs.filter(x=>/keyword|search|doit|clientdate|viewstate|eventvalidation/i.test(x.name+" "+x.id)).slice(0,60),
-    formTags:(html.match(/<form\b[^>]*>/gi)||[]).slice(0,5),
-    postLength:posted.html.length,
-    postHasFrindle:postedText.toLowerCase().includes("frindle"),
-    postHasNoResults:/no\s+(?:books|results)|0\s+results/i.test(postedText),
-    postDetailLinks:detailLinks(posted.html).slice(0,20),
-    postTextHint:postedText.slice(0,1500),
-  };
+  const links=detailLinks(posted.html);
+  const firstUrl=links.find(url=>/[?&]q=16637(?:&|$)/.test(url))||links[0]||"";
+  let detail:any=null;
+  let detailIds:string[]=[];
+  let detailTextHint="";
+  if(firstUrl){
+    const detailPage=await fetchPage(firstUrl,{},posted.cookie);
+    detail=await readDetail(firstUrl);
+    detailIds=Array.from(new Set((detailPage.html.match(/\bid=["'][^"']+["']/gi)||[])
+      .map(tag=>tag.match(/["']([^"']+)["']/)?.[1]||"")
+      .filter(id=>/bookdetail|quiz|level|point|word|author|title/i.test(id)))).slice(0,120);
+    detailTextHint=stripTags(detailPage.html).slice(0,2500);
+  }
+  return {searchCookie:searchPage.cookie,links:links.slice(0,20),firstUrl,detail,detailIds,detailTextHint};
 }
