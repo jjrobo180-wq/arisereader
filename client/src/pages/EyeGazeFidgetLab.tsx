@@ -434,19 +434,19 @@ export default function EyeGazeFidgetLab(){
       </div>
 
       <div className="grid xl:grid-cols-[1fr_220px] gap-4 items-start">
-        <div className="relative aspect-square max-h-[min(68vh,720px)] mx-auto w-full rounded-[2.2rem] overflow-hidden border-[8px] border-white/20 shadow-[0_30px_90px_rgba(34,211,238,.22)] bg-white">
-          <div className="absolute inset-0 grid place-items-center overflow-hidden" style={{background:revealItem.bg}}>
+        <div className="relative aspect-square max-h-[min(68vh,720px)] mx-auto w-full rounded-[2.2rem] overflow-hidden border-[8px] border-white/20 shadow-[0_30px_90px_rgba(34,211,238,.22)] bg-slate-950">
+          {revealTiles.some(Boolean)&&<div className="absolute inset-0 grid place-items-center overflow-hidden" style={{background:revealItem.bg}}>
             <div className="absolute inset-[7%] rounded-[2rem] border-4 border-white/60 bg-white/15 shadow-[inset_0_0_60px_rgba(255,255,255,.35)]"/>
             <div className="relative z-10 text-center select-none">
               <div className="text-[clamp(8rem,32vw,18rem)] leading-none drop-shadow-[0_16px_20px_rgba(15,23,42,.18)]">{revealItem.emoji}</div>
               <div className={"mt-3 inline-flex rounded-full bg-slate-950/80 text-white px-5 py-2 font-black text-xl sm:text-2xl transition-all "+(revealComplete?"opacity-100 scale-100":"opacity-0 scale-90")}>{revealItem.name}</div>
             </div>
-          </div>
+          </div>}
 
           <div className="absolute inset-0 grid" style={{gridTemplateColumns:`repeat(${revealSize},minmax(0,1fr))`,gridTemplateRows:`repeat(${revealSize},minmax(0,1fr))`}}>
-            {revealTiles.map((open,i)=><button key={revealRound+"-"+i} disabled={open||revealComplete} onClick={()=>tapReveal(i)} aria-label={open?"Revealed":"Reveal tile "+(i+1)} className={"relative border border-white/10 transition-all duration-300 "+(open?"opacity-0 scale-75 pointer-events-none":"opacity-100 scale-100 active:scale-90")} style={{
-              background:`linear-gradient(145deg,hsl(${(i*37+revealRound*23)%360} 85% 58%),hsl(${(i*37+95+revealRound*23)%360} 78% 45%))`,
-              boxShadow:"inset 0 3px 10px rgba(255,255,255,.32), inset 0 -8px 14px rgba(0,0,0,.18), 0 0 16px rgba(255,255,255,.08)"
+            {revealTiles.map((open,i)=><button key={revealRound+"-"+i} disabled={open||revealComplete} onClick={()=>tapReveal(i)} aria-label={open?"Revealed":"Reveal tile "+(i+1)} className={"relative border-2 border-slate-950 transition-all duration-300 "+(open?"opacity-0 scale-75 pointer-events-none":"opacity-100 scale-100 active:scale-90")} style={{
+              background:`linear-gradient(145deg,hsl(${(i*37+revealRound*23)%360} 88% 52%),hsl(${(i*37+95+revealRound*23)%360} 82% 38%))`,
+              boxShadow:"inset 0 3px 10px rgba(255,255,255,.28), inset 0 -8px 14px rgba(0,0,0,.24)"
             }}>
               <span className="absolute inset-[16%] rounded-2xl border-2 border-white/30"/>
               <span className="absolute left-[28%] top-[22%] w-[24%] h-[16%] rounded-full bg-white/30 blur-[1px]"/>
