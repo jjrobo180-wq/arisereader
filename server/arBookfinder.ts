@@ -80,7 +80,46 @@ function detailLinks(html:string){
   }
   return links;
 }
-async function fetchText(url:string,init:RequestInit={}){
+function mergeCookies(existing:string,setCookieHeaders:string[]){
+  const jar=new Map<string,string>();
+  for(const part of existing.split(";")){
+    const trimmed=part.trim();if(!trimmed)continue;
+    const eq=trimmed.indexOf("=");if(eq>0)jar.set(trimmed.slice(0,eq),trimmed.slice(eq+1));
+  }
+  for(const header of setCookieHeaders){
+    const first=header.split(";")[0]?.trim();if(!first)continue;
+    const eq=first.indexOf("=");if(eq>0)jar.set(first.slice(0,eq),first.slice(eq+1));
+  }
+  return [...jar.entries()].map(([k,v])=>k+"="+v).join("; ");
+}
+function responseSetCookies(res:Response){
+  const h:any=res.headers as any;
+  if(typeof h.getSetCookie==="function")return h.getSetCookie() as string[];
+  const one=res.headers.get("set-cookie");
+  return one?[one]:[];
+}
+async function fetchPage(url:string,init:RequestInit={},cookie="BFUserType=Teacher"){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),12000);
+  try{
+    const res=await fetch(url,{
+      ...init,signal:controller.signal,redirect:"follow",
+      headers:{
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36",
+        "Accept":"text/html,application/xhtml+xml","Accept-Language":"en-US,en;q=0.9",
+        "Cookie":cookie,...(init.headers||{}),
+      },
+    });
+    if(!res.ok)throw new Error("AR Bookfinder HTTP "+res.status);
+    const html=await res.text();
+    return {html,cookie:mergeCookies(cookie,responseSetCookies(res))};
+  }finally{clearTimeout(timer);}
+}
+async function fetchText(url:string,init:RequestInit={},cookie="BFUserType=Teacher"){
+  return (await fetchPage(url,init,cookie)).html;
+}
+function namedControlValue(html:string,name:string){
+  const safe=name.replace(/[.*+?^$()|[\]\\]/g,"\\async function fetchText(url:string,init:RequestInit={}){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),12000);
   try{
@@ -109,6 +148,25 @@ async function searchBookfinder(query:string){
     body:params.toString(),
   });
   return detailLinks(html);
+}");
+  const re=new RegExp("<(?:input|button)\\b[^>]*\\bname=[\"']"+safe+"[\"'][^>]*>","i");
+  const tag=html.match(re)?.[0]||"";
+  return decodeHtml(tag.match(/\\bvalue=[\"']([^\"']*)[\"']/i)?.[1]||"");
+}
+async function searchBookfinder(query:string){
+  const initialPage=await fetchPage(SEARCH_URL);
+  const initial=initialPage.html;
+  const params=new URLSearchParams(inputFields(initial));
+  params.set("ctl00$ContentPlaceHolder1$txtKeyWords",query);
+  params.set("ctl00$clientDateDay",String(new Date().getDate()));
+  params.set("ctl00$clientDateHour",String(new Date().getHours()));
+  params.set("ctl00$ContentPlaceHolder1$btnDoIt",namedControlValue(initial,"ctl00$ContentPlaceHolder1$btnDoIt")||"Go");
+  const result=await fetchPage(SEARCH_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded","Origin":BASE,"Referer":SEARCH_URL},
+    body:params.toString(),
+  },initialPage.cookie);
+  return detailLinks(result.html);
 }
 async function readDetail(url:string){
   const html=await fetchText(url);
