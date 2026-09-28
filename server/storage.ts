@@ -738,7 +738,7 @@ export class DatabaseStorage implements IStorage {
     if (!book.skipAR && book.title && book.author) {
       try { arMetadata = await lookupARBook(book.title, book.author); } catch {}
     }
-    const arMatched = arMetadata && (arMetadata.status === "exact" || arMetadata.status === "formula") && arMetadata.points != null;
+    const arMatched = arMetadata?.status === "exact" && arMetadata.points != null;
     // New regular book quizzes use an official AR value only when Bookfinder verifies it.
     // Internal/special quizzes may explicitly opt out with skipAR.
     const resolvedPoints = book.skipAR
