@@ -47,7 +47,7 @@ const TOUR_STEPS: TourStep[] = [
     position: "bottom",
   },
   {
-    selector: '[data-tour="points-trophy"]',
+    selector: '[data-tour="points"]',
     title: "Your Points",
     desc: "This shows your total points earned. Every quiz you complete adds points here. Compete with classmates on the leaderboard!",
     position: "bottom",
@@ -65,7 +65,7 @@ const TOUR_STEPS: TourStep[] = [
     position: "bottom",
   },
   {
-    selector: '[data-tour="fyp-side-tab"]',
+    selector: '[data-tour="fyp"]',
     title: "FYP Feed",
     desc: "Swipe through book recommendations like TikTok. Find hidden easter eggs for bonus points! This is where reading gets fun.",
     position: "left",
@@ -156,8 +156,12 @@ export default function GuidedTour({ onComplete, onActiveChange }: { onComplete?
         return;
       }
 
-      const el = document.querySelector(tourStep.selector) as HTMLElement | null;
-      if (!el || el.offsetWidth === 0) {
+      const el = Array.from(document.querySelectorAll(tourStep.selector))
+        .find(node => {
+          const target = node as HTMLElement;
+          return target.offsetWidth > 0 && target.offsetHeight > 0;
+        }) as HTMLElement | undefined;
+      if (!el) {
         // Skip step if target not found or invisible
         if (step < TOUR_STEPS.length - 1) {
           setStep(step + 1);
@@ -272,7 +276,11 @@ export default function GuidedTour({ onComplete, onActiveChange }: { onComplete?
     const handler = () => {
       const tourStep = TOUR_STEPS[step];
       if (!tourStep) return;
-      const el = document.querySelector(tourStep.selector);
+      const el = Array.from(document.querySelectorAll(tourStep.selector))
+        .find(node => {
+          const target = node as HTMLElement;
+          return target.offsetWidth > 0 && target.offsetHeight > 0;
+        }) as HTMLElement | undefined;
       if (el) {
         const rect = el.getBoundingClientRect();
         setTargetRect(rect);
