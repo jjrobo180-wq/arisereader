@@ -271,3 +271,16 @@ export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:numb
   }
   return {processed:(data||[]).length,uniqueLookups:groups.size,matched,notFound,ambiguous,errors};
 }
+
+export async function debugBookfinderForms(){
+  const userTypeUrl=BASE+"/UserType.aspx?RedirectURL=%2Fdefault.aspx";
+  const first=await fetchPage(userTypeUrl,{},"");
+  const inputTags=first.html.match(/<input\\b[^>]*>/gi)||[];
+  const userTypeInputs=inputTags.map(tag=>({
+    type:tag.match(/\\btype=["']([^"']+)["']/i)?.[1]||"",
+    name:tag.match(/\\bname=["']([^"']+)["']/i)?.[1]||"",
+    value:decodeHtml(tag.match(/\\bvalue=["']([^"']*)["']/i)?.[1]||""),
+    checked:/\\bchecked(?:=|\\s|>)/i.test(tag),
+  })).filter(x=>x.name);
+  return {url:userTypeUrl,cookie:first.cookie,userTypeInputs:userTypeInputs.slice(0,40),htmlHint:stripTags(first.html).slice(0,500)};
+}
