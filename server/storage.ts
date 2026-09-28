@@ -433,11 +433,11 @@ export class DatabaseStorage implements IStorage {
   async createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number) {
     // Get the book's points value (use override if provided)
     let bookPoints: number;
-    if (effectivePoints && effectivePoints > 0) {
-      bookPoints = effectivePoints;
+    if (effectivePoints !== undefined && effectivePoints !== null) {
+      bookPoints = Number(effectivePoints);
     } else {
       const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).single());
-      bookPoints = book?.points_value || 10;
+      bookPoints = Number(book?.points_value ?? 0);
     }
     const passingPercent = total > 10 ? 0.70 : 0.60;
     const passingScore = Math.ceil(total * passingPercent);
