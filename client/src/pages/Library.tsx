@@ -1156,18 +1156,26 @@ export default function Library() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
+      <header data-tour={isStudentHeader ? "welcome" : undefined} className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2">
           <div className="flex items-center justify-between min-h-12 gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <BrandText />
             {isStudentHeader && (
-              <div className="hidden md:flex min-w-0 items-center gap-2 border-l border-border pl-3">
+              <button
+                type="button"
+                onClick={() => navigate("/profile")}
+                className="hidden md:flex min-w-0 items-center gap-2 border-l border-border pl-3 text-left"
+                title="Open my profile"
+              >
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-lg text-primary">
+                  {getMascotEmoji() ? <span aria-label="School mascot">{getMascotEmoji()}</span> : <GraduationCap className="h-4 w-4" />}
+                </div>
                 <div className="min-w-0 leading-tight">
                   <div className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Student</div>
                   <div className="max-w-[170px] truncate text-sm font-black text-foreground">{user.displayName}</div>
                 </div>
-              </div>
+              </button>
             )}
             {userBand && !user?.isAdmin && (
               <button
@@ -1343,7 +1351,7 @@ export default function Library() {
                   <div className="max-w-[145px] truncate text-sm font-black text-foreground">{user.displayName}</div>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3 text-xs font-black">
+              <div data-tour="points" className="flex shrink-0 items-center gap-3 text-xs font-black">
                 <span className="inline-flex items-center gap-1 text-primary"><Trophy className="h-3.5 w-3.5" />{totalPoints}</span>
                 <span className="inline-flex items-center gap-1 text-primary"><CheckCircle2 className="h-3.5 w-3.5" />{results.length}</span>
               </div>
