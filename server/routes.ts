@@ -1244,10 +1244,6 @@ export async function registerRoutes(
     let bookOverlaps: Record<string, string[]> = {};
     if (rawOverlaps) { try { bookOverlaps = JSON.parse(rawOverlaps); } catch {} }
 
-    const rawOverrides = await storage.getSetting('book_point_overrides');
-    let pointOverrides: Record<string, Record<string, number>> = {};
-    if (rawOverrides) { try { pointOverrides = JSON.parse(rawOverrides); } catch {} }
-
     // ── Eye gaze student library filtering ──
     // Eye gaze students (is_eye_gaze_user=true AND role='student') see ONLY iArise books
     const isEyeGazeStudent = req.user.is_eye_gaze_user === true && req.user.role === 'student';
@@ -1270,13 +1266,6 @@ export async function registerRoutes(
           const overlaps = bookOverlaps[bid];
           if (overlaps && overlaps.includes(band)) return true;
           return false;
-        }).map((b: any) => {
-          const bid = String(b.id);
-          const overrides = pointOverrides[bid];
-          if (overrides && overrides[band]) {
-            return { ...b, points_value: overrides[band], original_points_value: b.points_value };
-          }
-          return b;
         });
         return res.json(bandFiltered);
       }
@@ -1302,18 +1291,6 @@ export async function registerRoutes(
           const overlaps = bookOverlaps[bid];
           if (overlaps && overlaps.some((o: string) => myBands.has(o))) return true;
           return false;
-        }).map((b: any) => {
-          const bid = String(b.id);
-          // Apply point override for the first matching band
-          const overrides = pointOverrides[bid];
-          if (overrides) {
-            for (const band of myBands) {
-              if (overrides[band]) {
-                return { ...b, points_value: overrides[band], original_points_value: b.points_value };
-              }
-            }
-          }
-          return b;
         });
         return res.json(filtered);
       }
@@ -1334,14 +1311,6 @@ export async function registerRoutes(
         const overlaps = bookOverlaps[bid];
         if (overlaps && overlaps.includes(band)) return true;
         return false;
-      }).map((b: any) => {
-        const bid = String(b.id);
-        // Apply point override if this book is an overlap for this band
-        const overrides = pointOverrides[bid];
-        if (overrides && overrides[band]) {
-          return { ...b, points_value: overrides[band], original_points_value: b.points_value };
-        }
-        return b;
       });
       return res.json(filtered);
     }
