@@ -33,8 +33,20 @@ function authorMatch(expected:string,actual:string){
   const e=normalize(expected),a=normalize(actual);
   if(!e||!a)return false;
   if(e===a||e.includes(a)||a.includes(e))return true;
-  const ep=e.split(" "),ap=a.split(" ");
-  return !!ep[ep.length-1]&&ep[ep.length-1]===ap[ap.length-1];
+  const stop=new Set(["jr","sr","ii","iii","iv","phd","md"]);
+  const tokens=(value:string)=>value.split(" ").filter(Boolean).filter(t=>!stop.has(t));
+  const ep=tokens(e),ap=tokens(a);
+  if(!ep.length||!ap.length)return false;
+  const es=[...ep].sort().join(" ");
+  const as=[...ap].sort().join(" ");
+  if(es===as)return true;
+  // Permit first-initial/full-first-name differences only when surname matches.
+  const eLast=ep[ep.length-1],aLast=ap[0];
+  if(eLast===aLast){
+    const eFirst=ep[0]||"",aFirst=ap[ap.length-1]||"";
+    if(eFirst&&aFirst&&(eFirst===aFirst||eFirst[0]===aFirst[0]))return true;
+  }
+  return false;
 }
 function titleMatch(expected:string,actual:string){
   const e=normalize(expected),a=normalize(actual);
@@ -270,34 +282,4 @@ export async function syncUnverifiedARBooks(options:{limit?:number;delayMs?:numb
     await new Promise(r=>setTimeout(r,delayMs));
   }
   return {processed:(data||[]).length,uniqueLookups:groups.size,matched,notFound,ambiguous,errors};
-}
-
-export async function debugBookfinderForms(){
-  const teacherCookie="BFUserType=Teacher";
-  const searchPage=await fetchPage(SEARCH_URL,{},teacherCookie);
-  const html=searchPage.html;
-  const params=new URLSearchParams(inputFields(html));
-  params.set("ctl00$ContentPlaceHolder1$txtKeyWords","Frindle");
-  params.set("ctl00$clientDateDay",String(new Date().getDate()));
-  params.set("ctl00$clientDateHour",String(new Date().getHours()));
-  params.set("ctl00$ContentPlaceHolder1$btnDoIt","Search");
-  const posted=await fetchPage(SEARCH_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded","Origin":BASE,"Referer":SEARCH_URL},
-    body:params.toString(),
-  },searchPage.cookie);
-  const links=detailLinks(posted.html);
-  const firstUrl=links.find(url=>/[?&]q=16637(?:&|$)/.test(url))||links[0]||"";
-  let detail:any=null;
-  let detailIds:string[]=[];
-  let detailTextHint="";
-  if(firstUrl){
-    const detailPage=await fetchPage(firstUrl,{},posted.cookie);
-    detail=await readDetail(firstUrl);
-    detailIds=Array.from(new Set((detailPage.html.match(/\bid=["'][^"']+["']/gi)||[])
-      .map(tag=>tag.match(/["']([^"']+)["']/)?.[1]||"")
-      .filter(id=>/bookdetail|quiz|level|point|word|author|title/i.test(id)))).slice(0,120);
-    detailTextHint=stripTags(detailPage.html).slice(0,2500);
-  }
-  return {searchCookie:searchPage.cookie,links:links.slice(0,20),firstUrl,detail,detailIds,detailTextHint};
 }
