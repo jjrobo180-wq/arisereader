@@ -1064,6 +1064,7 @@ export default function Library() {
 
   const completedIds = new Set((results || []).map(r => r.bookId));
   const totalPoints = liveTotalPoints;
+  const isStudentHeader = !!user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user;
 
   // Filter books by search and admin band filter
   const filteredBooks = (searchQuery.trim()
@@ -1156,9 +1157,18 @@ export default function Library() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2">
+          <div className="flex items-center justify-between min-h-12 gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <BrandText />
+            {isStudentHeader && (
+              <div className="hidden md:flex min-w-0 items-center gap-2 border-l border-border pl-3">
+                <div className="min-w-0 leading-tight">
+                  <div className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Student</div>
+                  <div className="max-w-[170px] truncate text-sm font-black text-foreground">{user.displayName}</div>
+                </div>
+              </div>
+            )}
             {userBand && !user?.isAdmin && (
               <button
                 onClick={() => setShowBandInfo(!showBandInfo)}
@@ -1190,6 +1200,21 @@ export default function Library() {
             )}
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
+            {isStudentHeader && (
+              <div data-tour="points" className="hidden sm:flex items-center overflow-hidden rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <div className="flex items-center gap-1.5 px-2.5 py-2 text-xs font-black">
+                  <Trophy className="h-4 w-4" />
+                  <span>{totalPoints}</span>
+                  <span className="hidden xl:inline text-[10px] font-bold opacity-70">points</span>
+                </div>
+                <div className="h-6 w-px bg-primary/20" />
+                <div className="flex items-center gap-1.5 px-2.5 py-2 text-xs font-black">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{results.length}</span>
+                  <span className="hidden xl:inline text-[10px] font-bold opacity-70">quizzes</span>
+                </div>
+              </div>
+            )}
             <NotificationBell onNavigate={(type, id) => {
               if (user?.isAdmin) {
                 // Store the notification context for Admin to pick up
@@ -1206,10 +1231,12 @@ export default function Library() {
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
               )}
             </Button>
-            <div data-tour="points" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/20 text-primary font-semibold text-sm">
-              <Trophy className="w-4 h-4" />
-              {totalPoints} pts
-            </div>
+            {!isStudentHeader && (
+              <div data-tour="points" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/20 text-primary font-semibold text-sm">
+                <Trophy className="w-4 h-4" />
+                {totalPoints} pts
+              </div>
+            )}
             <div className="hidden sm:flex items-center relative" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "0.5rem" }}>
               <button data-tour="fyp" onClick={() => navigate("/fyp")} className="flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-primary/10 rounded-l-lg">
                 <Sparkles className="w-4 h-4 mr-1" style={{ color: "#f59e0b" }} />
@@ -1304,6 +1331,24 @@ export default function Library() {
               )}
             </div>
           </div>
+          </div>
+          {isStudentHeader && (
+            <div className="md:hidden mt-1 flex items-center justify-between gap-3 border-t border-border/70 pt-2">
+              <div className="min-w-0 flex items-center gap-2">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-base text-primary">
+                  {getMascotEmoji() ? <span>{getMascotEmoji()}</span> : <GraduationCap className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0 leading-tight">
+                  <div className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">Student</div>
+                  <div className="max-w-[145px] truncate text-sm font-black text-foreground">{user.displayName}</div>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-3 text-xs font-black">
+                <span className="inline-flex items-center gap-1 text-primary"><Trophy className="h-3.5 w-3.5" />{totalPoints}</span>
+                <span className="inline-flex items-center gap-1 text-primary"><CheckCircle2 className="h-3.5 w-3.5" />{results.length}</span>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -1444,25 +1489,13 @@ export default function Library() {
           </div>
         )}
 
-        {/* Welcome banner */}
-        <div className="mb-8 rounded-2xl bg-primary text-white p-6 sm:p-8 shadow-lg">
-          <h1 data-tour="welcome" className="text-2xl sm:text-3xl font-bold">{getMascotEmoji() && <span className="mr-2">{getMascotEmoji()}</span>}Hi, {user?.displayName}!</h1>
-          {user?.role === 'teacher' || user?.isAdmin ? (
+        {/* Staff welcome — student identity/stats now live in the header */}
+        {(user?.role === 'teacher' || user?.isAdmin) && (
+          <div className="mb-8 rounded-2xl bg-primary text-white p-6 sm:p-8 shadow-lg">
+            <h1 data-tour="welcome" className="text-2xl sm:text-3xl font-bold">{getMascotEmoji() && <span className="mr-2">{getMascotEmoji()}</span>}Hi, {user?.displayName}!</h1>
             <p className="mt-1 text-white/90">Browse the library and view student stats below.</p>
-          ) : (
-            <p className="mt-1 text-white/90">Pick a book you've read and take the quiz to earn points.</p>
-          )}
-          <div className="flex gap-4 sm:gap-6 mt-4 flex-wrap">
-            <div data-tour="points-trophy">
-              <div className="text-3xl font-bold">{totalPoints}</div>
-              <div className="text-sm text-white/80">Points earned</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">{results.length}</div>
-              <div className="text-sm text-white/80">Quizzes done</div>
-            </div>
           </div>
-        </div>
+        )}
 
         <EngagementHub />
         {user?.role === "student" && !user?.is_eye_gaze_user && (
