@@ -10125,6 +10125,57 @@ Important:
     }
   });
 
+  // AR Bookfinder catalog alignment status + controlled manual batch.
+  app.get("/api/admin/ar-sync-status", authMiddleware, adminMiddleware, async (_req: any, res: any) => {
+    try {
+      const { data, error } = await supabase.from("books").select("ar_match_status");
+      if (error) throw new Error(error.message);
+      const counts: Record<string, number> = { exact: 0, formula: 0, not_found: 0, ambiguous: 0, error: 0, unverified: 0 };
+      for (const row of data || []) {
+        const key = row.ar_match_status || "unverified";
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      res.json({ total: (data || []).length, counts });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/admin/ar-sync", authMiddleware, adminMiddleware, async (req: any, res: any) => {
+    try {
+      const limit = Math.max(1, Math.min(Number(req.body?.limit || 10), 50));
+      const result = await syncUnverifiedARBooks({ limit, delayMs: 800 });
+      clearCache("allBooks");
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Existing catalog alignment runs in small, sequential batches after startup.
+  // It is resume-safe because completed statuses are not queried again.
+  const runBackgroundARAlignment = async () => {
+    try {
+      let batches = 0;
+      while (batches < 150) {
+        const result = await syncUnverifiedARBooks({ limit: 12, delayMs: 850 });
+        console.log("[AR catalog sync]", JSON.stringify(result));
+        clearCache("allBooks");
+        if (!result.processed) break;
+        // If Bookfinder is unavailable for an entire batch, stop instead of hammering it.
+        if (result.errors === result.processed) {
+          console.error("[AR catalog sync] Bookfinder unavailable; stopping this run safely.");
+          break;
+        }
+        batches++;
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      }
+    } catch (e: any) {
+      console.error("[AR catalog sync] stopped:", e?.message || e);
+    }
+  };
+  setTimeout(() => void runBackgroundARAlignment(), 7000);
+
   return httpServer;
 }
 
