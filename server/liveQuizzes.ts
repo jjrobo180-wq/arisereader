@@ -128,7 +128,14 @@ export function registerLiveQuizRoutes(app: Express, auth: any) {
 
   app.post("/api/live-sessions/:id/advance", auth, async (req: any, res) => {
     if (!teacher(req.user)) return res.status(403).json({ message: "Teacher access required" });
-    const { data, error: issue } = await db().rpc("live_advance", { p_session: req.params.id, p_teacher: req.user.id });
+    const action = String(req.body?.action || "");
+    if (!["start", "reveal", "next"].includes(action))
+      return res.status(400).json({ message: "Choose a valid live quiz action." });
+    const { data, error: issue } = await db().rpc("live_advance_action", {
+      p_session: req.params.id,
+      p_teacher: req.user.id,
+      p_action: action,
+    });
     if (issue) return error(res, issue);
     res.json(data);
   });
