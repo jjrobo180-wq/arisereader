@@ -1157,8 +1157,8 @@ export default function Library() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header data-tour={isStudentHeader ? "welcome" : undefined} className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center gap-2 sm:gap-3">
-          <div className="shrink-0">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-0 min-h-16 sm:h-16 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
+          <div className="order-1 shrink-0">
             <BrandText />
           </div>
 
@@ -1166,14 +1166,14 @@ export default function Library() {
             <button
               type="button"
               onClick={() => navigate("/profile")}
-              className="min-w-0 flex-1 flex items-center gap-1.5 sm:gap-3 rounded-xl border border-primary/15 bg-primary/5 px-1.5 sm:px-3 py-1.5 text-left hover:bg-primary/10 transition-colors"
+              className="order-3 sm:order-2 basis-full sm:basis-auto w-full sm:w-auto min-w-0 sm:flex-1 flex items-center gap-2 sm:gap-3 rounded-xl border border-primary/15 bg-primary/5 px-3 py-2 sm:py-1.5 text-left hover:bg-primary/10 transition-colors"
               title="Open my profile"
             >
-              <div className="min-w-0">
-                <div className="max-w-[105px] sm:max-w-[180px] truncate text-xs sm:text-sm font-black text-foreground">{user.displayName}</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-black leading-tight text-foreground sm:max-w-[180px] sm:truncate">{user.displayName}</div>
               </div>
 
-              <div data-tour="points" className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs font-black text-primary">
+              <div data-tour="points" className="ml-auto flex shrink-0 items-center gap-3 text-[11px] sm:text-xs font-black text-primary">
                 <span className="inline-flex items-center gap-1">
                   <Trophy className="h-3.5 w-3.5" />
                   {totalPoints}
@@ -1197,7 +1197,7 @@ export default function Library() {
             </button>
           )}
 
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="order-2 sm:order-3 ml-auto flex shrink-0 items-center gap-1">
             <NotificationBell onNavigate={(type, id) => {
               if (user?.isAdmin) {
                 sessionStorage.setItem('admin_notif', JSON.stringify({ type, id }));
