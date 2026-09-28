@@ -7,7 +7,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
-import { verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
+import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { raw } from "express";
@@ -10179,6 +10179,13 @@ Important:
   } else {
     console.log("[AR catalog sync] automatic migration paused pending Bookfinder smoke verification.");
   }
+
+  // Temporary startup smoke check: lookup only, does not modify any book row.
+  setTimeout(() => {
+    void lookupARBook("Frindle", "Andrew Clements")
+      .then(result => console.log("[AR smoke test Frindle]", JSON.stringify(result)))
+      .catch(error => console.error("[AR smoke test Frindle] failed:", error?.message || error));
+  }, 3000);
 
   return httpServer;
 }
