@@ -185,11 +185,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
+  // Eye-gaze mode is only for non-privileged learner accounts. Admin,
+  // teacher, and parent roles must always keep the standard site layout.
   const isEyeGazeStudent = !!user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && !!user.is_eye_gaze_user;
-  // Eye-gaze mode is a student experience. Admin/teacher/parent accounts may
-  // carry eye-gaze data while testing or managing a child, but that must not
-  // override their primary role when they open normal site pages.
-  const isEyeGazeStudent = !!user && user.role === 'student' && !user.isAdmin && !!user.is_eye_gaze_user;
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
