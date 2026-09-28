@@ -91,7 +91,7 @@ export default function LiveQuiz() {
   useEffect(() => {
     if (!isTeacher || !room || room.status !== "question" || timeLeft > 0 || lastAuto.current === room.currentQuestion) return;
     lastAuto.current = room.currentQuestion;
-    void advance();
+    void advance("reveal");
   }, [isTeacher, room?.status, room?.currentQuestion, timeLeft]);
 
   async function act(operation: () => Promise<void>) {
@@ -120,10 +120,13 @@ export default function LiveQuiz() {
       navigate(`/live-quiz/${session.id}`);
     });
   }
-  async function advance() {
+  async function advance(action: "start" | "reveal" | "next") {
     if (!id) return;
     await act(async () => {
-      await api(`/api/live-sessions/${id}/advance`, { method: "POST" });
+      await api(`/api/live-sessions/${id}/advance`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      });
       await loadRoom(id);
     });
   }
@@ -198,7 +201,7 @@ export default function LiveQuiz() {
           <Users className="mx-auto mb-3 text-orange-300" size={42} /><h2 className="text-2xl font-black">{room.players.length} {room.players.length === 1 ? "player" : "players"} joined</h2>
           <p className="mt-2 text-slate-300">{isTeacher ? "Share the code. Start when your class is ready." : "You’re in! Your teacher will start soon."}</p>
           <div className="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-2">{room.players.map(p => <span key={p.user_id} className="rounded-full bg-white/10 px-4 py-2 font-semibold">{p.display_name}</span>)}</div>
-          {isTeacher && <button onClick={advance} disabled={busy || room.players.length === 0} className="mt-7 min-h-14 rounded-xl bg-[#ff6b25] px-8 font-black disabled:opacity-50">Start game</button>}
+          {isTeacher && <button onClick={() => advance("start")} disabled={busy || room.players.length === 0} className="mt-7 min-h-14 rounded-xl bg-[#ff6b25] px-8 font-black disabled:opacity-50">Start game</button>}
         </section>}
         {(room.status === "question" || room.status === "results") && room.question && <>
           <div className="mb-5 flex items-center justify-between gap-3"><span className="text-slate-300">{room.answerCount} / {room.players.length} answered</span>
@@ -217,7 +220,7 @@ export default function LiveQuiz() {
           {room.status === "question" && !isTeacher && room.myAnswer && <p role="status" className="mt-5 text-center text-lg font-bold">Answer locked in. Wait for your teacher to reveal the result.</p>}
           {room.status === "question" && timeLeft === 0 && !isTeacher && <p role="status" className="mt-5 text-center text-lg font-bold">Time is up. Waiting for the result.</p>}
           {room.status === "results" && !isTeacher && <p role="status" className="mt-5 text-center text-lg font-bold">{room.myAnswer ? room.myAnswer.correct ? `Correct! +${room.myAnswer.points} points` : "Good try!" : "No answer this round."}</p>}
-          {isTeacher && <button onClick={advance} disabled={busy} className="mt-6 min-h-14 w-full rounded-xl bg-[#ff6b25] px-6 text-lg font-black disabled:opacity-50">{room.status === "question" ? "Reveal answer" : room.currentQuestion + 1 === room.questionCount ? "Finish game" : "Next question"}</button>}
+          {isTeacher && <button onClick={() => advance(room.status === "question" ? "reveal" : "next")} disabled={busy} className="mt-6 min-h-14 w-full rounded-xl bg-[#ff6b25] px-6 text-lg font-black disabled:opacity-50">{room.status === "question" ? "Reveal answer" : room.currentQuestion + 1 === room.questionCount ? "Finish game" : "Next question"}</button>}
         </>}
         {(room.status === "results" || room.status === "finished") && <section className="mt-8 rounded-3xl border border-white/15 bg-[#1c2543] p-5 sm:p-7">
           <h2 className="mb-4 flex items-center gap-2 text-2xl font-black"><Trophy className="text-amber-300" /> {room.status === "finished" ? "Final leaderboard" : "Leaderboard"}</h2>
