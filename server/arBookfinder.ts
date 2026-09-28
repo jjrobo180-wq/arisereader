@@ -37,9 +37,9 @@ function authorMatch(expected:string,actual:string){
   const tokens=(value:string)=>value.split(" ").filter(Boolean).filter(t=>!stop.has(t));
   const ep=tokens(e),ap=tokens(a);
   if(!ep.length||!ap.length)return false;
-  const es=[...ep].sort().join(" ");
-  const as=[...ap].sort().join(" ");
-  if(es===as)return true;
+  const expectedSorted=[...ep].sort().join(" ");
+  const actualSorted=[...ap].sort().join(" ");
+  if(expectedSorted===actualSorted)return true;
   // Permit first-initial/full-first-name differences only when surname matches.
   const eLast=ep[ep.length-1],aLast=ap[0];
   if(eLast===aLast){
