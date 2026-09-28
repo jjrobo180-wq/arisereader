@@ -7,7 +7,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
-import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks, debugBookfinderForms } from "./arBookfinder";
+import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { raw } from "express";
@@ -10179,24 +10179,6 @@ Important:
   } else {
     console.log("[AR catalog sync] automatic migration paused pending Bookfinder smoke verification.");
   }
-
-  setTimeout(() => {
-    void debugBookfinderForms()
-      .then(async result => {
-        console.log("[AR Bookfinder form diagnostic]", JSON.stringify(result));
-        await storage.upsertSetting("ar_bookfinder_form_diagnostic", JSON.stringify({
-          checkedAt: new Date().toISOString(),
-          result,
-        }));
-      })
-      .catch(async error => {
-        console.error("[AR Bookfinder form diagnostic] failed:", error?.message || error);
-        await storage.upsertSetting("ar_bookfinder_form_diagnostic", JSON.stringify({
-          checkedAt: new Date().toISOString(),
-          error: error?.message || String(error),
-        }));
-      });
-  }, 1500);
 
   // Temporary startup smoke check: lookup only, does not modify any book row.
   setTimeout(() => {
