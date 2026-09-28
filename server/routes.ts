@@ -1668,25 +1668,10 @@ export async function registerRoutes(
 
 
   // ─── A.R.I.S.E. Avatar World ─────────────────────────────────────
-  // Regular-student cosmetic progression powered by completed quizzes.
+  // Regular-student world progression powered by completed quizzes.
+  // Character appearances are fixed presets; only world items can be purchased.
   // Purchases and coin balances are validated server-side.
   const AVATAR_WORLD_CATALOG = [
-    { id:"hoodie-midnight", type:"top", name:"Midnight Hoodie", price:140, rarity:"rare" },
-    { id:"hoodie-neon", type:"top", name:"Neon Pulse Hoodie", price:260, rarity:"epic" },
-    { id:"jacket-varsity", type:"top", name:"A.R.I.S.E. Varsity", price:420, rarity:"legendary" },
-    { id:"pants-cargo", type:"bottom", name:"Tech Cargo Pants", price:160, rarity:"rare" },
-    { id:"pants-black", type:"bottom", name:"Black Street Pants", price:80, rarity:"common" },
-    { id:"shoes-white", type:"shoes", name:"Cloud Sneakers", price:120, rarity:"rare" },
-    { id:"shoes-neon", type:"shoes", name:"Glow Runners", price:320, rarity:"epic" },
-    { id:"hat-cap", type:"hat", name:"A.R.I.S.E. Cap", price:90, rarity:"common" },
-    { id:"hat-beanie", type:"hat", name:"Night Beanie", price:130, rarity:"rare" },
-    { id:"hat-crown", type:"hat", name:"Reader Crown", price:650, rarity:"legendary" },
-    { id:"glasses-shades", type:"glasses", name:"Future Shades", price:180, rarity:"rare" },
-    { id:"glasses-clear", type:"glasses", name:"Clear Frames", price:100, rarity:"common" },
-    { id:"chain-silver", type:"accessory", name:"Silver Reader Chain", price:220, rarity:"epic" },
-    { id:"headphones-cyan", type:"accessory", name:"Cyan Headphones", price:260, rarity:"epic" },
-    { id:"watch-smart", type:"accessory", name:"Smart Watch", price:150, rarity:"rare" },
-    { id:"bag-tech", type:"accessory", name:"Tech Backpack", price:190, rarity:"rare" },
     { id:"car-street", type:"car", name:"Street Bolt", price:850, rarity:"rare" },
     { id:"car-electric", type:"car", name:"Volt X", price:1450, rarity:"epic" },
     { id:"car-super", type:"car", name:"Nova GT", price:2600, rarity:"legendary" },
@@ -1705,15 +1690,13 @@ export async function registerRoutes(
     "robin-hood","sherlock-holmes","king-arthur","hercules","odysseus",
     "sinbad","alice","dracula","frankenstein","musketeer"
   ]);
-  const AVATAR_WORLD_SHOP_TYPES = new Set(["hat","glasses","accessory","car","home","furniture"]);
+  const AVATAR_WORLD_SHOP_TYPES = new Set(["car","home","furniture"]);
 
   function avatarWorldDefaultState() {
     return {
       purchased: [] as string[],
       selectedCharacter:"robin-hood",
-      equipped: {
-        hat:"", glasses:"", accessory:"", car:"car-none", home:"home-basic"
-      } as Record<string,string>,
+      equipped: { car:"car-none", home:"home-basic" } as Record<string,string>,
       furniture: [] as string[],
       spent: 0,
     };
@@ -1732,22 +1715,23 @@ export async function registerRoutes(
       ? String(source.selectedCharacter)
       : base.selectedCharacter;
     const equipped={...base.equipped};
-    for(const slot of ["hat","glasses","accessory","car","home"]){
+    for(const slot of ["car","home"]){
       const candidate=String(source.equipped?.[slot]||"");
       if(candidate&&allowed(candidate)) equipped[slot]=candidate;
     }
     const furniture=Array.isArray(source.furniture)
       ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>purchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
       : [];
-    const legacyCharacterSpend=purchased.reduce((sum:number,id:string)=>{
-      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
-      return sum+(item&&["top","bottom","shoes"].includes(item.type)?item.price:0);
-    },0);
-    const spent=Math.max(0,(Number(source.spent)||0)-legacyCharacterSpend);
     const activePurchased=purchased.filter((id:string)=>{
       const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
       return !!item&&AVATAR_WORLD_SHOP_TYPES.has(item.type);
     });
+    // Only active world purchases count against the wallet. Retired wearable
+    // purchases are automatically refunded by excluding them from this total.
+    const spent=activePurchased.reduce((sum:number,id:string)=>{
+      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
+      return sum+(item?.price||0);
+    },0);
     return {purchased:activePurchased,selectedCharacter,equipped,furniture,spent};
   }
 
@@ -1816,12 +1800,10 @@ export async function registerRoutes(
         const slot=String(req.body?.slot||"");
         const itemId=String(req.body?.itemId||"");
         const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===itemId);
-        const slotType:Record<string,string>={hat:"hat",glasses:"glasses",accessory:"accessory",car:"car",home:"home"};
-        if(!slotType[slot]) return res.status(400).json({message:"Only accessories and world items can be changed."});
-        if(itemId===""){
-          if(["hat","glasses","accessory"].includes(slot)) nextRaw.equipped={...payload.state.equipped,[slot]:""};
-          else return res.status(400).json({message:"That slot needs an item."});
-        }else if(AVATAR_WORLD_FREE.has(itemId)){
+        const slotType:Record<string,string>={car:"car",home:"home"};
+        if(!slotType[slot]) return res.status(400).json({message:"Characters use fixed appearances. Only cars and homes can be equipped."});
+        if(itemId==="") return res.status(400).json({message:"That slot needs an item."});
+        if(AVATAR_WORLD_FREE.has(itemId)){
           nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
         }else if(item&&item.type===slotType[slot]&&payload.state.purchased.includes(itemId)){
           nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
