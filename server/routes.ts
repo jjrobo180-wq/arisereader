@@ -10174,7 +10174,11 @@ Important:
       console.error("[AR catalog sync] stopped:", e?.message || e);
     }
   };
-  setTimeout(() => void runBackgroundARAlignment(), 7000);
+  if (process.env.AR_AUTO_SYNC === "1") {
+    setTimeout(() => void runBackgroundARAlignment(), 7000);
+  } else {
+    console.log("[AR catalog sync] automatic migration paused pending Bookfinder smoke verification.");
+  }
 
   return httpServer;
 }
