@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, RotateCcw, Sparkles, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react";
 
-type FidgetId = "popit"|"bubbles"|"spinner"|"slime"|"ripple"|"galaxy"|"clicker"|"stretch"|"liquid"|"kaleido"|"switches"|"tiles";
+type FidgetId = "popit"|"bubbles"|"spinner"|"slime"|"ripple"|"galaxy"|"clicker"|"stretch"|"liquid"|"kaleido"|"switches"|"tiles"|"reveal";
 
 const FIDGETS:{id:FidgetId;name:string;emoji:string;hint:string}[]=[
   {id:"popit",name:"Mega Pop-It",emoji:"🌈",hint:"Big reusable silicone pops"},
@@ -17,6 +17,71 @@ const FIDGETS:{id:FidgetId;name:string;emoji:string;hint:string}[]=[
   {id:"kaleido",name:"Kaleidoscope",emoji:"✨",hint:"Tap for new patterns"},
   {id:"switches",name:"Switch Board",emoji:"🎛️",hint:"Flip every switch"},
   {id:"tiles",name:"Glow Tiles",emoji:"🌈",hint:"Light up the grid"},
+  {id:"reveal",name:"Reveal Tiles",emoji:"🎁",hint:"Tap tiles to uncover a surprise"},
+];
+
+type RevealCategory="all"|"food"|"animals"|"vehicles"|"toys"|"home"|"school"|"nature";
+type RevealItem={name:string;emoji:string;category:Exclude<RevealCategory,"all">;bg:string};
+
+const REVEAL_ITEMS:RevealItem[]=[
+  {name:"Apple",emoji:"🍎",category:"food",bg:"linear-gradient(145deg,#fee2e2,#fecaca,#fff7ed)"},
+  {name:"Banana",emoji:"🍌",category:"food",bg:"linear-gradient(145deg,#fef9c3,#fde68a,#fff7ed)"},
+  {name:"Pizza",emoji:"🍕",category:"food",bg:"linear-gradient(145deg,#ffedd5,#fed7aa,#fde68a)"},
+  {name:"Hamburger",emoji:"🍔",category:"food",bg:"linear-gradient(145deg,#fef3c7,#fdba74,#dcfce7)"},
+  {name:"Taco",emoji:"🌮",category:"food",bg:"linear-gradient(145deg,#fef3c7,#fde68a,#bbf7d0)"},
+  {name:"Ice Cream",emoji:"🍦",category:"food",bg:"linear-gradient(145deg,#fce7f3,#e0e7ff,#fef3c7)"},
+  {name:"Strawberry",emoji:"🍓",category:"food",bg:"linear-gradient(145deg,#ffe4e6,#fecdd3,#dcfce7)"},
+  {name:"Watermelon",emoji:"🍉",category:"food",bg:"linear-gradient(145deg,#dcfce7,#fecdd3,#f0fdf4)"},
+  {name:"Cookie",emoji:"🍪",category:"food",bg:"linear-gradient(145deg,#fef3c7,#fed7aa,#fff7ed)"},
+  {name:"Cupcake",emoji:"🧁",category:"food",bg:"linear-gradient(145deg,#fce7f3,#e9d5ff,#fef3c7)"},
+  {name:"Dog",emoji:"🐶",category:"animals",bg:"linear-gradient(145deg,#fef3c7,#fed7aa,#dbeafe)"},
+  {name:"Cat",emoji:"🐱",category:"animals",bg:"linear-gradient(145deg,#fef3c7,#fde68a,#e0e7ff)"},
+  {name:"Lion",emoji:"🦁",category:"animals",bg:"linear-gradient(145deg,#fef3c7,#fdba74,#fde68a)"},
+  {name:"Elephant",emoji:"🐘",category:"animals",bg:"linear-gradient(145deg,#e2e8f0,#cbd5e1,#dbeafe)"},
+  {name:"Monkey",emoji:"🐵",category:"animals",bg:"linear-gradient(145deg,#fef3c7,#d6b892,#dcfce7)"},
+  {name:"Frog",emoji:"🐸",category:"animals",bg:"linear-gradient(145deg,#dcfce7,#bbf7d0,#cffafe)"},
+  {name:"Penguin",emoji:"🐧",category:"animals",bg:"linear-gradient(145deg,#e0f2fe,#dbeafe,#f8fafc)"},
+  {name:"Butterfly",emoji:"🦋",category:"animals",bg:"linear-gradient(145deg,#dbeafe,#e9d5ff,#fce7f3)"},
+  {name:"Dolphin",emoji:"🐬",category:"animals",bg:"linear-gradient(145deg,#cffafe,#bae6fd,#dbeafe)"},
+  {name:"Horse",emoji:"🐴",category:"animals",bg:"linear-gradient(145deg,#fef3c7,#fed7aa,#dcfce7)"},
+  {name:"Car",emoji:"🚗",category:"vehicles",bg:"linear-gradient(145deg,#fee2e2,#dbeafe,#e2e8f0)"},
+  {name:"Bus",emoji:"🚌",category:"vehicles",bg:"linear-gradient(145deg,#fef9c3,#fde68a,#dbeafe)"},
+  {name:"Train",emoji:"🚂",category:"vehicles",bg:"linear-gradient(145deg,#e2e8f0,#cbd5e1,#fed7aa)"},
+  {name:"Airplane",emoji:"✈️",category:"vehicles",bg:"linear-gradient(145deg,#dbeafe,#bae6fd,#f8fafc)"},
+  {name:"Rocket",emoji:"🚀",category:"vehicles",bg:"linear-gradient(145deg,#ddd6fe,#dbeafe,#fecdd3)"},
+  {name:"Fire Truck",emoji:"🚒",category:"vehicles",bg:"linear-gradient(145deg,#fee2e2,#fecaca,#f8fafc)"},
+  {name:"Bicycle",emoji:"🚲",category:"vehicles",bg:"linear-gradient(145deg,#dcfce7,#dbeafe,#fef3c7)"},
+  {name:"Tractor",emoji:"🚜",category:"vehicles",bg:"linear-gradient(145deg,#dcfce7,#fde68a,#fed7aa)"},
+  {name:"Boat",emoji:"⛵",category:"vehicles",bg:"linear-gradient(145deg,#cffafe,#bae6fd,#f8fafc)"},
+  {name:"Helicopter",emoji:"🚁",category:"vehicles",bg:"linear-gradient(145deg,#e2e8f0,#dbeafe,#dcfce7)"},
+  {name:"Teddy Bear",emoji:"🧸",category:"toys",bg:"linear-gradient(145deg,#fef3c7,#fed7aa,#fce7f3)"},
+  {name:"Ball",emoji:"⚽",category:"toys",bg:"linear-gradient(145deg,#f8fafc,#dcfce7,#dbeafe)"},
+  {name:"Puzzle",emoji:"🧩",category:"toys",bg:"linear-gradient(145deg,#e9d5ff,#dbeafe,#fce7f3)"},
+  {name:"Yo-Yo",emoji:"🪀",category:"toys",bg:"linear-gradient(145deg,#fee2e2,#dbeafe,#fef3c7)"},
+  {name:"Kite",emoji:"🪁",category:"toys",bg:"linear-gradient(145deg,#dbeafe,#cffafe,#fef3c7)"},
+  {name:"Robot",emoji:"🤖",category:"toys",bg:"linear-gradient(145deg,#e2e8f0,#dbeafe,#e9d5ff)"},
+  {name:"Video Game",emoji:"🎮",category:"toys",bg:"linear-gradient(145deg,#ddd6fe,#c4b5fd,#dbeafe)"},
+  {name:"Blocks",emoji:"🧱",category:"toys",bg:"linear-gradient(145deg,#fed7aa,#fde68a,#dbeafe)"},
+  {name:"Bed",emoji:"🛏️",category:"home",bg:"linear-gradient(145deg,#dbeafe,#e0e7ff,#f8fafc)"},
+  {name:"Chair",emoji:"🪑",category:"home",bg:"linear-gradient(145deg,#fef3c7,#fed7aa,#f8fafc)"},
+  {name:"Lamp",emoji:"💡",category:"home",bg:"linear-gradient(145deg,#fef9c3,#fde68a,#f8fafc)"},
+  {name:"Bathtub",emoji:"🛁",category:"home",bg:"linear-gradient(145deg,#cffafe,#dbeafe,#f8fafc)"},
+  {name:"Clock",emoji:"⏰",category:"home",bg:"linear-gradient(145deg,#fee2e2,#f8fafc,#dbeafe)"},
+  {name:"Key",emoji:"🔑",category:"home",bg:"linear-gradient(145deg,#fef3c7,#fde68a,#f8fafc)"},
+  {name:"Book",emoji:"📚",category:"school",bg:"linear-gradient(145deg,#fee2e2,#dbeafe,#fef3c7)"},
+  {name:"Pencil",emoji:"✏️",category:"school",bg:"linear-gradient(145deg,#fef9c3,#fed7aa,#f8fafc)"},
+  {name:"Backpack",emoji:"🎒",category:"school",bg:"linear-gradient(145deg,#dbeafe,#e0e7ff,#fee2e2)"},
+  {name:"School",emoji:"🏫",category:"school",bg:"linear-gradient(145deg,#e0f2fe,#f8fafc,#dcfce7)"},
+  {name:"Ruler",emoji:"📏",category:"school",bg:"linear-gradient(145deg,#fef3c7,#dcfce7,#f8fafc)"},
+  {name:"Paint",emoji:"🎨",category:"school",bg:"linear-gradient(145deg,#fce7f3,#e9d5ff,#cffafe)"},
+  {name:"Sun",emoji:"☀️",category:"nature",bg:"linear-gradient(145deg,#fef9c3,#fde68a,#dbeafe)"},
+  {name:"Rainbow",emoji:"🌈",category:"nature",bg:"linear-gradient(145deg,#fee2e2,#fef3c7,#dcfce7,#dbeafe,#e9d5ff)"},
+  {name:"Tree",emoji:"🌳",category:"nature",bg:"linear-gradient(145deg,#dcfce7,#bbf7d0,#fef3c7)"},
+  {name:"Flower",emoji:"🌻",category:"nature",bg:"linear-gradient(145deg,#fef9c3,#dcfce7,#dbeafe)"},
+  {name:"Snowflake",emoji:"❄️",category:"nature",bg:"linear-gradient(145deg,#e0f2fe,#dbeafe,#f8fafc)"},
+  {name:"Moon",emoji:"🌙",category:"nature",bg:"linear-gradient(145deg,#e0e7ff,#c4b5fd,#dbeafe)"},
+  {name:"Cloud",emoji:"☁️",category:"nature",bg:"linear-gradient(145deg,#f8fafc,#dbeafe,#e0f2fe)"},
+  {name:"Leaf",emoji:"🍁",category:"nature",bg:"linear-gradient(145deg,#fed7aa,#fde68a,#dcfce7)"},
 ];
 
 function audioPing(freq=420,duration=.07,type:OscillatorType="sine"){
@@ -73,6 +138,13 @@ export default function EyeGazeFidgetLab(){
   const [kaleido,setKaleido]=useState(0);
   const [switches,setSwitches]=useState<boolean[]>(()=>Array(12).fill(false));
   const [tiles,setTiles]=useState<boolean[]>(()=>Array(48).fill(false));
+  const [revealCategory,setRevealCategory]=useState<RevealCategory>("all");
+  const [revealSize,setRevealSize]=useState<3|4|5|6>(4);
+  const [revealIndex,setRevealIndex]=useState(0);
+  const [revealTiles,setRevealTiles]=useState<boolean[]>(()=>Array(16).fill(false));
+  const [revealComplete,setRevealComplete]=useState(false);
+  const [revealRound,setRevealRound]=useState(1);
+  const revealTimer=useRef<number|undefined>(undefined);
   const stage=useRef<HTMLDivElement|null>(null);
   const spinnerRef=useRef<HTMLDivElement|null>(null);
   const spinAngleRef=useRef(0);
@@ -168,9 +240,56 @@ export default function EyeGazeFidgetLab(){
     return()=>cancelAnimationFrame(frame);
   },[]);
 
+  const revealPool=useMemo(()=>REVEAL_ITEMS.filter(item=>revealCategory==="all"||item.category===revealCategory),[revealCategory]);
+  const revealItem=revealPool[revealIndex%Math.max(1,revealPool.length)]||REVEAL_ITEMS[0];
+
+  const speakReveal=(word:string)=>{
+    if(!sound||!("speechSynthesis" in window))return;
+    try{
+      window.speechSynthesis.cancel();
+      const utterance=new SpeechSynthesisUtterance(word);
+      utterance.rate=.88;
+      utterance.pitch=1.02;
+      window.speechSynthesis.speak(utterance);
+    }catch{}
+  };
+
+  const nextReveal=(pool=revealPool,size=revealSize)=>{
+    if(revealTimer.current)window.clearTimeout(revealTimer.current);
+    setRevealComplete(false);
+    setRevealTiles(Array(size*size).fill(false));
+    setRevealRound(v=>v+1);
+    setRevealIndex(current=>{
+      if(pool.length<=1)return 0;
+      const jump=1+Math.floor(Math.random()*(pool.length-1));
+      return (current+jump)%pool.length;
+    });
+  };
+
+  const tapReveal=(i:number)=>{
+    if(revealComplete||revealTiles[i])return;
+    const next=[...revealTiles];
+    next[i]=true;
+    setRevealTiles(next);
+    feedback(420+(i%6)*45,.055,"triangle");
+    if(next.every(Boolean)){
+      setRevealComplete(true);
+      if(sound){
+        audioPing(660,.11,"sine");
+        window.setTimeout(()=>audioPing(840,.12,"sine"),110);
+      }
+      if(haptics&&navigator.vibrate)navigator.vibrate([35,35,55,35,80]);
+      speakReveal(revealItem.name);
+      revealTimer.current=window.setTimeout(()=>nextReveal(),2200);
+    }
+  };
+
+  useEffect(()=>()=>{if(revealTimer.current)window.clearTimeout(revealTimer.current);},[]);
+
   const reset=()=>{
     setPop(Array(36).fill(false));setWrap(Array(40).fill(false));spinAngleRef.current=0;spinVelocityRef.current=0;setSpinAngle(0);setSpinSpeed(0);setSquish(0);setRipples([]);setStars([]);
     setCount(0);setStretch(45);setLiquid(value=>value+1);setKaleido(0);setSwitches(Array(12).fill(false));setTiles(Array(48).fill(false));
+    setRevealComplete(false);setRevealTiles(Array(revealSize*revealSize).fill(false));
   };
 
   const point=(e:React.PointerEvent)=>{
@@ -297,6 +416,68 @@ export default function EyeGazeFidgetLab(){
       <div className="absolute inset-0 opacity-60 bg-[radial-gradient(circle_at_20%_80%,#ec4899_0,transparent_28%),radial-gradient(circle_at_80%_20%,#22d3ee_0,transparent_25%)]"/>
       {stars.map(s=><span key={s.id} className="absolute animate-pulse drop-shadow-[0_0_12px_white]" style={{left:s.x+"%",top:s.y+"%",fontSize:s.s}}>✦</span>)}
       {!stars.length&&<div className="absolute inset-0 grid place-items-center text-white/70 font-black text-xl">Tap anywhere to make stars ✨</div>}
+    </div>;
+
+    if(selected==="reveal")return <div className="w-full max-w-[860px]">
+      <div className="mb-4 flex flex-col xl:flex-row gap-3 xl:items-center">
+        <div className="flex-1">
+          <p className="text-xs font-black tracking-[.18em] text-cyan-300">PICTURE REVEAL</p>
+          <h2 className="text-2xl sm:text-3xl font-black">Tap every tile. Find the surprise!</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(["all","food","animals","vehicles","toys","home","school","nature"] as RevealCategory[]).map(category=><button key={category} onClick={()=>{
+            if(revealTimer.current)window.clearTimeout(revealTimer.current);
+            setRevealCategory(category);setRevealIndex(0);setRevealComplete(false);setRevealTiles(Array(revealSize*revealSize).fill(false));
+            feedback(390,.04,"sine");
+          }} className={"min-h-10 rounded-full px-3 text-xs font-black capitalize border "+(revealCategory===category?"bg-cyan-300 text-slate-950 border-cyan-100":"bg-white/10 text-white border-white/10")}>{category}</button>)}
+        </div>
+      </div>
+
+      <div className="grid xl:grid-cols-[1fr_220px] gap-4 items-start">
+        <div className="relative aspect-square max-h-[min(68vh,720px)] mx-auto w-full rounded-[2.2rem] overflow-hidden border-[8px] border-white/20 shadow-[0_30px_90px_rgba(34,211,238,.22)] bg-white">
+          <div className="absolute inset-0 grid place-items-center overflow-hidden" style={{background:revealItem.bg}}>
+            <div className="absolute inset-[7%] rounded-[2rem] border-4 border-white/60 bg-white/15 shadow-[inset_0_0_60px_rgba(255,255,255,.35)]"/>
+            <div className="relative z-10 text-center select-none">
+              <div className="text-[clamp(8rem,32vw,18rem)] leading-none drop-shadow-[0_16px_20px_rgba(15,23,42,.18)]">{revealItem.emoji}</div>
+              <div className={"mt-3 inline-flex rounded-full bg-slate-950/80 text-white px-5 py-2 font-black text-xl sm:text-2xl transition-all "+(revealComplete?"opacity-100 scale-100":"opacity-0 scale-90")}>{revealItem.name}</div>
+            </div>
+          </div>
+
+          <div className="absolute inset-0 grid" style={{gridTemplateColumns:`repeat(${revealSize},minmax(0,1fr))`,gridTemplateRows:`repeat(${revealSize},minmax(0,1fr))`}}>
+            {revealTiles.map((open,i)=><button key={revealRound+"-"+i} disabled={open||revealComplete} onClick={()=>tapReveal(i)} aria-label={open?"Revealed":"Reveal tile "+(i+1)} className={"relative border border-white/10 transition-all duration-300 "+(open?"opacity-0 scale-75 pointer-events-none":"opacity-100 scale-100 active:scale-90")} style={{
+              background:`linear-gradient(145deg,hsl(${(i*37+revealRound*23)%360} 85% 58%),hsl(${(i*37+95+revealRound*23)%360} 78% 45%))`,
+              boxShadow:"inset 0 3px 10px rgba(255,255,255,.32), inset 0 -8px 14px rgba(0,0,0,.18), 0 0 16px rgba(255,255,255,.08)"
+            }}>
+              <span className="absolute inset-[16%] rounded-2xl border-2 border-white/30"/>
+              <span className="absolute left-[28%] top-[22%] w-[24%] h-[16%] rounded-full bg-white/30 blur-[1px]"/>
+            </button>)}
+          </div>
+
+          {revealComplete&&<div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+            {Array.from({length:26}).map((_,i)=><span key={i} className="absolute animate-[ping_1.2s_ease-out_forwards] text-2xl sm:text-3xl" style={{left:(4+(i*37)%92)+"%",top:(5+(i*53)%88)+"%",animationDelay:(i%8)*.06+"s"}}>{["✨","⭐","🎉","🎊"][i%4]}</span>)}
+          </div>}
+        </div>
+
+        <aside className="rounded-[2rem] bg-white/10 border border-white/10 p-4 space-y-4">
+          <div>
+            <p className="text-[10px] font-black tracking-widest text-white/45">ROUND</p>
+            <p className="text-3xl font-black">{revealRound}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-black tracking-widest text-white/45 mb-2">TILE SIZE</p>
+            <div className="grid grid-cols-2 gap-2">{([3,4,5,6] as const).map(size=><button key={size} onClick={()=>{
+              if(revealTimer.current)window.clearTimeout(revealTimer.current);
+              setRevealSize(size);setRevealComplete(false);setRevealTiles(Array(size*size).fill(false));feedback(360+size*35,.04,"sine");
+            }} className={"min-h-11 rounded-xl font-black "+(revealSize===size?"bg-white text-slate-950":"bg-white/10")}>{size}×{size}</button>)}</div>
+          </div>
+          <div className="rounded-2xl bg-black/20 p-3">
+            <p className="text-xs font-black text-white/55">PROGRESS</p>
+            <div className="mt-2 h-3 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-violet-400 transition-all" style={{width:(revealTiles.filter(Boolean).length/revealTiles.length*100)+"%"}}/></div>
+            <p className="mt-2 text-sm font-black">{revealTiles.filter(Boolean).length} / {revealTiles.length} tiles</p>
+          </div>
+          <button onClick={()=>nextReveal()} className="w-full min-h-12 rounded-2xl bg-amber-300 text-slate-950 font-black">NEW PICTURE</button>
+        </aside>
+      </div>
     </div>;
 
     if(selected==="clicker")return <div className="text-center">
