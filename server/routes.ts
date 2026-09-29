@@ -8,6 +8,7 @@ import { seedData } from "./storage";
 import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
+import { registerClubAriseRoutes } from "./clubArise";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
@@ -913,6 +914,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   registerLiveQuizRoutes(app, authMiddleware);
+  registerClubAriseRoutes(app, authMiddleware);
   // My World uses a lightweight grown-up math gate from the child's account.
   // These short-lived tokens are only an editing gate, not account authentication.
   const myWorldChallenges = new Map<string, { studentId: number; answer: number; expiresAt: number }>();
