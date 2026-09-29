@@ -1743,8 +1743,10 @@ export async function registerRoutes(
   const PET_FEED_COST=40;
   const PET_RETURN_COST=80;
   const CLUB_THEATER_CHANGE_COST=75;
+  const THREE_SAFE=(value:number,min:number,max:number,fallback:number)=>Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;
   const CLUB_THEATER_PRESENCE_TTL=15000;
-  const clubTheaterPresence=new Map<number,number>();
+  type ClubTheaterVisitor={userId:number;displayName:string;characterId:string;x:number;z:number;facing:number;seatId:string|null;lastSeen:number};
+  const clubTheaterPresence=new Map<number,ClubTheaterVisitor>();
   const CLUB_THEATER_MOVIES=[
     {
       id:"big-buck-bunny",
@@ -1792,9 +1794,9 @@ export async function registerRoutes(
     };
 
     let lastExpiredAt=0;
-    for(const [userId,lastSeen] of clubTheaterPresence){
-      if(now-lastSeen>CLUB_THEATER_PRESENCE_TTL){
-        lastExpiredAt=Math.max(lastExpiredAt,lastSeen+CLUB_THEATER_PRESENCE_TTL);
+    for(const [userId,visitor] of clubTheaterPresence){
+      if(now-visitor.lastSeen>CLUB_THEATER_PRESENCE_TTL){
+        lastExpiredAt=Math.max(lastExpiredAt,visitor.lastSeen+CLUB_THEATER_PRESENCE_TTL);
         clubTheaterPresence.delete(userId);
       }
     }
@@ -1807,7 +1809,8 @@ export async function registerRoutes(
     }
 
     if(touchUserId){
-      clubTheaterPresence.set(touchUserId,now);
+      const existing=clubTheaterPresence.get(touchUserId);
+      clubTheaterPresence.set(touchUserId,existing?{...existing,lastSeen:now}:{userId:touchUserId,displayName:"Reader",characterId:"robin-hood",x:0,z:20,facing:Math.PI,seatId:null,lastSeen:now});
       if(!state.playing){
         state.startedAt=now;
         state.playing=true;
@@ -1823,7 +1826,7 @@ export async function registerRoutes(
 
     const movie=CLUB_THEATER_MOVIES.find(item=>item.id===state.movieId)||CLUB_THEATER_MOVIES[0];
     const currentPosition=(state.positionSeconds+(state.playing?Math.max(0,(now-state.startedAt)/1000):0))%Math.max(1,movie.duration);
-    return {...state,currentPosition,audience:clubTheaterPresence.size};
+    return {...state,currentPosition,audience:clubTheaterPresence.size,players:Array.from(clubTheaterPresence.values()).map(({lastSeen,...visitor})=>visitor)};
   }
 
   function avatarWorldDefaultState() {
@@ -1944,13 +1947,43 @@ export async function registerRoutes(
   app.get("/api/club-theater", authMiddleware, async(req:any,res)=>{
     try{
       if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user) return res.status(403).json({message:"The Club theater is for student accounts."});
-      const [state,world]=await Promise.all([getClubTheaterState(req.user.id),getAvatarWorldPayload(req.user.id)]);
+      const [state,world,detail]=await Promise.all([getClubTheaterState(req.user.id),getAvatarWorldPayload(req.user.id),storage.getStudentDetail(req.user.id)]);
+      const current=clubTheaterPresence.get(req.user.id);
+      clubTheaterPresence.set(req.user.id,{
+        userId:req.user.id,
+        displayName:detail?.user?.displayName||req.user.displayName||req.user.username||"Reader",
+        characterId:world.state.selectedCharacter||"robin-hood",
+        x:current?.x??0,z:current?.z??20,facing:current?.facing??Math.PI,seatId:current?.seatId??null,lastSeen:Date.now()
+      });
+      const refreshed=await getClubTheaterState(req.user.id);
       res.set("Cache-Control","no-store");
-      res.json({state,movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,wallet:world.economy.wallet});
+      res.json({state:refreshed,movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,wallet:world.economy.wallet});
     }catch(error:any){
       console.error("[club-theater] load:",error?.message);
       res.status(500).json({message:"Could not open the Club theater."});
     }
+  });
+
+  app.post("/api/club-theater/presence",authMiddleware,async(req:any,res)=>{
+    try{
+      if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user)return res.status(403).json({message:"Student account required."});
+      const current=clubTheaterPresence.get(req.user.id);
+      const world=await getAvatarWorldPayload(req.user.id);
+      const detail=await storage.getStudentDetail(req.user.id);
+      const x=THREE_SAFE(Number(req.body?.x),-13,13,current?.x??0);
+      const z=THREE_SAFE(Number(req.body?.z),-7,27,current?.z??20);
+      const facing=THREE_SAFE(Number(req.body?.facing),-Math.PI,Math.PI,current?.facing??Math.PI);
+      const seatId=/^S(?:[1-9]|1[0-2])$/.test(String(req.body?.seatId||""))?String(req.body.seatId):null;
+      clubTheaterPresence.set(req.user.id,{userId:req.user.id,displayName:detail?.user?.displayName||req.user.displayName||"Reader",characterId:world.state.selectedCharacter||"robin-hood",x,z,facing,seatId,lastSeen:Date.now()});
+      const state=await getClubTheaterState(req.user.id);
+      res.set("Cache-Control","no-store");res.json({state});
+    }catch(error:any){console.error("[club-theater] presence:",error?.message);res.status(500).json({message:"Could not update theater presence."});}
+  });
+
+  app.post("/api/club-theater/leave",authMiddleware,async(req:any,res)=>{
+    clubTheaterPresence.delete(req.user.id);
+    await getClubTheaterState();
+    res.json({ok:true});
   });
 
   app.post("/api/club-theater/change", authMiddleware, async(req:any,res)=>{
