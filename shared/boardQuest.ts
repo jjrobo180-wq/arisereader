@@ -14,7 +14,8 @@ export type Phase='lobby'|'question'|'cinematic'|'rps'|'finished';
 export type View={code:string;hostId:number;level:Level;players:Player[];turn:number;phase:Phase;phaseAt:number;serverNow:number;scores:Record<Team,number>;cue:Cue|null;question:{id:number;q:string;a:string[]}|null;winner:string|null;rpsReady:number[];rpsDeadline:number;revision:number};
 export function moveLandingAt(cue:Cue){return cue.startAt+TIMING.roll+TIMING.reveal+(cue.to-cue.from)*TIMING.step;}
 export function rpsWinner(a:Hand,b:Hand):0|1|null{return a===b?null:((a==='rock'&&b==='scissors')||(a==='paper'&&b==='rock')||(a==='scissors'&&b==='paper'))?0:1;}
-export function boardPosition(space:number){const row=Math.floor(space/7),col=row%2?6-space%7:space%7;return {x:(col-3)*5,z:(row-1.5)*6};}
+const SKY_PATH=[[-15,-14],[-10,-13],[-6,-12],[-2,-12],[3,-11],[7,-9],[10,-6],[7,-3],[3,-2],[-1,-3],[-5,-2],[-9,0],[-12,3],[-8,6],[-3,7],[2,6],[6,4],[10,5],[13,8],[10,11],[5,12],[1,11],[-3,12],[-6,14],[-2,16],[3,16],[8,15],[13,17]] as const;
+export function boardPosition(space:number){const p=SKY_PATH[Math.max(0,Math.min(SKY_PATH.length-1,space))];return {x:p[0],z:p[1]};}
 export function cueStage(cue:Cue|null,now:number){
  if(!cue)return 'idle';const t=now-cue.startAt;
  if(cue.kind==='strike')return 'reward';
