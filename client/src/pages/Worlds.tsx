@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ArrowLeft, ArrowRight, Compass, LockKeyhole, Rotate3D } from "lucide-react";
+import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
 type WorldId="club"|"neighborhood"|"space"|"beach"|"racetrack";
 const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:number}[]=[
@@ -50,7 +51,13 @@ function makeWorld(id:WorldId,color:number){
 export default function Worlds(){
   const [,navigate]=useLocation();const mountRef=useRef<HTMLDivElement>(null);
   const [selected,setSelected]=useState<WorldId>("neighborhood");
+  const [travel,setTravel]=useState<{path:string;label:string}|null>(null);
   const world=WORLDS.find(item=>item.id===selected)!;
+  useEffect(()=>{
+    if(!travel)return;
+    const timer=window.setTimeout(()=>navigate(travel.path),800);
+    return()=>window.clearTimeout(timer);
+  },[travel,navigate]);
   useEffect(()=>{
     const mount=mountRef.current;if(!mount)return;
     const scene=new THREE.Scene();scene.background=new THREE.Color(0x070b1b);
@@ -87,15 +94,16 @@ export default function Worlds(){
   return <main className="relative h-[100dvh] overflow-hidden bg-[#070b1b] text-white">
     <div ref={mountRef} className="absolute inset-0 touch-none" aria-hidden="true"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-3 bg-gradient-to-b from-slate-950/90 to-transparent p-3 sm:p-5">
-      <button type="button" onClick={()=>navigate("/library")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/80 px-4 font-black"><ArrowLeft className="h-5 w-5"/> Library</button>
+      <button type="button" onClick={()=>setTravel({path:"/library",label:"Returning to the library…"})} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/80 px-4 font-black"><ArrowLeft className="h-5 w-5"/> Library</button>
       <div className="ml-auto text-right"><p className="text-xs font-black uppercase tracking-[.22em] text-cyan-300">A.R.I.S.E. universe</p><h1 className="text-xl font-black sm:text-3xl">Choose a world</h1><p className="hidden text-xs font-bold text-white/70 sm:block"><Rotate3D className="mr-1 inline h-4 w-4"/>Drag to spin · scroll or pinch to zoom · tap a world</p></div>
     </header>
     <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-[#070b1b] via-[#070b1b]/90 to-transparent px-3 pb-3 pt-16 sm:px-6 sm:pb-6">
       <div className="pointer-events-auto mx-auto max-w-3xl rounded-[1.5rem] border border-cyan-300/25 bg-slate-950/85 p-3 shadow-2xl backdrop-blur-xl sm:p-5">
         <div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan-300/15"><Compass className="text-cyan-300"/></div><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">{world.path?"Open world":"Coming soon · preview"}</p><h2 className="text-xl font-black sm:text-2xl">{world.title}</h2><p className="text-xs font-medium text-white/70 sm:text-sm">{world.description}</p></div></div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Worlds">{WORLDS.map(item=><button key={item.id} type="button" onClick={()=>setSelected(item.id)} aria-pressed={selected===item.id} className={"min-h-11 shrink-0 rounded-xl border px-3 text-xs font-black sm:text-sm "+(selected===item.id?"border-cyan-300 bg-cyan-300 text-slate-950":"border-white/20 bg-white/10 text-white hover:bg-white/20")}>{item.title}{!item.path&&" · Soon"}</button>)}</div>
-        {world.path?<button type="button" onClick={()=>navigate(world.path!)} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-300 font-black text-slate-950">Enter {world.title}<ArrowRight className="h-5 w-5"/></button>:<div className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-bold text-white/70"><LockKeyhole className="h-4 w-4"/> Preview only · coming soon</div>}
+        {world.path?<button type="button" onClick={()=>setTravel({path:world.path!,label:`Entering ${world.title}…`})} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-300 font-black text-slate-950">Enter {world.title}<ArrowRight className="h-5 w-5"/></button>:<div className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-bold text-white/70"><LockKeyhole className="h-4 w-4"/> Preview only · coming soon</div>}
       </div>
     </div>
+    {travel&&<WorldLoadingOverlay tone="universe" label={travel.label} />}
   </main>;
 }
