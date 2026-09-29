@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createPet } from "@/lib/pets";
 
 type Props={
   characterId:string;
@@ -10,7 +13,7 @@ type Props={
   controls?:boolean;
 };
 
-export default function ARISEAvatar3D({characterId,className="",compact=false,initialView="full",controls=true}:Props){
+export default function ARISEAvatar3D({characterId,equipped,className="",compact=false,initialView="full",controls=true}:Props){
   const hostRef=useRef<HTMLDivElement|null>(null);
   const [view,setView]=useState<"full"|"face">(initialView);
   const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
@@ -25,8 +28,6 @@ export default function ARISEAvatar3D({characterId,className="",compact=false,in
 
     const boot=async()=>{
       try{
-        const THREE:any=await import(/* @vite-ignore */ "https://esm.sh/three@0.180.0");
-        const {GLTFLoader}:any=await import(/* @vite-ignore */ "https://esm.sh/three@0.180.0/examples/jsm/loaders/GLTFLoader.js");
         if(disposed)return;
 
         const mount=host.querySelector("[data-canvas-host]") as HTMLDivElement|null;
@@ -106,6 +107,13 @@ export default function ARISEAvatar3D({characterId,className="",compact=false,in
         const size=box.getSize(new THREE.Vector3());
         const center=box.getCenter(new THREE.Vector3());
         const topY=box.max.y;
+
+        // The equipped pet uses the same model as the clubhouse. Keep it
+        // outside the avatar group so rotating the character leaves the pet beside them.
+        if(view==="full"){
+          const pet=createPet(equipped.pet,loader,compact?1.15:1.35);
+          if(pet){pet.position.set(Math.max(1.25,size.x*.64),.1,.55);scene.add(pet);}
+        }
 
         // Character appearance is intentionally fixed. No hats, glasses,
         // wearable accessories, body edits, or clothing overlays are added here.
@@ -203,7 +211,7 @@ export default function ARISEAvatar3D({characterId,className="",compact=false,in
 
     void boot();
     return()=>{disposed=true;cleanup();};
-  },[characterId,compact,view]);
+  },[characterId,equipped.pet,compact,view]);
 
   return <div ref={hostRef} className={"relative overflow-hidden "+className} aria-label={"Interactive 3D character: "+character.name}>
     <div data-canvas-host className="absolute inset-0"/>
