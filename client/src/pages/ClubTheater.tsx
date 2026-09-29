@@ -28,7 +28,7 @@ export default function ClubTheater(){
   const controlsRef=useRef<OrbitControls|null>(null);
   const sceneRef=useRef<THREE.Scene|null>(null);
   const remoteRootsRef=useRef<Map<number,THREE.Group>>(new Map());
-  const targetRef=useRef(new THREE.Vector3(0,0,21));
+  const targetRef=useRef(new THREE.Vector3(0,0,10));
   const seatRef=useRef<string|null>(null);
   const keysRef=useRef(new Set<string>());
   const [payload,setPayload]=useState<TheaterPayload|null>(null);
@@ -41,7 +41,7 @@ export default function ClubTheater(){
   const [videoReady,setVideoReady]=useState(false);
   const [embedStart,setEmbedStart]=useState(0);
   const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("pan");
-  const [notice,setNotice]=useState("Explore the lobby, grab popcorn, meet readers, or walk into the auditorium.");
+  const [notice,setNotice]=useState("You start in the center. Explore the auditorium, lobby, popcorn stand, and other readers.");
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
   const load=async()=>{
@@ -130,11 +130,11 @@ export default function ClubTheater(){
     const cssScene=new THREE.Scene();
     sceneRef.current=scene;
     cssSceneRef.current=cssScene;
-    scene.background=new THREE.Color(0x05030a);
-    scene.fog=new THREE.Fog(0x05030a,26,55);
+    scene.background=new THREE.Color(0x101423);
+    scene.fog=new THREE.Fog(0x101423,38,72);
 
     const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/Math.max(1,mount.clientHeight),.1,100);
-    camera.position.set(0,8.5,31);
+    camera.position.set(0,15,24);
     cameraRef.current=camera;
 
     const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
@@ -157,7 +157,7 @@ export default function ClubTheater(){
 
     const controls=new OrbitControls(camera,renderer.domElement);
     controlsRef.current=controls;
-    controls.target.set(0,1.5,20);
+    controls.target.set(0,1.3,10);
     controls.enableDamping=true;
     controls.enablePan=true;
     controls.screenSpacePanning=false;
@@ -169,14 +169,32 @@ export default function ClubTheater(){
     controls.maxDistance=38;
     controls.maxPolarAngle=Math.PI*.47;
 
-    scene.add(new THREE.HemisphereLight(0x9ecfff,0x180710,1.5));
-    const screenGlow=new THREE.PointLight(0x72d7ff,5.5,28);
+    scene.add(new THREE.AmbientLight(0xffffff,1.05));
+    scene.add(new THREE.HemisphereLight(0xdbeafe,0x4a2633,2.35));
+    const houseLight=new THREE.DirectionalLight(0xfff4dd,2.4);
+    houseLight.position.set(-7,14,18);
+    houseLight.castShadow=true;
+    scene.add(houseLight);
+
+    const screenGlow=new THREE.PointLight(0x9be7ff,6.5,30);
     screenGlow.position.set(0,5,-8);
     scene.add(screenGlow);
 
+    // Soft ceiling lights keep the room readable while still feeling like a cinema.
+    for(const z of [-2,5,12,19,25]){
+      const ceilingLight=new THREE.PointLight(z<12?0xffe8c7:0xffd39a,2.8,13,1.6);
+      ceilingLight.position.set(0,8.5,z);
+      scene.add(ceilingLight);
+    }
+    for(const x of [-8,8]){
+      const fill=new THREE.PointLight(0xc7d2fe,2.1,15,1.5);
+      fill.position.set(x,6,10);
+      scene.add(fill);
+    }
+
     const floor=new THREE.Mesh(
       new THREE.PlaneGeometry(30,58),
-      new THREE.MeshStandardMaterial({color:0x170b18,roughness:.9})
+      new THREE.MeshStandardMaterial({color:0x2b1a2c,roughness:.86})
     );
     floor.rotation.x=-Math.PI/2;
     floor.position.z=9;
@@ -242,7 +260,7 @@ export default function ClubTheater(){
 
     const aisle=new THREE.Mesh(
       new THREE.PlaneGeometry(2.7,31),
-      new THREE.MeshStandardMaterial({color:0x3b0a16,roughness:.8,emissive:0x2c0710,emissiveIntensity:.18})
+      new THREE.MeshStandardMaterial({color:0x5a1422,roughness:.75,emissive:0x5a1422,emissiveIntensity:.35})
     );
     aisle.rotation.x=-Math.PI/2;
     aisle.position.set(0,.02,6);
@@ -250,7 +268,7 @@ export default function ClubTheater(){
 
     for(const x of [-11.5,11.5]){
       for(const z of [-5,2,9,16]){
-        const lamp=new THREE.PointLight(0xf59e0b,1.2,5);
+        const lamp=new THREE.PointLight(0xffc56d,2.5,8,1.6);
         lamp.position.set(x,2.5,z);
         scene.add(lamp);
       }
@@ -335,10 +353,11 @@ export default function ClubTheater(){
       const benchBack=new THREE.Mesh(new THREE.BoxGeometry(5,1.5,.35),new THREE.MeshStandardMaterial({color:0x991b1b,roughness:.55}));
       benchBack.position.set(x,1.45,18.85);scene.add(benchBack);
     }
-    const lobbyGlow=new THREE.PointLight(0xf59e0b,3,16);lobbyGlow.position.set(0,6,22);scene.add(lobbyGlow);
+    const lobbyGlow=new THREE.PointLight(0xffc56d,5,20,1.5);lobbyGlow.position.set(0,6,22);scene.add(lobbyGlow);
+    const concessionGlow=new THREE.PointLight(0xffffff,3.2,10,1.5);concessionGlow.position.set(-8.7,4.5,22);scene.add(concessionGlow);
 
     const avatarRoot=new THREE.Group();
-    avatarRoot.position.set(0,0,25);
+    avatarRoot.position.set(0,0,10);
     scene.add(avatarRoot);
     rootRef.current=avatarRoot;
     targetRef.current.copy(avatarRoot.position);
