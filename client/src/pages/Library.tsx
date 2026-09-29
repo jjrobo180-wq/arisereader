@@ -1219,68 +1219,61 @@ export default function Library() {
                 <MoreVertical className="w-4 h-4" />
               </Button>
               {showMobileMenu && (
-                <div className="absolute right-0 mt-2 w-56 max-h-[75vh] overflow-y-auto rounded-xl bg-card border border-border shadow-lg z-50 overflow-hidden">
-                  {isStudentHeader && (
-                    <div className="px-4 py-3 border-b border-border bg-primary/5">
-                      <div className="font-black text-sm truncate">{user.displayName}</div>
-                      <div className="mt-1 flex items-center gap-3 text-xs font-bold text-primary">
-                        <span>{totalPoints} pts</span>
-                        <span>{results.length} quizzes</span>
-                        {userBand && <span>{userBand}</span>}
+                <div className="absolute right-0 mt-2 w-72 max-h-[78vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-xl z-50 p-2">
+                  {isStudentHeader ? (
+                    <>
+                      <div className="px-2 pb-2 pt-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick menu</p>
                       </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button data-tour="fyp" onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Sparkles className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Discover</span>
+                        </button>
+                        <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Bookmark className="mb-1.5 h-4 w-4 text-primary" /><span className="block text-xs font-black">My Books</span>
+                        </button>
+                        <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="relative rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Trophy className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Progress & Rewards</span>
+                          {studentRewards.some(r => r.claimStatus === "approved") && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-green-500" />}
+                        </button>
+                        {!user?.is_eye_gaze_user && (
+                          <button onClick={() => { navigate("/avatar-world"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <User className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Avatar World</span>
+                          </button>
+                        )}
+                        <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Brain className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Growth Check</span>
+                        </button>
+                        <button onClick={() => { navigate("/competition"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Gift className="mb-1.5 h-4 w-4 text-rose-500" /><span className="block text-xs font-black">Competition</span>
+                        </button>
+                        <button onClick={() => { navigate("/reading-club"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <GraduationCap className="mb-1.5 h-4 w-4 text-emerald-500" /><span className="block text-xs font-black">Reading Club</span>
+                        </button>
+                        <button onClick={() => { navigate("/tts-audiobooks"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Headphones className="mb-1.5 h-4 w-4 text-sky-500" /><span className="block text-xs font-black">Audio Books</span>
+                        </button>
+                        <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <BarChart3 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="block text-xs font-black">Polls</span>
+                        </button>
+                        <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Settings className="mb-1.5 h-4 w-4 text-muted-foreground" /><span className="block text-xs font-black">Account</span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-1">
+                      {user?.isAdmin && <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Admin</button>}
+                      {user?.role === 'teacher' && <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Teacher Dashboard</button>}
+                      <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
                     </div>
                   )}
-                  <button data-tour="fyp" onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <Sparkles className="w-4 h-4" /> A.R.I.S.E F.Y.P
-                  </button>
-                  <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b" }}>
-                    <Bookmark className="w-4 h-4" /> My Books
-                  </button>
-                  {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && (
-                    <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                      <Trophy className="w-4 h-4" /> My Progress
-                      {studentRewards.some(r => r.claimStatus === "approved") && <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />}
+                  <div className="mt-2 border-t border-border pt-2">
+                    <div className="px-1"><ReportProblemButton variant="ghost" size="sm" /></div>
+                    <button onClick={handleLogout} data-testid="button-logout" className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <LogOut className="mr-2 inline h-4 w-4" /> Logout
                     </button>
-                  )}
-                  {!user?.isAdmin && user?.role === 'student' && !user?.is_eye_gaze_user && (
-                    <button onClick={() => { navigate("/avatar-world"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#0891b2", fontWeight: 700 }}>
-                      <User className="w-4 h-4" /> Avatar World
-                    </button>
-                  )}
-                  <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <Brain className="w-4 h-4" /> Growth Check
-                  </button>
-                  <button onClick={() => { navigate("/competition"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <Gift className="w-4 h-4" /> Competition
-                  </button>
-                  <button onClick={() => { navigate("/reading-club"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <GraduationCap className="w-4 h-4" /> Reading Club
-                  </button>
-                  <button onClick={() => { navigate("/tts-audiobooks"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2" style={{ color: "#f59e0b", fontWeight: 600 }}>
-                    <Headphones className="w-4 h-4" /> TTS Audio Books
-                  </button>
-                  <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" /> Polls
-                  </button>
-                  <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <User className="w-4 h-4" /> {user?.is_eye_gaze_user ? "My Eye Gaze Home" : "Account"}
-                  </button>
-                  {user?.isAdmin && (
-                    <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                      <Settings className="w-4 h-4" /> Admin
-                    </button>
-                  )}
-                  {user?.role === 'teacher' && (
-                    <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                      <Settings className="w-4 h-4" /> Teacher
-                    </button>
-                  )}
-                  <div className="px-2 py-1">
-                    <ReportProblemButton variant="ghost" size="sm" />
                   </div>
-                  <button onClick={handleLogout} data-testid="button-logout" className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center gap-2">
-                    <LogOut className="w-4 h-4" /> Logout
-                  </button>
                 </div>
               )}
             </div>
@@ -1308,39 +1301,21 @@ export default function Library() {
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && !user?.is_eye_gaze_user && (
-          <div className="grid md:grid-cols-2 gap-4 mb-7">
-            <button
-              type="button"
-              onClick={() => navigate("/reading-level-up")}
-              className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-blue-600 via-violet-600 to-fuchsia-600 p-5 sm:p-6 text-left text-white shadow-xl hover:-translate-y-1 transition-all min-h-[190px]"
-            >
-              <div className="absolute right-4 bottom-[-18px] text-[110px] opacity-20">📈</div>
-              <div className="relative">
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-widest">
-                  <Brain className="w-4 h-4" /> Build My Reading
-                </div>
-                <h2 className="mt-4 text-2xl sm:text-3xl font-black">Reading Level Up</h2>
-                <p className="mt-2 text-sm sm:text-base text-white/85 font-semibold max-w-lg">Train decoding, fluency, vocabulary, comprehension, and reading stamina through short game-style missions.</p>
-                <div className="mt-4 font-black">Start Training →</div>
+          <button
+            type="button"
+            onClick={() => navigate("/reading-level-up")}
+            className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-violet-500/20 bg-gradient-to-r from-blue-600/10 via-violet-600/10 to-fuchsia-600/10 p-3 text-left transition-colors hover:bg-violet-500/15 sm:p-4"
+          >
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-2xl">📈</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-black">Reading Level Up</h2>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary">Practice</span>
               </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate("/arise-city")}
-              className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950 p-5 sm:p-6 text-left text-white shadow-xl hover:-translate-y-1 transition-all min-h-[190px]"
-            >
-              <div className="absolute right-3 bottom-[-20px] text-[115px] opacity-45">🏙️</div>
-              <div className="relative max-w-lg">
-                <div className="inline-flex items-center gap-2 rounded-full bg-cyan-300/15 px-3 py-1 text-xs font-black uppercase tracking-widest text-cyan-200">
-                  <Sparkles className="w-4 h-4" /> Life Skills Game
-                </div>
-                <h2 className="mt-4 text-2xl sm:text-3xl font-black">A.R.I.S.E. City</h2>
-                <p className="mt-2 text-sm sm:text-base text-white/80 font-semibold">Explore the city, interview for careers, work, earn money, shop, drive, buy a home, and complete reading challenges.</p>
-                <div className="mt-4 font-black text-cyan-200">Enter the City →</div>
-              </div>
-            </button>
-          </div>
+              <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground sm:text-sm">Short reading skill missions for fluency, vocabulary, comprehension, and stamina.</p>
+            </div>
+            <span className="shrink-0 text-sm font-black text-primary">Start →</span>
+          </button>
         )}
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
