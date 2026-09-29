@@ -132,6 +132,54 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
     }
   });
 
+  app.get("/api/club-arise/players/:id/profile", authMiddleware, async(req:any,res)=>{
+    try{
+      if(!isStudent(req.user)) return res.status(403).json({message:"Student account required."});
+      const userId=Number(req.params.id);
+      if(!Number.isInteger(userId)||userId<1) return res.status(400).json({message:"Invalid player."});
+
+      const detail=await storage.getStudentDetail(userId);
+      if(!detail) return res.status(404).json({message:"Player not found."});
+
+      const {data:matches,error}=await db().from("club_arise_matches")
+        .select("id,game_type,status,player1_id,player2_id,winner_id")
+        .eq("status","finished")
+        .or("player1_id.eq."+userId+",player2_id.eq."+userId);
+      if(error)throw error;
+
+      const finished=matches||[];
+      const wins=finished.filter((m:any)=>m.winner_id===userId).length;
+      const ties=finished.filter((m:any)=>!m.winner_id).length;
+      const losses=Math.max(0,finished.length-wins-ties);
+      const clubScore=wins*100+ties*40+losses*10;
+      const byGame:any={};
+      for(const type of ["four","word_tiles","word_rescue"]){
+        const rows=finished.filter((m:any)=>m.game_type===type);
+        byGame[type]={
+          played:rows.length,
+          wins:rows.filter((m:any)=>m.winner_id===userId).length,
+        };
+      }
+
+      const raw=await storage.getSetting("avatar_world_"+userId);
+      let characterId="robin-hood";
+      if(raw){try{characterId=JSON.parse(raw)?.selectedCharacter||characterId;}catch{}}
+
+      res.set("Cache-Control","no-store");
+      res.json({
+        userId,
+        displayName:detail.displayName||"Reader",
+        characterId,
+        leaderboardPoints:Math.max(0,Number(detail.totalPoints)||0),
+        quizzesTaken:Math.max(0,Number(detail.quizzesTaken)||0),
+        club:{played:finished.length,wins,ties,losses,score:clubScore,byGame},
+      });
+    }catch(error:any){
+      console.error("[club-arise] profile",error?.message);
+      res.status(500).json({message:"Could not load that player."});
+    }
+  });
+
   app.post("/api/club-arise/matches/join", authMiddleware, async(req:any,res)=>{
     try{
       if(!isStudent(req.user)) return res.status(403).json({message:"Student account required."});
