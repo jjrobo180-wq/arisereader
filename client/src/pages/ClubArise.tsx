@@ -38,6 +38,10 @@ function addBox(scene:THREE.Scene,size:[number,number,number],pos:[number,number
   const m=new THREE.Mesh(new THREE.BoxGeometry(...size),new THREE.MeshStandardMaterial({color,roughness:.82}));
   m.position.set(...pos);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;
 }
+function addNeonBox(scene:THREE.Scene,size:[number,number,number],pos:[number,number,number],color:number,intensity=2.4){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(...size),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:intensity,roughness:.35}));
+  m.position.set(...pos);scene.add(m);return m;
+}
 function stationColor(id:Station["id"]){return id==="four"?0x2563eb:id==="word_tiles"?0x7c3aed:0x059669;}
 
 export default function ClubArise(){
@@ -77,24 +81,35 @@ export default function ClubArise(){
   useEffect(()=>{
     const mount=mountRef.current;if(!mount||!self)return;
     let disposed=false;
-    const scene=new THREE.Scene();scene.background=new THREE.Color(0x91c6e8);scene.fog=new THREE.FogExp2(0xbdd9ea,.012);sceneRef.current=scene;
+    const scene=new THREE.Scene();scene.background=new THREE.Color(0x070b1a);scene.fog=new THREE.FogExp2(0x11152b,.014);sceneRef.current=scene;
     const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/mount.clientHeight,.1,120);camera.position.set(0,15,24);cameraRef.current=camera;
     const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setSize(mount.clientWidth,mount.clientHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.domElement.className="absolute inset-0 h-full w-full";mount.appendChild(renderer.domElement);rendererRef.current=renderer;
     const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.3,2);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.47;controls.minDistance=8;controls.maxDistance=36;controlsRef.current=controls;
-    scene.add(new THREE.HemisphereLight(0xe7f5ff,0x48614a,2.4));const sun=new THREE.DirectionalLight(0xfff1ce,4);sun.position.set(-12,20,10);sun.castShadow=true;scene.add(sun);
-    const ground=new THREE.Mesh(new THREE.CircleGeometry(31,96),new THREE.MeshStandardMaterial({color:0x6e9c63,roughness:1}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;ground.userData.ground=true;scene.add(ground);
+    scene.add(new THREE.HemisphereLight(0x8fb7ff,0x171226,1.7));
+    const key=new THREE.DirectionalLight(0xc9dcff,2.2);key.position.set(-10,18,8);key.castShadow=true;scene.add(key);
+    const ground=new THREE.Mesh(new THREE.CircleGeometry(31,96),new THREE.MeshStandardMaterial({color:0x12152a,roughness:.72,metalness:.18}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;ground.userData.ground=true;scene.add(ground);
+    const grid=new THREE.GridHelper(56,28,0x22d3ee,0x312e81);grid.position.y=.025;(grid.material as THREE.Material).transparent=true;(grid.material as THREE.Material).opacity=.32;scene.add(grid);
 
-    // clubhouse + plaza
-    addBox(scene,[12,5,6],[0,2.5,-24],0x8b4b39);addBox(scene,[4,3,.4],[0,1.5,-20.8],0x3f2a24);
-    addBox(scene,[7,3,5],[-19,1.5,-17],0xd6b46b);addBox(scene,[7,3,5],[19,1.5,-17],0xd6b46b);
-    for(let i=0;i<10;i++){const a=i/10*Math.PI*2;addBox(scene,[.35,1.2,.35],[Math.cos(a)*25,.6,Math.sin(a)*25],0x6b4828);}
-    const fountain=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.9,.55,40),new THREE.MeshStandardMaterial({color:0xb9c4ca,roughness:.6}));fountain.position.set(0,.28,1);scene.add(fountain);
-    const water=new THREE.Mesh(new THREE.CylinderGeometry(2.05,2.05,.18,40),new THREE.MeshPhysicalMaterial({color:0x46b4dc,transparent:true,opacity:.8,roughness:.12}));water.position.set(0,.6,1);scene.add(water);
+    // Neon arcade clubhouse.
+    addBox(scene,[18,6,6],[0,3,-24],0x17152c);addNeonBox(scene,[15,.18,.18],[0,5.55,-20.9],0x22d3ee,4);
+    addNeonBox(scene,[.18,4.3,.18],[-8.1,3,-20.9],0xa855f7,3.4);addNeonBox(scene,[.18,4.3,.18],[8.1,3,-20.9],0xec4899,3.4);
+    const clubSign=makeLabel("CLUB A.R.I.S.E.","#111827","#67e8f9");clubSign.position.set(0,7,-21);clubSign.scale.set(8.5,2.1,1);scene.add(clubSign);
+    addBox(scene,[7,3.8,5],[-20,1.9,-17],0x17152c);addNeonBox(scene,[6.2,.16,.16],[-20,3.7,-14.4],0x8b5cf6,3);
+    addBox(scene,[7,3.8,5],[20,1.9,-17],0x17152c);addNeonBox(scene,[6.2,.16,.16],[20,3.7,-14.4],0xf43f5e,3);
+
+    // Center dance floor / meeting area.
+    const dance=new THREE.Mesh(new THREE.CylinderGeometry(5.6,5.6,.16,64),new THREE.MeshStandardMaterial({color:0x14162d,metalness:.4,roughness:.45}));dance.position.set(0,.08,1);dance.receiveShadow=true;scene.add(dance);
+    for(let i=0;i<3;i++){const ring=new THREE.Mesh(new THREE.TorusGeometry(2+i*1.35,.07,10,64),new THREE.MeshStandardMaterial({color:i===0?0x22d3ee:i===1?0xa855f7:0xec4899,emissive:i===0?0x22d3ee:i===1?0xa855f7:0xec4899,emissiveIntensity:3}));ring.rotation.x=Math.PI/2;ring.position.set(0,.2,1);scene.add(ring);}
 
     for(const s of STATIONS){
-      const pad=new THREE.Mesh(new THREE.CylinderGeometry(3.8,3.8,.35,48),new THREE.MeshStandardMaterial({color:stationColor(s.id),roughness:.6}));pad.position.set(s.x,.18,s.z);pad.receiveShadow=true;scene.add(pad);
-      const sign=makeLabel(s.name);sign.position.set(s.x,3.4,s.z);scene.add(sign);
-      addBox(scene,[3.2,1.3,2.1],[s.x,.8,s.z],0xf7f3e8);
+      const color=stationColor(s.id);
+      const light=new THREE.PointLight(color,10,12,2);light.position.set(s.x,4.2,s.z);scene.add(light);
+      const pad=new THREE.Mesh(new THREE.CylinderGeometry(4.1,4.1,.32,48),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.8,roughness:.48}));pad.position.set(s.x,.16,s.z);pad.receiveShadow=true;scene.add(pad);
+      const sign=makeLabel(s.name,"#0f172a","#ffffff");sign.position.set(s.x,4.3,s.z);scene.add(sign);
+      // Arcade cabinet.
+      addBox(scene,[3.2,2.8,1.8],[s.x,1.4,s.z],0x111827);
+      addNeonBox(scene,[2.55,1.4,.08],[s.x,1.75,s.z+.94],color,2.8);
+      addNeonBox(scene,[3.0,.12,.12],[s.x,2.85,s.z+.97],color,3.5);
     }
 
     const loader=new GLTFLoader();
@@ -112,9 +127,29 @@ export default function ClubArise(){
     loadAvatar(self.userId,self.displayName,self.characterId,0,7,true);
 
     const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
-    const click=(e:PointerEvent)=>{
+    const click=async(e:PointerEvent)=>{
       const rect=renderer.domElement.getBoundingClientRect();pointer.x=((e.clientX-rect.left)/rect.width)*2-1;pointer.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(pointer,camera);
-      const hits=ray.intersectObjects(scene.children,true);const hit=hits.find(h=>{let o:THREE.Object3D|null=h.object;while(o){if(o.userData.ground)return true;o=o.parent;}return false;});
+      const hits=ray.intersectObjects(scene.children,true);
+
+      for(const hit of hits){
+        let node:THREE.Object3D|null=hit.object;
+        while(node){
+          const uid=Number(node.userData?.userId||0);
+          if(uid&&uid!==self.userId){
+            setPlayerLoading(true);setSelectedPlayer(null);
+            try{
+              const response=await fetch(API_BASE+"/api/club-arise/players/"+uid+"/profile",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+              const data=await response.json();
+              if(response.ok)setSelectedPlayer(data);else setNotice(data.message||"Could not load player.");
+            }catch{setNotice("Could not load player.");}
+            finally{setPlayerLoading(false);}
+            return;
+          }
+          node=node.parent;
+        }
+      }
+
+      const hit=hits.find(h=>{let o:THREE.Object3D|null=h.object;while(o){if(o.userData.ground)return true;o=o.parent;}return false;});
       if(hit){targetRef.current.set(THREE.MathUtils.clamp(hit.point.x,-28,28),0,THREE.MathUtils.clamp(hit.point.z,-27,27));}
     };
     renderer.domElement.addEventListener("pointerdown",click);
@@ -140,7 +175,7 @@ export default function ClubArise(){
 
     const resize=()=>{camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight);};window.addEventListener("resize",resize);
     return()=>{disposed=true;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);renderer.domElement.removeEventListener("pointerdown",click);controls.dispose();renderer.dispose();remoteRootsRef.current.clear();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
-  },[self]);
+  },[self,token]);
 
   useEffect(()=>{
     if(!ready||!token||!self)return;
