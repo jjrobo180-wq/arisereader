@@ -456,6 +456,24 @@ export function registerLiveQuizRoutes(app: Express, auth: any) {
     } catch (issue) { error(res, issue); }
   });
 
+  app.post("/api/live-sessions/:id/end", auth, async (req: any, res) => {
+    if (!teacher(req.user)) return res.status(403).json({ message: "Teacher access required" });
+    try {
+      const client = db();
+      const { data: session, error: lookupIssue } = await client.from("live_sessions")
+        .select("id,teacher_id,status").eq("id", req.params.id).maybeSingle();
+      if (lookupIssue) throw lookupIssue;
+      if (!session || session.teacher_id !== req.user.id) return res.status(404).json({ message: "Game not found" });
+      if (session.status !== "finished") {
+        const { error: updateIssue } = await client.from("live_sessions")
+          .update({ status: "finished", question_deadline: null })
+          .eq("id", req.params.id).eq("teacher_id", req.user.id);
+        if (updateIssue) throw updateIssue;
+      }
+      res.json({ status: "finished", ended: true });
+    } catch (issue) { error(res, issue); }
+  });
+
   app.post("/api/live-sessions/:id/advance", auth, async (req: any, res) => {
     if (!teacher(req.user)) return res.status(403).json({ message: "Teacher access required" });
     const action = String(req.body?.action || "");
