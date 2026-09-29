@@ -88,6 +88,7 @@ import ReadingClub from "./pages/ReadingClub";
 import TTSAudioBooks from "./pages/TTSAudioBooks";
 import AvatarWorld from "./pages/AvatarWorld";
 import ClubArise from "./pages/ClubArise";
+import ClubTheater from "./pages/ClubTheater";
 import Worlds from "./pages/Worlds";
 import Neighborhood from "./pages/Neighborhood";
 import NotFound from "./pages/not-found";
@@ -270,6 +271,11 @@ function AppRoutes() {
       <Route path="/club-arise">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><ClubArise /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/club-arise/theater">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><ClubTheater /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/worlds">
