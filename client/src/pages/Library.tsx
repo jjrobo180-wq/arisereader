@@ -1434,13 +1434,6 @@ export default function Library() {
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">ENTER CLUB</span>
           </button>
         )}
-        {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <button type="button" onClick={() => navigate("/worlds")} className="mb-4 flex w-full items-center justify-between rounded-2xl border border-sky-300/35 bg-gradient-to-r from-sky-700 via-cyan-700 to-teal-700 px-4 py-3 text-left text-white shadow-lg hover:brightness-110">
-            <span><span className="block text-base font-black">Explore the World Map</span><span className="block text-xs font-bold text-white/75">The Block is open · preview Space, Beach, and Racetrack</span></span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">EXPLORE</span>
-          </button>
-        )}
-
         <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
           onReadingLevelUp={() => navigate("/reading-level-up")}
