@@ -69,6 +69,19 @@ interface QuizResult {
   readUrl?: string | null;
 }
 
+function BookCoverImage({ src, title, className = "" }: { src?: string | null; title: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/85 to-primary p-4 text-center text-white">
+        <BookOpen className="absolute top-4 h-6 w-6 opacity-35" />
+        <span className="mt-4 text-sm font-black leading-tight">{title}</span>
+      </div>
+    );
+  }
+  return <img src={src} alt={`Cover of ${title}`} className={className} loading="lazy" onError={() => setFailed(true)} />;
+}
+
 // Module-level cache — survives component unmount/remount during navigation
 let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; quizCount?: number; studentBanner?: { text: string; bgColor: string; textColor: string; active: boolean } } = {
   books: [],
@@ -1857,13 +1870,7 @@ export default function Library() {
                         data-testid={`card-book-${book.id}`}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
-                              <span className="font-bold text-sm">{book.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           {isDone && (
                             <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">✓ Done</div>
                           )}
@@ -1954,13 +1961,7 @@ export default function Library() {
                         onClick={() => navigate(`/course/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
-                              <span className="font-bold text-sm">{book.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           {isDone && (
                             <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">✓ Done</div>
                           )}
@@ -2207,13 +2208,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                           <div className="absolute bottom-0 left-0 right-0 p-3">
                             <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
@@ -2281,13 +2276,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                           <div className="absolute bottom-0 left-0 right-0 p-3">
                             <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
@@ -2326,13 +2315,7 @@ export default function Library() {
                         onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {sbook.coverUrl ? (
-                            <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{sbook.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={sbook.coverUrl} title={sbook.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                           <div className="absolute bottom-0 left-0 right-0 p-3">
                             <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{sbook.title}</p>
@@ -2387,13 +2370,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                           <div className="absolute bottom-0 left-0 right-0 p-3">
                             <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
@@ -2432,13 +2409,7 @@ export default function Library() {
                         onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {sbook.coverUrl ? (
-                            <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{sbook.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={sbook.coverUrl} title={sbook.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                           <div className="absolute bottom-0 left-0 right-0 p-3">
                             <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{sbook.title}</p>
@@ -2490,13 +2461,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
-                              <span className="font-bold text-sm">{book.title}</span>
-                            </div>
-                          )}
+                          <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                           {isDone && (
                             <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">✓ Done</div>
                           )}
@@ -2545,18 +2510,7 @@ export default function Library() {
                       data-testid={`card-book-${book.id}`}
                     >
                       <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                        {book.coverUrl ? (
-                          <img
-                            src={book.coverUrl}
-                            alt={`Cover of ${book.title}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
-                            <span className="font-bold text-sm">{book.title}</span>
-                          </div>
-                        )}
+                        <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                         {isDone && (
                           <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
                             ✓ Done
@@ -2651,18 +2605,7 @@ export default function Library() {
                     onClick={() => navigate(`/quiz/${book.id}`)}
                   >
                     <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                      {book.coverUrl ? (
-                        <img
-                          src={book.coverUrl}
-                          alt={`Cover of ${book.title}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
-                          <span className="font-bold text-sm">{book.title}</span>
-                        </div>
-                      )}
+                      <BookCoverImage src={book.coverUrl} title={book.title} className="relative z-[1] w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                       {isDone && (
                         <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
                           ✓ Done
