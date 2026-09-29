@@ -222,6 +222,8 @@ export default function ClubArise(){
   const [playerLoading,setPlayerLoading]=useState(false);
   const [showReaders,setShowReaders]=useState(false);
   const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("pan");
+  const [showMobileChat,setShowMobileChat]=useState(false);
+  const [showMobileCamera,setShowMobileCamera]=useState(false);
   const [access,setAccess]=useState<any>(null);
 
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
@@ -594,10 +596,10 @@ export default function ClubArise(){
 
   return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/70 to-transparent p-3">
-      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-black/60 px-4 font-black backdrop-blur"><ArrowLeft className="h-5 w-5"/> Exit to worlds</button>
-      <div className="flex-1"><h1 className="text-xl font-black">Club A.R.I.S.E.</h1><p className="text-xs font-bold text-white/70">Learn · play · meet readers safely</p></div>
-      <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);}} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 font-black backdrop-blur" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/>{onlineReaders.length} readers</button>
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/80 via-black/45 to-transparent px-2 py-2 sm:p-3">
+      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
+      <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">Club A.R.I.S.E.</h1><p className="hidden text-xs font-bold text-white/70 sm:block">Learn · play · meet readers safely</p></div>
+      <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);setShowMobileChat(false);setShowMobileCamera(false);}} className="pointer-events-auto flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-black/70 px-3 font-black backdrop-blur sm:min-h-11 sm:gap-2 sm:py-2" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/><span>{onlineReaders.length}</span><span className="hidden sm:inline">readers</span></button>
     </header>
 
     {self?.carId&&self.carId!=="car-none"&&<div className="absolute right-3 top-36 z-30 flex max-w-44 flex-col gap-2 rounded-2xl border border-cyan-300/25 bg-slate-950/90 p-2 backdrop-blur">
@@ -605,9 +607,9 @@ export default function ClubArise(){
       <p className="text-center text-xs text-white/65">{carTransition?"Watch your character move":driving?"Drive with WASD, arrows, or tap":"Parked by the dance floor"}</p>
     </div>}
 
-    {!showReaders&&!selectedPlayer&&!playerLoading&&!nearStation&&<div className="absolute left-3 top-20 z-30 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/65 p-3 backdrop-blur">
-      <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white/60"><MessageCircle className="h-4 w-4"/> Safe chat</div>
-      <div className="flex flex-wrap gap-2">{phrases.slice(0,10).map(p=><button key={p} onClick={()=>void sendPhrase(p)} className="min-h-10 rounded-xl bg-white/10 px-3 text-xs font-black hover:bg-white/20">{p}</button>)}</div>
+    {!showReaders&&!selectedPlayer&&!playerLoading&&!nearStation&&<div className={"absolute z-40 rounded-2xl bg-black/80 p-3 shadow-2xl backdrop-blur sm:left-3 sm:top-20 sm:z-30 sm:w-[min(310px,calc(100%-1.5rem))] sm:bg-black/65 "+(showMobileChat?"inset-x-3 top-16":"hidden sm:block")}>
+      <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wider text-white/60"><span className="flex items-center gap-2"><MessageCircle className="h-4 w-4"/> Safe chat</span><button type="button" onClick={()=>setShowMobileChat(false)} className="grid h-8 w-8 place-items-center rounded-lg bg-white/10 sm:hidden" aria-label="Close safe chat"><X className="h-4 w-4"/></button></div>
+      <div className="flex flex-wrap gap-2">{phrases.slice(0,10).map(p=><button key={p} onClick={()=>{void sendPhrase(p);setShowMobileChat(false);}} className="min-h-10 rounded-xl bg-white/10 px-3 text-xs font-black hover:bg-white/20">{p}</button>)}</div>
     </div>}
 
     {showReaders&&!gameOpen&&<aside className="absolute right-3 top-20 z-40 max-h-[55dvh] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto rounded-2xl border border-cyan-300/25 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
@@ -618,46 +620,52 @@ export default function ClubArise(){
       </div>)}</div>}
     </aside>}
 
-    <div className="pointer-events-none absolute left-1/2 top-20 z-20 -translate-x-1/2 rounded-2xl bg-black/60 px-4 py-2 text-sm font-black backdrop-blur">{notice}</div>
-    <div className="absolute left-3 top-[48%] z-30 flex -translate-y-1/2 flex-col gap-2 rounded-2xl border border-white/15 bg-slate-950/90 p-2 shadow-xl backdrop-blur" aria-label="Camera controls">
-      <button type="button" onClick={()=>setCameraMode("pan")} aria-pressed={cameraMode==="pan"} className={"min-h-11 rounded-xl px-3 text-sm font-black "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Move view</button>
-      <button type="button" onClick={()=>setCameraMode("rotate")} aria-pressed={cameraMode==="rotate"} className={"min-h-11 rounded-xl px-3 text-sm font-black "+(cameraMode==="rotate"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Rotate</button>
-      <button type="button" onClick={centerOnMe} className="min-h-11 rounded-xl bg-white/10 px-3 text-sm font-black text-white">Center me</button>
-      <p className="max-w-28 px-1 text-center text-xs text-white/60">{cameraMode==="pan"?"Drag to slide the view":"Drag to turn the view"}</p>
+    <div className="pointer-events-none absolute left-1/2 top-14 z-20 max-w-[62vw] -translate-x-1/2 truncate rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-black backdrop-blur sm:top-20 sm:max-w-none sm:rounded-2xl sm:px-4 sm:py-2 sm:text-sm">{notice}</div>
+
+    <div className="absolute left-2 top-16 z-30 flex gap-2 sm:hidden">
+      <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-slate-950/85 shadow-lg backdrop-blur" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
+      <button type="button" onClick={()=>{setShowMobileCamera(value=>!value);setShowMobileChat(false);setShowReaders(false);}} className="min-h-10 rounded-xl border border-white/15 bg-slate-950/85 px-3 text-xs font-black shadow-lg backdrop-blur">View</button>
+    </div>
+
+    <div className={"absolute z-40 flex flex-col gap-2 rounded-2xl border border-white/15 bg-slate-950/95 p-2 shadow-xl backdrop-blur sm:left-3 sm:top-[48%] sm:z-30 sm:-translate-y-1/2 "+(showMobileCamera?"left-2 top-28":"hidden sm:flex")} aria-label="Camera controls">
+      <button type="button" onClick={()=>setCameraMode("pan")} aria-pressed={cameraMode==="pan"} className={"min-h-10 rounded-xl px-3 text-xs font-black sm:min-h-11 sm:text-sm "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Move</button>
+      <button type="button" onClick={()=>setCameraMode("rotate")} aria-pressed={cameraMode==="rotate"} className={"min-h-10 rounded-xl px-3 text-xs font-black sm:min-h-11 sm:text-sm "+(cameraMode==="rotate"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Rotate</button>
+      <button type="button" onClick={()=>{centerOnMe();setShowMobileCamera(false);}} className="min-h-10 rounded-xl bg-white/10 px-3 text-xs font-black text-white sm:min-h-11 sm:text-sm">Center</button>
+      <p className="hidden max-w-28 px-1 text-center text-xs text-white/60 sm:block">{cameraMode==="pan"?"Drag to slide the view":"Drag to turn the view"}</p>
     </div>
     {access&&!access.allowed&&<div className="absolute left-1/2 top-32 z-40 w-[min(430px,90vw)] -translate-x-1/2 rounded-2xl border border-amber-300/30 bg-slate-950/95 p-4 text-center shadow-2xl">
       <p className="font-black text-amber-300">{access.locked?"Club games are locked by your teacher.":access.dailyRemaining===0?"You reached today's Club game limit.":"Pass another book quiz to unlock more Club games."}</p>
       <p className="mt-1 text-xs font-bold text-white/55">{access.gamesPerPassedQuiz>0?access.automaticRemaining+" automatic game plays remaining":access.dailyLimit!==null?access.dailyRemaining+" games remaining today":"You can still explore, chat safely, and use emotes."}</p>
     </div>}
 
-    <div className="absolute bottom-[10.5rem] sm:bottom-[15rem] left-1/2 z-40 flex -translate-x-1/2 gap-1 sm:gap-2 rounded-2xl border border-fuchsia-300/30 bg-slate-950/95 p-2 shadow-xl backdrop-blur-xl whitespace-nowrap">
+    <div className="absolute bottom-[8.2rem] left-1/2 z-40 flex -translate-x-1/2 gap-1 rounded-2xl border border-fuchsia-300/30 bg-slate-950/90 p-1.5 shadow-xl backdrop-blur-xl whitespace-nowrap sm:bottom-[15rem] sm:gap-2 sm:p-2">
       {([
         ["dance","💃","Dance"],["jump","⬆️","Jump"],["flip","🤸","Flip"],["silly","🌀","Silly"]
-      ] as const).map(([id,icon,label])=><button key={id} type="button" onClick={()=>void doEmote(id)} className="min-h-12 rounded-xl bg-fuchsia-500/25 px-2 sm:px-4 text-sm font-black hover:bg-fuchsia-500/45"><span className="mr-1 text-lg">{icon}</span>{label}</button>)}
+      ] as const).map(([id,icon,label])=><button key={id} type="button" onClick={()=>void doEmote(id)} className="min-h-10 rounded-xl bg-fuchsia-500/25 px-2 text-xs font-black hover:bg-fuchsia-500/45 sm:min-h-12 sm:px-4 sm:text-sm"><span className="text-base sm:mr-1 sm:text-lg">{icon}</span><span className="hidden sm:inline">{label}</span></button>)}
     </div>
 
-    <div className="absolute bottom-3 left-1/2 z-40 w-[min(760px,94vw)] -translate-x-1/2 rounded-[1.7rem] border border-cyan-300/20 bg-slate-950/95 p-2.5 shadow-2xl backdrop-blur-xl">
-      <div className="mb-2 flex items-center justify-between px-1">
+    <div className="absolute bottom-2 left-1/2 z-40 w-[calc(100%-1rem)] -translate-x-1/2 rounded-2xl border border-cyan-300/20 bg-slate-950/92 p-2 shadow-2xl backdrop-blur-xl sm:bottom-3 sm:w-[min(760px,94vw)] sm:rounded-[1.7rem] sm:p-2.5">
+      <div className="mb-1.5 flex items-center justify-between px-1 sm:mb-2">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Arcade games</p>
-          <p className="text-xs font-bold text-white/55">Choose a game, then press Play.</p>
+          <p className="text-[9px] font-black uppercase tracking-[.18em] text-cyan-300 sm:text-[10px] sm:tracking-[.22em]">Arcade games</p>
+          <p className="hidden text-xs font-bold text-white/55 sm:block">Choose a game, then press Play.</p>
         </div>
-        <Zap className="h-5 w-5 text-amber-300" />
+        <Zap className="h-4 w-4 text-amber-300 sm:h-5 sm:w-5" />
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-4">
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5 sm:grid sm:grid-cols-4 sm:gap-2 sm:pb-1">
         {STATIONS.map(station=>(
           <button
             key={station.id}
             type="button"
-            onClick={()=>{setShowReaders(false);setNearStation(station);}}
-            className={"min-h-16 min-w-[135px] sm:min-w-0 rounded-2xl border px-3 py-2 text-left transition hover:-translate-y-0.5 "+
+            onClick={()=>{setShowReaders(false);setShowMobileChat(false);setShowMobileCamera(false);setNearStation(station);}}
+            className={"min-h-11 min-w-[112px] rounded-xl border px-2.5 py-1.5 text-left transition hover:-translate-y-0.5 sm:min-h-16 sm:min-w-0 sm:rounded-2xl sm:px-3 sm:py-2 "+
               (station.id==="four"
                 ?"border-blue-300/30 bg-blue-500/20 hover:bg-blue-500/30"
                 :station.id==="word_tiles"
                   ?"border-violet-300/30 bg-violet-500/20 hover:bg-violet-500/30"
                   :"border-emerald-300/30 bg-emerald-500/20 hover:bg-emerald-500/30")}
           >
-            <span className="block text-sm font-black leading-tight">{station.name}</span>
+            <span className="block text-xs font-black leading-tight sm:text-sm">{station.name}</span>
             <span className="mt-1 hidden text-[10px] font-bold text-white/55 sm:block">{station.subtitle}</span>
           </button>
         ))}
@@ -746,6 +754,6 @@ export default function ClubArise(){
       </section>
     </div>}
 
-    <div className="absolute bottom-28 right-3 z-20 rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70">Click a player for stats · click floor to walk · WASD / arrows</div>
+    <div className="absolute bottom-28 right-3 z-20 hidden rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70 sm:block">Click a player for stats · click floor to walk · WASD / arrows</div>
   </main>;
 }
