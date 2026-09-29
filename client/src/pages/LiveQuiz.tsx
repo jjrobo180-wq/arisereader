@@ -3,7 +3,7 @@ import { useLocation, useRoute } from "wouter";
 import {
   ArrowLeft, BookOpen, Check, ChevronRight, Clock3, Copy, Crown, Gamepad2, Gem,
   GraduationCap, Grid3X3, Loader2, PartyPopper, Play, Plus, Radio, RefreshCcw,
-  Save, Sparkles, Star, Trophy, Users, WandSparkles, Zap
+  Save, Sparkles, Star, Trophy, Users, WandSparkles, XCircle, Zap
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -228,6 +228,15 @@ export default function LiveQuiz() {
     });
   }
 
+  async function endGame() {
+    if (!id || !room || room.status === "finished") return;
+    if (!window.confirm("End this game for everyone? Students will immediately see that the game has ended.")) return;
+    await run("end-game", async () => {
+      await api(`/api/live-sessions/${id}/end`, { method: "POST" });
+      await loadRoom(id);
+    });
+  }
+
   async function answer(choice: string) {
     if (!id || !room || room.myAnswer || timeLeft <= 0 || hiddenChoices.includes(choice)) return;
     await run("answer", async () => {
@@ -445,9 +454,14 @@ export default function LiveQuiz() {
               <div className="text-4xl">{mode.emoji}</div>
               <div><p className={"text-xs font-black uppercase tracking-[.2em] " + mode.accent}>{mode.name}</p><h1 className="text-2xl font-black sm:text-3xl">{room.title}</h1></div>
             </div>
-            {isTeacher ? <button onClick={() => navigator.clipboard?.writeText(room.code)} className="flex items-center gap-3 rounded-2xl border border-white/20 bg-black/25 px-4 py-3">
-              <div className="text-left"><div className="text-[10px] font-black text-white/45">JOIN CODE</div><strong className="text-2xl tracking-[.18em] sm:text-3xl">{room.code}</strong></div><Copy size={18} />
-            </button> : <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-black">{room.status === "finished" ? "Game complete" : room.status === "lobby" ? "You’re in!" : `Question ${room.currentQuestion + 1}/${room.questionCount}`}</div>}
+            {isTeacher ? <div className="flex flex-wrap items-center justify-end gap-2">
+              <button onClick={() => navigator.clipboard?.writeText(room.code)} className="flex items-center gap-3 rounded-2xl border border-white/20 bg-black/25 px-4 py-3">
+                <div className="text-left"><div className="text-[10px] font-black text-white/45">JOIN CODE</div><strong className="text-2xl tracking-[.18em] sm:text-3xl">{room.code}</strong></div><Copy size={18} />
+              </button>
+              {room.status !== "finished" && <button onClick={endGame} disabled={busy === "end-game"} className="flex min-h-12 items-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-500/15 px-4 font-black text-rose-100 hover:bg-rose-500/25 disabled:opacity-50">
+                <XCircle size={18} /> {busy === "end-game" ? "Ending..." : "End Game"}
+              </button>}
+            </div> : <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-black">{room.status === "finished" ? "Game ended" : room.status === "lobby" ? "You’re in!" : `Question ${room.currentQuestion + 1}/${room.questionCount}`}</div>}
           </div>
         </section>
 
@@ -523,6 +537,12 @@ export default function LiveQuiz() {
           </button>}
         </>}
 
+        {room.status === "finished" && !isTeacher && <section className="mt-5 rounded-[2rem] border border-cyan-300/20 bg-cyan-500/10 p-6 text-center">
+          <div className="text-5xl">🏁</div>
+          <h2 className="mt-2 text-2xl font-black">This live game has ended.</h2>
+          <p className="mt-1 font-semibold text-white/60">Your teacher closed the room. Your final score is below.</p>
+        </section>}
+
         {(room.status === "results" || room.status === "finished") && <section className="mt-5 rounded-[2rem] border border-white/10 bg-[#11182e] p-5 sm:p-7">
           <div className="mb-4 flex items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-2xl font-black"><Trophy className="text-amber-300" /> {room.status === "finished" ? "Final leaderboard" : "Live leaderboard"}</h2>{room.status !== "finished" && <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-black text-white/45">Scores update every round</span>}</div>
           <ol className="space-y-2">{room.players.slice(0, 12).map((p, n) => <li key={p.user_id} className={"flex items-center justify-between gap-3 rounded-2xl border p-3 font-black " + (n === 0 ? "border-amber-300/25 bg-amber-400/10" : "border-white/10 bg-white/5")}>
@@ -531,7 +551,7 @@ export default function LiveQuiz() {
           </li>)}</ol>
         </section>}
 
-        {room.status === "finished" && <button onClick={() => navigate("/live-quiz")} className="mt-5 min-h-14 w-full rounded-2xl bg-white text-slate-950 font-black">Back to Live Classroom</button>}
+        {room.status === "finished" && <button onClick={() => navigate(isTeacher ? "/live-quiz" : "/library")} className="mt-5 min-h-14 w-full rounded-2xl bg-white text-slate-950 font-black">{isTeacher ? "Back to Live Classroom" : "Back to Library"}</button>}
       </div>}
     </div>
   </main>;
