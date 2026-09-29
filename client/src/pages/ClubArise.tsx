@@ -11,6 +11,7 @@ import { createPet } from "@/lib/pets";
 import { PET_PERSONALITIES } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
+import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
@@ -225,8 +226,15 @@ export default function ClubArise(){
   const [showMobileChat,setShowMobileChat]=useState(false);
   const [showMobileCamera,setShowMobileCamera]=useState(false);
   const [access,setAccess]=useState<any>(null);
+  const [leavingWorld,setLeavingWorld]=useState(false);
 
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
+
+  useEffect(()=>{
+    if(!leavingWorld)return;
+    const timer=window.setTimeout(()=>navigate("/worlds"),800);
+    return()=>window.clearTimeout(timer);
+  },[leavingWorld,navigate]);
 
   const viewPlayer=async(uid:number)=>{
     setSelectedPlayerId(uid);setSelectedPlayer(null);setPlayerLoading(true);setShowReaders(false);setNearStation(null);
@@ -376,7 +384,7 @@ export default function ClubArise(){
       for(const hit of hits){
         let node:THREE.Object3D|null=hit.object;
         while(node){
-          if(node.userData.worldExit){navigate("/worlds");return;}
+          if(node.userData.worldExit){setLeavingWorld(true);return;}
           if(node.name==="clubPet"&&node.parent===selfRootRef.current){
             const personality=PET_PERSONALITIES[String(node.userData.petId)];
             if(personality){setNotice(personality.emoji+" "+personality.greeting);return;}
@@ -463,7 +471,7 @@ export default function ClubArise(){
           else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
         }
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
-        if(!carTransitionRef.current&&Math.hypot(root.position.x,root.position.z-22)<1.7){navigate("/worlds");return;}
+        if(!carTransitionRef.current&&Math.hypot(root.position.x,root.position.z-22)<1.7){setLeavingWorld(true);return;}
         if(drivingRef.current&&selfCarRef.current&&!carTransitionRef.current){selfCarRef.current.position.set(root.position.x,0,root.position.z);selfCarRef.current.rotation.y=root.rotation.y;
           const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);const shift=desired.sub(controls.target).multiplyScalar(.12);camera.position.add(shift);controls.target.add(shift);
         }
@@ -597,7 +605,7 @@ export default function ClubArise(){
   return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/80 via-black/45 to-transparent px-2 py-2 sm:p-3">
-      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
+      <button onClick={()=>setLeavingWorld(true)} className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
       <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">Club A.R.I.S.E.</h1><p className="hidden text-xs font-bold text-white/70 sm:block">Learn · play · meet readers safely</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);setShowMobileChat(false);setShowMobileCamera(false);}} className="pointer-events-auto flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-black/70 px-3 font-black backdrop-blur sm:min-h-11 sm:gap-2 sm:py-2" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/><span>{onlineReaders.length}</span><span className="hidden sm:inline">readers</span></button>
     </header>
@@ -755,5 +763,6 @@ export default function ClubArise(){
     </div>}
 
     <div className="absolute bottom-28 right-3 z-20 hidden rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70 sm:block">Click a player for stats · click floor to walk · WASD / arrows</div>
+    {leavingWorld&&<WorldLoadingOverlay tone="club" label="Leaving Club A.R.I.S.E.…" />}
   </main>;
 }

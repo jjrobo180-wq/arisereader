@@ -10,6 +10,7 @@ import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
+import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
 type Visitor={userId:number;displayName:string;characterId:string;petId:string;homeId:string;lot:number;x:number;z:number;facing:number;updatedAt:number};
 const LOTS=[
@@ -32,6 +33,7 @@ function block(scene:THREE.Scene,size:[number,number,number],position:[number,nu
 
 export default function Neighborhood(){
   const {token}=useAuth();const [,navigate]=useLocation();
+  const [leavingWorld,setLeavingWorld]=useState(false);
   const mountRef=useRef<HTMLDivElement>(null);
   const sceneRef=useRef<THREE.Scene|null>(null);
   const selfRootRef=useRef<THREE.Group|null>(null);
@@ -113,7 +115,7 @@ export default function Neighborhood(){
       const moved=Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y);pointerStart=null;if(moved>10)return;
       const rect=renderer.domElement.getBoundingClientRect();pointer.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
       const portalHit=raycaster.intersectObjects(scene.children,true).some(hit=>{let node:THREE.Object3D|null=hit.object;while(node){if(node.userData.worldExit)return true;node=node.parent;}return false;});
-      if(portalHit){navigate("/worlds");return;}
+      if(portalHit){setLeavingWorld(true);return;}
       const groundHit=raycaster.intersectObject(ground)[0];if(groundHit)targetRef.current.set(THREE.MathUtils.clamp(groundHit.point.x,-31,31),0,THREE.MathUtils.clamp(groundHit.point.z,-22,22));
     };
     const keyDown=(event:KeyboardEvent)=>keysRef.current.add(event.key.toLowerCase());
@@ -127,7 +129,7 @@ export default function Neighborhood(){
         if(dx||dz){const step=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar(5*dt);root.position.add(step);root.rotation.y=Math.atan2(step.x,step.z);targetRef.current.copy(root.position);}
         else{const delta=targetRef.current.clone().sub(root.position);delta.y=0;if(delta.length()>.18){delta.normalize();root.position.addScaledVector(delta,4*dt);root.rotation.y=Math.atan2(delta.x,delta.z);}}
         root.position.x=THREE.MathUtils.clamp(root.position.x,-31,31);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,22);
-        if(Math.hypot(root.position.x,root.position.z+25)<1.7){navigate("/worlds");return;}
+        if(Math.hypot(root.position.x,root.position.z+25)<1.7){setLeavingWorld(true);return;}
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
       }
       remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
@@ -173,11 +175,17 @@ export default function Neighborhood(){
 
   useEffect(()=>{const controls=controlsRef.current;if(!controls)return;controls.mouseButtons.LEFT=cameraMode==="pan"?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;controls.touches.ONE=cameraMode==="pan"?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE;},[cameraMode,ready]);
 
+  useEffect(()=>{
+    if(!leavingWorld)return;
+    const timer=window.setTimeout(()=>navigate("/worlds"),800);
+    return()=>window.clearTimeout(timer);
+  },[leavingWorld,navigate]);
+
   const neighbors=players.filter(player=>player.userId!==self?.userId);
   return <main className="relative h-[100dvh] overflow-hidden bg-sky-300 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-slate-950/85 to-transparent p-3">
-      <button type="button" onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/75 px-3 font-black"><ArrowLeft className="h-5 w-5"/> Exit to worlds</button>
+      <button type="button" onClick={()=>setLeavingWorld(true)} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/75 px-3 font-black"><ArrowLeft className="h-5 w-5"/> Exit to worlds</button>
       <div className="flex-1"><h1 className="text-xl font-black">The Block</h1><p className="text-xs font-bold text-white/80">Your neighborhood · your home</p></div>
       <button type="button" onClick={()=>setShowReaders(value=>!value)} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-slate-950/75 px-3 font-black" aria-expanded={showReaders}><Users className="h-4 w-4"/>{neighbors.length}</button>
     </header>
@@ -196,5 +204,6 @@ export default function Neighborhood(){
     </aside>}
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 max-w-[90vw] -translate-x-1/2 rounded-xl bg-slate-950/75 px-4 py-2 text-center text-xs font-bold backdrop-blur">{notice}</div>
     {!self&&<div className="absolute inset-0 z-40 grid place-items-center bg-slate-950/70 p-5 text-center"><div><MapIcon className="mx-auto h-12 w-12 text-cyan-300"/><p className="mt-3 text-xl font-black">{notice.startsWith("Could not")?notice:"Opening The Block…"}</p></div></div>}
+    {leavingWorld&&<WorldLoadingOverlay tone="block" label="Leaving The Block…" />}
   </main>;
 }
