@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, Flame, Gift, Sparkles, Target, Trophy, Zap } from "lucide-react";
+import { CheckCircle2, Flame, Gift, Target, Trophy, Zap } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
