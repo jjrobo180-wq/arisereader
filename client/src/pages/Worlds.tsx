@@ -5,9 +5,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ArrowLeft, ArrowRight, Compass, LockKeyhole, Rotate3D } from "lucide-react";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
-type WorldId="club"|"neighborhood"|"space"|"beach"|"racetrack";
+type WorldId="club"|"theater"|"neighborhood"|"space"|"beach"|"racetrack";
 const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:number}[]=[
   {id:"club",title:"Club A.R.I.S.E.",description:"Dance, meet readers, and play arcade games together.",path:"/club-arise",color:0xc026d3},
+  {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
   {id:"space",title:"Outer Space",description:"A glowing galaxy of planets and places to explore. Coming soon.",color:0x9868f4},
   {id:"beach",title:"The Beach",description:"Palm trees, a seaside boardwalk, and sunny adventures. Coming soon.",color:0xfacc6b},
@@ -24,12 +25,19 @@ function marker(text:string){
 }
 function makeWorld(id:WorldId,color:number){
   const group=new THREE.Group();group.userData.worldId=id;
-  const surface=sphere(1.25,id==="club"?0x251b51:id==="neighborhood"?0x65af7a:id==="space"?0x27205d:id==="beach"?0x43b9cb:0x34775d);group.add(surface);
+  const surface=sphere(1.25,id==="club"?0x251b51:id==="theater"?0x2a1621:id==="neighborhood"?0x65af7a:id==="space"?0x27205d:id==="beach"?0x43b9cb:0x34775d);group.add(surface);
   const band=new THREE.Mesh(new THREE.TorusGeometry(1.4,.045,10,64),new THREE.MeshBasicMaterial({color}));band.rotation.x=Math.PI/2.5;group.add(band);
   if(id==="club"){
     const base=new THREE.Mesh(new THREE.CylinderGeometry(.65,.8,.28,12),new THREE.MeshStandardMaterial({color:0x191936,emissive:color,emissiveIntensity:.25}));base.position.y=1.16;group.add(base);
     for(const x of [-.4,0,.4]){const tower=new THREE.Mesh(new THREE.BoxGeometry(.3,.65,.3),new THREE.MeshStandardMaterial({color:x===0?0x22d3ee:color,emissive:x===0?0x22d3ee:color,emissiveIntensity:.8}));tower.position.set(x,1.5,0);group.add(tower);}
     const ball=sphere(.2,0xffffff,.15);ball.position.set(0,2.1,0);group.add(ball);
+  }else if(id==="theater"){
+    const building=new THREE.Mesh(new THREE.BoxGeometry(1.35,.85,.95),new THREE.MeshStandardMaterial({color:0x241321,emissive:0x7c2d12,emissiveIntensity:.25,roughness:.45}));building.position.set(0,1.45,0);group.add(building);
+    const marquee=new THREE.Mesh(new THREE.BoxGeometry(1.55,.28,.18),new THREE.MeshStandardMaterial({color:0xf59e0b,emissive:0xf59e0b,emissiveIntensity:1.2}));marquee.position.set(0,1.88,.5);group.add(marquee);
+    const screen=new THREE.Mesh(new THREE.PlaneGeometry(.92,.5),new THREE.MeshBasicMaterial({color:0xe0f2fe}));screen.position.set(0,1.48,.49);group.add(screen);
+    for(const x of [-.48,0,.48]){const light=sphere(.08,0xfef3c7,.15);light.position.set(x,2.12,.05);group.add(light);}
+    const popcorn=new THREE.Mesh(new THREE.CylinderGeometry(.18,.14,.34,12),new THREE.MeshStandardMaterial({color:0xef4444,roughness:.6}));popcorn.position.set(.72,1.34,.55);group.add(popcorn);
+    for(let i=0;i<5;i++){const kernel=sphere(.07,0xfef3c7,.5);kernel.position.set(.62+(i%3)*.08,1.56+Math.floor(i/3)*.06,.54);group.add(kernel);}
   }else if(id==="neighborhood"){
     for(const x of [-.55,.45]){const house=new THREE.Mesh(new THREE.BoxGeometry(.65,.6,.55),new THREE.MeshStandardMaterial({color:x<0?0xffcf9a:0xcce4fb}));house.position.set(x,1.26,0);group.add(house);const roof=new THREE.Mesh(new THREE.ConeGeometry(.52,.36,4),new THREE.MeshStandardMaterial({color:x<0?0xbe4859:0x208d7c}));roof.position.set(x,1.76,0);roof.rotation.y=Math.PI/4;group.add(roof);}
   }else if(id==="space"){
