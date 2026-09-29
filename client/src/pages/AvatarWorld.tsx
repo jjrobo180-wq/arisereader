@@ -8,7 +8,7 @@ import { ArrowLeft, Car, Check, Coins, Home, Lock, RotateCcw, ShoppingBag, UserR
 
 type CatalogItem={id:string;type:string;name:string;price:number;rarity:string};
 type Payload={
-  economy:{level:number;quizzesTaken:number;totalPoints:number;lifetimeCoins:number;wallet:number;nextLevelAt:number|null;coinsPerQuiz:number;levelBonus:number};
+  economy:{level:number;quizzesTaken:number;passedQuizzes:number;totalPoints:number;lifetimeCoins:number;wallet:number;nextLevelAt:number|null;coinsPerPassedQuiz:number;coinsPerGame:number;winBonusCoins:number;levelBonus:number;clubGames:number;clubWins:number};
   state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];spent:number};
   catalog:CatalogItem[];
 };
@@ -17,6 +17,7 @@ type Tab="character"|"shop"|"garage"|"home";
 const FREE_ITEMS:CatalogItem[]=[
   {id:"car-none",type:"car",name:"No Car",price:0,rarity:"starter"},
   {id:"home-basic",type:"home",name:"Starter Room",price:0,rarity:"starter"},
+  {id:"pet-none",type:"pet",name:"No Pet",price:0,rarity:"starter"},
 ];
 
 const rarityClass:Record<string,string>={
@@ -98,14 +99,18 @@ export default function AvatarWorld(){
   const allItems=useMemo(()=>[...FREE_ITEMS,...(payload?.catalog||[])],[payload]);
   const owned=(id:string)=>FREE_ITEMS.some(x=>x.id===id)||!!payload?.state.purchased.includes(id);
   const getItem=(id:string)=>allItems.find(x=>x.id===id);
-  const shopItems=(payload?.catalog||[]).filter(x=>["car","home","furniture"].includes(x.type)&&(shopFilter==="all"||x.type===shopFilter));
+  const shopItems=(payload?.catalog||[]).filter(x=>["car","home","furniture","pet","character"].includes(x.type)&&(shopFilter==="all"||x.type===shopFilter));
 
   if(loading)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center"><div className="text-center"><div className="w-14 h-14 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto"/><p className="font-black mt-4">Loading Avatar World…</p></div></main>;
   if(!payload)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center p-6"><div className="text-center"><p className="text-xl font-black">{message||"Avatar World is unavailable."}</p><button onClick={()=>navigate("/library")} className="mt-4 rounded-2xl bg-white text-slate-950 px-5 py-3 font-black">Back to Library</button></div></main>;
 
   const carId=payload.state.equipped.car||"car-none";
   const homeId=payload.state.equipped.home||"home-basic";
-  const quizzesIntoLevel=payload.economy.quizzesTaken%2;
+  const petId=payload.state.equipped.pet||"pet-none";
+  const quizzesIntoLevel=payload.economy.passedQuizzes%2;
+  const starterCharacters=new Set(["robin-hood","sherlock-holmes","sinbad","alice"]);
+  const characterUnlockId=(id:string)=>"unlock-"+id;
+  const characterOwned=(id:string)=>starterCharacters.has(id)||payload.state.purchased.includes(characterUnlockId(id));
 
   const equip=(slot:string,itemId:string)=>customize({action:"equip",slot,itemId});
   const selectCharacter=(characterId:string)=>customize({action:"character",characterId});
@@ -126,10 +131,10 @@ export default function AvatarWorld(){
           <div className="flex-1">
             <p className="text-xs font-black tracking-widest text-cyan-300">YOUR CHARACTER. YOUR READING PROGRESS.</p>
             <h2 className="text-xl sm:text-3xl font-black mt-1">{user?.displayName||"Reader"}, build your world.</h2>
-            <p className="text-white/65 font-bold mt-1">Every completed quiz earns <span className="text-amber-300">100 Reader Coins</span>. Every new level adds <span className="text-amber-300">150 bonus coins</span>.</p>
+            <p className="text-white/65 font-bold mt-1">Pass a book quiz: <span className="text-amber-300">+100 coins</span>. Finish a Club game: <span className="text-amber-300">+10</span>. Win: <span className="text-amber-300">+20 bonus</span>. Coins are separate from leaderboard points.</p>
           </div>
           <div className="min-w-[260px]">
-            <div className="flex justify-between text-xs font-black mb-1"><span>{payload.economy.quizzesTaken} quizzes</span><span>{payload.economy.nextLevelAt?payload.economy.nextLevelAt+" for Level "+(payload.economy.level+1):"MAX LEVEL"}</span></div>
+            <div className="flex justify-between text-xs font-black mb-1"><span>{payload.economy.passedQuizzes} passed quizzes · {payload.economy.clubGames} Club games</span><span>{payload.economy.nextLevelAt?payload.economy.nextLevelAt+" passes for Level "+(payload.economy.level+1):"MAX LEVEL"}</span></div>
             <div className="h-3 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-violet-500 to-fuchsia-500" style={{width:payload.economy.nextLevelAt?(quizzesIntoLevel/2)*100+"%":"100%"}}/></div>
           </div>
         </div>
@@ -162,23 +167,26 @@ export default function AvatarWorld(){
         <div className="space-y-4">
           <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <h3 className="text-xl font-black">Choose your character</h3>
-            <p className="text-sm text-white/55 font-bold mt-1">Every character is free. Their face, skin, hair, body and base outfit are locked exactly as designed.</p>
+            <p className="text-sm text-white/55 font-bold mt-1">Starter characters are free. Earn Reader Coins to unlock more complete character skins. Their face, hair, body, and base outfit stay consistent.</p>
             <div className="grid grid-cols-2 gap-3 mt-4">
               {AVATAR_CHARACTERS.map(character=>{
                 const active=payload.state.selectedCharacter===character.id;
+                const unlocked=characterOwned(character.id);
+                const unlockItem=payload.catalog.find(x=>x.id===characterUnlockId(character.id));
                 return <button
                   key={character.id}
-                  onClick={()=>selectCharacter(character.id)}
-                  className={"rounded-2xl border p-3 text-left transition-all "+(active?"bg-cyan-300 text-slate-950 border-cyan-200 shadow-lg":"bg-white/5 border-white/10 hover:bg-white/10")}
+                  onClick={()=>unlocked?selectCharacter(character.id):unlockItem?purchase(unlockItem):undefined}
+                  className={"rounded-2xl border p-3 text-left transition-all "+(active?"bg-cyan-300 text-slate-950 border-cyan-200 shadow-lg":unlocked?"bg-white/5 border-white/10 hover:bg-white/10":"bg-black/25 border-amber-300/25 hover:bg-amber-300/10")}
                 >
                   <div className="flex items-center gap-3">
                     <div className={"w-11 h-11 rounded-xl grid place-items-center text-2xl "+(active?"bg-slate-950/10":"bg-black/20")}>{character.icon}</div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <strong className="block text-sm sm:text-base leading-tight">{character.name}</strong>
                       <span className={"block text-[10px] sm:text-xs font-bold mt-1 "+(active?"text-slate-700":"text-white/45")}>{character.subtitle}</span>
                     </div>
+                    {!unlocked&&unlockItem&&<span className="text-xs font-black text-amber-300">{unlockItem.price} 🪙</span>}
                   </div>
-                  {active&&<div className="mt-2 flex items-center gap-1 text-xs font-black"><Check className="w-4 h-4"/> SELECTED</div>}
+                  {active?<div className="mt-2 flex items-center gap-1 text-xs font-black"><Check className="w-4 h-4"/> SELECTED</div>:unlocked?<div className="mt-2 text-[10px] font-black text-emerald-300">OWNED</div>:<div className="mt-2 flex items-center gap-1 text-[10px] font-black text-amber-300"><Lock className="w-3 h-3"/> TAP TO UNLOCK</div>}
                 </button>;
               })}
             </div>
@@ -188,9 +196,17 @@ export default function AvatarWorld(){
             <h3 className="text-xl font-black">Fixed character system</h3>
             <p className="text-sm text-white/55 font-bold mt-1">Characters work like complete game skins: pick the character you want, and that character always keeps the same face, hair, body, outfit, and look.</p>
             <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
-              <p className="text-sm font-black text-cyan-200">No wearable customization</p>
-              <p className="text-xs font-bold text-white/55 mt-1">Hats, glasses, wearable accessories, clothing swaps, and body changes are disabled so every character stays consistent.</p>
+              <p className="text-sm font-black text-cyan-200">Complete character skins</p>
+              <p className="text-xs font-bold text-white/55 mt-1">Each character keeps a consistent look. Reader Coins unlock additional complete characters instead of mismatched wearable pieces.</p>
             </div>
+          </section>
+          <section className="rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
+            <h3 className="text-xl font-black">My Club Pet</h3>
+            <p className="text-sm text-white/55 font-bold mt-1">Your equipped pet follows your avatar inside Club A.R.I.S.E.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {FREE_ITEMS.concat(payload.catalog).filter(x=>x.type==="pet"&&owned(x.id)).map(pet=><button key={pet.id} onClick={()=>equip("pet",pet.id)} className={"rounded-2xl border p-3 text-left font-black "+(petId===pet.id?"bg-cyan-300 text-slate-950 border-cyan-200":"bg-white/5 border-white/10")}><span className="mr-2">{pet.id==="pet-dog"?"🐶":pet.id==="pet-cat"?"🐱":pet.id==="pet-bunny"?"🐰":"🚫"}</span>{pet.name}{petId===pet.id&&<Check className="ml-2 inline h-4 w-4"/>}</button>)}
+            </div>
+            <button onClick={()=>{setTab("shop");setShopFilter("pet");}} className="mt-3 min-h-12 w-full rounded-xl bg-amber-400 font-black text-slate-950">UNLOCK MORE PETS</button>
           </section>
         </div>
       </div>
@@ -198,18 +214,20 @@ export default function AvatarWorld(){
 
     {tab==="shop"&&<section className="max-w-7xl mx-auto p-3 sm:p-5">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-        <div className="flex-1"><p className="text-xs font-black tracking-widest text-amber-300">EARNED THROUGH READING</p><h2 className="text-3xl font-black">World Shop</h2><p className="text-white/60 font-bold mt-1">Characters stay fixed. Reader Coins unlock world items like cars, homes, and furniture only.</p></div>
+        <div className="flex-1"><p className="text-xs font-black tracking-widest text-amber-300">EARNED — NEVER BOUGHT WITH REAL MONEY</p><h2 className="text-3xl font-black">World Shop</h2><p className="text-white/60 font-bold mt-1">Spend Reader Coins on characters, pets, cars, homes, and world items. Pets follow you into Club A.R.I.S.E.</p></div>
         <div className="rounded-2xl bg-amber-400 text-slate-950 px-4 py-3 font-black flex items-center gap-2"><Coins className="w-5 h-5"/>{payload.economy.wallet.toLocaleString()} coins</div>
       </div>
-      <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
+      <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","character","pet","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
         {shopItems.map(product=>{
           const isOwned=owned(product.id),canAfford=payload.economy.wallet>=product.price;
-          const icon=product.type==="car"?"🏎️":product.type==="home"?"🏡":"🛋️";
+          const icon=product.type==="car"?"🏎️":product.type==="home"?"🏡":product.type==="pet"?(product.id==="pet-dog"?"🐶":product.id==="pet-cat"?"🐱":"🐰"):product.type==="character"?"🧍":"🛋️";
           return <article key={product.id} className={"rounded-[2rem] overflow-hidden border-2 bg-gradient-to-br "+(rarityClass[product.rarity]||rarityClass.common)}>
             <div className="h-44 grid place-items-center bg-black/25 relative"><div className="text-7xl">{icon}</div><span className="absolute top-3 right-3 rounded-full bg-black/40 px-3 py-1 text-[10px] font-black uppercase">{product.rarity}</span></div>
             <div className="p-4 bg-slate-950/85"><h3 className="text-lg font-black">{product.name}</h3><p className="text-xs font-black text-white/45 uppercase">{product.type}</p>
-              <button disabled={isOwned||!canAfford||busy===product.id} onClick={()=>purchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{busy===product.id?"UNLOCKING…":product.price}</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>
+              {product.type==="pet"&&isOwned
+                ?<button onClick={()=>equip("pet",product.id)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(petId===product.id?"bg-cyan-300 text-slate-950":"bg-emerald-500/20 text-emerald-300")}>{petId===product.id?<><Check className="w-5 h-5"/>EQUIPPED</>:"EQUIP PET"}</button>
+                :<button disabled={isOwned||!canAfford||busy===product.id} onClick={()=>purchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{busy===product.id?"UNLOCKING…":product.price}</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>}
             </div>
           </article>;
         })}
