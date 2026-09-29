@@ -4,7 +4,7 @@ import EyeGazeLessons from "@/pages/EyeGazeLessons";
 import EyeGazeAccessGate from "@/components/EyeGazeAccessGate";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X, Zap, Flag, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowLeft, Gamepad2, Grid2X2, CircleDot, Type, RotateCcw, Star, Eye, CheckCircle2, Upload, Volume2, VolumeX, X, Zap, Flag, LockKeyhole, Sparkles, PawPrint, Move } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
@@ -549,6 +549,27 @@ export default function EyeGazeGames() {
             <p className="mt-3 text-white/80 text-base sm:text-lg font-bold max-w-xl">City is parked for now while it is rebuilt and cleaned up. It will return when the experience is ready.</p>
           </div>
         </section>
+
+        <button
+          type="button"
+          onClick={() => navigate("/eye-gaze-farm")}
+          className="relative overflow-hidden w-full rounded-[2.2rem] border-4 border-emerald-300 bg-gradient-to-br from-[#24492d] via-[#2f6b3b] to-[#7bbf52] p-6 sm:p-8 text-left text-white shadow-xl hover:-translate-y-1 transition-all mb-5 min-h-[230px]"
+        >
+          <div className="absolute inset-y-0 right-0 w-[42%] bg-[radial-gradient(circle_at_60%_40%,rgba(255,255,255,.18),transparent_55%)]" />
+          <div className="absolute right-7 top-7 grid h-24 w-24 place-items-center rounded-full border border-white/20 bg-white/10 backdrop-blur">
+            <PawPrint className="h-12 w-12 text-white" />
+          </div>
+          <div className="relative max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-amber-200 text-emerald-950 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
+              <PawPrint className="w-4 h-4" /> NEW · FREE PLAY
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black">A.R.I.S.E. Farm World</h2>
+            <p className="mt-2 max-w-xl text-white/90 font-bold text-base sm:text-lg">Explore a living farm. Gaze or tap animals to hear their names and sounds, drag them around, and watch them wander and meet each other.</p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-emerald-900 px-5 py-3 font-black">
+              <Move className="w-5 h-5" /> Enter Farm World
+            </div>
+          </div>
+        </button>
 
         <button
           type="button"
