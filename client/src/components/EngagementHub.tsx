@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, Flame, Gamepad2, Gift, Target, Trophy, Zap } from "lucide-react";
+import { CheckCircle2, Flame, Gamepad2, Gift, Sparkles, Target, Trophy, Zap } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -41,9 +40,8 @@ type Challenge = {
   questions?: Array<{ id: string; questionText: string; optionA: string; optionB: string; optionC: string; optionD: string }>;
 };
 
-export function EngagementHub() {
+export function EngagementHub({ onCreateQuiz, onReadingLevelUp }: { onCreateQuiz?: () => void; onReadingLevelUp?: () => void }) {
   const { user, token } = useAuth();
-  const [, navigate] = useLocation();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [showChallenge, setShowChallenge] = useState(false);
@@ -150,51 +148,44 @@ export function EngagementHub() {
 
   return (
     <>
-      <section className="mb-4 border-y border-border/70 bg-background/60 py-3 md:rounded-2xl md:border md:bg-card/40 md:px-5 md:py-4" data-testid="engagement-hub">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/8">
-              <Trophy className="h-4.5 w-4.5 text-primary" />
+      <section className="mb-4 border-b border-border/70 pb-3 md:pb-4" data-testid="engagement-hub">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className="font-black">Level {summary.level.level} · {summary.level.name}</span>
+              <span className="text-muted-foreground">{summary.totalPoints} pts</span>
+              <span className="inline-flex items-center gap-1 text-muted-foreground"><Flame className="h-3.5 w-3.5 text-orange-400" /> {summary.streak} day streak</span>
+              <span className="inline-flex items-center gap-1 text-muted-foreground"><Target className="h-3.5 w-3.5 text-primary" /> {summary.completedMissions}/3 missions</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="text-sm font-black">Level {summary.level.level} · {summary.level.name}</span>
-                <span className="text-xs font-semibold text-muted-foreground">{summary.totalPoints} points</span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground"><Flame className="h-3.5 w-3.5 text-orange-400" /> {summary.streak} day streak</span>
-              </div>
-              <div className="mt-2 h-1.5 w-full max-w-md overflow-hidden rounded-full bg-muted">
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-1.5 w-48 max-w-[45vw] overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${summary.level.progress}%` }} />
               </div>
-              <p className="mt-1 text-[10px] font-medium text-muted-foreground">{levelText}</p>
+              <span className="text-[10px] font-medium text-muted-foreground">{levelText}</span>
             </div>
           </div>
 
-          <div className="hidden h-10 w-px bg-border xl:block" />
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-            <div className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-xs font-bold text-foreground">
-              <Target className="h-4 w-4 text-primary" />
-              <span>Missions</span>
-              <span className="text-muted-foreground">{summary.completedMissions}/3</span>
-              <span className="flex gap-1">
-                {summary.missions.map(mission => <span key={mission.id} title={mission.label} className={`h-1.5 w-4 rounded-full ${mission.completed ? "bg-green-500" : "bg-muted"}`} />)}
-              </span>
-            </div>
-
-            <Button size="sm" variant="ghost" onClick={openChallenge} className="h-9 rounded-lg px-3 text-xs font-black">
-              <Zap className="mr-1.5 h-4 w-4 text-amber-500" /> {summary.quickChallengeCompleted ? "Challenge done" : "Quick Challenge"}
-            </Button>
-
+          <div className="flex flex-wrap items-center gap-2">
             {!user?.is_eye_gaze_user && (
-              <Button size="sm" onClick={() => navigate("/live-quiz")} className="h-9 rounded-lg bg-foreground px-3 text-xs font-black text-background hover:bg-foreground/90">
+              <Button size="sm" onClick={() => window.location.hash = "/live-quiz"} className="h-9 rounded-lg bg-foreground px-3 text-xs font-black text-background hover:bg-foreground/90">
                 <Gamepad2 className="mr-1.5 h-4 w-4" /> Join Live
               </Button>
             )}
-
+            {onCreateQuiz && (
+              <Button size="sm" variant="outline" onClick={onCreateQuiz} className="h-9 rounded-lg px-3 text-xs font-black">
+                <Sparkles className="mr-1.5 h-4 w-4" /> Create Quiz
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={openChallenge} className="h-9 rounded-lg px-3 text-xs font-black">
+              <Zap className="mr-1.5 h-4 w-4 text-amber-500" /> {summary.quickChallengeCompleted ? "Challenge done" : "Quick Challenge"}
+            </Button>
+            {onReadingLevelUp && !user?.is_eye_gaze_user && (
+              <Button size="sm" variant="ghost" onClick={onReadingLevelUp} className="h-9 rounded-lg px-3 text-xs font-black">
+                <Trophy className="mr-1.5 h-4 w-4 text-primary" /> Level Up
+              </Button>
+            )}
             {summary.mystery.claimedToday ? (
-              <div className="flex h-9 items-center gap-1.5 px-2 text-xs font-bold text-amber-500">
-                <Gift className="h-4 w-4" /> +{summary.mystery.reward || 0}
-              </div>
+              <span className="inline-flex h-9 items-center gap-1.5 px-2 text-xs font-bold text-amber-500"><Gift className="h-4 w-4" /> +{summary.mystery.reward || 0}</span>
             ) : summary.mystery.unlocked ? (
               <Button onClick={claimMystery} disabled={claiming} size="sm" variant="ghost" className="h-9 rounded-lg px-3 text-xs font-black text-amber-600">
                 <Gift className="mr-1.5 h-4 w-4" /> {claiming ? "Opening..." : "Mystery Box"}
