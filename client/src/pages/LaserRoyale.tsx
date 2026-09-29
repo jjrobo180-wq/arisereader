@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowLeft, Crosshair, Shield, Zap, Trophy, Rotate3D } from "lucide-react";
+import { ArrowLeft, Crosshair, Shield, Zap, Trophy } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
@@ -61,10 +61,14 @@ export default function LaserRoyale(){
   const [shield,setShield]=useState(50);
   const [energy,setEnergy]=useState(100);
   const [score,setScore]=useState(0);
+  const scoreRef=useRef(0);
+  const energyRef=useRef(100);
   const [roundTime,setRoundTime]=useState(180);
   const [zoneRadius,setZoneRadius]=useState(28);
   const [notice,setNotice]=useState("Laser Royale: tag opponents, grab power-ups, and stay inside the safe zone!");
   const [leaderboard,setLeaderboard]=useState<Array<{name:string;score:number}>>([]);
+  useEffect(()=>{scoreRef.current=score;},[score]);
+  useEffect(()=>{energyRef.current=energy;},[energy]);
   const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("rotate");
   const headers=useMemo(()=>({Authorization:"Bearer "+token}),[token]);
 
@@ -134,13 +138,14 @@ export default function LaserRoyale(){
 
     const hitBot=(bot:Bot)=>{
       if(!bot.alive)return;let dmg=34;if(bot.shield>0){const used=Math.min(bot.shield,dmg);bot.shield-=used;dmg-=used;}bot.hp-=dmg;
-      if(bot.hp<=0){bot.alive=false;bot.root.visible=false;bot.score=Math.max(0,bot.score-1);bot.respawnAt=performance.now()+3500;setScore(s=>s+2);setNotice("✨ Tagged "+bot.name+"! +2 points");}
+      if(bot.hp<=0){bot.alive=false;bot.root.visible=false;bot.score=Math.max(0,bot.score-1);bot.respawnAt=performance.now()+3500;scoreRef.current+=2;setScore(scoreRef.current);setNotice("✨ Tagged "+bot.name+"! +2 points");}
       else setNotice("⚡ Hit "+bot.name+"!");
     };
 
     const shoot=()=>{
-      if(energy<15)return;
-      setEnergy(v=>Math.max(0,v-15));
+      if(energyRef.current<15)return;
+      energyRef.current=Math.max(0,energyRef.current-15);
+      setEnergy(energyRef.current);
       const root=selfRootRef.current;if(!root)return;
       const origin=root.position.clone().add(new THREE.Vector3(0,1.7,0));
       const forward=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),root.rotation.y).normalize();
@@ -168,7 +173,7 @@ export default function LaserRoyale(){
       else{const diff=targetRef.current.clone().sub(selfRoot.position);diff.y=0;if(diff.length()>.15){diff.normalize();selfRoot.position.addScaledVector(diff,5.1*dt);selfRoot.rotation.y=Math.atan2(diff.x,diff.z);}}
       selfRoot.position.x=THREE.MathUtils.clamp(selfRoot.position.x,-30,30);selfRoot.position.z=THREE.MathUtils.clamp(selfRoot.position.z,-30,30);
 
-      powerups.forEach(p=>{p.rotation.y+=dt*1.8;p.position.y=1+Math.sin(now*.002+p.position.x)*.2;if(p.visible&&p.position.distanceTo(selfRoot.position)<1.8){p.visible=false;const type=p.userData.powerup;if(type==="shield")setShield(v=>Math.min(100,v+50));if(type==="energy")setEnergy(100);if(type==="heal")setHp(v=>Math.min(100,v+45));if(type==="boost"){setEnergy(100);setShield(v=>Math.min(100,v+25));}setNotice("Power-up collected: "+String(type).toUpperCase());window.setTimeout(()=>p.visible=true,9000);}});
+      powerups.forEach(p=>{p.rotation.y+=dt*1.8;p.position.y=1+Math.sin(now*.002+p.position.x)*.2;if(p.visible&&p.position.distanceTo(selfRoot.position)<1.8){p.visible=false;const type=p.userData.powerup;if(type==="shield")setShield(v=>Math.min(100,v+50));if(type==="energy")energyRef.current=100;setEnergy(100);if(type==="heal")setHp(v=>Math.min(100,v+45));if(type==="boost"){setEnergy(100);setShield(v=>Math.min(100,v+25));}setNotice("Power-up collected: "+String(type).toUpperCase());window.setTimeout(()=>p.visible=true,9000);}});
 
       for(const bot of bots){
         (bot.root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
@@ -180,8 +185,8 @@ export default function LaserRoyale(){
         if(dist<18&&bot.cooldown<=0){bot.cooldown=1.4+Math.random()*1.4;makeBeam(bot.root.position.clone().add(new THREE.Vector3(0,1.6,0)),selfRoot.position.clone().add(new THREE.Vector3(0,1.4,0)),0xf472b6);if(Math.random()<.58){setShield(s=>{let remaining=28;const used=Math.min(s,remaining);remaining-=used;const next=s-used;if(remaining>0)setHp(h=>{const nh=h-remaining;if(nh<=0){window.setTimeout(respawnSelf,80);return 100;}return nh;});return next;});}}
       }
 
-      if(now-lastSecond>=1000){lastSecond=now;timer=Math.max(0,timer-1);setRoundTime(timer);zoneR=Math.max(10,28-(180-timer)*.1);setZoneRadius(Math.round(zoneR));if(zoneRef.current)zoneRef.current.scale.setScalar(zoneR/28);setEnergy(v=>Math.min(100,v+8));if(selfRoot.position.length()>zoneR)setHp(h=>Math.max(1,h-6));if(timer===0){timer=180;zoneR=28;setNotice("New round started! Scores carry over.");}}
-      if(now-botScoreRefresh>700){botScoreRefresh=now;setLeaderboard([{name:self.displayName||"You",score},...bots.map(b=>({name:b.name,score:b.score}))].sort((a,b)=>b.score-a.score).slice(0,5));}
+      if(now-lastSecond>=1000){lastSecond=now;timer=Math.max(0,timer-1);setRoundTime(timer);zoneR=Math.max(10,28-(180-timer)*.1);setZoneRadius(Math.round(zoneR));if(zoneRef.current)zoneRef.current.scale.setScalar(zoneR/28);setEnergy(v=>{const next=Math.min(100,v+8);energyRef.current=next;return next;});if(selfRoot.position.length()>zoneR)setHp(h=>Math.max(1,h-6));if(timer===0){timer=180;zoneR=28;setNotice("New round started! Scores carry over.");}}
+      if(now-botScoreRefresh>700){botScoreRefresh=now;setLeaderboard([{name:self.displayName||"You",score:scoreRef.current},...bots.map(b=>({name:b.name,score:b.score}))].sort((a,b)=>b.score-a.score).slice(0,5));}
 
       const center=new THREE.Vector3(selfRoot.position.x,1.4,selfRoot.position.z);camera.position.add(center.clone().sub(controls.target));controls.target.lerp(center,.12);controls.update();renderer.render(scene,camera);raf=requestAnimationFrame(animate);
     };animate();
