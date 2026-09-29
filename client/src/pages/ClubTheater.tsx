@@ -405,6 +405,7 @@ export default function ClubTheater(){
         camera.position.add(center.clone().sub(controls.target));
         controls.target.lerp(center,.15);
       }
+      remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
       controls.update();
       renderer.render(scene,camera);
       raf=requestAnimationFrame(loop);
