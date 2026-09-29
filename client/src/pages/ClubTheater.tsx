@@ -8,8 +8,8 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 
-type Movie={id:string;title:string;subtitle:string;url:string;duration:number;license:string;attribution:string;age:string};
-type TheaterPayload={state:{movieId:string;startedAt:number};movies:Movie[];changeCost:number;wallet:number};
+type Movie={id:string;title:string;subtitle:string;youtubeId:string;duration:number;license:string;attribution:string;age:string};
+type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number};movies:Movie[];changeCost:number;wallet:number};
 type ClubSelf={userId:number;displayName:string;characterId:string};
 
 const SEATS=Array.from({length:12},(_,i)=>({id:"S"+(i+1),row:Math.floor(i/4),col:i%4}));
@@ -18,7 +18,7 @@ export default function ClubTheater(){
   const {token}=useAuth();
   const [,navigate]=useLocation();
   const mountRef=useRef<HTMLDivElement>(null);
-  const videoRef=useRef<HTMLVideoElement|null>(null);
+  const youtubeRef=useRef<HTMLIFrameElement|null>(null);
   const rootRef=useRef<THREE.Group|null>(null);
   const cameraRef=useRef<THREE.PerspectiveCamera|null>(null);
   const controlsRef=useRef<OrbitControls|null>(null);
@@ -32,6 +32,7 @@ export default function ClubTheater(){
   const [picker,setPicker]=useState(false);
   const [busy,setBusy]=useState(false);
   const [videoReady,setVideoReady]=useState(false);
+  const [embedStart,setEmbedStart]=useState(0);
   const [notice,setNotice]=useState("Walk around the theater, tap a seat, and enjoy the show.");
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
@@ -63,37 +64,25 @@ export default function ClubTheater(){
 
   const currentMovie=payload?.movies.find(m=>m.id===payload.state.movieId)||payload?.movies[0];
 
-  const syncVideo=()=>{
-    const video=videoRef.current;
-    if(!video||!payload||!currentMovie)return;
-    const elapsed=Math.max(0,(Date.now()-payload.state.startedAt)/1000);
-    if(Number.isFinite(video.duration)&&video.duration>0){
-      const target=elapsed%video.duration;
-      if(Math.abs(video.currentTime-target)>2.5)video.currentTime=target;
+  useEffect(()=>{
+    if(currentMovie&&payload){
+      setEmbedStart(Math.max(0,Math.floor(payload.state.currentPosition||0)));
+      setVideoReady(false);
     }
-    video.muted=muted;
-    void video.play().then(()=>setVideoReady(true)).catch(()=>{});
+  },[currentMovie?.id]);
+
+  const youtubeCommand=(func:string)=>{
+    const frame=youtubeRef.current;
+    if(!frame?.contentWindow)return;
+    frame.contentWindow.postMessage(JSON.stringify({event:"command",func,args:[]}),"*");
   };
 
   useEffect(()=>{
-    const video=videoRef.current;
-    if(!video||!currentMovie)return;
-    video.load();
-    const ready=()=>syncVideo();
-    video.addEventListener("loadedmetadata",ready);
-    video.addEventListener("canplay",ready);
-    const timer=window.setInterval(syncVideo,12000);
-    return()=>{
-      video.removeEventListener("loadedmetadata",ready);
-      video.removeEventListener("canplay",ready);
-      window.clearInterval(timer);
-    };
-  },[currentMovie?.id,payload?.state.startedAt]);
-
-  useEffect(()=>{
-    if(videoRef.current){
-      videoRef.current.muted=muted;
-      if(!muted)void videoRef.current.play().then(()=>setVideoReady(true)).catch(()=>{});
+    if(muted)youtubeCommand("mute");
+    else{
+      youtubeCommand("unMute");
+      youtubeCommand("playVideo");
+      setVideoReady(true);
     }
   },[muted]);
 
@@ -395,8 +384,9 @@ export default function ClubTheater(){
       if(!r.ok)throw new Error(d.message||"Could not change the movie.");
       setPayload(d);
       setPicker(false);
+      setEmbedStart(0);
       setVideoReady(false);
-      setNotice("The new movie is starting for everyone.");
+      setNotice("The new YouTube show is starting for everyone.");
     }catch(e:any){
       setNotice(e.message||"Could not change the movie.");
     }finally{
@@ -430,37 +420,26 @@ export default function ClubTheater(){
       </div>
     </header>
 
-    <div className="pointer-events-none absolute left-1/2 top-[12%] z-20 w-[min(760px,72vw)] -translate-x-1/2">
+    <div className="absolute left-1/2 top-[12%] z-20 w-[min(760px,72vw)] -translate-x-1/2">
       <div className="overflow-hidden rounded-[1.2rem] border-4 border-slate-950 bg-black shadow-[0_0_70px_rgba(56,189,248,.28)]">
-        {currentMovie&&<video
-          ref={videoRef}
-          key={currentMovie.id}
-          src={currentMovie.url}
-          playsInline
-          loop
-          muted={muted}
-          autoPlay
-          preload="auto"
-          onLoadedMetadata={syncVideo}
-          onCanPlay={syncVideo}
-          className="aspect-video w-full bg-black object-contain"
+        {currentMovie&&<iframe
+          ref={youtubeRef}
+          key={currentMovie.id+"-"+embedStart}
+          src={"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+embedStart}
+          title={currentMovie.title}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          onLoad={()=>{setVideoReady(true);youtubeCommand("playVideo");if(muted)youtubeCommand("mute");}}
+          className="aspect-video w-full bg-black"
         />}
       </div>
       <div className="mt-1 rounded-xl bg-black/70 px-3 py-2 text-center backdrop-blur">
         <p className="truncate text-xs font-black sm:text-sm">{currentMovie?.title||"Loading show…"}</p>
-        <p className="truncate text-[9px] font-bold text-white/50">{currentMovie?.subtitle}</p>
+        <p className="truncate text-[9px] font-bold text-white/50">{payload?.state.audience||0} in theater · {payload?.state.playing?"channel playing":"channel paused"}</p>
       </div>
     </div>
 
     <div className="absolute right-2 top-16 z-30 flex flex-col gap-2 sm:right-4 sm:top-24">
-      <button type="button" onClick={()=>{
-        const next=!muted;
-        setMuted(next);
-        if(videoRef.current){
-          videoRef.current.muted=next;
-          void videoRef.current.play().then(()=>setVideoReady(true)).catch(()=>{});
-        }
-      }} className="flex min-h-10 items-center gap-2 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl backdrop-blur">
+      <button type="button" onClick={()=>setMuted(value=>!value)} className="flex min-h-10 items-center gap-2 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl backdrop-blur">
         {muted?<VolumeX className="h-4 w-4"/>:<Volume2 className="h-4 w-4"/>}{muted?"Hear Movie":"Mute"}
       </button>
       <button onClick={orderPopcorn} disabled={popcorn!=="idle"} className="flex min-h-10 items-center gap-2 rounded-xl bg-amber-300 px-3 text-xs font-black text-slate-950 shadow-xl disabled:opacity-70">
