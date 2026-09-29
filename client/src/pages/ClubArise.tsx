@@ -88,7 +88,7 @@ function addLoungeTable(scene:THREE.Scene,x:number,z:number){
 }
 function addArcadeCabinet(scene:THREE.Scene,station:Station){
   const color=stationColor(station.id);
-  const root=new THREE.Group();root.position.set(station.x,0,station.z);scene.add(root);
+  const root=new THREE.Group();root.position.set(station.x,0,station.z);root.userData.stationId=station.id;scene.add(root);
   const shell=new THREE.Mesh(new THREE.BoxGeometry(3.35,3.6,2.05),new THREE.MeshStandardMaterial({color:0x0f172a,metalness:.4,roughness:.4}));
   shell.position.y=1.8;shell.castShadow=true;root.add(shell);
   const marquee=new THREE.Mesh(new THREE.BoxGeometry(3.15,.72,2.18),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:2.4,roughness:.3}));
@@ -126,6 +126,16 @@ function addArcadeCabinet(scene:THREE.Scene,station:Station){
   stoolSeat.position.set(0,.72,2.25);root.add(stoolSeat);
   const stoolLeg=new THREE.Mesh(new THREE.CylinderGeometry(.08,.13,.68,14),new THREE.MeshStandardMaterial({color:0x475569,metalness:.8}));
   stoolLeg.position.set(0,.34,2.25);root.add(stoolLeg);
+
+  // A generous invisible hit area makes the whole cabinet easy to tap/click,
+  // including on touch screens where hitting a small 3D mesh is difficult.
+  const hitbox=new THREE.Mesh(
+    new THREE.BoxGeometry(4.6,5.4,4),
+    new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})
+  );
+  hitbox.position.set(0,2.45,.35);
+  hitbox.userData.stationId=station.id;
+  root.add(hitbox);
   return root;
 }
 
@@ -291,6 +301,35 @@ export default function ClubArise(){
             }catch{setNotice("Could not load player.");}
             finally{setPlayerLoading(false);}
             return;
+          }
+          node=node.parent;
+        }
+      }
+
+      // Clicking any part of a real arcade cabinet immediately starts that game.
+      for(const hit of hits){
+        let node:THREE.Object3D|null=hit.object;
+        while(node){
+          const stationId=node.userData?.stationId as GameType|undefined;
+          if(stationId){
+            const station=STATIONS.find(s=>s.id===stationId);
+            if(station){
+              setNearStation(station);
+              setNotice("Starting "+station.name+"…");
+              try{
+                const response=await fetch(API_BASE+"/api/club-arise/matches/join",{
+                  method:"POST",
+                  headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+                  body:JSON.stringify({gameType:station.id})
+                });
+                const data=await response.json();
+                if(response.ok){setMatch(data);setGameOpen(true);}
+                else setNotice(data.message||"Could not join game.");
+              }catch{
+                setNotice("Could not join game.");
+              }
+              return;
+            }
           }
           node=node.parent;
         }
@@ -514,8 +553,8 @@ export default function ClubArise(){
       </aside>
     )}
 
-    {nearStation&&!gameOpen&&<div className="absolute bottom-28 left-1/2 z-30 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl bg-white p-5 text-slate-950 shadow-2xl">
-      <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100"><Gamepad2 className="h-6 w-6"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-slate-500">{nearStation.subtitle}</p><button onClick={()=>void joinGame(nearStation)} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Play with someone</button></div></div>
+    {nearStation&&!gameOpen&&<div className="absolute left-1/2 top-32 z-40 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl bg-white p-5 text-slate-950 shadow-2xl">
+      <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100"><Gamepad2 className="h-6 w-6"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-slate-500">{nearStation.subtitle}</p><button onClick={()=>void joinGame(nearStation)} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Play now</button></div></div>
     </div>}
 
     {gameOpen&&match&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
