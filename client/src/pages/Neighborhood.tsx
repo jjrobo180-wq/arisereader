@@ -134,7 +134,11 @@ export default function Neighborhood(){
   useEffect(()=>{
     if(!ready||!self||!token)return;
     const sync=async()=>{const root=selfRootRef.current;if(!root)return;
-      try{const response=await fetch(API_BASE+"/api/neighborhood/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y})});const data=await response.json();if(response.ok)setPlayers(data.players||[]);else setNotice(data.message||"Could not update The Block.");}catch{}
+      try{const response=await fetch(API_BASE+"/api/neighborhood/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y})});const data=await response.json();
+        if(response.ok)setPlayers(data.players||[]);
+        else if(response.status===409){const reconnect=await fetch(API_BASE+"/api/neighborhood/bootstrap",{headers:{Authorization:"Bearer "+token},cache:"no-store"});const fresh=await reconnect.json();if(reconnect.ok){setSelf(fresh.self);setPlayers(fresh.players||[]);setNotice("Reconnected to The Block.");}}
+        else setNotice(data.message||"Could not update The Block.");
+      }catch{}
     };
     void sync();const interval=window.setInterval(sync,850);return()=>window.clearInterval(interval);
   },[ready,self?.userId,token,headers]);
