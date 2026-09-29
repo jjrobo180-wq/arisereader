@@ -128,13 +128,12 @@ function addArcadeCabinet(scene:THREE.Scene,station:Station){
   const stoolLeg=new THREE.Mesh(new THREE.CylinderGeometry(.08,.13,.68,14),new THREE.MeshStandardMaterial({color:0x475569,metalness:.8}));
   stoolLeg.position.set(0,.34,2.25);root.add(stoolLeg);
 
-  // A generous invisible hit area makes the whole cabinet easy to tap/click,
-  // including on touch screens where hitting a small 3D mesh is difficult.
+  // Cover the cabinet without extending far onto the surrounding floor.
   const hitbox=new THREE.Mesh(
-    new THREE.BoxGeometry(4.6,5.4,4),
+    new THREE.BoxGeometry(3.8,4.3,2.7),
     new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})
   );
-  hitbox.position.set(0,2.45,.35);
+  hitbox.position.set(0,2.1,.2);
   hitbox.userData.stationId=station.id;
   root.add(hitbox);
   return root;
@@ -208,12 +207,45 @@ export default function ClubArise(){
   const [nearStation,setNearStation]=useState<Station|null>(null);
   const [match,setMatch]=useState<Match|null>(null);
   const [gameOpen,setGameOpen]=useState(false);
-  const [notice,setNotice]=useState("Pick a game below or explore the arcade.");
+  const [notice,setNotice]=useState("Tap a cabinet or choose a game below. Press Play to start.");
   const [selectedPlayer,setSelectedPlayer]=useState<PlayerProfile|null>(null);
+  const [selectedPlayerId,setSelectedPlayerId]=useState<number|null>(null);
   const [playerLoading,setPlayerLoading]=useState(false);
+  const [showReaders,setShowReaders]=useState(false);
+  const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("pan");
   const [access,setAccess]=useState<any>(null);
 
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
+
+  const viewPlayer=async(uid:number)=>{
+    setSelectedPlayerId(uid);setSelectedPlayer(null);setPlayerLoading(true);setShowReaders(false);setNearStation(null);
+    try{
+      const response=await fetch(API_BASE+"/api/club-arise/players/"+uid+"/profile",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+      const data=await response.json();
+      if(response.ok)setSelectedPlayer(data);else setNotice(data.message||"Could not load player.");
+    }catch{setNotice("Could not load player.");}
+    finally{setPlayerLoading(false);}
+  };
+
+  const walkToPlayer=(uid:number)=>{
+    const player=playersRef.current.find(p=>p.user_id===uid);
+    if(!player){setNotice("That reader is no longer online.");return;}
+    const selfPosition=selfRootRef.current?.position;
+    const towardSelf=selfPosition?new THREE.Vector3(selfPosition.x-player.x,0,selfPosition.z-player.z):new THREE.Vector3(1,0,0);
+    if(towardSelf.lengthSq()<.01)towardSelf.set(1,0,0);
+    towardSelf.normalize().multiplyScalar(2.2);
+    targetRef.current.set(THREE.MathUtils.clamp(player.x+towardSelf.x,-28,28),0,THREE.MathUtils.clamp(player.z+towardSelf.z,-27,27));
+    const controls=controlsRef.current,camera=cameraRef.current;
+    if(controls&&camera){const center=new THREE.Vector3((player.x+(selfPosition?.x??player.x))/2,1.3,(player.z+(selfPosition?.z??player.z))/2);camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();}
+    setNotice("Walking over to "+player.display_name+"…");
+  };
+
+  const centerOnMe=()=>{
+    const root=selfRootRef.current,controls=controlsRef.current,camera=cameraRef.current;
+    if(!root||!controls||!camera)return;
+    const center=new THREE.Vector3(root.position.x,1.3,root.position.z);
+    camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();
+  };
 
   useEffect(()=>{
     if(!token)return;
@@ -229,7 +261,8 @@ export default function ClubArise(){
     const scene=new THREE.Scene();scene.background=new THREE.Color(0x070b1a);scene.fog=new THREE.FogExp2(0x11152b,.014);sceneRef.current=scene;
     const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/mount.clientHeight,.1,120);camera.position.set(0,15,24);cameraRef.current=camera;
     const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setSize(mount.clientWidth,mount.clientHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.domElement.className="absolute inset-0 h-full w-full";mount.appendChild(renderer.domElement);rendererRef.current=renderer;
-    const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.3,2);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.47;controls.minDistance=8;controls.maxDistance=36;controlsRef.current=controls;
+    const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.3,2);controls.enableDamping=true;controls.enablePan=true;controls.screenSpacePanning=false;controls.maxPolarAngle=Math.PI*.47;controls.minDistance=8;controls.maxDistance=36;
+    controls.mouseButtons.LEFT=THREE.MOUSE.PAN;controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;controls.touches.ONE=THREE.TOUCH.PAN;controls.touches.TWO=THREE.TOUCH.DOLLY_ROTATE;controlsRef.current=controls;
     scene.add(new THREE.HemisphereLight(0x8fb7ff,0x171226,1.7));
     const key=new THREE.DirectionalLight(0xc9dcff,2.2);key.position.set(-10,18,8);key.castShadow=true;scene.add(key);
     const ground=new THREE.Mesh(new THREE.CircleGeometry(31,96),new THREE.MeshStandardMaterial({color:0x12152a,roughness:.72,metalness:.18}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;ground.userData.ground=true;scene.add(ground);
@@ -285,6 +318,7 @@ export default function ClubArise(){
     const loadAvatar=(uid:number,name:string,charId:string,petId:string|undefined|null,x:number,z:number,isSelf=false)=>{
       const root=new THREE.Group();root.position.set(x,0,z);root.userData.userId=uid;scene.add(root);
       const label=makeLabel(name);label.position.set(0,3.15,0);root.add(label);
+      if(!isSelf){const hitArea=new THREE.Mesh(new THREE.CylinderGeometry(.95,.95,3.5,16),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));hitArea.position.y=1.75;root.add(hitArea);}
       const path=getAvatarCharacter(charId).modelPath;
       loader.load(path,gltf=>{
         if(disposed)return;
@@ -297,7 +331,7 @@ export default function ClubArise(){
     loadAvatar(self.userId,self.displayName,self.characterId,(self as any).petId,0,7,true);
 
     const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
-    const click=async(e:PointerEvent)=>{
+    const click=(e:PointerEvent)=>{
       const rect=renderer.domElement.getBoundingClientRect();pointer.x=((e.clientX-rect.left)/rect.width)*2-1;pointer.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(pointer,camera);
       const hits=ray.intersectObjects(scene.children,true);
 
@@ -305,42 +339,17 @@ export default function ClubArise(){
         let node:THREE.Object3D|null=hit.object;
         while(node){
           const uid=Number(node.userData?.userId||0);
-          if(uid&&uid!==self.userId){
-            setPlayerLoading(true);setSelectedPlayer(null);
-            try{
-              const response=await fetch(API_BASE+"/api/club-arise/players/"+uid+"/profile",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
-              const data=await response.json();
-              if(response.ok)setSelectedPlayer(data);else setNotice(data.message||"Could not load player.");
-            }catch{setNotice("Could not load player.");}
-            finally{setPlayerLoading(false);}
+          if(uid){
+            if(uid!==self.userId)void viewPlayer(uid);
             return;
           }
-          node=node.parent;
-        }
-      }
-
-      // Clicking any part of a real arcade cabinet immediately starts that game.
-      for(const hit of hits){
-        let node:THREE.Object3D|null=hit.object;
-        while(node){
+          // A cabinet tap selects the game. Only the Play button starts a match.
           const stationId=node.userData?.stationId as GameType|undefined;
           if(stationId){
             const station=STATIONS.find(s=>s.id===stationId);
             if(station){
+              setShowReaders(false);
               setNearStation(station);
-              setNotice("Starting "+station.name+"…");
-              try{
-                const response=await fetch(API_BASE+"/api/club-arise/matches/join",{
-                  method:"POST",
-                  headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
-                  body:JSON.stringify({gameType:station.id})
-                });
-                const data=await response.json();
-                if(response.ok){setMatch(data);setGameOpen(true);}
-                else setNotice(data.message||"Could not join game.");
-              }catch{
-                setNotice("Could not join game.");
-              }
               return;
             }
           }
@@ -349,9 +358,15 @@ export default function ClubArise(){
       }
 
       const hit=hits.find(h=>{let o:THREE.Object3D|null=h.object;while(o){if(o.userData.ground)return true;o=o.parent;}return false;});
-      if(hit){targetRef.current.set(THREE.MathUtils.clamp(hit.point.x,-28,28),0,THREE.MathUtils.clamp(hit.point.z,-27,27));}
+      if(hit){setNearStation(null);targetRef.current.set(THREE.MathUtils.clamp(hit.point.x,-28,28),0,THREE.MathUtils.clamp(hit.point.z,-27,27));}
     };
-    renderer.domElement.addEventListener("pointerdown",click);
+    let pointerStart:{id:number;x:number;y:number}|null=null;
+    const pointerDown=(e:PointerEvent)=>{pointerStart={id:e.pointerId,x:e.clientX,y:e.clientY};};
+    const pointerUp=(e:PointerEvent)=>{if(!pointerStart||pointerStart.id!==e.pointerId)return;const moved=Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y);pointerStart=null;if(moved<10)click(e);};
+    const pointerCancel=()=>{pointerStart=null;};
+    renderer.domElement.addEventListener("pointerdown",pointerDown);
+    renderer.domElement.addEventListener("pointerup",pointerUp);
+    renderer.domElement.addEventListener("pointercancel",pointerCancel);
 
     const down=(e:KeyboardEvent)=>keysRef.current.add(e.key.toLowerCase()),up=(e:KeyboardEvent)=>keysRef.current.delete(e.key.toLowerCase());
     window.addEventListener("keydown",down);window.addEventListener("keyup",up);
@@ -367,7 +382,6 @@ export default function ClubArise(){
         if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar(5*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
         else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,4.2*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
-        let nearest:Station|null=null,dist=Infinity;for(const s of STATIONS){const d=Math.hypot(root.position.x-s.x,root.position.z-s.z);if(d<dist){dist=d;nearest=s;}}setNearStation(dist<5?nearest:null);
       }
       const nowMs=performance.now();
       const activeEmote=selfEmoteRef.current;
@@ -410,8 +424,15 @@ export default function ClubArise(){
     setReady(true);
 
     const resize=()=>{camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight);};window.addEventListener("resize",resize);
-    return()=>{disposed=true;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);renderer.domElement.removeEventListener("pointerdown",click);controls.dispose();renderer.dispose();remoteRootsRef.current.clear();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
+    return()=>{disposed=true;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);renderer.domElement.removeEventListener("pointercancel",pointerCancel);controls.dispose();renderer.dispose();remoteRootsRef.current.clear();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
   },[self,token]);
+
+  useEffect(()=>{
+    const controls=controlsRef.current;if(!controls)return;
+    controls.mouseButtons.LEFT=cameraMode==="pan"?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;
+    controls.touches.ONE=cameraMode==="pan"?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE;
+    controls.touches.TWO=cameraMode==="pan"?THREE.TOUCH.DOLLY_ROTATE:THREE.TOUCH.DOLLY_PAN;
+  },[cameraMode,ready]);
 
   useEffect(()=>{
     if(!ready||!token||!self)return;
@@ -429,13 +450,13 @@ export default function ClubArise(){
     if(!sceneRef.current||!self)return;const scene=sceneRef.current,loader=new GLTFLoader();
     const active=new Set<number>();
     for(const p of players){if(p.user_id===self.userId)continue;active.add(p.user_id);let root=remoteRootsRef.current.get(p.user_id);
-      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);attachAvatarMotion(root!,model,g.animations);if(p.emote&&p.emote_at&&Date.now()-new Date(p.emote_at).getTime()<3200)setAvatarGesture(root!,p.emote);});remoteRootsRef.current.set(p.user_id,root);}
+      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);root.userData.userId=p.user_id;scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);const hitArea=new THREE.Mesh(new THREE.CylinderGeometry(.95,.95,3.5,16),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));hitArea.position.y=1.75;root.add(hitArea);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);attachAvatarMotion(root!,model,g.animations);if(p.emote&&p.emote_at&&Date.now()-new Date(p.emote_at).getTime()<3200)setAvatarGesture(root!,p.emote);});remoteRootsRef.current.set(p.user_id,root);}
       if(root.userData.petId!==p.pet_id){const old=root.getObjectByName("clubPet");if(old)root.remove(old);const pet=createPet(p.pet_id,loader,.95);if(pet){pet.position.set(.85,0,.55);root.add(pet);}root.userData.petId=p.pet_id;}
       root.position.lerp(new THREE.Vector3(p.x,0,p.z),.35);root.rotation.y=THREE.MathUtils.lerp(root.rotation.y,p.facing,.35);
       const phraseFresh=p.phrase&&p.phrase_at&&Date.now()-new Date(p.phrase_at).getTime()<4500;const old=root.getObjectByName("phrase");if(old)root.remove(old);
       if(phraseFresh){const bubble=makeLabel(p.phrase!,"#ffffff","#111827");bubble.name="phrase";bubble.position.set(0,4.35,0);root.add(bubble);}
     }
-    for(const [uid,root] of remoteRootsRef.current)if(!active.has(uid)){scene.remove(root);remoteRootsRef.current.delete(uid);}
+    remoteRootsRef.current.forEach((root,uid)=>{if(!active.has(uid)){scene.remove(root);remoteRootsRef.current.delete(uid);}});
   },[players,self]);
 
   const sendPhrase=async(phrase:string)=>{
@@ -474,21 +495,36 @@ export default function ClubArise(){
   const myIndex=match&&self?(match.player1_id===self.userId?1:match.player2_id===self.userId?2:0):0;
   const yourTurn=!!match&&match.status==="active"&&Number(match.state?.turn)===myIndex;
   const opponent=match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
+  const onlineReaders=players.filter(p=>p.user_id!==self?.userId);
 
   return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/70 to-transparent p-3">
       <button onClick={()=>navigate("/library")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-black/60 px-4 font-black backdrop-blur"><ArrowLeft className="h-5 w-5"/> Library</button>
       <div className="flex-1"><h1 className="text-xl font-black">Club A.R.I.S.E.</h1><p className="text-xs font-bold text-white/70">Learn · play · meet readers safely</p></div>
-      <div className="pointer-events-auto flex items-center gap-2 rounded-2xl bg-black/60 px-3 py-2 font-black backdrop-blur"><Users className="h-4 w-4"/>{players.length} online</div>
+      <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);}} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 font-black backdrop-blur" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/>{onlineReaders.length} readers</button>
     </header>
 
-    <div className="absolute left-3 top-20 z-30 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/65 p-3 backdrop-blur">
+    {!showReaders&&!selectedPlayer&&!playerLoading&&!nearStation&&<div className="absolute left-3 top-20 z-30 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/65 p-3 backdrop-blur">
       <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white/60"><MessageCircle className="h-4 w-4"/> Safe chat</div>
       <div className="flex flex-wrap gap-2">{phrases.slice(0,10).map(p=><button key={p} onClick={()=>void sendPhrase(p)} className="min-h-10 rounded-xl bg-white/10 px-3 text-xs font-black hover:bg-white/20">{p}</button>)}</div>
-    </div>
+    </div>}
+
+    {showReaders&&!gameOpen&&<aside className="absolute right-3 top-20 z-40 max-h-[55dvh] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto rounded-2xl border border-cyan-300/25 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
+      <div className="mb-3 flex items-center justify-between"><h2 className="font-black">Readers online</h2><button type="button" onClick={()=>setShowReaders(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close readers list"><X className="h-4 w-4"/></button></div>
+      {onlineReaders.length===0?<p className="text-sm text-white/65">No other readers are here yet.</p>:<div className="space-y-2">{onlineReaders.map(player=><div key={player.user_id} className="flex items-center gap-2 rounded-xl bg-white/10 p-2">
+        <button type="button" onClick={()=>void viewPlayer(player.user_id)} className="min-h-11 min-w-0 flex-1 truncate rounded-lg px-2 text-left font-bold hover:bg-white/10" aria-label={"View "+player.display_name+"'s stats"}>{player.display_name}<span className="block text-xs font-medium text-cyan-200">View stats</span></button>
+        <button type="button" onClick={()=>walkToPlayer(player.user_id)} className="min-h-11 shrink-0 rounded-lg bg-cyan-300 px-3 text-sm font-black text-slate-950">Walk over</button>
+      </div>)}</div>}
+    </aside>}
 
     <div className="pointer-events-none absolute left-1/2 top-20 z-20 -translate-x-1/2 rounded-2xl bg-black/60 px-4 py-2 text-sm font-black backdrop-blur">{notice}</div>
+    <div className="absolute left-3 top-[48%] z-30 flex -translate-y-1/2 flex-col gap-2 rounded-2xl border border-white/15 bg-slate-950/90 p-2 shadow-xl backdrop-blur" aria-label="Camera controls">
+      <button type="button" onClick={()=>setCameraMode("pan")} aria-pressed={cameraMode==="pan"} className={"min-h-11 rounded-xl px-3 text-sm font-black "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Move view</button>
+      <button type="button" onClick={()=>setCameraMode("rotate")} aria-pressed={cameraMode==="rotate"} className={"min-h-11 rounded-xl px-3 text-sm font-black "+(cameraMode==="rotate"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Rotate</button>
+      <button type="button" onClick={centerOnMe} className="min-h-11 rounded-xl bg-white/10 px-3 text-sm font-black text-white">Center me</button>
+      <p className="max-w-28 px-1 text-center text-xs text-white/60">{cameraMode==="pan"?"Drag to slide the view":"Drag to turn the view"}</p>
+    </div>
     {access&&!access.allowed&&<div className="absolute left-1/2 top-32 z-40 w-[min(430px,90vw)] -translate-x-1/2 rounded-2xl border border-amber-300/30 bg-slate-950/95 p-4 text-center shadow-2xl">
       <p className="font-black text-amber-300">{access.locked?"Club games are locked by your teacher.":access.dailyRemaining===0?"You reached today's Club game limit.":"Pass another book quiz to unlock more Club games."}</p>
       <p className="mt-1 text-xs font-bold text-white/55">{access.gamesPerPassedQuiz>0?access.automaticRemaining+" automatic game plays remaining":access.dailyLimit!==null?access.dailyRemaining+" games remaining today":"You can still explore, chat safely, and use emotes."}</p>
@@ -504,7 +540,7 @@ export default function ClubArise(){
       <div className="mb-2 flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Arcade games</p>
-          <p className="text-xs font-bold text-white/55">Tap a game anytime — walking to the cabinets is optional.</p>
+          <p className="text-xs font-bold text-white/55">Choose a game, then press Play.</p>
         </div>
         <Zap className="h-5 w-5 text-amber-300" />
       </div>
@@ -513,8 +549,7 @@ export default function ClubArise(){
           <button
             key={station.id}
             type="button"
-            onClick={()=>access?.allowed!==false&&void joinGame(station)}
-            disabled={access?.allowed===false}
+            onClick={()=>{setShowReaders(false);setNearStation(station);}}
             className={"min-h-16 min-w-[135px] sm:min-w-0 rounded-2xl border px-3 py-2 text-left transition hover:-translate-y-0.5 "+
               (station.id==="four"
                 ?"border-blue-300/30 bg-blue-500/20 hover:bg-blue-500/30"
@@ -530,7 +565,7 @@ export default function ClubArise(){
     </div>
 
     {(selectedPlayer||playerLoading)&&!gameOpen&&(
-      <aside className="absolute right-3 top-20 z-40 w-[min(330px,calc(100%-1.5rem))] rounded-[1.8rem] border border-white/15 bg-slate-950/92 p-4 shadow-2xl backdrop-blur-xl">
+      <aside className="absolute right-3 top-20 z-40 max-h-[65dvh] w-[min(330px,calc(100%-1.5rem))] overflow-y-auto rounded-[1.8rem] border border-white/15 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl">
         <div className="flex items-start gap-3">
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
             <UserRound className="h-6 w-6" />
@@ -539,10 +574,11 @@ export default function ClubArise(){
             <p className="text-[10px] font-black uppercase tracking-[.18em] text-white/45">Player profile</p>
             <h2 className="truncate text-xl font-black">{playerLoading?"Loading…":selectedPlayer?.displayName}</h2>
           </div>
-          <button type="button" onClick={()=>setSelectedPlayer(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10"><X className="h-4 w-4"/></button>
+          <button type="button" onClick={()=>{setSelectedPlayer(null);setSelectedPlayerId(null);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close player stats"><X className="h-4 w-4"/></button>
         </div>
         {selectedPlayer&&(
           <>
+            {selectedPlayerId!==null&&<button type="button" onClick={()=>walkToPlayer(selectedPlayerId)} className="mt-3 min-h-12 w-full rounded-xl bg-cyan-300 px-4 font-black text-slate-950">Walk over to {selectedPlayer.displayName}</button>}
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-2xl bg-amber-400/10 p-3 ring-1 ring-amber-300/20">
                 <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-amber-200"><Trophy className="h-3.5 w-3.5"/> A.R.I.S.E. points</div>
@@ -572,8 +608,10 @@ export default function ClubArise(){
       </aside>
     )}
 
-    {nearStation&&!gameOpen&&<div className="absolute left-1/2 top-32 z-40 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl bg-white p-5 text-slate-950 shadow-2xl">
-      <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100"><Gamepad2 className="h-6 w-6"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-slate-500">{nearStation.subtitle}</p><button onClick={()=>void joinGame(nearStation)} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Play now</button></div></div>
+    {nearStation&&!gameOpen&&<div className="absolute left-1/2 top-32 z-40 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl border border-cyan-300/25 bg-slate-950 p-5 text-white shadow-2xl">
+      <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15"><Gamepad2 className="h-6 w-6 text-cyan-300"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-white/65">{nearStation.subtitle}</p><p className="mt-2 text-sm text-white/70">Ready to play this game?</p></div><button type="button" onClick={()=>setNearStation(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close game choice"><X className="h-4 w-4"/></button></div>
+      <button type="button" onClick={()=>{void joinGame(nearStation);setNearStation(null);}} disabled={access?.allowed===false} className="mt-4 min-h-12 w-full rounded-2xl bg-cyan-300 px-5 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">Play {nearStation.name}</button>
+      {access?.allowed===false&&<p className="mt-2 text-sm text-amber-300">Club games are currently unavailable.</p>}
     </div>}
 
     {gameOpen&&match&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
