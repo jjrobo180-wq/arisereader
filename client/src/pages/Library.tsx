@@ -1413,6 +1413,23 @@ export default function Library() {
           </div>
         )}
 
+        {user?.role === "student" && !user?.is_eye_gaze_user && (
+          <button
+            type="button"
+            onClick={() => navigate("/club-arise")}
+            className="mb-4 flex w-full items-center justify-between rounded-2xl border border-indigo-300/30 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-4 py-3 text-left text-white shadow-lg transition hover:brightness-110"
+          >
+            <span className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><Gamepad2 className="h-6 w-6" /></span>
+              <span>
+                <span className="block text-base font-black">Club A.R.I.S.E.</span>
+                <span className="block text-xs font-bold text-white/75">Multiplayer arcade · avatars · pets · safe chat · 8 games</span>
+              </span>
+            </span>
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">ENTER CLUB</span>
+          </button>
+        )}
+
         <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
           onReadingLevelUp={() => navigate("/reading-level-up")}
