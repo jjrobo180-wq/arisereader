@@ -1427,20 +1427,23 @@ export default function Library() {
 
         <EngagementHub />
         {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <button onClick={() => navigate("/live-quiz")} className="mb-6 flex min-h-12 items-center gap-2 rounded-xl bg-orange-600 px-5 font-bold text-white hover:bg-orange-700">
-            Join a live classroom quiz
-          </button>
-        )}
-
-        {/* Create a Quiz - students only */}
-        {!(user?.role === 'teacher' || user?.isAdmin) && (
-          <div className="mb-8" data-tour="request-quiz">
+          <div className="mb-5 grid grid-cols-2 gap-2" data-tour="request-quiz">
+            <button onClick={() => navigate("/live-quiz")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 text-sm font-black text-white hover:bg-orange-700">
+              <Zap className="h-4 w-4" /> Join Live Game
+            </button>
             <Button
               onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+              className="min-h-11 bg-gradient-to-r from-purple-600 to-indigo-600 text-sm font-black text-white hover:from-purple-700 hover:to-indigo-700"
             >
-              <Sparkles className="w-4 h-4 mr-1" />
-              Create a Quiz
+              <Sparkles className="mr-1 h-4 w-4" /> Create Quiz
+            </Button>
+          </div>
+        )}
+
+        {user?.role === "student" && user?.is_eye_gaze_user && (
+          <div className="mb-6" data-tour="request-quiz">
+            <Button onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+              <Sparkles className="mr-1 h-4 w-4" /> Create a Quiz
             </Button>
           </div>
         )}
