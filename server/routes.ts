@@ -1711,20 +1711,31 @@ export async function registerRoutes(
     { id:"furniture-sofa", type:"furniture", name:"Cloud Sofa", price:220, rarity:"rare" },
     { id:"furniture-books", type:"furniture", name:"Reader Wall", price:280, rarity:"epic" },
     { id:"furniture-neon", type:"furniture", name:"Neon Wall Sign", price:360, rarity:"epic" },
+    { id:"pet-dog", type:"pet", name:"Club Pup", price:450, rarity:"rare" },
+    { id:"pet-cat", type:"pet", name:"Club Cat", price:450, rarity:"rare" },
+    { id:"pet-bunny", type:"pet", name:"Club Bunny", price:650, rarity:"epic" },
+    { id:"unlock-king-arthur", type:"character", name:"King Arthur", price:800, rarity:"rare" },
+    { id:"unlock-hercules", type:"character", name:"Hercules", price:950, rarity:"epic" },
+    { id:"unlock-odysseus", type:"character", name:"Odysseus", price:800, rarity:"rare" },
+    { id:"unlock-dracula", type:"character", name:"Dracula", price:1100, rarity:"epic" },
+    { id:"unlock-frankenstein", type:"character", name:"Frankenstein's Monster", price:1250, rarity:"epic" },
+    { id:"unlock-musketeer", type:"character", name:"The Musketeer", price:900, rarity:"rare" },
   ] as const;
 
-  const AVATAR_WORLD_FREE = new Set(["car-none","home-basic"]);
+  const AVATAR_WORLD_FREE = new Set(["car-none","home-basic","pet-none"]);
+  const AVATAR_WORLD_STARTER_CHARACTERS = new Set(["robin-hood","sherlock-holmes","sinbad","alice"]);
   const AVATAR_WORLD_CHARACTERS = new Set([
     "robin-hood","sherlock-holmes","king-arthur","hercules","odysseus",
     "sinbad","alice","dracula","frankenstein","musketeer"
   ]);
-  const AVATAR_WORLD_SHOP_TYPES = new Set(["car","home","furniture"]);
+  const AVATAR_WORLD_SHOP_TYPES = new Set(["car","home","furniture","pet","character"]);
+  const characterUnlockId=(characterId:string)=>"unlock-"+characterId;
 
   function avatarWorldDefaultState() {
     return {
       purchased: [] as string[],
       selectedCharacter:"robin-hood",
-      equipped: { car:"car-none", home:"home-basic" } as Record<string,string>,
+      equipped: { car:"car-none", home:"home-basic", pet:"pet-none" } as Record<string,string>,
       furniture: [] as string[],
       spent: 0,
     };
@@ -1737,13 +1748,19 @@ export async function registerRoutes(
     const purchased=Array.isArray(source.purchased)
       ? Array.from(new Set(source.purchased.map(String).filter((id:string)=>validIds.has(id)))).slice(0,100)
       : [];
+    // Grandfather a previously-selected premium character so existing students never lose it.
+    const previousCharacter=String(source.selectedCharacter||"");
+    if(previousCharacter&&AVATAR_WORLD_CHARACTERS.has(previousCharacter)&&!AVATAR_WORLD_STARTER_CHARACTERS.has(previousCharacter)){
+      const unlock=characterUnlockId(previousCharacter);
+      if(validIds.has(unlock)&&!purchased.includes(unlock))purchased.push(unlock);
+    }
     const purchasedSet=new Set(purchased);
     const allowed=(id:any)=>AVATAR_WORLD_FREE.has(String(id))||purchasedSet.has(String(id));
     const selectedCharacter=AVATAR_WORLD_CHARACTERS.has(String(source.selectedCharacter||""))
       ? String(source.selectedCharacter)
       : base.selectedCharacter;
     const equipped={...base.equipped};
-    for(const slot of ["car","home"]){
+    for(const slot of ["car","home","pet"]){
       const candidate=String(source.equipped?.[slot]||"");
       if(candidate&&allowed(candidate)) equipped[slot]=candidate;
     }
@@ -1768,18 +1785,34 @@ export async function registerRoutes(
     if(!detail) throw new Error("Student not found.");
     const quizzesTaken=Math.max(0,Number(detail.quizzesTaken)||0);
     const totalPoints=Math.max(0,Number(detail.totalPoints)||0);
-    const level=Math.min(50,Math.floor(quizzesTaken/2)+1);
-    const quizzesIntoLevel=quizzesTaken%2;
-    const nextLevelAt=level>=50?null:quizzesTaken+(2-quizzesIntoLevel);
-    // Every completed quiz pays 100 coins. Every level reached adds 150 bonus coins.
-    const lifetimeCoins=quizzesTaken*100+level*150;
+    const attempts=await storage.getUserAttempts(userId);
+    const passedQuizzes=attempts.filter((a:any)=>Number(a.pointsEarned||a.points_earned||0)>0).length;
+    const level=Math.min(50,Math.floor(passedQuizzes/2)+1);
+    const quizzesIntoLevel=passedQuizzes%2;
+    const nextLevelAt=level>=50?null:passedQuizzes+(2-quizzesIntoLevel);
+
+    let clubGames=0,clubWins=0;
+    try{
+      const adminDb=getAdminSupabase();
+      const {data:clubMatches}=await adminDb.from("club_arise_matches")
+        .select("winner_id,player1_id,player2_id")
+        .eq("status","finished")
+        .or("player1_id.eq."+userId+",player2_id.eq."+userId);
+      clubGames=(clubMatches||[]).length;
+      clubWins=(clubMatches||[]).filter((m:any)=>m.winner_id===userId).length;
+    }catch{}
+    // Spendable coins: reading is the main source; Club play adds smaller rewards.
+    const quizCoins=passedQuizzes*100;
+    const gameCoins=clubGames*10+clubWins*20;
+    const levelBonusCoins=level*150;
+    const lifetimeCoins=quizCoins+gameCoins+levelBonusCoins;
     const raw=await storage.getSetting("avatar_world_"+userId);
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
     const state=normalizeAvatarWorldState(parsed||{});
     const wallet=Math.max(0,lifetimeCoins-state.spent);
     return {
-      economy:{level,quizzesTaken,totalPoints,lifetimeCoins,wallet,nextLevelAt,coinsPerQuiz:100,levelBonus:150},
+      economy:{level,quizzesTaken,passedQuizzes,totalPoints,lifetimeCoins,wallet,nextLevelAt,coinsPerPassedQuiz:100,coinsPerGame:10,winBonusCoins:20,levelBonus:150,clubGames,clubWins},
       state,
       catalog:AVATAR_WORLD_CATALOG,
     };
@@ -1823,13 +1856,15 @@ export async function registerRoutes(
       if(action==="character"){
         const characterId=String(req.body?.characterId||"");
         if(!AVATAR_WORLD_CHARACTERS.has(characterId)) return res.status(400).json({message:"Unknown character."});
+        const unlocked=AVATAR_WORLD_STARTER_CHARACTERS.has(characterId)||payload.state.purchased.includes(characterUnlockId(characterId));
+        if(!unlocked)return res.status(400).json({message:"Unlock that character with Reader Coins first."});
         nextRaw.selectedCharacter=characterId;
       }else if(action==="equip"){
         const slot=String(req.body?.slot||"");
         const itemId=String(req.body?.itemId||"");
         const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===itemId);
-        const slotType:Record<string,string>={car:"car",home:"home"};
-        if(!slotType[slot]) return res.status(400).json({message:"Characters use fixed appearances. Only cars and homes can be equipped."});
+        const slotType:Record<string,string>={car:"car",home:"home",pet:"pet"};
+        if(!slotType[slot]) return res.status(400).json({message:"That item cannot be equipped."});
         if(itemId==="") return res.status(400).json({message:"That slot needs an item."});
         if(AVATAR_WORLD_FREE.has(itemId)){
           nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
