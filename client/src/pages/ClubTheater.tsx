@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ArrowLeft, Coins, Film, Popcorn, Volume2, VolumeX } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { getAvatarCharacter } from "@/lib/avatarCharacters";
 
 type Movie = {
   id:string;
@@ -21,6 +24,7 @@ type TheaterPayload = {
   changeCost:number;
   wallet:number;
 };
+type ClubSelf={userId:number;displayName:string;characterId:string};
 
 const SEATS=Array.from({length:12},(_,i)=>({id:"S"+(i+1),row:Math.floor(i/4),col:i%4}));
 
@@ -30,7 +34,12 @@ export default function ClubTheater(){
   const mountRef=useRef<HTMLDivElement>(null);
   const videoRef=useRef<HTMLVideoElement>(null);
   const cameraRef=useRef<THREE.PerspectiveCamera|null>(null);
+  const controlsRef=useRef<OrbitControls|null>(null);
+  const selfRootRef=useRef<THREE.Group|null>(null);
+  const targetRef=useRef(new THREE.Vector3(0,0,12));
+  const keysRef=useRef(new Set<string>());
   const [payload,setPayload]=useState<TheaterPayload|null>(null);
+  const [self,setSelf]=useState<ClubSelf|null>(null);
   const [muted,setMuted]=useState(true);
   const [seat,setSeat]=useState("S6");
   const [popcorn,setPopcorn]=useState<"idle"|"ordering"|"ready">("idle");
@@ -42,10 +51,14 @@ export default function ClubTheater(){
   const load=async()=>{
     if(!token)return;
     try{
-      const r=await fetch(API_BASE+"/api/club-theater",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+      const [r,clubRes]=await Promise.all([
+        fetch(API_BASE+"/api/club-theater",{headers:{Authorization:"Bearer "+token},cache:"no-store"}),
+        fetch(API_BASE+"/api/club-arise/bootstrap",{headers:{Authorization:"Bearer "+token},cache:"no-store"})
+      ]);
       const d=await r.json();
       if(!r.ok)throw new Error(d.message||"Could not open the theater.");
       setPayload(d);
+      if(clubRes.ok){const club=await clubRes.json();setSelf(club.self);}
     }catch(e:any){setNotice(e.message||"Could not open the theater.");}
   };
 
@@ -144,7 +157,7 @@ export default function ClubTheater(){
 
     <div className="absolute left-1/2 top-[14%] z-20 w-[min(760px,88vw)] -translate-x-1/2">
       <div className="overflow-hidden rounded-[1.2rem] border-4 border-slate-900 bg-black shadow-[0_0_60px_rgba(56,189,248,.28)]">
-        {currentMovie?<video ref={videoRef} key={currentMovie.id} src={currentMovie.url} playsInline loop muted={muted} className="aspect-video w-full bg-black object-contain"/>:<div className="aspect-video grid place-items-center bg-slate-950"><Film className="h-12 w-12 text-white/30"/></div>}
+        {currentMovie?<video ref={videoRef} key={currentMovie.id} src={currentMovie.url} playsInline loop muted={muted} autoPlay preload="auto" onClick={()=>void videoRef.current?.play().catch(()=>{})} className="aspect-video w-full bg-black object-contain"/>:<div className="aspect-video grid place-items-center bg-slate-950"><Film className="h-12 w-12 text-white/30"/></div>}
       </div>
       <div className="mt-1 flex items-center justify-between gap-2 rounded-xl bg-black/70 px-3 py-2 backdrop-blur">
         <div className="min-w-0"><p className="truncate text-sm font-black">{currentMovie?.title||"Loading show…"}</p><p className="truncate text-[10px] font-bold text-white/55">{currentMovie?.subtitle}</p></div>
