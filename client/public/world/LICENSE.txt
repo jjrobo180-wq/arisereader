@@ -1,0 +1,4 @@
+Car models from Kenney Car Kit: https://kenney.nl/assets/car-kit
+House models from Kenney City Kit (Suburban): https://kenney.nl/assets/city-kit-suburban
+Both are Creative Commons CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+Converted GLB assets sourced from https://github.com/Hidencod/tge-assets/tree/main/packs/.
