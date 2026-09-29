@@ -153,26 +153,26 @@ export function EngagementHub({ onCreateQuiz, onReadingLevelUp }: { onCreateQuiz
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
               <span className="font-black">Level {summary.level.level} · {summary.level.name}</span>
-              <span className="text-muted-foreground">{summary.totalPoints} pts</span>
-              <span className="inline-flex items-center gap-1 text-muted-foreground"><Flame className="h-3.5 w-3.5 text-orange-400" /> {summary.streak} day streak</span>
-              <span className="inline-flex items-center gap-1 text-muted-foreground"><Target className="h-3.5 w-3.5 text-primary" /> {summary.completedMissions}/3 missions</span>
+              <span className="font-semibold text-foreground/80">{summary.totalPoints} pts</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-foreground/80"><Flame className="h-3.5 w-3.5 text-orange-500" /> {summary.streak} day streak</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-foreground/80"><Target className="h-3.5 w-3.5 text-primary" /> {summary.completedMissions}/3 missions</span>
             </div>
             <div className="mt-2 flex items-center gap-2">
               <div className="h-1.5 w-48 max-w-[45vw] overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${summary.level.progress}%` }} />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground">{levelText}</span>
+              <span className="text-[10px] font-bold text-foreground/65">{levelText}</span>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {!user?.is_eye_gaze_user && (
-              <Button size="sm" onClick={() => window.location.hash = "/live-quiz"} className="h-9 rounded-lg bg-foreground px-3 text-xs font-black text-background hover:bg-foreground/90">
+              <Button size="sm" onClick={() => window.location.hash = "/live-quiz"} className="h-9 shrink-0 rounded-lg bg-foreground px-3 text-xs font-black text-background hover:bg-foreground/90">
                 <Gamepad2 className="mr-1.5 h-4 w-4" /> Join Live
               </Button>
             )}
             {onCreateQuiz && (
-              <Button size="sm" variant="outline" onClick={onCreateQuiz} className="h-9 rounded-lg px-3 text-xs font-black">
+              <Button size="sm" variant="outline" onClick={onCreateQuiz} className="h-9 shrink-0 rounded-lg px-3 text-xs font-black">
                 <Sparkles className="mr-1.5 h-4 w-4" /> Create Quiz
               </Button>
             )}
