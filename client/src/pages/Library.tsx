@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Headphones, Zap } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Headphones } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -1300,23 +1300,6 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && !user?.is_eye_gaze_user && (
-          <button
-            type="button"
-            onClick={() => navigate("/reading-level-up")}
-            className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-violet-500/20 bg-gradient-to-r from-blue-600/10 via-violet-600/10 to-fuchsia-600/10 p-3 text-left transition-colors hover:bg-violet-500/15 sm:p-4"
-          >
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-2xl">📈</div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-black">Reading Level Up</h2>
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary">Practice</span>
-              </div>
-              <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground sm:text-sm">Short reading skill missions for fluency, vocabulary, comprehension, and stamina.</p>
-            </div>
-            <span className="shrink-0 text-sm font-black text-primary">Start →</span>
-          </button>
-        )}
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <div className="mb-6 rounded-xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
@@ -1426,14 +1409,27 @@ export default function Library() {
         )}
 
         <EngagementHub />
+
+        {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && !user?.is_eye_gaze_user && (
+          <button
+            type="button"
+            onClick={() => navigate("/reading-level-up")}
+            className="mb-3 flex w-full items-center gap-2 rounded-xl border border-violet-500/15 bg-violet-500/5 px-3 py-2.5 text-left transition-colors hover:bg-violet-500/10"
+          >
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-lg">📈</div>
+            <div className="min-w-0 flex-1">
+              <span className="text-sm font-black">Reading Level Up</span>
+              <span className="ml-2 hidden text-xs font-semibold text-muted-foreground sm:inline">Quick skill practice</span>
+            </div>
+            <span className="shrink-0 text-xs font-black text-primary">Start →</span>
+          </button>
+        )}
+
         {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <div className="mb-5 grid grid-cols-2 gap-2" data-tour="request-quiz">
-            <button onClick={() => navigate("/live-quiz")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 text-sm font-black text-white hover:bg-orange-700">
-              <Zap className="h-4 w-4" /> Join Live Game
-            </button>
+          <div className="mb-5" data-tour="request-quiz">
             <Button
               onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
-              className="min-h-11 bg-gradient-to-r from-purple-600 to-indigo-600 text-sm font-black text-white hover:from-purple-700 hover:to-indigo-700"
+              className="min-h-11 w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-sm font-black text-white hover:from-purple-700 hover:to-indigo-700"
             >
               <Sparkles className="mr-1 h-4 w-4" /> Create Quiz
             </Button>
