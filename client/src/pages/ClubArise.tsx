@@ -9,20 +9,26 @@ import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 
 type Player={
-  user_id:number;display_name:string;character_id:string;x:number;z:number;facing:number;
-  phrase?:string|null;phrase_at?:string|null;updated_at:string;
+  user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
+  phrase?:string|null;phrase_at?:string|null;emote?:string|null;emote_at?:string|null;updated_at:string;
 };
-type Match={id:string;game_type:"four"|"word_tiles"|"word_rescue";status:string;player1_id:number;player2_id:number|null;state:any;winner_id:number|null;players?:Array<{user_id:number;display_name:string;character_id:string}>};
+type GameType="four"|"word_tiles"|"word_rescue"|"math_duel"|"synonym_sprint"|"pattern_power"|"sentence_fix"|"fact_dash";
+type Match={id:string;game_type:GameType;status:string;player1_id:number;player2_id:number|null;state:any;winner_id:number|null;players?:Array<{user_id:number;display_name:string;character_id:string}>};
 type PlayerProfile={
   userId:number;displayName:string;characterId:string;leaderboardPoints:number;quizzesTaken:number;
   club:{played:number;wins:number;ties:number;losses:number;score:number;byGame:Record<string,{played:number;wins:number}>};
 };
-type Station={id:Match["game_type"];name:string;subtitle:string;x:number;z:number};
+type Station={id:GameType;name:string;subtitle:string;x:number;z:number};
 
 const STATIONS:Station[]=[
   {id:"four",name:"Four in a Row",subtitle:"Strategy · patterns · planning",x:-12,z:-7},
   {id:"word_tiles",name:"Word Tiles",subtitle:"Vocabulary · spelling · word play",x:12,z:-7},
   {id:"word_rescue",name:"Word Rescue",subtitle:"Letters · clues · vocabulary",x:0,z:-15},
+  {id:"math_duel",name:"Math Duel",subtitle:"Fast math · accuracy · strategy",x:-22,z:4},
+  {id:"synonym_sprint",name:"Synonym Sprint",subtitle:"Vocabulary · word meaning",x:22,z:4},
+  {id:"pattern_power",name:"Pattern Power",subtitle:"Sequences · logic · prediction",x:-22,z:-11},
+  {id:"sentence_fix",name:"Sentence Fix",subtitle:"Grammar · punctuation · editing",x:22,z:-11},
+  {id:"fact_dash",name:"Fact Dash",subtitle:"Science · knowledge · quick thinking",x:0,z:13},
 ];
 
 function makeLabel(text:string,bg="#111827",fg="#ffffff"){
@@ -42,7 +48,16 @@ function addNeonBox(scene:THREE.Scene,size:[number,number,number],pos:[number,nu
   const m=new THREE.Mesh(new THREE.BoxGeometry(...size),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:intensity,roughness:.35}));
   m.position.set(...pos);scene.add(m);return m;
 }
-function stationColor(id:Station["id"]){return id==="four"?0x2563eb:id==="word_tiles"?0x7c3aed:0x059669;}
+function stationColor(id:Station["id"]){
+  if(id==="four")return 0x2563eb;
+  if(id==="word_tiles")return 0x7c3aed;
+  if(id==="word_rescue")return 0x059669;
+  if(id==="math_duel")return 0xf59e0b;
+  if(id==="synonym_sprint")return 0xec4899;
+  if(id==="pattern_power")return 0x06b6d4;
+  if(id==="sentence_fix")return 0x8b5cf6;
+  return 0xef4444;
+}
 
 function addDiscoBall(scene:THREE.Scene,x:number,y:number,z:number,r=1){
   const geo=new THREE.SphereGeometry(r,24,18);
@@ -114,6 +129,41 @@ function addArcadeCabinet(scene:THREE.Scene,station:Station){
   return root;
 }
 
+function createPet(petId:string){
+  if(!petId||petId==="pet-none")return null;
+  const root=new THREE.Group();
+  const color=petId==="pet-dog"?0xb77945:petId==="pet-cat"?0x94a3b8:0xf5d0c5;
+  const body=new THREE.Mesh(new THREE.SphereGeometry(.34,18,14),new THREE.MeshStandardMaterial({color,roughness:.8}));
+  body.scale.set(1,.78,1.25);body.position.y=.42;root.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,18,14),new THREE.MeshStandardMaterial({color,roughness:.8}));
+  head.position.set(0,.69,.29);root.add(head);
+  for(const x of [-.13,.13]){
+    const ear=new THREE.Mesh(new THREE.ConeGeometry(.09,.25,10),new THREE.MeshStandardMaterial({color,roughness:.8}));
+    ear.position.set(x,.94,.27);ear.rotation.z=x<0?.25:-.25;root.add(ear);
+  }
+  const tail=new THREE.Mesh(new THREE.CylinderGeometry(.045,.07,.52,10),new THREE.MeshStandardMaterial({color,roughness:.8}));
+  tail.position.set(0,.57,-.47);tail.rotation.x=-.85;root.add(tail);
+  root.position.set(.8,0,.55);root.name="clubPet";return root;
+}
+
+function playFunnyEmoteMusic(kind:string){
+  try{
+    const AudioCtx=(window.AudioContext||(window as any).webkitAudioContext);
+    if(!AudioCtx)return;
+    const ctx=new AudioCtx();
+    const notes=kind==="dance"?[392,523,659,523,784]:kind==="flip"?[330,440,660,880]:kind==="jump"?[440,660,880]:[523,392,659,330,784];
+    notes.forEach((freq,i)=>{
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.type=i%2?"square":"sine";osc.frequency.value=freq;
+      gain.gain.setValueAtTime(.0001,ctx.currentTime+i*.11);
+      gain.gain.exponentialRampToValueAtTime(.075,ctx.currentTime+i*.11+.015);
+      gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+i*.11+.1);
+      osc.connect(gain);gain.connect(ctx.destination);osc.start(ctx.currentTime+i*.11);osc.stop(ctx.currentTime+i*.11+.11);
+    });
+    window.setTimeout(()=>void ctx.close(),1400);
+  }catch{}
+}
+
 export default function ClubArise(){
   const {token,user}=useAuth();
   const [,navigate]=useLocation();
@@ -127,9 +177,10 @@ export default function ClubArise(){
   const targetRef=useRef(new THREE.Vector3(0,0,7));
   const keysRef=useRef(new Set<string>());
   const lastSyncRef=useRef(0);
+  const selfEmoteRef=useRef<{name:string;started:number}|null>(null);
   const [ready,setReady]=useState(false);
   const [players,setPlayers]=useState<Player[]>([]);
-  const [self,setSelf]=useState<{userId:number;displayName:string;characterId:string}|null>(null);
+  const [self,setSelf]=useState<{userId:number;displayName:string;characterId:string;petId?:string}|null>(null);
   const [phrases,setPhrases]=useState<string[]>([]);
   const [nearStation,setNearStation]=useState<Station|null>(null);
   const [match,setMatch]=useState<Match|null>(null);
@@ -137,6 +188,7 @@ export default function ClubArise(){
   const [notice,setNotice]=useState("Pick a game below or explore the arcade.");
   const [selectedPlayer,setSelectedPlayer]=useState<PlayerProfile|null>(null);
   const [playerLoading,setPlayerLoading]=useState(false);
+  const [access,setAccess]=useState<any>(null);
 
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
@@ -144,7 +196,7 @@ export default function ClubArise(){
     if(!token)return;
     fetch(API_BASE+"/api/club-arise/bootstrap",{headers:{Authorization:"Bearer "+token},cache:"no-store"})
       .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d;})
-      .then(d=>{setSelf(d.self);setPlayers(d.players||[]);setPhrases(d.safePhrases||[]);})
+      .then(d=>{setSelf(d.self);setPlayers(d.players||[]);setPhrases(d.safePhrases||[]);setAccess(d.access||null);})
       .catch(e=>setNotice(e.message||"Could not enter Club A.R.I.S.E."));
   },[token]);
 
@@ -207,7 +259,7 @@ export default function ClubArise(){
     });
 
     const loader=new GLTFLoader();
-    const loadAvatar=(uid:number,name:string,charId:string,x:number,z:number,isSelf=false)=>{
+    const loadAvatar=(uid:number,name:string,charId:string,petId:string|undefined|null,x:number,z:number,isSelf=false)=>{
       const root=new THREE.Group();root.position.set(x,0,z);root.userData.userId=uid;scene.add(root);
       const label=makeLabel(name);label.position.set(0,3.15,0);root.add(label);
       const path=getAvatarCharacter(charId).modelPath;
@@ -215,10 +267,11 @@ export default function ClubArise(){
         if(disposed)return;
         const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;(o as THREE.Mesh).receiveShadow=true;}});root.add(model);
       });
+      const pet=createPet(petId||"pet-none");if(pet)root.add(pet);
       if(isSelf)selfRootRef.current=root;else remoteRootsRef.current.set(uid,root);
       return root;
     };
-    loadAvatar(self.userId,self.displayName,self.characterId,0,7,true);
+    loadAvatar(self.userId,self.displayName,self.characterId,(self as any).petId,0,7,true);
 
     const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
     const click=async(e:PointerEvent)=>{
@@ -263,6 +316,31 @@ export default function ClubArise(){
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
         let nearest:Station|null=null,dist=Infinity;for(const s of STATIONS){const d=Math.hypot(root.position.x-s.x,root.position.z-s.z);if(d<dist){dist=d;nearest=s;}}setNearStation(dist<5?nearest:null);
       }
+      const nowMs=performance.now();
+      const activeEmote=selfEmoteRef.current;
+      if(root&&activeEmote){
+        const elapsed=(nowMs-activeEmote.started)/1000;
+        const duration=activeEmote.name==="dance"?2.8:activeEmote.name==="silly"?2.2:1.25;
+        const p=Math.min(1,elapsed/duration);
+        root.position.y=activeEmote.name==="jump"?Math.sin(Math.PI*p)*1.7:activeEmote.name==="flip"?Math.sin(Math.PI*p)*.8:0;
+        if(activeEmote.name==="flip")root.rotation.z=Math.PI*2*p;
+        else if(activeEmote.name==="dance"){root.rotation.z=Math.sin(elapsed*9)*.18;root.rotation.y+=dt*2.7;}
+        else if(activeEmote.name==="silly"){root.rotation.z=Math.sin(elapsed*14)*.28;root.scale.y=1+Math.sin(elapsed*12)*.08;}
+        if(p>=1){root.position.y=0;root.rotation.z=0;root.scale.set(1,1,1);selfEmoteRef.current=null;}
+      }
+      for(const remote of players){
+        if(remote.user_id===self.userId||!remote.emote||!remote.emote_at)continue;
+        const rr=remoteRootsRef.current.get(remote.user_id);if(!rr)continue;
+        const elapsed=(Date.now()-new Date(remote.emote_at).getTime())/1000;
+        if(elapsed<0||elapsed>3.2){rr.position.y=0;rr.rotation.z=0;rr.scale.set(1,1,1);continue;}
+        const dur=remote.emote==="dance"?2.8:remote.emote==="silly"?2.2:1.25;
+        const p=Math.min(1,elapsed/dur);
+        rr.position.y=remote.emote==="jump"?Math.sin(Math.PI*p)*1.7:remote.emote==="flip"?Math.sin(Math.PI*p)*.8:0;
+        if(remote.emote==="flip")rr.rotation.z=Math.PI*2*p;
+        else if(remote.emote==="dance")rr.rotation.z=Math.sin(elapsed*9)*.18;
+        else if(remote.emote==="silly"){rr.rotation.z=Math.sin(elapsed*14)*.28;rr.scale.y=1+Math.sin(elapsed*12)*.08;}
+      }
+
       const t=performance.now()*.001;
       discoBalls.forEach((ball,i)=>{ball.rotation.y+=dt*(.35+i*.08);ball.rotation.x+=dt*.08;});
       movingLights.forEach((light,i)=>{
@@ -295,7 +373,7 @@ export default function ClubArise(){
     if(!sceneRef.current||!self)return;const scene=sceneRef.current,loader=new GLTFLoader();
     const active=new Set<number>();
     for(const p of players){if(p.user_id===self.userId)continue;active.add(p.user_id);let root=remoteRootsRef.current.get(p.user_id);
-      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);});remoteRootsRef.current.set(p.user_id,root);}
+      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);const pet=createPet(p.pet_id||"pet-none");if(pet)root.add(pet);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);});remoteRootsRef.current.set(p.user_id,root);}
       root.position.lerp(new THREE.Vector3(p.x,0,p.z),.35);root.rotation.y=THREE.MathUtils.lerp(root.rotation.y,p.facing,.35);
       const phraseFresh=p.phrase&&p.phrase_at&&Date.now()-new Date(p.phrase_at).getTime()<4500;const old=root.getObjectByName("phrase");if(old)root.remove(old);
       if(phraseFresh){const bubble=makeLabel(p.phrase!,"#ffffff","#111827");bubble.name="phrase";bubble.position.set(0,4.35,0);root.add(bubble);}
@@ -307,6 +385,16 @@ export default function ClubArise(){
     const root=selfRootRef.current;if(!root)return;
     await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,phrase})});
     setNotice(phrase);
+  };
+
+  const doEmote=async(name:"dance"|"jump"|"flip"|"silly")=>{
+    const root=selfRootRef.current;if(!root)return;
+    selfEmoteRef.current={name,started:performance.now()};
+    playFunnyEmoteMusic(name);
+    try{
+      const r=await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,emote:name})});
+      const d=await r.json();if(r.ok)setPlayers(d.players||[]);
+    }catch{}
   };
 
   const joinGame=async(station:Station)=>{
@@ -343,8 +431,18 @@ export default function ClubArise(){
     </div>
 
     <div className="pointer-events-none absolute left-1/2 top-20 z-20 -translate-x-1/2 rounded-2xl bg-black/60 px-4 py-2 text-sm font-black backdrop-blur">{notice}</div>
+    {access&&!access.allowed&&<div className="absolute left-1/2 top-32 z-40 w-[min(430px,90vw)] -translate-x-1/2 rounded-2xl border border-amber-300/30 bg-slate-950/95 p-4 text-center shadow-2xl">
+      <p className="font-black text-amber-300">{access.locked?"Club games are locked by your teacher.":access.dailyRemaining===0?"You reached today's Club game limit.":"Pass another book quiz to unlock more Club games."}</p>
+      <p className="mt-1 text-xs font-bold text-white/55">{access.gamesPerPassedQuiz>0?access.automaticRemaining+" automatic game plays remaining":access.dailyLimit!==null?access.dailyRemaining+" games remaining today":"You can still explore, chat safely, and use emotes."}</p>
+    </div>}
 
-    <div className="absolute bottom-4 left-1/2 z-40 w-[min(760px,94vw)] -translate-x-1/2 rounded-[1.7rem] border border-cyan-300/20 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
+    <div className="absolute bottom-[9.2rem] left-1/2 z-40 flex -translate-x-1/2 gap-2 rounded-2xl border border-fuchsia-300/20 bg-slate-950/82 p-2 shadow-xl backdrop-blur-xl">
+      {([
+        ["dance","💃","Dance"],["jump","⬆️","Jump"],["flip","🤸","Flip"],["silly","🌀","Silly"]
+      ] as const).map(([id,icon,label])=><button key={id} type="button" onClick={()=>void doEmote(id)} className="min-h-12 rounded-xl bg-white/10 px-3 text-xs font-black hover:bg-fuchsia-500/25"><span className="mr-1.5 text-base">{icon}</span>{label}</button>)}
+    </div>
+
+        <div className="absolute bottom-4 left-1/2 z-40 w-[min(760px,94vw)] -translate-x-1/2 rounded-[1.7rem] border border-cyan-300/20 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
       <div className="mb-2 flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Arcade games</p>
@@ -352,12 +450,13 @@ export default function ClubArise(){
         </div>
         <Zap className="h-5 w-5 text-amber-300" />
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {STATIONS.map(station=>(
           <button
             key={station.id}
             type="button"
-            onClick={()=>void joinGame(station)}
+            onClick={()=>access?.allowed!==false&&void joinGame(station)}
+            disabled={access?.allowed===false}
             className={"min-h-16 rounded-2xl border px-3 py-2 text-left transition hover:-translate-y-0.5 "+
               (station.id==="four"
                 ?"border-blue-300/30 bg-blue-500/20 hover:bg-blue-500/30"
@@ -436,6 +535,15 @@ export default function ClubArise(){
           <div className="flex justify-between rounded-2xl bg-violet-50 p-4 font-black"><span>You: {match.state?.scores?.[myIndex-1]||0}</span><span>{opponent}: {match.state?.scores?.[myIndex===1?1:0]||0}</span></div>
           <p className="mt-4 text-center font-black">Choose a word tile</p>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">{(match.state?.choices?.[match.state?.round]||[]).map((w:string)=><button key={w} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({choice:w})} className="min-h-20 rounded-2xl bg-violet-600 text-2xl font-black text-white disabled:opacity-40">{w}</button>)}</div>
+        </div>}
+
+        {["math_duel","synonym_sprint","pattern_power","sentence_fix","fact_dash"].includes(match.game_type)&&<div className="mt-5">
+          <div className="flex justify-between rounded-2xl bg-cyan-50 p-4 font-black"><span>You: {match.state?.scores?.[myIndex-1]||0}</span><span>{opponent}: {match.state?.scores?.[myIndex===1?1:0]||0}</span></div>
+          <div className="mt-4 rounded-2xl bg-slate-100 p-5 text-center">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Round {(match.state?.round||0)+1}</p>
+            <h3 className="mt-2 text-xl font-black">{match.state?.questions?.[match.state?.round]?.q||"Round complete"}</h3>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">{(match.state?.questions?.[match.state?.round]?.options||[]).map((choice:string)=><button key={choice} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({choice})} className="min-h-20 rounded-2xl bg-slate-950 px-3 text-base font-black text-white disabled:opacity-40">{choice}</button>)}</div>
         </div>}
 
         {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!"}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Club</button></div>}
