@@ -1243,7 +1243,7 @@ export default function Library() {
                         )}
                         {!user?.is_eye_gaze_user && (
                           <button onClick={() => { navigate("/club-arise"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <Gamepad2 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="block text-xs font-black">Club A.R.I.S.E.</span>
+                            <Gamepad2 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Club A.R.I.S.E.<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
                         {!user?.is_eye_gaze_user && (
@@ -1427,7 +1427,7 @@ export default function Library() {
             <span className="flex items-center gap-3">
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><Gamepad2 className="h-6 w-6" /></span>
               <span>
-                <span className="block text-base font-black">Club A.R.I.S.E.</span>
+                <span className="flex items-center gap-2 text-base font-black">Club A.R.I.S.E.<span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950 shadow-[0_0_16px_rgba(253,224,71,.45)]">NEW</span></span>
                 <span className="block text-xs font-bold text-white/75">Multiplayer arcade · avatars · pets · safe chat · 8 games</span>
               </span>
             </span>
