@@ -673,7 +673,7 @@ export default function ClubArise(){
           <button
             key={station.id}
             type="button"
-            onClick={()=>{setShowReaders(false);setShowMobileChat(false);setShowMobileCamera(false);setNearStation(station);}}
+            onClick={()=>{setShowReaders(false);setShowMobileChat(false);setShowMobileCamera(false);setShowArcade(false);setNearStation(station);}}
             className={"min-h-11 min-w-[112px] rounded-xl border px-2.5 py-1.5 text-left transition hover:-translate-y-0.5 sm:min-h-16 sm:min-w-0 sm:rounded-2xl sm:px-3 sm:py-2 "+
               (station.id==="four"
                 ?"border-blue-300/30 bg-blue-500/20 hover:bg-blue-500/30"
