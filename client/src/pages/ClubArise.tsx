@@ -10,6 +10,7 @@ import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet } from "@/lib/pets";
 import { PET_PERSONALITIES } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
+import { createWorldExit } from "@/lib/worldPortal";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
@@ -343,6 +344,7 @@ export default function ClubArise(){
       addNeonBox(scene,[2.45,.12,.12],[x,3.25,z+.88],color,3.2);
     });
 
+    createWorldExit(scene,0,22,0x22d3ee);
     const loader=new GLTFLoader();
     if(self.carId&&self.carId!=="car-none"){
       const car=createWorldModel(self.carId,loader,3.8);
@@ -372,6 +374,7 @@ export default function ClubArise(){
       for(const hit of hits){
         let node:THREE.Object3D|null=hit.object;
         while(node){
+          if(node.userData.worldExit){navigate("/worlds");return;}
           if(node.name==="clubPet"&&node.parent===selfRootRef.current){
             const personality=PET_PERSONALITIES[String(node.userData.petId)];
             if(personality){setNotice(personality.emoji+" "+personality.greeting);return;}
@@ -458,6 +461,7 @@ export default function ClubArise(){
           else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
         }
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
+        if(!carTransitionRef.current&&Math.hypot(root.position.x,root.position.z-22)<1.7){navigate("/worlds");return;}
         if(drivingRef.current&&selfCarRef.current&&!carTransitionRef.current){selfCarRef.current.position.set(root.position.x,0,root.position.z);selfCarRef.current.rotation.y=root.rotation.y;
           const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);const shift=desired.sub(controls.target).multiplyScalar(.12);camera.position.add(shift);controls.target.add(shift);
         }
@@ -591,7 +595,7 @@ export default function ClubArise(){
   return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/70 to-transparent p-3">
-      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-black/60 px-4 font-black backdrop-blur"><ArrowLeft className="h-5 w-5"/> Exit Club</button>
+      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-black/60 px-4 font-black backdrop-blur"><ArrowLeft className="h-5 w-5"/> Exit to worlds</button>
       <div className="flex-1"><h1 className="text-xl font-black">Club A.R.I.S.E.</h1><p className="text-xs font-bold text-white/70">Learn · play · meet readers safely</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);}} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 font-black backdrop-blur" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/>{onlineReaders.length} readers</button>
     </header>

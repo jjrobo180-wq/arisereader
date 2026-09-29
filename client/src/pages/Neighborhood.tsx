@@ -9,6 +9,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
+import { createWorldExit } from "@/lib/worldPortal";
 
 type Visitor={userId:number;displayName:string;characterId:string;petId:string;homeId:string;lot:number;x:number;z:number;facing:number;updatedAt:number};
 const LOTS=[
@@ -82,6 +83,7 @@ export default function Neighborhood(){
     block(scene,[76,.12,8],[0,.06,0],0x475569);
     for(const z of [-5,5])block(scene,[76,.15,1.4],[0,.08,z],0xd7dce1);
     for(let x=-34;x<=34;x+=7)block(scene,[3,.025,.12],[x,.14,0],0xfef3c7);
+    createWorldExit(scene,0,-25,0x38bdf8);
     const loader=new GLTFLoader();
     LOTS.forEach((lot,i)=>{
       const root=new THREE.Group();root.position.set(lot.x,0,lot.z);scene.add(root);lotRootsRef.current.set(i,root);
@@ -110,6 +112,8 @@ export default function Neighborhood(){
       if(!pointerStart||pointerStart.id!==event.pointerId)return;
       const moved=Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y);pointerStart=null;if(moved>10)return;
       const rect=renderer.domElement.getBoundingClientRect();pointer.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
+      const portalHit=raycaster.intersectObjects(scene.children,true).some(hit=>{let node:THREE.Object3D|null=hit.object;while(node){if(node.userData.worldExit)return true;node=node.parent;}return false;});
+      if(portalHit){navigate("/worlds");return;}
       const groundHit=raycaster.intersectObject(ground)[0];if(groundHit)targetRef.current.set(THREE.MathUtils.clamp(groundHit.point.x,-31,31),0,THREE.MathUtils.clamp(groundHit.point.z,-22,22));
     };
     const keyDown=(event:KeyboardEvent)=>keysRef.current.add(event.key.toLowerCase());
@@ -122,7 +126,8 @@ export default function Neighborhood(){
       if(root){let dx=0,dz=0;const keys=keysRef.current;if(keys.has("w")||keys.has("arrowup"))dz-=1;if(keys.has("s")||keys.has("arrowdown"))dz+=1;if(keys.has("a")||keys.has("arrowleft"))dx-=1;if(keys.has("d")||keys.has("arrowright"))dx+=1;
         if(dx||dz){const step=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar(5*dt);root.position.add(step);root.rotation.y=Math.atan2(step.x,step.z);targetRef.current.copy(root.position);}
         else{const delta=targetRef.current.clone().sub(root.position);delta.y=0;if(delta.length()>.18){delta.normalize();root.position.addScaledVector(delta,4*dt);root.rotation.y=Math.atan2(delta.x,delta.z);}}
-        root.position.x=THREE.MathUtils.clamp(root.position.x,-31,31);root.position.z=THREE.MathUtils.clamp(root.position.z,-22,22);
+        root.position.x=THREE.MathUtils.clamp(root.position.x,-31,31);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,22);
+        if(Math.hypot(root.position.x,root.position.z+25)<1.7){navigate("/worlds");return;}
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
       }
       remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
@@ -172,7 +177,7 @@ export default function Neighborhood(){
   return <main className="relative h-[100dvh] overflow-hidden bg-sky-300 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-slate-950/85 to-transparent p-3">
-      <button type="button" onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/75 px-3 font-black"><ArrowLeft className="h-5 w-5"/> World map</button>
+      <button type="button" onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/75 px-3 font-black"><ArrowLeft className="h-5 w-5"/> Exit to worlds</button>
       <div className="flex-1"><h1 className="text-xl font-black">The Block</h1><p className="text-xs font-bold text-white/80">Your neighborhood · your home</p></div>
       <button type="button" onClick={()=>setShowReaders(value=>!value)} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-slate-950/75 px-3 font-black" aria-expanded={showReaders}><Users className="h-4 w-4"/>{neighbors.length}</button>
     </header>
