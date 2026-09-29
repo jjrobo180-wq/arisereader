@@ -30,11 +30,11 @@ const rarityClass:Record<string,string>={
   legendary:"from-amber-400 to-orange-700 border-amber-200",
 };
 
-export default function AvatarWorld(){
+export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   const {user,token}=useAuth();
   const [,navigate]=useLocation();
   const [payload,setPayload]=useState<Payload|null>(null);
-  const [tab,setTab]=useState<Tab>("character");
+  const [tab,setTab]=useState<Tab>(initialTab);
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState("");
   const [message,setMessage]=useState("");
@@ -128,7 +128,7 @@ export default function AvatarWorld(){
   return <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554,#0f172a_50%,#020617)] text-white">
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/85 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 py-3 flex items-center gap-3">
-        <button onClick={()=>navigate("/library")} className="min-h-12 rounded-2xl bg-white/10 border border-white/15 px-3 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Library</button>
+        <button onClick={()=>navigate(initialTab==="home"?"/neighborhood":"/library")} className="min-h-12 rounded-2xl bg-white/10 border border-white/15 px-3 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> {initialTab==="home"?"The Block":"Library"}</button>
         <div className="flex-1 min-w-0"><p className="text-[10px] font-black tracking-[.28em] text-cyan-300">A.R.I.S.E.</p><h1 className="text-lg sm:text-2xl font-black truncate">Avatar World</h1></div>
         <div className="rounded-2xl bg-amber-400/10 border border-amber-300/30 px-3 py-2 text-center"><div className="text-[10px] font-black text-amber-200">COINS</div><div className="font-black text-amber-300">{payload.economy.wallet.toLocaleString()}</div></div>
         <div className="rounded-2xl bg-violet-500/10 border border-violet-300/30 px-3 py-2 text-center"><div className="text-[10px] font-black text-violet-200">LEVEL</div><div className="font-black text-xl">{payload.economy.level}</div></div>

@@ -22,6 +22,7 @@ type PlayerProfile={
   club:{played:number;wins:number;ties:number;losses:number;score:number;byGame:Record<string,{played:number;wins:number}>};
 };
 type Station={id:GameType;name:string;subtitle:string;x:number;z:number};
+type CarTransition={kind:"enter"|"exit";started:number;from:THREE.Vector3;door:THREE.Vector3;car:THREE.Vector3};
 
 const STATIONS:Station[]=[
   {id:"four",name:"Four in a Row",subtitle:"Strategy · patterns · planning",x:-12,z:-7},
@@ -198,6 +199,8 @@ export default function ClubArise(){
   const selfCarRef=useRef<THREE.Group|null>(null);
   const drivingRef=useRef(false);
   const [driving,setDriving]=useState(false);
+  const carTransitionRef=useRef<CarTransition|null>(null);
+  const [carTransition,setCarTransition]=useState<"enter"|"exit"|null>(null);
   const remoteRootsRef=useRef<Map<number,THREE.Group>>(new Map());
   const targetRef=useRef(new THREE.Vector3(0,0,7));
   const keysRef=useRef(new Set<string>());
@@ -253,23 +256,24 @@ export default function ClubArise(){
   };
 
   const toggleDriving=()=>{
-    const root=selfRootRef.current,car=selfCarRef.current;if(!root||!car)return;
-    const next=!drivingRef.current;
-    drivingRef.current=next;setDriving(next);
-    root.userData.driving=next;
-    if(next){root.position.set(car.position.x,0,car.position.z);targetRef.current.copy(root.position);}
-    else car.position.set(THREE.MathUtils.clamp(root.position.x+2,-27,27),0,root.position.z);
-    if(next)centerOnMe();
-    const avatar=root.userData.avatarModel as THREE.Object3D|undefined;if(avatar)avatar.visible=!next;
-    const pet=root.getObjectByName("clubPet");if(pet)pet.visible=!next;
-    void fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,driving:next})});
-    setNotice(next?"You're driving! Use WASD, arrows, or tap the floor.":"You're out of the car. It is parked nearby.");
-  };
-  const visitHome=()=>{
-    targetRef.current.set(-22,0,13);
-    const controls=controlsRef.current,camera=cameraRef.current;
-    if(controls&&camera){const center=new THREE.Vector3(-23,1.5,15);camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();}
-    setNotice("Heading to your home…");
+    const root=selfRootRef.current,car=selfCarRef.current;if(!root||!car||carTransitionRef.current)return;
+    const kind=drivingRef.current?"exit":"enter";
+    const carPosition=car.position.clone();
+    const door=carPosition.clone().add(new THREE.Vector3(-1.8,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),car.rotation.y));
+    carTransitionRef.current={kind,started:performance.now(),from:root.position.clone(),door,car:carPosition};
+    setCarTransition(kind);
+    targetRef.current.copy(root.position);
+    const sign=car.getObjectByName("carSign");if(sign)sign.visible=false;
+    const visual=root.userData.avatarVisual as THREE.Group|undefined;
+    if(kind==="exit"&&visual){visual.visible=true;visual.position.set(0,.45,0);visual.scale.setScalar(.65);}
+    if(kind==="enter"){
+      selfEmoteRef.current=null;setAvatarGesture(root,null);root.rotation.z=0;root.scale.set(1,1,1);root.position.y=0;
+      const animations=root.userData.animations as THREE.AnimationClip[]|undefined;
+      const walk=animations?.find(clip=>/walk/i.test(clip.name));
+      const mixer=root.userData.mixer as THREE.AnimationMixer|undefined;
+      if(walk&&mixer){(root.userData.idle as THREE.AnimationAction|undefined)?.stop();const action=mixer.clipAction(walk).reset().play();root.userData.travelAction=action;}
+    }
+    setNotice(kind==="enter"?"Walking to your car…":"Climbing out of your car…");
   };
 
   useEffect(()=>{
@@ -340,13 +344,10 @@ export default function ClubArise(){
     });
 
     const loader=new GLTFLoader();
-    const home=createWorldModel(self.homeId||"home-basic",loader,7);
-    home.position.set(-24,0,16);home.rotation.y=.35;scene.add(home);
-    const homeSign=makeLabel("MY HOME","#0f172a","#fef08a");homeSign.position.set(-24,5.1,16);homeSign.scale.set(4.5,1.15,1);scene.add(homeSign);
     if(self.carId&&self.carId!=="car-none"){
       const car=createWorldModel(self.carId,loader,3.8);
       car.position.set(6,0,10);scene.add(car);selfCarRef.current=car;
-      const parkSign=makeLabel("MY CAR","#0f172a","#67e8f9");parkSign.position.set(6,3.2,10);parkSign.scale.set(3.2,.85,1);scene.add(parkSign);
+      const parkSign=makeLabel("MY CAR","#0f172a","#67e8f9");parkSign.name="carSign";parkSign.position.set(0,3.2,0);parkSign.scale.set(3.2,.85,1);car.add(parkSign);
     }
     const loadAvatar=(uid:number,name:string,charId:string,petId:string|undefined|null,x:number,z:number,isSelf=false)=>{
       const root=new THREE.Group();root.position.set(x,0,z);root.userData.userId=uid;scene.add(root);
@@ -355,7 +356,7 @@ export default function ClubArise(){
       const path=getAvatarCharacter(charId).modelPath;
       loader.load(path,gltf=>{
         if(disposed)return;
-        const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;(o as THREE.Mesh).receiveShadow=true;}});root.add(model);root.userData.avatarModel=model;model.visible=!root.userData.driving;attachAvatarMotion(root,model,gltf.animations);
+        const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;(o as THREE.Mesh).receiveShadow=true;}});const visual=new THREE.Group();visual.add(model);root.add(visual);root.userData.avatarVisual=visual;root.userData.avatarModel=model;visual.visible=!root.userData.driving;attachAvatarMotion(root,model,gltf.animations);
       });
       const pet=createPet(petId,loader,.95);if(pet){pet.position.set(.85,0,.55);root.add(pet);}
       if(isSelf)selfRootRef.current=root;else remoteRootsRef.current.set(uid,root);
@@ -414,12 +415,50 @@ export default function ClubArise(){
       if(disposed)return;const dt=Math.min(.04,clock.getDelta());const root=selfRootRef.current;
       if(root){
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
-        let dx=0,dz=0;const k=keysRef.current;if(k.has("w")||k.has("arrowup"))dz-=1;if(k.has("s")||k.has("arrowdown"))dz+=1;if(k.has("a")||k.has("arrowleft"))dx-=1;if(k.has("d")||k.has("arrowright"))dx+=1;
-        let dest=targetRef.current.clone();
-        if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar((drivingRef.current?10:5)*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
-        else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
+        const transition=carTransitionRef.current;
+        if(transition){
+          const elapsed=(performance.now()-transition.started)/1000;
+          const visual=root.userData.avatarVisual as THREE.Group|undefined;
+          if(transition.kind==="enter"){
+            const approach=Math.min(1,elapsed/1.1);
+            const smooth=approach*approach*(3-2*approach);
+            root.position.lerpVectors(transition.from,transition.door,smooth);
+            root.rotation.y=Math.atan2(transition.car.x-root.position.x,transition.car.z-root.position.z);
+            if(visual&&elapsed>1.1){const climb=Math.min(1,(elapsed-1.1)/.7);
+              visual.position.set(0,climb*.45,climb*1.8);visual.rotation.z=-climb*.25;visual.scale.setScalar(1-climb*.35);
+            }
+            if(elapsed>=1.8){root.position.copy(transition.car);targetRef.current.copy(root.position);
+              if(visual){visual.visible=false;visual.position.set(0,0,0);visual.rotation.z=0;visual.scale.setScalar(1);}
+              const pet=root.getObjectByName("clubPet");if(pet)pet.visible=false;
+              (root.userData.travelAction as THREE.AnimationAction|undefined)?.stop();(root.userData.idle as THREE.AnimationAction|undefined)?.reset().play();
+              root.userData.driving=true;drivingRef.current=true;setDriving(true);setCarTransition(null);carTransitionRef.current=null;
+              const center=new THREE.Vector3(root.position.x,1.3,root.position.z);camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);
+              setNotice("You're in! Use WASD, arrows, or tap the floor to drive.");
+              void fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,driving:true})});
+            }
+          }else{
+            const progress=Math.min(1,elapsed/1.1);
+            const smooth=progress*progress*(3-2*progress);
+            if(visual){const local=transition.door.clone().sub(transition.car).applyAxisAngle(new THREE.Vector3(0,1,0),-root.rotation.y);
+              visual.position.set(local.x*smooth,.45*(1-smooth),local.z*smooth);visual.scale.setScalar(.65+.35*smooth);visual.rotation.z=(1-smooth)*.22;
+            }
+            if(progress>=1){root.position.copy(transition.door);targetRef.current.copy(root.position);
+              if(visual){visual.position.set(0,0,0);visual.rotation.z=0;visual.scale.setScalar(1);}
+              const pet=root.getObjectByName("clubPet");if(pet)pet.visible=true;
+              root.userData.driving=false;drivingRef.current=false;setDriving(false);setCarTransition(null);carTransitionRef.current=null;
+              const sign=selfCarRef.current?.getObjectByName("carSign");if(sign)sign.visible=true;
+              setNotice("You're out of the car. It is parked beside you.");
+              void fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,driving:false})});
+            }
+          }
+        }else{
+          let dx=0,dz=0;const k=keysRef.current;if(k.has("w")||k.has("arrowup"))dz-=1;if(k.has("s")||k.has("arrowdown"))dz+=1;if(k.has("a")||k.has("arrowleft"))dx-=1;if(k.has("d")||k.has("arrowright"))dx+=1;
+          const dest=targetRef.current.clone();
+          if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar((drivingRef.current?10:5)*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
+          else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
+        }
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
-        if(drivingRef.current&&selfCarRef.current){selfCarRef.current.position.set(root.position.x,0,root.position.z);selfCarRef.current.rotation.y=root.rotation.y;
+        if(drivingRef.current&&selfCarRef.current&&!carTransitionRef.current){selfCarRef.current.position.set(root.position.x,0,root.position.z);selfCarRef.current.rotation.y=root.rotation.y;
           const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);const shift=desired.sub(controls.target).multiplyScalar(.12);camera.position.add(shift);controls.target.add(shift);
         }
         const pet=root.getObjectByName("clubPet");if(pet&&!drivingRef.current){const personality=PET_PERSONALITIES[String(pet.userData.petId)];const t=performance.now()*.001;pet.position.y=personality?.motion==="bounce"?Math.abs(Math.sin(t*3))*.16:Math.sin(t*2)*.045;pet.rotation.z=personality?.motion==="sway"?Math.sin(t*2)*.12:0;pet.rotation.y=personality?.motion==="spin"?Math.sin(t*.7)*.35:0;}
@@ -468,7 +507,7 @@ export default function ClubArise(){
     setReady(true);
 
     const resize=()=>{camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight);};window.addEventListener("resize",resize);
-    return()=>{disposed=true;selfCarRef.current=null;drivingRef.current=false;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);renderer.domElement.removeEventListener("pointercancel",pointerCancel);controls.dispose();renderer.dispose();remoteRootsRef.current.clear();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
+    return()=>{disposed=true;selfCarRef.current=null;drivingRef.current=false;carTransitionRef.current=null;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);renderer.domElement.removeEventListener("pointercancel",pointerCancel);controls.dispose();renderer.dispose();remoteRootsRef.current.clear();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
   },[self,token]);
 
   useEffect(()=>{
@@ -552,16 +591,15 @@ export default function ClubArise(){
   return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/70 to-transparent p-3">
-      <button onClick={()=>navigate("/library")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-black/60 px-4 font-black backdrop-blur"><ArrowLeft className="h-5 w-5"/> Library</button>
+      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-black/60 px-4 font-black backdrop-blur"><ArrowLeft className="h-5 w-5"/> Exit Club</button>
       <div className="flex-1"><h1 className="text-xl font-black">Club A.R.I.S.E.</h1><p className="text-xs font-bold text-white/70">Learn · play · meet readers safely</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);}} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 font-black backdrop-blur" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/>{onlineReaders.length} readers</button>
     </header>
 
-    <div className="absolute right-3 top-36 z-30 flex max-w-44 flex-col gap-2 rounded-2xl border border-cyan-300/25 bg-slate-950/90 p-2 backdrop-blur">
-      {self?.carId&&self.carId!=="car-none"&&<button type="button" onClick={toggleDriving} className="min-h-12 rounded-xl bg-cyan-300 px-3 font-black text-slate-950">{driving?"Get out of car":"Get in and drive"}</button>}
-      <button type="button" onClick={visitHome} className="min-h-11 rounded-xl bg-amber-300 px-3 text-sm font-black text-slate-950">Visit my home</button>
-      <p className="text-center text-xs text-white/65">{driving?"Drive with WASD, arrows, or tap":"Your car is parked by the dance floor"}</p>
-    </div>
+    {self?.carId&&self.carId!=="car-none"&&<div className="absolute right-3 top-36 z-30 flex max-w-44 flex-col gap-2 rounded-2xl border border-cyan-300/25 bg-slate-950/90 p-2 backdrop-blur">
+      <button type="button" onClick={toggleDriving} disabled={!!carTransition} className="min-h-12 rounded-xl bg-cyan-300 px-3 font-black text-slate-950 disabled:opacity-50">{carTransition==="enter"?"Getting in…":carTransition==="exit"?"Getting out…":driving?"Get out of car":"Get in and drive"}</button>
+      <p className="text-center text-xs text-white/65">{carTransition?"Watch your character move":driving?"Drive with WASD, arrows, or tap":"Parked by the dance floor"}</p>
+    </div>}
 
     {!showReaders&&!selectedPlayer&&!playerLoading&&!nearStation&&<div className="absolute left-3 top-20 z-30 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/65 p-3 backdrop-blur">
       <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white/60"><MessageCircle className="h-4 w-4"/> Safe chat</div>

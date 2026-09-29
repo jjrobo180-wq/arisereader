@@ -1246,6 +1246,11 @@ export default function Library() {
                             <Gamepad2 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="block text-xs font-black">Club A.R.I.S.E.</span>
                           </button>
                         )}
+                        {!user?.is_eye_gaze_user && (
+                          <button onClick={() => { navigate("/worlds"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <span className="mb-1.5 block text-lg">🏡</span><span className="block text-xs font-black">World Map</span>
+                          </button>
+                        )}
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Brain className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Growth Check</span>
                         </button>
@@ -1427,6 +1432,12 @@ export default function Library() {
               </span>
             </span>
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">ENTER CLUB</span>
+          </button>
+        )}
+        {user?.role === "student" && !user?.is_eye_gaze_user && (
+          <button type="button" onClick={() => navigate("/worlds")} className="mb-4 flex w-full items-center justify-between rounded-2xl border border-sky-300/35 bg-gradient-to-r from-sky-700 via-cyan-700 to-teal-700 px-4 py-3 text-left text-white shadow-lg hover:brightness-110">
+            <span><span className="block text-base font-black">Explore the World Map</span><span className="block text-xs font-bold text-white/75">The Block is open · preview Space, Beach, and Racetrack</span></span>
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">EXPLORE</span>
           </button>
         )}
 
