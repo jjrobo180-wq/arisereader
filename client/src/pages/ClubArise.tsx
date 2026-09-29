@@ -7,6 +7,7 @@ import { ArrowLeft, Gamepad2, MessageCircle, Trophy, UserRound, Users, X, Zap } 
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
+import { createPet } from "@/lib/pets";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
@@ -139,21 +140,31 @@ function addArcadeCabinet(scene:THREE.Scene,station:Station){
   return root;
 }
 
-function createPet(petId:string){
-  if(!petId||petId==="pet-none")return null;
-  const root=new THREE.Group();
-  const color=petId==="pet-dog"?0xb77945:petId==="pet-cat"?0x94a3b8:0xf5d0c5;
-  const body=new THREE.Mesh(new THREE.SphereGeometry(.34,18,14),new THREE.MeshStandardMaterial({color,roughness:.8}));
-  body.scale.set(1,.78,1.25);body.position.y=.42;root.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,18,14),new THREE.MeshStandardMaterial({color,roughness:.8}));
-  head.position.set(0,.69,.29);root.add(head);
-  for(const x of [-.13,.13]){
-    const ear=new THREE.Mesh(new THREE.ConeGeometry(.09,.25,10),new THREE.MeshStandardMaterial({color,roughness:.8}));
-    ear.position.set(x,.94,.27);ear.rotation.z=x<0?.25:-.25;root.add(ear);
-  }
-  const tail=new THREE.Mesh(new THREE.CylinderGeometry(.045,.07,.52,10),new THREE.MeshStandardMaterial({color,roughness:.8}));
-  tail.position.set(0,.57,-.47);tail.rotation.x=-.85;root.add(tail);
-  root.position.set(.8,0,.55);root.name="clubPet";return root;
+function attachAvatarMotion(root:THREE.Group,model:THREE.Group,animations:THREE.AnimationClip[]){
+  if(!animations.length)return;
+  const mixer=new THREE.AnimationMixer(model);
+  const idleClip=animations.find(clip=>clip.name==="Idle_Neutral")||animations.find(clip=>clip.name==="Idle")||animations[0];
+  const idle=mixer.clipAction(idleClip);idle.play();
+  root.userData.mixer=mixer;
+  root.userData.idle=idle;
+  root.userData.animations=animations;
+}
+
+function setAvatarGesture(root:THREE.Group,name:string|null){
+  const mixer=root.userData.mixer as THREE.AnimationMixer|undefined;
+  if(!mixer)return;
+  const idle=root.userData.idle as THREE.AnimationAction;
+  const current=root.userData.gesture as THREE.AnimationAction|undefined;
+  current?.stop();
+  if(!name){idle.reset().play();root.userData.gesture=null;return;}
+  const clipName=name==="dance"?"Wave":name==="flip"?"Roll":name==="jump"?"Kick_Right":"Kick_Left";
+  const clip=(root.userData.animations as THREE.AnimationClip[]).find(item=>item.name===clipName);
+  if(!clip)return;
+  idle.stop();
+  const action=mixer.clipAction(clip).reset();
+  action.setLoop(name==="dance"||name==="silly"?THREE.LoopRepeat:THREE.LoopOnce,name==="dance"||name==="silly"?Infinity:1);
+  action.clampWhenFinished=true;
+  action.play();root.userData.gesture=action;
 }
 
 function playFunnyEmoteMusic(kind:string){
@@ -190,6 +201,8 @@ export default function ClubArise(){
   const selfEmoteRef=useRef<{name:string;started:number}|null>(null);
   const [ready,setReady]=useState(false);
   const [players,setPlayers]=useState<Player[]>([]);
+  const playersRef=useRef<Player[]>([]);
+  playersRef.current=players;
   const [self,setSelf]=useState<{userId:number;displayName:string;characterId:string;petId?:string}|null>(null);
   const [phrases,setPhrases]=useState<string[]>([]);
   const [nearStation,setNearStation]=useState<Station|null>(null);
@@ -275,9 +288,9 @@ export default function ClubArise(){
       const path=getAvatarCharacter(charId).modelPath;
       loader.load(path,gltf=>{
         if(disposed)return;
-        const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;(o as THREE.Mesh).receiveShadow=true;}});root.add(model);
+        const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;(o as THREE.Mesh).receiveShadow=true;}});root.add(model);attachAvatarMotion(root,model,gltf.animations);
       });
-      const pet=createPet(petId||"pet-none");if(pet)root.add(pet);
+      const pet=createPet(petId,loader,.95);if(pet){pet.position.set(.85,0,.55);root.add(pet);}
       if(isSelf)selfRootRef.current=root;else remoteRootsRef.current.set(uid,root);
       return root;
     };
@@ -348,6 +361,7 @@ export default function ClubArise(){
     const loop=()=>{
       if(disposed)return;const dt=Math.min(.04,clock.getDelta());const root=selfRootRef.current;
       if(root){
+        (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
         let dx=0,dz=0;const k=keysRef.current;if(k.has("w")||k.has("arrowup"))dz-=1;if(k.has("s")||k.has("arrowdown"))dz+=1;if(k.has("a")||k.has("arrowleft"))dx-=1;if(k.has("d")||k.has("arrowright"))dx+=1;
         let dest=targetRef.current.clone();
         if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar(5*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
@@ -359,25 +373,28 @@ export default function ClubArise(){
       const activeEmote=selfEmoteRef.current;
       if(root&&activeEmote){
         const elapsed=(nowMs-activeEmote.started)/1000;
-        const duration=activeEmote.name==="dance"?2.8:activeEmote.name==="silly"?2.2:1.25;
+        const duration=activeEmote.name==="dance"?3.2:activeEmote.name==="silly"?2.4:activeEmote.name==="flip"?1.5:1.35;
         const p=Math.min(1,elapsed/duration);
-        root.position.y=activeEmote.name==="jump"?Math.sin(Math.PI*p)*1.7:activeEmote.name==="flip"?Math.sin(Math.PI*p)*.8:0;
+        root.position.y=activeEmote.name==="jump"?Math.sin(Math.PI*p)*2:activeEmote.name==="flip"?Math.sin(Math.PI*p)*1.1:activeEmote.name==="dance"?Math.abs(Math.sin(elapsed*9))*.25:0;
         if(activeEmote.name==="flip")root.rotation.z=Math.PI*2*p;
-        else if(activeEmote.name==="dance"){root.rotation.z=Math.sin(elapsed*9)*.18;root.rotation.y+=dt*2.7;}
-        else if(activeEmote.name==="silly"){root.rotation.z=Math.sin(elapsed*14)*.28;root.scale.y=1+Math.sin(elapsed*12)*.08;}
-        if(p>=1){root.position.y=0;root.rotation.z=0;root.scale.set(1,1,1);selfEmoteRef.current=null;}
+        else if(activeEmote.name==="dance"){root.rotation.z=Math.sin(elapsed*9)*.28;root.rotation.y+=dt*3.5;}
+        else if(activeEmote.name==="silly"){root.rotation.z=Math.sin(elapsed*14)*.4;root.scale.y=1+Math.sin(elapsed*12)*.17;}
+        if(p>=1){root.position.y=0;root.rotation.z=0;root.scale.set(1,1,1);selfEmoteRef.current=null;setAvatarGesture(root,null);}
       }
-      for(const remote of players){
-        if(remote.user_id===self.userId||!remote.emote||!remote.emote_at)continue;
+      for(const remote of playersRef.current){
+        if(remote.user_id===self.userId)continue;
         const rr=remoteRootsRef.current.get(remote.user_id);if(!rr)continue;
+        (rr.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
+        if(!remote.emote||!remote.emote_at){if(rr.userData.gesture)setAvatarGesture(rr,null);continue;}
+        if(rr.userData.lastEmoteAt!==remote.emote_at){rr.userData.lastEmoteAt=remote.emote_at;setAvatarGesture(rr,remote.emote);}
         const elapsed=(Date.now()-new Date(remote.emote_at).getTime())/1000;
-        if(elapsed<0||elapsed>3.2){rr.position.y=0;rr.rotation.z=0;rr.scale.set(1,1,1);continue;}
-        const dur=remote.emote==="dance"?2.8:remote.emote==="silly"?2.2:1.25;
+        if(elapsed<0||elapsed>3.4){rr.position.y=0;rr.rotation.z=0;rr.scale.set(1,1,1);if(rr.userData.gesture)setAvatarGesture(rr,null);continue;}
+        const dur=remote.emote==="dance"?3.2:remote.emote==="silly"?2.4:remote.emote==="flip"?1.5:1.35;
         const p=Math.min(1,elapsed/dur);
-        rr.position.y=remote.emote==="jump"?Math.sin(Math.PI*p)*1.7:remote.emote==="flip"?Math.sin(Math.PI*p)*.8:0;
+        rr.position.y=remote.emote==="jump"?Math.sin(Math.PI*p)*2:remote.emote==="flip"?Math.sin(Math.PI*p)*1.1:remote.emote==="dance"?Math.abs(Math.sin(elapsed*9))*.25:0;
         if(remote.emote==="flip")rr.rotation.z=Math.PI*2*p;
-        else if(remote.emote==="dance")rr.rotation.z=Math.sin(elapsed*9)*.18;
-        else if(remote.emote==="silly"){rr.rotation.z=Math.sin(elapsed*14)*.28;rr.scale.y=1+Math.sin(elapsed*12)*.08;}
+        else if(remote.emote==="dance")rr.rotation.z=Math.sin(elapsed*9)*.28;
+        else if(remote.emote==="silly"){rr.rotation.z=Math.sin(elapsed*14)*.4;rr.scale.y=1+Math.sin(elapsed*12)*.17;}
       }
 
       const t=performance.now()*.001;
@@ -412,7 +429,8 @@ export default function ClubArise(){
     if(!sceneRef.current||!self)return;const scene=sceneRef.current,loader=new GLTFLoader();
     const active=new Set<number>();
     for(const p of players){if(p.user_id===self.userId)continue;active.add(p.user_id);let root=remoteRootsRef.current.get(p.user_id);
-      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);const pet=createPet(p.pet_id||"pet-none");if(pet)root.add(pet);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);});remoteRootsRef.current.set(p.user_id,root);}
+      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);attachAvatarMotion(root!,model,g.animations);if(p.emote&&p.emote_at&&Date.now()-new Date(p.emote_at).getTime()<3200)setAvatarGesture(root!,p.emote);});remoteRootsRef.current.set(p.user_id,root);}
+      if(root.userData.petId!==p.pet_id){const old=root.getObjectByName("clubPet");if(old)root.remove(old);const pet=createPet(p.pet_id,loader,.95);if(pet){pet.position.set(.85,0,.55);root.add(pet);}root.userData.petId=p.pet_id;}
       root.position.lerp(new THREE.Vector3(p.x,0,p.z),.35);root.rotation.y=THREE.MathUtils.lerp(root.rotation.y,p.facing,.35);
       const phraseFresh=p.phrase&&p.phrase_at&&Date.now()-new Date(p.phrase_at).getTime()<4500;const old=root.getObjectByName("phrase");if(old)root.remove(old);
       if(phraseFresh){const bubble=makeLabel(p.phrase!,"#ffffff","#111827");bubble.name="phrase";bubble.position.set(0,4.35,0);root.add(bubble);}
@@ -429,6 +447,7 @@ export default function ClubArise(){
   const doEmote=async(name:"dance"|"jump"|"flip"|"silly")=>{
     const root=selfRootRef.current;if(!root)return;
     selfEmoteRef.current={name,started:performance.now()};
+    setAvatarGesture(root,name);
     playFunnyEmoteMusic(name);
     try{
       const r=await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,emote:name})});
@@ -475,13 +494,13 @@ export default function ClubArise(){
       <p className="mt-1 text-xs font-bold text-white/55">{access.gamesPerPassedQuiz>0?access.automaticRemaining+" automatic game plays remaining":access.dailyLimit!==null?access.dailyRemaining+" games remaining today":"You can still explore, chat safely, and use emotes."}</p>
     </div>}
 
-    <div className="absolute bottom-[9.2rem] left-1/2 z-40 flex -translate-x-1/2 gap-2 rounded-2xl border border-fuchsia-300/20 bg-slate-950/82 p-2 shadow-xl backdrop-blur-xl">
+    <div className="absolute bottom-[10.5rem] sm:bottom-[15rem] left-1/2 z-40 flex -translate-x-1/2 gap-1 sm:gap-2 rounded-2xl border border-fuchsia-300/30 bg-slate-950/95 p-2 shadow-xl backdrop-blur-xl whitespace-nowrap">
       {([
         ["dance","💃","Dance"],["jump","⬆️","Jump"],["flip","🤸","Flip"],["silly","🌀","Silly"]
-      ] as const).map(([id,icon,label])=><button key={id} type="button" onClick={()=>void doEmote(id)} className="min-h-12 rounded-xl bg-white/10 px-3 text-xs font-black hover:bg-fuchsia-500/25"><span className="mr-1.5 text-base">{icon}</span>{label}</button>)}
+      ] as const).map(([id,icon,label])=><button key={id} type="button" onClick={()=>void doEmote(id)} className="min-h-12 rounded-xl bg-fuchsia-500/25 px-2 sm:px-4 text-sm font-black hover:bg-fuchsia-500/45"><span className="mr-1 text-lg">{icon}</span>{label}</button>)}
     </div>
 
-        <div className="absolute bottom-4 left-1/2 z-40 w-[min(760px,94vw)] -translate-x-1/2 rounded-[1.7rem] border border-cyan-300/20 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
+    <div className="absolute bottom-3 left-1/2 z-40 w-[min(760px,94vw)] -translate-x-1/2 rounded-[1.7rem] border border-cyan-300/20 bg-slate-950/95 p-2.5 shadow-2xl backdrop-blur-xl">
       <div className="mb-2 flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Arcade games</p>
@@ -489,14 +508,14 @@ export default function ClubArise(){
         </div>
         <Zap className="h-5 w-5 text-amber-300" />
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-4">
         {STATIONS.map(station=>(
           <button
             key={station.id}
             type="button"
             onClick={()=>access?.allowed!==false&&void joinGame(station)}
             disabled={access?.allowed===false}
-            className={"min-h-16 rounded-2xl border px-3 py-2 text-left transition hover:-translate-y-0.5 "+
+            className={"min-h-16 min-w-[135px] sm:min-w-0 rounded-2xl border px-3 py-2 text-left transition hover:-translate-y-0.5 "+
               (station.id==="four"
                 ?"border-blue-300/30 bg-blue-500/20 hover:bg-blue-500/30"
                 :station.id==="word_tiles"
