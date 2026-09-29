@@ -1299,10 +1299,10 @@ export default function Library() {
       </header>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
-          <div className="mb-6 rounded-xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
+          <div className="mb-3 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: studentBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={studentBanner.textColor} strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1314,7 +1314,7 @@ export default function Library() {
           </div>
         )}
         {(user?.role === 'teacher' || user?.isAdmin) && teacherBanner && teacherBanner.active && teacherBanner.text && (
-          <div className="mb-6 rounded-xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: teacherBanner.bgColor + '20', borderColor: teacherBanner.bgColor, borderWidth: 1 }}>
+          <div className="mb-3 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3" style={{ backgroundColor: teacherBanner.bgColor + '20', borderColor: teacherBanner.bgColor, borderWidth: 1 }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: teacherBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={teacherBanner.textColor} strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1328,7 +1328,7 @@ export default function Library() {
 
         {/* Announcement banner */}
         {announcement && (
-          <div className="mb-6 rounded-xl bg-primary/10 border border-primary/30 px-4 py-3 flex items-start gap-3">
+          <div className="mb-3 rounded-xl bg-primary/10 border border-primary/30 px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1342,7 +1342,7 @@ export default function Library() {
 
         {/* Student Rewards banner (admin-assigned) */}
         {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && studentRewards.length > 0 && (
-          <div className="mb-6 space-y-3">
+          <div className="mb-4 space-y-2">
             {studentRewards.map((reward) => {
               const status = reward.claimStatus;
               return (
@@ -1414,7 +1414,7 @@ export default function Library() {
           <button
             type="button"
             onClick={() => navigate("/reading-level-up")}
-            className="mb-3 flex w-full items-center gap-2 rounded-xl border border-violet-500/15 bg-violet-500/5 px-3 py-2.5 text-left transition-colors hover:bg-violet-500/10"
+            className="mb-2 flex w-full items-center gap-2 rounded-xl border border-violet-500/15 bg-violet-500/5 px-3 py-2.5 text-left transition-colors hover:bg-violet-500/10"
           >
             <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-lg">📈</div>
             <div className="min-w-0 flex-1">
@@ -1426,7 +1426,7 @@ export default function Library() {
         )}
 
         {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <div className="mb-5" data-tour="request-quiz">
+          <div className="mb-4" data-tour="request-quiz">
             <Button
               onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
               className="min-h-11 w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-sm font-black text-white hover:from-purple-700 hover:to-indigo-700"
