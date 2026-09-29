@@ -144,16 +144,16 @@ export function EngagementHub() {
   if (user?.role !== "student" || user?.isAdmin) return null;
 
   if (loading) {
-    return <div className="mb-4 h-20 rounded-2xl bg-muted/30 animate-pulse" />;
+    return <div className="mb-3 h-16 rounded-xl bg-muted/30 animate-pulse" />;
   }
   if (!summary) return null;
 
   return (
     <>
-      <section className="mb-5 rounded-2xl border border-border bg-card/70 p-3 sm:p-4" data-testid="engagement-hub">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+      <section className="mb-3 rounded-xl border border-border bg-card/70 p-2.5 sm:p-3" data-testid="engagement-hub">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10">
               <Trophy className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0">
@@ -177,22 +177,22 @@ export function EngagementHub() {
               </div>
             </div>
 
-            <Button size="sm" variant={summary.quickChallengeCompleted ? "outline" : "default"} onClick={openChallenge} className="h-10 rounded-xl">
+            <Button size="sm" variant={summary.quickChallengeCompleted ? "outline" : "default"} onClick={openChallenge} className="h-9 rounded-lg">
               <Zap className="mr-1 h-4 w-4" /> {summary.quickChallengeCompleted ? "Challenge done" : "Quick Challenge"}
             </Button>
 
             {!user?.is_eye_gaze_user && (
-              <Button size="sm" onClick={() => navigate("/live-quiz")} className="h-10 rounded-xl bg-orange-600 text-white hover:bg-orange-700">
+              <Button size="sm" onClick={() => navigate("/live-quiz")} className="h-9 rounded-lg bg-orange-600 text-white hover:bg-orange-700">
                 <Gamepad2 className="mr-1 h-4 w-4" /> Join Live
               </Button>
             )}
 
             {summary.mystery.claimedToday ? (
-              <div className="h-10 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 flex items-center gap-2 text-xs font-black text-amber-500">
+              <div className="h-9 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 flex items-center gap-2 text-xs font-black text-amber-500">
                 <Gift className="h-4 w-4" /> +{summary.mystery.reward || 0}
               </div>
             ) : summary.mystery.unlocked ? (
-              <Button onClick={claimMystery} disabled={claiming} size="sm" className="h-10 rounded-xl bg-amber-500 text-black hover:bg-amber-600">
+              <Button onClick={claimMystery} disabled={claiming} size="sm" className="h-9 rounded-lg bg-amber-500 text-black hover:bg-amber-600">
                 <Gift className="mr-1 h-4 w-4" /> {claiming ? "Opening..." : "Mystery Box"}
               </Button>
             ) : null}
