@@ -1805,14 +1805,15 @@ export async function registerRoutes(
     const quizCoins=passedQuizzes*100;
     const gameCoins=clubGames*10+clubWins*20;
     const levelBonusCoins=level*150;
-    const lifetimeCoins=quizCoins+gameCoins+levelBonusCoins;
+    const bonusCoins=Math.max(0,Number(await storage.getSetting("avatar_world_bonus_"+userId))||0);
+    const lifetimeCoins=quizCoins+gameCoins+levelBonusCoins+bonusCoins;
     const raw=await storage.getSetting("avatar_world_"+userId);
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
     const state=normalizeAvatarWorldState(parsed||{});
     const wallet=Math.max(0,lifetimeCoins-state.spent);
     return {
-      economy:{level,quizzesTaken,passedQuizzes,totalPoints,lifetimeCoins,wallet,nextLevelAt,coinsPerPassedQuiz:100,coinsPerGame:10,winBonusCoins:20,levelBonus:150,clubGames,clubWins},
+      economy:{level,quizzesTaken,passedQuizzes,totalPoints,lifetimeCoins,wallet,nextLevelAt,coinsPerPassedQuiz:100,coinsPerGame:10,winBonusCoins:20,levelBonus:150,clubGames,clubWins,bonusCoins},
       state,
       catalog:AVATAR_WORLD_CATALOG,
     };
