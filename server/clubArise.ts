@@ -7,7 +7,13 @@ const SAFE_PHRASES = new Set([
   "Let's play!","Let's read!","Thanks!","That was fun!","See you later!"
 ]);
 
-const GAME_TYPES = new Set(["four","word_tiles","word_rescue"]);
+const GAME_TYPES = new Set([
+  "four","word_tiles","word_rescue",
+  "math_duel","synonym_sprint","pattern_power","sentence_fix","fact_dash"
+]);
+
+const CHOICE_GAMES = new Set(["math_duel","synonym_sprint","pattern_power","sentence_fix","fact_dash"]);
+const EMOTES = new Set(["dance","jump","flip","silly"]);
 
 const WORD_BANK = [
   {word:"BOOK",hint:"You read this."},
@@ -18,6 +24,39 @@ const WORD_BANK = [
   {word:"LEARN",hint:"What you do at school."},
   {word:"STORY",hint:"A tale with characters and events."},
 ];
+
+const CHOICE_BANKS: Record<string, Array<{q:string;options:string[];correct:string}>> = {
+  math_duel:[
+    {q:"8 × 6 = ?",options:["42","48","56"],correct:"48"},
+    {q:"72 ÷ 8 = ?",options:["8","9","10"],correct:"9"},
+    {q:"35 + 27 = ?",options:["52","62","72"],correct:"62"},
+    {q:"90 - 46 = ?",options:["44","54","36"],correct:"44"},
+  ],
+  synonym_sprint:[
+    {q:"Which word means almost the same as HAPPY?",options:["Glad","Angry","Slow"],correct:"Glad"},
+    {q:"Which word means almost the same as QUICK?",options:["Fast","Quiet","Heavy"],correct:"Fast"},
+    {q:"Which word means almost the same as BEGIN?",options:["Start","Finish","Hide"],correct:"Start"},
+    {q:"Which word means almost the same as TINY?",options:["Huge","Small","Loud"],correct:"Small"},
+  ],
+  pattern_power:[
+    {q:"2, 4, 6, 8, ?",options:["9","10","12"],correct:"10"},
+    {q:"5, 10, 15, 20, ?",options:["25","30","35"],correct:"25"},
+    {q:"30, 25, 20, 15, ?",options:["5","10","12"],correct:"10"},
+    {q:"3, 6, 12, 24, ?",options:["30","36","48"],correct:"48"},
+  ],
+  sentence_fix:[
+    {q:"Pick the sentence written correctly.",options:["We went to the park.","we went to the park","We Went to the Park"],correct:"We went to the park."},
+    {q:"Pick the sentence written correctly.",options:["Where is my book?","Where is my book.","where is my book?"],correct:"Where is my book?"},
+    {q:"Pick the sentence written correctly.",options:["I like pizza, tacos, and rice.","I like pizza tacos and rice","i like pizza, tacos, and rice."],correct:"I like pizza, tacos, and rice."},
+    {q:"Pick the sentence written correctly.",options:["My dog is fast!","my dog is fast!","My dog is fast"],correct:"My dog is fast!"},
+  ],
+  fact_dash:[
+    {q:"Which planet do we live on?",options:["Mars","Earth","Venus"],correct:"Earth"},
+    {q:"Which animal is a mammal?",options:["Dolphin","Shark","Trout"],correct:"Dolphin"},
+    {q:"What do plants need to make food?",options:["Sunlight","Plastic","Sand only"],correct:"Sunlight"},
+    {q:"Which is the largest ocean?",options:["Atlantic","Pacific","Arctic"],correct:"Pacific"},
+  ],
+};
 
 function isStudent(user:any){
   return !!user && !user.isAdmin && user.role==="student" && !user.is_eye_gaze_user;
@@ -32,6 +71,9 @@ function initialState(gameType:string){
   if(gameType==="word_rescue"){
     const pick=WORD_BANK[Math.floor(Math.random()*WORD_BANK.length)];
     return {word:pick.word,hint:pick.hint,guessed:[],turn:1,winner:null,misses:0};
+  }
+  if(CHOICE_GAMES.has(gameType)){
+    return {round:0,turn:1,scores:[0,0],questions:CHOICE_BANKS[gameType]||[],winner:null};
   }
   return {
     round:0,
@@ -64,6 +106,51 @@ function fourWinner(board:any[][]){
   return null;
 }
 
+async function getClubAccess(userId:number){
+  const db=getAdminSupabase();
+  const {data:user}=await db.from("users").select("teacher_id").eq("id",userId).single();
+  const teacherId=Number(user?.teacher_id||0)||null;
+  const {data:control}=await db.from("club_arise_controls").select("*").eq("student_id",userId).maybeSingle();
+
+  const {count:passedCount}=await db.from("attempts")
+    .select("id",{count:"exact",head:true})
+    .eq("user_id",userId).gt("points_earned",0);
+
+  const {data:finished}=await db.from("club_arise_matches")
+    .select("id,updated_at")
+    .eq("status","finished")
+    .or("player1_id.eq."+userId+",player2_id.eq."+userId);
+
+  const allGames=finished||[];
+  const today=new Date().toISOString().slice(0,10);
+  const gamesToday=allGames.filter((m:any)=>String(m.updated_at||"").slice(0,10)===today).length;
+  const dailyLimit=control?.daily_game_limit===null||control?.daily_game_limit===undefined?null:Number(control.daily_game_limit);
+  const perQuiz=Math.max(0,Number(control?.games_per_passed_quiz||0));
+  const quizAllowance=perQuiz>0?(passedCount||0)*perQuiz:null;
+  const automaticRemaining=quizAllowance===null?null:Math.max(0,quizAllowance-allGames.length);
+  const dailyRemaining=dailyLimit===null?null:Math.max(0,dailyLimit-gamesToday);
+  const locked=!!control?.locked;
+  const allowed=!locked&&(dailyRemaining===null||dailyRemaining>0)&&(automaticRemaining===null||automaticRemaining>0);
+
+  return {
+    allowed,locked,teacherId,dailyLimit,gamesToday,dailyRemaining,
+    gamesPerPassedQuiz:perQuiz,passedQuizzes:passedCount||0,automaticRemaining
+  };
+}
+
+async function awardFinishedMatch(match:any,state:any){
+  if(match.rewards_awarded)return;
+  const db=getAdminSupabase();
+  const winnerIndex=Number(state?.winner||0);
+  const winnerUserId=winnerIndex===1?match.player1_id:winnerIndex===2?match.player2_id:null;
+  if(winnerUserId){
+    const {data:user}=await db.from("users").select("total_points").eq("id",winnerUserId).single();
+    const current=Number(user?.total_points||0);
+    await db.from("users").update({total_points:Math.round((current+10)*10)/10}).eq("id",winnerUserId);
+  }
+  await db.from("club_arise_matches").update({rewards_awarded:true}).eq("id",match.id).eq("rewards_awarded",false);
+}
+
 export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandler){
   const db=()=>getAdminSupabase();
 
@@ -75,23 +162,28 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         const raw=await storage.getSetting("avatar_world_"+req.user.id);
         let state:any={selectedCharacter:"robin-hood"};
         if(raw){try{state={...state,...JSON.parse(raw)};}catch{}}
-        return {displayName:detail?.displayName||req.user.displayName||req.user.username||"Reader",characterId:state.selectedCharacter||"robin-hood"};
+        return {
+          displayName:detail?.displayName||req.user.displayName||req.user.username||"Reader",
+          characterId:state.selectedCharacter||"robin-hood",
+          petId:state.equipped?.pet||"pet-none"
+        };
       })();
 
       await db().from("club_arise_presence").upsert({
         user_id:req.user.id,
         display_name:payload.displayName,
         character_id:payload.characterId,
-        x:0,z:8,facing:0,updated_at:new Date().toISOString(),
+        x:0,z:8,facing:0,pet_id:payload.petId,updated_at:new Date().toISOString(),
       },{onConflict:"user_id"});
 
       const cutoff=new Date(Date.now()-30000).toISOString();
       const {data:players,error}=await db().from("club_arise_presence")
-        .select("user_id,display_name,character_id,x,z,facing,phrase,phrase_at,updated_at")
+        .select("user_id,display_name,character_id,pet_id,x,z,facing,phrase,phrase_at,emote,emote_at,updated_at")
         .gte("updated_at",cutoff);
       if(error)throw error;
       res.set("Cache-Control","no-store");
-      res.json({self:{userId:req.user.id,...payload},players:players||[],safePhrases:Array.from(SAFE_PHRASES)});
+      const access=await getClubAccess(req.user.id);
+      res.json({self:{userId:req.user.id,...payload},players:players||[],safePhrases:Array.from(SAFE_PHRASES),access});
     }catch(error:any){
       console.error("[club-arise] bootstrap",error?.message);
       res.status(500).json({message:"Could not enter Club A.R.I.S.E."});
@@ -105,30 +197,83 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const z=Math.max(-22,Math.min(22,Number(req.body?.z)||0));
       const facing=Math.max(-Math.PI,Math.min(Math.PI,Number(req.body?.facing)||0));
       const phrase=String(req.body?.phrase||"").trim();
+      const emote=String(req.body?.emote||"").trim();
       if(phrase && !SAFE_PHRASES.has(phrase)) return res.status(400).json({message:"That phrase is not available."});
+      if(emote && !EMOTES.has(emote)) return res.status(400).json({message:"That emote is not available."});
 
       const currentRaw=await storage.getSetting("avatar_world_"+req.user.id);
       let selectedCharacter="robin-hood";
-      if(currentRaw){try{selectedCharacter=JSON.parse(currentRaw)?.selectedCharacter||selectedCharacter;}catch{}}
+      let petId="pet-none";
+      if(currentRaw){try{const parsed=JSON.parse(currentRaw);selectedCharacter=parsed?.selectedCharacter||selectedCharacter;petId=parsed?.equipped?.pet||petId;}catch{}}
       const detail=await storage.getStudentDetail(req.user.id);
       const row:any={
         user_id:req.user.id,
         display_name:detail?.displayName||req.user.displayName||req.user.username||"Reader",
-        character_id:selectedCharacter,
+        character_id:selectedCharacter,pet_id:petId,
         x,z,facing,updated_at:new Date().toISOString(),
       };
       if(phrase){row.phrase=phrase;row.phrase_at=new Date().toISOString();}
+      if(emote){row.emote=emote;row.emote_at=new Date().toISOString();}
       await db().from("club_arise_presence").upsert(row,{onConflict:"user_id"});
 
       const cutoff=new Date(Date.now()-30000).toISOString();
       const {data,error}=await db().from("club_arise_presence")
-        .select("user_id,display_name,character_id,x,z,facing,phrase,phrase_at,updated_at")
+        .select("user_id,display_name,character_id,pet_id,x,z,facing,phrase,phrase_at,emote,emote_at,updated_at")
         .gte("updated_at",cutoff);
       if(error)throw error;
       res.json({players:data||[]});
     }catch(error:any){
       console.error("[club-arise] presence",error?.message);
       res.status(500).json({message:"Could not update the club."});
+    }
+  });
+
+  app.get("/api/teacher/club-arise/controls", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.role!=="teacher"&&!req.user.isAdmin) return res.status(403).json({message:"Teacher access required."});
+      let query=db().from("users").select("id,display_name,username,teacher_id").eq("role","student").eq("is_eye_gaze_user",false);
+      if(!req.user.isAdmin)query=query.eq("teacher_id",req.user.id);
+      const {data:students,error}=await query.order("display_name");
+      if(error)throw error;
+      const ids=(students||[]).map((s:any)=>s.id);
+      const {data:controls}=ids.length?await db().from("club_arise_controls").select("*").in("student_id",ids):{data:[] as any[]};
+      const map=new Map((controls||[]).map((x:any)=>[x.student_id,x]));
+      res.json((students||[]).map((s:any)=>({
+        ...s,
+        control:map.get(s.id)||{student_id:s.id,teacher_id:s.teacher_id,locked:false,daily_game_limit:null,games_per_passed_quiz:0}
+      })));
+    }catch(error:any){
+      console.error("[club-arise] teacher controls",error?.message);
+      res.status(500).json({message:"Could not load Club controls."});
+    }
+  });
+
+  app.post("/api/teacher/club-arise/controls/:studentId", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.role!=="teacher"&&!req.user.isAdmin) return res.status(403).json({message:"Teacher access required."});
+      const studentId=Number(req.params.studentId);
+      const {data:student}=await db().from("users").select("id,teacher_id,role,is_eye_gaze_user").eq("id",studentId).single();
+      if(!student||student.role!=="student"||student.is_eye_gaze_user)return res.status(404).json({message:"Student not found."});
+      if(!req.user.isAdmin&&student.teacher_id!==req.user.id)return res.status(403).json({message:"That student is not assigned to you."});
+
+      const locked=!!req.body?.locked;
+      const rawLimit=req.body?.dailyGameLimit;
+      const dailyGameLimit=rawLimit===null||rawLimit===""||rawLimit===undefined?null:Math.max(0,Math.min(100,Math.floor(Number(rawLimit)||0)));
+      const gamesPerPassedQuiz=Math.max(0,Math.min(20,Math.floor(Number(req.body?.gamesPerPassedQuiz)||0)));
+      const row={
+        student_id:studentId,
+        teacher_id:student.teacher_id||req.user.id,
+        locked,
+        daily_game_limit:dailyGameLimit,
+        games_per_passed_quiz:gamesPerPassedQuiz,
+        updated_at:new Date().toISOString()
+      };
+      const {data,error}=await db().from("club_arise_controls").upsert(row,{onConflict:"student_id"}).select("*").single();
+      if(error)throw error;
+      res.json({control:data,access:await getClubAccess(studentId)});
+    }catch(error:any){
+      console.error("[club-arise] save controls",error?.message);
+      res.status(500).json({message:"Could not save Club controls."});
     }
   });
 
@@ -185,6 +330,15 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       if(!isStudent(req.user)) return res.status(403).json({message:"Student account required."});
       const gameType=String(req.body?.gameType||"");
       if(!GAME_TYPES.has(gameType)) return res.status(400).json({message:"Unknown game."});
+      const access=await getClubAccess(req.user.id);
+      if(!access.allowed){
+        const message=access.locked
+          ?"Your teacher has locked Club A.R.I.S.E. games."
+          :access.dailyRemaining===0
+            ?"You reached today's Club game limit."
+            :"Pass another book quiz to unlock more Club games.";
+        return res.status(403).json({message,access});
+      }
 
       const {data:existing}=await db().from("club_arise_matches")
         .select("*")
@@ -268,6 +422,20 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         if(solved)state.winner=playerIndex;
         else if(state.misses>=8)state.winner=playerIndex===1?2:1;
         else state.turn=playerIndex===1?2:1;
+      }else if(CHOICE_GAMES.has(match.game_type)){
+        const q=state.questions?.[state.round];
+        if(!q)return res.status(400).json({message:"This round is complete."});
+        const choice=String(req.body?.choice||"");
+        if(!q.options.includes(choice))return res.status(400).json({message:"Choose one of the answers."});
+        state.scores=[...(state.scores||[0,0])];
+        if(choice===q.correct)state.scores[playerIndex-1]=(state.scores[playerIndex-1]||0)+10;
+        if(playerIndex===2){
+          state.round=Number(state.round||0)+1;
+          state.turn=1;
+          if(state.round>=state.questions.length){
+            state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
+          }
+        }else state.turn=2;
       }else{
         const choice=String(req.body?.choice||"").toUpperCase();
         const options=state.choices?.[state.round]||[];
@@ -290,7 +458,8 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         state,status,winner_id:winnerUserId,updated_at:new Date().toISOString(),
       }).eq("id",match.id).select("*").single();
       if(updateError)throw updateError;
-      res.json(data);
+      if(status==="finished")await awardFinishedMatch(data,state);
+      res.json({...data,rewards_awarded:status==="finished"?true:data.rewards_awarded});
     }catch(error:any){
       console.error("[club-arise] action",error?.message);
       res.status(500).json({message:"Could not make that move."});
