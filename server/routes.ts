@@ -1226,6 +1226,32 @@ export async function registerRoutes(
     res.json({ totalBooks: allBooks.length, withPoints: withPoints.length, mambaFound: !!mamba, mambaId: mamba?.id });
   });
 
+  app.get("/api/book-cover/:id", async (req, res) => {
+    try {
+      const bookId = Number(req.params.id);
+      if (!Number.isFinite(bookId)) return res.status(400).end();
+
+      const book = await storage.getBook(bookId);
+      if (!book?.coverUrl) return res.status(404).end();
+
+      const upstream = await fetch(book.coverUrl, {
+        headers: {
+          "User-Agent": "ARISEReader/1.0",
+          "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        },
+      });
+      if (!upstream.ok) return res.status(502).end();
+
+      const type = upstream.headers.get("content-type") || "image/jpeg";
+      const bytes = Buffer.from(await upstream.arrayBuffer());
+      res.setHeader("Content-Type", type);
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      res.send(bytes);
+    } catch {
+      res.status(502).end();
+    }
+  });
+
   app.get("/api/books", authMiddleware, async (req: any, res) => {
     const allBooks = await storage.getAllBooks();
     // Regular library only shows books WITH quizzes (points_value > 0)
