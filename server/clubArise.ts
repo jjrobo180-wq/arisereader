@@ -298,7 +298,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const losses=Math.max(0,finished.length-wins-ties);
       const clubScore=wins*100+ties*40+losses*10;
       const byGame:any={};
-      for(const type of ["four","word_tiles","word_rescue"]){
+      for(const type of ["four","word_tiles","word_rescue","math_duel","synonym_sprint","pattern_power","sentence_fix","fact_dash"]){
         const rows=finished.filter((m:any)=>m.game_type===type);
         byGame[type]={
           played:rows.length,
