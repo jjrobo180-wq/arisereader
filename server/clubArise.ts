@@ -16,6 +16,13 @@ const CHOICE_GAMES = new Set(["math_duel","synonym_sprint","pattern_power","sent
 const EMOTES = new Set(["dance","jump","flip","silly"]);
 const vehiclePresence=new Map<number,{carId:string;driving:boolean;updatedAt:number}>();
 const CAR_IDS=new Set(["car-street","car-electric","car-super","car-suv"]);
+const HOME_IDS=new Set(["home-basic","home-studio","home-loft","home-modern"]);
+type NeighborhoodVisitor={userId:number;displayName:string;characterId:string;petId:string;homeId:string;lot:number;x:number;z:number;facing:number;updatedAt:number};
+const neighborhoodVisitors=new Map<number,NeighborhoodVisitor>();
+function activeNeighborhoodVisitors(){
+  neighborhoodVisitors.forEach((visitor,id)=>{if(Date.now()-visitor.updatedAt>30000)neighborhoodVisitors.delete(id);});
+  return Array.from(neighborhoodVisitors.values()).slice(0,24);
+}
 function activeWorldPet(state:any){
   const id=String(state?.equipped?.pet||"pet-none");
   // Pre-care accounts are initialized on their next Avatar World visit.
@@ -175,6 +182,45 @@ async function awardFinishedMatch(match:any,state:any){
 
 export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandler){
   const db=()=>getAdminSupabase();
+
+  app.get("/api/neighborhood/bootstrap",authMiddleware,async(req:any,res)=>{
+    try{
+      if(!isStudent(req.user))return res.status(403).json({message:"The Block is for student accounts."});
+      const raw=await storage.getSetting("avatar_world_"+req.user.id);
+      let state:any={};if(raw){try{state=await initializeLegacyPetCare(req.user.id,JSON.parse(raw));}catch{}}
+      const detail=await storage.getStudentDetail(req.user.id);
+      const visitors=activeNeighborhoodVisitors();
+      const existing=neighborhoodVisitors.get(req.user.id);
+      const occupied=new Set(visitors.filter(v=>v.userId!==req.user.id&&v.lot>=0).map(v=>v.lot));
+      const lot=existing&&existing.lot>=0?existing.lot:(Array.from({length:10},(_,i)=>i).find(i=>!occupied.has(i))??-1);
+      const lotX=[0,-12,12,-24,24,0,-12,12,-24,24][lot]??0;
+      const lotZ=lot>=5?-9:9;
+      const self:NeighborhoodVisitor={userId:req.user.id,displayName:detail?.user?.displayName||req.user.displayName||"Reader",
+        characterId:String(state.selectedCharacter||"robin-hood"),petId:activeWorldPet(state),
+        homeId:HOME_IDS.has(state.equipped?.home)?state.equipped.home:"home-basic",lot,
+        x:existing?.lot===lot?existing.x:lotX,z:existing?.lot===lot?existing.z:lotZ,facing:existing?.facing??0,updatedAt:Date.now()};
+      neighborhoodVisitors.set(req.user.id,self);
+      res.set("Cache-Control","no-store");res.json({self,players:activeNeighborhoodVisitors()});
+    }catch(error:any){console.error("[neighborhood] bootstrap",error?.message);res.status(500).json({message:"Could not enter The Block."});}
+  });
+
+  app.post("/api/neighborhood/presence",authMiddleware,async(req:any,res)=>{
+    if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
+    const current=neighborhoodVisitors.get(req.user.id);
+    if(!current)return res.status(409).json({message:"Enter The Block again to reconnect."});
+    const x=Number(req.body?.x),z=Number(req.body?.z),facing=Number(req.body?.facing);
+    neighborhoodVisitors.set(req.user.id,{...current,
+      x:Number.isFinite(x)?Math.max(-31,Math.min(31,x)):current.x,
+      z:Number.isFinite(z)?Math.max(-22,Math.min(22,z)):current.z,
+      facing:Number.isFinite(facing)?Math.max(-Math.PI,Math.min(Math.PI,facing)):current.facing,
+      updatedAt:Date.now()});
+    res.set("Cache-Control","no-store");res.json({players:activeNeighborhoodVisitors()});
+  });
+
+  app.post("/api/neighborhood/leave",authMiddleware,(req:any,res)=>{
+    if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
+    neighborhoodVisitors.delete(req.user.id);res.json({ok:true});
+  });
 
   app.get("/api/club-arise/bootstrap", authMiddleware, async(req:any,res)=>{
     try{

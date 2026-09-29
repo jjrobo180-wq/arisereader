@@ -88,6 +88,8 @@ import ReadingClub from "./pages/ReadingClub";
 import TTSAudioBooks from "./pages/TTSAudioBooks";
 import AvatarWorld from "./pages/AvatarWorld";
 import ClubArise from "./pages/ClubArise";
+import Worlds from "./pages/Worlds";
+import Neighborhood from "./pages/Neighborhood";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -260,9 +262,24 @@ function AppRoutes() {
           ? <ProtectedRoute><AvatarWorld /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
+      <Route path="/my-home">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><AvatarWorld initialTab="home" /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
       <Route path="/club-arise">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><ClubArise /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/worlds">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><Worlds /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/neighborhood">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><Neighborhood /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/course/:id">
