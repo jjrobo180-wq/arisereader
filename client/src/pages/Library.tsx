@@ -1302,7 +1302,7 @@ export default function Library() {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
-          <div className="mb-3 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
+          <div className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: studentBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={studentBanner.textColor} strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1414,14 +1414,12 @@ export default function Library() {
           <button
             type="button"
             onClick={() => navigate("/reading-level-up")}
-            className="mb-2 flex w-full items-center gap-2 rounded-xl border border-violet-500/15 bg-violet-500/5 px-3 py-2.5 text-left transition-colors hover:bg-violet-500/10"
+            className="mb-1 inline-flex items-center gap-2 px-1 py-2 text-left text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
           >
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-lg">📈</div>
-            <div className="min-w-0 flex-1">
-              <span className="text-sm font-black">Reading Level Up</span>
-              <span className="ml-2 hidden text-xs font-semibold text-muted-foreground sm:inline">Quick skill practice</span>
-            </div>
-            <span className="shrink-0 text-xs font-black text-primary">Start →</span>
+            <span aria-hidden="true">📈</span>
+            <span>Reading Level Up</span>
+            <span className="text-xs font-medium">Practice reading skills</span>
+            <span className="text-xs font-black text-primary">→</span>
           </button>
         )}
 
@@ -1429,9 +1427,9 @@ export default function Library() {
           <div className="mb-4" data-tour="request-quiz">
             <Button
               onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
-              className="min-h-11 w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-sm font-black text-white hover:from-purple-700 hover:to-indigo-700"
+              className="min-h-11 w-full rounded-xl border border-primary/20 bg-primary/8 text-sm font-black text-primary shadow-none hover:bg-primary/12 md:min-h-12"
             >
-              <Sparkles className="mr-1 h-4 w-4" /> Create Quiz
+              <Sparkles className="mr-2 h-4 w-4" /> Create a Quiz
             </Button>
           </div>
         )}
