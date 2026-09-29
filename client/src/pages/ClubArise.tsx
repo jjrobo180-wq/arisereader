@@ -44,6 +44,76 @@ function addNeonBox(scene:THREE.Scene,size:[number,number,number],pos:[number,nu
 }
 function stationColor(id:Station["id"]){return id==="four"?0x2563eb:id==="word_tiles"?0x7c3aed:0x059669;}
 
+function addDiscoBall(scene:THREE.Scene,x:number,y:number,z:number,r=1){
+  const geo=new THREE.SphereGeometry(r,24,18);
+  const mat=new THREE.MeshStandardMaterial({color:0xdbeafe,metalness:1,roughness:.18,emissive:0x334155,emissiveIntensity:.35});
+  const ball=new THREE.Mesh(geo,mat);ball.position.set(x,y,z);ball.castShadow=true;scene.add(ball);
+  const wire=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(.01,y-1,.01)),new THREE.LineBasicMaterial({color:0x94a3b8}));
+  wire.position.set(x,y+(y-1)/2,z);scene.add(wire);
+  return ball;
+}
+function addChair(scene:THREE.Scene,x:number,z:number,rotation=0,color=0x5b21b6){
+  const root=new THREE.Group();root.position.set(x,0,z);root.rotation.y=rotation;scene.add(root);
+  const seat=new THREE.Mesh(new THREE.BoxGeometry(1.6,.35,1.5),new THREE.MeshStandardMaterial({color,roughness:.55}));
+  seat.position.y=.72;seat.castShadow=true;root.add(seat);
+  const back=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.45,.35),new THREE.MeshStandardMaterial({color,roughness:.55}));
+  back.position.set(0,1.35,-.58);back.rotation.x=-.1;back.castShadow=true;root.add(back);
+  for(const sx of [-.62,.62])for(const sz of [-.52,.52]){
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.68,10),new THREE.MeshStandardMaterial({color:0x111827,metalness:.8,roughness:.3}));
+    leg.position.set(sx,.34,sz);root.add(leg);
+  }
+  return root;
+}
+function addLoungeTable(scene:THREE.Scene,x:number,z:number){
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,.14,32),new THREE.MeshStandardMaterial({color:0x111827,metalness:.55,roughness:.35}));
+  top.position.set(x,.8,z);scene.add(top);
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.12,.18,.75,16),new THREE.MeshStandardMaterial({color:0x64748b,metalness:.85,roughness:.25}));
+  stem.position.set(x,.4,z);scene.add(stem);
+  const lamp=new THREE.PointLight(0xf472b6,2.2,4,2);lamp.position.set(x,1.4,z);scene.add(lamp);
+}
+function addArcadeCabinet(scene:THREE.Scene,station:Station){
+  const color=stationColor(station.id);
+  const root=new THREE.Group();root.position.set(station.x,0,station.z);scene.add(root);
+  const shell=new THREE.Mesh(new THREE.BoxGeometry(3.35,3.6,2.05),new THREE.MeshStandardMaterial({color:0x0f172a,metalness:.4,roughness:.4}));
+  shell.position.y=1.8;shell.castShadow=true;root.add(shell);
+  const marquee=new THREE.Mesh(new THREE.BoxGeometry(3.15,.72,2.18),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:2.4,roughness:.3}));
+  marquee.position.y=3.75;root.add(marquee);
+  const screenFrame=new THREE.Mesh(new THREE.BoxGeometry(2.65,1.62,.12),new THREE.MeshStandardMaterial({color:0x020617,metalness:.55,roughness:.25}));
+  screenFrame.position.set(0,2.35,1.08);root.add(screenFrame);
+  const screen=new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.36),new THREE.MeshBasicMaterial({color:station.id==="four"?0x1d4ed8:station.id==="word_tiles"?0x4c1d95:0x065f46}));
+  screen.position.set(0,2.35,1.151);root.add(screen);
+  if(station.id==="four"){
+    for(let r=0;r<4;r++)for(let col=0;col<5;col++){
+      const token=new THREE.Mesh(new THREE.CircleGeometry(.15,18),new THREE.MeshBasicMaterial({color:(r+col)%3===0?0xfacc15:(r+col)%3===1?0xf43f5e:0xe2e8f0}));
+      token.position.set(-.78+col*.39,2.78-r*.31,1.158);root.add(token);
+    }
+  }else if(station.id==="word_tiles"){
+    const letters=["R","E","A","D"];
+    letters.forEach((letter,i)=>{
+      const tile=new THREE.Mesh(new THREE.BoxGeometry(.47,.47,.08),new THREE.MeshStandardMaterial({color:0xf5deb3,roughness:.65}));
+      tile.position.set(-.78+i*.52,2.35,1.16);root.add(tile);
+      const tag=makeLabel(letter,"#f5deb3","#111827");tag.scale.set(.42,.42,1);tag.position.set(-.78+i*.52,2.35,1.22);root.add(tag);
+    });
+  }else{
+    const clue=makeLabel("WORD _ E S C U E","#064e3b","#ecfdf5");clue.scale.set(2.3,.55,1);clue.position.set(0,2.35,1.18);root.add(clue);
+  }
+  const panel=new THREE.Mesh(new THREE.BoxGeometry(2.7,.65,1.45),new THREE.MeshStandardMaterial({color:0x1e293b,metalness:.5,roughness:.35}));
+  panel.position.set(0,1.18,.7);panel.rotation.x=-.18;root.add(panel);
+  const joystick=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.36,14),new THREE.MeshStandardMaterial({color:0x111827,metalness:.6}));
+  joystick.position.set(-.65,1.55,1.22);root.add(joystick);
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(.17,16,12),new THREE.MeshStandardMaterial({color:0xef4444,roughness:.3}));
+  knob.position.set(-.65,1.78,1.22);root.add(knob);
+  for(const bx of [.25,.65]){
+    const button=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.08,18),new THREE.MeshStandardMaterial({color:bx<.5?0xfacc15:0x22d3ee,emissive:bx<.5?0xfacc15:0x22d3ee,emissiveIntensity:1.5}));
+    button.rotation.x=Math.PI/2;button.position.set(bx,1.48,1.33);root.add(button);
+  }
+  const stoolSeat=new THREE.Mesh(new THREE.CylinderGeometry(.48,.48,.18,24),new THREE.MeshStandardMaterial({color:0xef4444,roughness:.5}));
+  stoolSeat.position.set(0,.72,2.25);root.add(stoolSeat);
+  const stoolLeg=new THREE.Mesh(new THREE.CylinderGeometry(.08,.13,.68,14),new THREE.MeshStandardMaterial({color:0x475569,metalness:.8}));
+  stoolLeg.position.set(0,.34,2.25);root.add(stoolLeg);
+  return root;
+}
+
 export default function ClubArise(){
   const {token,user}=useAuth();
   const [,navigate]=useLocation();
@@ -101,16 +171,40 @@ export default function ClubArise(){
     const dance=new THREE.Mesh(new THREE.CylinderGeometry(5.6,5.6,.16,64),new THREE.MeshStandardMaterial({color:0x14162d,metalness:.4,roughness:.45}));dance.position.set(0,.08,1);dance.receiveShadow=true;scene.add(dance);
     for(let i=0;i<3;i++){const ring=new THREE.Mesh(new THREE.TorusGeometry(2+i*1.35,.07,10,64),new THREE.MeshStandardMaterial({color:i===0?0x22d3ee:i===1?0xa855f7:0xec4899,emissive:i===0?0x22d3ee:i===1?0xa855f7:0xec4899,emissiveIntensity:3}));ring.rotation.x=Math.PI/2;ring.position.set(0,.2,1);scene.add(ring);}
 
+    const discoBalls=[
+      addDiscoBall(scene,-7.5,10,-2,1.15),
+      addDiscoBall(scene,7.5,10,-2,1.15),
+      addDiscoBall(scene,0,11,-10,1.4),
+    ];
+    const movingLights=[
+      new THREE.PointLight(0x22d3ee,7,18,2),
+      new THREE.PointLight(0xec4899,7,18,2),
+      new THREE.PointLight(0xa855f7,7,18,2),
+    ];
+    movingLights.forEach((light,i)=>{light.position.set((i-1)*8,8,-3-i*3);scene.add(light);});
+
+    // Lounge seating + social corners.
+    addChair(scene,-19,6,.45,0x581c87);addChair(scene,-16.8,7.2,-.2,0x7e22ce);addLoungeTable(scene,-17.6,5.4);
+    addChair(scene,18.5,6,-.55,0x9d174d);addChair(scene,16.5,7.3,.2,0xbe185d);addLoungeTable(scene,17.7,5.2);
+    addChair(scene,-19,-1.5,1.2,0x312e81);addChair(scene,19,-1.5,-1.2,0x0f766e);
+
     for(const s of STATIONS){
       const color=stationColor(s.id);
-      const light=new THREE.PointLight(color,10,12,2);light.position.set(s.x,4.2,s.z);scene.add(light);
-      const pad=new THREE.Mesh(new THREE.CylinderGeometry(4.1,4.1,.32,48),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.8,roughness:.48}));pad.position.set(s.x,.16,s.z);pad.receiveShadow=true;scene.add(pad);
-      const sign=makeLabel(s.name,"#0f172a","#ffffff");sign.position.set(s.x,4.3,s.z);scene.add(sign);
-      // Arcade cabinet.
-      addBox(scene,[3.2,2.8,1.8],[s.x,1.4,s.z],0x111827);
-      addNeonBox(scene,[2.55,1.4,.08],[s.x,1.75,s.z+.94],color,2.8);
-      addNeonBox(scene,[3.0,.12,.12],[s.x,2.85,s.z+.97],color,3.5);
+      const light=new THREE.PointLight(color,11,14,2);light.position.set(s.x,5,s.z);scene.add(light);
+      const pad=new THREE.Mesh(new THREE.CylinderGeometry(4.5,4.5,.28,48),new THREE.MeshStandardMaterial({color:0x0f172a,emissive:color,emissiveIntensity:.34,roughness:.42}));pad.position.set(s.x,.14,s.z);pad.receiveShadow=true;scene.add(pad);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(4,.1,12,64),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:3}));
+      ring.rotation.x=Math.PI/2;ring.position.set(s.x,.34,s.z);scene.add(ring);
+      const sign=makeLabel(s.name,"#020617","#ffffff");sign.position.set(s.x,5.15,s.z);sign.scale.set(5.5,1.35,1);scene.add(sign);
+      addArcadeCabinet(scene,s);
     }
+
+    // Decorative arcade cabinets create a fuller arcade without adding new game logic.
+    const decoCabinets=[[-24,-8,0x06b6d4],[-24,-3,0x8b5cf6],[24,-8,0xec4899],[24,-3,0x14b8a6],[-18,-20,0xf59e0b],[18,-20,0x3b82f6]] as const;
+    decoCabinets.forEach(([x,z,color])=>{
+      const cab=addBox(scene,[2.6,3.4,1.65],[x,1.7,z],0x111827);
+      addNeonBox(scene,[2.25,1.35,.08],[x,2.25,z+.86],color,2.6);
+      addNeonBox(scene,[2.45,.12,.12],[x,3.25,z+.88],color,3.2);
+    });
 
     const loader=new GLTFLoader();
     const loadAvatar=(uid:number,name:string,charId:string,x:number,z:number,isSelf=false)=>{
@@ -169,6 +263,14 @@ export default function ClubArise(){
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
         let nearest:Station|null=null,dist=Infinity;for(const s of STATIONS){const d=Math.hypot(root.position.x-s.x,root.position.z-s.z);if(d<dist){dist=d;nearest=s;}}setNearStation(dist<5?nearest:null);
       }
+      const t=performance.now()*.001;
+      discoBalls.forEach((ball,i)=>{ball.rotation.y+=dt*(.35+i*.08);ball.rotation.x+=dt*.08;});
+      movingLights.forEach((light,i)=>{
+        const a=t*.7+i*Math.PI*2/3;
+        light.position.x=Math.cos(a)*12;
+        light.position.z=-2+Math.sin(a)*10;
+        light.position.y=7.5+Math.sin(a*1.7)*1.5;
+      });
       controls.update();renderer.render(scene,camera);raf=requestAnimationFrame(loop);
     };loop();
     setReady(true);
