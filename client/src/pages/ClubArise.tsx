@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowLeft, Gamepad2, MessageCircle, Trophy, UserRound, Users, X, Zap } from "lucide-react";
+import { ArrowLeft, Film, Gamepad2, MessageCircle, Trophy, UserRound, Users, X, Zap } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
@@ -609,6 +609,10 @@ export default function ClubArise(){
       <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">Club A.R.I.S.E.</h1><p className="hidden text-xs font-bold text-white/70 sm:block">Learn · play · meet readers safely</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);setShowMobileChat(false);setShowMobileCamera(false);}} className="pointer-events-auto flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-black/70 px-3 font-black backdrop-blur sm:min-h-11 sm:gap-2 sm:py-2" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/><span>{onlineReaders.length}</span><span className="hidden sm:inline">readers</span></button>
     </header>
+
+    <button type="button" onClick={()=>navigate("/club-arise/theater")} className="absolute right-2 top-16 z-30 flex min-h-10 items-center gap-2 rounded-xl border border-fuchsia-300/25 bg-slate-950/90 px-3 text-xs font-black shadow-lg backdrop-blur hover:bg-fuchsia-500/20 sm:right-3 sm:top-20 sm:min-h-11 sm:text-sm">
+      <Film className="h-4 w-4 text-fuchsia-300"/> Movie Theater
+    </button>
 
     {self?.carId&&self.carId!=="car-none"&&<div className="absolute right-3 top-36 z-30 flex max-w-44 flex-col gap-2 rounded-2xl border border-cyan-300/25 bg-slate-950/90 p-2 backdrop-blur">
       <button type="button" onClick={toggleDriving} disabled={!!carTransition} className="min-h-12 rounded-xl bg-cyan-300 px-3 font-black text-slate-950 disabled:opacity-50">{carTransition==="enter"?"Getting in…":carTransition==="exit"?"Getting out…":driving?"Get out of car":"Get in and drive"}</button>
