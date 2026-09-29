@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowLeft, Gamepad2, MessageCircle, Users, X } from "lucide-react";
+import { ArrowLeft, Gamepad2, MessageCircle, Trophy, UserRound, Users, X, Zap } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
@@ -13,6 +13,10 @@ type Player={
   phrase?:string|null;phrase_at?:string|null;updated_at:string;
 };
 type Match={id:string;game_type:"four"|"word_tiles"|"word_rescue";status:string;player1_id:number;player2_id:number|null;state:any;winner_id:number|null;players?:Array<{user_id:number;display_name:string;character_id:string}>};
+type PlayerProfile={
+  userId:number;displayName:string;characterId:string;leaderboardPoints:number;quizzesTaken:number;
+  club:{played:number;wins:number;ties:number;losses:number;score:number;byGame:Record<string,{played:number;wins:number}>};
+};
 type Station={id:Match["game_type"];name:string;subtitle:string;x:number;z:number};
 
 const STATIONS:Station[]=[
@@ -56,7 +60,9 @@ export default function ClubArise(){
   const [nearStation,setNearStation]=useState<Station|null>(null);
   const [match,setMatch]=useState<Match|null>(null);
   const [gameOpen,setGameOpen]=useState(false);
-  const [notice,setNotice]=useState("Walk around, meet readers, and play together.");
+  const [notice,setNotice]=useState("Pick a game below or explore the arcade.");
+  const [selectedPlayer,setSelectedPlayer]=useState<PlayerProfile|null>(null);
+  const [playerLoading,setPlayerLoading]=useState(false);
 
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
