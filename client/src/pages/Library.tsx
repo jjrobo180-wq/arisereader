@@ -3019,9 +3019,9 @@ export default function Library() {
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
-              {selectedBookForAction.coverUrl && (
-                <img src={selectedBookForAction.coverUrl} alt={selectedBookForAction.title} className="w-32 h-48 object-cover mx-auto rounded-lg mb-4" />
-              )}
+              <div className="relative mx-auto mb-4 aspect-[2/3] w-32 overflow-hidden rounded-lg bg-muted">
+                <BookCoverImage src={selectedBookForAction.coverUrl} title={selectedBookForAction.title} className="relative z-[1] h-full w-full object-cover" />
+              </div>
               {bookActionMsg ? (
                 <div className="space-y-3">
                   <p className="text-sm text-emerald-600 font-medium text-center">{bookActionMsg}</p>
