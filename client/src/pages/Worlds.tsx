@@ -5,11 +5,12 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ArrowLeft, ArrowRight, Compass, LockKeyhole, Rotate3D } from "lucide-react";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
-type WorldId="club"|"theater"|"neighborhood"|"space"|"beach"|"racetrack";
+type WorldId="club"|"theater"|"neighborhood"|"laser"|"space"|"beach"|"racetrack";
 const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:number}[]=[
   {id:"club",title:"Club A.R.I.S.E.",description:"Dance, meet readers, and play arcade games together.",path:"/club-arise",color:0xc026d3},
   {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
+  {id:"laser",title:"Laser Royale",description:"3D battle royale laser tag with public-domain heroes, power-ups, shields, a shrinking zone, and arena challenges.",path:"/laser-royale",color:0x22d3ee},
   {id:"space",title:"Outer Space",description:"A glowing galaxy of planets and places to explore. Coming soon.",color:0x9868f4},
   {id:"beach",title:"The Beach",description:"Palm trees, a seaside boardwalk, and sunny adventures. Coming soon.",color:0xfacc6b},
   {id:"racetrack",title:"The Racetrack",description:"Fast lanes and a place to put your cars to the test. Coming soon.",color:0xf87171},
@@ -25,7 +26,7 @@ function marker(text:string){
 }
 function makeWorld(id:WorldId,color:number){
   const group=new THREE.Group();group.userData.worldId=id;
-  const surface=sphere(1.25,id==="club"?0x251b51:id==="theater"?0x2a1621:id==="neighborhood"?0x65af7a:id==="space"?0x27205d:id==="beach"?0x43b9cb:0x34775d);group.add(surface);
+  const surface=sphere(1.25,id==="club"?0x251b51:id==="theater"?0x2a1621:id==="neighborhood"?0x65af7a:id==="laser"?0x102d3b:id==="space"?0x27205d:id==="beach"?0x43b9cb:0x34775d);group.add(surface);
   const band=new THREE.Mesh(new THREE.TorusGeometry(1.4,.045,10,64),new THREE.MeshBasicMaterial({color}));band.rotation.x=Math.PI/2.5;group.add(band);
   if(id==="club"){
     const base=new THREE.Mesh(new THREE.CylinderGeometry(.65,.8,.28,12),new THREE.MeshStandardMaterial({color:0x191936,emissive:color,emissiveIntensity:.25}));base.position.y=1.16;group.add(base);
@@ -40,6 +41,12 @@ function makeWorld(id:WorldId,color:number){
     for(let i=0;i<5;i++){const kernel=sphere(.07,0xfef3c7,.5);kernel.position.set(.62+(i%3)*.08,1.56+Math.floor(i/3)*.06,.54);group.add(kernel);}
   }else if(id==="neighborhood"){
     for(const x of [-.55,.45]){const house=new THREE.Mesh(new THREE.BoxGeometry(.65,.6,.55),new THREE.MeshStandardMaterial({color:x<0?0xffcf9a:0xcce4fb}));house.position.set(x,1.26,0);group.add(house);const roof=new THREE.Mesh(new THREE.ConeGeometry(.52,.36,4),new THREE.MeshStandardMaterial({color:x<0?0xbe4859:0x208d7c}));roof.position.set(x,1.76,0);roof.rotation.y=Math.PI/4;group.add(roof);}
+  }else if(id==="laser"){
+    const arena=new THREE.Mesh(new THREE.CylinderGeometry(.92,.92,.18,32),new THREE.MeshStandardMaterial({color:0x111827,emissive:0x0e7490,emissiveIntensity:.65,metalness:.35}));arena.position.y=1.18;group.add(arena);
+    const ring2=new THREE.Mesh(new THREE.TorusGeometry(.78,.05,8,48),new THREE.MeshBasicMaterial({color:0x22d3ee}));ring2.rotation.x=Math.PI/2;ring2.position.y=1.3;group.add(ring2);
+    for(let i=0;i<4;i++){const tower=new THREE.Mesh(new THREE.BoxGeometry(.18,.65,.18),new THREE.MeshStandardMaterial({color:i%2?0x22d3ee:0xf472b6,emissive:i%2?0x22d3ee:0xf472b6,emissiveIntensity:1.1}));const a=i*Math.PI/2;tower.position.set(Math.cos(a)*.62,1.58,Math.sin(a)*.62);group.add(tower);}
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,1.5,8),new THREE.MeshBasicMaterial({color:0x67e8f9}));beam.rotation.z=Math.PI/2;beam.position.set(0,1.65,.15);group.add(beam);
+    const shield=new THREE.Mesh(new THREE.OctahedronGeometry(.22,0),new THREE.MeshStandardMaterial({color:0x60a5fa,emissive:0x60a5fa,emissiveIntensity:1.4}));shield.position.set(0,2.05,0);group.add(shield);
   }else if(id==="space"){
     const moon=sphere(.46,0xffdcab);moon.position.set(.8,1.6,0);group.add(moon);
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.6,.045,8,48),new THREE.MeshBasicMaterial({color:0xe9b8ff}));ring.position.copy(moon.position);ring.rotation.x=.5;group.add(ring);
