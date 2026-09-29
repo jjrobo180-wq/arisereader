@@ -1714,6 +1714,15 @@ export async function registerRoutes(
     { id:"pet-dog", type:"pet", name:"Club Pup", price:450, rarity:"rare" },
     { id:"pet-cat", type:"pet", name:"Club Cat", price:450, rarity:"rare" },
     { id:"pet-bunny", type:"pet", name:"Club Bunny", price:650, rarity:"epic" },
+    { id:"pet-fox", type:"pet", name:"Fable Fox", price:700, rarity:"epic" },
+    { id:"pet-panda", type:"pet", name:"Poppy Panda", price:750, rarity:"epic" },
+    { id:"pet-penguin", type:"pet", name:"Pip Penguin", price:550, rarity:"rare" },
+    { id:"pet-lion", type:"pet", name:"Leo Lion", price:900, rarity:"legendary" },
+    { id:"pet-koala", type:"pet", name:"Kiki Koala", price:600, rarity:"rare" },
+    { id:"pet-elephant", type:"pet", name:"Ellie Elephant", price:800, rarity:"epic" },
+    { id:"pet-parrot", type:"pet", name:"Rio Parrot", price:650, rarity:"epic" },
+    { id:"pet-pig", type:"pet", name:"Puddle Pig", price:500, rarity:"rare" },
+    { id:"pet-deer", type:"pet", name:"Daisy Deer", price:650, rarity:"epic" },
     { id:"unlock-king-arthur", type:"character", name:"King Arthur", price:800, rarity:"rare" },
     { id:"unlock-hercules", type:"character", name:"Hercules", price:950, rarity:"epic" },
     { id:"unlock-odysseus", type:"character", name:"Odysseus", price:800, rarity:"rare" },
@@ -1730,6 +1739,9 @@ export async function registerRoutes(
   ]);
   const AVATAR_WORLD_SHOP_TYPES = new Set(["car","home","furniture","pet","character"]);
   const characterUnlockId=(characterId:string)=>"unlock-"+characterId;
+  const PET_DAY=24*60*60*1000;
+  const PET_FEED_COST=40;
+  const PET_RETURN_COST=80;
 
   function avatarWorldDefaultState() {
     return {
@@ -1737,6 +1749,8 @@ export async function registerRoutes(
       selectedCharacter:"robin-hood",
       equipped: { car:"car-none", home:"home-basic", pet:"pet-none" } as Record<string,string>,
       furniture: [] as string[],
+      petCare: {} as Record<string,{fedUntil:number}>,
+      careSpent: 0,
       spent: 0,
     };
   }
@@ -1744,9 +1758,9 @@ export async function registerRoutes(
   function normalizeAvatarWorldState(raw:any) {
     const base=avatarWorldDefaultState();
     const source=raw&&typeof raw==="object"?raw:{};
-    const validIds=new Set(AVATAR_WORLD_CATALOG.map(item=>item.id));
-    const purchased=Array.isArray(source.purchased)
-      ? Array.from(new Set(source.purchased.map(String).filter((id:string)=>validIds.has(id)))).slice(0,100)
+    const validIds=new Set<string>(AVATAR_WORLD_CATALOG.map(item=>item.id));
+    const purchased:string[]=Array.isArray(source.purchased)
+      ? Array.from(new Set<string>(source.purchased.map(String).filter((id:string)=>validIds.has(id)))).slice(0,100)
       : [];
     // Grandfather a previously-selected premium character so existing students never lose it.
     const previousCharacter=String(source.selectedCharacter||"");
@@ -1755,6 +1769,14 @@ export async function registerRoutes(
       if(validIds.has(unlock)&&!purchased.includes(unlock))purchased.push(unlock);
     }
     const purchasedSet=new Set(purchased);
+    const petCare:Record<string,{fedUntil:number}>={};
+    for(const id of purchased){
+      if(AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type!=="pet")continue;
+      const until=Number(source.petCare?.[id]?.fedUntil);
+      petCare[id]={fedUntil:Number.isFinite(until)&&until>0?until:Date.now()+7*PET_DAY};
+    }
+    const rawCareSpent=Number(source.careSpent);
+    const careSpent=Number.isFinite(rawCareSpent)?Math.max(0,Math.floor(rawCareSpent)):0;
     const allowed=(id:any)=>AVATAR_WORLD_FREE.has(String(id))||purchasedSet.has(String(id));
     const selectedCharacter=AVATAR_WORLD_CHARACTERS.has(String(source.selectedCharacter||""))
       ? String(source.selectedCharacter)
@@ -1776,8 +1798,8 @@ export async function registerRoutes(
     const spent=activePurchased.reduce((sum:number,id:string)=>{
       const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
       return sum+(item?.price||0);
-    },0);
-    return {purchased:activePurchased,selectedCharacter,equipped,furniture,spent};
+    },careSpent);
+    return {purchased:activePurchased,selectedCharacter,equipped,furniture,petCare,careSpent,spent};
   }
 
   async function getAvatarWorldPayload(userId:number) {
@@ -1811,6 +1833,11 @@ export async function registerRoutes(
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
     const state=normalizeAvatarWorldState(parsed||{});
+    // Give pets purchased before care existed a full first week, once.
+    if(state.purchased.some(id=>id.startsWith("pet-")&&!parsed?.petCare?.[id]))
+      await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
+    if(state.equipped.pet!=="pet-none"&&state.petCare[state.equipped.pet]?.fedUntil<=Date.now())
+      state.equipped.pet="pet-none";
     const wallet=Math.max(0,lifetimeCoins-state.spent);
     return {
       economy:{level,quizzesTaken,passedQuizzes,totalPoints,lifetimeCoins,wallet,nextLevelAt,coinsPerPassedQuiz:100,coinsPerGame:10,winBonusCoins:20,levelBonus:150,clubGames,clubWins,bonusCoins},
@@ -1838,7 +1865,8 @@ export async function registerRoutes(
       const payload=await getAvatarWorldPayload(req.user.id);
       if(payload.state.purchased.includes(item.id)) return res.json(payload);
       if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
-      const next={...payload.state,purchased:[...payload.state.purchased,item.id],spent:payload.state.spent+item.price};
+      const next={...payload.state,purchased:[...payload.state.purchased,item.id],
+        petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{fedUntil:Date.now()+7*PET_DAY}}:payload.state.petCare};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
       res.set("Cache-Control","no-store");
       res.json(await getAvatarWorldPayload(req.user.id));
@@ -1870,6 +1898,8 @@ export async function registerRoutes(
         if(AVATAR_WORLD_FREE.has(itemId)){
           nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
         }else if(item&&item.type===slotType[slot]&&payload.state.purchased.includes(itemId)){
+          if(slot==="pet"&&payload.state.petCare[itemId]?.fedUntil<=Date.now())
+            return res.status(400).json({message:"Your pet is resting at the sanctuary. Bring them home first."});
           nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
         }else return res.status(400).json({message:"Unlock that item before equipping it."});
       }else if(action==="furniture"){
@@ -1885,6 +1915,32 @@ export async function registerRoutes(
     }catch(error:any){
       console.error("[avatar-world] customize:",error?.message);
       res.status(500).json({message:"Could not save customization."});
+    }
+  });
+
+  app.post("/api/avatar-world/pet-care",authMiddleware,async(req:any,res)=>{
+    try{
+      if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user)
+        return res.status(403).json({message:"Pet care is for regular student accounts."});
+      const itemId=String(req.body?.petId||"");
+      const action=String(req.body?.action||"");
+      const payload=await getAvatarWorldPayload(req.user.id);
+      if(!payload.state.purchased.includes(itemId)||AVATAR_WORLD_CATALOG.find(item=>item.id===itemId)?.type!=="pet")
+        return res.status(400).json({message:"Unlock this pet first."});
+      const oldUntil=payload.state.petCare[itemId]?.fedUntil||0;
+      const away=oldUntil<=Date.now();
+      if(action!==(away?"return":"feed"))return res.status(400).json({message:away?"Bring this pet home from the sanctuary first.":"This pet is home. You can feed them."});
+      const cost=away?PET_RETURN_COST:PET_FEED_COST;
+      if(payload.economy.wallet<cost)return res.status(400).json({message:"Earn "+(cost-payload.economy.wallet)+" more Reader Coins by reading or playing."});
+      const fedUntil=away?Date.now()+3*PET_DAY:Math.min(Math.max(Date.now(),oldUntil)+3*PET_DAY,Date.now()+14*PET_DAY);
+      const next={...payload.state,careSpent:payload.state.careSpent+cost,
+        petCare:{...payload.state.petCare,[itemId]:{fedUntil}}};
+      await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
+      res.set("Cache-Control","no-store");
+      res.json(await getAvatarWorldPayload(req.user.id));
+    }catch(error:any){
+      console.error("[avatar-world] pet care:",error?.message);
+      res.status(500).json({message:"Could not care for your pet right now."});
     }
   });
 

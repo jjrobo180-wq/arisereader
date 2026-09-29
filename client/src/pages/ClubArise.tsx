@@ -8,10 +8,12 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet } from "@/lib/pets";
+import { PET_PERSONALITIES } from "@/lib/pets";
+import { createWorldModel } from "@/lib/worldModels";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
-  phrase?:string|null;phrase_at?:string|null;emote?:string|null;emote_at?:string|null;updated_at:string;
+  car_id?:string;driving?:boolean;phrase?:string|null;phrase_at?:string|null;emote?:string|null;emote_at?:string|null;updated_at:string;
 };
 type GameType="four"|"word_tiles"|"word_rescue"|"math_duel"|"synonym_sprint"|"pattern_power"|"sentence_fix"|"fact_dash";
 type Match={id:string;game_type:GameType;status:string;player1_id:number;player2_id:number|null;state:any;winner_id:number|null;players?:Array<{user_id:number;display_name:string;character_id:string}>};
@@ -193,6 +195,9 @@ export default function ClubArise(){
   const controlsRef=useRef<OrbitControls|null>(null);
   const sceneRef=useRef<THREE.Scene|null>(null);
   const selfRootRef=useRef<THREE.Group|null>(null);
+  const selfCarRef=useRef<THREE.Group|null>(null);
+  const drivingRef=useRef(false);
+  const [driving,setDriving]=useState(false);
   const remoteRootsRef=useRef<Map<number,THREE.Group>>(new Map());
   const targetRef=useRef(new THREE.Vector3(0,0,7));
   const keysRef=useRef(new Set<string>());
@@ -202,7 +207,7 @@ export default function ClubArise(){
   const [players,setPlayers]=useState<Player[]>([]);
   const playersRef=useRef<Player[]>([]);
   playersRef.current=players;
-  const [self,setSelf]=useState<{userId:number;displayName:string;characterId:string;petId?:string}|null>(null);
+  const [self,setSelf]=useState<{userId:number;displayName:string;characterId:string;petId?:string;carId?:string;homeId?:string}|null>(null);
   const [phrases,setPhrases]=useState<string[]>([]);
   const [nearStation,setNearStation]=useState<Station|null>(null);
   const [match,setMatch]=useState<Match|null>(null);
@@ -245,6 +250,26 @@ export default function ClubArise(){
     if(!root||!controls||!camera)return;
     const center=new THREE.Vector3(root.position.x,1.3,root.position.z);
     camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();
+  };
+
+  const toggleDriving=()=>{
+    const root=selfRootRef.current,car=selfCarRef.current;if(!root||!car)return;
+    const next=!drivingRef.current;
+    drivingRef.current=next;setDriving(next);
+    root.userData.driving=next;
+    if(next){root.position.set(car.position.x,0,car.position.z);targetRef.current.copy(root.position);}
+    else car.position.set(THREE.MathUtils.clamp(root.position.x+2,-27,27),0,root.position.z);
+    if(next)centerOnMe();
+    const avatar=root.userData.avatarModel as THREE.Object3D|undefined;if(avatar)avatar.visible=!next;
+    const pet=root.getObjectByName("clubPet");if(pet)pet.visible=!next;
+    void fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,driving:next})});
+    setNotice(next?"You're driving! Use WASD, arrows, or tap the floor.":"You're out of the car. It is parked nearby.");
+  };
+  const visitHome=()=>{
+    targetRef.current.set(-22,0,13);
+    const controls=controlsRef.current,camera=cameraRef.current;
+    if(controls&&camera){const center=new THREE.Vector3(-23,1.5,15);camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();}
+    setNotice("Heading to your home…");
   };
 
   useEffect(()=>{
@@ -315,6 +340,14 @@ export default function ClubArise(){
     });
 
     const loader=new GLTFLoader();
+    const home=createWorldModel(self.homeId||"home-basic",loader,7);
+    home.position.set(-24,0,16);home.rotation.y=.35;scene.add(home);
+    const homeSign=makeLabel("MY HOME","#0f172a","#fef08a");homeSign.position.set(-24,5.1,16);homeSign.scale.set(4.5,1.15,1);scene.add(homeSign);
+    if(self.carId&&self.carId!=="car-none"){
+      const car=createWorldModel(self.carId,loader,3.8);
+      car.position.set(6,0,10);scene.add(car);selfCarRef.current=car;
+      const parkSign=makeLabel("MY CAR","#0f172a","#67e8f9");parkSign.position.set(6,3.2,10);parkSign.scale.set(3.2,.85,1);scene.add(parkSign);
+    }
     const loadAvatar=(uid:number,name:string,charId:string,petId:string|undefined|null,x:number,z:number,isSelf=false)=>{
       const root=new THREE.Group();root.position.set(x,0,z);root.userData.userId=uid;scene.add(root);
       const label=makeLabel(name);label.position.set(0,3.15,0);root.add(label);
@@ -322,7 +355,7 @@ export default function ClubArise(){
       const path=getAvatarCharacter(charId).modelPath;
       loader.load(path,gltf=>{
         if(disposed)return;
-        const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;(o as THREE.Mesh).receiveShadow=true;}});root.add(model);attachAvatarMotion(root,model,gltf.animations);
+        const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;(o as THREE.Mesh).receiveShadow=true;}});root.add(model);root.userData.avatarModel=model;model.visible=!root.userData.driving;attachAvatarMotion(root,model,gltf.animations);
       });
       const pet=createPet(petId,loader,.95);if(pet){pet.position.set(.85,0,.55);root.add(pet);}
       if(isSelf)selfRootRef.current=root;else remoteRootsRef.current.set(uid,root);
@@ -338,6 +371,10 @@ export default function ClubArise(){
       for(const hit of hits){
         let node:THREE.Object3D|null=hit.object;
         while(node){
+          if(node.name==="clubPet"&&node.parent===selfRootRef.current){
+            const personality=PET_PERSONALITIES[String(node.userData.petId)];
+            if(personality){setNotice(personality.emoji+" "+personality.greeting);return;}
+          }
           const uid=Number(node.userData?.userId||0);
           if(uid){
             if(uid!==self.userId)void viewPlayer(uid);
@@ -379,9 +416,13 @@ export default function ClubArise(){
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
         let dx=0,dz=0;const k=keysRef.current;if(k.has("w")||k.has("arrowup"))dz-=1;if(k.has("s")||k.has("arrowdown"))dz+=1;if(k.has("a")||k.has("arrowleft"))dx-=1;if(k.has("d")||k.has("arrowright"))dx+=1;
         let dest=targetRef.current.clone();
-        if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar(5*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
-        else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,4.2*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
+        if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar((drivingRef.current?10:5)*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
+        else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
+        if(drivingRef.current&&selfCarRef.current){selfCarRef.current.position.set(root.position.x,0,root.position.z);selfCarRef.current.rotation.y=root.rotation.y;
+          const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);const shift=desired.sub(controls.target).multiplyScalar(.12);camera.position.add(shift);controls.target.add(shift);
+        }
+        const pet=root.getObjectByName("clubPet");if(pet&&!drivingRef.current){const personality=PET_PERSONALITIES[String(pet.userData.petId)];const t=performance.now()*.001;pet.position.y=personality?.motion==="bounce"?Math.abs(Math.sin(t*3))*.16:Math.sin(t*2)*.045;pet.rotation.z=personality?.motion==="sway"?Math.sin(t*2)*.12:0;pet.rotation.y=personality?.motion==="spin"?Math.sin(t*.7)*.35:0;}
       }
       const nowMs=performance.now();
       const activeEmote=selfEmoteRef.current;
@@ -419,12 +460,15 @@ export default function ClubArise(){
         light.position.z=-2+Math.sin(a)*10;
         light.position.y=7.5+Math.sin(a*1.7)*1.5;
       });
+      remoteRootsRef.current.forEach(remote=>{
+        const pet=remote.getObjectByName("clubPet");if(pet&&pet.visible){const personality=PET_PERSONALITIES[String(pet.userData.petId)];const t=performance.now()*.001;pet.position.y=personality?.motion==="bounce"?Math.abs(Math.sin(t*3))*.16:Math.sin(t*2)*.045;pet.rotation.z=personality?.motion==="sway"?Math.sin(t*2)*.12:0;pet.rotation.y=personality?.motion==="spin"?Math.sin(t*.7)*.35:0;}
+      });
       controls.update();renderer.render(scene,camera);raf=requestAnimationFrame(loop);
     };loop();
     setReady(true);
 
     const resize=()=>{camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight);};window.addEventListener("resize",resize);
-    return()=>{disposed=true;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);renderer.domElement.removeEventListener("pointercancel",pointerCancel);controls.dispose();renderer.dispose();remoteRootsRef.current.clear();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
+    return()=>{disposed=true;selfCarRef.current=null;drivingRef.current=false;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);renderer.domElement.removeEventListener("pointercancel",pointerCancel);controls.dispose();renderer.dispose();remoteRootsRef.current.clear();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
   },[self,token]);
 
   useEffect(()=>{
@@ -440,7 +484,7 @@ export default function ClubArise(){
       const root=selfRootRef.current;if(!root)return;
       try{
         const now=Date.now();if(now-lastSyncRef.current<500)return;lastSyncRef.current=now;
-        const r=await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y})});const d=await r.json();if(r.ok)setPlayers(d.players||[]);
+        const r=await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,driving:drivingRef.current})});const d=await r.json();if(r.ok)setPlayers(d.players||[]);
       }catch{}
     };
     const id=window.setInterval(sync,650);return()=>clearInterval(id);
@@ -450,8 +494,16 @@ export default function ClubArise(){
     if(!sceneRef.current||!self)return;const scene=sceneRef.current,loader=new GLTFLoader();
     const active=new Set<number>();
     for(const p of players){if(p.user_id===self.userId)continue;active.add(p.user_id);let root=remoteRootsRef.current.get(p.user_id);
-      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);root.userData.userId=p.user_id;scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);const hitArea=new THREE.Mesh(new THREE.CylinderGeometry(.95,.95,3.5,16),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));hitArea.position.y=1.75;root.add(hitArea);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);attachAvatarMotion(root!,model,g.animations);if(p.emote&&p.emote_at&&Date.now()-new Date(p.emote_at).getTime()<3200)setAvatarGesture(root!,p.emote);});remoteRootsRef.current.set(p.user_id,root);}
+      if(!root){root=new THREE.Group();root.position.set(p.x,0,p.z);root.userData.userId=p.user_id;scene.add(root);const label=makeLabel(p.display_name);label.position.set(0,3.15,0);root.add(label);const hitArea=new THREE.Mesh(new THREE.CylinderGeometry(.95,.95,3.5,16),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));hitArea.position.y=1.75;root.add(hitArea);loader.load(getAvatarCharacter(p.character_id).modelPath,g=>{const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);model.scale.setScalar(2.4/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);root!.userData.avatarModel=model;model.visible=!root!.userData.driving;attachAvatarMotion(root!,model,g.animations);if(p.emote&&p.emote_at&&Date.now()-new Date(p.emote_at).getTime()<3200)setAvatarGesture(root!,p.emote);});remoteRootsRef.current.set(p.user_id,root);}
       if(root.userData.petId!==p.pet_id){const old=root.getObjectByName("clubPet");if(old)root.remove(old);const pet=createPet(p.pet_id,loader,.95);if(pet){pet.position.set(.85,0,.55);root.add(pet);}root.userData.petId=p.pet_id;}
+      root.userData.driving=!!p.driving;
+      const avatar=root.userData.avatarModel as THREE.Object3D|undefined;if(avatar)avatar.visible=!p.driving;
+      const pet=root.getObjectByName("clubPet");if(pet)pet.visible=!p.driving;
+      const oldCar=root.getObjectByName("readerCar");
+      if(oldCar&&(!p.driving||oldCar.userData.carId!==p.car_id))root.remove(oldCar);
+      if(p.driving&&p.car_id&&p.car_id!=="car-none"&&!root.getObjectByName("readerCar")){
+        const car=createWorldModel(p.car_id,loader,3.8);car.name="readerCar";car.userData.carId=p.car_id;root.add(car);
+      }
       root.position.lerp(new THREE.Vector3(p.x,0,p.z),.35);root.rotation.y=THREE.MathUtils.lerp(root.rotation.y,p.facing,.35);
       const phraseFresh=p.phrase&&p.phrase_at&&Date.now()-new Date(p.phrase_at).getTime()<4500;const old=root.getObjectByName("phrase");if(old)root.remove(old);
       if(phraseFresh){const bubble=makeLabel(p.phrase!,"#ffffff","#111827");bubble.name="phrase";bubble.position.set(0,4.35,0);root.add(bubble);}
@@ -461,17 +513,17 @@ export default function ClubArise(){
 
   const sendPhrase=async(phrase:string)=>{
     const root=selfRootRef.current;if(!root)return;
-    await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,phrase})});
+    await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,phrase,driving:drivingRef.current})});
     setNotice(phrase);
   };
 
   const doEmote=async(name:"dance"|"jump"|"flip"|"silly")=>{
-    const root=selfRootRef.current;if(!root)return;
+    const root=selfRootRef.current;if(!root||drivingRef.current)return;
     selfEmoteRef.current={name,started:performance.now()};
     setAvatarGesture(root,name);
     playFunnyEmoteMusic(name);
     try{
-      const r=await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,emote:name})});
+      const r=await fetch(API_BASE+"/api/club-arise/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,emote:name,driving:false})});
       const d=await r.json();if(r.ok)setPlayers(d.players||[]);
     }catch{}
   };
@@ -504,6 +556,12 @@ export default function ClubArise(){
       <div className="flex-1"><h1 className="text-xl font-black">Club A.R.I.S.E.</h1><p className="text-xs font-bold text-white/70">Learn · play · meet readers safely</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);}} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 font-black backdrop-blur" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/>{onlineReaders.length} readers</button>
     </header>
+
+    <div className="absolute right-3 top-36 z-30 flex max-w-44 flex-col gap-2 rounded-2xl border border-cyan-300/25 bg-slate-950/90 p-2 backdrop-blur">
+      {self?.carId&&self.carId!=="car-none"&&<button type="button" onClick={toggleDriving} className="min-h-12 rounded-xl bg-cyan-300 px-3 font-black text-slate-950">{driving?"Get out of car":"Get in and drive"}</button>}
+      <button type="button" onClick={visitHome} className="min-h-11 rounded-xl bg-amber-300 px-3 text-sm font-black text-slate-950">Visit my home</button>
+      <p className="text-center text-xs text-white/65">{driving?"Drive with WASD, arrows, or tap":"Your car is parked by the dance floor"}</p>
+    </div>
 
     {!showReaders&&!selectedPlayer&&!playerLoading&&!nearStation&&<div className="absolute left-3 top-20 z-30 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/65 p-3 backdrop-blur">
       <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white/60"><MessageCircle className="h-4 w-4"/> Safe chat</div>

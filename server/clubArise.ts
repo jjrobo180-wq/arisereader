@@ -14,6 +14,28 @@ const GAME_TYPES = new Set([
 
 const CHOICE_GAMES = new Set(["math_duel","synonym_sprint","pattern_power","sentence_fix","fact_dash"]);
 const EMOTES = new Set(["dance","jump","flip","silly"]);
+const vehiclePresence=new Map<number,{carId:string;driving:boolean;updatedAt:number}>();
+const CAR_IDS=new Set(["car-street","car-electric","car-super","car-suv"]);
+function activeWorldPet(state:any){
+  const id=String(state?.equipped?.pet||"pet-none");
+  // Pre-care accounts are initialized on their next Avatar World visit.
+  return state?.petCare?.[id]?.fedUntil&&Number(state.petCare[id].fedUntil)<=Date.now()?"pet-none":id;
+}
+async function initializeLegacyPetCare(userId:number,state:any){
+  const pets=(Array.isArray(state?.purchased)?state.purchased:[]).filter((id:any)=>typeof id==="string"&&id.startsWith("pet-"));
+  if(!pets.some((id:string)=>!state?.petCare?.[id]))return state;
+  state.petCare={...(state.petCare||{})};
+  for(const id of pets)if(!state.petCare[id])state.petCare[id]={fedUntil:Date.now()+7*86400000};
+  await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
+  return state;
+}
+function withVehicles(players:any[]){
+  vehiclePresence.forEach((vehicle,id)=>{if(Date.now()-vehicle.updatedAt>30000)vehiclePresence.delete(id);});
+  return players.map(player=>{
+    const vehicle=vehiclePresence.get(player.user_id);
+    return {...player,car_id:vehicle&&Date.now()-vehicle.updatedAt<30000?vehicle.carId:"car-none",driving:!!vehicle&&Date.now()-vehicle.updatedAt<30000&&vehicle.driving};
+  });
+}
 
 const WORD_BANK = [
   {word:"BOOK",hint:"You read this."},
@@ -161,11 +183,13 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         const detail=await storage.getStudentDetail(req.user.id);
         const raw=await storage.getSetting("avatar_world_"+req.user.id);
         let state:any={selectedCharacter:"robin-hood"};
-        if(raw){try{state={...state,...JSON.parse(raw)};}catch{}}
+        if(raw){try{state=await initializeLegacyPetCare(req.user.id,{...state,...JSON.parse(raw)});}catch{}}
         return {
-          displayName:detail?.displayName||req.user.displayName||req.user.username||"Reader",
+          displayName:detail?.user?.displayName||req.user.displayName||req.user.username||"Reader",
           characterId:state.selectedCharacter||"robin-hood",
-          petId:state.equipped?.pet||"pet-none"
+          petId:activeWorldPet(state),
+          carId:CAR_IDS.has(state.equipped?.car)?state.equipped.car:"car-none",
+          homeId:state.equipped?.home||"home-basic"
         };
       })();
 
@@ -183,7 +207,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       if(error)throw error;
       res.set("Cache-Control","no-store");
       const access=await getClubAccess(req.user.id);
-      res.json({self:{userId:req.user.id,...payload},players:players||[],safePhrases:Array.from(SAFE_PHRASES),access});
+      res.json({self:{userId:req.user.id,...payload},players:withVehicles(players||[]),safePhrases:Array.from(SAFE_PHRASES),access});
     }catch(error:any){
       console.error("[club-arise] bootstrap",error?.message);
       res.status(500).json({message:"Could not enter Club A.R.I.S.E."});
@@ -204,11 +228,13 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const currentRaw=await storage.getSetting("avatar_world_"+req.user.id);
       let selectedCharacter="robin-hood";
       let petId="pet-none";
-      if(currentRaw){try{const parsed=JSON.parse(currentRaw);selectedCharacter=parsed?.selectedCharacter||selectedCharacter;petId=parsed?.equipped?.pet||petId;}catch{}}
+      let carId="car-none";
+      if(currentRaw){try{const parsed=await initializeLegacyPetCare(req.user.id,JSON.parse(currentRaw));selectedCharacter=parsed?.selectedCharacter||selectedCharacter;petId=activeWorldPet(parsed);if(CAR_IDS.has(parsed?.equipped?.car))carId=parsed.equipped.car;}catch{}}
+      vehiclePresence.set(req.user.id,{carId,driving:!!req.body?.driving&&carId!=="car-none",updatedAt:Date.now()});
       const detail=await storage.getStudentDetail(req.user.id);
       const row:any={
         user_id:req.user.id,
-        display_name:detail?.displayName||req.user.displayName||req.user.username||"Reader",
+        display_name:detail?.user?.displayName||req.user.displayName||req.user.username||"Reader",
         character_id:selectedCharacter,pet_id:petId,
         x,z,facing,updated_at:new Date().toISOString(),
       };
@@ -221,7 +247,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         .select("user_id,display_name,character_id,pet_id,x,z,facing,phrase,phrase_at,emote,emote_at,updated_at")
         .gte("updated_at",cutoff);
       if(error)throw error;
-      res.json({players:data||[]});
+      res.json({players:withVehicles(data||[])});
     }catch(error:any){
       console.error("[club-arise] presence",error?.message);
       res.status(500).json({message:"Could not update the club."});
@@ -313,7 +339,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       res.set("Cache-Control","no-store");
       res.json({
         userId,
-        displayName:detail.displayName||"Reader",
+        displayName:detail.user?.displayName||"Reader",
         characterId,
         leaderboardPoints:Math.max(0,Number(detail.totalPoints)||0),
         quizzesTaken:Math.max(0,Number(detail.quizzesTaken)||0),
