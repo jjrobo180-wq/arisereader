@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, Flame, Gift, Target, Trophy, Zap } from "lucide-react";
+import { CheckCircle2, Flame, Gamepad2, Gift, Target, Trophy, Zap } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -42,6 +43,7 @@ type Challenge = {
 
 export function EngagementHub() {
   const { user, token } = useAuth();
+  const [, navigate] = useLocation();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [showChallenge, setShowChallenge] = useState(false);
@@ -178,6 +180,12 @@ export function EngagementHub() {
             <Button size="sm" variant={summary.quickChallengeCompleted ? "outline" : "default"} onClick={openChallenge} className="h-10 rounded-xl">
               <Zap className="mr-1 h-4 w-4" /> {summary.quickChallengeCompleted ? "Challenge done" : "Quick Challenge"}
             </Button>
+
+            {!user?.is_eye_gaze_user && (
+              <Button size="sm" onClick={() => navigate("/live-quiz")} className="h-10 rounded-xl bg-orange-600 text-white hover:bg-orange-700">
+                <Gamepad2 className="mr-1 h-4 w-4" /> Join Live
+              </Button>
+            )}
 
             {summary.mystery.claimedToday ? (
               <div className="h-10 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 flex items-center gap-2 text-xs font-black text-amber-500">
