@@ -61,6 +61,7 @@ import EyeGazeParentMode from "./pages/EyeGazeParentMode";
 import EyeGazeTV from "./pages/EyeGazeTV";
 import EyeGazeFlashcards from "./pages/EyeGazeFlashcards";
 import EyeGazeFidgetLab from "./pages/EyeGazeFidgetLab";
+import EyeGazeFarmWorld from "./pages/EyeGazeFarmWorld";
 import EyeGazePottyCoach from "./pages/EyeGazePottyCoach";
 import EyeGazeLifeSkills from "./pages/EyeGazeLifeSkills";
 import EyeGazeParentControls from "./pages/EyeGazeParentControls";
@@ -295,6 +296,9 @@ function AppRoutes() {
       </Route>
       <Route path="/eye-gaze-fidgets">
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><EyeGazeFidgetLab /></EyeGazeAccessGate></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-farm">
+        <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><EyeGazeFarmWorld /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-life-skills">
         {isEyeGazeStudent || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-life-skills"><EyeGazeLifeSkills /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" replace />}
