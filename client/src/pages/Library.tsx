@@ -1819,18 +1819,21 @@ export default function Library() {
               <BookOpen className="w-8 h-8 text-primary" />
             </div>
             <h3 className="text-lg font-bold mb-1">No books found</h3>
-            <p className="text-sm text-muted-foreground mb-1">
-              We couldn't find a quiz for "{searchQuery}".
-            </p>
             <p className="text-sm text-muted-foreground mb-4">
-              Request it and we'll create a quiz in 1-3 days. Keep an eye on your inbox or notifications!
+              We couldn't find a quiz for "{searchQuery}". Create one instantly with AI.
             </p>
             <Button
-              onClick={() => { setRequestBook(searchQuery); setShowRequest(true); }}
-              className="bg-primary"
+              onClick={() => {
+                setInstantBook(searchQuery.trim());
+                setInstantAuthor("");
+                setInstantError("");
+                setInstantMsg("");
+                setShowInstant(true);
+              }}
+              className="h-9 rounded-lg px-3 text-xs font-black"
             >
-              <PlusCircle className="w-4 h-4 mr-1" />
-              Request This Quiz
+              <Sparkles className="w-4 h-4 mr-1.5" />
+              Create AI Quiz
             </Button>
           </div>
         ) : (
