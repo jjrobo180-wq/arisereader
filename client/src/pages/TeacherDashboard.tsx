@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen } from "lucide-react";
+import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -28,7 +28,7 @@ type PendingStudent = { id: number; username: string; displayName: string; teach
 type PendingQuiz = { id: number; student_id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group: string; cover_url: string; status: string };
 type BookRequest = { id: number; bookTitle: string; studentName: string; message: string; createdAt: string };
 
-type Tab = "students" | "all-students" | "pending" | "book-requests" | "proctor" | "grade-changes" | "growth-check";
+type Tab = "students" | "all-students" | "pending" | "book-requests" | "proctor" | "grade-changes" | "growth-check" | "club-controls";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -66,6 +66,8 @@ export default function TeacherDashboard() {
   const [bookRequests, setBookRequests] = useState<BookRequest[]>([]);
   const [bookReqLoading, setBookReqLoading] = useState(false);
   const [bellRefreshKey, setBellRefreshKey] = useState(0);
+  const [clubControls, setClubControls] = useState<any[]>([]);
+  const [clubControlsLoading, setClubControlsLoading] = useState(false);
   const printLetters = (studentId?: number) => printParentInvites(studentId).catch(err => window.alert(err.message));
 
   const authorized = Boolean(user && (user.role === "teacher" || user.isAdmin));
@@ -106,6 +108,35 @@ export default function TeacherDashboard() {
     finally { setAllLoading(false); }
   };
 
+  const loadClubControls = async () => {
+    setClubControlsLoading(true);
+    try {
+      const data = await request("/api/teacher/club-arise/controls");
+      setClubControls(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Unable to load Club controls.");
+    } finally {
+      setClubControlsLoading(false);
+    }
+  };
+
+  const saveClubControl = async (studentId: number, patch: any) => {
+    const current = clubControls.find((s:any) => s.id === studentId)?.control || {};
+    const next = {
+      locked: patch.locked ?? current.locked ?? false,
+      dailyGameLimit: patch.dailyGameLimit !== undefined ? patch.dailyGameLimit : (current.daily_game_limit ?? null),
+      gamesPerPassedQuiz: patch.gamesPerPassedQuiz !== undefined ? patch.gamesPerPassedQuiz : (current.games_per_passed_quiz ?? 0),
+    };
+    try {
+      const data = await request(`/api/teacher/club-arise/controls/${studentId}`, { method: "POST", body: JSON.stringify(next) });
+      setClubControls(items => items.map((s:any) => s.id === studentId ? {...s, control:data.control, access:data.access} : s));
+      setActionSuccess("Club A.R.I.S.E. control saved.");
+      setTimeout(() => setActionSuccess(""), 2200);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Unable to save Club controls.");
+    }
+  };
+
   const loadBookRequests = async () => {
     setBookReqLoading(true);
     try {
@@ -128,6 +159,7 @@ export default function TeacherDashboard() {
       void loadData();
       void loadAllStudentsData();
       void loadBookRequests();
+      void loadClubControls();
       const token = getTokenFromCookie();
       if (token) {
         fetch(`${API_BASE}/api/proctor-password`, { headers: { Authorization: `Bearer ${token}` } })
@@ -314,6 +346,7 @@ export default function TeacherDashboard() {
         <TabButton active={tab === "proctor"} onClick={() => setTab("proctor")} icon={<KeyRound size={19} />}>Proctor</TabButton>
         <TabButton active={tab === "grade-changes"} onClick={() => setTab("grade-changes")} icon={<GraduationCap size={19} />}>Grade Changes{gradeChangeRequests.length ? ` (${gradeChangeRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "growth-check"} onClick={() => setTab("growth-check")} icon={<Brain size={19} />}>Growth Check</TabButton>
+        <TabButton active={tab === "club-controls"} onClick={() => setTab("club-controls")} icon={<Gamepad2 size={19} />}>Club Controls</TabButton>
       </div>
 
       {actionSuccess && <div style={styles.successBanner}><CheckCircle2 size={18} /> {actionSuccess}</div>}
@@ -517,6 +550,69 @@ export default function TeacherDashboard() {
 
       {/* === GRADE CHANGES TAB === */}
       {tab === "grade-changes" && <div style={styles.pendingList}>{gradeChangeRequests.length ? gradeChangeRequests.map((req) => <div key={req.id} style={styles.pendingCard}><div><h2 style={styles.studentName}>{req.studentName}</h2><p style={styles.username}>Current: Grade {req.currentGrade} → Requested: Grade {req.requestedGrade}</p></div><div style={{ display: "flex", gap: 8 }}><button onClick={() => void handleGradeChange(req.id, "approve")} style={styles.approveButton}><Check size={16} /> Approve</button><button onClick={() => void handleGradeChange(req.id, "deny")} style={styles.rejectBtn}><X size={16} /> Deny</button></div></div>) : <div style={styles.empty}>No grade change requests</div>}</div>}
+
+      {/* === CLUB A.R.I.S.E. CONTROLS === */}
+      {tab === "club-controls" && (
+        <div>
+          <div style={{ ...styles.proctorCard, marginBottom: 18 }}>
+            <h2 style={styles.proctorTitle}><Gamepad2 size={22} /> Club A.R.I.S.E. Game Controls</h2>
+            <p style={styles.proctorDesc}>Lock gameplay instantly, cap games per day, or make students earn game plays by passing book quizzes. Students can still enter the Club social world when games are restricted.</p>
+            <p style={styles.quizMeta}><strong>Automatic example:</strong> Set “Games per passed quiz” to 2 and every passed book quiz unlocks 2 completed multiplayer games.</p>
+          </div>
+          {clubControlsLoading ? <p style={styles.muted}>Loading Club controls...</p> : (
+            <div style={styles.grid}>
+              {clubControls.length ? clubControls.map((student:any) => {
+                const control=student.control||{};
+                const access=student.access||{};
+                return <article key={student.id} style={styles.card}>
+                  <div style={styles.cardHead}>
+                    <div>
+                      <h2 style={styles.studentName}>{student.display_name || student.username}</h2>
+                      <p style={styles.username}>@{student.username}</p>
+                    </div>
+                    <span style={{...styles.pendingBadge,background:control.locked?"hsl(0 75% 50% / .18)":"hsl(145 70% 45% / .16)",color:control.locked?"hsl(0 85% 68%)":"hsl(145 65% 62%)"}}>
+                      {control.locked?"LOCKED":"OPEN"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => void saveClubControl(student.id,{locked:!control.locked})}
+                    style={{...styles.primaryBtn,background:control.locked?"hsl(145 65% 42%)":"hsl(0 70% 48%)"}}
+                  >
+                    {control.locked?<><Unlock size={16}/> Unlock Club Games</>:<><Lock size={16}/> Lock Club Games</>}
+                  </button>
+                  <label style={styles.label}>Daily multiplayer game limit</label>
+                  <select
+                    value={control.daily_game_limit ?? ""}
+                    onChange={e => void saveClubControl(student.id,{dailyGameLimit:e.target.value===""?null:Number(e.target.value)})}
+                    style={styles.filterSelect}
+                  >
+                    <option value="">No daily limit</option>
+                    <option value="1">1 game/day</option>
+                    <option value="2">2 games/day</option>
+                    <option value="3">3 games/day</option>
+                    <option value="5">5 games/day</option>
+                    <option value="10">10 games/day</option>
+                    <option value="20">20 games/day</option>
+                  </select>
+                  <label style={styles.label}>Games unlocked per passed book quiz</label>
+                  <select
+                    value={control.games_per_passed_quiz ?? 0}
+                    onChange={e => void saveClubControl(student.id,{gamesPerPassedQuiz:Number(e.target.value)})}
+                    style={styles.filterSelect}
+                  >
+                    <option value="0">Off — no quiz requirement</option>
+                    <option value="1">1 game per passed quiz</option>
+                    <option value="2">2 games per passed quiz</option>
+                    <option value="3">3 games per passed quiz</option>
+                    <option value="5">5 games per passed quiz</option>
+                  </select>
+                  {access && <p style={styles.quizMeta}>Current access: {access.allowed?"Can play":access.locked?"Teacher locked":access.dailyRemaining===0?"Daily limit reached":"Needs another passed quiz"}</p>}
+                </article>;
+              }) : <div style={styles.empty}>No regular students are assigned to you.</div>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* === GROWTH CHECK TAB === */}
       {tab === "growth-check" && <div style={{ maxWidth: 900, margin: "0 auto" }}>{growthCheckData.length ? growthCheckData.map((attempt: any) => <div key={attempt.id} style={styles.pendingCard}><div><h2 style={styles.studentName}>{attempt.studentName || "Student"}</h2><p style={styles.username}>Score: {attempt.score}/{attempt.totalQuestions} | WCPM: {attempt.wcpm || "N/A"}</p></div></div>) : <div style={styles.empty}>No growth check data yet.</div>}</div>}
