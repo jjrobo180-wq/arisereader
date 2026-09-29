@@ -1759,22 +1759,32 @@ export async function registerRoutes(
       age:"Kid-friendly"
     },
     {
-      id:"sintel",
-      title:"Sintel",
-      subtitle:"Open fantasy animation · full film",
-      youtubeId:"eRsGyueVLvQ",
-      duration:888,
-      license:"CC BY 3.0",
-      attribution:"Blender Foundation / Durian Open Movie",
-      age:"Older kids"
+      id:"caminandes-llama-drama",
+      title:"Caminandes: Llama Drama",
+      subtitle:"Animated comedy episode · Koro's first adventure",
+      youtubeId:"JOhiWY7XmoY",
+      duration:90,
+      license:"Creative Commons",
+      attribution:"Blender Foundation / Caminandes",
+      age:"Kid-friendly"
+    },
+    {
+      id:"caminandes-gran-dillama",
+      title:"Caminandes: Gran Dillama",
+      subtitle:"Animated comedy episode · Koro tries again",
+      youtubeId:"Z4C82eyhwgU",
+      duration:146,
+      license:"Creative Commons",
+      attribution:"Blender Foundation / Caminandes",
+      age:"Kid-friendly"
     },
     {
       id:"caminandes-llamigos",
       title:"Caminandes: Llamigos",
-      subtitle:"Open animated comedy · short film",
-      youtubeId:"Z4C82eyhwgU",
+      subtitle:"Animated comedy episode · Koro meets Oti",
+      youtubeId:"SkVqJ1SGeL0",
       duration:150,
-      license:"CC BY",
+      license:"Creative Commons",
       attribution:"Blender Foundation / Caminandes",
       age:"Kid-friendly"
     }
