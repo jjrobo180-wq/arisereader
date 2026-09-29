@@ -92,6 +92,7 @@ import ClubTheater from "./pages/ClubTheater";
 import Worlds from "./pages/Worlds";
 import Neighborhood from "./pages/Neighborhood";
 import LaserRoyale from "./pages/LaserRoyale";
+import BoardGameWorld from "./pages/BoardGameWorld";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -288,6 +289,11 @@ function AppRoutes() {
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><Neighborhood /></ProtectedRoute>
           : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/board-game-world">
+        {!isEyeGazeStudent
+          ? <ProtectedRoute><BoardGameWorld /></ProtectedRoute>
+          : <Redirect to="/eye-gaze-home" replace />}
       </Route>
       <Route path="/laser-royale">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user

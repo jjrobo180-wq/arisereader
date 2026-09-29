@@ -42,11 +42,9 @@
         var clean = location.pathname.replace(/\/+/g, '/');
         history.replaceState(null, '', clean + location.search + location.hash);
       }
-      // Board Quest is a standalone game build. The Worlds selector uses the
-      // site's hash router, so hand this one destination to the game directly
-      // before React can render the NotFound screen.
-      if (location.hash === '#/board-game-world' || location.hash.startsWith('#/board-game-world?')) {
-        location.replace('/board-quest.html');
+      // Normalize old standalone URLs to the single, registered app route.
+      if (['/board-game-world', '/board-game-world/', '/board-quest.html'].includes(location.pathname)) {
+        location.replace('/#/board-game-world');
       }
     </script>
     <div id="root"></div>
