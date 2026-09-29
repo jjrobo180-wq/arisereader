@@ -2,230 +2,66 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowLeft, Crosshair, Shield, Zap, Trophy } from "lucide-react";
+import { ArrowLeft, Crosshair, Shield, Zap, Trophy, Map, Footprints } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 
 type SelfInfo={userId:number;displayName:string;characterId:string};
-type Bot={id:number;name:string;characterId:string;root:THREE.Group;hp:number;shield:number;score:number;alive:boolean;respawnAt:number;target:THREE.Vector3;cooldown:number};
+type Fighter={name:string;characterId:string;root:THREE.Group;hp:number;shield:number;alive:boolean;respawn:number;cooldown:number;target:THREE.Vector3;strafe:number};
+const ROSTER=[{name:"Robin",characterId:"robin-hood"},{name:"Arthur",characterId:"king-arthur"},{name:"Alice",characterId:"alice"},{name:"Sherlock",characterId:"sherlock-holmes"},{name:"Frank",characterId:"frankenstein"},{name:"Hercules",characterId:"hercules"}];
+const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
 
-const PUBLIC_DOMAIN_BOTS=[
-  {name:"Robin",characterId:"robin-hood"},
-  {name:"Arthur",characterId:"king-arthur"},
-  {name:"Alice",characterId:"alice"},
-  {name:"Sherlock",characterId:"sherlock-holmes"},
-  {name:"Frank",characterId:"frankenstein"},
-  {name:"Hercules",characterId:"hercules"},
-];
-
-function label(text:string,bg="#07111f",fg="#fff"){
-  const canvas=document.createElement("canvas");canvas.width=512;canvas.height=128;
-  const ctx=canvas.getContext("2d")!;ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(10,12,492,104,30);ctx.fill();
-  ctx.fillStyle=fg;ctx.font="800 38px system-ui";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(text,256,64);
-  const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
-  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));sprite.scale.set(4,.95,1);return sprite;
+function terrainY(x:number,z:number){return Math.sin(x*.055)*1.25+Math.cos(z*.047)*1.05+Math.sin((x+z)*.025)*.7;}
+function tag(text:string,bg="#0f172a",fg="#fff"){
+ const c=document.createElement("canvas");c.width=512;c.height=112;const x=c.getContext("2d")!;x.fillStyle=bg;x.beginPath();x.roundRect(8,8,496,96,28);x.fill();x.fillStyle=fg;x.font="800 34px system-ui";x.textAlign="center";x.textBaseline="middle";x.fillText(text,256,56);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));s.scale.set(4.2,.92,1);return s;
 }
-
-function addCrate(scene:THREE.Scene,x:number,z:number,color=0x334155){
-  const box=new THREE.Mesh(new THREE.BoxGeometry(2.2,2.2,2.2),new THREE.MeshStandardMaterial({color,roughness:.72}));
-  box.position.set(x,1.1,z);box.castShadow=true;box.receiveShadow=true;scene.add(box);
-  const edge=new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry),new THREE.LineBasicMaterial({color:0x94a3b8}));edge.position.copy(box.position);scene.add(edge);
+function building(scene:THREE.Scene,x:number,z:number,w:number,d:number,h:number,color:number){
+ const g=new THREE.Group();g.position.set(x,terrainY(x,z),z);scene.add(g);const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.72}));body.position.y=h/2;body.castShadow=true;body.receiveShadow=true;g.add(body);const roof=new THREE.Mesh(new THREE.BoxGeometry(w+.5,.35,d+.5),new THREE.MeshStandardMaterial({color:0x263247,metalness:.25}));roof.position.y=h+.18;g.add(roof);for(let i=-1;i<=1;i+=2){const win=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(1,w*.22),1.1),new THREE.MeshBasicMaterial({color:0x8be9fd}));win.position.set(i*w*.25,h*.58,d/2+.011);g.add(win);}return g;
 }
-function addTower(scene:THREE.Scene,x:number,z:number,color:number){
-  const root=new THREE.Group();root.position.set(x,0,z);scene.add(root);
-  const base=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.5,5.5,8),new THREE.MeshStandardMaterial({color,roughness:.72}));base.position.y=2.75;base.castShadow=true;root.add(base);
-  for(let i=0;i<8;i++){const crenel=new THREE.Mesh(new THREE.BoxGeometry(.75,.7,.75),new THREE.MeshStandardMaterial({color}));const a=i*Math.PI/4;crenel.position.set(Math.cos(a)*1.9,5.75,Math.sin(a)*1.9);root.add(crenel);}
-  const beacon=new THREE.PointLight(0x67e8f9,7,12,2);beacon.position.set(0,6.5,0);root.add(beacon);
-}
-function addTree(scene:THREE.Scene,x:number,z:number){
-  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.28,.42,3.2,8),new THREE.MeshStandardMaterial({color:0x6b4423,roughness:.95}));trunk.position.set(x,1.6,z);scene.add(trunk);
-  const crown=new THREE.Mesh(new THREE.ConeGeometry(1.7,4.2,8),new THREE.MeshStandardMaterial({color:0x1f7a4d,roughness:.9}));crown.position.set(x,4.2,z);scene.add(crown);
-}
+function tree(scene:THREE.Scene,x:number,z:number,s=1){const y=terrainY(x,z);const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.25*s,.38*s,2.8*s,7),new THREE.MeshStandardMaterial({color:0x6b4423}));trunk.position.set(x,y+1.4*s,z);scene.add(trunk);const crown=new THREE.Mesh(new THREE.ConeGeometry(1.6*s,4*s,8),new THREE.MeshStandardMaterial({color:0x26734d,roughness:.9}));crown.position.set(x,y+4*s,z);crown.castShadow=true;scene.add(crown);}
 
 export default function LaserRoyale(){
-  const {token}=useAuth();
-  const [,navigate]=useLocation();
-  const mountRef=useRef<HTMLDivElement>(null);
-  const selfRootRef=useRef<THREE.Group|null>(null);
-  const cameraRef=useRef<THREE.PerspectiveCamera|null>(null);
-  const controlsRef=useRef<OrbitControls|null>(null);
-  const targetRef=useRef(new THREE.Vector3());
-  const keysRef=useRef(new Set<string>());
-  const botsRef=useRef<Bot[]>([]);
-  const beamGroupRef=useRef<THREE.Group|null>(null);
-  const zoneRef=useRef<THREE.Mesh|null>(null);
-  const [self,setSelf]=useState<SelfInfo|null>(null);
-  const [hp,setHp]=useState(100);
-  const [shield,setShield]=useState(50);
-  const [energy,setEnergy]=useState(100);
-  const [score,setScore]=useState(0);
-  const scoreRef=useRef(0);
-  const energyRef=useRef(100);
-  const [roundTime,setRoundTime]=useState(180);
-  const [zoneRadius,setZoneRadius]=useState(28);
-  const [notice,setNotice]=useState("Laser Royale: tag opponents, grab power-ups, and stay inside the safe zone!");
-  const [leaderboard,setLeaderboard]=useState<Array<{name:string;score:number}>>([]);
-  useEffect(()=>{scoreRef.current=score;},[score]);
-  useEffect(()=>{energyRef.current=energy;},[energy]);
-  const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("rotate");
-  const headers=useMemo(()=>({Authorization:"Bearer "+token}),[token]);
-
-  useEffect(()=>{
-    if(!token)return;
-    fetch(API_BASE+"/api/club-arise/bootstrap",{headers,cache:"no-store"})
-      .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d;})
-      .then(d=>setSelf(d.self))
-      .catch(()=>setSelf({userId:0,displayName:"Reader",characterId:"robin-hood"}));
-  },[token]);
-
-  useEffect(()=>{
-    const controls=controlsRef.current;if(!controls)return;
-    controls.mouseButtons.LEFT=cameraMode==="rotate"?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN;
-    controls.touches.ONE=cameraMode==="rotate"?THREE.TOUCH.ROTATE:THREE.TOUCH.PAN;
-  },[cameraMode]);
-
-  useEffect(()=>{
-    if(!self)return;
-    const mount=mountRef.current;if(!mount)return;
-    let disposed=false;
-    const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1530);scene.fog=new THREE.Fog(0x0b1530,45,95);
-    const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/Math.max(1,mount.clientHeight),.1,140);camera.position.set(0,15,24);cameraRef.current=camera;
-    const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(mount.clientWidth,mount.clientHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;mount.appendChild(renderer.domElement);
-
-    const controls=new OrbitControls(camera,renderer.domElement);controlsRef.current=controls;controls.target.set(0,1.4,0);controls.enableDamping=true;controls.enablePan=true;controls.screenSpacePanning=false;controls.minDistance=8;controls.maxDistance=38;controls.maxPolarAngle=Math.PI*.47;controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=THREE.MOUSE.PAN;controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
-
-    scene.add(new THREE.HemisphereLight(0xbfd8ff,0x20331f,2.2));const sun=new THREE.DirectionalLight(0xffffff,3.1);sun.position.set(-12,22,16);sun.castShadow=true;scene.add(sun);
-    const ground=new THREE.Mesh(new THREE.CircleGeometry(31,96),new THREE.MeshStandardMaterial({color:0x223b31,roughness:.9,metalness:.08}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;ground.userData.ground=true;scene.add(ground);
-    const grid=new THREE.GridHelper(60,30,0x34d399,0x1e3a5f);grid.position.y=.03;(grid.material as THREE.Material).transparent=true;(grid.material as THREE.Material).opacity=.22;scene.add(grid);
-
-    const zone=new THREE.Mesh(new THREE.TorusGeometry(28,.24,12,128),new THREE.MeshStandardMaterial({color:0x22d3ee,emissive:0x22d3ee,emissiveIntensity:3}));zone.rotation.x=Math.PI/2;zone.position.y=.18;scene.add(zone);zoneRef.current=zone;
-
-    addTower(scene,-20,-18,0x334155);addTower(scene,20,-18,0x4c1d95);addTower(scene,-20,18,0x14532d);addTower(scene,20,18,0x7c2d12);
-    for(const p of [[-10,-8],[10,-8],[-12,8],[12,8],[-4,15],[5,-17],[-18,0],[18,1]] as const)addCrate(scene,p[0],p[1]);
-    for(const p of [[-24,-8],[-24,8],[24,-8],[24,8],[-8,24],[8,24],[-8,-24],[8,-24]] as const)addTree(scene,p[0],p[1]);
-
-    const centerPad=new THREE.Mesh(new THREE.CylinderGeometry(5.2,5.2,.24,64),new THREE.MeshStandardMaterial({color:0x111827,emissive:0x2563eb,emissiveIntensity:.5,metalness:.35}));centerPad.position.y=.12;scene.add(centerPad);
-    const centerRing=new THREE.Mesh(new THREE.TorusGeometry(4.4,.14,12,64),new THREE.MeshStandardMaterial({color:0xfacc15,emissive:0xfacc15,emissiveIntensity:3}));centerRing.rotation.x=Math.PI/2;centerRing.position.y=.3;scene.add(centerRing);
-    const title=label("LASER ROYALE","#0f172a","#67e8f9");title.position.set(0,6.8,-28);title.scale.set(9,2.1,1);scene.add(title);
-
-    const powerups:THREE.Mesh[]=[];
-    const powerupDefs=[
-      {x:-14,z:-4,type:"shield",color:0x60a5fa},
-      {x:14,z:5,type:"energy",color:0xfacc15},
-      {x:0,z:18,type:"heal",color:0x4ade80},
-      {x:-3,z:-18,type:"boost",color:0xf472b6},
-    ];
-    powerupDefs.forEach(d=>{const m=new THREE.Mesh(new THREE.OctahedronGeometry(.8,0),new THREE.MeshStandardMaterial({color:d.color,emissive:d.color,emissiveIntensity:2.4,metalness:.35}));m.position.set(d.x,1,d.z);m.userData.powerup=d.type;scene.add(m);powerups.push(m);const light=new THREE.PointLight(d.color,4,7);light.position.copy(m.position);scene.add(light);});
-
-    const beamGroup=new THREE.Group();scene.add(beamGroup);beamGroupRef.current=beamGroup;
-    const loader=new GLTFLoader();
-
-    const loadAvatar=(charId:string,name:string,x:number,z:number,isSelf=false)=>{
-      const root=new THREE.Group();root.position.set(x,0,z);scene.add(root);
-      const tag=label(name,isSelf?"#0c4a6e":"#111827",isSelf?"#a5f3fc":"#fff");tag.position.set(0,3.25,0);root.add(tag);
-      loader.load(getAvatarCharacter(charId).modelPath,gltf=>{if(disposed)return;const model=gltf.scene;const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3());model.scale.setScalar(2.5/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh){(o as THREE.Mesh).castShadow=true;}});root.add(model);if(gltf.animations.length){const mixer=new THREE.AnimationMixer(model);const idle=gltf.animations.find(a=>/idle/i.test(a.name))||gltf.animations[0];mixer.clipAction(idle).play();root.userData.mixer=mixer;}});
-      return root;
-    };
-
-    const selfRoot=loadAvatar(self.characterId,self.displayName||"You",0,0,true);selfRootRef.current=selfRoot;targetRef.current.copy(selfRoot.position);
-    const bots:Bot[]=PUBLIC_DOMAIN_BOTS.map((b,i)=>{const a=i*Math.PI*2/PUBLIC_DOMAIN_BOTS.length;const root=loadAvatar(b.characterId,b.name,Math.cos(a)*18,Math.sin(a)*18,false);return{id:i+1,...b,root,hp:100,shield:50,score:0,alive:true,respawnAt:0,target:new THREE.Vector3(root.position.x,0,root.position.z),cooldown:Math.random()*1.2};});botsRef.current=bots;
-
-    const makeBeam=(from:THREE.Vector3,to:THREE.Vector3,color:number)=>{
-      const delta=to.clone().sub(from),len=delta.length();const geo=new THREE.CylinderGeometry(.07,.07,len,8);const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.95});const beam=new THREE.Mesh(geo,mat);beam.position.copy(from).add(to).multiplyScalar(.5);beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());beamGroup.add(beam);window.setTimeout(()=>{beamGroup.remove(beam);geo.dispose();mat.dispose();},120);
-    };
-
-    const hitBot=(bot:Bot)=>{
-      if(!bot.alive)return;let dmg=34;if(bot.shield>0){const used=Math.min(bot.shield,dmg);bot.shield-=used;dmg-=used;}bot.hp-=dmg;
-      if(bot.hp<=0){bot.alive=false;bot.root.visible=false;bot.score=Math.max(0,bot.score-1);bot.respawnAt=performance.now()+3500;scoreRef.current+=2;setScore(scoreRef.current);setNotice("✨ Tagged "+bot.name+"! +2 points");}
-      else setNotice("⚡ Hit "+bot.name+"!");
-    };
-
-    const shoot=()=>{
-      if(energyRef.current<15)return;
-      energyRef.current=Math.max(0,energyRef.current-15);
-      setEnergy(energyRef.current);
-      const root=selfRootRef.current;if(!root)return;
-      const origin=root.position.clone().add(new THREE.Vector3(0,1.7,0));
-      const forward=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),root.rotation.y).normalize();
-      let best:Bot|null=null,bestDist=Infinity;
-      for(const bot of botsRef.current){if(!bot.alive)continue;const to=bot.root.position.clone().sub(origin);const dist=to.length();const angle=forward.angleTo(to.clone().normalize());if(dist<28&&angle<.28&&dist<bestDist){best=bot;bestDist=dist;}}
-      const end=best?best.root.position.clone().add(new THREE.Vector3(0,1.5,0)):origin.clone().add(forward.multiplyScalar(28));
-      makeBeam(origin,end,0x22d3ee);if(best)hitBot(best);
-    };
-    (selfRoot as any).userData.shoot=shoot;
-
-    const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let pointerStart:{x:number;y:number}|null=null;
-    const pointerDown=(e:PointerEvent)=>{pointerStart={x:e.clientX,y:e.clientY};};
-    const pointerUp=(e:PointerEvent)=>{if(!pointerStart)return;const moved=Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y);pointerStart=null;if(moved>10)return;const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(scene.children,true);const groundHit=hits.find(h=>{let o:THREE.Object3D|null=h.object;while(o){if(o.userData.ground)return true;o=o.parent;}return false;});if(groundHit){targetRef.current.set(THREE.MathUtils.clamp(groundHit.point.x,-29,29),0,THREE.MathUtils.clamp(groundHit.point.z,-29,29));}};
-    renderer.domElement.addEventListener("pointerdown",pointerDown);renderer.domElement.addEventListener("pointerup",pointerUp);
-    const keyDown=(e:KeyboardEvent)=>{keysRef.current.add(e.key.toLowerCase());if(e.code==="Space"){e.preventDefault();shoot();}};const keyUp=(e:KeyboardEvent)=>keysRef.current.delete(e.key.toLowerCase());window.addEventListener("keydown",keyDown);window.addEventListener("keyup",keyUp);
-
-    const clock=new THREE.Clock();let raf=0;let zoneR=28;let timer=180;let lastSecond=performance.now();let botScoreRefresh=0;
-    const respawnSelf=()=>{selfRoot.position.set(0,0,0);targetRef.current.copy(selfRoot.position);setHp(100);setShield(50);setNotice("Respawned at center pad.");};
-    const animate=()=>{
-      if(disposed)return;const dt=Math.min(.04,clock.getDelta());const now=performance.now();
-      (selfRoot.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
-
-      let dx=0,dz=0;const k=keysRef.current;if(k.has("w")||k.has("arrowup"))dz-=1;if(k.has("s")||k.has("arrowdown"))dz+=1;if(k.has("a")||k.has("arrowleft"))dx-=1;if(k.has("d")||k.has("arrowright"))dx+=1;
-      if(dx||dz){const move=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar(6.2*dt);selfRoot.position.add(move);targetRef.current.copy(selfRoot.position);selfRoot.rotation.y=Math.atan2(move.x,move.z);}
-      else{const diff=targetRef.current.clone().sub(selfRoot.position);diff.y=0;if(diff.length()>.15){diff.normalize();selfRoot.position.addScaledVector(diff,5.1*dt);selfRoot.rotation.y=Math.atan2(diff.x,diff.z);}}
-      selfRoot.position.x=THREE.MathUtils.clamp(selfRoot.position.x,-30,30);selfRoot.position.z=THREE.MathUtils.clamp(selfRoot.position.z,-30,30);
-
-      powerups.forEach(p=>{p.rotation.y+=dt*1.8;p.position.y=1+Math.sin(now*.002+p.position.x)*.2;if(p.visible&&p.position.distanceTo(selfRoot.position)<1.8){p.visible=false;const type=p.userData.powerup;if(type==="shield")setShield(v=>Math.min(100,v+50));if(type==="energy")energyRef.current=100;setEnergy(100);if(type==="heal")setHp(v=>Math.min(100,v+45));if(type==="boost"){setEnergy(100);setShield(v=>Math.min(100,v+25));}setNotice("Power-up collected: "+String(type).toUpperCase());window.setTimeout(()=>p.visible=true,9000);}});
-
-      for(const bot of bots){
-        (bot.root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
-        if(!bot.alive){if(now>=bot.respawnAt){bot.alive=true;bot.root.visible=true;bot.hp=100;bot.shield=50;const a=Math.random()*Math.PI*2;bot.root.position.set(Math.cos(a)*20,0,Math.sin(a)*20);bot.target.copy(bot.root.position);}continue;}
-        bot.cooldown-=dt;
-        if(bot.root.position.distanceTo(bot.target)<1.2||Math.random()<.004){const a=Math.random()*Math.PI*2,r=Math.random()*Math.max(8,zoneR-2);bot.target.set(Math.cos(a)*r,0,Math.sin(a)*r);}
-        const diff=bot.target.clone().sub(bot.root.position);diff.y=0;if(diff.length()>.2){diff.normalize();bot.root.position.addScaledVector(diff,(3.2+bot.id*.12)*dt);bot.root.rotation.y=Math.atan2(diff.x,diff.z);}
-        const toSelf=selfRoot.position.clone().sub(bot.root.position);const dist=toSelf.length();
-        if(dist<18&&bot.cooldown<=0){bot.cooldown=1.4+Math.random()*1.4;makeBeam(bot.root.position.clone().add(new THREE.Vector3(0,1.6,0)),selfRoot.position.clone().add(new THREE.Vector3(0,1.4,0)),0xf472b6);if(Math.random()<.58){setShield(s=>{let remaining=28;const used=Math.min(s,remaining);remaining-=used;const next=s-used;if(remaining>0)setHp(h=>{const nh=h-remaining;if(nh<=0){window.setTimeout(respawnSelf,80);return 100;}return nh;});return next;});}}
-      }
-
-      if(now-lastSecond>=1000){lastSecond=now;timer=Math.max(0,timer-1);setRoundTime(timer);zoneR=Math.max(10,28-(180-timer)*.1);setZoneRadius(Math.round(zoneR));if(zoneRef.current)zoneRef.current.scale.setScalar(zoneR/28);setEnergy(v=>{const next=Math.min(100,v+8);energyRef.current=next;return next;});if(selfRoot.position.length()>zoneR)setHp(h=>Math.max(1,h-6));if(timer===0){timer=180;zoneR=28;setNotice("New round started! Scores carry over.");}}
-      if(now-botScoreRefresh>700){botScoreRefresh=now;setLeaderboard([{name:self.displayName||"You",score:scoreRef.current},...bots.map(b=>({name:b.name,score:b.score}))].sort((a,b)=>b.score-a.score).slice(0,5));}
-
-      const center=new THREE.Vector3(selfRoot.position.x,1.4,selfRoot.position.z);camera.position.add(center.clone().sub(controls.target));controls.target.lerp(center,.12);controls.update();renderer.render(scene,camera);raf=requestAnimationFrame(animate);
-    };animate();
-
-    const resize=()=>{camera.aspect=mount.clientWidth/Math.max(1,mount.clientHeight);camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight);};window.addEventListener("resize",resize);
-    return()=>{disposed=true;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",keyDown);window.removeEventListener("keyup",keyUp);renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);controls.dispose();scene.traverse(o=>{const m=o as THREE.Mesh;m.geometry?.dispose();if(m.material)(Array.isArray(m.material)?m.material:[m.material]).forEach(x=>x.dispose());});renderer.dispose();if(mount.contains(renderer.domElement))mount.removeChild(renderer.domElement);};
-  },[self?.characterId]);
-
-  const shoot=()=>{const root=selfRootRef.current as any;if(root?.userData?.shoot)root.userData.shoot();};
-
-  return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
-    <div ref={mountRef} className="absolute inset-0 touch-none"/>
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/85 to-transparent p-2 sm:p-4">
-      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-black/70 px-3 font-black backdrop-blur"><ArrowLeft className="h-4 w-4"/> Worlds</button>
-      <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">A.R.I.S.E. WORLD</p><h1 className="truncate text-lg font-black sm:text-2xl">⚡ Laser Royale</h1></div>
-      <div className="pointer-events-auto rounded-xl bg-black/70 px-3 py-2 text-xs font-black backdrop-blur"><Trophy className="mr-1 inline h-4 w-4 text-amber-300"/>{score}</div>
-    </header>
-
-    <div className="absolute left-2 top-16 z-30 flex flex-col gap-1.5 sm:left-4 sm:top-24">
-      <button onClick={()=>setCameraMode("rotate")} className={"min-h-10 rounded-xl px-3 text-xs font-black backdrop-blur "+(cameraMode==="rotate"?"bg-cyan-300 text-slate-950":"bg-slate-950/85")}>Rotate 360°</button>
-      <button onClick={()=>setCameraMode("pan")} className={"min-h-10 rounded-xl px-3 text-xs font-black backdrop-blur "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-slate-950/85")}>Move view</button>
-      <button onClick={()=>{const root=selfRootRef.current,controls=controlsRef.current,camera=cameraRef.current;if(root&&controls&&camera){const center=new THREE.Vector3(root.position.x,1.4,root.position.z);camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();}}} className="min-h-10 rounded-xl bg-slate-950/85 px-3 text-xs font-black backdrop-blur">Center</button>
-    </div>
-
-    <div className="absolute right-2 top-16 z-30 w-32 space-y-1.5 sm:right-4 sm:top-24 sm:w-40">
-      <div className="rounded-xl bg-black/70 p-2 text-[10px] font-black backdrop-blur"><div className="flex items-center justify-between"><span>HP</span><span>{hp}</span></div><div className="mt-1 h-2 rounded bg-white/10"><div className="h-full rounded bg-emerald-400" style={{width:hp+"%"}}/></div></div>
-      <div className="rounded-xl bg-black/70 p-2 text-[10px] font-black backdrop-blur"><div className="flex items-center justify-between"><span><Shield className="mr-1 inline h-3 w-3"/>Shield</span><span>{shield}</span></div><div className="mt-1 h-2 rounded bg-white/10"><div className="h-full rounded bg-blue-400" style={{width:shield+"%"}}/></div></div>
-      <div className="rounded-xl bg-black/70 p-2 text-[10px] font-black backdrop-blur"><div className="flex items-center justify-between"><span><Zap className="mr-1 inline h-3 w-3"/>Energy</span><span>{energy}</span></div><div className="mt-1 h-2 rounded bg-white/10"><div className="h-full rounded bg-amber-300" style={{width:energy+"%"}}/></div></div>
-      <div className="rounded-xl bg-black/70 p-2 text-center text-[10px] font-black backdrop-blur">Zone {zoneRadius}m · {Math.floor(roundTime/60)}:{String(roundTime%60).padStart(2,"0")}</div>
-    </div>
-
-    <div className="pointer-events-none absolute left-1/2 top-16 z-20 max-w-[48vw] -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-center text-[10px] font-black backdrop-blur sm:top-20">{notice}</div>
-
-    <aside className="absolute bottom-3 left-3 z-30 hidden w-44 rounded-2xl bg-black/65 p-3 backdrop-blur sm:block">
-      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-amber-300">Top players</p>
-      {leaderboard.map((p,i)=><div key={p.name} className="flex justify-between text-xs font-bold"><span>{i+1}. {p.name}</span><span>{p.score}</span></div>)}
-    </aside>
-
-    <button onClick={shoot} disabled={energy<15} className="absolute bottom-4 right-4 z-40 grid h-20 w-20 place-items-center rounded-full border-4 border-cyan-200/70 bg-cyan-400 text-slate-950 shadow-[0_0_35px_rgba(34,211,238,.55)] disabled:opacity-40 sm:h-24 sm:w-24" aria-label="Fire laser"><Crosshair className="h-9 w-9"/></button>
-    <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-xl bg-black/55 px-3 py-2 text-[10px] font-bold text-white/70 backdrop-blur sm:text-xs">WASD/arrows or tap to move · Space or ⚡ button to tag · stay inside the glowing zone</div>
-  </main>;
+ const {token}=useAuth();const [,navigate]=useLocation();const mount=useRef<HTMLDivElement>(null);const player=useRef<THREE.Group|null>(null);const camera=useRef<THREE.PerspectiveCamera|null>(null);const keys=useRef(new Set<string>());const fighters=useRef<Fighter[]>([]);const energyRef=useRef(100);const scoreRef=useRef(0);const [self,setSelf]=useState<SelfInfo|null>(null);const [hp,setHp]=useState(100);const [shield,setShield]=useState(50);const [energy,setEnergy]=useState(100);const [score,setScore]=useState(0);const [alive,setAlive]=useState(7);const [time,setTime]=useState(240);const [zone,setZone]=useState(78);const [notice,setNotice]=useState("DROP IN · EXPLORE · TAG · SURVIVE");const [sprint,setSprint]=useState(false);const headers=useMemo(()=>({Authorization:"Bearer "+token}),[token]);
+ useEffect(()=>{if(!token)return;fetch(API_BASE+"/api/club-arise/bootstrap",{headers,cache:"no-store"}).then(r=>r.json()).then(d=>setSelf(d.self)).catch(()=>setSelf({userId:0,displayName:"Reader",characterId:"robin-hood"}));},[token]);
+ useEffect(()=>{energyRef.current=energy},[energy]);
+ useEffect(()=>{
+  if(!self||!mount.current)return;const host=mount.current;let dead=false;const scene=new THREE.Scene();scene.background=new THREE.Color(0x77b9e8);scene.fog=new THREE.FogExp2(0x8bc6e8,.0065);
+  const cam=new THREE.PerspectiveCamera(60,host.clientWidth/Math.max(1,host.clientHeight),.1,260);camera.current=cam;const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(host.clientWidth,host.clientHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;host.appendChild(renderer.domElement);
+  scene.add(new THREE.HemisphereLight(0xdff4ff,0x36552d,2.5));const sun=new THREE.DirectionalLight(0xfff4dc,3.6);sun.position.set(-40,70,35);sun.castShadow=true;scene.add(sun);
+  const geo=new THREE.PlaneGeometry(190,190,64,64);geo.rotateX(-Math.PI/2);const pos=geo.attributes.position as THREE.BufferAttribute;for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i);pos.setY(i,terrainY(x,z));}geo.computeVertexNormals();const land=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x4d965c,roughness:.96}));land.receiveShadow=true;land.userData.land=true;scene.add(land);
+  const water=new THREE.Mesh(new THREE.CircleGeometry(125,96),new THREE.MeshStandardMaterial({color:0x3197c7,transparent:true,opacity:.86,roughness:.25,metalness:.08}));water.rotation.x=-Math.PI/2;water.position.y=-3.3;scene.add(water);
+  const roadMat=new THREE.MeshStandardMaterial({color:0x374151,roughness:.88});for(const rot of [0,Math.PI/2]){const road=new THREE.Mesh(new THREE.PlaneGeometry(9,150),roadMat);road.rotation.x=-Math.PI/2;road.rotation.z=rot;road.position.y=.18;scene.add(road);}
+  const towns=[[-32,-28],[30,-24],[-27,31],[31,29],[0,0]];towns.forEach(([x,z],n)=>{for(let i=0;i<5;i++){const a=i*Math.PI*2/5,r=n===4?12:9;const bx=x+Math.cos(a)*r,bz=z+Math.sin(a)*r;building(scene,bx,bz,6+(i%2)*2,6,4+(i%3)*1.5,[0xd97706,0x2563eb,0x7c3aed,0xdc2626,0x0891b2][(i+n)%5]);}});
+  for(let i=0;i<72;i++){const a=Math.random()*Math.PI*2,r=22+Math.random()*68;tree(scene,Math.cos(a)*r,Math.sin(a)*r,.7+Math.random()*.55);}
+  const hill=new THREE.Mesh(new THREE.ConeGeometry(13,18,16),new THREE.MeshStandardMaterial({color:0x567c4c,roughness:1}));hill.position.set(-57,7,-52);scene.add(hill);const tower=building(scene,-57,-52,6,6,18,0x475569);tower.add(tag("SKY TOWER","#1e293b","#67e8f9"));tower.children[tower.children.length-1].position.set(0,21,0);
+  const zoneRing=new THREE.Mesh(new THREE.TorusGeometry(78,.38,12,160),new THREE.MeshBasicMaterial({color:0x7dd3fc,transparent:true,opacity:.9}));zoneRing.rotation.x=Math.PI/2;zoneRing.position.y=.4;scene.add(zoneRing);
+  const loader=new GLTFLoader();const addAvatar=(id:string,name:string,x:number,z:number,you=false)=>{const root=new THREE.Group();root.position.set(x,terrainY(x,z),z);scene.add(root);const label=tag(name,you?"#075985":"#111827",you?"#cffafe":"#fff");label.position.set(0,3.2,0);root.add(label);loader.load(getAvatarCharacter(id).modelPath,g=>{if(dead)return;const model=g.scene;const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3());model.scale.setScalar(2.55/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;model.traverse(o=>{if((o as THREE.Mesh).isMesh)(o as THREE.Mesh).castShadow=true});root.add(model);if(g.animations.length){const mixer=new THREE.AnimationMixer(model);const idle=g.animations.find(a=>/idle/i.test(a.name))||g.animations[0];mixer.clipAction(idle).play();root.userData.mixer=mixer;}});return root};
+  const p=addAvatar(self.characterId,self.displayName||"You",0,62,true);player.current=p;cam.position.set(0,7,72);cam.lookAt(p.position.clone().add(new THREE.Vector3(0,1.5,0)));
+  fighters.current=ROSTER.map((b,i)=>{const a=i*Math.PI*2/ROSTER.length,r=42+Math.random()*18;const root=addAvatar(b.characterId,b.name,Math.cos(a)*r,Math.sin(a)*r);return{...b,root,hp:100,shield:50,alive:true,respawn:0,cooldown:1+Math.random(),target:new THREE.Vector3(),strafe:Math.random()>.5?1:-1}});
+  const pickups:THREE.Mesh[]=[];for(let i=0;i<18;i++){const a=Math.random()*Math.PI*2,r=12+Math.random()*60;const type=i%3;const m=new THREE.Mesh(type===0?new THREE.OctahedronGeometry(.65):new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:type===0?0x60a5fa:type===1?0xfacc15:0x4ade80,emissive:type===0?0x2563eb:type===1?0xf59e0b:0x16a34a,emissiveIntensity:2}));m.position.set(Math.cos(a)*r,2,Math.sin(a)*r);m.userData.type=type;scene.add(m);pickups.push(m);}
+  const beams=new THREE.Group();scene.add(beams);const beam=(a:THREE.Vector3,b:THREE.Vector3,color:number)=>{const d=b.clone().sub(a),g=new THREE.CylinderGeometry(.055,.055,d.length(),7),m=new THREE.MeshBasicMaterial({color});const x=new THREE.Mesh(g,m);x.position.copy(a).add(b).multiplyScalar(.5);x.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());beams.add(x);setTimeout(()=>{beams.remove(x);g.dispose();m.dispose()},100)};
+  const damagePlayer=(d:number)=>{setShield(s=>{const used=Math.min(s,d),left=d-used;if(left)setHp(h=>{const nh=h-left;if(nh<=0){setNotice("TAGGED OUT! Respawning…");setTimeout(()=>{p.position.set(0,terrainY(0,62),62);setHp(100);setShield(50)},1800);return 0}return nh});return s-used})};
+  const shoot=()=>{if(energyRef.current<12)return;energyRef.current-=12;setEnergy(energyRef.current);const origin=p.position.clone().add(new THREE.Vector3(0,1.55,0));const dir=new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion).normalize();let best:Fighter|null=null,bd=999;for(const f of fighters.current){if(!f.alive)continue;const v=f.root.position.clone().sub(origin),dist=v.length();if(dist<45&&dir.angleTo(v.normalize())<.16&&dist<bd){best=f;bd=dist}}const end=best?best.root.position.clone().add(new THREE.Vector3(0,1.4,0)):origin.clone().add(dir.multiplyScalar(48));beam(origin,end,0x22d3ee);if(best){let d=36;if(best.shield){const u=Math.min(best.shield,d);best.shield-=u;d-=u}best.hp-=d;if(best.hp<=0){best.alive=false;best.root.visible=false;best.respawn=performance.now()+5000;scoreRef.current+=2;setScore(scoreRef.current);setNotice("⚡ TAGGED "+best.name+" · +2");setAlive(1+fighters.current.filter(x=>x.alive).length)}else setNotice("HIT · "+best.name)}};p.userData.shoot=shoot;
+  const down=(e:KeyboardEvent)=>{keys.current.add(e.key.toLowerCase());if(e.code==="Space"){e.preventDefault();shoot()}};const up=(e:KeyboardEvent)=>keys.current.delete(e.key.toLowerCase());window.addEventListener("keydown",down);window.addEventListener("keyup",up);
+  let drag=false,lastX=0,lastY=0,yaw=0,pitch=-.18;const pd=(e:PointerEvent)=>{drag=true;lastX=e.clientX;lastY=e.clientY};const pm=(e:PointerEvent)=>{if(!drag)return;yaw-=(e.clientX-lastX)*.006;pitch=clamp(pitch-(e.clientY-lastY)*.004,-.65,.3);lastX=e.clientX;lastY=e.clientY};const pu=()=>drag=false;renderer.domElement.addEventListener("pointerdown",pd);renderer.domElement.addEventListener("pointermove",pm);window.addEventListener("pointerup",pu);
+  const clock=new THREE.Clock();let raf=0,lastSec=performance.now(),round=240,zr=78;
+  const loop=()=>{if(dead)return;const dt=Math.min(.035,clock.getDelta()),now=performance.now();(p.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);let mx=0,mz=0;if(keys.current.has("w")||keys.current.has("arrowup"))mz-=1;if(keys.current.has("s")||keys.current.has("arrowdown"))mz+=1;if(keys.current.has("a")||keys.current.has("arrowleft"))mx-=1;if(keys.current.has("d")||keys.current.has("arrowright"))mx+=1;const running=keys.current.has("shift")||sprint;if(mx||mz){const ang=yaw,forward=new THREE.Vector3(-Math.sin(ang),0,-Math.cos(ang)),right=new THREE.Vector3(Math.cos(ang),0,-Math.sin(ang)),move=forward.multiplyScalar(-mz).add(right.multiplyScalar(mx)).normalize();p.position.addScaledVector(move,(running?11:7)*dt);p.rotation.y=Math.atan2(move.x,move.z)+Math.PI;}const pr=Math.hypot(p.position.x,p.position.z);if(pr>88){p.position.x*=88/pr;p.position.z*=88/pr}p.position.y=terrainY(p.position.x,p.position.z);
+   const look=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));const desired=p.position.clone().add(new THREE.Vector3(-look.x*9,5-look.y*5,-look.z*9));cam.position.lerp(desired,.16);cam.lookAt(p.position.clone().add(new THREE.Vector3(0,1.6,0)).add(look.multiplyScalar(7)));
+   pickups.forEach(m=>{m.rotation.y+=dt*2;m.position.y=terrainY(m.position.x,m.position.z)+1.4+Math.sin(now*.003+m.position.x)*.2;if(m.visible&&m.position.distanceTo(p.position)<2){m.visible=false;if(m.userData.type===0)setShield(v=>Math.min(100,v+50));if(m.userData.type===1){energyRef.current=100;setEnergy(100)}if(m.userData.type===2)setHp(v=>Math.min(100,v+45));setNotice("POWER-UP COLLECTED");setTimeout(()=>m.visible=true,10000)}});
+   for(const f of fighters.current){(f.root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);if(!f.alive){if(now>f.respawn){f.alive=true;f.root.visible=true;f.hp=100;f.shield=50;const a=Math.random()*Math.PI*2,r=35+Math.random()*30;f.root.position.set(Math.cos(a)*r,0,Math.sin(a)*r);setAlive(1+fighters.current.filter(x=>x.alive).length)}continue}const to=p.position.clone().sub(f.root.position),dist=to.length();if(dist<32){const forward=to.clone().normalize(),side=new THREE.Vector3(-forward.z,0,forward.x).multiplyScalar(f.strafe);const move=dist>15?forward:side;f.root.position.addScaledVector(move,4.4*dt);f.root.rotation.y=Math.atan2(move.x,move.z)+Math.PI;f.cooldown-=dt;if(f.cooldown<=0&&dist<28){f.cooldown=.9+Math.random()*1.2;beam(f.root.position.clone().add(new THREE.Vector3(0,1.5,0)),p.position.clone().add(new THREE.Vector3(0,1.4,0)),0xff4fa3);if(Math.random()<.55)damagePlayer(20)}}else if(Math.random()<.008){const a=Math.random()*Math.PI*2,r=Math.random()*Math.max(15,zr-4);f.target.set(Math.cos(a)*r,0,Math.sin(a)*r)}if(dist>=32){const d=f.target.clone().sub(f.root.position);if(d.length()>.8){d.normalize();f.root.position.addScaledVector(d,3.5*dt);f.root.rotation.y=Math.atan2(d.x,d.z)+Math.PI}}f.root.position.y=terrainY(f.root.position.x,f.root.position.z)}
+   if(now-lastSec>1000){lastSec=now;round=Math.max(0,round-1);setTime(round);zr=Math.max(22,78-(240-round)*.24);setZone(Math.round(zr));zoneRing.scale.setScalar(zr/78);setEnergy(v=>{const n=Math.min(100,v+9);energyRef.current=n;return n});if(Math.hypot(p.position.x,p.position.z)>zr)damagePlayer(5);if(round===0){round=240;zr=78;setNotice("NEW ROUND · ZONE RESET")}}
+   renderer.render(scene,cam);raf=requestAnimationFrame(loop)};loop();
+  const resize=()=>{cam.aspect=host.clientWidth/Math.max(1,host.clientHeight);cam.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight)};window.addEventListener("resize",resize);return()=>{dead=true;cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);window.removeEventListener("pointerup",pu);renderer.dispose();if(host.contains(renderer.domElement))host.removeChild(renderer.domElement)};
+ },[self?.characterId,sprint]);
+ const fire=()=>{const p=player.current as any;p?.userData?.shoot?.()};
+ return <main className="relative h-[100dvh] overflow-hidden bg-sky-900 text-white"><div ref={mount} className="absolute inset-0 touch-none"/>
+  <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/75 to-transparent p-2 sm:p-4"><button onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-black/65 px-3 font-black backdrop-blur"><ArrowLeft className="h-4 w-4"/> Worlds</button><div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-[.22em] text-cyan-200">A.R.I.S.E. BATTLE ISLAND</p><h1 className="text-lg font-black">⚡ Laser Royale</h1></div><div className="rounded-xl bg-black/65 px-3 py-2 text-xs font-black"><Trophy className="mr-1 inline h-4 w-4 text-amber-300"/>{score}</div></header>
+  <div className="absolute left-3 top-20 z-30 w-40 rounded-2xl bg-black/60 p-3 text-xs font-black backdrop-blur"><div className="mb-1 flex justify-between"><span>❤️ HEALTH</span><span>{hp}</span></div><div className="h-2 rounded bg-white/15"><div className="h-full rounded bg-emerald-400" style={{width:hp+"%"}}/></div><div className="mb-1 mt-2 flex justify-between"><span><Shield className="mr-1 inline h-3 w-3"/>SHIELD</span><span>{shield}</span></div><div className="h-2 rounded bg-white/15"><div className="h-full rounded bg-blue-400" style={{width:shield+"%"}}/></div></div>
+  <div className="absolute right-3 top-20 z-30 rounded-2xl bg-black/60 p-3 text-right text-[11px] font-black backdrop-blur"><div><Footprints className="mr-1 inline h-3 w-3"/>{alive} ACTIVE</div><div><Map className="mr-1 inline h-3 w-3"/>ZONE {zone}m</div><div>{Math.floor(time/60)}:{String(time%60).padStart(2,"0")}</div></div>
+  <div className="pointer-events-none absolute left-1/2 top-20 z-20 max-w-[48vw] -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-center text-[10px] font-black backdrop-blur">{notice}</div>
+  <div className="absolute bottom-5 left-4 z-40 flex gap-2"><button onPointerDown={()=>setSprint(true)} onPointerUp={()=>setSprint(false)} className="grid h-16 w-16 place-items-center rounded-full border-2 border-white/30 bg-black/55 text-xs font-black backdrop-blur">SPRINT</button></div>
+  <div className="absolute bottom-5 right-4 z-40 flex items-end gap-2"><div className="rounded-xl bg-black/55 px-3 py-2 text-[10px] font-black backdrop-blur"><Zap className="mr-1 inline h-3 w-3 text-amber-300"/>{energy}</div><button onClick={fire} disabled={energy<12} className="grid h-20 w-20 place-items-center rounded-full border-4 border-cyan-100/80 bg-cyan-400 text-slate-950 shadow-[0_0_35px_rgba(34,211,238,.6)] disabled:opacity-40"><Crosshair className="h-9 w-9"/></button></div>
+  <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 hidden -translate-x-1/2 rounded-xl bg-black/50 px-3 py-2 text-[10px] font-bold backdrop-blur sm:block">WASD move · Shift sprint · drag to aim/look · Space fires laser · loot power-ups · stay inside the storm ring</div>
+ </main>;
 }
