@@ -1408,31 +1408,10 @@ export default function Library() {
           </div>
         )}
 
-        <EngagementHub />
-
-        {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && !user?.is_eye_gaze_user && (
-          <button
-            type="button"
-            onClick={() => navigate("/reading-level-up")}
-            className="mb-1 inline-flex items-center gap-2 px-1 py-2 text-left text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <span aria-hidden="true">📈</span>
-            <span>Reading Level Up</span>
-            <span className="text-xs font-medium">Practice reading skills</span>
-            <span className="text-xs font-black text-primary">→</span>
-          </button>
-        )}
-
-        {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <div className="mb-4" data-tour="request-quiz">
-            <Button
-              onClick={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
-              className="min-h-11 w-full rounded-xl border border-primary/20 bg-primary/8 text-sm font-black text-primary shadow-none hover:bg-primary/12 md:min-h-12"
-            >
-              <Sparkles className="mr-2 h-4 w-4" /> Create a Quiz
-            </Button>
-          </div>
-        )}
+        <EngagementHub
+          onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
+          onReadingLevelUp={() => navigate("/reading-level-up")}
+        />
 
         {user?.role === "student" && user?.is_eye_gaze_user && (
           <div className="mb-6" data-tour="request-quiz">
