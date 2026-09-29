@@ -3,13 +3,14 @@ import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowLeft, Coins, Popcorn, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Coins, Popcorn, Users, Volume2, VolumeX } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 
 type Movie={id:string;title:string;subtitle:string;youtubeId:string;duration:number;license:string;attribution:string;age:string};
-type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number};movies:Movie[];changeCost:number;wallet:number};
+type TheaterVisitor={userId:number;displayName:string;characterId:string;x:number;z:number;facing:number;seatId:string|null};
+type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number;players:TheaterVisitor[]};movies:Movie[];changeCost:number;wallet:number};
 type ClubSelf={userId:number;displayName:string;characterId:string};
 
 const SEATS=Array.from({length:12},(_,i)=>({id:"S"+(i+1),row:Math.floor(i/4),col:i%4}));
@@ -22,7 +23,10 @@ export default function ClubTheater(){
   const rootRef=useRef<THREE.Group|null>(null);
   const cameraRef=useRef<THREE.PerspectiveCamera|null>(null);
   const controlsRef=useRef<OrbitControls|null>(null);
-  const targetRef=useRef(new THREE.Vector3(0,0,15));
+  const sceneRef=useRef<THREE.Scene|null>(null);
+  const remoteRootsRef=useRef<Map<number,THREE.Group>>(new Map());
+  const targetRef=useRef(new THREE.Vector3(0,0,21));
+  const seatRef=useRef<string|null>(null);
   const keysRef=useRef(new Set<string>());
   const [payload,setPayload]=useState<TheaterPayload|null>(null);
   const [self,setSelf]=useState<ClubSelf|null>(null);
@@ -33,7 +37,7 @@ export default function ClubTheater(){
   const [busy,setBusy]=useState(false);
   const [videoReady,setVideoReady]=useState(false);
   const [embedStart,setEmbedStart]=useState(0);
-  const [notice,setNotice]=useState("Walk around the theater, tap a seat, and enjoy the show.");
+  const [notice,setNotice]=useState("Explore the lobby, grab popcorn, meet readers, or walk into the auditorium.");
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
   const load=async()=>{
@@ -56,11 +60,30 @@ export default function ClubTheater(){
   };
 
   useEffect(()=>{void load();},[token]);
+  useEffect(()=>{seatRef.current=seat;},[seat]);
   useEffect(()=>{
     if(!token)return;
     const timer=window.setInterval(()=>void load(),5000);
     return()=>window.clearInterval(timer);
   },[token]);
+
+  useEffect(()=>{
+    if(!token)return;
+    const sync=async()=>{
+      const root=rootRef.current;if(!root)return;
+      try{
+        const r=await fetch(API_BASE+"/api/club-theater/presence",{method:"POST",headers,body:JSON.stringify({x:root.position.x,z:root.position.z,facing:root.rotation.y,seatId:seatRef.current})});
+        if(r.ok){
+          const d=await r.json();
+          setPayload(prev=>prev?{...prev,state:{...prev.state,...d.state}}:prev);
+        }
+      }catch{}
+    };
+    const timer=window.setInterval(sync,850);
+    const leave=()=>{try{navigator.sendBeacon?.(API_BASE+"/api/club-theater/leave",new Blob([],{type:"application/json"}));}catch{}};
+    window.addEventListener("pagehide",leave);
+    return()=>{window.clearInterval(timer);window.removeEventListener("pagehide",leave);void fetch(API_BASE+"/api/club-theater/leave",{method:"POST",headers}).catch(()=>{});};
+  },[token,headers]);
 
   const currentMovie=payload?.movies.find(m=>m.id===payload.state.movieId)||payload?.movies[0];
 
@@ -91,11 +114,12 @@ export default function ClubTheater(){
     if(!mount)return;
     let disposed=false;
     const scene=new THREE.Scene();
+    sceneRef.current=scene;
     scene.background=new THREE.Color(0x05030a);
     scene.fog=new THREE.Fog(0x05030a,26,55);
 
     const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/Math.max(1,mount.clientHeight),.1,100);
-    camera.position.set(0,7.5,23);
+    camera.position.set(0,8.5,31);
     cameraRef.current=camera;
 
     const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
@@ -107,10 +131,10 @@ export default function ClubTheater(){
 
     const controls=new OrbitControls(camera,renderer.domElement);
     controlsRef.current=controls;
-    controls.target.set(0,1.5,12);
+    controls.target.set(0,1.5,20);
     controls.enableDamping=true;
     controls.minDistance=6;
-    controls.maxDistance=28;
+    controls.maxDistance=38;
     controls.maxPolarAngle=Math.PI/2.05;
 
     scene.add(new THREE.HemisphereLight(0x9ecfff,0x180710,1.5));
@@ -119,11 +143,11 @@ export default function ClubTheater(){
     scene.add(screenGlow);
 
     const floor=new THREE.Mesh(
-      new THREE.PlaneGeometry(28,42),
+      new THREE.PlaneGeometry(30,58),
       new THREE.MeshStandardMaterial({color:0x170b18,roughness:.9})
     );
     floor.rotation.x=-Math.PI/2;
-    floor.position.z=5;
+    floor.position.z=9;
     floor.receiveShadow=true;
     floor.userData.ground=true;
     scene.add(floor);
@@ -133,8 +157,8 @@ export default function ClubTheater(){
     scene.add(back);
 
     for(const x of [-14,14]){
-      const wall=new THREE.Mesh(new THREE.BoxGeometry(.7,11,42),new THREE.MeshStandardMaterial({color:0x120914}));
-      wall.position.set(x,5.5,5);
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(.7,11,58),new THREE.MeshStandardMaterial({color:0x120914}));
+      wall.position.set(x,5.5,9);
       scene.add(wall);
     }
 
@@ -210,16 +234,47 @@ export default function ClubTheater(){
       root.add(cup);
     });
 
-    const counter=new THREE.Mesh(new THREE.BoxGeometry(6.4,1.2,2.2),new THREE.MeshStandardMaterial({color:0x78350f,roughness:.65}));
-    counter.position.set(-9.5,.6,15.5);
-    scene.add(counter);
+    // Lobby / concession area behind the auditorium
+    const lobbyFloor=new THREE.Mesh(new THREE.PlaneGeometry(28,14),new THREE.MeshStandardMaterial({color:0x24111c,roughness:.8}));
+    lobbyFloor.rotation.x=-Math.PI/2;lobbyFloor.position.set(0,.025,22);scene.add(lobbyFloor);
 
-    const sign=new THREE.Mesh(new THREE.BoxGeometry(4.5,.8,.22),new THREE.MeshStandardMaterial({color:0xfacc15,emissive:0xf59e0b,emissiveIntensity:.8}));
-    sign.position.set(-9.5,3.5,14.8);
-    scene.add(sign);
+    const counter=new THREE.Mesh(new THREE.BoxGeometry(7.5,1.3,2.4),new THREE.MeshStandardMaterial({color:0x78350f,roughness:.65}));
+    counter.position.set(-8.7,.65,22.5);scene.add(counter);
+    const counterTop=new THREE.Mesh(new THREE.BoxGeometry(7.9,.2,2.7),new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.3}));
+    counterTop.position.set(-8.7,1.35,22.5);scene.add(counterTop);
+    const sign=new THREE.Mesh(new THREE.BoxGeometry(5.2,.9,.22),new THREE.MeshStandardMaterial({color:0xfacc15,emissive:0xf59e0b,emissiveIntensity:.9}));
+    sign.position.set(-8.7,4.1,21.7);scene.add(sign);
+    const signLabel=document.createElement("canvas");signLabel.width=512;signLabel.height=128;const sctx=signLabel.getContext("2d")!;
+    sctx.fillStyle="#facc15";sctx.fillRect(0,0,512,128);sctx.fillStyle="#3f1d0b";sctx.font="900 42px system-ui";sctx.textAlign="center";sctx.textBaseline="middle";sctx.fillText("POPCORN • SNACKS",256,64);
+    const signTex=new THREE.CanvasTexture(signLabel);signTex.colorSpace=THREE.SRGBColorSpace;
+    const signFront=new THREE.Mesh(new THREE.PlaneGeometry(5,.78),new THREE.MeshBasicMaterial({map:signTex}));signFront.position.set(-8.7,4.1,21.58);scene.add(signFront);
+    for(let i=0;i<5;i++){
+      const tub=new THREE.Mesh(new THREE.CylinderGeometry(.42,.34,.7,14),new THREE.MeshStandardMaterial({color:i%2?0xffffff:0xef4444,roughness:.6}));
+      tub.position.set(-10.6+i*.95,1.8,22);scene.add(tub);
+      for(let k=0;k<7;k++){const kernel=new THREE.Mesh(new THREE.SphereGeometry(.11,10,8),new THREE.MeshStandardMaterial({color:0xfff1a8,roughness:.7}));kernel.position.set(tub.position.x+(k%3-.8)*.13,2.18+Math.floor(k/3)*.08,21.95);scene.add(kernel);}
+    }
+
+    // Ticket booth, movie posters, lobby benches and discoverable decor.
+    const booth=new THREE.Mesh(new THREE.BoxGeometry(4.2,3.5,2.6),new THREE.MeshStandardMaterial({color:0x312e81,roughness:.55}));
+    booth.position.set(8.8,1.75,23.2);scene.add(booth);
+    const boothWindow=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.25),new THREE.MeshBasicMaterial({color:0x67e8f9}));
+    boothWindow.position.set(8.8,2.25,21.88);scene.add(boothWindow);
+    for(const x of [-5.5,0,5.5]){
+      const posterFrame=new THREE.Mesh(new THREE.BoxGeometry(3,4.2,.22),new THREE.MeshStandardMaterial({color:0x111827,metalness:.35}));
+      posterFrame.position.set(x,3.4,27.4);scene.add(posterFrame);
+      const poster=new THREE.Mesh(new THREE.PlaneGeometry(2.65,3.85),new THREE.MeshBasicMaterial({color:x<0?0xf59e0b:x>0?0x22d3ee:0xa855f7}));
+      poster.position.set(x,3.4,27.26);scene.add(poster);
+    }
+    for(const x of [-4.2,4.2]){
+      const bench=new THREE.Mesh(new THREE.BoxGeometry(5,.55,1.6),new THREE.MeshStandardMaterial({color:0x7f1d1d,roughness:.55}));
+      bench.position.set(x,.65,18.2);scene.add(bench);
+      const benchBack=new THREE.Mesh(new THREE.BoxGeometry(5,1.5,.35),new THREE.MeshStandardMaterial({color:0x991b1b,roughness:.55}));
+      benchBack.position.set(x,1.45,18.85);scene.add(benchBack);
+    }
+    const lobbyGlow=new THREE.PointLight(0xf59e0b,3,16);lobbyGlow.position.set(0,6,22);scene.add(lobbyGlow);
 
     const avatarRoot=new THREE.Group();
-    avatarRoot.position.set(0,0,18);
+    avatarRoot.position.set(0,0,25);
     scene.add(avatarRoot);
     rootRef.current=avatarRoot;
     targetRef.current.copy(avatarRoot.position);
@@ -283,7 +338,7 @@ export default function ClubTheater(){
         targetRef.current.set(
           THREE.MathUtils.clamp(hit.point.x,-12,12),
           0,
-          THREE.MathUtils.clamp(hit.point.z,-7,19)
+          THREE.MathUtils.clamp(hit.point.z,-7,27)
         );
       }
     };
@@ -334,13 +389,17 @@ export default function ClubTheater(){
         const delta=targetRef.current.clone().sub(root.position);
         delta.y=0;
         if(delta.length()>.1){
+          root.position.y=0;
           const step=Math.min(delta.length(),5.8*dt);
           const move=delta.normalize().multiplyScalar(step);
           root.position.add(move);
           root.position.x=THREE.MathUtils.clamp(root.position.x,-12,12);
-          root.position.z=THREE.MathUtils.clamp(root.position.z,-7,19);
+          root.position.z=THREE.MathUtils.clamp(root.position.z,-7,27);
           root.rotation.y=Math.atan2(move.x,move.z);
-        }
+        }else if(seatRef.current){
+          root.position.y=.42;
+          root.rotation.y=Math.PI;
+        }else root.position.y=0;
 
         const center=new THREE.Vector3(root.position.x,1.5,root.position.z);
         camera.position.add(center.clone().sub(controls.target));
@@ -361,6 +420,7 @@ export default function ClubTheater(){
       renderer.domElement.removeEventListener("pointerdown",pointerDown);
       renderer.domElement.removeEventListener("pointerup",pointerUp);
       controls.dispose();
+      sceneRef.current=null;remoteRootsRef.current.clear();
       scene.traverse(o=>{
         const m=o as THREE.Mesh;
         m.geometry?.dispose();
@@ -370,6 +430,29 @@ export default function ClubTheater(){
       if(mount.contains(renderer.domElement))mount.removeChild(renderer.domElement);
     };
   },[self?.characterId]);
+
+  useEffect(()=>{
+    const scene=sceneRef.current;
+    if(!scene||!self)return;
+    const loader=new GLTFLoader();
+    const active=new Set<number>();
+    for(const player of payload?.state.players||[]){
+      if(player.userId===self.userId)continue;
+      active.add(player.userId);
+      let root=remoteRootsRef.current.get(player.userId);
+      if(!root){
+        root=new THREE.Group();root.position.set(player.x,0,player.z);root.rotation.y=player.facing;scene.add(root);
+        const canvas=document.createElement("canvas");canvas.width=384;canvas.height=96;const ctx=canvas.getContext("2d")!;ctx.fillStyle="rgba(2,6,23,.86)";ctx.fillRect(0,0,384,96);ctx.fillStyle="white";ctx.font="700 30px system-ui";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(player.displayName,192,48);
+        const tex=new THREE.CanvasTexture(canvas);const label=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));label.position.set(0,3.2,0);label.scale.set(3.5,.88,1);root.add(label);
+        loader.load(getAvatarCharacter(player.characterId).modelPath,gltf=>{const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=box.getSize(new THREE.Vector3());model.scale.setScalar(2.5/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);if(gltf.animations.length){const mixer=new THREE.AnimationMixer(model);const idle=gltf.animations.find(a=>/idle/i.test(a.name))||gltf.animations[0];mixer.clipAction(idle).play();root!.userData.mixer=mixer;}});
+        remoteRootsRef.current.set(player.userId,root);
+      }
+      root.userData.mixer?.update?.(.04);
+      root.position.lerp(new THREE.Vector3(player.x,player.seatId?.startsWith("S")?.42:0,player.z),.28);
+      root.rotation.y=player.seatId?Math.PI:THREE.MathUtils.lerp(root.rotation.y,player.facing,.3);
+    }
+    remoteRootsRef.current.forEach((root,id)=>{if(!active.has(id)){scene.remove(root);remoteRootsRef.current.delete(id);}});
+  },[payload?.state.players,self]);
 
   const changeMovie=async(movieId:string)=>{
     if(!payload||busy)return;
@@ -420,8 +503,8 @@ export default function ClubTheater(){
       </div>
     </header>
 
-    <div className="absolute left-1/2 top-[12%] z-20 w-[min(760px,72vw)] -translate-x-1/2">
-      <div className="overflow-hidden rounded-[1.2rem] border-4 border-slate-950 bg-black shadow-[0_0_70px_rgba(56,189,248,.28)]">
+    <div className="pointer-events-none absolute left-1/2 top-[10%] z-20 w-[min(700px,58vw)] -translate-x-1/2 sm:w-[min(720px,48vw)]">
+      <div className="overflow-hidden rounded-md border-[3px] border-black bg-black shadow-[0_0_45px_rgba(56,189,248,.24)]">
         {currentMovie&&<iframe
           ref={youtubeRef}
           key={currentMovie.id+"-"+embedStart}
@@ -432,13 +515,12 @@ export default function ClubTheater(){
           className="aspect-video w-full bg-black"
         />}
       </div>
-      <div className="mt-1 rounded-xl bg-black/70 px-3 py-2 text-center backdrop-blur">
-        <p className="truncate text-xs font-black sm:text-sm">{currentMovie?.title||"Loading show…"}</p>
-        <p className="truncate text-[9px] font-bold text-white/50">{payload?.state.audience||0} in theater · {payload?.state.playing?"channel playing":"channel paused"}</p>
+      <div className="mx-auto mt-1 w-fit rounded-full bg-black/55 px-3 py-1 text-center backdrop-blur">
+        <p className="text-[9px] font-black sm:text-[10px]">{currentMovie?.title||"Loading show…"} · {payload?.state.audience||0} watching</p>
       </div>
     </div>
 
-    <div className="absolute right-2 top-16 z-30 flex flex-col gap-2 sm:right-4 sm:top-24">
+    <div className="absolute right-2 top-16 z-30 flex flex-col gap-1.5 sm:right-4 sm:top-24">
       <button type="button" onClick={()=>setMuted(value=>!value)} className="flex min-h-10 items-center gap-2 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl backdrop-blur">
         {muted?<VolumeX className="h-4 w-4"/>:<Volume2 className="h-4 w-4"/>}{muted?"Hear Movie":"Mute"}
       </button>
@@ -450,12 +532,12 @@ export default function ClubTheater(){
       </button>
     </div>
 
-    <div className="pointer-events-none absolute left-1/2 top-14 z-20 max-w-[56vw] -translate-x-1/2 truncate rounded-full bg-black/65 px-3 py-1.5 text-[10px] font-black backdrop-blur sm:top-20 sm:text-xs">
+    <div className="pointer-events-none absolute left-1/2 top-14 z-20 max-w-[46vw] -translate-x-1/2 truncate rounded-full bg-black/55 px-3 py-1 text-[9px] font-black backdrop-blur sm:top-20 sm:text-[10px]">
       {notice}
     </div>
 
     <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-xl bg-black/60 px-3 py-2 text-center text-[10px] font-bold text-white/70 backdrop-blur sm:text-xs">
-      {seat?("Seat "+seat+" selected · "):""}Tap floor to walk · tap a seat to sit · WASD/arrows {videoReady?"· movie playing":""}
+      {seat?("Seated in "+seat+" · "):""}Walk the lobby or auditorium · tap a seat to sit · WASD/arrows {videoReady?"· show playing":""}
     </div>
 
     {picker&&payload&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm">
