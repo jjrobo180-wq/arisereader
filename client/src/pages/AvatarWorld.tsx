@@ -160,7 +160,7 @@ export default function AvatarWorld(){
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black tracking-widest text-white/55">FIXED CHARACTER</span>
           </div>
           <div className="h-[430px] sm:h-[520px] lg:h-[580px] bg-[radial-gradient(circle_at_50%_30%,rgba(20,184,166,.18),transparent_38%)]">
-            <ARISEAvatar3D characterId={payload.state.selectedCharacter} equipped={payload.state.equipped} className="w-full h-full" initialView="full"/>
+            <ARISEAvatar3D characterId={payload.state.selectedCharacter} equipped={payload.state.equipped} className="w-full h-full" initialView="full" emotes/>
           </div>
         </div>
 

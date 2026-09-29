@@ -11,10 +11,12 @@ type Props={
   compact?:boolean;
   initialView?:"full"|"face";
   controls?:boolean;
+  emotes?:boolean;
 };
 
-export default function ARISEAvatar3D({characterId,equipped,className="",compact=false,initialView="full",controls=true}:Props){
+export default function ARISEAvatar3D({characterId,equipped,className="",compact=false,initialView="full",controls=true,emotes=false}:Props){
   const hostRef=useRef<HTMLDivElement|null>(null);
+  const emoteCommandRef=useRef<{name:"dance"|"jump"|"flip"|"silly";nonce:number}|null>(null);
   const [view,setView]=useState<"full"|"face">(initialView);
   const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
   const character=getAvatarCharacter(characterId);
@@ -119,14 +121,28 @@ export default function ARISEAvatar3D({characterId,equipped,className="",compact
         // wearable accessories, body edits, or clothing overlays are added here.
 
         // Use the source model's real rigged idle animation.
-        let mixer:any=null;
+        let mixer:any=null,idleAction:any=null,gestureAction:any=null;
         if(gltf.animations?.length){
           mixer=new THREE.AnimationMixer(model);
           const idle=gltf.animations.find((clip:any)=>clip.name==="Idle_Neutral")
             ||gltf.animations.find((clip:any)=>clip.name==="Idle")
             ||gltf.animations[0];
-          mixer.clipAction(idle).play();
+          idleAction=mixer.clipAction(idle);idleAction.play();
         }
+
+        let emoteName="",emoteElapsed=0;
+        let lastCommandNonce=emoteCommandRef.current?.nonce||0;
+        const startEmote=(name:"dance"|"jump"|"flip"|"silly")=>{
+          gestureAction?.stop();idleAction?.stop();
+          const clipName=name==="dance"?"Wave":name==="flip"?"Roll":name==="jump"?"Kick_Right":"Kick_Left";
+          const clip=gltf.animations?.find((item:any)=>item.name===clipName);
+          if(clip&&mixer){
+            gestureAction=mixer.clipAction(clip).reset();
+            gestureAction.setLoop(name==="dance"||name==="silly"?THREE.LoopRepeat:THREE.LoopOnce,name==="dance"||name==="silly"?Infinity:1);
+            gestureAction.clampWhenFinished=true;gestureAction.play();
+          }
+          emoteName=name;emoteElapsed=0;
+        };
 
         // Camera framing: FULL BODY must always launch with comfortable
         // head-to-toe breathing room, especially on narrow mobile screens.
@@ -181,8 +197,20 @@ export default function ARISEAvatar3D({characterId,equipped,className="",compact
         const render=()=>{
           if(disposed)return;
           const delta=Math.min(.05,clock.getDelta());
+          const command=emoteCommandRef.current;
+          if(command&&command.nonce!==lastCommandNonce){lastCommandNonce=command.nonce;startEmote(command.name);}
           mixer?.update(delta);
-          avatar.rotation.y=yaw;
+          avatar.rotation.y=yaw;avatar.rotation.z=0;avatar.position.y=0;avatar.scale.set(1,1,1);
+          if(emoteName){
+            emoteElapsed+=delta;
+            const duration=emoteName==="dance"?3.2:emoteName==="silly"?2.4:emoteName==="flip"?1.5:1.35;
+            const p=Math.min(1,emoteElapsed/duration);
+            avatar.position.y=emoteName==="jump"?Math.sin(Math.PI*p)*1.5:emoteName==="flip"?Math.sin(Math.PI*p)*.8:emoteName==="dance"?Math.abs(Math.sin(emoteElapsed*9))*.18:0;
+            if(emoteName==="flip")avatar.rotation.z=Math.PI*2*p;
+            else if(emoteName==="dance"){avatar.rotation.y+=emoteElapsed*3.5;avatar.rotation.z=Math.sin(emoteElapsed*9)*.2;}
+            else if(emoteName==="silly"){avatar.rotation.z=Math.sin(emoteElapsed*14)*.3;avatar.scale.y=1+Math.sin(emoteElapsed*12)*.1;}
+            if(p>=1){emoteName="";gestureAction?.stop();gestureAction=null;idleAction?.reset().play();avatar.position.y=0;avatar.rotation.z=0;avatar.rotation.y=yaw;avatar.scale.set(1,1,1);}
+          }
           camera.position.z+=(distance-camera.position.z)*.13;
           camera.lookAt(0,targetY,0);
           renderer.render(scene,camera);
@@ -224,6 +252,9 @@ export default function ARISEAvatar3D({characterId,equipped,className="",compact
     {controls&&status==="ready"&&<div className="absolute left-3 top-3 z-10 flex gap-2 rounded-2xl bg-slate-950/75 backdrop-blur p-1.5 border border-white/10">
       <button type="button" onClick={()=>setView("full")} className={"rounded-xl px-3 py-2 text-xs font-black "+(view==="full"?"bg-white text-slate-950":"text-white/70")}>FULL BODY</button>
       <button type="button" onClick={()=>setView("face")} className={"rounded-xl px-3 py-2 text-xs font-black "+(view==="face"?"bg-white text-slate-950":"text-white/70")}>FACE</button>
+    </div>}
+    {emotes&&view==="full"&&status==="ready"&&<div className="absolute bottom-12 left-1/2 z-10 flex max-w-[96%] -translate-x-1/2 gap-1 overflow-x-auto rounded-2xl border border-fuchsia-300/30 bg-slate-950/90 p-2 shadow-xl backdrop-blur">
+      {([['dance','💃','Dance'],['jump','⬆️','Jump'],['flip','🤸','Flip'],['silly','🌀','Silly']] as const).map(([name,icon,label])=><button key={name} type="button" onClick={()=>{emoteCommandRef.current={name,nonce:(emoteCommandRef.current?.nonce||0)+1};}} className="min-h-11 shrink-0 rounded-xl bg-fuchsia-500/25 px-2 sm:px-3 text-xs sm:text-sm font-black text-white hover:bg-fuchsia-500/45"><span className="mr-1">{icon}</span>{label}</button>)}
     </div>}
     {controls&&status==="ready"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-slate-950/70 backdrop-blur px-4 py-2 text-[11px] font-black text-white/70 border border-white/10 whitespace-nowrap">
       Drag to rotate · Scroll/pinch to zoom
