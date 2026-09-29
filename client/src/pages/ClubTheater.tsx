@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { CSS3DObject, CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer.js";
 import { ArrowLeft, Coins, Popcorn, Users, Volume2, VolumeX } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +21,8 @@ export default function ClubTheater(){
   const [,navigate]=useLocation();
   const mountRef=useRef<HTMLDivElement>(null);
   const youtubeRef=useRef<HTMLIFrameElement|null>(null);
+  const cssSceneRef=useRef<THREE.Scene|null>(null);
+  const cssRendererRef=useRef<CSS3DRenderer|null>(null);
   const rootRef=useRef<THREE.Group|null>(null);
   const cameraRef=useRef<THREE.PerspectiveCamera|null>(null);
   const controlsRef=useRef<OrbitControls|null>(null);
@@ -37,6 +40,7 @@ export default function ClubTheater(){
   const [busy,setBusy]=useState(false);
   const [videoReady,setVideoReady]=useState(false);
   const [embedStart,setEmbedStart]=useState(0);
+  const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("pan");
   const [notice,setNotice]=useState("Explore the lobby, grab popcorn, meet readers, or walk into the auditorium.");
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
@@ -110,11 +114,22 @@ export default function ClubTheater(){
   },[muted]);
 
   useEffect(()=>{
+    const controls=controlsRef.current;
+    if(!controls)return;
+    controls.mouseButtons.LEFT=cameraMode==="pan"?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;
+    controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;
+    controls.touches.ONE=cameraMode==="pan"?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE;
+    controls.touches.TWO=cameraMode==="pan"?THREE.TOUCH.DOLLY_ROTATE:THREE.TOUCH.DOLLY_PAN;
+  },[cameraMode]);
+
+  useEffect(()=>{
     const mount=mountRef.current;
     if(!mount)return;
     let disposed=false;
     const scene=new THREE.Scene();
+    const cssScene=new THREE.Scene();
     sceneRef.current=scene;
+    cssSceneRef.current=cssScene;
     scene.background=new THREE.Color(0x05030a);
     scene.fog=new THREE.Fog(0x05030a,26,55);
 
@@ -128,14 +143,31 @@ export default function ClubTheater(){
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.shadowMap.enabled=true;
     mount.appendChild(renderer.domElement);
+    renderer.domElement.style.position="absolute";
+    renderer.domElement.style.inset="0";
+
+    const cssRenderer=new CSS3DRenderer();
+    cssRenderer.setSize(mount.clientWidth,mount.clientHeight);
+    cssRenderer.domElement.style.position="absolute";
+    cssRenderer.domElement.style.inset="0";
+    cssRenderer.domElement.style.pointerEvents="none";
+    cssRenderer.domElement.style.overflow="hidden";
+    mount.appendChild(cssRenderer.domElement);
+    cssRendererRef.current=cssRenderer;
 
     const controls=new OrbitControls(camera,renderer.domElement);
     controlsRef.current=controls;
     controls.target.set(0,1.5,20);
     controls.enableDamping=true;
-    controls.minDistance=6;
+    controls.enablePan=true;
+    controls.screenSpacePanning=false;
+    controls.mouseButtons.LEFT=THREE.MOUSE.PAN;
+    controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;
+    controls.touches.ONE=THREE.TOUCH.PAN;
+    controls.touches.TWO=THREE.TOUCH.DOLLY_ROTATE;
+    controls.minDistance=8;
     controls.maxDistance=38;
-    controls.maxPolarAngle=Math.PI/2.05;
+    controls.maxPolarAngle=Math.PI*.47;
 
     scene.add(new THREE.HemisphereLight(0x9ecfff,0x180710,1.5));
     const screenGlow=new THREE.PointLight(0x72d7ff,5.5,28);
@@ -171,10 +203,42 @@ export default function ClubTheater(){
 
     const fakeScreen=new THREE.Mesh(
       new THREE.PlaneGeometry(15.4,7.9),
-      new THREE.MeshBasicMaterial({color:0x111827})
+      new THREE.MeshBasicMaterial({color:0x050505})
     );
     fakeScreen.position.set(0,5.4,-9.02);
+    fakeScreen.userData.movieScreen=true;
     scene.add(fakeScreen);
+
+    if(currentMovie){
+      const screenWrap=document.createElement("div");
+      screenWrap.style.width="800px";
+      screenWrap.style.height="450px";
+      screenWrap.style.background="#000";
+      screenWrap.style.overflow="hidden";
+      screenWrap.style.borderRadius="8px";
+      screenWrap.style.boxShadow="0 0 45px rgba(56,189,248,.22)";
+
+      const iframe=document.createElement("iframe");
+      youtubeRef.current=iframe;
+      iframe.src="https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||embedStart||0));
+      iframe.title=currentMovie.title;
+      iframe.allow="autoplay; encrypted-media; picture-in-picture";
+      iframe.style.width="800px";
+      iframe.style.height="450px";
+      iframe.style.border="0";
+      iframe.style.display="block";
+      iframe.style.pointerEvents="none";
+      iframe.addEventListener("load",()=>{
+        setVideoReady(true);
+        window.setTimeout(()=>{youtubeCommand("playVideo");if(muted)youtubeCommand("mute");},250);
+      });
+      screenWrap.appendChild(iframe);
+
+      const movieObject=new CSS3DObject(screenWrap);
+      movieObject.position.set(0,5.4,-8.96);
+      movieObject.scale.set(.018,.018,.018);
+      cssScene.add(movieObject);
+    }
 
     const aisle=new THREE.Mesh(
       new THREE.PlaneGeometry(2.7,31),
@@ -363,6 +427,7 @@ export default function ClubTheater(){
       camera.aspect=mount.clientWidth/Math.max(1,mount.clientHeight);
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth,mount.clientHeight);
+      cssRenderer.setSize(mount.clientWidth,mount.clientHeight);
     };
     window.addEventListener("resize",resize);
 
@@ -408,6 +473,7 @@ export default function ClubTheater(){
       remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
       controls.update();
       renderer.render(scene,camera);
+      cssRenderer.render(cssScene,camera);
       raf=requestAnimationFrame(loop);
     };
     loop();
@@ -421,6 +487,11 @@ export default function ClubTheater(){
       renderer.domElement.removeEventListener("pointerdown",pointerDown);
       renderer.domElement.removeEventListener("pointerup",pointerUp);
       controls.dispose();
+      youtubeRef.current=null;
+      cssScene.clear();
+      cssSceneRef.current=null;
+      cssRendererRef.current=null;
+      if(cssRenderer.domElement.parentElement===mount)mount.removeChild(cssRenderer.domElement);
       sceneRef.current=null;remoteRootsRef.current.clear();
       scene.traverse(o=>{
         const m=o as THREE.Mesh;
@@ -430,7 +501,7 @@ export default function ClubTheater(){
       renderer.dispose();
       if(mount.contains(renderer.domElement))mount.removeChild(renderer.domElement);
     };
-  },[self?.characterId]);
+  },[self?.characterId,currentMovie?.id]);
 
   useEffect(()=>{
     const scene=sceneRef.current;
@@ -504,21 +575,14 @@ export default function ClubTheater(){
       </div>
     </header>
 
-    <div className="pointer-events-none absolute left-1/2 top-[10%] z-20 w-[min(700px,58vw)] -translate-x-1/2 sm:w-[min(720px,48vw)]">
-      <div className="overflow-hidden rounded-md border-[3px] border-black bg-black shadow-[0_0_45px_rgba(56,189,248,.24)]">
-        {currentMovie&&<iframe
-          ref={youtubeRef}
-          key={currentMovie.id+"-"+embedStart}
-          src={"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+embedStart}
-          title={currentMovie.title}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          onLoad={()=>{setVideoReady(true);youtubeCommand("playVideo");if(muted)youtubeCommand("mute");}}
-          className="aspect-video w-full bg-black"
-        />}
-      </div>
-      <div className="mx-auto mt-1 w-fit rounded-full bg-black/55 px-3 py-1 text-center backdrop-blur">
-        <p className="text-[9px] font-black sm:text-[10px]">{currentMovie?.title||"Loading show…"} · {payload?.state.audience||0} watching</p>
-      </div>
+    <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[9px] font-black backdrop-blur sm:top-20 sm:text-[10px]">
+      {currentMovie?.title||"Loading show…"} · {payload?.state.audience||0} watching
+    </div>
+
+    <div className="absolute left-2 top-16 z-30 flex flex-col gap-1.5 sm:left-4 sm:top-24">
+      <button type="button" onClick={()=>setCameraMode("pan")} className={"min-h-10 rounded-xl px-3 text-xs font-black shadow-xl backdrop-blur "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-slate-950/90 text-white")}>Move</button>
+      <button type="button" onClick={()=>setCameraMode("rotate")} className={"min-h-10 rounded-xl px-3 text-xs font-black shadow-xl backdrop-blur "+(cameraMode==="rotate"?"bg-cyan-300 text-slate-950":"bg-slate-950/90 text-white")}>Rotate 360°</button>
+      <button type="button" onClick={()=>{const root=rootRef.current,controls=controlsRef.current,camera=cameraRef.current;if(root&&controls&&camera){const center=new THREE.Vector3(root.position.x,1.5,root.position.z);camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();}}} className="min-h-10 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl backdrop-blur">Center</button>
     </div>
 
     <div className="absolute right-2 top-16 z-30 flex flex-col gap-1.5 sm:right-4 sm:top-24">
