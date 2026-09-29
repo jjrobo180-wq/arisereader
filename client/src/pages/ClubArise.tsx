@@ -242,7 +242,78 @@ export default function ClubArise(){
 
     <div className="pointer-events-none absolute left-1/2 top-20 z-20 -translate-x-1/2 rounded-2xl bg-black/60 px-4 py-2 text-sm font-black backdrop-blur">{notice}</div>
 
-    {nearStation&&!gameOpen&&<div className="absolute bottom-6 left-1/2 z-30 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl bg-white p-5 text-slate-950 shadow-2xl">
+    <div className="absolute bottom-4 left-1/2 z-40 w-[min(760px,94vw)] -translate-x-1/2 rounded-[1.7rem] border border-cyan-300/20 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Arcade games</p>
+          <p className="text-xs font-bold text-white/55">Tap a game anytime — walking to the cabinets is optional.</p>
+        </div>
+        <Zap className="h-5 w-5 text-amber-300" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {STATIONS.map(station=>(
+          <button
+            key={station.id}
+            type="button"
+            onClick={()=>void joinGame(station)}
+            className={"min-h-16 rounded-2xl border px-3 py-2 text-left transition hover:-translate-y-0.5 "+
+              (station.id==="four"
+                ?"border-blue-300/30 bg-blue-500/20 hover:bg-blue-500/30"
+                :station.id==="word_tiles"
+                  ?"border-violet-300/30 bg-violet-500/20 hover:bg-violet-500/30"
+                  :"border-emerald-300/30 bg-emerald-500/20 hover:bg-emerald-500/30")}
+          >
+            <span className="block text-sm font-black leading-tight">{station.name}</span>
+            <span className="mt-1 hidden text-[10px] font-bold text-white/55 sm:block">{station.subtitle}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {(selectedPlayer||playerLoading)&&!gameOpen&&(
+      <aside className="absolute right-3 top-20 z-40 w-[min(330px,calc(100%-1.5rem))] rounded-[1.8rem] border border-white/15 bg-slate-950/92 p-4 shadow-2xl backdrop-blur-xl">
+        <div className="flex items-start gap-3">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
+            <UserRound className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[.18em] text-white/45">Player profile</p>
+            <h2 className="truncate text-xl font-black">{playerLoading?"Loading…":selectedPlayer?.displayName}</h2>
+          </div>
+          <button type="button" onClick={()=>setSelectedPlayer(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10"><X className="h-4 w-4"/></button>
+        </div>
+        {selectedPlayer&&(
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-2xl bg-amber-400/10 p-3 ring-1 ring-amber-300/20">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-amber-200"><Trophy className="h-3.5 w-3.5"/> A.R.I.S.E. points</div>
+                <div className="mt-1 text-2xl font-black text-amber-300">{selectedPlayer.leaderboardPoints.toLocaleString()}</div>
+              </div>
+              <div className="rounded-2xl bg-cyan-400/10 p-3 ring-1 ring-cyan-300/20">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-200"><Gamepad2 className="h-3.5 w-3.5"/> Club score</div>
+                <div className="mt-1 text-2xl font-black text-cyan-300">{selectedPlayer.club.score}</div>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-white/5 p-2"><div className="text-lg font-black">{selectedPlayer.club.played}</div><div className="text-[10px] font-bold text-white/45">GAMES</div></div>
+              <div className="rounded-xl bg-white/5 p-2"><div className="text-lg font-black text-emerald-300">{selectedPlayer.club.wins}</div><div className="text-[10px] font-bold text-white/45">WINS</div></div>
+              <div className="rounded-xl bg-white/5 p-2"><div className="text-lg font-black">{selectedPlayer.quizzesTaken}</div><div className="text-[10px] font-bold text-white/45">QUIZZES</div></div>
+            </div>
+            <div className="mt-3 space-y-2">
+              {STATIONS.map(station=>{
+                const stats=selectedPlayer.club.byGame?.[station.id]||{played:0,wins:0};
+                return <div key={station.id} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-xs font-bold">
+                  <span>{station.name}</span>
+                  <span className="text-white/55">{stats.wins}W · {stats.played} played</span>
+                </div>;
+              })}
+            </div>
+          </>
+        )}
+      </aside>
+    )}
+
+    {nearStation&&!gameOpen&&<div className="absolute bottom-28 left-1/2 z-30 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl bg-white p-5 text-slate-950 shadow-2xl">
       <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100"><Gamepad2 className="h-6 w-6"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-slate-500">{nearStation.subtitle}</p><button onClick={()=>void joinGame(nearStation)} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Play with someone</button></div></div>
     </div>}
 
@@ -269,6 +340,6 @@ export default function ClubArise(){
       </section>
     </div>}
 
-    <div className="absolute bottom-3 right-3 z-20 rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70">Click to walk · WASD / arrow keys</div>
+    <div className="absolute bottom-28 right-3 z-20 rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70">Click a player for stats · click floor to walk · WASD / arrows</div>
   </main>;
 }
