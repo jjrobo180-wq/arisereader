@@ -1743,23 +1743,25 @@ export async function registerRoutes(
   const PET_FEED_COST=40;
   const PET_RETURN_COST=80;
   const CLUB_THEATER_CHANGE_COST=75;
+  const CLUB_THEATER_PRESENCE_TTL=15000;
+  const clubTheaterPresence=new Map<number,number>();
   const CLUB_THEATER_MOVIES=[
     {
       id:"big-buck-bunny",
       title:"Big Buck Bunny",
       subtitle:"Open animated comedy · full short film",
-      url:"https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4",
+      youtubeId:"YE7VzlLtp-4",
       duration:596,
       license:"CC BY 3.0",
       attribution:"Blender Foundation / Peach Open Movie",
       age:"Kid-friendly"
     },
     {
-      id:"sintel-trailer",
-      title:"Sintel — Open Movie Trailer",
-      subtitle:"Fantasy animation · short feature",
-      url:"https://download.blender.org/durian/trailer/sintel_trailer-480p.mp4",
-      duration:53,
+      id:"sintel",
+      title:"Sintel",
+      subtitle:"Open fantasy animation · full film",
+      youtubeId:"eRsGyueVLvQ",
+      duration:888,
       license:"CC BY 3.0",
       attribution:"Blender Foundation / Durian Open Movie",
       age:"Older kids"
@@ -1767,8 +1769,8 @@ export async function registerRoutes(
     {
       id:"caminandes-llamigos",
       title:"Caminandes: Llamigos",
-      subtitle:"Animated comedy episode · Koro and Oti",
-      url:"https://fernandoruizrico.com/examples/test-media/video/caminandes-llamigos/caminandes_llamigos_720p.mp4",
+      subtitle:"Open animated comedy · short film",
+      youtubeId:"Z4C82eyhwgU",
       duration:150,
       license:"CC BY",
       attribution:"Blender Foundation / Caminandes",
@@ -1776,17 +1778,52 @@ export async function registerRoutes(
     }
   ] as const;
 
-  async function getClubTheaterState(){
+  async function getClubTheaterState(touchUserId?:number){
+    const now=Date.now();
     const raw=await storage.getSetting("club_theater_state");
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
     const valid=CLUB_THEATER_MOVIES.some(movie=>movie.id===String(parsed?.movieId||""));
-    const state={
+    let state={
       movieId:valid?String(parsed.movieId):CLUB_THEATER_MOVIES[0].id,
-      startedAt:Number.isFinite(Number(parsed?.startedAt))&&Number(parsed.startedAt)>0?Number(parsed.startedAt):Date.now()
+      positionSeconds:Math.max(0,Number(parsed?.positionSeconds)||0),
+      startedAt:Number.isFinite(Number(parsed?.startedAt))&&Number(parsed.startedAt)>0?Number(parsed.startedAt):now,
+      playing:!!parsed?.playing
     };
-    if(!raw||!valid)await storage.upsertSetting("club_theater_state",JSON.stringify(state));
-    return state;
+
+    let lastExpiredAt=0;
+    for(const [userId,lastSeen] of clubTheaterPresence){
+      if(now-lastSeen>CLUB_THEATER_PRESENCE_TTL){
+        lastExpiredAt=Math.max(lastExpiredAt,lastSeen+CLUB_THEATER_PRESENCE_TTL);
+        clubTheaterPresence.delete(userId);
+      }
+    }
+
+    if(clubTheaterPresence.size===0&&state.playing){
+      const pauseAt=lastExpiredAt||now;
+      state.positionSeconds+=Math.max(0,(pauseAt-state.startedAt)/1000);
+      state.startedAt=pauseAt;
+      state.playing=false;
+    }
+
+    if(touchUserId){
+      clubTheaterPresence.set(touchUserId,now);
+      if(!state.playing){
+        state.startedAt=now;
+        state.playing=true;
+      }
+    }
+
+    const changed=!raw||!valid
+      ||state.movieId!==String(parsed?.movieId||"")
+      ||state.positionSeconds!==Number(parsed?.positionSeconds||0)
+      ||state.startedAt!==Number(parsed?.startedAt||0)
+      ||state.playing!==!!parsed?.playing;
+    if(changed)await storage.upsertSetting("club_theater_state",JSON.stringify(state));
+
+    const movie=CLUB_THEATER_MOVIES.find(item=>item.id===state.movieId)||CLUB_THEATER_MOVIES[0];
+    const currentPosition=(state.positionSeconds+(state.playing?Math.max(0,(now-state.startedAt)/1000):0))%Math.max(1,movie.duration);
+    return {...state,currentPosition,audience:clubTheaterPresence.size};
   }
 
   function avatarWorldDefaultState() {
@@ -1907,7 +1944,7 @@ export async function registerRoutes(
   app.get("/api/club-theater", authMiddleware, async(req:any,res)=>{
     try{
       if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user) return res.status(403).json({message:"The Club theater is for student accounts."});
-      const [state,world]=await Promise.all([getClubTheaterState(),getAvatarWorldPayload(req.user.id)]);
+      const [state,world]=await Promise.all([getClubTheaterState(req.user.id),getAvatarWorldPayload(req.user.id)]);
       res.set("Cache-Control","no-store");
       res.json({state,movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,wallet:world.economy.wallet});
     }catch(error:any){
@@ -1926,11 +1963,12 @@ export async function registerRoutes(
       const spendKey="avatar_world_theater_spent_"+req.user.id;
       const currentSpent=Math.max(0,Number(await storage.getSetting(spendKey))||0);
       await storage.upsertSetting(spendKey,String(currentSpent+CLUB_THEATER_CHANGE_COST));
-      const state={movieId,startedAt:Date.now()};
+      const current=await getClubTheaterState(req.user.id);
+      const state={movieId,positionSeconds:0,startedAt:Date.now(),playing:current.audience>0};
       await storage.upsertSetting("club_theater_state",JSON.stringify(state));
       const refreshed=await getAvatarWorldPayload(req.user.id);
       res.set("Cache-Control","no-store");
-      res.json({state,movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,wallet:refreshed.economy.wallet});
+      res.json({state:{...state,currentPosition:0,audience:current.audience},movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,wallet:refreshed.economy.wallet});
     }catch(error:any){
       console.error("[club-theater] change:",error?.message);
       res.status(500).json({message:"Could not change the movie."});
