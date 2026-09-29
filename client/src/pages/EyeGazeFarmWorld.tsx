@@ -12,6 +12,8 @@ type AnimalDef = {
   id: AnimalId;
   name: string;
   sound: string;
+  soundFile: string;
+  soundSeconds: number;
   fact: string;
   model: string;
   x: number;
@@ -27,55 +29,71 @@ type AnimalRuntime = {
   moving: boolean;
   pausedUntil: number;
   phase: number;
+  mixer: THREE.AnimationMixer | null;
+  walkAction: THREE.AnimationAction | null;
+  idleAction: THREE.AnimationAction | null;
+  activeAction: "walk" | "idle" | null;
+  proceduralLegs: THREE.Object3D[];
 };
 
-const FARM_SCENE = "https://cdn.3dassets.dev/assets/29225/v1/model.glb";
+const FARM_SCENE = "https://cdn.3dassets.dev/assets/19428/v1/model.glb";
+
+const commonsAudio = (file: string) =>
+  "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + encodeURIComponent(file);
 
 const ANIMALS: AnimalDef[] = [
   {
-    id: "cow", name: "Cow", sound: "Moooo!",
+    id: "cow", name: "Cow", sound: "Moo",
+    soundFile: "Single Cow Moo.ogg", soundSeconds: 3.2,
     fact: "Cows are social animals. They graze on grass and usually stay close to their herd.",
-    model: "https://cdn.3dassets.dev/assets/29184/v1/model.glb",
+    model: "https://static.poly.pizza/382b3d4a-a7c9-4c03-9858-3df630d90047.glb",
     x: -5.5, z: 1.8, height: 1.65, area: { minX: -9, maxX: 4, minZ: -3.8, maxZ: 5.2 },
   },
   {
-    id: "horse", name: "Horse", sound: "Neigh!",
+    id: "horse", name: "Horse", sound: "Neigh",
+    soundFile: "Wiehern.ogg", soundSeconds: 2.2,
     fact: "Horses can walk, trot, and gallop. They use their ears and body language to communicate.",
-    model: "https://cdn.3dassets.dev/assets/29169/v1/model.glb",
+    model: "https://static.poly.pizza/d37dbc87-ca61-4b2c-a2da-d2f0c4240bef.glb",
     x: 2.5, z: -2.8, height: 2.0, area: { minX: -6, maxX: 8, minZ: -5.5, maxZ: 4.5 },
   },
   {
-    id: "pig", name: "Pig", sound: "Oink oink!",
+    id: "pig", name: "Pig", sound: "Oink",
+    soundFile: "Mudchute pig 2.ogg", soundSeconds: 0.7,
     fact: "Pigs are intelligent and curious. They use their noses to explore the ground.",
     model: "https://cdn.3dassets.dev/assets/29194/v1/model.glb",
     x: 5.8, z: 2.6, height: 1.05, area: { minX: 2.5, maxX: 9.5, minZ: -1, maxZ: 5.5 },
   },
   {
-    id: "sheep", name: "Sheep", sound: "Baa baa!",
+    id: "sheep", name: "Sheep", sound: "Baa",
+    soundFile: "Mudchute sheep 1.ogg", soundSeconds: 1.1,
     fact: "Sheep live in flocks. Their wool helps keep them warm.",
     model: "https://cdn.3dassets.dev/assets/29189/v1/model.glb",
     x: -1.4, z: 4.6, height: 1.1, area: { minX: -8, maxX: 4, minZ: 0.5, maxZ: 6.2 },
   },
   {
-    id: "goat", name: "Goat", sound: "Maa maa!",
+    id: "goat", name: "Goat", sound: "Bleat",
+    soundFile: "Herd of goats bleating.ogg", soundSeconds: 2.8,
     fact: "Goats are curious explorers and very good climbers.",
     model: "https://cdn.3dassets.dev/assets/29192/v1/model.glb",
     x: 7.2, z: -0.4, height: 1.08, area: { minX: 3.2, maxX: 10.2, minZ: -4.2, maxZ: 4.5 },
   },
   {
-    id: "chicken", name: "Chicken", sound: "Cluck cluck!",
+    id: "chicken", name: "Chicken", sound: "Cluck",
+    soundFile: "Chickens demanding food.ogg", soundSeconds: 2.4,
     fact: "Chickens scratch and peck at the ground to find seeds and insects.",
     model: "https://cdn.3dassets.dev/assets/29197/v1/model.glb",
     x: 7.7, z: 5.1, height: 0.62, area: { minX: 4.5, maxX: 10, minZ: 2.2, maxZ: 6.1 },
   },
   {
-    id: "duck", name: "Duck", sound: "Quack quack!",
+    id: "duck", name: "Duck", sound: "Quack",
+    soundFile: "Ducks snatching.ogg", soundSeconds: 2.8,
     fact: "Ducks have waterproof feathers and webbed feet that help them swim.",
     model: "https://cdn.3dassets.dev/assets/29201/v1/model.glb",
     x: 9.1, z: 3.8, height: 0.5, area: { minX: 6.5, maxX: 10.5, minZ: 1.2, maxZ: 5.8 },
   },
   {
-    id: "dog", name: "Farm Dog", sound: "Woof woof!",
+    id: "dog", name: "Farm Dog", sound: "Bark",
+    soundFile: "George vuf 1996.ogg", soundSeconds: 0.8,
     fact: "Working farm dogs can help people guide and watch livestock.",
     model: "https://cdn.3dassets.dev/assets/29204/v1/model.glb",
     x: 0.6, z: -0.2, height: 0.78, area: { minX: -5, maxX: 7, minZ: -4.5, maxZ: 5.5 },
@@ -94,15 +112,36 @@ function randomTarget(def: AnimalDef) {
   );
 }
 
-function normalizeModel(root: THREE.Group, wantedHeight: number) {
-  const box = new THREE.Box3().setFromObject(root);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const scale = wantedHeight / Math.max(0.01, size.y);
-  root.scale.setScalar(scale);
+function prepareGroundedModel(model: THREE.Group, wantedHeight: number) {
+  model.position.set(0, 0, 0);
+  model.rotation.set(0, 0, 0);
+  model.updateMatrixWorld(true);
 
-  const scaled = new THREE.Box3().setFromObject(root);
-  root.position.y -= scaled.min.y;
+  const initial = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  initial.getSize(size);
+  const scale = wantedHeight / Math.max(0.01, size.y);
+  model.scale.setScalar(scale);
+  model.updateMatrixWorld(true);
+
+  const scaled = new THREE.Box3().setFromObject(model);
+  // Offset the CHILD model, never the roaming ground anchor.
+  // This guarantees the model's lowest point is y=0.
+  model.position.y = -scaled.min.y;
+  model.updateMatrixWorld(true);
+}
+
+function findProceduralLegs(root: THREE.Object3D) {
+  const legs: THREE.Object3D[] = [];
+  root.traverse(obj => {
+    const name = obj.name.toLowerCase();
+    if (/leg|hoof|foot|forelimb|hindlimb|front_limb|rear_limb/.test(name)) legs.push(obj);
+  });
+  return legs.slice(0, 8);
+}
+
+function findClip(clips: THREE.AnimationClip[], pattern: RegExp) {
+  return clips.find(clip => pattern.test(clip.name)) || null;
 }
 
 export default function EyeGazeFarmWorld() {
@@ -119,6 +158,8 @@ export default function EyeGazeFarmWorld() {
   const dwellTimerRef = useRef<number | null>(null);
   const dragRef = useRef<{ id: AnimalId; plane: THREE.Plane } | null>(null);
   const animationRef = useRef<number | null>(null);
+  const animalAudioRef = useRef<HTMLAudioElement | null>(null);
+  const animalAudioTimerRef = useRef<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadMessage, setLoadMessage] = useState("Building your 3D farm…");
@@ -126,21 +167,72 @@ export default function EyeGazeFarmWorld() {
   const [selected, setSelected] = useState<AnimalId | null>(null);
   const [message, setMessage] = useState("Move around the farm. Look at or tap an animal to meet it.");
 
+  const stopAnimalAudio = useCallback(() => {
+    if (animalAudioTimerRef.current) window.clearTimeout(animalAudioTimerRef.current);
+    animalAudioTimerRef.current = null;
+    if (animalAudioRef.current) {
+      animalAudioRef.current.pause();
+      animalAudioRef.current.currentTime = 0;
+      animalAudioRef.current = null;
+    }
+  }, []);
+
+  const playAuthenticSound = useCallback((animal: AnimalDef, after?: () => void) => {
+    stopAnimalAudio();
+    const audio = new Audio(commonsAudio(animal.soundFile));
+    animalAudioRef.current = audio;
+    audio.volume = 0.95;
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (animalAudioTimerRef.current) window.clearTimeout(animalAudioTimerRef.current);
+      animalAudioTimerRef.current = null;
+      if (animalAudioRef.current === audio) animalAudioRef.current = null;
+      audio.pause();
+      after?.();
+    };
+
+    audio.onended = finish;
+    audio.onerror = finish;
+    void audio.play().then(() => {
+      animalAudioTimerRef.current = window.setTimeout(finish, animal.soundSeconds * 1000);
+    }).catch(finish);
+  }, [stopAnimalAudio]);
+
   const speakAnimal = useCallback((id: AnimalId, withFact = false) => {
     const animal = byId[id];
     setSelected(id);
-    setMessage(withFact ? animal.fact : animal.name + " says " + animal.sound);
-    if (!muted) {
-      const text = withFact
-        ? animal.name + ". " + animal.sound + " " + animal.fact
-        : animal.name + ". " + animal.sound;
-      void speakCharacterAI(text, { calmMode: true });
-    }
-  }, [muted]);
+    setMessage(withFact ? animal.fact : animal.name + " · authentic " + animal.sound.toLowerCase());
+
+    stopSpeaking();
+    stopAnimalAudio();
+    if (muted) return;
+
+    void speakCharacterAI(animal.name, {
+      calmMode: true,
+      onEnd: () => {
+        playAuthenticSound(animal, withFact
+          ? () => { void speakCharacterAI(animal.fact, { calmMode: true }); }
+          : undefined
+        );
+      },
+      onFallback: () => {
+        playAuthenticSound(animal, withFact
+          ? () => { void speakCharacterAI(animal.fact, { calmMode: true }); }
+          : undefined
+        );
+      },
+    });
+  }, [muted, playAuthenticSound, stopAnimalAudio]);
 
   useEffect(() => {
-    if (muted) stopSpeaking();
-  }, [muted]);
+    if (muted) {
+      stopSpeaking();
+      stopAnimalAudio();
+    }
+  }, [muted, stopAnimalAudio]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -241,11 +333,15 @@ export default function EyeGazeFarmWorld() {
         def.model,
         gltf => {
           if (disposed) return;
-          const root = gltf.scene;
+          const model = gltf.scene;
+          model.name = "ARISE_ANIMAL_MODEL_" + def.id;
+          prepareGroundedModel(model, def.height);
+
+          const root = new THREE.Group();
           root.name = "ARISE_ANIMAL_" + def.id;
-          normalizeModel(root, def.height);
           root.position.set(def.x, 0, def.z);
           root.rotation.y = Math.random() * Math.PI * 2;
+          root.add(model);
 
           root.traverse(obj => {
             obj.userData.ariseAnimalId = def.id;
@@ -256,6 +352,22 @@ export default function EyeGazeFarmWorld() {
             }
           });
 
+          let mixer: THREE.AnimationMixer | null = null;
+          let walkAction: THREE.AnimationAction | null = null;
+          let idleAction: THREE.AnimationAction | null = null;
+          if (gltf.animations.length > 0) {
+            mixer = new THREE.AnimationMixer(model);
+            const walkClip = findClip(gltf.animations, /walk|trot|run/i) || gltf.animations[0];
+            const idleClip = findClip(gltf.animations, /idle|stand|rest/i);
+            walkAction = walkClip ? mixer.clipAction(walkClip) : null;
+            idleAction = idleClip ? mixer.clipAction(idleClip) : null;
+            if (idleAction) idleAction.play();
+            else if (walkAction) {
+              walkAction.play();
+              walkAction.paused = true;
+            }
+          }
+
           scene.add(root);
           animalsRef.current.set(def.id, {
             def,
@@ -264,6 +376,11 @@ export default function EyeGazeFarmWorld() {
             moving: true,
             pausedUntil: performance.now() + Math.random() * 2500,
             phase: Math.random() * Math.PI * 2,
+            mixer,
+            walkAction,
+            idleAction,
+            activeAction: idleAction ? "idle" : null,
+            proceduralLegs: findProceduralLegs(model),
           });
 
           remaining -= 1;
@@ -305,6 +422,10 @@ export default function EyeGazeFarmWorld() {
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointerRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
       if (dragRef.current) {
         raycasterRef.current.setFromCamera(pointerRef.current, camera);
         const point = new THREE.Vector3();
@@ -396,23 +517,57 @@ export default function EyeGazeFarmWorld() {
           }
         }
 
-        if (runtime.moving && now > runtime.pausedUntil && dragRef.current?.id !== runtime.def.id) {
+        const shouldWalk = runtime.moving && now > runtime.pausedUntil && dragRef.current?.id !== runtime.def.id;
+
+        if (runtime.mixer) {
+          runtime.mixer.update(dt);
+          if (shouldWalk && runtime.walkAction && runtime.activeAction !== "walk") {
+            runtime.idleAction?.fadeOut(0.2);
+            runtime.walkAction.paused = false;
+            runtime.walkAction.reset().fadeIn(0.2).play();
+            runtime.activeAction = "walk";
+          } else if (!shouldWalk && runtime.activeAction !== "idle") {
+            runtime.walkAction?.fadeOut(0.2);
+            if (runtime.idleAction) {
+              runtime.idleAction.reset().fadeIn(0.2).play();
+              runtime.activeAction = "idle";
+            } else if (runtime.walkAction) {
+              runtime.walkAction.paused = true;
+              runtime.activeAction = null;
+            }
+          }
+        }
+
+        if (shouldWalk) {
           const direction = runtime.target.clone().sub(root.position);
           direction.y = 0;
           const len = direction.length();
           if (len > 0.01) {
             direction.normalize();
-            const speed = runtime.def.id === "chicken" || runtime.def.id === "duck" ? 0.62 : 0.48;
+            const speed =
+              runtime.def.id === "horse" ? 0.72 :
+              runtime.def.id === "chicken" || runtime.def.id === "duck" ? 0.6 :
+              0.46;
             root.position.addScaledVector(direction, speed * dt);
+            // Never modify root.position.y: the anchor stays locked to the ground plane.
+            root.position.y = 0;
             const desired = Math.atan2(direction.x, direction.z);
-            root.rotation.y = THREE.MathUtils.lerp(root.rotation.y, desired, 0.08);
-            runtime.phase += dt * (runtime.def.id === "horse" ? 10 : 7);
-            root.position.y = Math.abs(Math.sin(runtime.phase)) * (runtime.def.id === "chicken" || runtime.def.id === "duck" ? 0.018 : 0.025);
-            root.rotation.z = Math.sin(runtime.phase * 0.5) * 0.012;
+            root.rotation.y = THREE.MathUtils.lerp(root.rotation.y, desired, 0.09);
+
+            if (!runtime.mixer && runtime.proceduralLegs.length >= 2) {
+              runtime.phase += dt * 8;
+              runtime.proceduralLegs.forEach((leg, index) => {
+                leg.rotation.x = Math.sin(runtime.phase + (index % 2 ? Math.PI : 0)) * 0.18;
+              });
+            }
           }
         } else {
-          root.position.y = THREE.MathUtils.lerp(root.position.y, 0, 0.08);
-          root.rotation.z = THREE.MathUtils.lerp(root.rotation.z, 0, 0.08);
+          root.position.y = 0;
+          if (!runtime.mixer) {
+            runtime.proceduralLegs.forEach(leg => {
+              leg.rotation.x = THREE.MathUtils.lerp(leg.rotation.x, 0, 0.12);
+            });
+          }
         }
       });
 
@@ -435,6 +590,7 @@ export default function EyeGazeFarmWorld() {
     return () => {
       disposed = true;
       stopSpeaking();
+      stopAnimalAudio();
       clearDwell();
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       window.removeEventListener("resize", onResize);
@@ -447,7 +603,7 @@ export default function EyeGazeFarmWorld() {
       animalsRef.current.clear();
       mount.removeChild(renderer.domElement);
     };
-  }, [speakAnimal]);
+  }, [speakAnimal, stopAnimalAudio]);
 
   const moveCamera = (forward: number, sideways: number) => {
     const camera = cameraRef.current;
@@ -485,7 +641,7 @@ export default function EyeGazeFarmWorld() {
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-black drop-shadow sm:text-2xl">A.R.I.S.E. Farm World</h1>
-          <p className="hidden text-xs font-bold text-white/75 sm:block">A real 3D farm · move around · meet the animals</p>
+          <p className="hidden text-xs font-bold text-white/75 sm:block">3D farm · authentic animal sounds · move around & explore</p>
         </div>
         <button
           type="button"
@@ -549,7 +705,7 @@ export default function EyeGazeFarmWorld() {
       )}
 
       <div className="pointer-events-none absolute bottom-1 right-2 z-10 text-[9px] font-semibold text-white/40">
-        3D farm & animals: CC0 assets
+        3D assets + authentic animal recordings
       </div>
     </main>
   );
