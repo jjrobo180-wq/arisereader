@@ -1858,7 +1858,7 @@ export default function Library() {
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
                               <span className="font-bold text-sm">{book.title}</span>
@@ -1955,7 +1955,7 @@ export default function Library() {
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
                               <span className="font-bold text-sm">{book.title}</span>
@@ -2008,7 +2008,7 @@ export default function Library() {
                           >
                             <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                               {book.coverUrl ? (
-                                <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                                <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center p-4">
                                   <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
@@ -2113,7 +2113,7 @@ export default function Library() {
                             >
                               <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                                 {book.coverUrl ? (
-                                  <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                                  <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center p-4">
                                     <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
@@ -2208,7 +2208,7 @@ export default function Library() {
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center p-4">
                               <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
@@ -2282,7 +2282,7 @@ export default function Library() {
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center p-4">
                               <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
@@ -2388,7 +2388,7 @@ export default function Library() {
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center p-4">
                               <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
@@ -2491,7 +2491,7 @@ export default function Library() {
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                           {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
                               <span className="font-bold text-sm">{book.title}</span>
@@ -2547,7 +2547,7 @@ export default function Library() {
                       <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                         {book.coverUrl ? (
                           <img
-                            src={book.coverUrl}
+                            src={`${API_BASE}/api/book-cover/${book.id}`}
                             alt={`Cover of ${book.title}`}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                             loading="lazy"
@@ -2653,7 +2653,7 @@ export default function Library() {
                     <div className="aspect-[2/3] relative overflow-hidden bg-muted">
                       {book.coverUrl ? (
                         <img
-                          src={book.coverUrl}
+                          src={`${API_BASE}/api/book-cover/${book.id}`}
                           alt={`Cover of ${book.title}`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                           loading="lazy"
