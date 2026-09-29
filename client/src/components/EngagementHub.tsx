@@ -143,94 +143,54 @@ export function EngagementHub() {
   if (user?.role !== "student" || user?.isAdmin) return null;
 
   if (loading) {
-    return <div className="mb-8 h-40 rounded-2xl bg-muted/30 animate-pulse" />;
+    return <div className="mb-4 h-20 rounded-2xl bg-muted/30 animate-pulse" />;
   }
   if (!summary) return null;
 
   return (
     <>
-      <section className="mb-8 space-y-4" data-testid="engagement-hub">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card className="border-primary/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Trophy className="w-4 h-4 text-primary" /> Level {summary.level.level}</div>
-              <div className="font-bold mt-1">{summary.level.name}</div>
-              <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-primary rounded-full" style={{ width: `${summary.level.progress}%` }} />
+      <section className="mb-5 rounded-2xl border border-border bg-card/70 p-3 sm:p-4" data-testid="engagement-hub">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10">
+              <Trophy className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-black text-sm">Level {summary.level.level}: {summary.level.name}</span>
+                <span className="text-xs font-bold text-muted-foreground">{summary.totalPoints} pts</span>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-orange-400"><Flame className="h-3.5 w-3.5" /> {summary.streak} day streak</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{levelText}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-orange-500/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Flame className="w-4 h-4 text-orange-400" /> Reading Streak</div>
-              <div className="text-2xl font-bold mt-1">{summary.streak} day{summary.streak === 1 ? "" : "s"}</div>
-              <p className="text-[11px] text-muted-foreground mt-1">Do one reading activity today to keep it going.</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-green-500/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Zap className="w-4 h-4 text-green-400" /> This Week</div>
-              <div className="text-2xl font-bold mt-1">{summary.personalBest.thisWeekPoints} pts</div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Last week: {summary.personalBest.lastWeekPoints} pts
-                {summary.personalBest.beatLastWeek ? " · New personal best!" : ""}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={summary.mystery.unlocked ? "border-amber-500/50" : ""}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Gift className="w-4 h-4 text-amber-400" /> Mystery Box</div>
-              {summary.mystery.claimedToday ? (
-                <>
-                  <div className="font-bold mt-1">Opened!</div>
-                  <p className="text-[11px] text-muted-foreground mt-1">You won +{summary.mystery.reward || 0} points today.</p>
-                </>
-              ) : summary.mystery.unlocked ? (
-                <Button onClick={claimMystery} disabled={claiming} size="sm" className="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-black">
-                  <Sparkles className="w-4 h-4 mr-1" /> {claiming ? "Opening..." : "Open Box"}
-                </Button>
-              ) : (
-                <p className="text-[11px] text-muted-foreground mt-2">Complete any 2 missions to unlock it.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="overflow-hidden border-primary/30">
-          <CardContent className="p-0">
-            <div className="p-4 sm:p-5 bg-primary/10 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-primary" />
-                  <h2 className="font-bold text-lg">Today's Missions</h2>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">{summary.completedMissions}/3 complete · Finish any 2 to unlock your Mystery Box.</p>
+              <div className="mt-1.5 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${summary.level.progress}%` }} />
               </div>
-              <Button variant={summary.quickChallengeCompleted ? "outline" : "default"} onClick={openChallenge}>
-                <Zap className="w-4 h-4 mr-1" />
-                {summary.quickChallengeCompleted ? "View Quick Challenge" : "3-Question Challenge"}
+              <p className="mt-1 text-[10px] font-medium text-muted-foreground">{levelText}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-xl border border-border bg-background/60 px-3 py-2">
+              <div className="flex items-center gap-1.5 text-xs font-black"><Target className="h-3.5 w-3.5 text-primary" /> Missions {summary.completedMissions}/3</div>
+              <div className="mt-1 flex gap-1">
+                {summary.missions.map(mission => <span key={mission.id} title={mission.label} className={`h-2 w-6 rounded-full ${mission.completed ? "bg-green-500" : "bg-muted"}`} />)}
+              </div>
+            </div>
+
+            <Button size="sm" variant={summary.quickChallengeCompleted ? "outline" : "default"} onClick={openChallenge} className="h-10 rounded-xl">
+              <Zap className="mr-1 h-4 w-4" /> {summary.quickChallengeCompleted ? "Challenge done" : "Quick Challenge"}
+            </Button>
+
+            {summary.mystery.claimedToday ? (
+              <div className="h-10 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 flex items-center gap-2 text-xs font-black text-amber-500">
+                <Gift className="h-4 w-4" /> +{summary.mystery.reward || 0}
+              </div>
+            ) : summary.mystery.unlocked ? (
+              <Button onClick={claimMystery} disabled={claiming} size="sm" className="h-10 rounded-xl bg-amber-500 text-black hover:bg-amber-600">
+                <Gift className="mr-1 h-4 w-4" /> {claiming ? "Opening..." : "Mystery Box"}
               </Button>
-            </div>
-
-            <div className="grid sm:grid-cols-3 gap-px bg-border">
-              {summary.missions.map((mission) => (
-                <div key={mission.id} className="bg-card p-4 flex gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${mission.completed ? "bg-green-500/20" : "bg-muted"}`}>
-                    {mission.completed ? <CheckCircle2 className="w-5 h-5 text-green-400" /> : <Target className="w-4 h-4 text-muted-foreground" />}
-                  </div>
-                  <div>
-                    <p className={`font-semibold text-sm ${mission.completed ? "text-green-400" : ""}`}>{mission.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{mission.detail}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+            ) : null}
+          </div>
+        </div>
       </section>
 
       <Dialog open={showChallenge} onOpenChange={setShowChallenge}>
