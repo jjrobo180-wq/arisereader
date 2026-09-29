@@ -448,7 +448,7 @@ export default function ClubTheater(){
         remoteRootsRef.current.set(player.userId,root);
       }
       root.userData.mixer?.update?.(.04);
-      root.position.lerp(new THREE.Vector3(player.x,player.seatId?.startsWith("S")?.42:0,player.z),.28);
+      root.position.lerp(new THREE.Vector3(player.x,player.seatId?.startsWith("S") ? .42 : 0,player.z),.28);
       root.rotation.y=player.seatId?Math.PI:THREE.MathUtils.lerp(root.rotation.y,player.facing,.3);
     }
     remoteRootsRef.current.forEach((root,id)=>{if(!active.has(id)){scene.remove(root);remoteRootsRef.current.delete(id);}});
