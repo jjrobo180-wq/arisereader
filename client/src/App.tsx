@@ -91,6 +91,7 @@ import ClubArise from "./pages/ClubArise";
 import ClubTheater from "./pages/ClubTheater";
 import Worlds from "./pages/Worlds";
 import Neighborhood from "./pages/Neighborhood";
+import LaserRoyale from "./pages/LaserRoyale";
 import NotFound from "./pages/not-found";
 
 // Gate that shows profile setup overlay after student registration
@@ -286,6 +287,11 @@ function AppRoutes() {
       <Route path="/neighborhood">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><Neighborhood /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/laser-royale">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><LaserRoyale /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/course/:id">
