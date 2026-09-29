@@ -421,8 +421,38 @@ export function registerLiveQuizRoutes(app: Express, auth: any) {
           ? (players || []).map(p => ({ ...p, score: null })) : players || [],
         answerCount: (answers || []).length,
         myAnswer: own ? { choice: own.choice, ...(reveal ? { correct: own.correct, points: own.points } : {}) } : null,
-        ...(isHost ? { answerCounts: ["A", "B", "C", "D"].map(letter => (answers || []).filter(a => a.choice === letter).length) } : {}),
+        ...(isHost ? {
+          answerCounts: ["A", "B", "C", "D"].map(letter => (answers || []).filter(a => a.choice === letter).length),
+          board: quiz.questions.map((q: any, questionIndex: number) => ({
+            index: questionIndex,
+            category: String(q.category || "General"),
+            value: Number(q.value || (questionIndex + 1) * 100),
+            difficulty: String(q.difficulty || "medium"),
+          })),
+        } : {}),
       });
+    } catch (issue) { error(res, issue); }
+  });
+
+  app.post("/api/live-sessions/:id/lifeline/5050", auth, async (req: any, res) => {
+    if (!student(req.user)) return res.status(403).json({ message: "Student access required" });
+    try {
+      const client = db();
+      const { data: session } = await client.from("live_sessions").select("quiz_id,status,current_question")
+        .eq("id", req.params.id).maybeSingle();
+      if (!session || session.status !== "question" || session.current_question < 0)
+        return res.status(400).json({ message: "The 50:50 lifeline is only available during a question." });
+      const { data: joined } = await client.from("live_players").select("user_id")
+        .eq("session_id", req.params.id).eq("user_id", req.user.id).maybeSingle();
+      if (!joined) return res.status(403).json({ message: "Join the game first." });
+      const { data: quiz } = await client.from("live_quizzes").select("questions").eq("id", session.quiz_id).single();
+      const question = quiz?.questions?.[session.current_question];
+      if (!question || normalizeGameType(question.gameType) !== "millionaire")
+        return res.status(400).json({ message: "50:50 is only available in Millionaire Challenge." });
+      const correct = String(question.correct || "");
+      const wrong = ["A", "B", "C", "D"].filter(letter => letter !== correct);
+      const hide = wrong.slice(0, 2);
+      res.json({ hide });
     } catch (issue) { error(res, issue); }
   });
 
