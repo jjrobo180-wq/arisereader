@@ -37,6 +37,7 @@ type AnimalRuntime = {
   idleAction: THREE.AnimationAction | null;
   activeAction: "walk" | "idle" | null;
   proceduralLegs: THREE.Object3D[];
+  canRoam: boolean;
   foodTarget: string | null;
 };
 
@@ -75,18 +76,19 @@ const BASE = {
   dog: { sound: "Bark", soundFile: "George vuf 1996.ogg", soundSeconds: 0.8, fact: "Farm dogs can help people guide and watch livestock.", height: 0.78, speed: 0.68 },
 } as const;
 
-const FIELD = { minX: -12, maxX: 12, minZ: -8, maxZ: 9 };
-const POND = { minX: 7.1, maxX: 11.8, minZ: 4.2, maxZ: 8.7 };
-const BARN_A: Obstacle = { minX: -11.2, maxX: -5.8, minZ: -7.6, maxZ: -2.1, pad: 0.7 };
-const BARN_B: Obstacle = { minX: -3.2, maxX: 2.8, minZ: -7.3, maxZ: -2.6, pad: 0.7 };
-const STABLE: Obstacle = { minX: 4.1, maxX: 9.2, minZ: -7.2, maxZ: -2.4, pad: 0.7 };
-const COOP: Obstacle = { minX: 7.5, maxX: 10.8, minZ: 0.2, maxZ: 3.1, pad: 0.5 };
+const SPACE = 3.25;
+const FIELD = { minX: -45, maxX: 45, minZ: -34, maxZ: 36 };
+const POND = { minX: 25, maxX: 42, minZ: 17, maxZ: 34 };
+const BARN_A: Obstacle = { minX: -32.5, maxX: -26.0, minZ: -22.5, maxZ: -16.5, pad: 1.3 };
+const BARN_B: Obstacle = { minX: -4.0, maxX: 3.0, minZ: -22.0, maxZ: -16.5, pad: 1.3 };
+const STABLE: Obstacle = { minX: 23.0, maxX: 29.5, minZ: -21.5, maxZ: -15.5, pad: 1.3 };
+const COOP: Obstacle = { minX: 28.0, maxX: 32.5, minZ: 3.5, maxZ: 7.7, pad: 0.9 };
 const OBSTACLES: Obstacle[] = [BARN_A, BARN_B, STABLE, COOP];
 
-const HERD_AREA = { minX: -11.5, maxX: 5.5, minZ: -1.5, maxZ: 8.3 };
-const YARD_AREA = { minX: -5.5, maxX: 10.5, minZ: -1.5, maxZ: 8.4 };
-const HORSE_AREA = { minX: -7, maxX: 7.5, minZ: -1.2, maxZ: 7.2 };
-const CHICKEN_AREA = { minX: 4.5, maxX: 11.2, minZ: 0.5, maxZ: 6.1 };
+const HERD_AREA = { minX: -40, maxX: -8, minZ: -4, maxZ: 30 };
+const YARD_AREA = { minX: 5, maxX: 40, minZ: -3, maxZ: 29 };
+const HORSE_AREA = { minX: -10, maxX: 19, minZ: -4, maxZ: 30 };
+const CHICKEN_AREA = { minX: 24, maxX: 41, minZ: 3, maxZ: 24 };
 
 const animal = (
   id: string,
@@ -97,7 +99,7 @@ const animal = (
   area: AnimalDef["area"],
   scale = 1,
 ): AnimalDef => ({
-  id, kind, name, x, z, area,
+  id, kind, name, x: x * SPACE, z: z * SPACE, area,
   model: MODEL[kind],
   sound: BASE[kind].sound,
   soundFile: BASE[kind].soundFile,
@@ -164,12 +166,26 @@ function prepareGroundedModel(model: THREE.Group, wantedHeight: number) {
 }
 
 function findProceduralLegs(root: THREE.Object3D) {
-  const legs: THREE.Object3D[] = [];
+  const named: THREE.Object3D[] = [];
+  const lowBones: Array<{ node: THREE.Bone; y: number }> = [];
+  root.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3();
+  bounds.getSize(size);
+  const cutoff = bounds.min.y + size.y * 0.62;
+
   root.traverse(obj => {
     const n = obj.name.toLowerCase();
-    if (/leg|hoof|foot|forelimb|hindlimb|front_limb|rear_limb/.test(n)) legs.push(obj);
+    if (/leg|hoof|foot|forelimb|hindlimb|front[_ -]?limb|rear[_ -]?limb|ankle|hock|paw/.test(n)) named.push(obj);
+    if ((obj as THREE.Bone).isBone) {
+      const p = new THREE.Vector3();
+      obj.getWorldPosition(p);
+      if (p.y <= cutoff) lowBones.push({ node: obj as THREE.Bone, y: p.y });
+    }
   });
-  return legs.slice(0, 8);
+
+  if (named.length >= 2) return named.slice(0, 8);
+  return lowBones.sort((a,b) => a.y - b.y).map(x => x.node).slice(0, 8);
 }
 
 function findClip(clips: THREE.AnimationClip[], pattern: RegExp) {
@@ -184,7 +200,13 @@ function insideObstacle(x: number, z: number, obstacle: Obstacle) {
 function blocked(x: number, z: number, def?: AnimalDef) {
   if (x < FIELD.minX || x > FIELD.maxX || z < FIELD.minZ || z > FIELD.maxZ) return true;
   if (OBSTACLES.some(o => insideObstacle(x, z, o))) return true;
-  if (def?.kind !== "duck" && x > POND.minX - 0.45 && z > POND.minZ - 0.45) return true;
+  if (
+    def?.kind !== "duck"
+    && x > POND.minX - 1
+    && x < POND.maxX + 1
+    && z > POND.minZ - 1
+    && z < POND.maxZ + 1
+  ) return true;
   return false;
 }
 
@@ -382,7 +404,7 @@ export default function EyeGazeFarmWorld() {
     scene.fog = new THREE.FogExp2(0xcbe3ed, 0.014);
 
     const camera = new THREE.PerspectiveCamera(49, mount.clientWidth / mount.clientHeight, 0.1, 150);
-    camera.position.set(20, 11.5, 22);
+    camera.position.set(58, 31, 64);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -398,11 +420,11 @@ export default function EyeGazeFarmWorld() {
     rendererRef.current = renderer;
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 1.2, 1);
+    controls.target.set(0, 2.5, 3);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.minDistance = 5;
-    controls.maxDistance = 34;
+    controls.minDistance = 8;
+    controls.maxDistance = 96;
     controls.maxPolarAngle = Math.PI * 0.47;
     controls.minPolarAngle = Math.PI * 0.18;
     controls.enablePan = true;
@@ -420,7 +442,7 @@ export default function EyeGazeFarmWorld() {
     scene.add(sun);
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(40, 34, 1, 1),
+      new THREE.PlaneGeometry(104, 88, 1, 1),
       new THREE.MeshStandardMaterial({ color: 0x6d9c45, roughness: 1 }),
     );
     ground.rotation.x = -Math.PI / 2;
@@ -429,45 +451,50 @@ export default function EyeGazeFarmWorld() {
     scene.add(ground);
 
     // Farm paths and mud.
-    const path = addBox(scene, [4.3, 0.035, 25], [0.8, 0.02, 1.5], 0xb79265);
+    const path = addBox(scene, [7.5, 0.035, 70], [1.0, 0.02, 3], 0xb79265);
     path.rotation.y = -0.12;
     const mud = new THREE.Mesh(new THREE.CircleGeometry(2.35, 48), new THREE.MeshStandardMaterial({ color: 0x6f4b32, roughness: 1 }));
     mud.rotation.x = -Math.PI / 2;
-    mud.position.set(4.8, 0.03, 6.1);
+    mud.scale.setScalar(2.2);
+    mud.position.set(15, 0.03, 23);
     scene.add(mud);
 
     // Three larger buildings + coop.
-    addBarn(scene, -8.5, -4.8, 5.0, 4.8, 0x8d342b, 0x3c241f);
-    addBarn(scene, -0.2, -4.8, 5.5, 4.2, 0xb35835, 0x4b2d23);
-    addBarn(scene, 6.6, -4.8, 4.6, 4.6, 0xd3b56c, 0x5b3a24);
-    addBarn(scene, 9.1, 1.6, 2.8, 2.7, 0x9b5536, 0x4a2c22);
+    addBarn(scene, -29.3, -19.5, 6.0, 5.3, 0x8d342b, 0x3c241f);
+    addBarn(scene, -0.5, -19.2, 6.4, 4.8, 0xb35835, 0x4b2d23);
+    addBarn(scene, 26.3, -18.5, 5.8, 5.2, 0xd3b56c, 0x5b3a24);
+    addBarn(scene, 30.3, 5.6, 4.0, 3.6, 0x9b5536, 0x4a2c22);
 
     // Pond with bank.
     const pondBank = new THREE.Mesh(new THREE.CircleGeometry(3.2, 64), new THREE.MeshStandardMaterial({ color: 0x6b7f43, roughness: 1 }));
     pondBank.rotation.x = -Math.PI / 2;
-    pondBank.position.set(9.3, 0.035, 6.6);
+    pondBank.scale.setScalar(2.6);
+    pondBank.position.set(33.5, 0.035, 25.5);
     scene.add(pondBank);
     const pond = new THREE.Mesh(new THREE.CircleGeometry(2.75, 64), new THREE.MeshPhysicalMaterial({ color: 0x4da9cb, roughness: 0.18, metalness: 0, transparent: true, opacity: 0.9 }));
     pond.rotation.x = -Math.PI / 2;
-    pond.position.set(9.3, 0.06, 6.6);
+    pond.scale.setScalar(2.6);
+    pond.position.set(33.5, 0.06, 25.5);
     scene.add(pond);
 
     // Fenced zones, but with gaps.
-    addFence(scene, -12, -1, -8, -1);
-    addFence(scene, -5, -1, 1, -1);
-    addFence(scene, 4, -1, 11, -1);
-    addFence(scene, -12, 8.8, -4, 8.8);
-    addFence(scene, -1, 8.8, 5.5, 8.8);
-    addFence(scene, -12, -1, -12, 8.8);
-    addFence(scene, 11.8, -1, 11.8, 3.8);
+    addFence(scene, -42, -4, -31, -4);
+    addFence(scene, -26, -4, -10, -4);
+    addFence(scene, -5, -4, 12, -4);
+    addFence(scene, 18, -4, 40, -4);
+    addFence(scene, -42, 32, -22, 32);
+    addFence(scene, -16, 32, 6, 32);
+    addFence(scene, 12, 32, 22, 32);
+    addFence(scene, -42, -4, -42, 32);
+    addFence(scene, 43, -4, 43, 15);
 
     // Troughs.
-    addBox(scene, [2.2, 0.48, 0.85], [-6.7, 0.25, 0.6], 0x704725);
-    addBox(scene, [2.2, 0.48, 0.85], [0.7, 0.25, 6.8], 0x704725);
-    addBox(scene, [1.6, 0.35, 0.68], [8.0, 0.2, 3.8], 0x704725);
+    addBox(scene, [3.4, 0.48, 1.0], [-25, 0.25, 4], 0x704725);
+    addBox(scene, [3.4, 0.48, 1.0], [0, 0.25, 23], 0x704725);
+    addBox(scene, [2.6, 0.35, 0.8], [27, 0.2, 12], 0x704725);
 
     // Hay bales.
-    for (const [x,z,r] of [[-4.2,-2.2,0],[2.9,-2.6,0.2],[5.5,-1.8,-0.15]] as const) {
+    for (const [x,z,r] of [[-20,-11,0],[9,-12,0.2],[20,-9,-0.15],[-12,20,0.1]] as const) {
       const bale = new THREE.Mesh(new THREE.CylinderGeometry(0.68,0.68,1.15,22), new THREE.MeshStandardMaterial({ color: 0xc89d3f, roughness: 1 }));
       bale.rotation.z = Math.PI/2;
       bale.rotation.y = r;
@@ -477,7 +504,7 @@ export default function EyeGazeFarmWorld() {
     }
 
     // Trees / visual depth.
-    [[-14,-7,1.3],[-14,1,1.1],[-13,7,1.2],[14,-6,1.25],[14,0,1.05],[14,8,1.35],[5,11,1.1],[-5,11,1.15]].forEach(([x,z,s]) => addTree(scene,x,z,s));
+    [[-48,-30,1.6],[-48,-8,1.35],[-47,18,1.5],[-45,35,1.7],[47,-28,1.55],[48,-4,1.35],[47,18,1.45],[46,38,1.7],[20,40,1.35],[-20,42,1.45]].forEach(([x,z,s]) => addTree(scene,x,z,s));
 
     const loader = new GLTFLoader();
     let remaining = ANIMALS.length;
@@ -519,14 +546,18 @@ export default function EyeGazeFarmWorld() {
           }
         }
 
+        const proceduralLegs = findProceduralLegs(model);
+        const canRoam = !!walkAction || proceduralLegs.length >= 2;
+
         scene.add(root);
         animalsRef.current.set(def.id, {
-          def, root, target: randomTarget(def), moving: true,
+          def, root, target: randomTarget(def), moving: canRoam,
           pausedUntil: performance.now() + Math.random() * 2200,
           phase: Math.random() * Math.PI * 2,
           mixer, walkAction, idleAction,
           activeAction: idleAction ? "idle" : null,
-          proceduralLegs: findProceduralLegs(model),
+          proceduralLegs,
+          canRoam,
           foodTarget: null,
         });
 
@@ -598,11 +629,13 @@ export default function EyeGazeFarmWorld() {
         const d = runtime.root.position.distanceTo(root.position);
         if (d < bestDistance) { best = runtime; bestDistance = d; }
       });
-      if (best) {
+      if (best && best.canRoam) {
         best.foodTarget = id;
         best.target.copy(root.position);
         best.pausedUntil = performance.now();
         foodsRef.current.get(id)!.claimedBy = best.def.id;
+      } else if (best) {
+        setMessage(best.def.name + " sees the food, but stays where it is until its real walk animation is ready.");
       }
     };
 
@@ -732,11 +765,11 @@ export default function EyeGazeFarmWorld() {
             runtime.pausedUntil = now + 1100 + Math.random() * 2600;
             if (!runtime.foodTarget) runtime.target.copy(randomTarget(runtime.def));
           } else {
-            runtime.moving = true;
+            runtime.moving = runtime.canRoam;
           }
         }
 
-        const shouldWalk = runtime.moving && now > runtime.pausedUntil && dragRef.current?.id !== runtime.def.id;
+        const shouldWalk = runtime.canRoam && runtime.moving && now > runtime.pausedUntil && dragRef.current?.id !== runtime.def.id;
 
         if (runtime.mixer) {
           runtime.mixer.update(dt);
@@ -845,13 +878,13 @@ export default function EyeGazeFarmWorld() {
     f.y = 0;
     f.normalize();
     const r = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0,1,0)).normalize();
-    const movement = f.multiplyScalar(forward * 2.15).add(r.multiplyScalar(sideways * 2.15));
+    const movement = f.multiplyScalar(forward * 5.5).add(r.multiplyScalar(sideways * 5.5));
     camera.position.add(movement);
     controls.target.add(movement);
-    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -19, 19);
-    camera.position.z = THREE.MathUtils.clamp(camera.position.z, -18, 18);
-    controls.target.x = THREE.MathUtils.clamp(controls.target.x, -12, 12);
-    controls.target.z = THREE.MathUtils.clamp(controls.target.z, -9, 9);
+    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -52, 52);
+    camera.position.z = THREE.MathUtils.clamp(camera.position.z, -46, 46);
+    controls.target.x = THREE.MathUtils.clamp(controls.target.x, -44, 44);
+    controls.target.z = THREE.MathUtils.clamp(controls.target.z, -35, 36);
     controls.update();
   };
 
@@ -872,7 +905,7 @@ export default function EyeGazeFarmWorld() {
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-black drop-shadow sm:text-2xl">A.R.I.S.E. Farm World</h1>
-          <p className="hidden text-xs font-bold text-white/75 sm:block">{ANIMALS.length} animals · authentic sounds · feeding · free exploration</p>
+          <p className="hidden text-xs font-bold text-white/75 sm:block">{ANIMALS.length} animals · huge open farm · authentic sounds · feeding · free exploration</p>
         </div>
         <button type="button" onClick={() => setMuted(v => !v)} className="pointer-events-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-black/55 shadow-xl backdrop-blur focus:outline-none focus:ring-4 focus:ring-emerald-300" aria-label={muted ? "Turn sound on" : "Mute sound"}>
           {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
