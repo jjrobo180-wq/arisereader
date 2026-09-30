@@ -1240,6 +1240,14 @@ export async function registerRoutes(
       const book = await storage.getBook(bookId);
       if (!book?.coverUrl) return res.status(404).end();
 
+      // Local covers live in the built client under /covers/*.
+      // Redirect them instead of passing a relative path to Node fetch(),
+      // which requires an absolute URL and was causing iARISE covers to 502.
+      if (book.coverUrl.startsWith("/")) {
+        res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+        return res.redirect(302, book.coverUrl);
+      }
+
       const upstream = await fetch(book.coverUrl, {
         headers: {
           "User-Agent": "ARISEReader/1.0",
