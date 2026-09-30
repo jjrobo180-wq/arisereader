@@ -9,6 +9,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
+import MobileMovePad from "@/components/MobileMovePad";
 
 type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string;emoji?:string};
 type TheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null};
@@ -116,6 +117,19 @@ export default function ClubTheater(){
       setVideoReady(true);
     }
   },[muted]);
+
+  useEffect(()=>{
+    // Enter the cinema with sound requested on. Mobile browsers may delay
+    // audible autoplay until the first touch, so retry both immediately and
+    // on the first user gesture without ever defaulting the movie to mute.
+    setMuted(false);
+    mutedRef.current=false;
+    const tryPlay=()=>{youtubeCommand("unMute");youtubeCommand("playVideo");};
+    const timers=[250,900,1800].map(ms=>window.setTimeout(tryPlay,ms));
+    const firstGesture=()=>{tryPlay();window.removeEventListener("pointerdown",firstGesture,true);};
+    window.addEventListener("pointerdown",firstGesture,true);
+    return()=>{timers.forEach(window.clearTimeout);window.removeEventListener("pointerdown",firstGesture,true);};
+  },[currentMovie?.id]);
 
   useEffect(()=>{
     const iframe=youtubeRef.current;
@@ -806,6 +820,8 @@ export default function ClubTheater(){
     }catch(e:any){setPopcorn("idle");setNotice(e.message||"Could not buy popcorn.");}
   };
 
+  const move=(key:"w"|"a"|"s"|"d",pressed:boolean)=>{if(pressed)keysRef.current.add(key);else keysRef.current.delete(key);};
+
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-black text-white">
     <div ref={mountRef} className="absolute inset-0 touch-none"/>
 
@@ -867,6 +883,7 @@ export default function ClubTheater(){
       {notice}
     </div>
 
+    <MobileMovePad onMove={move} className="bottom-3 left-3" label="Cinema movement controls"/>
     <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-xl bg-black/60 px-3 py-2 text-center text-[10px] font-bold text-white/70 backdrop-blur sm:text-xs">
       {seat?("Seated in "+seat+" · "):""}WASD/arrows walk · drag to look · tap a seat to sit {videoReady?"· show playing":""}
     </div>
