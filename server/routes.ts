@@ -2028,9 +2028,8 @@ export async function registerRoutes(
     const state=normalizeAvatarWorldState(parsed||{});
     // Persist only when normalization changed something meaningful: legacy data,
     // elapsed-time happiness decay, or a pet running away while the student was offline.
-    const comparableRaw=parsed?normalizeAvatarWorldState({...parsed,petCare:parsed.petCare||{}}):null;
     const shouldPersist=!parsed
-      ||JSON.stringify(state)!==JSON.stringify(comparableRaw)
+      ||JSON.stringify(state)!==JSON.stringify(parsed)
       ||state.purchased.some(id=>id.startsWith("pet-")&&(!parsed?.petCare?.[id]||parsed?.petCare?.[id]?.fedUntil!==undefined))
       ||state.runawayPets.length!==(Array.isArray(parsed?.runawayPets)?parsed.runawayPets.length:0);
     if(shouldPersist)await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
