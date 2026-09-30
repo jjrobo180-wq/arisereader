@@ -113,21 +113,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdminPreviewMode(null);
   }, []);
 
-  // While previewing, mark same-origin API calls so the server can run the
-  // full student experience without changing the administrator's real account.
+  // Admin preview must be attached to every API request immediately.
+  // Read the mode from sessionStorage at request time so navigation that happens
+  // in the same click as startAdminPreview() cannot race the React effect.
   useEffect(() => {
-    if (!user?.isAdmin || !adminPreviewMode) return;
+    if (!user?.isAdmin) return;
     const originalFetch = window.fetch.bind(window);
     window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
       const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       if (!rawUrl.includes("/api/")) return originalFetch(input, init);
+      const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
+      if (previewMode !== "regular" && previewMode !== "eye-gaze") return originalFetch(input, init);
       const headers = new Headers(input instanceof Request ? input.headers : undefined);
       new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-      headers.set("X-ARISE-Admin-Preview", adminPreviewMode);
+      headers.set("X-ARISE-Admin-Preview", previewMode);
       return originalFetch(input, { ...init, headers });
     }) as typeof window.fetch;
     return () => { window.fetch = originalFetch; };
-  }, [user?.isAdmin, adminPreviewMode]);
+  }, [user?.isAdmin]);
 
   // Validate session on app load — if the token is expired, clear the cookie
   // and redirect to login. This prevents blank pages from stale cookies.
