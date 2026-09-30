@@ -5165,11 +5165,17 @@ export async function registerRoutes(
     const { data: user } = await supabase.from("users").select("display_name, username").eq("id", review.user_id).single();
     const { data: questions } = await supabase.from("questions").select("*").eq("book_id", review.book_id).order("question_order", { ascending: true });
     const studentAnswers = attempt.answers ? (typeof attempt.answers === "string" ? JSON.parse(attempt.answers) : attempt.answers) : {};
+    const calculatedScore = (questions || []).reduce((sum: number, q: any) => {
+      const studentKey = String(studentAnswers[String(q.id)] || "").trim().toUpperCase();
+      const correctKey = String(q.correct_answer || "").trim().toUpperCase();
+      return sum + (studentKey && studentKey === correctKey ? 1 : 0);
+    }, 0);
     res.json({
       review,
       attempt,
       book: { title: book?.title || "Unknown", pointsValue: Number(book?.points_value ?? 0) },
       student: { displayName: user?.display_name || "Unknown", username: user?.username || "" },
+      calculatedScore,
       questions: (questions || []).map((q: any) => ({
         id: q.id,
         questionText: q.question_text,
