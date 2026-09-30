@@ -19,7 +19,7 @@ if (!admin.includes(stateMarker)) throw new Error("Could not locate admin leader
 admin = admin.replace(stateMarker, stateMarker + `  const [adminLbPrintCount, setAdminLbPrintCount] = useState("10");
   const [adminLbPosterTitle, setAdminLbPosterTitle] = useState("READING CHAMPIONS");
   const [adminLbPosterMessage, setAdminLbPosterMessage] = useState("Celebrating the readers who rose to the top!");
-  const [adminLbRewards, setAdminLbRewards] = useState<Record<number, string>>({ 1: "", 2: "", 3: "" });
+  const [adminLbRewards, setAdminLbRewards] = useState<Record<string, string>>({});
 `);
 
 const functionMarker = "  const openManualPoints = async (student: Student) => {\n";
@@ -44,76 +44,86 @@ const printFunction = `  const printAdminLeaderboard = () => {
     const listLabel = adminLbPrintCount === "all" ? "FULL LEADERBOARD" : "TOP " + leaders.length + " READERS";
     const printedOn = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     const placeWords = ["1ST PLACE", "2ND PLACE", "3RD PLACE"];
-    const placeIcons = ["★", "◆", "▲"];
+    const placeIcons = ["1", "2", "3"];
     const topThree = leaders.slice(0, 3).map((entry: any, idx: number) => {
       const rank = idx + 1;
       const detail = [entry.grade ? "Grade " + escapeHtml(entry.grade) : "", entry.schoolName ? escapeHtml(entry.schoolName) : ""].filter(Boolean).join(" • ");
-      const reward = (adminLbRewards[rank] || "").trim();
+      const reward = (adminLbRewards[String(entry.id ?? rank)] || "").trim();
       return \`<article class="champ-card place-\${rank}">
         <div class="place-badge"><span>\${placeIcons[idx]}</span> \${placeWords[idx]}</div>
         <div class="champ-name">\${escapeHtml(entry.displayName || "Reader")}</div>
         <div class="champ-meta">\${detail || "A.R.I.S.E. Reader"}</div>
         <div class="score-row"><div><b>\${Number(entry.totalPoints || 0).toLocaleString()}</b><span>POINTS</span></div><div><b>\${Number(entry.quizzesTaken || 0)}</b><span>QUIZZES</span></div></div>
-        \${reward ? \`<div class="reward"><span>🏆 PRIZE</span><strong>\${escapeHtml(reward)}</strong></div>\` : ""}
+        \${reward ? \`<div class="reward"><span>REWARD</span><strong>\${escapeHtml(reward)}</strong></div>\` : ""}
       </article>\`;
     }).join("");
 
     const remainingRows = leaders.slice(3).map((entry: any, offset: number) => {
       const rank = offset + 4;
       const studentDetail = [entry.grade ? "Grade " + escapeHtml(entry.grade) : "", entry.schoolName ? escapeHtml(entry.schoolName) : ""].filter(Boolean).join(" • ");
+      const reward = (adminLbRewards[String(entry.id ?? rank)] || "").trim();
       return \`<div class="standing-row">
         <div class="rank-bubble">#\${rank}</div>
         <div class="standing-reader"><strong>\${escapeHtml(entry.displayName || "Reader")}</strong><small>\${studentDetail || "A.R.I.S.E. Reader"}</small></div>
         <div class="standing-stat"><b>\${Number(entry.quizzesTaken || 0)}</b><span>QUIZZES</span></div>
         <div class="standing-stat points"><b>\${Number(entry.totalPoints || 0).toLocaleString()}</b><span>POINTS</span></div>
+        <div class="standing-reward"><span>REWARD</span><strong>\${reward ? escapeHtml(reward) : "—"}</strong></div>
       </div>\`;
     }).join("");
 
     const html = \`<!doctype html>
 <html><head><meta charset="utf-8"><title>A.R.I.S.E. Reader Hallway Leaderboard</title>
 <style>
-  @page { size: Letter portrait; margin: 0.25in; }
+  @page { size: Letter portrait; margin: 0.35in; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #101828; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .poster { position: relative; width: 100%; min-height: 10.45in; overflow: hidden; border: 3px solid #111827; background: linear-gradient(180deg,#ffffff 0%,#fffdf5 52%,#f8fafc 100%); }
-  .top-stripe { height: 13px; background: repeating-linear-gradient(135deg,#fbbf24 0 18px,#111827 18px 36px); }
-  .hero { position: relative; overflow: hidden; padding: 22px 28px 20px; text-align: center; background: radial-gradient(circle at 15% 20%,rgba(250,204,21,.24),transparent 24%), radial-gradient(circle at 85% 5%,rgba(59,130,246,.28),transparent 27%), linear-gradient(135deg,#0f172a 0%,#172554 52%,#312e81 100%); color: white; }
-  .hero:before,.hero:after { content: ""; position:absolute; border:2px solid rgba(255,255,255,.12); border-radius:50%; }
-  .hero:before { width:170px;height:170px;left:-95px;bottom:-110px; } .hero:after { width:210px;height:210px;right:-110px;top:-130px; }
-  .brand { position:relative; z-index:2; display:inline-block; padding:5px 12px; border-radius:999px; background:#fbbf24; color:#111827; font-size:10px; font-weight:1000; letter-spacing:2.5px; }
-  h1 { position:relative; z-index:2; margin:9px auto 3px; max-width:700px; font-size:36px; line-height:.95; letter-spacing:-1.2px; font-weight:1000; text-transform:uppercase; }
-  .message { position:relative; z-index:2; margin:7px auto 0; max-width:620px; color:#e0e7ff; font-size:13px; font-weight:700; }
-  .hero-meta { position:relative; z-index:2; display:flex; justify-content:center; gap:7px; flex-wrap:wrap; margin-top:13px; }
-  .pill { padding:5px 10px; border:1px solid rgba(255,255,255,.28); border-radius:999px; background:rgba(255,255,255,.10); font-size:8px; font-weight:900; letter-spacing:.8px; }
-  .confetti { position:absolute; inset:0; pointer-events:none; opacity:.9; }
-  .confetti i { position:absolute; display:block; width:7px; height:13px; border-radius:2px; transform:rotate(24deg); }
-  .confetti i:nth-child(1){left:7%;top:22%;background:#fbbf24;transform:rotate(22deg)} .confetti i:nth-child(2){left:14%;top:68%;background:#60a5fa;transform:rotate(-35deg)} .confetti i:nth-child(3){left:25%;top:12%;background:#f472b6;transform:rotate(55deg)} .confetti i:nth-child(4){right:8%;top:25%;background:#34d399;transform:rotate(-25deg)} .confetti i:nth-child(5){right:18%;top:70%;background:#fbbf24;transform:rotate(38deg)} .confetti i:nth-child(6){right:28%;top:15%;background:#a78bfa;transform:rotate(-48deg)}
-  .champions-label { margin:14px 20px 7px; display:flex; align-items:center; gap:9px; font-size:11px; font-weight:1000; letter-spacing:1.8px; color:#4338ca; }
-  .champions-label:before,.champions-label:after { content:""; height:2px; flex:1; background:linear-gradient(90deg,transparent,#c7d2fe); } .champions-label:after{background:linear-gradient(90deg,#c7d2fe,transparent)}
-  .podium { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; padding:0 14px; align-items:stretch; }
-  .champ-card { position:relative; overflow:hidden; min-height:190px; padding:15px 10px 12px; border:2px solid #d0d5dd; border-radius:17px; text-align:center; break-inside:avoid; background:#fff; }
-  .champ-card:after { content:""; position:absolute; left:-20%; right:-20%; bottom:-42px; height:72px; border-radius:50%; opacity:.22; }
-  .place-1 { border-color:#e6a700; background:linear-gradient(180deg,#fff8cf 0%,#fffdf3 100%); box-shadow:0 5px 0 #fbbf24; transform:translateY(-3px); }
-  .place-1:after{background:#fbbf24}.place-2 { border-color:#98a2b3; background:linear-gradient(180deg,#f2f4f7,#fff); box-shadow:0 5px 0 #98a2b3; }.place-2:after{background:#98a2b3}.place-3 { border-color:#d97706; background:linear-gradient(180deg,#fff0dc,#fffaf5); box-shadow:0 5px 0 #d97706; }.place-3:after{background:#d97706}
-  .place-badge { display:inline-flex; align-items:center; gap:4px; padding:5px 8px; border-radius:999px; background:#111827; color:#fff; font-size:8px; font-weight:1000; letter-spacing:.8px; }
-  .place-1 .place-badge { background:#b77900; } .place-2 .place-badge { background:#475467; } .place-3 .place-badge { background:#b54708; }
-  .champ-name { margin-top:10px; min-height:36px; display:flex; align-items:center; justify-content:center; font-size:18px; line-height:1.02; font-weight:1000; letter-spacing:-.35px; }
-  .champ-meta { margin-top:4px; min-height:12px; font-size:8px; font-weight:700; color:#667085; }
-  .score-row { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px; }
-  .score-row div { padding:7px 4px; border-radius:10px; background:rgba(255,255,255,.72); border:1px solid rgba(17,24,39,.08); }
-  .score-row b { display:block; font-size:17px; line-height:1; color:#4338ca; } .score-row span { display:block; margin-top:3px; font-size:6px; font-weight:1000; letter-spacing:1px; color:#667085; }
-  .reward { position:relative; z-index:2; margin-top:9px; padding:7px 8px; border-radius:10px; background:#111827; color:white; }
-  .reward span { display:block; color:#fbbf24; font-size:7px; font-weight:1000; letter-spacing:1.3px; } .reward strong { display:block; margin-top:2px; font-size:11px; line-height:1.1; }
-  .standings { padding:0 14px; }
-  .standings-title { display:flex; justify-content:space-between; align-items:end; margin:15px 2px 6px; border-bottom:2px solid #111827; padding-bottom:5px; }
-  .standings-title h2 { margin:0; font-size:14px; font-weight:1000; text-transform:uppercase; letter-spacing:.4px; } .standings-title span { font-size:8px; color:#667085; font-weight:700; }
-  .standing-row { display:grid; grid-template-columns:42px 1fr 68px 78px; align-items:center; gap:7px; margin-bottom:5px; padding:6px 8px; border:1px solid #e4e7ec; border-radius:11px; background:#fff; break-inside:avoid; }
-  .rank-bubble { width:31px;height:31px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:1000; }
-  .standing-reader strong { display:block; font-size:11px; } .standing-reader small { display:block; margin-top:1px; color:#667085; font-size:7px; }
-  .standing-stat { text-align:center; border-left:1px solid #eaecf0; } .standing-stat b { display:block; font-size:11px; } .standing-stat span { display:block; font-size:6px; color:#667085; font-weight:900; letter-spacing:.7px; } .standing-stat.points b { color:#4338ca; }
-  .footer { margin:12px 14px 0; padding:9px 2px 11px; border-top:2px solid #fbbf24; display:flex; justify-content:space-between; align-items:center; font-size:8px; color:#667085; }
-  .footer strong { color:#111827; font-size:10px; letter-spacing:.8px; } .rise { font-weight:1000; color:#4338ca; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #172033; background: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .poster { width: 100%; min-height: 10.1in; border: 1px solid #cfd6df; background: #ffffff; }
+  .top-stripe { height: 7px; background: #172033; }
+  .hero { padding: 24px 28px 20px; background: #ffffff; color: #172033; border-bottom: 1px solid #dfe4ea; text-align: left; }
+  .confetti { display: none; }
+  .brand { display: inline-block; color: #8b6507; font-size: 10px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; }
+  h1 { margin: 9px 0 5px; max-width: 700px; font-size: 34px; line-height: 1; letter-spacing: -1px; font-weight: 800; text-transform: uppercase; color: #172033; }
+  .message { margin: 0; max-width: 650px; color: #5d6878; font-size: 13px; line-height: 1.45; font-weight: 500; }
+  .hero-meta { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; }
+  .pill { padding: 5px 9px; border: 1px solid #d8dee7; border-radius: 999px; background: #f7f8fa; color: #4d596a; font-size: 8px; font-weight: 700; letter-spacing: .7px; }
+  .champions-label { margin: 16px 20px 8px; display: flex; align-items: center; gap: 10px; font-size: 10px; font-weight: 800; letter-spacing: 1.6px; color: #5d6878; text-transform: uppercase; }
+  .champions-label:before,.champions-label:after { content:""; height:1px; flex:1; background:#dfe4ea; }
+  .podium { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:0 14px; align-items:stretch; }
+  .champ-card { min-height: 182px; padding: 14px 11px 12px; border: 1px solid #d6dce5; border-top: 5px solid #b7c0cc; border-radius: 10px; text-align:center; break-inside:avoid; background:#ffffff; }
+  .place-1 { border-top-color:#c99616; }
+  .place-2 { border-top-color:#8d99a8; }
+  .place-3 { border-top-color:#aa6d3a; }
+  .place-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; background:#f2f4f7; color:#344054; font-size:8px; font-weight:800; letter-spacing:.7px; }
+  .place-1 .place-badge { color:#7a5700; background:#fff8df; }
+  .place-2 .place-badge { color:#475467; background:#f2f4f7; }
+  .place-3 .place-badge { color:#7a4422; background:#fff3e8; }
+  .champ-name { margin-top:10px; min-height:36px; display:flex; align-items:center; justify-content:center; font-size:17px; line-height:1.05; font-weight:800; letter-spacing:-.25px; }
+  .champ-meta { margin-top:4px; min-height:12px; font-size:8px; color:#667085; }
+  .score-row { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px; }
+  .score-row div { padding:7px 4px; border-radius:7px; background:#f8fafc; border:1px solid #e5e9ef; }
+  .score-row b { display:block; font-size:16px; line-height:1; color:#172033; }
+  .score-row span { display:block; margin-top:3px; font-size:6px; font-weight:800; letter-spacing:.9px; color:#7a8595; }
+  .reward { margin-top:9px; padding:7px 8px; border-radius:7px; background:#fff9e8; border:1px solid #ead79f; color:#172033; }
+  .reward span { display:block; color:#8b6507; font-size:7px; font-weight:800; letter-spacing:1.2px; }
+  .reward strong { display:block; margin-top:2px; font-size:10px; line-height:1.2; }
+  .standings { padding:0 14px 4px; }
+  .standings-title { display:flex; justify-content:space-between; align-items:end; margin:16px 2px 7px; border-bottom:1px solid #b9c2cf; padding-bottom:6px; }
+  .standings-title h2 { margin:0; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; }
+  .standings-title span { font-size:7px; color:#7a8595; font-weight:700; }
+  .standing-row { display:grid; grid-template-columns:38px minmax(0,1fr) 58px 72px minmax(105px,145px); align-items:center; gap:7px; margin-bottom:5px; padding:7px 8px; border-bottom:1px solid #e7ebf0; background:#fff; break-inside:avoid; }
+  .rank-bubble { width:29px;height:29px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#f3f5f7;color:#344054;font-size:10px;font-weight:800; }
+  .standing-reader strong { display:block; font-size:10px; }
+  .standing-reader small { display:block; margin-top:2px; color:#7a8595; font-size:7px; }
+  .standing-stat { text-align:center; border-left:1px solid #e7ebf0; }
+  .standing-stat b { display:block; font-size:10px; }
+  .standing-stat span { display:block; font-size:6px; color:#7a8595; font-weight:800; letter-spacing:.6px; }
+  .standing-reward { border-left:1px solid #e7ebf0; padding-left:8px; min-width:0; }
+  .standing-reward span { display:block; font-size:6px; color:#8b6507; font-weight:800; letter-spacing:.7px; }
+  .standing-reward strong { display:block; margin-top:2px; font-size:8px; line-height:1.15; overflow-wrap:anywhere; }
+  .footer { margin:12px 14px 0; padding:9px 2px 11px; border-top:1px solid #dfe4ea; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:7px; color:#7a8595; }
+  .footer strong { color:#172033; font-size:9px; letter-spacing:.8px; }
+  .rise { font-weight:800; color:#8b6507; }
   @media print { body { background:#fff; } .poster { page-break-after:avoid; } }
 </style></head>
 <body><main class="poster">
@@ -127,7 +137,7 @@ const printFunction = `  const printAdminLeaderboard = () => {
   </section>
   <div class="champions-label">TOP READERS</div>
   <section class="podium">\${topThree}</section>
-  \${remainingRows ? \`<section class="standings"><div class="standings-title"><h2>More Readers Rising</h2><span>KEEP READING • KEEP CLIMBING</span></div>\${remainingRows}</section>\` : ""}
+  \${remainingRows ? \`<section class="standings"><div class="standings-title"><h2>Reader Standings</h2><span>CURRENT RESULTS</span></div>\${remainingRows}</section>\` : ""}
   <footer class="footer"><strong>A.R.I.S.E. READER</strong><span class="rise">READ • LEARN • EARN • PLAY • GROW</span><span>Keep reading. Keep rising.</span></footer>
 </main></body></html>\`;
 
@@ -165,17 +175,17 @@ const controlsReplacement = `                <option value="9-12">9-12 Band</opt
                 type="button"
                 onClick={printAdminLeaderboard}
                 disabled={adminLbLoading || adminLeaderboard.length === 0}
-                className="w-full sm:w-auto gap-2 font-black bg-amber-400 hover:bg-amber-500 text-slate-950"
+                className="w-full sm:w-auto gap-2 font-semibold"
               >
                 <Printer className="w-4 h-4" />
                 Print Hallway Poster
               </Button>
             </div>
 
-            <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-indigo-50 p-4 space-y-4">
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
               <div>
-                <div className="flex items-center gap-2 font-black text-slate-900"><Trophy className="w-5 h-5 text-amber-500" /> Hallway Poster Setup</div>
-                <p className="mt-1 text-xs text-slate-600">Make the printed leaderboard feel like an awards poster. Add a headline and tell everyone exactly what the top winners earned.</p>
+                <div className="flex items-center gap-2 font-semibold text-foreground"><Trophy className="w-5 h-5 text-primary" /> Hallway Poster Setup</div>
+                <p className="mt-1 text-xs text-muted-foreground">Make the printed leaderboard feel like an awards poster. Add a headline and tell everyone exactly what the top winners earned.</p>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
@@ -188,25 +198,40 @@ const controlsReplacement = `                <option value="9-12">9-12 Band</opt
                 </div>
               </div>
               <div>
-                <div className="text-xs font-black uppercase tracking-wider text-slate-600 mb-2">Winner Rewards</div>
-                <div className="grid gap-2 md:grid-cols-3">
-                  {[1, 2, 3].map((rank) => (
-                    <div key={rank} className="rounded-xl border bg-white p-3 shadow-sm">
-                      <Label className="text-xs font-black">{rank === 1 ? "🥇 1st Place" : rank === 2 ? "🥈 2nd Place" : "🥉 3rd Place"}</Label>
-                      <Input
-                        value={adminLbRewards[rank] || ""}
-                        onChange={(e) => setAdminLbRewards((prev) => ({ ...prev, [rank]: e.target.value }))}
-                        maxLength={60}
-                        placeholder={rank === 1 ? "Ex: Free lunch / food prize" : rank === 2 ? "Ex: $10 gift card" : "Ex: Snack prize"}
-                        className="mt-1"
-                      />
-                      {adminLeaderboard[rank - 1]?.displayName && <p className="mt-1 text-[10px] text-muted-foreground">Current #{rank}: <strong>{adminLeaderboard[rank - 1].displayName}</strong></p>}
-                    </div>
-                  ))}
+                <div className="flex flex-wrap items-end justify-between gap-2 mb-2">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Student rewards</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Optional. Edit the prize for any student included on this printout.</p>
+                  </div>
+                  {Object.keys(adminLbRewards).length > 0 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAdminLbRewards({})}>Clear rewards</Button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-border divide-y divide-border bg-background">
+                  {adminLeaderboard
+                    .slice(0, adminLbPrintCount === "all" ? adminLeaderboard.length : Math.max(1, Number(adminLbPrintCount) || 10))
+                    .map((entry: any, idx: number) => {
+                      const rewardKey = String(entry.id ?? idx + 1);
+                      return (
+                        <div key={rewardKey} className="grid gap-2 sm:grid-cols-[44px_minmax(0,1fr)_minmax(190px,1fr)] items-center p-3">
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground">#{idx + 1}</div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-foreground truncate">{entry.displayName || "Reader"}</div>
+                            <div className="text-[11px] text-muted-foreground">{Number(entry.totalPoints || 0).toLocaleString()} points • {Number(entry.quizzesTaken || 0)} quizzes</div>
+                          </div>
+                          <Input
+                            value={adminLbRewards[rewardKey] || ""}
+                            onChange={(e) => setAdminLbRewards((prev) => ({ ...prev, [rewardKey]: e.target.value }))}
+                            maxLength={80}
+                            placeholder="Optional prize / reward"
+                          />
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">The printout is optimized as a full-color Letter-size hallway poster. Your current reading-band filter and reward text are added automatically.</p>
+            <p className="text-xs text-muted-foreground">The printout uses a clean Letter-size school poster layout. Your current reading-band filter, student list, and any rewards you enter are added automatically.</p>
             {adminLbLoading ? (`;
 admin = admin.replace(controlsMarker, controlsReplacement);
 
