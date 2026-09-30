@@ -9,7 +9,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
-import MobileJoystick from "@/components/MobileJoystick";
+import MobileMovePad from "@/components/MobileMovePad";
 
 type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string;emoji?:string};
 type TheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null};
@@ -100,8 +100,6 @@ export default function ClubTheater(){
     if(currentMovie&&payload){
       setEmbedStart(Math.max(0,Math.floor(payload.state.currentPosition||0)));
       setVideoReady(false);
-      setMuted(false);
-      mutedRef.current=false;
     }
   },[currentMovie?.id]);
 
@@ -111,34 +109,26 @@ export default function ClubTheater(){
     frame.contentWindow.postMessage(JSON.stringify({event:"command",func,args:[]}),"*");
   };
 
-  const startMovieWithSound=()=>{
-    mutedRef.current=false;
-    setMuted(false);
-    youtubeCommand("unMute");
-    youtubeCommand("playVideo");
-  };
-
   useEffect(()=>{
     if(muted)youtubeCommand("mute");
     else{
-      startMovieWithSound();
+      youtubeCommand("unMute");
+      youtubeCommand("playVideo");
       setVideoReady(true);
     }
   },[muted]);
 
   useEffect(()=>{
-    if(!currentMovie)return;
-    // Mobile browsers sometimes delay unmuted autoplay until the first touch.
-    // Start unmuted immediately, then retry on the first touch anywhere in the cinema.
-    const immediate=[120,450,1100].map(ms=>window.setTimeout(startMovieWithSound,ms));
-    const retry=()=>startMovieWithSound();
-    window.addEventListener("pointerdown",retry,{once:true,capture:true});
-    window.addEventListener("touchstart",retry,{once:true,capture:true,passive:true});
-    return()=>{
-      immediate.forEach(window.clearTimeout);
-      window.removeEventListener("pointerdown",retry,true);
-      window.removeEventListener("touchstart",retry,true);
-    };
+    // Enter the cinema with sound requested on. Mobile browsers may delay
+    // audible autoplay until the first touch, so retry both immediately and
+    // on the first user gesture without ever defaulting the movie to mute.
+    setMuted(false);
+    mutedRef.current=false;
+    const tryPlay=()=>{youtubeCommand("unMute");youtubeCommand("playVideo");};
+    const timers=[250,900,1800].map(ms=>window.setTimeout(tryPlay,ms));
+    const firstGesture=()=>{tryPlay();window.removeEventListener("pointerdown",firstGesture,true);};
+    window.addEventListener("pointerdown",firstGesture,true);
+    return()=>{timers.forEach(window.clearTimeout);window.removeEventListener("pointerdown",firstGesture,true);};
   },[currentMovie?.id]);
 
   useEffect(()=>{
@@ -358,7 +348,7 @@ export default function ClubTheater(){
       iframe.style.pointerEvents="none";
       iframe.addEventListener("load",()=>{
         setVideoReady(true);
-        [120,400,900].forEach(ms=>window.setTimeout(()=>{if(mutedRef.current)youtubeCommand("mute");else startMovieWithSound();},ms));
+        window.setTimeout(()=>{youtubeCommand("playVideo");if(mutedRef.current)youtubeCommand("mute");else youtubeCommand("unMute");},250);
       });
       screenWrap.appendChild(iframe);
 
@@ -830,7 +820,7 @@ export default function ClubTheater(){
     }catch(e:any){setPopcorn("idle");setNotice(e.message||"Could not buy popcorn.");}
   };
 
-  const touchMove=(key:"w"|"a"|"s"|"d",active:boolean)=>{if(active)keysRef.current.add(key);else keysRef.current.delete(key);};
+  const move=(key:"w"|"a"|"s"|"d",pressed:boolean)=>{if(pressed)keysRef.current.add(key);else keysRef.current.delete(key);};
 
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-black text-white">
     <div ref={mountRef} className="absolute inset-0 touch-none"/>
@@ -854,7 +844,7 @@ export default function ClubTheater(){
 
     <div className="absolute left-2 top-16 z-30 flex flex-col gap-1.5 sm:left-4 sm:top-24">
       <div className="rounded-xl bg-slate-950/80 px-3 py-2 text-[10px] font-black leading-tight text-white/80 shadow-xl backdrop-blur">
-        <span className="hidden xl:inline">WASD/arrows: walk<br/></span>Drag: look around<br/>Pinch: zoom
+        WASD/arrows: walk<br/>Drag: look around<br/>Scroll/pinch: zoom
       </div>
       <button type="button" onClick={()=>{
         const root=rootRef.current,controls=controlsRef.current,camera=cameraRef.current;
@@ -893,12 +883,9 @@ export default function ClubTheater(){
       {notice}
     </div>
 
-    <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 hidden -translate-x-1/2 rounded-xl bg-black/60 px-3 py-2 text-center text-[10px] font-bold text-white/70 backdrop-blur xl:block sm:text-xs">
+    <MobileMovePad onMove={move} className="bottom-3 left-3" label="Cinema movement controls"/>
+    <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-xl bg-black/60 px-3 py-2 text-center text-[10px] font-bold text-white/70 backdrop-blur sm:text-xs">
       {seat?("Seated in "+seat+" · "):""}WASD/arrows walk · drag to look · tap a seat to sit {videoReady?"· show playing":""}
-    </div>
-
-    <div className="absolute bottom-4 right-3 z-40 xl:hidden">
-      <MobileJoystick onMove={touchMove} label="Walk"/>
     </div>
 
     {picker&&payload&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm">
