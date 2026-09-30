@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
+import { Arise2HomeAnnouncement } from "@/components/Arise2Update";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
@@ -568,9 +569,8 @@ export default function Admin() {
     }
   };
 
-  const handleNotifNavigate = (type: "request" | "user" | "teacher" | "message", id: number) => {
+  const handleNotifNavigate = (type: "request" | "user" | "teacher" | "parent" | "message" | "ai_quiz", id: number) => {
     if (type === "request") {
-      // Scroll to quiz requests and open create dialog for this request
       quizRequestsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       const req = quizRequests.find(r => r.id === id);
       if (req) {
@@ -586,14 +586,21 @@ export default function Admin() {
         setShowAddQuiz(true);
       }
     } else if (type === "teacher") {
-      // Scroll to teachers section
       teachersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (type === "parent") {
+      document.querySelector('[data-section="pending-parent-approvals"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (type === "ai_quiz") {
+      document.querySelector('[data-section="ai-quiz-review"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (type === "message") {
+      fetchStudentMsgs();
+      fetchSentMsgs();
+      fetchUnreadMsgCount();
+      setShowInbox(true);
     } else {
-      // Scroll to students table
       studentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    // Refresh notifications (NotificationBell will auto-mark-read on open, but this ensures the badge clears)
-    setNotifRefreshKey(k => k + 1);
+    // Action notifications stay visible until the task is actually resolved.
+    window.setTimeout(() => setNotifRefreshKey(k => k + 1), 250);
   };
 
   const fetchQuizRequests = async () => {
@@ -2151,6 +2158,7 @@ Generate exactly 10 questions.`;
       </header>
 
       <main className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 overflow-x-hidden">
+        <Arise2HomeAnnouncement />
         {/* Pending AI quiz alert banner */}
         {pendingQuizzes.length > 0 && (
           <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -3000,7 +3008,7 @@ Generate exactly 10 questions.`;
 
         {/* Pending Parent Approvals */}
         {pendingParents.length > 0 && (
-          <Card className="shadow-md border-blue-500/30">
+          <Card data-section="pending-parent-approvals" className="shadow-md border-blue-500/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-400">
                 <Users className="w-5 h-5" />

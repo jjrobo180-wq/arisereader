@@ -1,4 +1,5 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
+import { Arise2GlobalLauncher } from "@/components/Arise2Update";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -472,6 +473,7 @@ function AppInner() {
       {isStudent && !isEyeGazeStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isEyeGazeStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
+      <Arise2GlobalLauncher />
       <Router hook={useHashLocation}>
         <EyeGazeSiteShell>
           <ClubPlayGate><AppRoutes /></ClubPlayGate>
