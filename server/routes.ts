@@ -1614,6 +1614,13 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Answers are required" });
     }
 
+    const normalizedAnswers = Object.fromEntries(
+      Object.entries(answers).map(([questionId, answer]) => [
+        questionId,
+        String(answer || "").trim().toUpperCase(),
+      ])
+    );
+
     const allQuestions = await storage.getQuestionsByBook(bookId);
     if (allQuestions.length === 0) {
       return res.status(404).json({ message: "No questions found for this book" });
@@ -1621,14 +1628,14 @@ export async function registerRoutes(
 
     let score = 0;
     for (const q of allQuestions) {
-      const userAnswer = String(answers[String(q.id)] || "").trim().toUpperCase();
+      const userAnswer = String(normalizedAnswers[String(q.id)] || "").trim().toUpperCase();
       const correctAnswer = String(q.correctAnswer || "").trim().toUpperCase();
       if (userAnswer && userAnswer === correctAnswer) {
         score++;
       }
     }
 
-    const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, answers, effectivePoints);
+    const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, normalizedAnswers, effectivePoints);
     res.json({
       score,
       total: allQuestions.length,
