@@ -312,6 +312,62 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
     }
   });
 
+  app.get("/api/teacher/club-arise/profile-rule", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.role!=="teacher"&&!req.user.isAdmin)return res.status(403).json({message:"Teacher access required."});
+      let query=db().from("users").select("id").eq("role","student").eq("is_eye_gaze_user",false);
+      if(!req.user.isAdmin)query=query.eq("teacher_id",req.user.id);
+      const {data:students,error}=await query;
+      if(error)throw error;
+      const ids=(students||[]).map((s:any)=>s.id);
+      const {data:controls,error:controlError}=ids.length
+        ? await db().from("club_arise_controls").select("student_id,weekly_unlimited_on_pass").in("student_id",ids)
+        : {data:[] as any[],error:null as any};
+      if(controlError)throw controlError;
+      const map=new Map((controls||[]).map((row:any)=>[row.student_id,row.weekly_unlimited_on_pass!==false]));
+      const enabled=ids.every((id:number)=>map.get(id)!==false);
+      res.json({enabled,studentCount:ids.length});
+    }catch(error:any){
+      console.error("[club-arise] profile weekly rule",error?.message);
+      res.status(500).json({message:"Could not load the weekly play rule."});
+    }
+  });
+
+  app.post("/api/teacher/club-arise/profile-rule", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.role!=="teacher"&&!req.user.isAdmin)return res.status(403).json({message:"Teacher access required."});
+      const enabled=req.body?.enabled!==false;
+      let query=db().from("users").select("id,teacher_id").eq("role","student").eq("is_eye_gaze_user",false);
+      if(!req.user.isAdmin)query=query.eq("teacher_id",req.user.id);
+      const {data:students,error}=await query;
+      if(error)throw error;
+      const ids=(students||[]).map((s:any)=>s.id);
+      if(ids.length){
+        const {data:existing,error:existingError}=await db().from("club_arise_controls").select("*").in("student_id",ids);
+        if(existingError)throw existingError;
+        const current=new Map((existing||[]).map((row:any)=>[row.student_id,row]));
+        const rows=(students||[]).map((student:any)=>{
+          const old=current.get(student.id)||{};
+          return {
+            student_id:student.id,
+            teacher_id:student.teacher_id||req.user.id,
+            locked:!!old.locked,
+            daily_game_limit:old.daily_game_limit??null,
+            games_per_passed_quiz:Number(old.games_per_passed_quiz||0),
+            weekly_unlimited_on_pass:enabled,
+            updated_at:new Date().toISOString()
+          };
+        });
+        const {error:saveError}=await db().from("club_arise_controls").upsert(rows,{onConflict:"student_id"});
+        if(saveError)throw saveError;
+      }
+      res.json({enabled,studentCount:ids.length});
+    }catch(error:any){
+      console.error("[club-arise] save profile weekly rule",error?.message);
+      res.status(500).json({message:"Could not save the weekly play rule."});
+    }
+  });
+
   app.get("/api/teacher/club-arise/controls", authMiddleware, async(req:any,res)=>{
     try{
       if(req.user.role!=="teacher"&&!req.user.isAdmin) return res.status(403).json({message:"Teacher access required."});
