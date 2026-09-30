@@ -2146,6 +2146,7 @@ export async function registerRoutes(
       const wasRunaway=item.type==="pet"&&payload.state.runawayPets?.includes(item.id);
       const next={...payload.state,purchased:[...payload.state.purchased,item.id],
         runawayPets:wasRunaway?payload.state.runawayPets.filter((id:string)=>id!==item.id):payload.state.runawayPets,
+        lastRunaway:wasRunaway&&payload.state.lastRunaway?.petId===item.id?null:payload.state.lastRunaway,
         petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{happiness:90,lastUpdatedAt:now,lastFedAt:now,lastTreatAt:0,lastWalkAt:0}}:payload.state.petCare};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
       res.set("Cache-Control","no-store");
