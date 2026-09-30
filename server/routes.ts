@@ -1621,8 +1621,9 @@ export async function registerRoutes(
 
     let score = 0;
     for (const q of allQuestions) {
-      const userAnswer = answers[String(q.id)];
-      if (userAnswer === q.correctAnswer) {
+      const userAnswer = String(answers[String(q.id)] || "").trim().toUpperCase();
+      const correctAnswer = String(q.correctAnswer || "").trim().toUpperCase();
+      if (userAnswer && userAnswer === correctAnswer) {
         score++;
       }
     }
@@ -5176,8 +5177,8 @@ export async function registerRoutes(
         optionB: q.option_b,
         optionC: q.option_c,
         optionD: q.option_d,
-        correctAnswer: q.correct_answer,
-        studentAnswer: studentAnswers[String(q.id)] || null,
+        correctAnswer: String(q.correct_answer || "").trim().toUpperCase(),
+        studentAnswer: studentAnswers[String(q.id)] ? String(studentAnswers[String(q.id)]).trim().toUpperCase() : null,
         questionOrder: q.question_order,
       })),
     });
@@ -5186,7 +5187,7 @@ export async function registerRoutes(
   // Admin: regrade a quiz with corrected answers
   app.post("/api/admin/review-requests/:id/regrade", authMiddleware, adminMiddleware, async (req, res) => {
     const reviewId = parseInt(req.params.id);
-    const { correctedAnswers, updateAnswerKey, adminNotes } = req.body;
+    const { correctedAnswers, updateAnswerKey, adminNotes, manualScore } = req.body;
     const { data: review } = await supabase.from("quiz_review_requests").select("*").eq("id", reviewId).single();
     if (!review) return res.status(404).json({ message: "Review request not found" });
     if (review.status === "resolved") return res.status(400).json({ message: "This review has already been resolved" });
@@ -5194,15 +5195,22 @@ export async function registerRoutes(
     if (!attempt) return res.status(404).json({ message: "Attempt not found" });
     const { data: questions } = await supabase.from("questions").select("*").eq("book_id", review.book_id).order("question_order", { ascending: true });
     const studentAnswers = attempt.answers ? (typeof attempt.answers === "string" ? JSON.parse(attempt.answers) : attempt.answers) : {};
-    // Calculate new score using corrected answer keys
-    let newScore = 0;
-    for (const q of (questions || [])) {
-      const correctKey = correctedAnswers?.[String(q.id)] || q.correct_answer;
-      if (studentAnswers[String(q.id)] === correctKey) {
-        newScore++;
-      }
-    }
+    // Calculate from the answer key case-insensitively, or use an explicit manual score.
     const total = (questions || []).length;
+    let calculatedScore = 0;
+    for (const q of (questions || [])) {
+      const correctKey = String(correctedAnswers?.[String(q.id)] || q.correct_answer || "").trim().toUpperCase();
+      const studentKey = String(studentAnswers[String(q.id)] || "").trim().toUpperCase();
+      if (studentKey && studentKey === correctKey) calculatedScore++;
+    }
+    const hasManualScore = manualScore !== undefined && manualScore !== null && manualScore !== "";
+    const parsedManualScore = Number(manualScore);
+    if (hasManualScore && !Number.isFinite(parsedManualScore)) {
+      return res.status(400).json({ message: "Manual score must be a number." });
+    }
+    const newScore = hasManualScore
+      ? Math.max(0, Math.min(total, Math.round(parsedManualScore)))
+      : calculatedScore;
     const passingScore = arPassingScore(total);
     const passed = newScore >= passingScore;
     const { data: book } = await supabase.from("books").select("points_value").eq("id", review.book_id).single();
@@ -5217,7 +5225,10 @@ export async function registerRoutes(
     // Optionally update the answer key for future students
     if (updateAnswerKey && correctedAnswers) {
       for (const [qId, correctAns] of Object.entries(correctedAnswers)) {
-        await supabase.from("questions").update({ correct_answer: correctAns }).eq("id", parseInt(qId));
+        const normalizedAnswer = String(correctAns || "").trim().toUpperCase();
+        if (["A","B","C","D"].includes(normalizedAnswer)) {
+          await supabase.from("questions").update({ correct_answer: normalizedAnswer }).eq("id", parseInt(qId));
+        }
       }
     }
     // Mark review as resolved
@@ -5248,6 +5259,8 @@ export async function registerRoutes(
       newPoints,
       oldPoints,
       pointDiff,
+      calculatedScore,
+      manualOverride: hasManualScore,
     });
   });
 
