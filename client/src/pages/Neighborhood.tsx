@@ -129,10 +129,27 @@ export default function Neighborhood(){
     const resize=()=>{const width=mount.clientWidth,height=mount.clientHeight;camera.aspect=width/Math.max(1,height);camera.updateProjectionMatrix();renderer.setSize(width,height);};resize();window.addEventListener("resize",resize);
     const clock=new THREE.Clock();let frame=0;
     const render=()=>{if(disposed)return;const dt=Math.min(.05,clock.getDelta()),root=selfRootRef.current;
-      if(root){let dx=0,dz=0;const keys=keysRef.current;if(keys.has("w")||keys.has("arrowup"))dz-=1;if(keys.has("s")||keys.has("arrowdown"))dz+=1;if(keys.has("a")||keys.has("arrowleft"))dx-=1;if(keys.has("d")||keys.has("arrowright"))dx+=1;
-        if(dx||dz){const step=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar(5*dt);root.position.add(step);root.rotation.y=Math.atan2(step.x,step.z);targetRef.current.copy(root.position);}
-        else{const delta=targetRef.current.clone().sub(root.position);delta.y=0;if(delta.length()>.18){delta.normalize();root.position.addScaledVector(delta,4*dt);root.rotation.y=Math.atan2(delta.x,delta.z);}}
+      if(root){
+        const before=root.position.clone(),keys=keysRef.current;
+        const inputRight=((keys.has("d")||keys.has("arrowright"))?1:0)-((keys.has("a")||keys.has("arrowleft"))?1:0);
+        const inputForward=((keys.has("w")||keys.has("arrowup"))?1:0)-((keys.has("s")||keys.has("arrowdown"))?1:0);
+        if(inputRight||inputForward){
+          const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;
+          if(forward.lengthSq()<.0001)forward.set(0,0,-1);
+          forward.normalize();
+          const right=forward.clone().cross(new THREE.Vector3(0,1,0)).normalize();
+          const step=forward.multiplyScalar(inputForward).add(right.multiplyScalar(inputRight)).normalize().multiplyScalar(5*dt);
+          root.position.add(step);root.rotation.y=Math.atan2(step.x,step.z);targetRef.current.copy(root.position);
+        }else{
+          const delta=targetRef.current.clone().sub(root.position);delta.y=0;
+          if(delta.length()>.18){delta.normalize();root.position.addScaledVector(delta,4*dt);root.rotation.y=Math.atan2(delta.x,delta.z);}
+        }
         root.position.x=THREE.MathUtils.clamp(root.position.x,-31,31);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,22);
+        if(root.position.distanceToSquared(before)>.000001){
+          const focus=new THREE.Vector3(root.position.x,1.3,root.position.z);
+          const shift=focus.clone().sub(controls.target);
+          controls.target.copy(focus);camera.position.add(shift);
+        }
         if(Math.hypot(root.position.x,root.position.z+25)<1.7){setLeavingWorld(true);return;}
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
       }
