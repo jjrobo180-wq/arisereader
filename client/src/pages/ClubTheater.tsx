@@ -123,6 +123,7 @@ export default function ClubTheater(){
     const src=currentMovie.kind==="channel"&&currentMovie.youtubePlaylistId
       ?"https://www.youtube-nocookie.com/embed/videoseries?list="+encodeURIComponent(currentMovie.youtubePlaylistId)+"&autoplay=1&mute=0&playsinline=1&controls=0&rel=0&enablejsapi=1&loop=1"
       :"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=0&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||0));
+    iframe.title=currentMovie.title;
     if(iframe.src!==src){
       setVideoReady(false);
       iframe.src=src;
@@ -618,7 +619,7 @@ export default function ClubTheater(){
         remoteRootsRef.current.set(player.userId,root);
       }
       root.userData.mixer?.update?.(.04);
-      root.position.lerp(new THREE.Vector3(player.x,player.seatId?.startsWith("S") ? .42 : 0,player.z),.28);
+      const seatInfo=player.seatId?SEATS.find(s=>s.id===player.seatId):null;root.position.lerp(new THREE.Vector3(player.x,seatInfo ? .58+seatInfo.row*.1 : 0,player.z),.28);
       root.rotation.y=player.seatId?Math.PI:THREE.MathUtils.lerp(root.rotation.y,player.facing,.3);
     }
     remoteRootsRef.current.forEach((root,id)=>{if(!active.has(id)){scene.remove(root);remoteRootsRef.current.delete(id);}});
