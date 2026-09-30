@@ -109,6 +109,26 @@ async function playTime(userId: number, sessionId?: string, leaving = false) {
 }
 
 export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
+  const isSample = (req: any) => String(req.user?.username || "").startsWith("sample");
+  const sampleAccess = () => {
+    const now = Date.now();
+    return {
+      allowed: true,
+      locked: false,
+      unlimitedThisWeek: true,
+      remainingMs: 24 * 60 * 60 * 1000,
+      expiresAt: now + 24 * 60 * 60 * 1000,
+      leaseUntil: now + 24 * 60 * 60 * 1000,
+      serverNow: now,
+      day: clubDay(now),
+      week: clubWeek(now),
+      dailyMinutes: 0,
+      weeklyUnlimitedOnPass: true,
+      passedThisWeek: 0,
+      sample: true,
+    };
+  };
+
   const session = (req: any) => {
     const id = String(req.body?.sessionId || '');
     if (!/^[a-zA-Z0-9-]{16,64}$/.test(id)) throw new Error('Open Club Arise again to start your timer.');
@@ -118,17 +138,20 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
   app.post('/api/club-play/heartbeat', auth, async (req: any, res) => {
     res.set('Cache-Control', 'no-store');
     if (req.user.role !== 'student' || req.user.isAdmin || req.user.is_eye_gaze_user) return res.status(403).json({ message: 'Club Arise is for regular student accounts.' });
+    if (isSample(req)) return res.json(sampleAccess());
     try { res.json(await playTime(Number(req.user.id), session(req))); }
     catch (error) { console.error('[club-play]', error); res.status(503).json({ message: 'Could not sync your play timer. Please try again.' }); }
   });
 
   app.post('/api/club-play/leave', auth, async (req: any, res) => {
+    if (isSample(req)) return res.json({ ok: true });
     try { await playTime(Number(req.user.id), session(req), true); res.json({ ok: true }); }
     catch { res.status(503).json({ message: 'Could not save your play time.' }); }
   });
 
   const guard: RequestHandler = async (req: any, res, next) => {
     if (/\/leave$/.test(req.path)) return next();
+    if (isSample(req)) return next();
     if (req.user.isAdmin || req.user.role === 'teacher') return next();
     if (req.user.role !== 'student' || req.user.is_eye_gaze_user) return res.status(403).json({ message: 'Use a regular student account.' });
 
