@@ -32,6 +32,21 @@ export const PET_PERSONALITIES: Record<string,{emoji:string;trait:string;favorit
   "pet-deer":{emoji:"🦌",trait:"Shy and observant",favorite:"Exploring gently",greeting:"Can we explore together?",motion:"sway"},
 };
 
+export const PET_CARE_EVENT = "arise:open-pet-care";
+
+export function openPetCare() {
+  window.dispatchEvent(new CustomEvent(PET_CARE_EVENT));
+}
+
+export function findPetRoot(object: THREE.Object3D | null | undefined): THREE.Object3D | null {
+  let node: THREE.Object3D | null = object || null;
+  while (node) {
+    if (node.name === "clubPet") return node;
+    node = node.parent;
+  }
+  return null;
+}
+
 export function createPet(petId: string | null | undefined, loader: GLTFLoader, height: number) {
   const path = petId && PET_MODELS[petId];
   if (!path) return null;
