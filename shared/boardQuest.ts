@@ -7,11 +7,11 @@ export const EVENTS=['points','safe','steal','shield','power','rps','bonus'] as 
 export type SpaceEvent=typeof EVENTS[number];
 export const SPACE_LABELS:Record<SpaceEvent,string>={points:'+50 POINTS',safe:'SAFE SPACE',steal:'POINT STEAL',shield:'SHIELD',power:'POWER +2',rps:'ROCK PAPER SCISSORS',bonus:'JACKPOT +100'};
 export const HANDS:Hand[]=['rock','paper','scissors'];
-export const TIMING={introPlayer:1600,introHold:900,roll:2800,reveal:900,step:650,landing:1400,reward:3000,countdown:3000,duelResult:2800};
+export const TIMING={teamBanner:1800,introPlayer:2800,introTeamGap:1200,introHold:1000,openingCountdown:3200,openingRollPlayer:2200,openingResultHold:3200,roll:2800,reveal:900,step:650,landing:1400,reward:3000,countdown:3000,duelResult:2800};
 export type Player={id:number;name:string;characterId:string;team:Team;space:number;strikes:number;shield:number;power:number;out:boolean;bot:boolean};
 export type Cue={id:number;kind:'move'|'strike'|'duel';startAt:number;actor:number;from:number;to:number;raw:number;bonus:number;steps:number;event:SpaceEvent;rival?:number;hands?:[Hand,Hand];duelWinner?:number|null;title?:string;deltas?:{blue:number;gold:number};blocked?:boolean};
-export type Phase='lobby'|'intro'|'question'|'cinematic'|'rps'|'finished';
-export type View={code:string;hostId:number;level:Level;players:Player[];turn:number;phase:Phase;phaseAt:number;serverNow:number;scores:Record<Team,number>;cue:Cue|null;question:{id:number;q:string;a:string[]}|null;winner:string|null;rpsReady:number[];rpsDeadline:number;revision:number};
+export type Phase='lobby'|'intro'|'opening-roll'|'question'|'cinematic'|'rps'|'finished';
+export type View={code:string;hostId:number;level:Level;players:Player[];turn:number;phase:Phase;phaseAt:number;serverNow:number;scores:Record<Team,number>;cue:Cue|null;question:{id:number;q:string;a:string[]}|null;winner:string|null;rpsReady:number[];rpsDeadline:number;openingRolls:Record<number,number>;openingTotals:Record<Team,number>;startingTeam:Team|null;revision:number};
 export function moveLandingAt(cue:Cue){return cue.startAt+TIMING.roll+TIMING.reveal+(cue.to-cue.from)*TIMING.step;}
 export function rpsWinner(a:Hand,b:Hand):0|1|null{return a===b?null:((a==='rock'&&b==='scissors')||(a==='paper'&&b==='rock')||(a==='scissors'&&b==='paper'))?0:1;}
 export const BOARD_LAST_SPACE=55;
