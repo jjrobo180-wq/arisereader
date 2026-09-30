@@ -3101,235 +3101,250 @@ export async function registerRoutes(
     res.json({ settings: merged, message: "Competition settings updated!" });
   });
 
-  // Notification endpoints
-  app.get("/api/notifications", authMiddleware, async (req: any, res) => {
-    if (req.user.isAdmin) {
-      const reqSeenAt = await storage.getNotifSeenAt("quiz_requests");
-      const usersSeenAt = await storage.getNotifSeenAt("new_users");
-      const teachersSeenAt = await storage.getNotifSeenAt("pending_teachers");
-      const quizRequests = await storage.getQuizRequests();
-      const pendingReqs = quizRequests.filter((r: any) =>
-        r.status === "pending" && (!reqSeenAt || new Date(r.createdAt) > new Date(reqSeenAt))
-      );
-      const allUsers = await storage.getAllUsers();
-      const cutoff = usersSeenAt ? new Date(usersSeenAt) : new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-      const newUsersList = allUsers.filter((u: any) => new Date(u.createdAt) > cutoff);
-      // Pending teachers (not yet approved) - fetch directly without cache
-      const { data: allTeacherRows } = await supabase
-        .from("users")
-        .select("id, display_name, username, role, account_approved, email, created_at")
-        .eq("role", 'teacher')
-        .order("display_name", { ascending: true });
-      const pendingTeachersList = (allTeacherRows || []).filter((t: any) =>
-        !t.account_approved && (!teachersSeenAt || new Date(t.created_at) > new Date(teachersSeenAt))
-      );
-      // Pending parents
-      const { data: allParentRows } = await supabase
-        .from("users")
-        .select("id, display_name, username, role, account_approved, email, created_at")
-        .eq("role", 'parent')
-        .order("created_at", { ascending: false });
-      const pendingParentsList = (allParentRows || []).filter((p: any) =>
-        !p.account_approved
-      );
-      // Pending AI quizzes
-      const { data: pendingAIList } = await supabase
-        .from("pending_ai_quizzes")
-        .select("id, book_title, author, student_id, quiz_type, created_at")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-      const aiSeenAt = await storage.getNotifSeenAt("ai_quiz_pending");
-      const pendingAIItems = (pendingAIList || []).filter((r: any) =>
-        !aiSeenAt || new Date(r.created_at) > new Date(aiSeenAt)
-      );
-      // Fetch student names for AI quizzes
-      let aiStudentMap: Record<number, string> = {};
-      if (pendingAIItems.length > 0) {
-        const studentIds = [...new Set(pendingAIItems.map((r: any) => r.student_id))];
-        const { data: aiStudents } = await supabase
-          .from("users")
-          .select("id, display_name")
-          .in("id", studentIds);
-        (aiStudents || []).forEach((s: any) => { aiStudentMap[s.id] = s.display_name; });
-      }
-      res.json({
-        unreadCount: pendingReqs.length + newUsersList.length + pendingTeachersList.length + pendingParentsList.length + pendingAIItems.length,
-        type: "admin",
-        pendingRequests: pendingReqs.length,
-        newUsers: newUsersList.length,
-        pendingTeachers: pendingTeachersList.length,
-        pendingParents: pendingParentsList.length,
-        pendingAIQuizzes: pendingAIItems.length,
-        pendingRequestItems: pendingReqs.map((r: any) => ({
-          id: r.id,
-          bookTitle: r.bookTitle,
-          author: r.author,
-          studentName: r.studentName,
-          createdAt: r.createdAt,
-        })),
-        newUserItems: newUsersList.map((u: any) => ({
-          id: u.id,
-          displayName: u.displayName,
-          username: u.username,
-          createdAt: u.createdAt,
-        })),
-        pendingTeacherItems: pendingTeachersList.map((t: any) => ({
-          id: t.id,
-          displayName: t.display_name,
-          username: t.username,
-          email: t.email,
-          createdAt: t.created_at,
-        })),
-        pendingAIQuizItems: pendingAIItems.map((r: any) => ({
-          id: r.id,
-          bookTitle: r.book_title,
-          author: r.author,
-          studentName: aiStudentMap[r.student_id] || 'Unknown',
-          quizType: r.quiz_type,
-          createdAt: r.created_at,
-        })),
-      });
-    } else if (req.user.role === 'teacher') {
-      // Teachers: bell shows book requests from students + pending AI quizzes from their students
-      const teacherId = req.user.id;
+  // Notification endpoints v3 — visible items and badge count always match.
+  // Actionable tasks stay visible until they are resolved or explicitly dismissed.
+  const notificationDismissedSetting=(userId:number)=>`notification_dismissed_${userId}`;
+  const getDismissedNotifications=async(userId:number):Promise<Set<string>>=>{
+    try{
+      const raw=await storage.getSetting(notificationDismissedSetting(userId));
+      const parsed=raw?JSON.parse(raw):[];
+      return new Set(Array.isArray(parsed)?parsed.map(String):[]);
+    }catch{return new Set<string>();}
+  };
+  const saveDismissedNotifications=async(userId:number,dismissed:Set<string>)=>{
+    await storage.upsertSetting(notificationDismissedSetting(userId),JSON.stringify(Array.from(dismissed).slice(-1000)));
+  };
+  const duplicateGenericTitles=new Set(["AI Quiz Pending Review","Student book request","Manual review needed"]);
 
-      // Fetch book request notifications for this teacher from the notifications table
-      const { data: bookRequestNotifs } = await supabase
-        .from('notifications')
-        .select('id, message, created_at, read')
-        .eq('user_id', teacherId)
-        .eq('title', 'Student book request')
-        .eq('read', false)
-        .order('created_at', { ascending: false })
-        .limit(20);
+  app.get("/api/notifications",authMiddleware,async(req:any,res)=>{
+    try{
+      res.set("Cache-Control","no-store, no-cache, must-revalidate");
+      const userId=Number(req.user.id);
+      const dismissed=await getDismissedNotifications(userId);
 
-      // Fetch pending AI quizzes for this teacher's students
-      const linksRaw = await storage.getSetting('teacher_students');
-      let studentIds: number[] = [];
-      if (linksRaw) {
-        try {
-          const links = JSON.parse(linksRaw);
-          studentIds = links[String(teacherId)] || [];
-        } catch {}
-      }
+      const {data:genericRows}=await supabase
+        .from("notifications")
+        .select("id,user_id,type,title,message,read,created_at")
+        .eq("user_id",userId)
+        .eq("read",false)
+        .order("created_at",{ascending:false})
+        .limit(50);
+      const generic=(genericRows||[]).filter((n:any)=>
+        !duplicateGenericTitles.has(String(n.title||"")) &&
+        !dismissed.has(`generic:${n.id}`)
+      );
 
-      let pendingAIItems: any[] = [];
-      if (studentIds.length > 0) {
-        const { data: pendingAIList } = await supabase
-          .from('pending_ai_quizzes')
-          .select('id, book_title, author, student_id, quiz_type, created_at')
-          .eq('status', 'pending')
-          .in('student_id', studentIds)
-          .order('created_at', { ascending: false });
-        const aiSeenAt = await storage.getNotifSeenAt('ai_quiz_pending');
-        pendingAIItems = (pendingAIList || []).filter((r: any) =>
-          !aiSeenAt || new Date(r.created_at) > new Date(aiSeenAt)
+      if(req.user.isAdmin){
+        const quizRequests=(await storage.getQuizRequests()).filter((r:any)=>
+          r.status==="pending"&&!dismissed.has(`request:${r.id}`)
         );
-        // Fetch student names
-        if (pendingAIItems.length > 0) {
-          const sIds = [...new Set(pendingAIItems.map((r: any) => r.student_id))];
-          const { data: aiStudents } = await supabase
-            .from('users')
-            .select('id, display_name')
-            .in('id', sIds);
-          const aiStudentMap: Record<number, string> = {};
-          (aiStudents || []).forEach((s: any) => { aiStudentMap[s.id] = s.display_name; });
-          pendingAIItems = pendingAIItems.map((r: any) => ({
-            ...r,
-            studentName: aiStudentMap[r.student_id] || 'Unknown',
-          }));
+
+        const allUsers=await storage.getAllUsers();
+        const threeDaysAgo=Date.now()-3*24*60*60*1000;
+        const newStudents=allUsers.filter((u:any)=>
+          (!u.role||u.role==="student") &&
+          new Date(u.createdAt).getTime()>threeDaysAgo &&
+          !dismissed.has(`user:${u.id}`)
+        );
+
+        const {data:teacherRows}=await supabase.from("users")
+          .select("id,display_name,username,email,created_at,account_approved")
+          .eq("role","teacher")
+          .eq("account_approved",false)
+          .order("created_at",{ascending:false});
+        const pendingTeachers=(teacherRows||[]).filter((t:any)=>!dismissed.has(`teacher:${t.id}`));
+
+        const {data:parentRows}=await supabase.from("users")
+          .select("id,display_name,username,email,created_at,account_approved")
+          .eq("role","parent")
+          .eq("account_approved",false)
+          .order("created_at",{ascending:false});
+        const pendingParents=(parentRows||[]).filter((p:any)=>!dismissed.has(`parent:${p.id}`));
+
+        const {data:aiRows}=await supabase.from("pending_ai_quizzes")
+          .select("id,book_title,author,student_id,quiz_type,created_at")
+          .eq("status","pending")
+          .order("created_at",{ascending:false});
+        const pendingAI=(aiRows||[]).filter((r:any)=>!dismissed.has(`ai_quiz:${r.id}`));
+
+        const {data:reviewRows}=await supabase.from("quiz_review_requests")
+          .select("id,user_id,book_id,reason,status,created_at")
+          .eq("status","pending")
+          .order("created_at",{ascending:false});
+        const pendingReviews=(reviewRows||[]).filter((r:any)=>!dismissed.has(`review:${r.id}`));
+
+        const personIds=Array.from(new Set([
+          ...pendingAI.map((r:any)=>Number(r.student_id)),
+          ...pendingReviews.map((r:any)=>Number(r.user_id)),
+        ].filter(Boolean)));
+        const bookIds=Array.from(new Set(pendingReviews.map((r:any)=>Number(r.book_id)).filter(Boolean)));
+        const personMap:Record<number,string>={};
+        const bookMap:Record<number,string>={};
+        if(personIds.length){
+          const {data:people}=await supabase.from("users").select("id,display_name").in("id",personIds);
+          (people||[]).forEach((p:any)=>{personMap[p.id]=p.display_name||"Student";});
         }
+        if(bookIds.length){
+          const {data:books}=await supabase.from("books").select("id,title").in("id",bookIds);
+          (books||[]).forEach((b:any)=>{bookMap[b.id]=b.title||"Quiz";});
+        }
+
+        const payload={
+          type:"admin",
+          pendingRequestItems:quizRequests.map((r:any)=>({
+            id:r.id,bookTitle:r.bookTitle,author:r.author,studentName:r.studentName,createdAt:r.createdAt,
+          })),
+          newUserItems:newStudents.map((u:any)=>({
+            id:u.id,displayName:u.displayName,username:u.username,createdAt:u.createdAt,
+          })),
+          pendingTeacherItems:pendingTeachers.map((t:any)=>({
+            id:t.id,displayName:t.display_name,username:t.username,createdAt:t.created_at,
+          })),
+          pendingParentItems:pendingParents.map((p:any)=>({
+            id:p.id,displayName:p.display_name,username:p.username,createdAt:p.created_at,
+          })),
+          pendingAIQuizItems:pendingAI.map((r:any)=>({
+            id:r.id,bookTitle:r.book_title,author:r.author,studentName:personMap[r.student_id]||"Student",createdAt:r.created_at,
+          })),
+          pendingReviewItems:pendingReviews.map((r:any)=>({
+            id:r.id,bookTitle:bookMap[r.book_id]||"Quiz grade review",studentName:personMap[r.user_id]||"Student",reason:r.reason||"",createdAt:r.created_at,
+          })),
+          genericItems:generic.map((n:any)=>({
+            id:n.id,title:n.title,messageText:n.message,notificationType:n.type,createdAt:n.created_at,
+          })),
+        };
+        const unreadCount=Object.entries(payload)
+          .filter(([key,value])=>key.endsWith("Items")&&Array.isArray(value))
+          .reduce((sum,[,value])=>sum+(value as any[]).length,0);
+        return res.json({...payload,unreadCount});
       }
 
-      // Also check for pending student approvals for this teacher
-      const { data: pendingStudentsData } = await supabase
-        .from('users')
-        .select('id, display_name, username, created_at')
-        .eq('teacher_id', teacherId)
-        .eq('approved_by_teacher', false)
-        .order('created_at', { ascending: false });
-      const pendingStudentsSeenAt = await storage.getNotifSeenAt('new_users');
-      const pendingStudentItems = (pendingStudentsData || []).filter((s: any) =>
-        !pendingStudentsSeenAt || new Date(s.created_at) > new Date(pendingStudentsSeenAt)
-      );
+      if(req.user.role==="teacher"){
+        const teacherId=userId;
+        const {data:bookRequestRows}=await supabase.from("notifications")
+          .select("id,message,created_at,read")
+          .eq("user_id",teacherId)
+          .eq("title","Student book request")
+          .eq("read",false)
+          .order("created_at",{ascending:false})
+          .limit(30);
 
-      const unreadCount = (bookRequestNotifs || []).length + pendingAIItems.length + pendingStudentItems.length;
+        const linksRaw=await storage.getSetting("teacher_students");
+        let studentIds:number[]=[];
+        if(linksRaw){try{const links=JSON.parse(linksRaw);studentIds=(links[String(teacherId)]||[]).map(Number);}catch{}}
 
-      res.json({
-        unreadCount,
-        type: 'teacher',
-        pendingRequestItems: (bookRequestNotifs || []).map((n: any) => ({
-          id: n.id,
-          bookTitle: n.message.match(/read "(.+?)"/)?.[1] || n.message.match(/requested "(.+?)"/)?.[1] || 'Unknown book',
-          studentName: n.message.match(/^(.+?) would like/)?.[1] || n.message.match(/^(.+?) requested/)?.[1] || 'Student',
-          message: n.message,
-          createdAt: n.created_at,
-        })),
-        pendingAIQuizItems: pendingAIItems.map((r: any) => ({
-          id: r.id,
-          bookTitle: r.book_title,
-          author: r.author,
-          studentName: r.studentName,
-          quizType: r.quiz_type,
-          createdAt: r.created_at,
-        })),
-        newUserItems: pendingStudentItems.map((s: any) => ({
-          id: s.id,
-          displayName: s.display_name,
-          username: s.username,
-          createdAt: s.created_at,
-        })),
-      });
-    } else {
-      // Students: bell shows unread messages from teacher
-      const messages = await storage.getUserMessages(req.user.id);
-      const unreadMsgs = messages.filter((m: any) => !m.isRead && m.senderType === "teacher");
-      res.json({
-        unreadCount: unreadMsgs.length,
-        type: "student",
-        messageItems: unreadMsgs.map((m: any) => ({
-          id: m.id,
-          messageText: m.messageText,
-          createdAt: m.createdAt,
-        })),
-      });
+        let pendingAI:any[]=[];
+        if(studentIds.length){
+          const {data:rows}=await supabase.from("pending_ai_quizzes")
+            .select("id,book_title,author,student_id,quiz_type,created_at")
+            .eq("status","pending")
+            .in("student_id",studentIds)
+            .order("created_at",{ascending:false});
+          pendingAI=(rows||[]).filter((r:any)=>!dismissed.has(`ai_quiz:${r.id}`));
+        }
+
+        const {data:pendingStudentsRows}=await supabase.from("users")
+          .select("id,display_name,username,created_at")
+          .eq("teacher_id",teacherId)
+          .eq("approved_by_teacher",false)
+          .order("created_at",{ascending:false});
+        const pendingStudents=(pendingStudentsRows||[]).filter((s:any)=>!dismissed.has(`user:${s.id}`));
+
+        const nameMap:Record<number,string>={};
+        if(pendingAI.length){
+          const ids=Array.from(new Set(pendingAI.map((r:any)=>Number(r.student_id))));
+          const {data:people}=await supabase.from("users").select("id,display_name").in("id",ids);
+          (people||[]).forEach((p:any)=>{nameMap[p.id]=p.display_name||"Student";});
+        }
+
+        const payload={
+          type:"teacher",
+          pendingRequestItems:(bookRequestRows||[]).map((n:any)=>({
+            id:n.id,
+            bookTitle:n.message?.match(/read "(.+?)"/)?.[1]||n.message?.match(/requested "(.+?)"/)?.[1]||"Book request",
+            studentName:n.message?.match(/^(.+?) would like/)?.[1]||n.message?.match(/^(.+?) requested/)?.[1]||"Student",
+            createdAt:n.created_at,
+          })),
+          pendingAIQuizItems:pendingAI.map((r:any)=>({
+            id:r.id,bookTitle:r.book_title,author:r.author,studentName:nameMap[r.student_id]||"Student",createdAt:r.created_at,
+          })),
+          newUserItems:pendingStudents.map((s:any)=>({
+            id:s.id,displayName:s.display_name,username:s.username,createdAt:s.created_at,
+          })),
+          genericItems:generic.map((n:any)=>({
+            id:n.id,title:n.title,messageText:n.message,notificationType:n.type,createdAt:n.created_at,
+          })),
+        };
+        const unreadCount=payload.pendingRequestItems.length+payload.pendingAIQuizItems.length+payload.newUserItems.length+payload.genericItems.length;
+        return res.json({...payload,unreadCount});
+      }
+
+      const messages=await storage.getUserMessages(userId);
+      const unreadMsgs=messages.filter((m:any)=>!m.isRead&&m.senderType==="teacher");
+      const payload={
+        type:"student",
+        messageItems:unreadMsgs.map((m:any)=>({id:m.id,messageText:m.messageText,createdAt:m.createdAt})),
+        genericItems:generic.map((n:any)=>({id:n.id,title:n.title,messageText:n.message,notificationType:n.type,createdAt:n.created_at})),
+      };
+      return res.json({...payload,unreadCount:payload.messageItems.length+payload.genericItems.length});
+    }catch(error:any){
+      console.error("[notifications] load failed:",error?.message);
+      res.status(500).json({message:"Could not load notifications"});
     }
   });
 
-  // Mark notifications as seen (clears bell — all or individual type)
-  app.post("/api/notifications/mark-seen", authMiddleware, async (req, res) => {
-    try {
-      const notifType = req.body?.type;
-      const notifId = req.body?.id; // optional: dismiss a single book-request notification
-
-      if (notifType === "messages") {
-        await storage.markAllMessagesRead(req.user.id);
-      } else if (notifId != null && (req.user.role === "teacher" || req.user.isAdmin)) {
-        // Teacher/admin dismissing a single book-request notification by id
-        await supabase.from("notifications").update({ read: true }).eq("id", notifId).eq("user_id", req.user.id);
-      } else if (notifType === "quiz_requests" || notifType === "new_users" || notifType === "pending_teachers" || notifType === "ai_quiz_pending") {
-        // Admin-only admin notification types; teachers may also clear ai_quiz_pending
-        if (!req.user.isAdmin && notifType !== "ai_quiz_pending") return res.status(403).json({ message: "Forbidden" });
-        await storage.setNotifSeenAt(notifType);
-      } else {
-        // Clear all — admins clear admin types, teachers clear book requests + ai quizzes, students clear messages
-        if (req.user.isAdmin) {
-          await storage.setNotifSeenAt("quiz_requests");
-          await storage.setNotifSeenAt("new_users");
-          await storage.setNotifSeenAt("pending_teachers");
-          await storage.setNotifSeenAt("ai_quiz_pending");
-        } else if (req.user.role === "teacher") {
-          // Mark this teacher's book-request notifications as read
-          await supabase.from("notifications").update({ read: true }).eq("user_id", req.user.id).eq("title", "Student book request");
-          await storage.setNotifSeenAt("ai_quiz_pending");
-          await storage.setNotifSeenAt("new_users");
-        } else {
-          await storage.markAllMessagesRead(req.user.id);
+  app.post("/api/notifications/mark-seen",authMiddleware,async(req:any,res)=>{
+    try{
+      const userId=Number(req.user.id);
+      const dismissed=await getDismissedNotifications(userId);
+      const dismissOne=async(type:string,id:number)=>{
+        if(type==="generic"){
+          await supabase.from("notifications").update({read:true}).eq("id",id).eq("user_id",userId);
+          return;
         }
+        if(type==="message"){
+          await storage.markMessageReadById(id,userId);
+          return;
+        }
+        if(type==="request"&&req.user.role==="teacher"&&!req.user.isAdmin){
+          await supabase.from("notifications").update({read:true}).eq("id",id).eq("user_id",userId);
+          return;
+        }
+        if(["request","user","teacher","parent","ai_quiz","review"].includes(type)){
+          dismissed.add(`${type}:${id}`);
+        }
+      };
+
+      if(req.body?.all===true){
+        const items=Array.isArray(req.body?.items)?req.body.items:[];
+        for(const item of items){
+          const type=String(item?.type||"");
+          const id=Number(item?.id);
+          if(type&&Number.isFinite(id))await dismissOne(type,id);
+        }
+        await saveDismissedNotifications(userId,dismissed);
+        return res.json({message:"Visible notifications cleared"});
       }
-      res.json({ message: "Notifications cleared" });
-    } catch (e) {
-      res.status(500).json({ message: "Failed to clear notifications" });
+
+      const itemType=String(req.body?.itemType||"");
+      const notifId=Number(req.body?.id);
+      if(itemType&&Number.isFinite(notifId)){
+        await dismissOne(itemType,notifId);
+        await saveDismissedNotifications(userId,dismissed);
+        return res.json({message:"Notification dismissed"});
+      }
+
+      // Compatibility with older clients while the new front-end rolls out.
+      if(req.body?.id!=null){
+        const legacyId=Number(req.body.id);
+        if(Number.isFinite(legacyId))await supabase.from("notifications").update({read:true}).eq("id",legacyId).eq("user_id",userId);
+      }else{
+        await supabase.from("notifications").update({read:true}).eq("user_id",userId);
+      }
+      res.json({message:"Notifications updated"});
+    }catch(error:any){
+      console.error("[notifications] update failed:",error?.message);
+      res.status(500).json({message:"Failed to update notifications"});
     }
   });
 
