@@ -92,6 +92,7 @@ import ClubPlayGate from "./components/ClubPlayGate";
 import ClubTheater from "./pages/ClubTheater";
 import Worlds from "./pages/Worlds";
 import Neighborhood from "./pages/Neighborhood";
+import HomeInterior from "./pages/HomeInterior";
 import BoardGameWorld from "./pages/BoardGameWorld";
 import NotFound from "./pages/not-found";
 
@@ -267,7 +268,7 @@ function AppRoutes() {
       </Route>
       <Route path="/my-home">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><AvatarWorld initialTab="home" /></ProtectedRoute>
+          ? <ProtectedRoute><HomeInterior /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/club-arise">
