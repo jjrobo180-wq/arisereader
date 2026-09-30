@@ -243,6 +243,30 @@ export default function ClubTheater(){
     fakeScreen.userData.movieScreen=true;
     scene.add(fakeScreen);
 
+    // Stage, curtains and speaker towers make the screen feel anchored in a real cinema.
+    const stageFloor=new THREE.Mesh(new THREE.BoxGeometry(18.5,.45,3.2),new THREE.MeshStandardMaterial({color:0x130d16,roughness:.55,metalness:.08}));
+    stageFloor.position.set(0,.18,-6.85);stageFloor.receiveShadow=true;scene.add(stageFloor);
+    const curtainMat=new THREE.MeshStandardMaterial({color:0x7f0f1d,roughness:.78});
+    for(const x of [-8.25,8.25]){
+      const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.45,9.2,.55),curtainMat);
+      curtain.position.set(x,5.2,-8.72);curtain.castShadow=true;scene.add(curtain);
+      for(let fold=0;fold<4;fold++){
+        const pleat=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,8.6,12),new THREE.MeshStandardMaterial({color:fold%2?0x5b0b16:0x991b2c,roughness:.82}));
+        pleat.position.set(x+(fold-1.5)*.28,5.2,-8.38);scene.add(pleat);
+      }
+    }
+    const valance=new THREE.Mesh(new THREE.BoxGeometry(17.9,1.05,.65),curtainMat);
+    valance.position.set(0,9.25,-8.72);scene.add(valance);
+    const speakerMat=new THREE.MeshStandardMaterial({color:0x080b12,roughness:.42,metalness:.28});
+    for(const x of [-10.45,10.45]){
+      const tower=new THREE.Mesh(new THREE.BoxGeometry(1.7,5.2,1.55),speakerMat);tower.position.set(x,2.85,-7.55);scene.add(tower);
+      for(const y of [1.55,2.85,4.15]){const cone=new THREE.Mesh(new THREE.CylinderGeometry(.48,.34,.18,24),new THREE.MeshStandardMaterial({color:0x1f2937,roughness:.45,metalness:.25}));cone.rotation.x=Math.PI/2;cone.position.set(x,y,-6.73);scene.add(cone);}
+    }
+    const frontRailMat=new THREE.MeshStandardMaterial({color:0xc7a34a,metalness:.72,roughness:.25});
+    for(const x of [-5.8,5.8]){const post=new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,1.15,12),frontRailMat);post.position.set(x,.75,-5.35);scene.add(post);}
+    const rope=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,11.6,12),new THREE.MeshStandardMaterial({color:0x8b1e2d,roughness:.68}));
+    rope.rotation.z=Math.PI/2;rope.position.set(0,1.1,-5.35);scene.add(rope);
+
     if(currentMovie){
       const screenWrap=document.createElement("div");
       screenWrap.style.width="800px";
@@ -293,46 +317,80 @@ export default function ClubTheater(){
     }
 
     const rayTargets:THREE.Object3D[]=[floor];
+    const riserMat=new THREE.MeshStandardMaterial({color:0x211520,roughness:.82});
+    for(let row=0;row<3;row++){
+      const z=2+row*3.7;
+      for(const x of [-7.2,7.2]){
+        const riser=new THREE.Mesh(new THREE.BoxGeometry(11.7,.22+row*.11,3.15),riserMat);
+        riser.position.set(x,.11+row*.055,z);riser.receiveShadow=true;scene.add(riser);
+      }
+    }
     SEATS.forEach(s=>{
       const x=(s.col-1.5)*3.2+(s.col<2?-1.25:1.25);
       const z=2+s.row*3.7;
       const root=new THREE.Group();
-      root.position.set(x,0,z);
+      root.position.set(x,.18+s.row*.1,z);
       root.userData.seatId=s.id;
       scene.add(root);
 
-      const seatMat=new THREE.MeshStandardMaterial({color:0x991b1b,roughness:.5});
-      const cushion=new THREE.Mesh(new THREE.BoxGeometry(2.1,.45,1.75),seatMat);
-      cushion.position.y=.55;
-      cushion.castShadow=true;
-      root.add(cushion);
+      const leather=new THREE.MeshStandardMaterial({color:0x6f101b,roughness:.42,metalness:.05});
+      const leatherDark=new THREE.MeshStandardMaterial({color:0x3e0c14,roughness:.5});
+      const trimMat=new THREE.MeshStandardMaterial({color:0x111827,roughness:.35,metalness:.3});
 
-      const backrest=new THREE.Mesh(new THREE.BoxGeometry(2.1,2.05,.4),seatMat);
-      backrest.position.set(0,1.55,.65);
-      backrest.rotation.x=-.08;
-      backrest.castShadow=true;
-      root.add(backrest);
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(.78,.92,.42,24),trimMat);
+      base.position.y=.28;base.scale.z=1.15;root.add(base);
 
-      const armMat=new THREE.MeshStandardMaterial({color:0x111827,metalness:.2,roughness:.5});
-      for(const ax of [-1.2,1.2]){
-        const arm=new THREE.Mesh(new THREE.BoxGeometry(.18,.58,1.6),armMat);
-        arm.position.set(ax,.75,0);
-        root.add(arm);
+      const cushion=new THREE.Mesh(new THREE.BoxGeometry(2.18,.5,1.9),leather);
+      cushion.position.set(0,.68,-.05);cushion.rotation.x=.05;cushion.castShadow=true;root.add(cushion);
+
+      const backrest=new THREE.Mesh(new THREE.BoxGeometry(2.2,2.25,.5),leather);
+      backrest.position.set(0,1.72,.68);backrest.rotation.x=-.14;backrest.castShadow=true;root.add(backrest);
+
+      const headrest=new THREE.Mesh(new THREE.BoxGeometry(1.75,.72,.58),leatherDark);
+      headrest.position.set(0,2.55,.83);headrest.rotation.x=-.14;headrest.castShadow=true;root.add(headrest);
+
+      const lumbar=new THREE.Mesh(new THREE.BoxGeometry(1.62,.52,.18),new THREE.MeshStandardMaterial({color:0x8f1725,roughness:.48}));
+      lumbar.position.set(0,1.62,.38);lumbar.rotation.x=-.12;root.add(lumbar);
+
+      for(const ax of [-1.24,1.24]){
+        const arm=new THREE.Mesh(new THREE.BoxGeometry(.28,.7,1.82),leatherDark);
+        arm.position.set(ax,.93,.03);arm.castShadow=true;root.add(arm);
+        const cap=new THREE.Mesh(new THREE.BoxGeometry(.36,.16,1.42),trimMat);
+        cap.position.set(ax,1.29,-.02);root.add(cap);
       }
 
+      const cupRing=new THREE.Mesh(new THREE.TorusGeometry(.18,.045,10,24),new THREE.MeshStandardMaterial({color:0x9ca3af,metalness:.82,roughness:.2}));
+      cupRing.rotation.x=Math.PI/2;cupRing.position.set(1.24,1.39,-.28);root.add(cupRing);
+      const cupHole=new THREE.Mesh(new THREE.CylinderGeometry(.135,.135,.1,18),new THREE.MeshBasicMaterial({color:0x030712}));
+      cupHole.position.set(1.24,1.34,-.28);root.add(cupHole);
+
+      const stitchMat=new THREE.MeshBasicMaterial({color:0xd6a5a5});
+      for(const sx of [-.78,.78]){const stitch=new THREE.Mesh(new THREE.BoxGeometry(.025,1.45,.025),stitchMat);stitch.position.set(sx,1.82,.39);stitch.rotation.x=-.14;root.add(stitch);}
+
       const hit=new THREE.Mesh(
-        new THREE.BoxGeometry(2.6,2.8,2.3),
+        new THREE.BoxGeometry(2.75,3.2,2.55),
         new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})
       );
-      hit.position.y=1.25;
+      hit.position.y=1.45;
       hit.userData.seatId=s.id;
       root.add(hit);
       rayTargets.push(hit);
-
-      const cup=new THREE.Mesh(new THREE.CylinderGeometry(.16,.13,.42,12),new THREE.MeshStandardMaterial({color:0xef4444}));
-      cup.position.set(1.25,.95,.1);
-      root.add(cup);
     });
+
+    // Aisle guide lights, ceiling stars and exit signage.
+    for(let z=-3;z<=16;z+=2.4){
+      for(const x of [-1.7,1.7]){
+        const guide=new THREE.Mesh(new THREE.BoxGeometry(.16,.06,.52),new THREE.MeshBasicMaterial({color:0xfbbf24}));
+        guide.position.set(x,.065,z);scene.add(guide);
+      }
+    }
+    const starGeo=new THREE.SphereGeometry(.045,8,6),starMat=new THREE.MeshBasicMaterial({color:0xdbeafe});
+    for(let i=0;i<80;i++){const star=new THREE.Mesh(starGeo,starMat);star.position.set(-12+(i*7.13)%24,9.4+(i%4)*.08,-5+(i*5.77)%29);scene.add(star);}
+    for(const [x,z] of [[-13,14],[13,14]] as [number,number][]){
+      const exitBox=new THREE.Mesh(new THREE.BoxGeometry(2.2,.8,.18),new THREE.MeshStandardMaterial({color:0x064e3b,emissive:0x10b981,emissiveIntensity:1.2}));
+      exitBox.position.set(x,5.4,z);scene.add(exitBox);
+      const exitGlow=new THREE.PointLight(0x34d399,1.6,5);exitGlow.position.set(x,5,z-.4);scene.add(exitGlow);
+    }
 
     // Lobby / concession area behind the auditorium
     const lobbyFloor=new THREE.Mesh(new THREE.PlaneGeometry(28,14),new THREE.MeshStandardMaterial({color:0x24111c,roughness:.8}));
@@ -423,7 +481,7 @@ export default function ClubTheater(){
             if(s){
               const sx=(s.col-1.5)*3.2+(s.col<2?-1.25:1.25);
               const sz=2+s.row*3.7;
-              targetRef.current.set(sx,0,sz+.15);
+              targetRef.current.set(sx,.18+s.row*.1,sz+.15);
               setSeat(seatId);
               setNotice("Walking to seat "+seatId+"…");
             }
@@ -439,7 +497,7 @@ export default function ClubTheater(){
         targetRef.current.set(
           THREE.MathUtils.clamp(hit.point.x,-12,12),
           0,
-          THREE.MathUtils.clamp(hit.point.z,-7,27)
+          THREE.MathUtils.clamp(hit.point.z,-5.2,27)
         );
       }
     };
@@ -496,10 +554,11 @@ export default function ClubTheater(){
           const move=delta.normalize().multiplyScalar(step);
           root.position.add(move);
           root.position.x=THREE.MathUtils.clamp(root.position.x,-12,12);
-          root.position.z=THREE.MathUtils.clamp(root.position.z,-7,27);
+          root.position.z=THREE.MathUtils.clamp(root.position.z,-5.2,27);
           root.rotation.y=Math.atan2(move.x,move.z);
         }else if(seatRef.current){
-          root.position.y=.42;
+          const seated=SEATS.find(s=>s.id===seatRef.current);
+          root.position.y=.58+(seated?.row||0)*.1;
           root.rotation.y=Math.PI;
         }else root.position.y=0;
 
@@ -509,6 +568,8 @@ export default function ClubTheater(){
       }
       remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
       controls.update();
+      camera.position.z=Math.max(camera.position.z,-5.85);
+      controls.target.z=Math.max(controls.target.z,-5.2);
       renderer.render(scene,camera);
       cssRenderer.render(cssScene,camera);
       raf=requestAnimationFrame(loop);
