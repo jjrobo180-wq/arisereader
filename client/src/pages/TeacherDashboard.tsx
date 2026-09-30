@@ -4,7 +4,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
-import { Arise2HomeAnnouncement } from "@/components/Arise2Update";
 import { printParentInvites } from "@/lib/parentInvites";
 
 function getTokenFromCookie(): string | null {
@@ -337,7 +336,6 @@ export default function TeacherDashboard() {
 
   if (!user || !authorized) return null;
   return <main style={styles.page}>
-        <Arise2HomeAnnouncement />
     <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><NotificationBell refreshKey={bellRefreshKey} onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} /><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>
     {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={styles.content}>
       <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, marginBottom: 18 }}>Host a live quiz</button>
