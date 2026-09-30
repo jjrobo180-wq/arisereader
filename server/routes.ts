@@ -5223,6 +5223,7 @@ export async function registerRoutes(
     const bookPoints = Number(book?.points_value ?? 0);
     const newPoints = arPointsForScore(bookPoints, newScore, total);
     const oldPoints = Number(attempt.points_earned || 0);
+    const pointDiff = Math.round((newPoints - oldPoints) * 10) / 10;
     // Update the attempt
     await supabase.from("attempts").update({
       score: newScore,
@@ -5237,6 +5238,14 @@ export async function registerRoutes(
         }
       }
     }
+    // Keep the student's leaderboard total in sync with the corrected quiz points.
+    if (pointDiff !== 0) {
+      const { data: scoreUser } = await supabase.from("users").select("total_points").eq("id", review.user_id).single();
+      const currentTotal = Number(scoreUser?.total_points || 0);
+      await supabase.from("users").update({
+        total_points: Math.max(0, Math.round((currentTotal + pointDiff) * 10) / 10),
+      }).eq("id", review.user_id);
+    }
     // Mark review as resolved
     await supabase.from("quiz_review_requests").update({
       status: "resolved",
@@ -5247,7 +5256,6 @@ export async function registerRoutes(
     }).eq("id", reviewId);
     // Send student a message about the result
     const { data: bookTitle } = await supabase.from("books").select("title").eq("id", review.book_id).single();
-    const pointDiff = newPoints - oldPoints;
     let msgText = `[QUIZ REVIEW COMPLETE] Your quiz for "${bookTitle?.title || "Unknown"}" has been reviewed. `;
     msgText += `Updated score: ${newScore}/${total}. `;
     if (pointDiff > 0) {
