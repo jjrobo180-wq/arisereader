@@ -118,7 +118,7 @@ let adminCache: { students: Student[]; books: BookItem[] } = {
 };
 
 export default function Admin() {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   const [students, setStudents] = useState<Student[]>(adminCache.students);
   const [loading, setLoading] = useState(adminCache.students.length === 0);
@@ -2157,6 +2157,36 @@ Generate exactly 10 questions.`;
       </header>
 
       <main className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 overflow-x-hidden">
+        <Card className="border-primary/20 bg-card shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Student Experience Preview</p>
+                <h2 className="mt-1 text-lg font-bold">View A.R.I.S.E. exactly like a student</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Non-Eye Gazer is the default. Switch modes anytime from the preview bar. Preview quiz results do not enter student leaderboards or competitions.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:min-w-[300px]">
+                <Button
+                  variant="default"
+                  onClick={() => { startAdminPreview("regular"); navigate("/profile"); }}
+                  className="font-bold"
+                >
+                  <Users className="mr-2 h-4 w-4" /> Non-Eye Gazer
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { startAdminPreview("eye-gaze"); navigate("/eye-gaze-home"); }}
+                  className="font-bold"
+                >
+                  <Eye className="mr-2 h-4 w-4" /> Eye Gazer
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Pending AI quiz alert banner */}
         {pendingQuizzes.length > 0 && (
           <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
