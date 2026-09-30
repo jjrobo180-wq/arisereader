@@ -1,0 +1,44 @@
+name: Add 5 Point Books Section
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/add-five-point-books.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-library:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Add 5-point section and restore 5-point search visibility
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('client/src/pages/Library.tsx')
+          text = path.read_text()
+          old = 'const pointsOrder = ["10", "20", "30"];'
+          new = 'const pointsOrder = ["5", "10", "20", "30"];'
+          if old not in text:
+              if new in text:
+                  print('5-point section already present')
+              else:
+                  raise SystemExit('Expected pointsOrder line not found; refusing unsafe edit')
+          else:
+              text = text.replace(old, new, 1)
+              path.write_text(text)
+              print('Added 5-point section')
+          PY
+          rm -f .github/workflows/add-five-point-books.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add client/src/pages/Library.tsx .github/workflows/add-five-point-books.yml
+          git diff --cached --check
+          git commit -m "Show 5-point books in library and search"
+          git push origin master
