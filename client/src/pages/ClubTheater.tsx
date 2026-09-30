@@ -41,7 +41,6 @@ export default function ClubTheater(){
   const [busy,setBusy]=useState(false);
   const [videoReady,setVideoReady]=useState(false);
   const [embedStart,setEmbedStart]=useState(0);
-  const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("pan");
   const [notice,setNotice]=useState("You start in the center. Explore the auditorium, lobby, popcorn stand, and other readers.");
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
@@ -131,15 +130,6 @@ export default function ClubTheater(){
   },[currentMovie?.id]);
 
   useEffect(()=>{
-    const controls=controlsRef.current;
-    if(!controls)return;
-    controls.mouseButtons.LEFT=cameraMode==="pan"?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;
-    controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;
-    controls.touches.ONE=cameraMode==="pan"?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE;
-    controls.touches.TWO=cameraMode==="pan"?THREE.TOUCH.DOLLY_ROTATE:THREE.TOUCH.DOLLY_PAN;
-  },[cameraMode]);
-
-  useEffect(()=>{
     const mount=mountRef.current;
     if(!mount)return;
     let disposed=false;
@@ -147,26 +137,35 @@ export default function ClubTheater(){
     const cssScene=new THREE.Scene();
     sceneRef.current=scene;
     cssSceneRef.current=cssScene;
-    scene.background=new THREE.Color(0x101423);
+
+    // The YouTube screen is a CSS3D iframe. Render it BEHIND the transparent
+    // WebGL layer so avatars, seats, curtains, rails, etc. can properly cover
+    // the movie instead of the iframe painting over everything.
+    scene.background=null;
     scene.fog=new THREE.Fog(0x101423,38,72);
+    mount.style.background="#101423";
 
     const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/Math.max(1,mount.clientHeight),.1,100);
-    camera.position.set(0,15,24);
+    camera.position.set(0,5.6,18.5);
     cameraRef.current=camera;
 
-    const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+    const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance",alpha:true});
     renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
     renderer.setSize(mount.clientWidth,mount.clientHeight);
+    renderer.setClearColor(0x101423,0);
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.shadowMap.enabled=true;
     mount.appendChild(renderer.domElement);
     renderer.domElement.style.position="absolute";
     renderer.domElement.style.inset="0";
+    renderer.domElement.style.zIndex="2";
+    renderer.domElement.style.pointerEvents="auto";
 
     const cssRenderer=new CSS3DRenderer();
     cssRenderer.setSize(mount.clientWidth,mount.clientHeight);
     cssRenderer.domElement.style.position="absolute";
     cssRenderer.domElement.style.inset="0";
+    cssRenderer.domElement.style.zIndex="1";
     cssRenderer.domElement.style.pointerEvents="none";
     cssRenderer.domElement.style.overflow="hidden";
     mount.appendChild(cssRenderer.domElement);
@@ -174,16 +173,22 @@ export default function ClubTheater(){
 
     const controls=new OrbitControls(camera,renderer.domElement);
     controlsRef.current=controls;
-    controls.target.set(0,1.3,10);
+    controls.target.set(0,1.5,10);
     controls.enableDamping=true;
-    controls.enablePan=true;
+    controls.dampingFactor=.09;
+
+    // One consistent third-person camera: drag/touch always looks around.
+    // Panning is disabled so walking can never accidentally push the target
+    // into the ceiling/"sky" and require a separate rotate mode to recover.
+    controls.enablePan=false;
     controls.screenSpacePanning=false;
-    controls.mouseButtons.LEFT=THREE.MOUSE.PAN;
+    controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;
     controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;
-    controls.touches.ONE=THREE.TOUCH.PAN;
+    controls.touches.ONE=THREE.TOUCH.ROTATE;
     controls.touches.TWO=THREE.TOUCH.DOLLY_ROTATE;
-    controls.minDistance=8;
-    controls.maxDistance=38;
+    controls.minDistance=5.2;
+    controls.maxDistance=12.5;
+    controls.minPolarAngle=Math.PI*.31;
     controls.maxPolarAngle=Math.PI*.47;
 
     scene.add(new THREE.AmbientLight(0xffffff,1.05));
@@ -223,10 +228,22 @@ export default function ClubTheater(){
     // letting the camera pass through a wall, a seat, or behind the movie screen.
     const cameraBlockers:THREE.Object3D[]=[];
 
-    const back=new THREE.Mesh(new THREE.BoxGeometry(28,11,.7),new THREE.MeshStandardMaterial({color:0x100811}));
-    back.position.set(0,5.5,-10);
-    scene.add(back);
-    cameraBlockers.push(back);
+    // Build the screen wall with a real opening. This lets the CSS3D movie
+    // show through the transparent WebGL canvas while WebGL objects remain in
+    // front of it and can naturally occlude it.
+    const backWallMat=new THREE.MeshStandardMaterial({color:0x100811,roughness:.88});
+    const backPieces=[
+      {size:[6.1,11,.7] as [number,number,number],pos:[-10.95,5.5,-10] as [number,number,number]},
+      {size:[6.1,11,.7] as [number,number,number],pos:[10.95,5.5,-10] as [number,number,number]},
+      {size:[15.8,1.15,.7] as [number,number,number],pos:[0,.575,-10] as [number,number,number]},
+      {size:[15.8,1.3,.7] as [number,number,number],pos:[0,10.35,-10] as [number,number,number]}
+    ];
+    for(const piece of backPieces){
+      const wallPiece=new THREE.Mesh(new THREE.BoxGeometry(...piece.size),backWallMat);
+      wallPiece.position.set(...piece.pos);
+      scene.add(wallPiece);
+      cameraBlockers.push(wallPiece);
+    }
 
     for(const x of [-14,14]){
       const wall=new THREE.Mesh(new THREE.BoxGeometry(.7,11,58),new THREE.MeshStandardMaterial({color:0x120914}));
@@ -235,21 +252,39 @@ export default function ClubTheater(){
       cameraBlockers.push(wall);
     }
 
-    const frame=new THREE.Mesh(
-      new THREE.BoxGeometry(16.5,9,.5),
-      new THREE.MeshStandardMaterial({color:0x08080d,metalness:.55,roughness:.25})
+    // A real ceiling and rear lobby wall remove the remaining "blank sky"
+    // angles and also give the camera solid surfaces to collide with.
+    const ceiling=new THREE.Mesh(
+      new THREE.BoxGeometry(28,.32,38),
+      new THREE.MeshStandardMaterial({color:0x0b1020,roughness:.92})
     );
-    frame.position.set(0,5.4,-9.35);
-    scene.add(frame);
-    cameraBlockers.push(frame);
+    ceiling.position.set(0,9.85,9);
+    scene.add(ceiling);
+    cameraBlockers.push(ceiling);
 
-    const fakeScreen=new THREE.Mesh(
-      new THREE.PlaneGeometry(15.4,7.9),
-      new THREE.MeshBasicMaterial({color:0x050505})
+    const lobbyBackWall=new THREE.Mesh(
+      new THREE.BoxGeometry(28,11,.7),
+      new THREE.MeshStandardMaterial({color:0x171126,roughness:.86})
     );
-    fakeScreen.position.set(0,5.4,-9.02);
-    fakeScreen.userData.movieScreen=true;
-    scene.add(fakeScreen);
+    lobbyBackWall.position.set(0,5.5,28.4);
+    scene.add(lobbyBackWall);
+    cameraBlockers.push(lobbyBackWall);
+
+    // Four frame bars instead of one solid box, so the video is never covered
+    // by its own WebGL frame.
+    const frameMat=new THREE.MeshStandardMaterial({color:0x08080d,metalness:.55,roughness:.25});
+    const frameParts=[
+      {size:[16.5,.55,.5] as [number,number,number],pos:[0,9.625,-9.35] as [number,number,number]},
+      {size:[16.5,.55,.5] as [number,number,number],pos:[0,1.175,-9.35] as [number,number,number]},
+      {size:[.55,7.9,.5] as [number,number,number],pos:[-7.975,5.4,-9.35] as [number,number,number]},
+      {size:[.55,7.9,.5] as [number,number,number],pos:[7.975,5.4,-9.35] as [number,number,number]}
+    ];
+    for(const part of frameParts){
+      const framePart=new THREE.Mesh(new THREE.BoxGeometry(...part.size),frameMat);
+      framePart.position.set(...part.pos);
+      scene.add(framePart);
+      cameraBlockers.push(framePart);
+    }
 
     // Stage, curtains and speaker towers make the screen feel anchored in a real cinema.
     const stageFloor=new THREE.Mesh(new THREE.BoxGeometry(18.5,.45,3.2),new THREE.MeshStandardMaterial({color:0x130d16,roughness:.55,metalness:.08}));
@@ -507,7 +542,7 @@ export default function ClubTheater(){
         targetRef.current.set(
           THREE.MathUtils.clamp(hit.point.x,-12,12),
           0,
-          THREE.MathUtils.clamp(hit.point.z,-5.2,27)
+          THREE.MathUtils.clamp(hit.point.z,-4,27)
         );
       }
     };
@@ -544,16 +579,24 @@ export default function ClubTheater(){
       if(root){
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
 
-        const dir=new THREE.Vector3(
-          ((keysRef.current.has("d")||keysRef.current.has("arrowright"))?1:0)-((keysRef.current.has("a")||keysRef.current.has("arrowleft"))?1:0),
-          0,
-          ((keysRef.current.has("s")||keysRef.current.has("arrowdown"))?1:0)-((keysRef.current.has("w")||keysRef.current.has("arrowup"))?1:0)
-        );
+        // WASD/arrows move relative to the current camera view, like a
+        // normal third-person game. Looking around never changes altitude.
+        const inputRight=((keysRef.current.has("d")||keysRef.current.has("arrowright"))?1:0)-((keysRef.current.has("a")||keysRef.current.has("arrowleft"))?1:0);
+        const inputForward=((keysRef.current.has("w")||keysRef.current.has("arrowup"))?1:0)-((keysRef.current.has("s")||keysRef.current.has("arrowdown"))?1:0);
 
-        if(dir.lengthSq()>0){
-          dir.normalize().multiplyScalar(6*dt);
-          targetRef.current.copy(root.position.clone().add(dir));
-          setSeat(null);
+        if(inputRight||inputForward){
+          const forward=new THREE.Vector3();
+          camera.getWorldDirection(forward);
+          forward.y=0;
+          if(forward.lengthSq()<.0001)forward.set(0,0,-1);
+          forward.normalize();
+          const right=forward.clone().cross(new THREE.Vector3(0,1,0)).normalize();
+          const dir=forward.multiplyScalar(inputForward).add(right.multiplyScalar(inputRight)).normalize().multiplyScalar(6*dt);
+          targetRef.current.copy(root.position).add(dir);
+          if(seatRef.current){
+            seatRef.current=null;
+            setSeat(null);
+          }
         }
 
         const delta=targetRef.current.clone().sub(root.position);
@@ -564,7 +607,8 @@ export default function ClubTheater(){
           const move=delta.normalize().multiplyScalar(step);
           root.position.add(move);
           root.position.x=THREE.MathUtils.clamp(root.position.x,-12,12);
-          root.position.z=THREE.MathUtils.clamp(root.position.z,-5.2,27);
+          // Keep players on the audience side of the stage/rope.
+          root.position.z=THREE.MathUtils.clamp(root.position.z,-4,27);
           root.rotation.y=Math.atan2(move.x,move.z);
         }else if(seatRef.current){
           const seated=SEATS.find(s=>s.id===seatRef.current);
@@ -584,12 +628,12 @@ export default function ClubTheater(){
           controls.enabled=true;
           const center=new THREE.Vector3(root.position.x,1.5,root.position.z);
 
-          // Move the camera only by the same small amount that the target moved.
-          // The old code added the full center-to-target gap every frame, which
-          // compounded and could fling the camera through the theater geometry.
-          const previousTarget=controls.target.clone();
-          controls.target.lerp(center,.15);
-          camera.position.add(controls.target.clone().sub(previousTarget));
+          // True chase-camera tracking: translate the camera exactly as much as
+          // its target moved. There is no accumulating vertical or positional
+          // drift, so walking cannot launch the view into the ceiling.
+          const followShift=center.clone().sub(controls.target);
+          controls.target.copy(center);
+          camera.position.add(followShift);
         }
       }
       remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
@@ -597,19 +641,11 @@ export default function ClubTheater(){
 
       const seatedNow=!!seatRef.current;
       if(!seatedNow&&rootRef.current){
-        // Hard room bounds: free-look can rotate 360°, but the camera itself
-        // never gets outside the auditorium or behind the screen.
-        camera.position.x=THREE.MathUtils.clamp(camera.position.x,-12.65,12.65);
-        camera.position.y=THREE.MathUtils.clamp(camera.position.y,1.05,8.8);
-        camera.position.z=THREE.MathUtils.clamp(camera.position.z,-4.9,26.6);
-        controls.target.x=THREE.MathUtils.clamp(controls.target.x,-12,12);
-        controls.target.y=THREE.MathUtils.clamp(controls.target.y,.55,6);
-        controls.target.z=THREE.MathUtils.clamp(controls.target.z,-5.05,26.6);
-
-        // If a seat or wall is between the player and the camera, pull the
-        // camera forward just before that surface instead of showing a giant
-        // blank/black clipped face.
         const focus=new THREE.Vector3(rootRef.current.position.x,1.55,rootRef.current.position.z);
+
+        // Collision shortens the chase-camera arm before it can enter a seat,
+        // wall or ceiling. The camera remains anchored to the player instead
+        // of being independently panned around the room.
         const offset=camera.position.clone().sub(focus);
         const distance=offset.length();
         if(distance>1.5){
@@ -619,16 +655,22 @@ export default function ClubTheater(){
           cameraRay.far=distance;
           const obstruction=cameraRay.intersectObjects(cameraBlockers,true)[0];
           if(obstruction&&obstruction.distance<distance){
-            const safeDistance=Math.max(1.55,obstruction.distance-.5);
+            const safeDistance=Math.max(1.7,obstruction.distance-.45);
             camera.position.copy(focus).add(direction.multiplyScalar(safeDistance));
           }
         }
+
+        // Final safety rails for the actual room. Vertical range is narrow
+        // enough that the user can look up/down without ever becoming a
+        // floating "sky camera".
+        camera.position.x=THREE.MathUtils.clamp(camera.position.x,-13.15,13.15);
+        camera.position.y=THREE.MathUtils.clamp(camera.position.y,2.15,8.7);
+        camera.position.z=THREE.MathUtils.clamp(camera.position.z,-4.75,27.65);
+        controls.target.set(rootRef.current.position.x,1.5,rootRef.current.position.z);
       }else{
-        // Seated mode keeps the movie-screen focus target, while the actual
-        // camera remains on the audience side of the stage.
         camera.position.x=THREE.MathUtils.clamp(camera.position.x,-12,12);
         camera.position.y=THREE.MathUtils.clamp(camera.position.y,1.4,7.5);
-        camera.position.z=THREE.MathUtils.clamp(camera.position.z,-4.9,26.6);
+        camera.position.z=THREE.MathUtils.clamp(camera.position.z,-4.75,26.6);
       }
 
       camera.lookAt(controls.target);
@@ -746,9 +788,24 @@ export default function ClubTheater(){
     </div>
 
     <div className="absolute left-2 top-16 z-30 flex flex-col gap-1.5 sm:left-4 sm:top-24">
-      <button type="button" onClick={()=>setCameraMode("pan")} className={"min-h-10 rounded-xl px-3 text-xs font-black shadow-xl backdrop-blur "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-slate-950/90 text-white")}>Move</button>
-      <button type="button" onClick={()=>setCameraMode("rotate")} className={"min-h-10 rounded-xl px-3 text-xs font-black shadow-xl backdrop-blur "+(cameraMode==="rotate"?"bg-cyan-300 text-slate-950":"bg-slate-950/90 text-white")}>Rotate 360°</button>
-      <button type="button" onClick={()=>{const root=rootRef.current,controls=controlsRef.current,camera=cameraRef.current;if(root&&controls&&camera){const center=new THREE.Vector3(root.position.x,1.5,root.position.z);camera.position.add(center.clone().sub(controls.target));controls.target.copy(center);controls.update();}}} className="min-h-10 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl backdrop-blur">Center</button>
+      <div className="rounded-xl bg-slate-950/80 px-3 py-2 text-[10px] font-black leading-tight text-white/80 shadow-xl backdrop-blur">
+        WASD/arrows: walk<br/>Drag: look around<br/>Scroll/pinch: zoom
+      </div>
+      <button type="button" onClick={()=>{
+        const root=rootRef.current,controls=controlsRef.current,camera=cameraRef.current;
+        if(root&&controls&&camera){
+          seatRef.current=null;
+          setSeat(null);
+          targetRef.current.copy(root.position);
+          const center=new THREE.Vector3(root.position.x,1.5,root.position.z);
+          const resetZ=root.position.z>17?root.position.z-8:root.position.z+8;
+          controls.enabled=true;
+          controls.target.copy(center);
+          camera.position.set(root.position.x,5.5,THREE.MathUtils.clamp(resetZ,-4.5,27.2));
+          controls.update();
+          setNotice("View reset. Drag anywhere to look around; use WASD/arrows to walk.");
+        }
+      }} className="min-h-10 rounded-xl bg-cyan-300 px-3 text-xs font-black text-slate-950 shadow-xl">Reset View</button>
     </div>
 
     <div className="absolute right-2 top-16 z-30 flex flex-col gap-1.5 sm:right-4 sm:top-24">
@@ -772,7 +829,7 @@ export default function ClubTheater(){
     </div>
 
     <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-xl bg-black/60 px-3 py-2 text-center text-[10px] font-bold text-white/70 backdrop-blur sm:text-xs">
-      {seat?("Seated in "+seat+" · "):""}Walk the lobby or auditorium · tap a seat to sit · WASD/arrows {videoReady?"· show playing":""}
+      {seat?("Seated in "+seat+" · "):""}WASD/arrows walk · drag to look · tap a seat to sit {videoReady?"· show playing":""}
     </div>
 
     {picker&&payload&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm">
