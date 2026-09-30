@@ -1744,51 +1744,96 @@ export async function registerRoutes(
   const PET_DAY=24*60*60*1000;
   const PET_FEED_COST=40;
   const PET_RETURN_COST=80;
-  const CLUB_THEATER_CHANGE_COST=75;
+  const CLUB_THEATER_CHANGE_COST=0;
   const THREE_SAFE=(value:number,min:number,max:number,fallback:number)=>Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;
   const CLUB_THEATER_PRESENCE_TTL=15000;
   type ClubTheaterVisitor={userId:number;displayName:string;characterId:string;x:number;z:number;facing:number;seatId:string|null;lastSeen:number};
   const clubTheaterPresence=new Map<number,ClubTheaterVisitor>();
+  const CLUB_THEATER_CHANNELS=YOUTUBE_CHANNEL_OPTIONS.map(channel=>({
+    id:"channel-"+channel.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),
+    title:channel.name,
+    subtitle:"Official YouTube channel · continuous shows and videos",
+    kind:"channel" as const,
+    youtubeId:"",
+    youtubePlaylistId:channel.id.replace(/^UC/,"UU"),
+    duration:21600,
+    license:"YouTube embed",
+    attribution:channel.name+" official YouTube channel",
+    age:"Kid-friendly",
+    category:"TV Channels",
+    emoji:channel.emoji
+  }));
   const CLUB_THEATER_MOVIES=[
+    {
+      id:"featured-youtube-show",
+      title:"Featured YouTube Show",
+      subtitle:"Featured full-length YouTube program",
+      kind:"video" as const,
+      youtubeId:"xRfwXBitjc8",
+      youtubePlaylistId:"",
+      duration:7200,
+      license:"YouTube embed",
+      attribution:"YouTube video selected for A.R.I.S.E. Cinema",
+      age:"Featured",
+      category:"Featured",
+      emoji:"⭐"
+    },
+    ...CLUB_THEATER_CHANNELS,
     {
       id:"big-buck-bunny",
       title:"Big Buck Bunny",
       subtitle:"Open animated comedy · full short film",
+      kind:"video" as const,
       youtubeId:"YE7VzlLtp-4",
+      youtubePlaylistId:"",
       duration:596,
       license:"CC BY 3.0",
       attribution:"Blender Foundation / Peach Open Movie",
-      age:"Kid-friendly"
+      age:"Kid-friendly",
+      category:"Open Movies",
+      emoji:"🎬"
     },
     {
       id:"caminandes-llama-drama",
       title:"Caminandes: Llama Drama",
       subtitle:"Animated comedy episode · Koro's first adventure",
+      kind:"video" as const,
       youtubeId:"JOhiWY7XmoY",
+      youtubePlaylistId:"",
       duration:90,
       license:"Creative Commons",
       attribution:"Blender Foundation / Caminandes",
-      age:"Kid-friendly"
+      age:"Kid-friendly",
+      category:"Open Movies",
+      emoji:"🦙"
     },
     {
       id:"caminandes-gran-dillama",
       title:"Caminandes: Gran Dillama",
       subtitle:"Animated comedy episode · Koro tries again",
+      kind:"video" as const,
       youtubeId:"Z4C82eyhwgU",
+      youtubePlaylistId:"",
       duration:146,
       license:"Creative Commons",
       attribution:"Blender Foundation / Caminandes",
-      age:"Kid-friendly"
+      age:"Kid-friendly",
+      category:"Open Movies",
+      emoji:"🦙"
     },
     {
       id:"caminandes-llamigos",
       title:"Caminandes: Llamigos",
       subtitle:"Animated comedy episode · Koro meets Oti",
+      kind:"video" as const,
       youtubeId:"SkVqJ1SGeL0",
+      youtubePlaylistId:"",
       duration:150,
       license:"Creative Commons",
       attribution:"Blender Foundation / Caminandes",
-      age:"Kid-friendly"
+      age:"Kid-friendly",
+      category:"Open Movies",
+      emoji:"🦙"
     }
   ] as const;
 
