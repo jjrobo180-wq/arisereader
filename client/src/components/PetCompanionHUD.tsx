@@ -7,7 +7,7 @@ import { PET_CARE_EVENT, PET_PERSONALITIES } from "@/lib/pets";
 type PetCare={happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number};
 type WorldPayload={
   economy:{wallet:number};
-  state:{equipped:Record<string,string>;petCare:Record<string,PetCare>};
+  state:{equipped:Record<string,string>;petCare:Record<string,PetCare>;lostPets?:string[]};
   catalog:Array<{id:string;type:string;name:string}>;
 };
 
@@ -45,7 +45,16 @@ export default function PetCompanionHUD(){
   const care=data?.state.petCare[petId];
   const happiness=Math.max(0,Math.min(100,Math.round(care?.happiness??100)));
   const petMood=useMemo(()=>mood(happiness),[happiness]);
-  if(!data||petId==="pet-none"||!pet)return null;
+  if(!data)return null;
+  if(petId==="pet-none"||!pet){
+    const lostId=data.state.lostPets?.[data.state.lostPets.length-1];
+    const lost=data.catalog.find(x=>x.id===lostId);
+    if(!lost)return null;
+    return <button type="button" onClick={()=>{window.location.href="/avatar-world";}} className="fixed bottom-3 left-3 z-[80] max-w-[260px] rounded-2xl border border-rose-300/40 bg-rose-950/95 p-3 text-left text-white shadow-2xl backdrop-blur">
+      <span className="block text-sm font-black">💔 {lost.name} ran away</span>
+      <span className="mt-1 block text-xs font-bold text-white/70">Happiness reached 0% while time kept passing. Visit the pet shop to re-adopt your pet.</span>
+    </button>;
+  }
 
   const act=async(action:"feed"|"treat"|"walk"|"play")=>{
     if(!token||busy)return;
@@ -94,7 +103,7 @@ export default function PetCompanionHUD(){
           <div className="rounded-2xl bg-white/5 p-4">
             <div className="flex items-center justify-between"><span className="flex items-center gap-2 font-black"><Heart className="h-5 w-5"/> Happiness</span><strong>{happiness}% · {petMood.label}</strong></div>
             <div className="mt-3 h-4 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400 transition-all duration-500" style={{width:happiness+"%"}}/></div>
-            <p className="mt-2 text-xs font-bold text-white/55">Happiness slowly drops over time. Food, treats, walks, and play bring it back up. Your pet never disappears just because the meter is low.</p>
+            <p className={"mt-2 text-xs font-bold "+(happiness<=20?"text-rose-300":"text-white/55")}>Happiness keeps dropping with real time, even while you are offline. Food, treats, walks, and play bring it back up. If it reaches 0%, your pet runs away and must be re-adopted.</p>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-widest text-amber-300">Pet Store & Care</p><p className="text-sm font-bold text-white/60">Use Reader Coins for food and treats.</p></div><span className="flex items-center gap-1 rounded-xl bg-amber-300 px-3 py-2 font-black text-slate-950"><Coins className="h-4 w-4"/>{data.economy.wallet}</span></div>
