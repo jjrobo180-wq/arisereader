@@ -1,43 +1,136 @@
-import { useState } from "react";
-import { X, Sparkles, Gamepad2, Users, BookOpen, Trophy, Volume2, Accessibility, Zap, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Sparkles, Gamepad2, Users, BookOpen, Trophy, Volume2, Accessibility, Zap, ChevronRight, Rocket, Coins, House } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const updates = [
-  { icon: BookOpen, title: "Reading, rebuilt around you", text: "Discover books faster, get personalized choices, take book quizzes, earn points, and keep your reading journey moving from one place." },
-  { icon: Zap, title: "Live Quiz is here", text: "Teachers can launch a live, game-show-style quiz with a short join code. Students answer together while scores and the leaderboard update live." },
-  { icon: Gamepad2, title: "Learning unlocks play", text: "Quizzes now connect to a bigger reward experience. Earn access, coins, games, avatars, pets, and interactive worlds by reading and participating." },
-  { icon: Users, title: "Club A.R.I.S.E. & multiplayer", text: "Hang out, play arcade games, challenge friends or the computer, explore shared spaces, and bring your avatar into a growing A.R.I.S.E. world." },
-  { icon: Trophy, title: "More reasons to keep going", text: "Points, competitions, rewards, badges, progress, and leaderboards make growth visible. Teachers still control access and can shape the experience for their students." },
-  { icon: Accessibility, title: "Built for more learners", text: "Eye Gazer experiences bring communication, learning games, My Talker, My World, life skills, visual supports, and accessible ways to participate." },
-  { icon: Volume2, title: "Books can meet you where you are", text: "Audio and read-aloud experiences, simpler navigation, reading-level supports, and new ways to practice help students access reading with less friction." },
+  { icon: BookOpen, eyebrow: "READ", title: "A bigger reading experience", text: "Find books faster, search by point value, take book quizzes, request missing titles, and keep your reading progress in one place.", why: "Less hunting around means more time actually reading." },
+  { icon: Zap, eyebrow: "LEARN", title: "Live Quiz", text: "Teachers can launch a live quiz with a short join code. Students answer together while scores and the leaderboard update in real time.", why: "Class review can feel like a game instead of another worksheet." },
+  { icon: Trophy, eyebrow: "EARN", title: "Reading now unlocks rewards", text: "Passing book quizzes earns the book's full points, Reader Coins, competition progress, badges, and access to more of the A.R.I.S.E. experience.", why: "Students can see a direct connection between reading and what they unlock next." },
+  { icon: Gamepad2, eyebrow: "PLAY", title: "A.R.I.S.E. Arcade & multiplayer", text: "Challenge another reader or play against the computer in arcade games. Teachers can control when game access is available.", why: "Play becomes something earned through participation instead of competing with learning." },
+  { icon: House, eyebrow: "EXPLORE", title: "Your own world", text: "Create an avatar, adopt and care for a pet, buy a home, explore The Block, visit the cinema, and enter growing 3D A.R.I.S.E. worlds.", why: "Reading progress now follows students into a world they can build and personalize." },
+  { icon: Coins, eyebrow: "COLLECT", title: "Coins, pets, homes & customization", text: "Reader Coins are separate from leaderboard points and can be spent on pets, care, avatar items, homes, and experiences.", why: "Students can make meaningful choices with rewards they earn." },
+  { icon: Accessibility, eyebrow: "ACCESS", title: "Built for more learners", text: "Eye Gazer experiences include My Talker, My World, learning games, life skills, visual supports, accessible navigation, and family tools.", why: "More students can participate in ways that match how they communicate and learn." },
+  { icon: Volume2, eyebrow: "GROW", title: "More ways to access reading", text: "Audio books, read-aloud supports, growth checks, reading-level tools, and simplified experiences help students keep moving forward.", why: "Support is built into the experience instead of feeling like a separate program." },
 ];
+
+function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+  return <div className="fixed inset-0 z-[300] overflow-y-auto bg-black/85 p-2 backdrop-blur-xl sm:p-6" onClick={onClose}>
+    <div className="mx-auto min-h-full max-w-5xl py-2 sm:py-6" onClick={e => e.stopPropagation()}>
+      <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#070912] text-white shadow-[0_30px_100px_rgba(0,0,0,.65)]">
+        <button onClick={onClose} className="absolute right-4 top-4 z-30 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/35 backdrop-blur hover:bg-white/15" aria-label="Close A.R.I.S.E. 2.0 update"><X className="h-5 w-5"/></button>
+
+        <section className="relative overflow-hidden px-5 pb-14 pt-16 text-center sm:px-12 sm:pb-20 sm:pt-20">
+          <div className="absolute left-1/2 top-[-180px] h-[430px] w-[430px] -translate-x-1/2 rounded-full bg-violet-600/35 blur-[110px]"/>
+          <div className="absolute -right-20 bottom-[-80px] h-72 w-72 rounded-full bg-amber-400/20 blur-[95px]"/>
+          <div className="absolute -left-24 bottom-[-100px] h-72 w-72 rounded-full bg-cyan-400/15 blur-[95px]"/>
+          <div className="relative">
+            <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[.26em] text-amber-300">
+              <Rocket className="h-4 w-4"/> The biggest A.R.I.S.E. update yet
+            </div>
+            <p className="text-xs font-black uppercase tracking-[.4em] text-violet-300">Introducing</p>
+            <h1 className="mt-3 text-5xl font-black tracking-[-.06em] sm:text-7xl lg:text-8xl">
+              A.R.I.S.E. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-300 bg-clip-text text-transparent">2.0</span>
+            </h1>
+            <p className="mx-auto mt-6 max-w-3xl text-xl font-black leading-tight text-white sm:text-3xl">Reading was only the beginning.</p>
+            <p className="mx-auto mt-4 max-w-2xl text-sm font-semibold leading-6 text-slate-400 sm:text-base">
+              A.R.I.S.E. is becoming a connected learning world where reading unlocks progress, rewards, games, creativity, community, and new ways to learn.
+            </p>
+            <div className="mx-auto mt-8 grid max-w-3xl grid-cols-5 gap-1.5 rounded-3xl border border-white/10 bg-white/[.04] p-2 sm:gap-2">
+              {["READ","LEARN","EARN","PLAY","GROW"].map((word,i)=><div key={word} className="rounded-2xl bg-white/[.05] px-1 py-3 text-[9px] font-black tracking-wider text-white/75 sm:text-xs">{word}<div className="mx-auto mt-2 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-violet-400 to-amber-300"/></div>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-white/10 bg-white/[.025] px-4 py-10 sm:px-10 sm:py-14">
+          <div className="mx-auto max-w-4xl">
+            <div className="mb-8">
+              <div className="text-xs font-black uppercase tracking-[.25em] text-violet-300">What changed</div>
+              <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">A completely bigger A.R.I.S.E.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">Every major feature is connected to one idea: make students want to keep going while giving teachers and families more control and visibility.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {updates.map(({icon: Icon,eyebrow,title,text,why}) => <article key={title} className="group rounded-[26px] border border-white/10 bg-white/[.045] p-5 transition hover:-translate-y-0.5 hover:border-violet-400/30 hover:bg-white/[.06]">
+                <div className="flex items-start gap-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/30 to-amber-400/20 ring-1 ring-white/10"><Icon className="h-5 w-5"/></div>
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[.22em] text-amber-300">{eyebrow}</div>
+                    <h3 className="mt-1 text-lg font-black">{title}</h3>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-400">{text}</p>
+                <div className="mt-4 rounded-2xl border border-white/8 bg-black/20 p-3">
+                  <div className="text-[9px] font-black uppercase tracking-wider text-violet-300">Why it matters</div>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">{why}</p>
+                </div>
+              </article>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-6 py-14 text-center sm:px-12 sm:py-18">
+          <div className="text-xs font-black uppercase tracking-[.3em] text-amber-300">A.R.I.S.E. 2.0</div>
+          <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Read. Learn. Earn. Play. Grow.</h2>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">The goal is simple: give students a reason to start, a reason to keep going, and a way to see that their effort changes what they can do next.</p>
+          <button onClick={onClose} className="mt-8 rounded-full bg-white px-8 py-3.5 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.02]">Start exploring 2.0</button>
+        </section>
+      </div>
+    </div>
+  </div>;
+}
 
 export function Arise2UpdateButton({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button onClick={() => setOpen(true)} className={compact ? "w-full rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-amber-500/10 px-3 py-2.5 text-left hover:border-violet-400/60 transition" : "group relative w-full overflow-hidden rounded-3xl border border-white/15 bg-slate-950 px-5 py-5 text-left text-white shadow-2xl sm:px-7"}>
+    <button onClick={() => setOpen(true)} className={compact ? "group w-full rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-amber-500/10 px-3 py-3 text-left transition hover:border-violet-400/60 hover:bg-violet-500/15" : "group relative w-full overflow-hidden rounded-[28px] border border-white/15 bg-slate-950 px-5 py-5 text-left text-white shadow-2xl sm:px-7"}>
       {!compact && <><div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-500/25 blur-3xl"/><div className="absolute -bottom-24 left-1/4 h-48 w-48 rounded-full bg-amber-400/15 blur-3xl"/></>}
       <div className="relative flex items-center gap-3">
-        <div className={compact ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white" : "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15"}><Sparkles className="h-5 w-5"/></div>
-        <div className="min-w-0 flex-1"><div className={compact ? "text-[10px] font-black uppercase tracking-widest text-violet-500" : "text-[10px] font-black uppercase tracking-[.28em] text-amber-300"}>Major Update</div><div className={compact ? "text-sm font-black" : "mt-1 text-xl font-black sm:text-2xl"}>A.R.I.S.E. 2.0</div>{!compact && <div className="mt-1 text-sm text-slate-300">Reading was only the beginning. See what’s new.</div>}</div>
+        <div className={compact ? "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/15"}><Sparkles className="h-5 w-5"/></div>
+        <div className="min-w-0 flex-1"><div className={compact ? "text-[9px] font-black uppercase tracking-widest text-violet-500" : "text-[10px] font-black uppercase tracking-[.28em] text-amber-300"}>Major Update</div><div className={compact ? "text-sm font-black" : "mt-1 text-xl font-black sm:text-2xl"}>A.R.I.S.E. 2.0</div>{!compact && <div className="mt-1 text-sm text-slate-300">Reading was only the beginning. Open the launch experience.</div>}</div>
         <ChevronRight className="h-5 w-5 shrink-0 opacity-70 transition group-hover:translate-x-1"/>
       </div>
     </button>
-    {open && <div className="fixed inset-0 z-[200] overflow-y-auto bg-black/80 p-3 backdrop-blur-xl sm:p-6" onClick={() => setOpen(false)}>
-      <div className="mx-auto min-h-full max-w-4xl py-3 sm:py-8" onClick={e => e.stopPropagation()}>
-        <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#080b14] text-white shadow-2xl">
-          <button onClick={() => setOpen(false)} className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Close"><X className="h-5 w-5"/></button>
-          <section className="relative overflow-hidden px-6 pb-12 pt-16 text-center sm:px-12 sm:pb-16 sm:pt-20">
-            <div className="absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-600/30 blur-[90px]"/><div className="absolute -right-20 bottom-0 h-52 w-52 rounded-full bg-amber-400/20 blur-[80px]"/>
-            <div className="relative"><div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[.25em] text-amber-300"><Sparkles className="h-4 w-4"/>Introducing</div><h1 className="text-5xl font-black tracking-tight sm:text-7xl">A.R.I.S.E. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-300 bg-clip-text text-transparent">2.0</span></h1><p className="mx-auto mt-5 max-w-2xl text-lg font-semibold leading-relaxed text-slate-300 sm:text-xl">A reading platform is becoming a learning world.</p><p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">A.R.I.S.E. 2.0 connects reading, live learning, rewards, games, creativity, accessibility, and community—so progress doesn’t just get recorded. It unlocks what happens next.</p></div>
-          </section>
-          <section className="border-t border-white/10 bg-white/[.025] px-4 py-8 sm:px-10 sm:py-12"><div className="mb-7"><div className="text-xs font-black uppercase tracking-[.24em] text-violet-300">What’s new</div><h2 className="mt-2 text-3xl font-black">One update. A completely bigger A.R.I.S.E.</h2></div><div className="grid gap-3 sm:grid-cols-2">{updates.map(({icon: Icon,title,text}) => <div key={title} className="rounded-3xl border border-white/10 bg-white/[.045] p-5"><div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/30 to-amber-400/20 ring-1 ring-white/10"><Icon className="h-5 w-5 text-white"/></div><h3 className="text-base font-black">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{text}</p></div>)}</div></section>
-          <section className="px-6 py-12 text-center sm:px-12 sm:py-16"><div className="text-xs font-black uppercase tracking-[.25em] text-amber-300">The idea behind 2.0</div><h2 className="mx-auto mt-3 max-w-2xl text-3xl font-black sm:text-4xl">Read. Learn. Earn. Play. Grow.</h2><p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">Every part of A.R.I.S.E. 2.0 is designed around the same idea: give students a reason to start, a reason to keep going, and a way to see that their work matters.</p><button onClick={() => setOpen(false)} className="mt-8 rounded-full bg-white px-7 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Explore A.R.I.S.E. 2.0</button></section>
-        </div>
-      </div>
-    </div>}
+    <Arise2Modal open={open} onClose={() => setOpen(false)}/>
   </>;
 }
 
 export function Arise2HomeAnnouncement() {
-  return <div className="mb-5"><Arise2UpdateButton /></div>;
+  return <section className="mb-5 rounded-[30px] bg-gradient-to-r from-violet-600 via-indigo-700 to-slate-950 p-[1px] shadow-xl">
+    <div className="rounded-[29px] bg-slate-950/95 p-1"><Arise2UpdateButton /></div>
+  </section>;
+}
+
+export function Arise2GlobalLauncher() {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) { setReady(false); return; }
+    setReady(true);
+    const key = `arise_2_launch_seen_${user.id}_v2`;
+    if (localStorage.getItem(key) !== "1") {
+      const timer = window.setTimeout(() => setOpen(true), 900);
+      return () => window.clearTimeout(timer);
+    }
+  }, [user?.id]);
+
+  const close = () => {
+    if (user?.id) localStorage.setItem(`arise_2_launch_seen_${user.id}_v2`, "1");
+    setOpen(false);
+  };
+
+  if (!user || !ready) return null;
+  return <>
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="fixed right-3 top-[74px] z-[85] flex items-center gap-2 rounded-full border border-white/20 bg-slate-950/92 px-3 py-2 text-xs font-black text-white shadow-2xl backdrop-blur-xl transition hover:scale-[1.03] sm:right-5 sm:top-[78px]"
+      aria-label="Open A.R.I.S.E. 2.0 launch experience"
+    >
+      <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-amber-400"><Sparkles className="h-3.5 w-3.5"/></span>
+      <span>A.R.I.S.E. 2.0</span>
+    </button>
+    <Arise2Modal open={open} onClose={close}/>
+  </>;
 }
