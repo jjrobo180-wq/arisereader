@@ -25,14 +25,25 @@ function activeNeighborhoodVisitors(){
 }
 function activeWorldPet(state:any){
   const id=String(state?.equipped?.pet||"pet-none");
-  // Pre-care accounts are initialized on their next Avatar World visit.
-  return state?.petCare?.[id]?.fedUntil&&Number(state.petCare[id].fedUntil)<=Date.now()?"pet-none":id;
+  return id.startsWith("pet-")?id:"pet-none";
 }
 async function initializeLegacyPetCare(userId:number,state:any){
   const pets=(Array.isArray(state?.purchased)?state.purchased:[]).filter((id:any)=>typeof id==="string"&&id.startsWith("pet-"));
-  if(!pets.some((id:string)=>!state?.petCare?.[id]))return state;
+  const needsMigration=pets.some((id:string)=>!state?.petCare?.[id]||state.petCare[id]?.fedUntil!==undefined);
+  if(!needsMigration)return state;
+  const now=Date.now();
   state.petCare={...(state.petCare||{})};
-  for(const id of pets)if(!state.petCare[id])state.petCare[id]={fedUntil:Date.now()+7*86400000};
+  for(const id of pets){
+    const old=state.petCare[id]||{};
+    const legacyUntil=Number(old.fedUntil);
+    state.petCare[id]={
+      happiness:Number.isFinite(Number(old.happiness))?Math.max(0,Math.min(100,Number(old.happiness))):(Number.isFinite(legacyUntil)&&legacyUntil>now?85:70),
+      lastUpdatedAt:Number(old.lastUpdatedAt)||now,
+      lastFedAt:Number(old.lastFedAt)||0,
+      lastTreatAt:Number(old.lastTreatAt)||0,
+      lastWalkAt:Number(old.lastWalkAt)||0,
+    };
+  }
   await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
   return state;
 }
@@ -163,7 +174,8 @@ async function getClubAccess(userId:number){
 
   return {
     allowed,locked,teacherId,dailyLimit,gamesToday,dailyRemaining,
-    gamesPerPassedQuiz:perQuiz,passedQuizzes:passedCount||0,automaticRemaining
+    gamesPerPassedQuiz:perQuiz,passedQuizzes:passedCount||0,automaticRemaining,
+    weeklyUnlimitedOnPass:control?.weekly_unlimited_on_pass!==false
   };
 }
 
@@ -300,6 +312,62 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
     }
   });
 
+  app.get("/api/teacher/club-arise/profile-rule", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.role!=="teacher"&&!req.user.isAdmin)return res.status(403).json({message:"Teacher access required."});
+      let query=db().from("users").select("id").eq("role","student").eq("is_eye_gaze_user",false);
+      if(!req.user.isAdmin)query=query.eq("teacher_id",req.user.id);
+      const {data:students,error}=await query;
+      if(error)throw error;
+      const ids=(students||[]).map((s:any)=>s.id);
+      const {data:controls,error:controlError}=ids.length
+        ? await db().from("club_arise_controls").select("student_id,weekly_unlimited_on_pass").in("student_id",ids)
+        : {data:[] as any[],error:null as any};
+      if(controlError)throw controlError;
+      const map=new Map((controls||[]).map((row:any)=>[row.student_id,row.weekly_unlimited_on_pass!==false]));
+      const enabled=ids.every((id:number)=>map.get(id)!==false);
+      res.json({enabled,studentCount:ids.length});
+    }catch(error:any){
+      console.error("[club-arise] profile weekly rule",error?.message);
+      res.status(500).json({message:"Could not load the weekly play rule."});
+    }
+  });
+
+  app.post("/api/teacher/club-arise/profile-rule", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.role!=="teacher"&&!req.user.isAdmin)return res.status(403).json({message:"Teacher access required."});
+      const enabled=req.body?.enabled!==false;
+      let query=db().from("users").select("id,teacher_id").eq("role","student").eq("is_eye_gaze_user",false);
+      if(!req.user.isAdmin)query=query.eq("teacher_id",req.user.id);
+      const {data:students,error}=await query;
+      if(error)throw error;
+      const ids=(students||[]).map((s:any)=>s.id);
+      if(ids.length){
+        const {data:existing,error:existingError}=await db().from("club_arise_controls").select("*").in("student_id",ids);
+        if(existingError)throw existingError;
+        const current=new Map((existing||[]).map((row:any)=>[row.student_id,row]));
+        const rows=(students||[]).map((student:any)=>{
+          const old=current.get(student.id)||{};
+          return {
+            student_id:student.id,
+            teacher_id:student.teacher_id||req.user.id,
+            locked:!!old.locked,
+            daily_game_limit:old.daily_game_limit??null,
+            games_per_passed_quiz:Number(old.games_per_passed_quiz||0),
+            weekly_unlimited_on_pass:enabled,
+            updated_at:new Date().toISOString()
+          };
+        });
+        const {error:saveError}=await db().from("club_arise_controls").upsert(rows,{onConflict:"student_id"});
+        if(saveError)throw saveError;
+      }
+      res.json({enabled,studentCount:ids.length});
+    }catch(error:any){
+      console.error("[club-arise] save profile weekly rule",error?.message);
+      res.status(500).json({message:"Could not save the weekly play rule."});
+    }
+  });
+
   app.get("/api/teacher/club-arise/controls", authMiddleware, async(req:any,res)=>{
     try{
       if(req.user.role!=="teacher"&&!req.user.isAdmin) return res.status(403).json({message:"Teacher access required."});
@@ -312,7 +380,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const map=new Map((controls||[]).map((x:any)=>[x.student_id,x]));
       res.json((students||[]).map((s:any)=>({
         ...s,
-        control:map.get(s.id)||{student_id:s.id,teacher_id:s.teacher_id,locked:false,daily_game_limit:null,games_per_passed_quiz:0}
+        control:map.get(s.id)||{student_id:s.id,teacher_id:s.teacher_id,locked:false,daily_game_limit:null,games_per_passed_quiz:0,weekly_unlimited_on_pass:true}
       })));
     }catch(error:any){
       console.error("[club-arise] teacher controls",error?.message);
@@ -332,12 +400,14 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const rawLimit=req.body?.dailyGameLimit;
       const dailyGameLimit=rawLimit===null||rawLimit===""||rawLimit===undefined?null:Math.max(0,Math.min(100,Math.floor(Number(rawLimit)||0)));
       const gamesPerPassedQuiz=Math.max(0,Math.min(20,Math.floor(Number(req.body?.gamesPerPassedQuiz)||0)));
+      const weeklyUnlimitedOnPass=req.body?.weeklyUnlimitedOnPass!==false;
       const row={
         student_id:studentId,
         teacher_id:student.teacher_id||req.user.id,
         locked,
         daily_game_limit:dailyGameLimit,
         games_per_passed_quiz:gamesPerPassedQuiz,
+        weekly_unlimited_on_pass:weeklyUnlimitedOnPass,
         updated_at:new Date().toISOString()
       };
       const {data,error}=await db().from("club_arise_controls").upsert(row,{onConflict:"student_id"}).select("*").single();

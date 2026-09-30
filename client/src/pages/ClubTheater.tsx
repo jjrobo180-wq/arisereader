@@ -8,11 +8,12 @@ import { ArrowLeft, Coins, Popcorn, Users, Volume2, VolumeX } from "lucide-react
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
+import { createPet } from "@/lib/pets";
 
 type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string;emoji?:string};
-type TheaterVisitor={userId:number;displayName:string;characterId:string;x:number;z:number;facing:number;seatId:string|null};
-type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number;players:TheaterVisitor[]};movies:Movie[];changeCost:number;wallet:number};
-type ClubSelf={userId:number;displayName:string;characterId:string};
+type TheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null};
+type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number;players:TheaterVisitor[]};movies:Movie[];changeCost:number;popcornCost:number;wallet:number};
+type ClubSelf={userId:number;displayName:string;characterId:string;petId:string};
 
 const SEATS=Array.from({length:12},(_,i)=>({id:"S"+(i+1),row:Math.floor(i/4),col:i%4}));
 
@@ -36,7 +37,7 @@ export default function ClubTheater(){
   const [self,setSelf]=useState<ClubSelf|null>(null);
   const [muted,setMuted]=useState(false);
   const [seat,setSeat]=useState<string|null>(null);
-  const [popcorn,setPopcorn]=useState<"idle"|"ordering"|"ready">("idle");
+  const [popcorn,setPopcorn]=useState<"idle"|"ordering"|"eating">("idle");
   const [picker,setPicker]=useState(false);
   const [busy,setBusy]=useState(false);
   const [videoReady,setVideoReady]=useState(false);
@@ -484,6 +485,7 @@ export default function ClubTheater(){
 
     if(self){
       const loader=new GLTFLoader();
+      const selfPet=createPet(self.petId,loader,.9);if(selfPet){selfPet.position.set(.85,0,.45);avatarRoot.add(selfPet);}
       loader.load(getAvatarCharacter(self.characterId).modelPath,gltf=>{
         if(disposed)return;
         const model=gltf.scene;
@@ -578,6 +580,19 @@ export default function ClubTheater(){
       const root=rootRef.current;
       if(root){
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
+        const snack=root.getObjectByName("eatingPopcorn") as THREE.Group|undefined;
+        if(snack){
+          const elapsed=performance.now()-Number(snack.userData.startedAt||0);
+          const duration=Math.max(1,Number(snack.userData.duration||3600));
+          const phase=Math.max(0,Math.min(1,elapsed/duration));
+          const bite=Math.max(0,Math.sin(phase*Math.PI*6));
+          snack.position.y=1.02+bite*.72;
+          snack.position.z=.18-bite*.2;
+          snack.rotation.x=-bite*.35;
+          const kernels=snack.children.filter(x=>x.userData.kernel);
+          const hidden=Math.min(kernels.length,Math.floor(phase*(kernels.length+1)));
+          kernels.forEach((kernel,i)=>kernel.visible=i>=hidden);
+        }
 
         // WASD/arrows move relative to the current camera view, like a
         // normal third-person game. Looking around never changes altitude.
@@ -719,6 +734,7 @@ export default function ClubTheater(){
         const canvas=document.createElement("canvas");canvas.width=384;canvas.height=96;const ctx=canvas.getContext("2d")!;ctx.fillStyle="rgba(2,6,23,.86)";ctx.fillRect(0,0,384,96);ctx.fillStyle="white";ctx.font="700 30px system-ui";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(player.displayName,192,48);
         const tex=new THREE.CanvasTexture(canvas);const label=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));label.position.set(0,3.2,0);label.scale.set(3.5,.88,1);root.add(label);
         loader.load(getAvatarCharacter(player.characterId).modelPath,gltf=>{const model=gltf.scene;const box=new THREE.Box3().setFromObject(model);const size=box.getSize(new THREE.Vector3());model.scale.setScalar(2.5/Math.max(.01,size.y));model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);model.position.y=-b.min.y;root!.add(model);if(gltf.animations.length){const mixer=new THREE.AnimationMixer(model);const idle=gltf.animations.find(a=>/idle/i.test(a.name))||gltf.animations[0];mixer.clipAction(idle).play();root!.userData.mixer=mixer;}});
+        const pet=createPet(player.petId,loader,.9);if(pet){pet.position.set(.85,0,.45);root.add(pet);}
         remoteRootsRef.current.set(player.userId,root);
       }
       root.userData.mixer?.update?.(.04);
@@ -757,14 +773,35 @@ export default function ClubTheater(){
     void changeMovie(payload.movies[next].id);
   };
 
-  const orderPopcorn=()=>{
-    if(popcorn!=="idle")return;
-    setPopcorn("ordering");
-    setNotice("Popcorn is popping…");
-    window.setTimeout(()=>{
-      setPopcorn("ready");
-      setNotice("🍿 Your popcorn is ready!");
-    },1800);
+  const orderPopcorn=async()=>{
+    if(popcorn!=="idle"||!payload||busy)return;
+    if(payload.wallet<payload.popcornCost){setNotice("You need "+payload.popcornCost+" Reader Coins for popcorn.");return;}
+    setPopcorn("ordering");setNotice("Buying popcorn…");
+    try{
+      const r=await fetch(API_BASE+"/api/club-theater/popcorn",{method:"POST",headers});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.message||"Could not buy popcorn.");
+      setPayload(prev=>prev?{...prev,wallet:d.wallet}:prev);
+      const root=rootRef.current;
+      if(root){
+        const previous=root.getObjectByName("eatingPopcorn");if(previous)root.remove(previous);
+        const snack=new THREE.Group();snack.name="eatingPopcorn";
+        const tub=new THREE.Mesh(new THREE.CylinderGeometry(.34,.28,.62,18),new THREE.MeshStandardMaterial({color:0xef4444,roughness:.6}));
+        tub.position.y=.32;snack.add(tub);
+        for(let i=0;i<10;i++){
+          const kernel=new THREE.Mesh(new THREE.SphereGeometry(.09,8,7),new THREE.MeshStandardMaterial({color:0xfff1a8,roughness:.8}));
+          kernel.position.set(((i%3)-1)*.12,.65+Math.floor(i/3)*.06,((i%2)-.5)*.12);
+          kernel.userData.kernel=true;snack.add(kernel);
+        }
+        snack.position.set(.65,1.02,.18);snack.userData.startedAt=performance.now();snack.userData.duration=3600;root.add(snack);
+      }
+      setPopcorn("eating");setNotice("🍿 Yum! Your avatar is eating the popcorn.");
+      window.setTimeout(()=>{
+        const root=rootRef.current,old=root?.getObjectByName("eatingPopcorn");
+        if(root&&old)root.remove(old);
+        setPopcorn("idle");setNotice("Popcorn finished!");
+      },3700);
+    }catch(e:any){setPopcorn("idle");setNotice(e.message||"Could not buy popcorn.");}
   };
 
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-black text-white">
@@ -812,8 +849,8 @@ export default function ClubTheater(){
       <button type="button" onClick={()=>setMuted(value=>!value)} className="flex min-h-10 items-center gap-2 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl backdrop-blur">
         {muted?<VolumeX className="h-4 w-4"/>:<Volume2 className="h-4 w-4"/>}{muted?"Hear Movie":"Mute"}
       </button>
-      <button onClick={orderPopcorn} disabled={popcorn!=="idle"} className="flex min-h-10 items-center gap-2 rounded-xl bg-amber-300 px-3 text-xs font-black text-slate-950 shadow-xl disabled:opacity-70">
-        <Popcorn className="h-4 w-4"/>{popcorn==="ordering"?"Popping…":popcorn==="ready"?"🍿 Ready":"Popcorn"}
+      <button onClick={()=>void orderPopcorn()} disabled={popcorn!=="idle"||busy} className="flex min-h-10 items-center gap-2 rounded-xl bg-amber-300 px-3 text-xs font-black text-slate-950 shadow-xl disabled:opacity-70">
+        <Popcorn className="h-4 w-4"/>{popcorn==="ordering"?"Buying…":popcorn==="eating"?"Eating 🍿":"Popcorn · "+(payload?.popcornCost??25)+" 🪙"}
       </button>
       <div className="grid grid-cols-2 gap-1.5">
         <button onClick={()=>switchStation(-1)} disabled={busy} className="min-h-10 rounded-xl bg-slate-950/90 px-2 text-xs font-black shadow-xl">◀ Prev</button>

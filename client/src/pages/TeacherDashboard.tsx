@@ -126,6 +126,7 @@ export default function TeacherDashboard() {
       locked: patch.locked ?? current.locked ?? false,
       dailyGameLimit: patch.dailyGameLimit !== undefined ? patch.dailyGameLimit : (current.daily_game_limit ?? null),
       gamesPerPassedQuiz: patch.gamesPerPassedQuiz !== undefined ? patch.gamesPerPassedQuiz : (current.games_per_passed_quiz ?? 0),
+      weeklyUnlimitedOnPass: patch.weeklyUnlimitedOnPass !== undefined ? patch.weeklyUnlimitedOnPass : (current.weekly_unlimited_on_pass ?? true),
     };
     try {
       const data = await request(`/api/teacher/club-arise/controls/${studentId}`, { method: "POST", body: JSON.stringify(next) });
@@ -556,8 +557,8 @@ export default function TeacherDashboard() {
         <div>
           <div style={{ ...styles.proctorCard, marginBottom: 18 }}>
             <h2 style={styles.proctorTitle}><Gamepad2 size={22} /> Club A.R.I.S.E. Game Controls</h2>
-            <p style={styles.proctorDesc}>Lock gameplay instantly, cap games per day, or make students earn game plays by passing book quizzes. Students can still enter the Club social world when games are restricted.</p>
-            <p style={styles.quizMeta}><strong>Automatic example:</strong> Set “Games per passed quiz” to 2 and every passed book quiz unlocks 2 completed multiplayer games.</p>
+            <p style={styles.proctorDesc}>The default rule gives a student unlimited A.R.I.S.E. world/game play for the rest of the school week after they pass one book quiz. You can turn that reward off for any student, lock Club play, or keep separate multiplayer-game limits.</p>
+            <p style={styles.quizMeta}><strong>Weekly reward:</strong> A qualifying quiz passed Monday–Sunday unlocks unlimited play until the next Monday. Teacher/admin locks still override it.</p>
           </div>
           {clubControlsLoading ? <p style={styles.muted}>Loading Club controls...</p> : (
             <div style={styles.grid}>
@@ -580,6 +581,15 @@ export default function TeacherDashboard() {
                   >
                     {control.locked?<><Unlock size={16}/> Unlock Club Games</>:<><Lock size={16}/> Lock Club Games</>}
                   </button>
+                  <label style={styles.label}>Passed book quiz reward</label>
+                  <select
+                    value={(control.weekly_unlimited_on_pass ?? true) ? "on" : "off"}
+                    onChange={e => void saveClubControl(student.id,{weeklyUnlimitedOnPass:e.target.value==="on"})}
+                    style={styles.filterSelect}
+                  >
+                    <option value="on">Unlimited play for the rest of that week</option>
+                    <option value="off">Off — keep normal daily play time</option>
+                  </select>
                   <label style={styles.label}>Daily multiplayer game limit</label>
                   <select
                     value={control.daily_game_limit ?? ""}

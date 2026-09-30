@@ -4,6 +4,7 @@ import { Clock3, BookOpen } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { API_BASE } from '@/lib/queryClient';
 import { CLUB_WORLD_PATHS, type PlayAccess } from '@shared/clubPlay';
+import PetCompanionHUD from '@/components/PetCompanionHUD';
 
 export default function ClubPlayGate({ children }: { children: ReactNode }) {
   const { user, token } = useAuth();
@@ -39,19 +40,19 @@ export default function ClubPlayGate({ children }: { children: ReactNode }) {
   }, [active, token, user?.id]);
   if (!active) return <>{children}</>;
   const remaining = Math.max(0, Math.ceil(((access?.expiresAt || now) - now) / 1000));
-  const canPlay = access?.allowed && remaining > 0 && access.leaseUntil > now;
-  const time = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
+  const canPlay = !!access?.allowed && (!!access.unlimitedThisWeek || (remaining > 0 && access.leaseUntil > now));
+  const time = access?.unlimitedThisWeek ? '∞' : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
   if (!canPlay) return <main className="club-time-gate">
     <section><Clock3 size={44} /><h1>{access?.locked ? 'Club Arise is locked' : access && !remaining ? "Today’s play time is up" : access && !error ? 'Syncing your play time…' : error ? 'Reconnect your play timer' : 'Starting your play timer…'}</h1>
-      <p>{access?.locked ? 'Your teacher has paused Club Arise.' : 'You get 10 minutes each day across all Club Arise worlds. Take and pass a book quiz to earn 10 more minutes today.'}</p>
+      <p>{access?.locked ? 'Your teacher has paused Club Arise.' : access?.weeklyUnlimitedOnPass ? 'You get 10 minutes each day. Pass one book quiz to unlock unlimited A.R.I.S.E. play for the rest of this week.' : 'Your normal daily A.R.I.S.E. play time is finished for today.'}</p>
       {error && <p role="alert">{error}</p>}
       <button onClick={() => navigate('/library')}><BookOpen size={20} /> Go to the library</button>
       {error && <button className="secondary" onClick={() => retry.current()}>Try again</button>}
     </section>
   </main>;
-  return <>{children}<aside className={`club-play-timer ${remaining <= 60 ? 'low' : ''}`} aria-label="Club Arise daily play timer">
-    <div><Clock3 size={20} /><strong role="timer" aria-label={`${remaining} seconds of play remaining`}>{time}</strong><span>left today</span></div>
-    <p>Pass a book quiz for <b>+10 minutes</b></p>
-    <button onClick={() => navigate('/library')}><BookOpen size={18} /><span>Earn time</span></button>
+  return <>{children}<PetCompanionHUD/><aside className={`club-play-timer ${!access?.unlimitedThisWeek && remaining <= 60 ? 'low' : ''}`} aria-label={access?.unlimitedThisWeek?"Unlimited Club Arise play this week":"Club Arise daily play timer"}>
+    <div><Clock3 size={20} /><strong role="timer" aria-label={access?.unlimitedThisWeek?"Unlimited play this week":`${remaining} seconds of play remaining`}>{time}</strong><span>{access?.unlimitedThisWeek?"this week":"left today"}</span></div>
+    <p>{access?.unlimitedThisWeek?<><b>Quiz passed!</b> Unlimited play is active until next Monday.</>:access?.weeklyUnlimitedOnPass?<><b>Pass a book quiz</b> for unlimited play this week.</>:<>Daily play rule is active.</>}</p>
+    {!access?.unlimitedThisWeek&&access?.weeklyUnlimitedOnPass&&<button onClick={() => navigate('/library')}><BookOpen size={18} /><span>Unlock the week</span></button>}
   </aside></>;
 }

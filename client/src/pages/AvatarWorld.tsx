@@ -11,7 +11,7 @@ import { ArrowLeft, Car, Check, Coins, Home, Lock, ShoppingBag, UserRound, X } f
 type CatalogItem={id:string;type:string;name:string;price:number;rarity:string};
 type Payload={
   economy:{level:number;quizzesTaken:number;passedQuizzes:number;totalPoints:number;lifetimeCoins:number;wallet:number;nextLevelAt:number|null;coinsPerPassedQuiz:number;coinsPerGame:number;winBonusCoins:number;levelBonus:number;clubGames:number;clubWins:number};
-  state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];petCare:Record<string,{fedUntil:number}>;careSpent:number;spent:number};
+  state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>;careSpent:number;spent:number};
   catalog:CatalogItem[];
 };
 type Tab="character"|"shop"|"garage"|"home";
@@ -44,8 +44,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   const [previewCharacterId,setPreviewCharacterId]=useState<string|null>(null);
   const [pendingPurchase,setPendingPurchase]=useState<CatalogItem|null>(null);
   const [previewProduct,setPreviewProduct]=useState<CatalogItem|null>(null);
-  const [pendingCare,setPendingCare]=useState<{petId:string;action:"feed"|"return"}|null>(null);
-  const [now,setNow]=useState(Date.now());
+  const [pendingCare,setPendingCare]=useState<{petId:string;action:"feed"|"treat"|"walk"|"play"}|null>(null);
   const previewRef=useRef<HTMLDivElement|null>(null);
   const petSectionRef=useRef<HTMLElement|null>(null);
 
@@ -61,7 +60,6 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     finally{setLoading(false);}
   };
   useEffect(()=>{void load();},[token]);
-  useEffect(()=>{const interval=window.setInterval(()=>setNow(Date.now()),60000);return()=>window.clearInterval(interval);},[]);
   useEffect(()=>{if(previewCharacterId&&tab==="character")requestAnimationFrame(()=>previewRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));},[previewCharacterId,tab]);
 
   const customize=async(body:any)=>{
@@ -89,13 +87,13 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     finally{setBusy("");}
   };
 
-  const careForPet=async(petId:string,action:"feed"|"return")=>{
+  const careForPet=async(petId:string,action:"feed"|"treat"|"walk"|"play")=>{
     if(!token)return;
     setPendingCare(null);setBusy("care");setMessage("");
     try{
       const r=await fetch(API_BASE+"/api/avatar-world/pet-care",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({petId,action})});
       const d=await r.json();if(!r.ok)throw new Error(d.message||"Could not care for your pet.");
-      setPayload(d);setMessage(action==="feed"?"Your pet is fed and happy!":"Your pet is back from the sanctuary!");
+      setPayload(d);setMessage(action==="feed"?"Your pet loved the food!":action==="treat"?"Treat time!":action==="walk"?"That walk made your dog happier!":"Play time made your pet happier!");
     }catch(error:any){setMessage(error.message||"Could not care for your pet.");}
     finally{setBusy("");}
   };
@@ -111,8 +109,6 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   const carId=payload.state.equipped.car||"car-none";
   const homeId=payload.state.equipped.home||"home-basic";
   const petId=payload.state.equipped.pet||"pet-none";
-  const petAway=(id:string)=>!!payload.state.petCare[id]&&payload.state.petCare[id].fedUntil<=now;
-  const petDays=(id:string)=>Math.max(0,Math.ceil(((payload.state.petCare[id]?.fedUntil||0)-now)/86400000));
   const quizzesIntoLevel=payload.economy.passedQuizzes%2;
   const starterCharacters=new Set(["robin-hood","sherlock-holmes","sinbad","alice"]);
   const characterUnlockId=(id:string)=>"unlock-"+id;
@@ -219,25 +215,30 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
           </section>
           <section ref={petSectionRef} className="scroll-mt-28 rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <h3 className="text-xl font-black">My Club Pet</h3>
-            <p className="text-sm text-white/65 font-bold mt-1">Each animal has its own personality. Feed pets with Reader Coins earned by reading and Club games. They start with seven days of care; feeding adds three days. After time runs out, they rest at the sanctuary until you bring them home.</p>
+            <p className="text-sm text-white/65 font-bold mt-1">Your pet stays with you through A.R.I.S.E. worlds and games until you turn it off. Keep its happiness high with food, treats, walks, and play. A low meter changes its mood — it never makes your pet disappear.</p>
             <div className="mt-3 grid sm:grid-cols-2 gap-2">
               {payload.catalog.filter(x=>x.type==="pet"&&owned(x.id)).map(pet=>{
-                const personality=PET_PERSONALITIES[pet.id];const away=petAway(pet.id);
+                const personality=PET_PERSONALITIES[pet.id];
+                const happiness=Math.max(0,Math.min(100,Math.round(payload.state.petCare[pet.id]?.happiness??90)));
+                const mood=happiness>=85?"Thrilled 🤩":happiness>=65?"Happy 😊":happiness>=40?"Okay 🙂":happiness>=20?"Needs care 🥺":"Very unhappy 😢";
+                const isDog=pet.id==="pet-dog";
                 return <div key={pet.id} className={"rounded-2xl border p-3 "+(petId===pet.id?"border-cyan-300 bg-cyan-300/10":"border-white/10 bg-white/5")}>
                   <div className="font-black text-lg">{personality?.emoji} {pet.name}</div>
                   <p className="text-sm text-cyan-200 font-bold">{personality?.trait}</p>
                   <p className="text-xs text-white/65 mt-1">“{personality?.greeting}” · Loves {personality?.favorite.toLowerCase()}.</p>
-                  <p className={"text-xs font-black mt-2 "+(away?"text-amber-300":"text-emerald-300")}>{away?"At the sanctuary · bring home for 80 coins":petDays(pet.id)+" day(s) of care left"}</p>
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={()=>setPendingCare({petId:pet.id,action:away?"return":"feed"})} disabled={!!busy||payload.economy.wallet<(away?80:40)} className="min-h-11 flex-1 rounded-xl bg-amber-400 px-2 text-xs font-black text-slate-950 disabled:opacity-40">{away?"Bring home · 80 🪙":"Feed · 40 🪙"}</button>
-                    {!away&&<button onClick={()=>equip("pet",pet.id)} disabled={!!busy||petId===pet.id} className="min-h-11 flex-1 rounded-xl bg-cyan-300 px-2 text-xs font-black text-slate-950 disabled:opacity-40">{petId===pet.id?"Following":"Follow me"}</button>}
+                  <div className="mt-3 flex items-center justify-between text-xs font-black"><span>Happiness</span><span>{happiness}% · {mood}</span></div>
+                  <div className="mt-1 h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400 transition-all" style={{width:happiness+"%"}}/></div>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button onClick={()=>setPendingCare({petId:pet.id,action:"feed"})} disabled={!!busy||payload.economy.wallet<30} className="min-h-11 rounded-xl bg-amber-400 px-2 text-xs font-black text-slate-950 disabled:opacity-40">Food · 30 🪙<span className="block opacity-70">+30 happy</span></button>
+                    <button onClick={()=>setPendingCare({petId:pet.id,action:"treat"})} disabled={!!busy||payload.economy.wallet<10} className="min-h-11 rounded-xl bg-pink-300 px-2 text-xs font-black text-slate-950 disabled:opacity-40">Treat · 10 🪙<span className="block opacity-70">+12 happy</span></button>
+                    <button onClick={()=>setPendingCare({petId:pet.id,action:isDog?"walk":"play"})} disabled={!!busy} className="min-h-11 rounded-xl bg-emerald-300 px-2 text-xs font-black text-slate-950 disabled:opacity-40">{isDog?"Walk dog":"Play"} · Free<span className="block opacity-70">+22 happy</span></button>
+                    <button onClick={()=>equip("pet",petId===pet.id?"pet-none":pet.id)} disabled={!!busy} className="min-h-11 rounded-xl bg-cyan-300 px-2 text-xs font-black text-slate-950 disabled:opacity-40">{petId===pet.id?"Let pet rest":"Follow me"}</button>
                   </div>
-                  {payload.economy.wallet<(away?80:40)&&<p className="mt-2 text-xs text-amber-200">Earn more coins by passing quizzes or playing Club games.</p>}
                 </div>;
               })}
               {!payload.catalog.some(x=>x.type==="pet"&&owned(x.id))&&<p className="text-sm text-white/60">Unlock an animal to meet your first companion.</p>}
             </div>
-            <button onClick={()=>{setTab("shop");setShopFilter("pet");}} className="mt-3 min-h-12 w-full rounded-xl bg-amber-400 font-black text-slate-950">UNLOCK MORE PETS</button>
+            <button onClick={()=>{setTab("shop");setShopFilter("pet");}} className="mt-3 min-h-12 w-full rounded-xl bg-amber-400 font-black text-slate-950">VISIT THE PET STORE</button>
           </section>
         </div>
       </div>
@@ -314,8 +315,8 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     </div>}
     {pendingCare&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="care-title">
       <div className="w-[min(430px,100%)] rounded-3xl border border-amber-300/30 bg-slate-950 p-5 shadow-2xl">
-        <h2 id="care-title" className="text-2xl font-black">{pendingCare.action==="feed"?"Feed":"Bring home"} {getItem(pendingCare.petId)?.name}?</h2>
-        <p className="mt-2 text-sm text-white/70">This spends {pendingCare.action==="feed"?40:80} Reader Coins. {pendingCare.action==="feed"?"Care lasts three more days, up to 14 days ahead.":"Your pet returns from the sanctuary with three days of care."}</p>
+        <h2 id="care-title" className="text-2xl font-black">{pendingCare.action==="feed"?"Buy food for":pendingCare.action==="treat"?"Give a treat to":pendingCare.action==="walk"?"Walk":"Play with"} {getItem(pendingCare.petId)?.name}?</h2>
+        <p className="mt-2 text-sm text-white/70">{pendingCare.action==="feed"?"Food costs 30 Reader Coins and adds 30 happiness.":pendingCare.action==="treat"?"A treat costs 10 Reader Coins and adds 12 happiness.":pendingCare.action==="walk"?"Walking is free and adds 22 happiness.":"Play time is free and adds 22 happiness."}</p>
         <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPendingCare(null)} className="min-h-12 rounded-xl bg-white/10 font-black">Cancel</button><button type="button" onClick={()=>void careForPet(pendingCare.petId,pendingCare.action)} disabled={!!busy} className="min-h-12 rounded-xl bg-amber-400 font-black text-slate-950 disabled:opacity-40">Confirm</button></div>
       </div>
     </div>}
