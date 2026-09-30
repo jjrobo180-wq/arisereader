@@ -586,7 +586,7 @@ export class DatabaseStorage implements IStorage {
     return cached('leaderboard', 300000, async () => {
       // Fetch users with regular attempts AND eye gaze attempts AND total_points
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false).eq("role", "student")
+        supabase.from("users").select("id, username, display_name, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false).eq("role", "student").not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
 
@@ -628,6 +628,7 @@ export class DatabaseStorage implements IStorage {
           .select("id, username, display_name, eye_gaze_attempts(score, total)")
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
+          .not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
       const result = allUsers.map((user) => {
@@ -658,6 +659,7 @@ export class DatabaseStorage implements IStorage {
           .select("id, username, display_name, eye_gaze_attempts(score, total)")
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
+          .not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
       const result = allUsers.map((user) => {
@@ -1069,7 +1071,7 @@ export class DatabaseStorage implements IStorage {
 
       // Fetch users with regular attempts AND eye gaze attempts
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false).eq("role", "student")
+        supabase.from("users").select("id, username, display_name, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false).eq("role", "student").not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
 
@@ -1139,6 +1141,7 @@ export class DatabaseStorage implements IStorage {
           .select("id, username, display_name, total_points, teacher_id, attempts(points_earned), eye_gaze_attempts(score, total)")
           .eq("is_admin", false)
           .eq("role", "student")
+          .not("username", "like", "sample%")
       );
 
       const teacherMap = new Map(teachers.map((t: any) => [t.id, t.display_name || t.username]));
