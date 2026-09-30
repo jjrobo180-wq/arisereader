@@ -7,8 +7,7 @@ import { ArrowLeft, Film, Gamepad2, MessageCircle, Trophy, UserRound, Users, X, 
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
-import { createPet } from "@/lib/pets";
-import { PET_PERSONALITIES } from "@/lib/pets";
+import { createPet, openPetCare, PET_PERSONALITIES } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
@@ -388,8 +387,8 @@ export default function ClubArise(){
         while(node){
           if(node.userData.worldExit){setLeavingWorld(true);return;}
           if(node.name==="clubPet"&&node.parent===selfRootRef.current){
-            const personality=PET_PERSONALITIES[String(node.userData.petId)];
-            if(personality){setNotice(personality.emoji+" "+personality.greeting);return;}
+            openPetCare();
+            return;
           }
           const uid=Number(node.userData?.userId||0);
           if(uid){

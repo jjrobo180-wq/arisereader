@@ -144,7 +144,7 @@ function mapQuestion(row: any) {
     optionB: row.option_b,
     optionC: row.option_c,
     optionD: row.option_d,
-    correctAnswer: row.correct_answer,
+    correctAnswer: String(row.correct_answer || "").trim().toUpperCase(),
     questionOrder: row.question_order,
   };
 }
@@ -452,7 +452,7 @@ export class DatabaseStorage implements IStorage {
         score,
         total,
         points_earned: pointsEarned,
-        answers: answers ? JSON.stringify(answers) : null,
+        answers: answers || null,
       }).select().single()
     );
     if (!data) throw new Error("Failed to create attempt");

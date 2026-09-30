@@ -8,7 +8,7 @@ import { ArrowLeft, Coins, Popcorn, Users, Volume2, VolumeX } from "lucide-react
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
-import { createPet } from "@/lib/pets";
+import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
 
 type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string;emoji?:string};
 type TheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null};
@@ -517,6 +517,8 @@ export default function ClubTheater(){
       const rect=renderer.domElement.getBoundingClientRect();
       pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
       ray.setFromCamera(pointer,camera);
+      const petHit=ray.intersectObject(avatarRoot,true).find(hit=>!!findPetRoot(hit.object));
+      if(petHit){openPetCare();return;}
       const hits=ray.intersectObjects(rayTargets,true);
 
       for(const hit of hits){
