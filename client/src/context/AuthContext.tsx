@@ -19,8 +19,14 @@ interface AuthUser {
   loginCount?: number;
 }
 
+type AdminPreviewMode = "regular" | "eye-gaze" | null;
+
 interface AuthContextType {
   user: AuthUser | null;
+  realUser: AuthUser | null;
+  adminPreviewMode: AdminPreviewMode;
+  startAdminPreview: (mode?: Exclude<AdminPreviewMode, null>) => void;
+  exitAdminPreview: () => void;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string) => Promise<void>;
@@ -89,6 +95,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Start in loading state if there's a session to validate — prevents premature routing
   const [isLoading, setIsLoading] = useState(!!sessionRef.current.token);
   const [sessionValidated, setSessionValidated] = useState(false);
+  const [adminPreviewMode, setAdminPreviewMode] = useState<AdminPreviewMode>(() => {
+    if (typeof window === "undefined") return null;
+    const saved = sessionStorage.getItem("arise_admin_preview_mode");
+    return saved === "eye-gaze" ? "eye-gaze" : saved === "regular" ? "regular" : null;
+  });
+
+  const startAdminPreview = useCallback((mode: Exclude<AdminPreviewMode, null> = "regular") => {
+    if (!sessionRef.current.user?.isAdmin) return;
+    const nextMode = mode === "eye-gaze" ? "eye-gaze" : "regular";
+    sessionStorage.setItem("arise_admin_preview_mode", nextMode);
+    setAdminPreviewMode(nextMode);
+  }, []);
+
+  const exitAdminPreview = useCallback(() => {
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    setAdminPreviewMode(null);
+  }, []);
+
+  // While previewing, mark same-origin API calls so the server can run the
+  // full student experience without changing the administrator's real account.
+  useEffect(() => {
+    if (!user?.isAdmin || !adminPreviewMode) return;
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (!rawUrl.includes("/api/")) return originalFetch(input, init);
+      const headers = new Headers(input instanceof Request ? input.headers : undefined);
+      new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
+      headers.set("X-ARISE-Admin-Preview", adminPreviewMode);
+      return originalFetch(input, { ...init, headers });
+    }) as typeof window.fetch;
+    return () => { window.fetch = originalFetch; };
+  }, [user?.isAdmin, adminPreviewMode]);
 
   // Validate session on app load — if the token is expired, clear the cookie
   // and redirect to login. This prevents blank pages from stale cookies.
@@ -244,6 +283,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persistSession]);
 
   const logout = useCallback(() => {
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    setAdminPreviewMode(null);
     if (sessionRef.current.token) {
       fetch(`${API_BASE}/api/logout`, {
         method: "POST",
@@ -256,8 +297,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new Event("arise-logout"));
   }, [persistSession]);
 
+  const contextUser: AuthUser | null = user?.isAdmin && adminPreviewMode
+    ? {
+        ...user,
+        username: "admin-preview",
+        displayName: user.displayName || "Admin Preview",
+        isAdmin: false,
+        role: "student",
+        is_eye_gaze_user: adminPreviewMode === "eye-gaze",
+        totalPoints: 0,
+        approvedByTeacher: true,
+        accountApproved: true,
+      }
+    : user;
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, refreshUser }}>
+    <AuthContext.Provider value={{
+      user: contextUser,
+      realUser: user,
+      adminPreviewMode,
+      startAdminPreview,
+      exitAdminPreview,
+      token,
+      login,
+      register,
+      logout,
+      isLoading,
+      refreshUser,
+    }}>
       {children}
     </AuthContext.Provider>
   );
