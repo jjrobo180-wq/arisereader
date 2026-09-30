@@ -25,14 +25,25 @@ function activeNeighborhoodVisitors(){
 }
 function activeWorldPet(state:any){
   const id=String(state?.equipped?.pet||"pet-none");
-  // Pre-care accounts are initialized on their next Avatar World visit.
-  return state?.petCare?.[id]?.fedUntil&&Number(state.petCare[id].fedUntil)<=Date.now()?"pet-none":id;
+  return id.startsWith("pet-")?id:"pet-none";
 }
 async function initializeLegacyPetCare(userId:number,state:any){
   const pets=(Array.isArray(state?.purchased)?state.purchased:[]).filter((id:any)=>typeof id==="string"&&id.startsWith("pet-"));
-  if(!pets.some((id:string)=>!state?.petCare?.[id]))return state;
+  const needsMigration=pets.some((id:string)=>!state?.petCare?.[id]||state.petCare[id]?.fedUntil!==undefined);
+  if(!needsMigration)return state;
+  const now=Date.now();
   state.petCare={...(state.petCare||{})};
-  for(const id of pets)if(!state.petCare[id])state.petCare[id]={fedUntil:Date.now()+7*86400000};
+  for(const id of pets){
+    const old=state.petCare[id]||{};
+    const legacyUntil=Number(old.fedUntil);
+    state.petCare[id]={
+      happiness:Number.isFinite(Number(old.happiness))?Math.max(0,Math.min(100,Number(old.happiness))):(Number.isFinite(legacyUntil)&&legacyUntil>now?85:70),
+      lastUpdatedAt:Number(old.lastUpdatedAt)||now,
+      lastFedAt:Number(old.lastFedAt)||0,
+      lastTreatAt:Number(old.lastTreatAt)||0,
+      lastWalkAt:Number(old.lastWalkAt)||0,
+    };
+  }
   await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
   return state;
 }
@@ -163,7 +174,8 @@ async function getClubAccess(userId:number){
 
   return {
     allowed,locked,teacherId,dailyLimit,gamesToday,dailyRemaining,
-    gamesPerPassedQuiz:perQuiz,passedQuizzes:passedCount||0,automaticRemaining
+    gamesPerPassedQuiz:perQuiz,passedQuizzes:passedCount||0,automaticRemaining,
+    weeklyUnlimitedOnPass:control?.weekly_unlimited_on_pass!==false
   };
 }
 
@@ -312,7 +324,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const map=new Map((controls||[]).map((x:any)=>[x.student_id,x]));
       res.json((students||[]).map((s:any)=>({
         ...s,
-        control:map.get(s.id)||{student_id:s.id,teacher_id:s.teacher_id,locked:false,daily_game_limit:null,games_per_passed_quiz:0}
+        control:map.get(s.id)||{student_id:s.id,teacher_id:s.teacher_id,locked:false,daily_game_limit:null,games_per_passed_quiz:0,weekly_unlimited_on_pass:true}
       })));
     }catch(error:any){
       console.error("[club-arise] teacher controls",error?.message);
@@ -332,12 +344,14 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const rawLimit=req.body?.dailyGameLimit;
       const dailyGameLimit=rawLimit===null||rawLimit===""||rawLimit===undefined?null:Math.max(0,Math.min(100,Math.floor(Number(rawLimit)||0)));
       const gamesPerPassedQuiz=Math.max(0,Math.min(20,Math.floor(Number(req.body?.gamesPerPassedQuiz)||0)));
+      const weeklyUnlimitedOnPass=req.body?.weeklyUnlimitedOnPass!==false;
       const row={
         student_id:studentId,
         teacher_id:student.teacher_id||req.user.id,
         locked,
         daily_game_limit:dailyGameLimit,
         games_per_passed_quiz:gamesPerPassedQuiz,
+        weekly_unlimited_on_pass:weeklyUnlimitedOnPass,
         updated_at:new Date().toISOString()
       };
       const {data,error}=await db().from("club_arise_controls").upsert(row,{onConflict:"student_id"}).select("*").single();
