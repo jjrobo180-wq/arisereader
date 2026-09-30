@@ -7,7 +7,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Home, Paintbrush, RotateCcw,
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
-import { createPet } from "@/lib/pets";
+import { createPet, openPetCare } from "@/lib/pets";
 
 type CatalogItem={id:string;type:string;name:string;price:number;rarity:string};
 type Payload={
@@ -179,7 +179,7 @@ export default function HomeInterior(){
 
     const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down:{x:number;y:number}|null=null;
     const pd=(e:PointerEvent)=>down={x:e.clientX,y:e.clientY};
-    const pu=(e:PointerEvent)=>{if(!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>9){down=null;return;}down=null;const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObject(floor)[0];if(hit&&!blocked(hit.point.x,hit.point.z))targetRef.current.set(hit.point.x,0,hit.point.z);};
+    const pu=(e:PointerEvent)=>{if(!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>9){down=null;return;}down=null;const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const petObj=petRef.current;if(petObj&&ray.intersectObject(petObj,true).length){openPetCare();return;}const hit=ray.intersectObject(floor)[0];if(hit&&!blocked(hit.point.x,hit.point.z))targetRef.current.set(hit.point.x,0,hit.point.z);};
     const kd=(e:KeyboardEvent)=>keysRef.current.add(e.key.toLowerCase()),ku=(e:KeyboardEvent)=>keysRef.current.delete(e.key.toLowerCase());
     renderer.domElement.addEventListener("pointerdown",pd);renderer.domElement.addEventListener("pointerup",pu);window.addEventListener("keydown",kd);window.addEventListener("keyup",ku);
     const resize=()=>{camera.aspect=mount.clientWidth/Math.max(1,mount.clientHeight);camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight);};resize();window.addEventListener("resize",resize);
