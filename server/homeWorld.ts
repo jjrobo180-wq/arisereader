@@ -1,4 +1,4 @@
-import type { Express, RequestHandler } from "express";
+import type { Express } from "express";
 import { storage } from "./storage";
 
 const HOME_IDS=new Set(["home-studio","home-loft","home-modern"]);
@@ -23,6 +23,14 @@ const LOTS=Array.from({length:18},(_,i)=>{
   const col=i%9;
   return {x:-28+col*7,z:row===0?15:-15};
 });
+
+async function homeAuth(req:any,res:any,next:any){
+  const token=req.headers.authorization?.replace("Bearer ","");
+  if(!token)return res.status(401).json({message:"Not authenticated"});
+  const session=await storage.getSession(token);
+  if(!session)return res.status(401).json({message:"Invalid or expired session"});
+  req.user=session.user;req.sessionToken=token;next();
+}
 
 function isStudent(user:any){
   return !!user&&!user.isAdmin&&user.role==="student"&&!user.is_eye_gaze_user;
@@ -91,8 +99,8 @@ async function ensureHome(user:any,registry?:HomeRegistry){
   return {registry:reg,home:record};
 }
 
-export function registerHomeWorldRoutes(app:Express,authMiddleware:RequestHandler){
-  app.get("/api/homes/neighborhood",authMiddleware,async(req:any,res)=>{
+export function registerHomeWorldRoutes(app:Express){
+  app.get("/api/homes/neighborhood",homeAuth,async(req:any,res)=>{
     try{
       if(!isStudent(req.user))return res.status(403).json({message:"The Block is for student accounts."});
       const {registry,home}=await ensureHome(req.user);
@@ -104,7 +112,7 @@ export function registerHomeWorldRoutes(app:Express,authMiddleware:RequestHandle
     }
   });
 
-  app.get("/api/homes/:ownerId",authMiddleware,async(req:any,res)=>{
+  app.get("/api/homes/:ownerId",homeAuth,async(req:any,res)=>{
     try{
       if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
       const ownerId=Number(req.params.ownerId);
@@ -138,7 +146,7 @@ export function registerHomeWorldRoutes(app:Express,authMiddleware:RequestHandle
     }
   });
 
-  app.post("/api/homes/door",authMiddleware,async(req:any,res)=>{
+  app.post("/api/homes/door",homeAuth,async(req:any,res)=>{
     try{
       if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
       const {registry,home}=await ensureHome(req.user);
