@@ -1929,7 +1929,7 @@ export async function registerRoutes(
       if(validIds.has(unlock)&&!purchased.includes(unlock))purchased.push(unlock);
     }
     const now=Date.now();
-    const validPetIds=new Set(AVATAR_WORLD_CATALOG.filter(item=>item.type==="pet").map(item=>item.id));
+    const validPetIds=new Set<string>(AVATAR_WORLD_CATALOG.filter(item=>item.type==="pet").map(item=>item.id));
     const runawayPets:string[]=Array.isArray(source.runawayPets)
       ? Array.from(new Set<string>(source.runawayPets.map(String).filter((id:string)=>validPetIds.has(id)))).slice(0,30)
       : [];
