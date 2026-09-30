@@ -583,9 +583,9 @@ export default function ClubArise(){
     }catch{}
   };
 
-  const joinGame=async(station:Station)=>{
-    setNotice("Finding another player…");
-    const r=await fetch(API_BASE+"/api/club-arise/matches/join",{method:"POST",headers,body:JSON.stringify({gameType:station.id})});const d=await r.json();
+  const joinGame=async(station:Station,computer=false)=>{
+    setNotice(computer?"Starting a game against the computer…":"Finding another player…");
+    const r=await fetch(API_BASE+"/api/club-arise/matches/join",{method:"POST",headers,body:JSON.stringify({gameType:station.id,computer})});const d=await r.json();
     if(!r.ok){setNotice(d.message||"Could not join game.");return;}setMatch(d);setGameOpen(true);
   };
 
@@ -601,7 +601,7 @@ export default function ClubArise(){
 
   const myIndex=match&&self?(match.player1_id===self.userId?1:match.player2_id===self.userId?2:0):0;
   const yourTurn=!!match&&match.status==="active"&&Number(match.state?.turn)===myIndex;
-  const opponent=match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
+  const opponent=match?.state?.computer?"Computer":match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
   const onlineReaders=players.filter(p=>p.user_id!==self?.userId);
   const move=(key:"w"|"a"|"s"|"d",pressed:boolean)=>{if(pressed)keysRef.current.add(key);else keysRef.current.delete(key);};
 
@@ -736,13 +736,16 @@ export default function ClubArise(){
 
     {nearStation&&!gameOpen&&<div className="absolute left-1/2 top-32 z-40 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl border border-cyan-300/25 bg-slate-950 p-5 text-white shadow-2xl">
       <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15"><Gamepad2 className="h-6 w-6 text-cyan-300"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-white/65">{nearStation.subtitle}</p><p className="mt-2 text-sm text-white/70">Ready to play this game?</p></div><button type="button" onClick={()=>setNearStation(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close game choice"><X className="h-4 w-4"/></button></div>
-      <button type="button" onClick={()=>{void joinGame(nearStation);setNearStation(null);}} disabled={access?.allowed===false} className="mt-4 min-h-12 w-full rounded-2xl bg-cyan-300 px-5 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">Play {nearStation.name}</button>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button type="button" onClick={()=>{void joinGame(nearStation,false);setNearStation(null);}} disabled={access?.allowed===false} className="min-h-12 rounded-2xl bg-cyan-300 px-4 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">👥 Play another reader</button>
+        <button type="button" onClick={()=>{void joinGame(nearStation,true);setNearStation(null);}} disabled={access?.allowed===false} className="min-h-12 rounded-2xl bg-violet-500 px-4 font-black text-white disabled:cursor-not-allowed disabled:opacity-40">🤖 Play computer</button>
+      </div>
       {access?.allowed===false&&<p className="mt-2 text-sm text-amber-300">Arcade games are currently unavailable.</p>}
     </div>}
 
     {gameOpen&&match&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
       <section className="max-h-[92dvh] w-[min(760px,96vw)] overflow-auto rounded-[2rem] bg-white p-5 text-slate-950 shadow-2xl">
-        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">A.R.I.S.E Arcade multiplayer</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>setGameOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100"><X/></button></div>
+        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">{match.state?.computer?"A.R.I.S.E Arcade · vs Computer":"A.R.I.S.E Arcade multiplayer"}</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>setGameOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100"><X/></button></div>
 
         {match.game_type==="four"&&<div className="mt-5 grid grid-cols-7 gap-1 rounded-2xl bg-blue-600 p-2">
           {(match.state?.board||[]).flatMap((row:any[],r:number)=>row.map((cell:any,c:number)=><button key={r+"-"+c} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({column:c})} className={"aspect-square rounded-full border-4 border-blue-700 "+(cell===1?"bg-amber-400":cell===2?"bg-rose-500":"bg-white")} aria-label={"Column "+(c+1)}/>))}
@@ -768,7 +771,7 @@ export default function ClubArise(){
           <div className="mt-3 grid gap-3 sm:grid-cols-3">{(match.state?.questions?.[match.state?.round]?.options||[]).map((choice:string)=><button key={choice} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({choice})} className="min-h-20 rounded-2xl bg-slate-950 px-3 text-base font-black text-white disabled:opacity-40">{choice}</button>)}</div>
         </div>}
 
-        {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!"}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Arcade</button></div>}
+        {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.state?.computer?(Number(match.state?.winner)===1?"You won!":Number(match.state?.winner)===2?"Computer won — try again!":"Tie game!"):(match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!")}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Arcade</button></div>}
       </section>
     </div>}
 
