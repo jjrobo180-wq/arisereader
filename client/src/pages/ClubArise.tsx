@@ -11,7 +11,7 @@ import { createPet, openPetCare, PET_PERSONALITIES } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
-import MobileJoystick from "@/components/MobileJoystick";
+import MobileMovePad from "@/components/MobileMovePad";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
@@ -467,31 +467,15 @@ export default function ClubArise(){
             }
           }
         }else{
-          const before=root.position.clone();
-          const k=keysRef.current;
-          const inputRight=((k.has("d")||k.has("arrowright"))?1:0)-((k.has("a")||k.has("arrowleft"))?1:0);
-          const inputForward=((k.has("w")||k.has("arrowup"))?1:0)-((k.has("s")||k.has("arrowdown"))?1:0);
+          let dx=0,dz=0;const k=keysRef.current;if(k.has("w")||k.has("arrowup"))dz-=1;if(k.has("s")||k.has("arrowdown"))dz+=1;if(k.has("a")||k.has("arrowleft"))dx-=1;if(k.has("d")||k.has("arrowright"))dx+=1;
           const dest=targetRef.current.clone();
-          if(inputRight||inputForward){
-            const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;
-            if(forward.lengthSq()<.0001)forward.set(0,0,-1);
-            forward.normalize();
-            const right=forward.clone().cross(new THREE.Vector3(0,1,0)).normalize();
-            const v=forward.multiplyScalar(inputForward).add(right.multiplyScalar(inputRight)).normalize().multiplyScalar((drivingRef.current?10:5)*dt);
-            root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);
-          }else{
-            const diff=dest.sub(root.position);diff.y=0;
-            if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}
-          }
-          if(root.position.distanceToSquared(before)>.000001){
-            const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);
-            const shift=desired.clone().sub(controls.target);
-            controls.target.copy(desired);camera.position.add(shift);
-          }
+          if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar((drivingRef.current?10:5)*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
+          else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
         }
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
         if(!carTransitionRef.current&&Math.hypot(root.position.x,root.position.z-22)<1.7){setLeavingWorld(true);return;}
         if(drivingRef.current&&selfCarRef.current&&!carTransitionRef.current){selfCarRef.current.position.set(root.position.x,0,root.position.z);selfCarRef.current.rotation.y=root.rotation.y;
+          const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);const shift=desired.sub(controls.target).multiplyScalar(.12);camera.position.add(shift);controls.target.add(shift);
         }
         const pet=root.getObjectByName("clubPet");if(pet&&!drivingRef.current){const personality=PET_PERSONALITIES[String(pet.userData.petId)];const t=performance.now()*.001;pet.position.y=personality?.motion==="bounce"?Math.abs(Math.sin(t*3))*.16:Math.sin(t*2)*.045;pet.rotation.z=personality?.motion==="sway"?Math.sin(t*2)*.12:0;pet.rotation.y=personality?.motion==="spin"?Math.sin(t*.7)*.35:0;}
       }
@@ -599,9 +583,9 @@ export default function ClubArise(){
     }catch{}
   };
 
-  const joinGame=async(station:Station)=>{
-    setNotice("Finding another player…");
-    const r=await fetch(API_BASE+"/api/club-arise/matches/join",{method:"POST",headers,body:JSON.stringify({gameType:station.id})});const d=await r.json();
+  const joinGame=async(station:Station,computer=false)=>{
+    setNotice(computer?"Starting a game against the computer…":"Finding another player…");
+    const r=await fetch(API_BASE+"/api/club-arise/matches/join",{method:"POST",headers,body:JSON.stringify({gameType:station.id,computer})});const d=await r.json();
     if(!r.ok){setNotice(d.message||"Could not join game.");return;}setMatch(d);setGameOpen(true);
   };
 
@@ -617,9 +601,9 @@ export default function ClubArise(){
 
   const myIndex=match&&self?(match.player1_id===self.userId?1:match.player2_id===self.userId?2:0):0;
   const yourTurn=!!match&&match.status==="active"&&Number(match.state?.turn)===myIndex;
-  const opponent=match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
+  const opponent=match?.state?.computer?"Computer":match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
   const onlineReaders=players.filter(p=>p.user_id!==self?.userId);
-  const touchMove=(key:"w"|"a"|"s"|"d",active:boolean)=>{if(active)keysRef.current.add(key);else keysRef.current.delete(key);};
+  const move=(key:"w"|"a"|"s"|"d",pressed:boolean)=>{if(pressed)keysRef.current.add(key);else keysRef.current.delete(key);};
 
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
@@ -653,10 +637,7 @@ export default function ClubArise(){
 
     <div className="pointer-events-none absolute left-1/2 top-14 z-20 max-w-[62vw] -translate-x-1/2 truncate rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-black backdrop-blur sm:top-20 sm:max-w-none sm:rounded-2xl sm:px-4 sm:py-2 sm:text-sm">{notice}</div>
 
-    <div className="absolute bottom-3 right-20 z-[35] xl:hidden">
-      <MobileJoystick onMove={touchMove} label={driving?"Drive":"Walk"}/>
-    </div>
-
+    <MobileMovePad onMove={move} className="bottom-3 left-3" label="Arcade movement controls"/>
     <div className="absolute bottom-3 right-3 z-40 flex flex-col gap-1.5 rounded-2xl border border-white/15 bg-slate-950/88 p-1.5 shadow-2xl backdrop-blur-xl">
       <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowArcade(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 hover:bg-white/20" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
       <button type="button" onClick={()=>{setShowMobileCamera(value=>!value);setShowMobileChat(false);setShowArcade(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-xs font-black hover:bg-white/20" aria-label="Camera controls">⌖</button>
@@ -755,13 +736,16 @@ export default function ClubArise(){
 
     {nearStation&&!gameOpen&&<div className="absolute left-1/2 top-32 z-40 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl border border-cyan-300/25 bg-slate-950 p-5 text-white shadow-2xl">
       <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15"><Gamepad2 className="h-6 w-6 text-cyan-300"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-white/65">{nearStation.subtitle}</p><p className="mt-2 text-sm text-white/70">Ready to play this game?</p></div><button type="button" onClick={()=>setNearStation(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close game choice"><X className="h-4 w-4"/></button></div>
-      <button type="button" onClick={()=>{void joinGame(nearStation);setNearStation(null);}} disabled={access?.allowed===false} className="mt-4 min-h-12 w-full rounded-2xl bg-cyan-300 px-5 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">Play {nearStation.name}</button>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button type="button" onClick={()=>{void joinGame(nearStation,false);setNearStation(null);}} disabled={access?.allowed===false} className="min-h-12 rounded-2xl bg-cyan-300 px-4 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">👥 Play another reader</button>
+        <button type="button" onClick={()=>{void joinGame(nearStation,true);setNearStation(null);}} disabled={access?.allowed===false} className="min-h-12 rounded-2xl bg-violet-500 px-4 font-black text-white disabled:cursor-not-allowed disabled:opacity-40">🤖 Play computer</button>
+      </div>
       {access?.allowed===false&&<p className="mt-2 text-sm text-amber-300">Arcade games are currently unavailable.</p>}
     </div>}
 
     {gameOpen&&match&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
       <section className="max-h-[92dvh] w-[min(760px,96vw)] overflow-auto rounded-[2rem] bg-white p-5 text-slate-950 shadow-2xl">
-        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">A.R.I.S.E Arcade multiplayer</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>setGameOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100"><X/></button></div>
+        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">{match.state?.computer?"A.R.I.S.E Arcade · vs Computer":"A.R.I.S.E Arcade multiplayer"}</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>setGameOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100"><X/></button></div>
 
         {match.game_type==="four"&&<div className="mt-5 grid grid-cols-7 gap-1 rounded-2xl bg-blue-600 p-2">
           {(match.state?.board||[]).flatMap((row:any[],r:number)=>row.map((cell:any,c:number)=><button key={r+"-"+c} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({column:c})} className={"aspect-square rounded-full border-4 border-blue-700 "+(cell===1?"bg-amber-400":cell===2?"bg-rose-500":"bg-white")} aria-label={"Column "+(c+1)}/>))}
@@ -787,7 +771,7 @@ export default function ClubArise(){
           <div className="mt-3 grid gap-3 sm:grid-cols-3">{(match.state?.questions?.[match.state?.round]?.options||[]).map((choice:string)=><button key={choice} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({choice})} className="min-h-20 rounded-2xl bg-slate-950 px-3 text-base font-black text-white disabled:opacity-40">{choice}</button>)}</div>
         </div>}
 
-        {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!"}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Arcade</button></div>}
+        {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.state?.computer?(Number(match.state?.winner)===1?"You won!":Number(match.state?.winner)===2?"Computer won — try again!":"Tie game!"):(match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!")}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Arcade</button></div>}
       </section>
     </div>}
 

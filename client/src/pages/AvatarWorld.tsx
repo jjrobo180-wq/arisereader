@@ -11,7 +11,7 @@ import { ArrowLeft, Car, Check, Coins, Home, Lock, ShoppingBag, UserRound, X } f
 type CatalogItem={id:string;type:string;name:string;price:number;rarity:string};
 type Payload={
   economy:{level:number;quizzesTaken:number;passedQuizzes:number;totalPoints:number;lifetimeCoins:number;wallet:number;nextLevelAt:number|null;coinsPerPassedQuiz:number;coinsPerGame:number;winBonusCoins:number;levelBonus:number;clubGames:number;clubWins:number};
-  state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>;runawayPets:string[];lastRunaway:null|{petId:string;ranAwayAt:number};careSpent:number;spent:number};
+  state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>;lostPets?:string[];careSpent:number;spent:number};
   catalog:CatalogItem[];
 };
 type Tab="character"|"shop"|"garage";
@@ -215,7 +215,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
           </section>
           <section ref={petSectionRef} className="scroll-mt-28 rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <h3 className="text-xl font-black">My Club Pet</h3>
-            <p className="text-sm text-white/65 font-bold mt-1">Your pet stays with you through A.R.I.S.E. worlds and games until you turn it off. Happiness keeps dropping with real time even when you are offline or the pet is resting. Keep it happy with food, treats, walks, and play. If happiness reaches 0%, the pet runs away and must be adopted again.</p>
+            <p className="text-sm text-white/65 font-bold mt-1">Your pet follows you through A.R.I.S.E. worlds and games. Happiness keeps dropping with real time even when you are offline, so feed, treat, walk, and play with your pet. At 0% happiness, the pet runs away and must be re-adopted from the pet shop.</p>
             <div className="mt-3 grid sm:grid-cols-2 gap-2">
               {payload.catalog.filter(x=>x.type==="pet"&&owned(x.id)).map(pet=>{
                 const personality=PET_PERSONALITIES[pet.id];
@@ -236,7 +236,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
                   </div>
                 </div>;
               })}
-              {!payload.catalog.some(x=>x.type==="pet"&&owned(x.id))&&<p className="text-sm text-white/60">{payload.state.runawayPets?.length?"Your pet ran away after its happiness reached 0. Visit the Pet Store to adopt it again.":"Unlock an animal to meet your first companion."}</p>}
+              {!payload.catalog.some(x=>x.type==="pet"&&owned(x.id))&&<p className="text-sm text-white/60">Unlock an animal to meet your first companion.</p>}
             </div>
             <button onClick={()=>{setTab("shop");setShopFilter("pet");}} className="mt-3 min-h-12 w-full rounded-xl bg-amber-400 font-black text-slate-950">VISIT THE PET STORE</button>
           </section>
@@ -253,16 +253,15 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
         {shopItems.map(product=>{
           const isOwned=owned(product.id),canAfford=payload.economy.wallet>=product.price;
-          const ranAway=product.type==="pet"&&payload.state.runawayPets?.includes(product.id);
+          const wasLost=product.type==="pet"&&!!payload.state.lostPets?.includes(product.id);
           const icon=product.type==="pet"?PET_PERSONALITIES[product.id]?.emoji:product.type==="car"?"🚗":product.type==="home"?"🏠":product.type==="character"?"🧍":"🛋️";
           return <article key={product.id} className={"rounded-[2rem] overflow-hidden border-2 bg-gradient-to-br "+(rarityClass[product.rarity]||rarityClass.common)}>
             <div className="h-44 grid place-items-center bg-black/25 relative"><div className="text-7xl">{icon}</div><span className="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-[10px] font-black uppercase">{product.rarity}</span>{product.type==="character"?<button type="button" onClick={()=>{setPreviewCharacterId(product.id.replace(/^unlock-/,""));setTab("character");}} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview character</button>:["pet","car","home"].includes(product.type)&&<button type="button" onClick={()=>setPreviewProduct(product)} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview in 3D</button>}</div>
             <div className="p-4 bg-slate-950/85"><h3 className="text-lg font-black">{product.name}</h3><p className="text-xs font-black text-white/45 uppercase">{product.type}</p>
-              {product.type==="pet"&&<p className="mt-2 text-xs text-white/70"><strong className="text-cyan-200">{PET_PERSONALITIES[product.id]?.trait}.</strong> {PET_PERSONALITIES[product.id]?.greeting} · Loves {PET_PERSONALITIES[product.id]?.favorite.toLowerCase()}. Happiness keeps dropping even while offline. At 0%, the pet runs away.</p>}
-              {ranAway&&<p className="mt-2 rounded-xl bg-rose-500/15 p-2 text-xs font-black text-rose-200">This pet ran away. Adopt it again to bring it home.</p>}
+              {product.type==="pet"&&<p className="mt-2 text-xs text-white/70"><strong className="text-cyan-200">{PET_PERSONALITIES[product.id]?.trait}.</strong> {PET_PERSONALITIES[product.id]?.greeting} · Loves {PET_PERSONALITIES[product.id]?.favorite.toLowerCase()}. Keep happiness high with food, treats, walks, and play.</p>}
               {product.type==="pet"&&isOwned
                 ?<button onClick={showPets} className="mt-4 w-full min-h-12 rounded-xl bg-emerald-500/20 font-black text-emerald-300">CARE FOR PET</button>
-                :<button disabled={isOwned||!canAfford||!!busy} onClick={()=>setPendingPurchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{product.price} · {ranAway?"ADOPT AGAIN":"UNLOCK"}</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>}
+                :<button disabled={isOwned||!canAfford||!!busy} onClick={()=>setPendingPurchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{product.price} · {wasLost?"RE-ADOPT":"UNLOCK"}</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>}
             </div>
           </article>;
         })}
@@ -304,8 +303,8 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     </div>}
     {pendingPurchase&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
       <div className="w-[min(430px,100%)] rounded-3xl border border-amber-300/30 bg-slate-950 p-5 text-white shadow-2xl">
-        <h2 id="purchase-title" className="text-2xl font-black">{pendingPurchase.type==="pet"&&payload.state.runawayPets?.includes(pendingPurchase.id)?"Adopt "+pendingPurchase.name+" again?":"Unlock "+pendingPurchase.name+"?"}</h2>
-        <p className="mt-2 text-sm text-white/70">{pendingPurchase.type==="pet"&&payload.state.runawayPets?.includes(pendingPurchase.id)?"This pet ran away when its happiness reached 0. Adopting it again costs ":"This will spend "}<strong className="text-amber-300">{pendingPurchase.price.toLocaleString()} Reader Coins</strong>. You have {payload.economy.wallet.toLocaleString()} coins.</p>
+        <h2 id="purchase-title" className="text-2xl font-black">Unlock {pendingPurchase.name}?</h2>
+        <p className="mt-2 text-sm text-white/70">This will spend <strong className="text-amber-300">{pendingPurchase.price.toLocaleString()} Reader Coins</strong>. You have {payload.economy.wallet.toLocaleString()} coins.</p>
         <p className="mt-2 text-sm font-bold text-white/60">Your balance after unlocking: {(payload.economy.wallet-pendingPurchase.price).toLocaleString()} coins.</p>
         <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPendingPurchase(null)} className="min-h-12 rounded-xl bg-white/10 font-black">Cancel</button><button type="button" onClick={()=>void purchase(pendingPurchase)} disabled={payload.economy.wallet<pendingPurchase.price||!!busy} className="min-h-12 rounded-xl bg-amber-400 px-3 font-black text-slate-950 disabled:opacity-50">Confirm unlock</button></div>
       </div>
