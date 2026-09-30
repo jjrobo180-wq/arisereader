@@ -189,6 +189,46 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminPreviewBar() {
+  const { realUser, adminPreviewMode, startAdminPreview, exitAdminPreview } = useAuth();
+  const [, navigate] = useLocation();
+  if (!realUser?.isAdmin || !adminPreviewMode) return null;
+
+  const switchMode = (mode: "regular" | "eye-gaze") => {
+    startAdminPreview(mode);
+    navigate(mode === "eye-gaze" ? "/eye-gaze-home" : "/profile");
+  };
+
+  return (
+    <div className="fixed left-1/2 top-2 z-[260] -translate-x-1/2 rounded-2xl border border-white/15 bg-slate-950/95 p-1.5 text-white shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center gap-1">
+        <span className="hidden px-2 text-[10px] font-black uppercase tracking-widest text-amber-300 sm:inline">Admin Preview</span>
+        <button
+          type="button"
+          onClick={() => switchMode("regular")}
+          className={`rounded-xl px-3 py-2 text-xs font-black transition ${adminPreviewMode === "regular" ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/10"}`}
+        >
+          Non-Eye Gazer
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode("eye-gaze")}
+          className={`rounded-xl px-3 py-2 text-xs font-black transition ${adminPreviewMode === "eye-gaze" ? "bg-cyan-400 text-slate-950" : "text-slate-300 hover:bg-white/10"}`}
+        >
+          Eye Gazer
+        </button>
+        <button
+          type="button"
+          onClick={() => { exitAdminPreview(); navigate("/admin"); }}
+          className="rounded-xl px-3 py-2 text-xs font-black text-amber-300 hover:bg-white/10"
+        >
+          Exit
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { user, isLoading } = useAuth();
   // Eye-gaze mode is only for non-privileged learner accounts. Admin,
@@ -416,11 +456,12 @@ function AppRoutes() {
 }
 
 function AppInner() {
-  const { user, token } = useAuth();
+  const { user, realUser, adminPreviewMode, token } = useAuth();
   const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
   const isParent = user && user.role === 'parent';
   const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
   const isSampleStudent = isStudent && user?.username === 'sample';
+  const isAdminPreview = !!realUser?.isAdmin && !!adminPreviewMode;
   const [sampleTourDone, setSampleTourDone] = useState(false);
   const [tourShown, setTourShown] = useState(false);
   const [tourActive, setTourActive] = useState(false);
@@ -466,13 +507,14 @@ function AppInner() {
   return (
     <>
       {/* All students get GuidedTour (replaces old FypAnnouncementPopup) */}
-      {isStudent && !isEyeGazeStudent && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
       {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
-      {isStudent && !isEyeGazeStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isStudent && !isEyeGazeStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
       <Router hook={useHashLocation}>
+        <AdminPreviewBar />
         <EyeGazeSiteShell>
           <ClubPlayGate><AppRoutes /></ClubPlayGate>
           <EyeGazeCelebrations />
