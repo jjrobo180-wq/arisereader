@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bone, Coins, Heart, PawPrint, ShoppingBag, Utensils, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
-import { PET_PERSONALITIES } from "@/lib/pets";
+import { PET_CARE_EVENT, PET_PERSONALITIES } from "@/lib/pets";
 
 type PetCare={happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number};
 type WorldPayload={
@@ -34,6 +34,11 @@ export default function PetCompanionHUD(){
     }catch{}
   };
   useEffect(()=>{void load();const id=window.setInterval(load,30000);return()=>window.clearInterval(id);},[token]);
+  useEffect(()=>{
+    const openCare=()=>{void load();setOpen(true);};
+    window.addEventListener(PET_CARE_EVENT,openCare);
+    return()=>window.removeEventListener(PET_CARE_EVENT,openCare);
+  },[token]);
 
   const petId=data?.state.equipped.pet||"pet-none";
   const pet=data?.catalog.find(x=>x.id===petId);
