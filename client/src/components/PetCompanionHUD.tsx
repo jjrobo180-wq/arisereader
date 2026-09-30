@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Bone, Coins, Heart, PawPrint, ShoppingBag, Utensils, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { useLocation } from "wouter";
 import { PET_CARE_EVENT, PET_PERSONALITIES } from "@/lib/pets";
 
 type PetCare={happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number};
 type WorldPayload={
   economy:{wallet:number};
-  state:{equipped:Record<string,string>;petCare:Record<string,PetCare>};
+  state:{equipped:Record<string,string>;petCare:Record<string,PetCare>;runawayPets:string[];lastRunaway:null|{petId:string;ranAwayAt:number}};
   catalog:Array<{id:string;type:string;name:string}>;
 };
 
@@ -21,6 +22,7 @@ function mood(happiness:number){
 
 export default function PetCompanionHUD(){
   const {token}=useAuth();
+  const [,navigate]=useLocation();
   const [data,setData]=useState<WorldPayload|null>(null);
   const [open,setOpen]=useState(false);
   const [busy,setBusy]=useState("");
@@ -45,7 +47,20 @@ export default function PetCompanionHUD(){
   const care=data?.state.petCare[petId];
   const happiness=Math.max(0,Math.min(100,Math.round(care?.happiness??100)));
   const petMood=useMemo(()=>mood(happiness),[happiness]);
-  if(!data||petId==="pet-none"||!pet)return null;
+  if(!data)return null;
+  if(petId==="pet-none"||!pet){
+    const runaway=data.state.lastRunaway;
+    const runawayPet=runaway?data.catalog.find(x=>x.id===runaway.petId):null;
+    const recent=!!runaway&&Date.now()-runaway.ranAwayAt<48*60*60*1000;
+    if(!recent||!runawayPet)return null;
+    return <div className="fixed bottom-3 left-3 z-[80] w-[min(340px,calc(100vw-1.5rem))] rounded-2xl border border-rose-300/30 bg-slate-950/95 p-3 text-white shadow-2xl backdrop-blur">
+      <div className="flex items-start gap-3">
+        <span className="text-3xl">{PET_PERSONALITIES[runaway.petId]?.emoji||"🐾"}</span>
+        <div className="min-w-0 flex-1"><p className="font-black">{runawayPet.name} ran away</p><p className="mt-1 text-xs font-bold text-white/65">Its happiness reached 0 while time kept passing. Pets still need care even when you are offline or have them resting.</p></div>
+      </div>
+      <button type="button" onClick={()=>navigate("/avatar-world")} className="mt-3 min-h-11 w-full rounded-xl bg-amber-300 font-black text-slate-950">Visit Pet Store</button>
+    </div>;
+  }
 
   const act=async(action:"feed"|"treat"|"walk"|"play")=>{
     if(!token||busy)return;
@@ -94,7 +109,7 @@ export default function PetCompanionHUD(){
           <div className="rounded-2xl bg-white/5 p-4">
             <div className="flex items-center justify-between"><span className="flex items-center gap-2 font-black"><Heart className="h-5 w-5"/> Happiness</span><strong>{happiness}% · {petMood.label}</strong></div>
             <div className="mt-3 h-4 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400 transition-all duration-500" style={{width:happiness+"%"}}/></div>
-            <p className="mt-2 text-xs font-bold text-white/55">Happiness slowly drops over time. Food, treats, walks, and play bring it back up. Your pet never disappears just because the meter is low.</p>
+            <p className="mt-2 text-xs font-bold text-white/55">Happiness keeps dropping with real time, even while you are offline or the pet is resting. Food, treats, walks, and play bring it back up. At 0%, your pet runs away and has to be adopted again.</p>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-widest text-amber-300">Pet Store & Care</p><p className="text-sm font-bold text-white/60">Use Reader Coins for food and treats.</p></div><span className="flex items-center gap-1 rounded-xl bg-amber-300 px-3 py-2 font-black text-slate-950"><Coins className="h-4 w-4"/>{data.economy.wallet}</span></div>
@@ -102,7 +117,7 @@ export default function PetCompanionHUD(){
             <button disabled={!!busy||data.economy.wallet<30} onClick={()=>void act("feed")} className="min-h-20 rounded-2xl bg-amber-300 p-3 text-left font-black text-slate-950 disabled:opacity-40"><Utensils className="mb-1 h-5 w-5"/>Food · 30 🪙<span className="block text-xs font-bold opacity-70">+30 happiness</span></button>
             <button disabled={!!busy||data.economy.wallet<10} onClick={()=>void act("treat")} className="min-h-20 rounded-2xl bg-pink-300 p-3 text-left font-black text-slate-950 disabled:opacity-40"><Bone className="mb-1 h-5 w-5"/>Treat · 10 🪙<span className="block text-xs font-bold opacity-70">+12 happiness</span></button>
             <button disabled={!!busy} onClick={()=>void act(isDog?"walk":"play")} className="min-h-20 rounded-2xl bg-cyan-300 p-3 text-left font-black text-slate-950 disabled:opacity-40"><PawPrint className="mb-1 h-5 w-5"/>{isDog?"Walk dog":"Play together"}<span className="block text-xs font-bold opacity-70">Free · +22 happiness</span></button>
-            <button disabled={!!busy} onClick={()=>void turnOff()} className="min-h-20 rounded-2xl bg-white/10 p-3 text-left font-black text-white disabled:opacity-40"><ShoppingBag className="mb-1 h-5 w-5"/>Let pet rest<span className="block text-xs font-bold text-white/55">Turns pet off until you equip it again</span></button>
+            <button disabled={!!busy} onClick={()=>void turnOff()} className="min-h-20 rounded-2xl bg-white/10 p-3 text-left font-black text-white disabled:opacity-40"><ShoppingBag className="mb-1 h-5 w-5"/>Let pet rest<span className="block text-xs font-bold text-white/55">Hides the pet, but happiness still drops with time</span></button>
           </div>
           {message&&<p className="mt-3 rounded-xl bg-white/10 p-3 text-sm font-black">{message}</p>}
         </div>
