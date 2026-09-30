@@ -591,13 +591,41 @@ export default function ClubArise(){
 
   useEffect(()=>{
     if(!match||!gameOpen)return;
-    const id=window.setInterval(async()=>{const r=await fetch(API_BASE+"/api/club-arise/matches/"+match.id,{headers:{Authorization:"Bearer "+token},cache:"no-store"});if(r.ok)setMatch(await r.json());},700);
+    const id=window.setInterval(async()=>{
+      const r=await fetch(API_BASE+"/api/club-arise/matches/"+match.id,{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+      if(!r.ok)return;
+      const next=await r.json();
+      if(next.status==="cancelled"){
+        setGameOpen(false);setMatch(null);setNotice("That game ended. Choose a new opponent.");
+        return;
+      }
+      setMatch(next);
+    },700);
     return()=>clearInterval(id);
   },[match?.id,gameOpen,token]);
 
   const gameAction=async(body:any)=>{
     if(!match)return;const r=await fetch(API_BASE+"/api/club-arise/matches/"+match.id+"/action",{method:"POST",headers,body:JSON.stringify(body)});const d=await r.json();if(r.ok)setMatch(d);else setNotice(d.message||"Try again.");
   };
+
+  const quitGame=async()=>{
+    const current=match;
+    setGameOpen(false);setMatch(null);setNearStation(null);
+    if(!current||!["waiting","active"].includes(current.status))return;
+    try{
+      await fetch(API_BASE+"/api/club-arise/matches/"+current.id+"/leave",{
+        method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:"{}",keepalive:true,
+      });
+    }catch{}
+    setNotice("Game ended. Pick a game and opponent to start fresh.");
+  };
+
+  useEffect(()=>{
+    if(!match||!gameOpen||!["waiting","active"].includes(match.status))return;
+    const leave=()=>{void fetch(API_BASE+"/api/club-arise/matches/"+match.id+"/leave",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:"{}",keepalive:true}).catch(()=>{});};
+    window.addEventListener("pagehide",leave);
+    return()=>window.removeEventListener("pagehide",leave);
+  },[match?.id,match?.status,gameOpen,token]);
 
   const myIndex=match&&self?(match.player1_id===self.userId?1:match.player2_id===self.userId?2:0):0;
   const yourTurn=!!match&&match.status==="active"&&Number(match.state?.turn)===myIndex;
@@ -745,7 +773,7 @@ export default function ClubArise(){
 
     {gameOpen&&match&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
       <section className="max-h-[92dvh] w-[min(760px,96vw)] overflow-auto rounded-[2rem] bg-white p-5 text-slate-950 shadow-2xl">
-        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">{match.state?.computer?"A.R.I.S.E Arcade · vs Computer":"A.R.I.S.E Arcade multiplayer"}</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>setGameOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100"><X/></button></div>
+        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">{match.state?.computer?"A.R.I.S.E Arcade · vs Computer":"A.R.I.S.E Arcade multiplayer"}</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>void quitGame()} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100" aria-label="Quit game"><X/></button></div>
 
         {match.game_type==="four"&&<div className="mt-5 grid grid-cols-7 gap-1 rounded-2xl bg-blue-600 p-2">
           {(match.state?.board||[]).flatMap((row:any[],r:number)=>row.map((cell:any,c:number)=><button key={r+"-"+c} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({column:c})} className={"aspect-square rounded-full border-4 border-blue-700 "+(cell===1?"bg-amber-400":cell===2?"bg-rose-500":"bg-white")} aria-label={"Column "+(c+1)}/>))}
