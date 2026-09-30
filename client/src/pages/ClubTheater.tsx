@@ -883,7 +883,7 @@ export default function ClubTheater(){
       {notice}
     </div>
 
-    <MobileMovePad onMove={move} className="bottom-3 left-3" label="Cinema movement controls"/>
+    <MobileMovePad onMove={move} className="bottom-24 left-3" label="Cinema movement controls"/>
     <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-xl bg-black/60 px-3 py-2 text-center text-[10px] font-bold text-white/70 backdrop-blur sm:text-xs">
       {seat?("Seated in "+seat+" · "):""}WASD/arrows walk · drag to look · tap a seat to sit {videoReady?"· show playing":""}
     </div>
