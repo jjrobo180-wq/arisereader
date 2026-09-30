@@ -1144,7 +1144,7 @@ export default function Library() {
 
   // Group by points value (only when sorting by points)
   const pointsGroups: Record<string, Book[]> = {};
-  const pointsOrder = ["10", "20", "30"];
+  const pointsOrder = ["5", "10", "20", "30"];
   if (sortBy === "points") {
     nonCurriculumBooks.forEach(b => {
       const key = String(b.pointsValue || 10);
