@@ -1,1755 +1,221 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import { ArrowLeft, ArrowRight, BookOpen, Eye, GraduationCap, Heart, PlayCircle, UserCog, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { API_BASE } from "@/lib/queryClient";
-import {
-  BookOpen, ArrowLeft, ArrowRight, CheckCircle2, XCircle, Award, Trophy,
-  Users, ClipboardList, GraduationCap, Bell, Inbox, Search, ChevronDown,
-  Lock, MessageSquarePlus, BookPlus, UserPlus, X, ShieldCheck, Settings,
-  Sparkles, ChevronLeft, ChevronRight, BookUser, UserCog, PlayCircle, Eye,
-  Volume2
-} from "lucide-react";
-import { BrandText } from "@/components/BrandText";
-import { generateCertificate } from "@/lib/certificate";
+import { Card, CardContent } from "@/components/ui/card";
+import { FEATURE_TOURS, type TutorialRole } from "@/lib/featureTours";
 
-// ─── Types ──────────────────────────────────────────────────────────
-
-type Book = {
-  id: number;
-  title: string;
-  author: string;
-  pointsValue: number;
-  coverUrl?: string;
-  epubUrl?: string;
+const ROLE_INFO: Record<TutorialRole, { label: string; short: string; icon: any; accent: string }> = {
+  student: {
+    label: "Student",
+    short: "Library, quizzes, iARISE, rewards, A.R.I.S.E. 2.0, games, avatars, pets, worlds, progress, and more.",
+    icon: BookOpen,
+    accent: "from-orange-500/20 to-amber-500/5",
+  },
+  teacher: {
+    label: "Teacher",
+    short: "Students, quiz review, live quizzes, rewards, progress, parent connections, and Club A.R.I.S.E. controls.",
+    icon: UserCog,
+    accent: "from-blue-500/20 to-cyan-500/5",
+  },
+  "eye-gaze": {
+    label: "Eye Gazer",
+    short: "My Talker, visual quizzes, games, Life Skills, My World, Shorts, Flash Cards, My Buddy, and progress.",
+    icon: Eye,
+    accent: "from-teal-500/20 to-emerald-500/5",
+  },
+  parent: {
+    label: "Parent",
+    short: "Linked-child progress, certificates, messaging, Eye Gazer family controls, AAC setup, My World, and Life Skills.",
+    icon: Heart,
+    accent: "from-purple-500/20 to-pink-500/5",
+  },
 };
 
-type Question = {
-  id: number;
-  questionText: string;
-  optionA: string;
-  optionB: string;
-  optionC: string;
-  optionD: string;
-  questionOrder?: number;
-};
-
-type QuizData = {
-  book: Book;
-  questions: Question[];
-};
-
-// ─── Sample data (for teacher tutorial & fallback) ────────────────────
-
-const SAMPLE_LEADERBOARD = [
-  { rank: 1, name: "Maya R.", points: 120, quizzes: 8, eg: false },
-  { rank: 2, name: "Devon K.", points: 100, quizzes: 7, eg: true },
-  { rank: 3, name: "Aaliyah J.", points: 90, quizzes: 6, eg: false },
-  { rank: 4, name: "Marcus T.", points: 70, quizzes: 5, eg: true },
-  { rank: 5, name: "Sophia L.", points: 60, quizzes: 4, eg: false },
-];
-
-const EASY_QUIZ = {
-  book: { id: 1, title: "A.R.I.S.E Reader Demo Quiz", author: "Fun Knowledge", pointsValue: 10, coverUrl: "" },
-  questions: [
-    {
-      id: 1,
-      questionText: "What color is the sky on a clear day?",
-      optionA: "Green",
-      optionB: "Blue",
-      optionC: "Purple",
-      optionD: "Red",
-      correct: "B",
-    },
-    {
-      id: 2,
-      questionText: "How many days are in a week?",
-      optionA: "5",
-      optionB: "10",
-      optionC: "7",
-      optionD: "12",
-      correct: "C",
-    },
-    {
-      id: 3,
-      questionText: "What do you use to read a book?",
-      optionA: "Your eyes",
-      optionB: "Your ears",
-      optionC: "Your nose",
-      optionD: "Your toes",
-      correct: "A",
-    },
-  ],
-};
-
-// ─── Student Steps ────────────────────────────────────────────────────
-
-const STUDENT_STEPS = [
-  "Welcome",
-  "Library & Search",
-  "Book Request",
-  "Notifications",
-  "Take a Quiz",
-  "Certificate",
-  "Profile & Leaderboard",
-  "Progress Monitoring",
-  "Grade Groups",
-  "You're Ready!",
-];
-
-// ─── Teacher Steps ────────────────────────────────────────────────────
-
-const TEACHER_STEPS = [
-  "Welcome",
-  "Admin Dashboard",
-  "Student Management",
-  "Create Quizzes",
-  "Inbox & Messages",
-  "Notifications",
-  "Library Overview",
-  "Progress Monitoring",
-  "Grade Groups",
-  "You're Ready!",
-];
-
-// ─── Eye Gaze / Non-Verbal Steps ─────────────────────────────────────
-
-const EYE_GAZE_STEPS = [
-  "Welcome",
-  "Eye Gaze Library",
-  "Taking Eye Gaze Quizzes",
-  "Score & Results",
-  "Progress Monitoring",
-  "Leaderboard",
-  "Text-to-Speech & Sample Quiz",
-  "You're Ready!",
-];
-
-// ─── Main Component ──────────────────────────────────────────────────
+function roleFromHash(): TutorialRole | "select" {
+  if (typeof window === "undefined") return "select";
+  const hash = window.location.hash || "";
+  if (hash.includes("/tutorial/student")) return "student";
+  if (hash.includes("/tutorial/teacher")) return "teacher";
+  if (hash.includes("/tutorial/eye-gaze")) return "eye-gaze";
+  if (hash.includes("/tutorial/parent")) return "parent";
+  return "select";
+}
 
 export default function Tutorial() {
   const [, navigate] = useLocation();
-  const [mode, setMode] = useState<"select" | "student" | "teacher" | "eye-gaze">(() => {
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash || "";
-      if (hash.includes("/tutorial/student")) return "student";
-      if (hash.includes("/tutorial/teacher")) return "teacher";
-      if (hash.includes("/tutorial/eye-gaze")) return "eye-gaze";
-    }
-    return "select";
-  });
+  const [mode, setMode] = useState<TutorialRole | "select">(roleFromHash);
   const [step, setStep] = useState(0);
-  const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
-  const [quizSubmitted, setQuizSubmitted] = useState(false);
-  const [quizScore, setQuizScore] = useState(0);
-  const [libSearch, setLibSearch] = useState("");
-  const [libPage, setLibPage] = useState(0);
-  const BOOKS_PER_PAGE = 10;
-  const [realBooks, setRealBooks] = useState<Book[]>([]);
-  const [tutorialQuiz, setTutorialQuiz] = useState<QuizData | null>(null);
-  const [booksLoading, setBooksLoading] = useState(true);
 
-  const steps = mode === "student" ? STUDENT_STEPS : mode === "eye-gaze" ? EYE_GAZE_STEPS : TEACHER_STEPS;
-  const totalSteps = steps.length;
-  const progress = ((step + 1) / totalSteps) * 100;
+  const steps = useMemo(() => mode === "select" ? [] : FEATURE_TOURS[mode], [mode]);
+  const current = mode === "select" ? null : steps[step];
+  const progress = steps.length ? ((step + 1) / steps.length) * 100 : 0;
 
-  // Fetch real books from public API
-  useEffect(() => {
-    fetch(`${API_BASE}/api/tutorial/books`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) setRealBooks(data);
-        setBooksLoading(false);
-      })
-      .catch(() => setBooksLoading(false));
-  }, []);
-
-  const displayBooks = realBooks.length > 0 ? realBooks : [];
-
-  const handleSelectMode = (selectedMode: "student" | "teacher" | "eye-gaze") => {
-    setMode(selectedMode);
+  const selectMode = (role: TutorialRole) => {
+    setMode(role);
     setStep(0);
+    window.history.replaceState(null, "", `#/tutorial/${role}`);
   };
-
-  // ─── Selection Screen ──────────────────────────────────────────────
 
   if (mode === "select") {
     return (
       <div className="min-h-screen bg-background">
-        {/* Demo banner */}
-        <div className="bg-primary text-white text-center py-2 px-4 text-xs font-semibold sticky top-0 z-50">
-          TUTORIAL MODE — No login required, nothing is saved. Choose your path below.
+        <div className="sticky top-0 z-50 bg-primary px-4 py-2 text-center text-xs font-black tracking-wide text-white">
+          A.R.I.S.E. READER TUTORIALS — No login required. Nothing is saved.
         </div>
 
-        {/* Header */}
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-white tracking-wide">A.R.I.S.E<span className="text-primary"> Reader</span></h1>
-            <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
-              Exit to Login
-            </button>
+        <header className="border-b border-border bg-card">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">A.R.I.S.E. Reader</p>
+              <h1 className="text-xl font-black text-foreground">Choose a tutorial</h1>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/")}>Exit to Login</Button>
           </div>
         </header>
 
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-              <GraduationCap className="w-10 h-10 text-primary" />
+        <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/15">
+              <GraduationCap className="h-10 w-10 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-3">Welcome to A.R.I.S.E Reader!</h1>
-            <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-              Choose the tutorial that fits you. Both walk through every feature with no login and nothing saved.
+            <h2 className="text-3xl font-black text-foreground sm:text-4xl">See the current platform before you log in</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+              Each tutorial reflects the current A.R.I.S.E. experience and walks through the major tools available to that account type.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Student/Parent card */}
-            <button
-              onClick={() => handleSelectMode("student")}
-              className="text-left p-6 rounded-2xl bg-card border-2 border-border hover:border-primary transition-all hover:shadow-lg group"
-            >
-              <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <BookUser className="w-7 h-7 text-primary" />
-              </div>
-              <h2 className="text-lg font-bold text-white mb-2">Student & Parent</h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                See how students browse books, search the library, take quizzes, earn certificates, and check the leaderboard.
-              </p>
-              <div className="flex items-center gap-1 text-primary text-sm font-medium">
-                <PlayCircle className="w-4 h-4" />
-                Start Student Tutorial
-              </div>
-            </button>
-
-            {/* Teacher card */}
-            <button
-              onClick={() => handleSelectMode("teacher")}
-              className="text-left p-6 rounded-2xl bg-card border-2 border-border hover:border-primary transition-all hover:shadow-lg group"
-            >
-              <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <UserCog className="w-7 h-7 text-primary" />
-              </div>
-              <h2 className="text-lg font-bold text-white mb-2">Teacher / Admin</h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                Explore the admin dashboard: create quizzes, manage students, view the full book library, send messages, and set passwords.
-              </p>
-              <div className="flex items-center gap-1 text-primary text-sm font-medium">
-                <PlayCircle className="w-4 h-4" />
-                Start Teacher Tutorial
-              </div>
-            </button>
-
-            {/* Eye Gaze / Non-Verbal card */}
-            <button
-              onClick={() => handleSelectMode("eye-gaze")}
-              className="text-left p-6 rounded-2xl bg-card border-2 border-border hover:border-primary transition-all hover:shadow-lg group sm:col-span-2"
-            >
-              <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Eye className="w-7 h-7 text-primary" />
-              </div>
-              <h2 className="text-lg font-bold text-white mb-2">Eye Gaze / Non-Verbal</h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                Learn how eye gaze users navigate the library, take visual quizzes, track progress, and use the eye gaze leaderboard.
-              </p>
-              <div className="flex items-center gap-1 text-primary text-sm font-medium">
-                <PlayCircle className="w-4 h-4" />
-                Start Eye Gaze Tutorial
-              </div>
-            </button>
+          <div className="grid gap-4 md:grid-cols-2">
+            {(Object.keys(ROLE_INFO) as TutorialRole[]).map((role) => {
+              const info = ROLE_INFO[role];
+              const Icon = info.icon;
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => selectMode(role)}
+                  className={`group rounded-3xl border-2 border-border bg-gradient-to-br ${info.accent} p-6 text-left transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl`}
+                >
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-card shadow-sm">
+                    <Icon className="h-7 w-7 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-black text-foreground">{info.label} Tutorial</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{info.short}</p>
+                  <div className="mt-5 flex items-center gap-2 text-sm font-black text-primary">
+                    <PlayCircle className="h-4 w-4" /> Start {info.label} Tutorial
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="mt-8 text-center">
-            <p className="text-xs text-muted-foreground">
-              Both tutorials are perfect for presentations to teachers, parents, or students.
-            </p>
+          <div className="mt-8 rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start gap-3">
+              <Users className="mt-0.5 h-5 w-5 text-primary" />
+              <div>
+                <p className="font-bold text-foreground">Tutorials and sample accounts are different.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tutorials explain the features without logging in. “Try Sample Account” on the login page opens a real sandbox experience for Student, Eye Gazer, or Parent.
+                </p>
+              </div>
+            </div>
           </div>
         </main>
       </div>
     );
   }
 
-  // ─── Tutorial content ───────────────────────────────────────────────
+  const info = ROLE_INFO[mode];
+  const Icon = info.icon;
+  const isFirst = step === 0;
+  const isLast = step === steps.length - 1;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Demo banner */}
-      <div className="bg-primary text-white text-center py-2 px-4 text-xs font-semibold sticky top-0 z-50">
-        {mode === "student" ? "STUDENT" : mode === "eye-gaze" ? "EYE GAZE" : "TEACHER"} TUTORIAL — No login required, nothing is saved. Follow the steps to explore the platform.
+      <div className="sticky top-0 z-50 bg-slate-950 px-4 py-2 text-center text-xs font-black tracking-wide text-white">
+        {info.label.toUpperCase()} TUTORIAL — CURRENT A.R.I.S.E. FEATURE GUIDE
       </div>
 
-      {/* Header */}
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setMode("select"); setStep(0); }}
-              className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1"
-            >
-              <ChevronLeft className="w-3 h-3" /> Choose Path
-            </button>
-            <h1 className="text-xl font-bold text-white tracking-wide">A.R.I.S.E<span className="text-primary"> Reader</span></h1>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-primary">{info.label} Tutorial</p>
+              <h1 className="font-black text-foreground">{current?.title}</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {step > 0 && (
-              <button onClick={() => setStep(s => Math.max(0, s - 1))} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1">
-                <ChevronLeft className="w-3 h-3" /> Back
-              </button>
-            )}
-            <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
-              Exit to Login
-            </button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setMode("select"); setStep(0); window.history.replaceState(null, "", "#/tutorial"); }}>
+              All Tutorials
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/")}>Login</Button>
           </div>
+        </div>
+        <div className="h-1.5 bg-muted">
+          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       </header>
 
-      {/* Progress bar */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {steps.map((label, i) => (
-              <button
-                key={i}
-                onClick={() => setStep(i)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                  i === step
-                    ? "bg-primary text-white"
-                    : i < step
-                    ? "bg-green-500/20 text-green-400"
-                    : "bg-muted/30 text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {i < step && <CheckCircle2 className="w-3 h-3" />}
-                {i + 1}. {label}
-              </button>
-            ))}
-          </div>
-          <div className="h-1 bg-muted rounded-full overflow-hidden mt-1">
-            <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-          </div>
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+        <div className="mb-4 flex items-center justify-between text-xs font-black uppercase tracking-widest text-muted-foreground">
+          <span>Step {step + 1} of {steps.length}</span>
+          <span>{Math.round(progress)}%</span>
         </div>
-      </div>
 
-      {/* Step content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+        <Card className="overflow-hidden border-2 shadow-xl">
+          <CardContent className="p-0">
+            <div className={`bg-gradient-to-br ${info.accent} p-7 sm:p-10`}>
+              <div className="mb-5 text-6xl">{current?.emoji}</div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">{current?.subtitle}</p>
+              <h2 className="mt-2 text-3xl font-black text-foreground sm:text-4xl">{current?.title}</h2>
+            </div>
 
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* STUDENT TUTORIAL                                           */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-
-        {mode === "student" && (
-          <>
-            {/* Step 0: Welcome */}
-            {step === 0 && (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <BookUser className="w-10 h-10 text-primary" />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-3">Student & Parent Tutorial</h1>
-                <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  This tutorial walks you through everything a student can do: browse the full quiz library, take a practice quiz, earn a certificate, and see the leaderboard — all without logging in.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <BookOpen className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Browse & Search</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Explore every book quiz in the library, organized by points</p>
+            <div className="p-6 sm:p-8">
+              <div className="space-y-3">
+                {current?.details.map((detail, index) => (
+                  <div key={detail} className="flex gap-3 rounded-2xl border border-border bg-muted/20 p-4">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-black text-primary-foreground">
+                      {index + 1}
+                    </div>
+                    <p className="text-sm font-medium leading-relaxed text-foreground">{detail}</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Trophy className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Earn & Compete</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Pass at 70% to earn points and certificates. Climb the leaderboard</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <GraduationCap className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Profile & Inbox</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Check your points, view history, and message your teacher</p>
-                  </div>
-                </div>
-                <Button size="lg" onClick={() => setStep(1)} className="gap-2">
-                  Start the Tour <ArrowRight className="w-5 h-5" />
-                </Button>
+                ))}
               </div>
-            )}
 
-            {/* Step 1: Library & Search */}
-            {step === 1 && (
-              <StepContainer
-                title="The Library — Browse & Search"
-                icon={<BookOpen className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(2)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  When students log in, they see the Library with every available book quiz. Books are organized by point value — 10 (easy), 20 (medium), 30 (hard). Each book shows its cover, author, and points. Students can search by title or author. Try the search below — it shows all the real quizzes available on the platform!
-                </p>
-                {/* Live demo of library with real books */}
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="mb-3 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Search by title or author..."
-                      value={libSearch}
-                      onChange={(e) => setLibSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              <div className="mt-8 flex items-center justify-between gap-3">
+                <Button variant="outline" disabled={isFirst} onClick={() => setStep((s) => Math.max(0, s - 1))}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                </Button>
+
+                <div className="hidden gap-1.5 sm:flex">
+                  {steps.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`Go to step ${i + 1}`}
+                      onClick={() => setStep(i)}
+                      className={`h-2.5 rounded-full transition-all ${i === step ? "w-7 bg-primary" : "w-2.5 bg-muted-foreground/25"}`}
                     />
-                  </div>
-                  {booksLoading ? (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-muted-foreground">Loading quiz library...</p>
-                    </div>
-                  ) : displayBooks.filter(b =>
-                    (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                  ).length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-muted-foreground mb-2">No books found for "{libSearch}".</p>
-                      <p className="text-xs text-primary">This is where a student can request the quiz be created!</p>
-                    </div>
-                  ) : (
-                    <>
-                      {(() => {
-                        const filtered = displayBooks.filter(b =>
-                          (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                        );
-                        const totalPages = Math.ceil(filtered.length / BOOKS_PER_PAGE);
-                        const currentPage = Math.min(libPage, totalPages - 1);
-                        const pageBooks = filtered.slice(currentPage * BOOKS_PER_PAGE, (currentPage + 1) * BOOKS_PER_PAGE);
-                        return (
-                          <>
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="text-xs text-muted-foreground">
-                                Page {currentPage + 1} of {totalPages} — {filtered.length} quizzes available
-                              </p>
-                              {totalPages > 1 && (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => setLibPage(Math.max(0, currentPage - 1))}
-                                    disabled={currentPage === 0}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
-                                  >
-                                    <ChevronLeft className="w-3 h-3 inline" /> Prev
-                                  </button>
-                                  <span className="text-xs text-muted-foreground">{currentPage + 1} / {totalPages}</span>
-                                  <button
-                                    onClick={() => setLibPage(Math.min(totalPages - 1, currentPage + 1))}
-                                    disabled={currentPage >= totalPages - 1}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
-                                  >
-                                    Next <ChevronRight className="w-3 h-3 inline" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                              {pageBooks.map((book) => (
-                                <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
-                                  <div className="aspect-[2/3] overflow-hidden bg-muted">
-                                    {book.coverUrl ? (
-                                      <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <BookOpen className="w-6 h-6 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="p-2">
-                                    <p className="text-xs font-semibold truncate">{book.title}</p>
-                                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
-                                      book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
-                                      book.pointsValue === 20 ? "bg-primary/20 text-primary" :
-                                      "bg-red-500/20 text-red-400"
-                                    }`}>
-                                      <Trophy className="w-2.5 h-2.5" />
-                                      {book.pointsValue} pts
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </>
-                  )}
-                </div>
-                <Callout icon={<Search className="w-4 h-4" />}>
-                  The search bar filters books by title or author in real time. On the admin side, teachers can search books, quizzes, AND students separately.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 2: Book Request */}
-            {step === 2 && (
-              <StepContainer
-                title="Request a Book Quiz"
-                icon={<BookPlus className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(3)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  If a student searches for a book and no quiz exists, they can request it right there. They provide the book title, author (required), and an optional note. The request goes straight to the teacher's notifications.
-                </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center mb-3">
-                    <p className="text-sm text-yellow-400">No quizzes found for "Harry Potter"</p>
-                  </div>
-                  <div className="space-y-2">
-                    <input type="text" placeholder="Book title" disabled value="Harry Potter and the Sorcerer's Stone" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
-                    <input type="text" placeholder="Author (required)" disabled value="J.K. Rowling" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
-                    <textarea placeholder="Optional message to teacher..." disabled rows={2} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70 resize-none" />
-                    <Button size="sm" disabled className="w-full">Submit Request</Button>
-                  </div>
-                </div>
-                <Callout icon={<MessageSquarePlus className="w-4 h-4" />}>
-                  The student is told: "Your request will be created in 1-3 days. Keep an eye on your inbox or notifications!" The teacher sees it instantly on their bell icon.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 3: Notifications */}
-            {step === 3 && (
-              <StepContainer
-                title="Notifications & Bell Icon"
-                icon={<Bell className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(4)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  The bell icon shows notifications for book requests, new student sign-ups, and more. When you open the bell, the red badge clears automatically — just like iPhone notifications. Each item has an X to dismiss individually.
-                </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                          <Bell className="w-5 h-5 text-foreground" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">2</span>
-                      </div>
-                      <span className="text-sm font-medium">Notifications</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-stretch rounded-lg bg-primary/5 border border-primary/30 hover:bg-muted/50">
-                      <div className="flex-1 flex items-center gap-2 px-3 py-2">
-                        <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                          <BookPlus className="w-3.5 h-3.5 text-orange-500" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">Harry Potter and the Sorcerer's Stone</p>
-                          <p className="text-[11px] text-muted-foreground truncate">by J.K. Rowling — requested by Maya R.</p>
-                        </div>
-                      </div>
-                      <button className="px-2 flex items-center text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
-                    </div>
-                    <div className="flex items-stretch rounded-lg bg-muted/30 hover:bg-muted/50">
-                      <div className="flex-1 flex items-center gap-2 px-3 py-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                          <UserPlus className="w-3.5 h-3.5 text-blue-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">New student: Aaliyah J.</p>
-                          <p className="text-[11px] text-muted-foreground truncate">@aaliyahj</p>
-                        </div>
-                      </div>
-                      <button className="px-2 flex items-center text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-right">
-                    <button className="text-xs text-primary hover:underline">Clear all</button>
-                  </div>
-                </div>
-                <Callout icon={<Bell className="w-4 h-4" />}>
-                  Clicking a book request notification takes the teacher straight to that request, with the Create Quiz dialog pre-filled with the book title and author.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 4: Take a Quiz */}
-            {step === 4 && (
-              <StepContainer
-                title="Take a Quiz — Proctor Password"
-                icon={<ClipboardList className="w-6 h-6 text-primary" />}
-                onNext={() => { if (quizSubmitted) setStep(5); }}
-                nextLabel={quizSubmitted ? "See Your Certificate" : undefined}
-                nextDisabled={!quizSubmitted}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  All quizzes are locked with a proctor password. A teacher or proctor enters the password to unlock the quiz. Then the student answers 10 multiple-choice questions. They can only take each quiz once. Let's try a short 3-question practice quiz — these are simple questions anyone can get right!
-                </p>
-
-                {/* Proctor gate (already "unlocked" for demo) */}
-                <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-xs text-green-400 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4" />
-                  Proctor password entered (demo). Quiz unlocked!
+                  ))}
                 </div>
 
-                {/* Quiz */}
-                <Card className="shadow-lg overflow-hidden mb-4">
-                  <div className="flex gap-4 p-4 items-center">
-                    <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <ClipboardList className="w-8 h-8 text-primary" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold">{EASY_QUIZ.book.title}</h2>
-                      <p className="text-sm text-muted-foreground">Practice Quiz — {EASY_QUIZ.book.author}</p>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 mt-2">
-                        <Trophy className="w-3 h-3" />
-                        {EASY_QUIZ.book.pointsValue} points
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Questions */}
-                {!quizSubmitted ? (
-                  <div className="space-y-3">
-                    {EASY_QUIZ.questions.map((q, i) => (
-                      <Card key={q.id}>
-                        <CardContent className="p-4">
-                          <p className="font-semibold text-sm mb-3">{i + 1}. {q.questionText}</p>
-                          <RadioGroup value={quizAnswers[q.id] || ""} onValueChange={(val) => setQuizAnswers(prev => ({ ...prev, [q.id]: val }))}>
-                            {(["A", "B", "C", "D"] as const).map((letter) => (
-                              <div key={letter} className="flex items-center gap-2 mb-2">
-                                <RadioGroupItem id={`demo-q${q.id}-${letter}`} value={letter} />
-                                <Label htmlFor={`demo-q${q.id}-${letter}`} className="text-sm font-normal cursor-pointer">
-                                  {q[`option${letter}` as "optionA" | "optionB" | "optionC" | "optionD"]}
-                                </Label>
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    <Button
-                      onClick={() => {
-                        let correct = 0;
-                        EASY_QUIZ.questions.forEach(q => { if (quizAnswers[q.id] === q.correct) correct++; });
-                        setQuizScore(correct);
-                        setQuizSubmitted(true);
-                      }}
-                      disabled={Object.keys(quizAnswers).length < EASY_QUIZ.questions.length}
-                      className="w-full"
-                    >
-                      {Object.keys(quizAnswers).length < EASY_QUIZ.questions.length
-                        ? `Answer all questions (${Object.keys(quizAnswers).length}/${EASY_QUIZ.questions.length})`
-                        : "Submit Quiz"}
-                    </Button>
-                  </div>
+                {isLast ? (
+                  <Button onClick={() => navigate("/")}>
+                    Finish & Return to Login
+                  </Button>
                 ) : (
-                  <div className="text-center py-6">
-                    {quizScore >= 2 ? (
-                      <>
-                        <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold">You passed!</h2>
-                        <p className="text-lg text-muted-foreground mt-2">
-                          You scored {quizScore} out of {EASY_QUIZ.questions.length} ({Math.round(quizScore / EASY_QUIZ.questions.length * 100)}%)
-                        </p>
-                        <div className="mt-4 inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full font-bold">
-                          <Trophy className="w-5 h-5" />
-                          +{EASY_QUIZ.book.pointsValue} points earned!
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-3">In the real app, right/wrong answers are never shown — only the score and points.</p>
-                        <p className="text-sm text-primary font-medium mt-2">Click "See Your Certificate" to continue →</p>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold">Almost there!</h2>
-                        <p className="text-sm text-muted-foreground mt-2">You scored {quizScore}/{EASY_QUIZ.questions.length}. Try again — these are easy!</p>
-                        <Button variant="outline" className="mt-4" onClick={() => { setQuizSubmitted(false); setQuizAnswers({}); }}>
-                          Retry Quiz
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                  <Button onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}>
+                    Next <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 )}
-              </StepContainer>
-            )}
-
-            {/* Step 5: Certificate */}
-            {step === 5 && (
-              <StepContainer
-                title="Your Certificate of Achievement"
-                icon={<Award className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(6)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  When a student passes a quiz with 70% or higher, a certificate is generated with their name, the book title, and the points earned. They can print it or save it as a PDF. Click the button below to see a real certificate!
-                </p>
-                <div className="text-center py-6">
-                  <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                    <Award className="w-10 h-10 text-primary" />
-                  </div>
-                  <h2 className="text-xl font-bold mb-2">Certificate Ready!</h2>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Student: Demo Student<br />
-                    Quiz: "{EASY_QUIZ.book.title}"<br />
-                    Points: {EASY_QUIZ.book.pointsValue}
-                  </p>
-                  <Button
-                    size="lg"
-                    onClick={() => generateCertificate("Demo Student", EASY_QUIZ.book.title, EASY_QUIZ.book.pointsValue, new Date().toLocaleDateString())}
-                    className="gap-2"
-                  >
-                    <Award className="w-5 h-5" />
-                    Generate & View Certificate
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    The certificate opens in a new window with a Print / Save as PDF button.
-                  </p>
-                </div>
-                <Callout icon={<Award className="w-4 h-4" />}>
-                  In the real app, the certificate uses the student's actual name and the exact book title. Each passed quiz generates one.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 6: Profile & Leaderboard */}
-            {step === 6 && (
-              <StepContainer
-                title="Profile, Inbox & Leaderboard"
-                icon={<Trophy className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(7)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  Students can view their profile to check points, see quiz history, change their password, and message their teacher. The leaderboard shows all students ranked by points — everyone can see it from their profile.
-                </p>
-
-                {/* Profile demo */}
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">D</div>
-                    <div>
-                      <p className="font-bold text-sm">Demo Student</p>
-                      <p className="text-xs text-muted-foreground">@demostudent</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-center mb-4">
-                    <div className="p-2 rounded-lg bg-muted/30"><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="text-base font-bold">40</p><p className="text-[10px] text-muted-foreground">Points</p></div>
-                    <div className="p-2 rounded-lg bg-muted/30"><ClipboardList className="w-4 h-4 text-primary mx-auto mb-1" /><p className="text-base font-bold">3</p><p className="text-[10px] text-muted-foreground">Passed</p></div>
-                    <div className="p-2 rounded-lg bg-muted/30"><BookOpen className="w-4 h-4 text-primary mx-auto mb-1" /><p className="text-base font-bold">3</p><p className="text-[10px] text-muted-foreground">Books</p></div>
-                  </div>
-                  {/* Inbox demo */}
-                  <div className="border-t border-border pt-3 mb-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Inbox className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-semibold">Inbox</span>
-                      <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">1</span>
-                    </div>
-                    <div className="p-2 rounded-lg bg-primary/5 border border-primary/30">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-semibold">Teacher</span>
-                        <span className="text-xs text-muted-foreground">Today</span>
-                      </div>
-                      <p className="text-xs">Great job on your quiz! Keep reading and earning points.</p>
-                    </div>
-                  </div>
-                  {/* Leaderboard */}
-                  <div className="border-t border-border pt-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Trophy className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-semibold">Leaderboard</span>
-                    </div>
-                    <div className="space-y-1">
-                      {SAMPLE_LEADERBOARD.map((entry) => (
-                        <div key={entry.rank} className={`flex items-center gap-2 p-2 rounded-lg ${entry.rank <= 3 ? "bg-primary/5" : ""}`}>
-                          <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
-                            entry.rank === 1 ? "bg-yellow-500/20 text-yellow-400" :
-                            entry.rank === 2 ? "bg-gray-400/20 text-gray-300" :
-                            entry.rank === 3 ? "bg-orange-700/20 text-orange-600" :
-                            "bg-muted text-muted-foreground"
-                          }`}>{entry.rank}</span>
-                          <span className="text-xs font-medium flex-1">{entry.name}</span>
-                          <span className="text-xs text-primary font-bold">{entry.points} pts</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <Callout icon={<Inbox className="w-4 h-4" />}>
-                  Students have a dedicated Inbox button in their header for messaging the teacher. The teacher's replies show up as conversation bubbles.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 7: Progress Monitoring */}
-            {step === 7 && (
-              <StepContainer
-                title="Progress Monitoring"
-                icon={<Users className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(8)}
-                onBack={() => setStep(6)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  Teachers and admins can monitor student progress from their dashboards. Here's what they can see:
-                </p>
-                <div className="space-y-2 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Points Earned</p><p className="text-xs text-muted-foreground">Total points from all quizzes passed</p></div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ClipboardList className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Quiz History</p><p className="text-xs text-muted-foreground">Which books were read and scores earned</p></div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Award className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Certificates</p><p className="text-xs text-muted-foreground">Printable certificates for passed quizzes</p></div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Reading Assessments</p><p className="text-xs text-muted-foreground">Round-based reading level assessments</p></div>
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <p className="text-xs text-muted-foreground">
-                    <strong className="text-primary">Teachers:</strong> See progress for only your assigned students. <strong className="text-primary">Admins:</strong> See progress for all students across the platform.
-                  </p>
-                </div>
-              </StepContainer>
-            )}
-
-            {/* Step 8: Grade Groups */}
-            {step === 8 && (
-              <StepContainer
-                title="Grade Groups"
-                icon={<GraduationCap className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(9)}
-                onBack={() => setStep(7)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  A.R.I.S.E Reader groups students by grade level so competition is fair. A kindergartener should never compete against a high schooler. Here's how it works:
-                </p>
-                <div className="space-y-3 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Grade Bands</p>
-                    <p className="text-xs text-muted-foreground mt-1">Students are grouped into four bands: K-2 (Ages 3-7), 3-5 (Ages 6-10), 6-8 (Ages 9-14), and 9-12 (Ages 12+). When you sign up, you select your grade and you're placed in the right band automatically.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Books by Grade Level</p>
-                    <p className="text-xs text-muted-foreground mt-1">Your Library only shows books appropriate for your grade band. A 6th grader sees middle-grade books, not kindergarten picture books or high school novels. This keeps reading at the right level.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Leaderboard by Band</p>
-                    <p className="text-xs text-muted-foreground mt-1">The leaderboard only shows students in your grade band. You compete against students at your own reading level, so it's always fair.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Quiz Access</p>
-                    <p className="text-xs text-muted-foreground mt-1">You can only take quizzes for books in your grade band. This prevents students from taking quizzes above or below their level.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Why We Do This</p>
-                    <p className="text-xs text-muted-foreground mt-1">A 3rd grader reading 5-point books shouldn't be ranked below a 10th grader reading 10-point books. Grade bands make the competition fair, keep books at the right reading level, and ensure every student has a real shot at winning.</p>
-                  </div>
-                </div>
-              </StepContainer>
-            )}
-
-            {/* Step 9: You're Ready */}
-            {step === 9 && (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10 text-green-500" />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-3">You're Ready!</h1>
-                <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  You've seen everything A.R.I.S.E Reader has to offer for students. When you're ready to start reading and earning points for real, create an account or log in.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button size="lg" onClick={() => navigate("/")} className="gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    Go to Login
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => setStep(0)} className="gap-2">
-                    <ArrowLeft className="w-5 h-5" />
-                    Replay Tutorial
-                  </Button>
-                </div>
               </div>
-            )}
-          </>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* EYE GAZE / NON-VERBAL TUTORIAL                              */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-
-        {mode === "eye-gaze" && (
-          <>
-            {/* Step 0: Welcome */}
-            {step === 0 && (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <Eye className="w-10 h-10 text-primary" />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-3">Eye Gaze / Non-Verbal Tutorial</h1>
-                <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  This tutorial is designed for eye gaze users and non-verbal students. Learn how to navigate the library, take visual quizzes with text-to-speech, track progress, and compete on the leaderboard.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Eye className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Visual Quizzes</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Answer questions using images and visual prompts</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Trophy className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Shared Leaderboard</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Compete with your grade band on the same leaderboard</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Volume2 className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Text-to-Speech</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Questions read aloud automatically with replay button</p>
-                  </div>
-                </div>
-                <Button size="lg" onClick={() => setStep(1)} className="gap-2">
-                  Start the Tour <ArrowRight className="w-5 h-5" />
-                </Button>
-              </div>
-            )}
-
-            {/* Step 1: Eye Gaze Library */}
-            {step === 1 && (
-              <Card className="p-6">
-                <CardHeader className="p-0 mb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                    Eye Gaze Library
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    When eye gaze mode is enabled, your library shows eye gaze quizzes with visual prompts. These quizzes use images instead of text-heavy questions, making them accessible for non-verbal students.
-                  </p>
-                  <div className="p-4 rounded-xl bg-card border border-border">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {["Animals", "Colors", "Shapes"].map((title, i) => (
-                        <div key={i} className="p-3 rounded-lg bg-muted/30 border border-border text-center">
-                          <div className="w-16 h-16 rounded-lg bg-primary/20 flex items-center justify-center mx-auto mb-2">
-                            <Eye className="w-8 h-8 text-primary" />
-                          </div>
-                          <p className="text-xs font-semibold">{title} Quiz</p>
-                          <p className="text-xs text-muted-foreground">5 questions</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Each quiz has 5 questions with image-based prompts and answer choices.
-                  </p>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => setStep(0)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                    <Button size="sm" onClick={() => setStep(2)}>Next <ArrowRight className="w-4 h-4 ml-1" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 2: Taking Eye Gaze Quizzes */}
-            {step === 2 && (
-              <Card className="p-6">
-                <CardHeader className="p-0 mb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <ClipboardList className="w-5 h-5 text-primary" />
-                    Taking Eye Gaze Quizzes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Eye gaze quizzes show one question at a time with large images for each answer option. Students select their answer by looking at or clicking the image.
-                  </p>
-                  <div className="p-4 rounded-xl bg-card border border-border">
-                    <p className="text-sm font-semibold mb-3">Sample Question</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {["A", "B", "C", "D"].map((letter) => (
-                        <div key={letter} className="p-3 rounded-lg bg-muted/30 border-2 border-border hover:border-primary transition-colors cursor-pointer text-center">
-                          <div className="w-20 h-20 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                            <Eye className="w-8 h-8 text-primary/50" />
-                          </div>
-                          <p className="text-xs font-semibold">Option {letter}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Volume2 className="w-4 h-4 text-primary" />
-                      <p className="text-sm font-semibold text-primary">Text-to-Speech (TTS)</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Each question is read aloud automatically when it appears. After the question is read, the TTS reads all four answer options back-to-back: "A. Dog. B. Cat. C. Fish. D. Bird." The currently-read option is highlighted on screen. The question and answers play once — press Replay to hear them again. When the student selects an answer, the TTS says "You chose A. Dog," then a 5-second countdown appears so they can change their answer before it's submitted.
-                    </p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <button className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/40 text-primary text-xs font-medium flex items-center gap-1">
-                        <Volume2 className="w-3 h-3" /> Replay
-                      </button>
-                      <p className="text-xs text-muted-foreground">Press to hear the question again</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-                    <Eye className="w-4 h-4 text-green-500" />
-                    <p className="text-xs text-muted-foreground">Eye gaze quizzes don't require a password — students and parents can get started right away with no hurdles. Just select a quiz and begin.</p>
-                  </div>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                    <Button size="sm" onClick={() => setStep(3)}>Next <ArrowRight className="w-4 h-4 ml-1" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 3: Score & Results */}
-            {step === 3 && (
-              <Card className="p-6">
-                <CardHeader className="p-0 mb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Award className="w-5 h-5 text-primary" />
-                    Score & Results
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    After completing a quiz, students see their score immediately. Right and wrong answers are not shown — only the final score.
-                  </p>
-                  <div className="p-6 rounded-xl bg-card border border-border text-center">
-                    <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-3">
-                      <Trophy className="w-10 h-10 text-green-400" />
-                    </div>
-                    <p className="text-3xl font-bold text-white">4 / 5</p>
-                    <p className="text-sm text-muted-foreground mt-1">Quiz Complete!</p>
-                    <div className="mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold">
-                      <Award className="w-3 h-3" /> 4 points earned
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Each quiz can only be taken once. Students earn points based on their score.
-                  </p>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => setStep(2)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                    <Button size="sm" onClick={() => setStep(4)}>Next <ArrowRight className="w-4 h-4 ml-1" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 4: Progress Monitoring */}
-            {step === 4 && (
-              <Card className="p-6">
-                <CardHeader className="p-0 mb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Users className="w-5 h-5 text-primary" />
-                    Progress Monitoring
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Eye gaze student progress is tracked separately from regular students. Teachers and admins can monitor:
-                  </p>
-                  <div className="space-y-2">
-                    <div className="p-3 rounded-lg bg-card border border-border flex items-center gap-3">
-                      <Trophy className="w-5 h-5 text-primary" />
-                      <div><p className="text-sm font-semibold">Total Points</p><p className="text-xs text-muted-foreground">Points earned from eye gaze quizzes</p></div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-card border border-border flex items-center gap-3">
-                      <ClipboardList className="w-5 h-5 text-primary" />
-                      <div><p className="text-sm font-semibold">Quizzes Completed</p><p className="text-xs text-muted-foreground">Number of eye gaze quizzes taken</p></div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-card border border-border flex items-center gap-3">
-                      <Award className="w-5 h-5 text-primary" />
-                      <div><p className="text-sm font-semibold">Eye Gaze Profile</p><p className="text-xs text-muted-foreground">Skill levels and assessment results</p></div>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                    <p className="text-xs text-muted-foreground">
-                      <strong className="text-primary">Teachers:</strong> See progress for only your assigned students. <strong className="text-primary">Admins:</strong> See progress for all students across the platform.
-                    </p>
-                  </div>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => setStep(3)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                    <Button size="sm" onClick={() => setStep(5)}>Next <ArrowRight className="w-4 h-4 ml-1" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 5: Leaderboard */}
-            {step === 5 && (
-              <Card className="p-6">
-                <CardHeader className="p-0 mb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Trophy className="w-5 h-5 text-primary" />
-                    Shared Leaderboard
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Eye gaze and non-verbal students compete on the same leaderboard as their grade band. A 6th grade eye gaze student is grouped with other 6th graders — not separated. This keeps competition inclusive and fair.
-                  </p>
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                    <div className="flex items-start gap-2">
-                      <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-sm text-primary">Equitable Points System</h4>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          We recognize that eye gaze students often navigate reading and comprehension differently. That's why their quiz points are curved higher to ensure they're never at a disadvantage on the shared leaderboard. We regularly review performance statistics and scientific data to adjust point values — so you may notice a slight increase on your leaderboard score from time to time (never a decrease). This ensures every student competes on a level playing field, aligned with our commitment to inclusive education.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-xl bg-card border border-border">
-                    <div className="space-y-2">
-                      {SAMPLE_LEADERBOARD.map((entry) => (
-                        <div key={entry.rank} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${entry.rank === 1 ? "bg-yellow-500/20 text-yellow-400" : entry.rank === 2 ? "bg-gray-400/20 text-gray-300" : "bg-orange-600/20 text-orange-500"}`}>
-                            {entry.rank}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate flex items-center gap-1">
-                              {entry.name}
-                              {entry.eg && (
-                                <span className="text-xs px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-semibold">!EG</span>
-                              )}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{entry.quizzes} quizzes</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-sm text-primary">{entry.points}</div>
-                            <div className="text-xs text-muted-foreground">pts</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => setStep(4)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                    <Button size="sm" onClick={() => setStep(6)}>Next <ArrowRight className="w-4 h-4 ml-1" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 6: Text-to-Speech & Sample Quiz */}
-            {step === 6 && (
-              <Card className="p-6">
-                <CardHeader className="p-0 mb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Volume2 className="w-5 h-5 text-primary" />
-                    Text-to-Speech & Sample Quiz
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Eye gaze quizzes include text-to-speech (TTS) that reads each question aloud. Here's what to expect during a real quiz:
-                  </p>
-                  <div className="p-4 rounded-xl bg-card border border-border space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Volume2 className="w-5 h-5 text-primary" />
-                      <p className="text-sm font-semibold">How TTS Works</p>
-                    </div>
-                    <div className="space-y-2 text-xs text-muted-foreground">
-                      <p><strong className="text-foreground">1. Question read once:</strong> When a question appears, the TTS automatically reads the prompt aloud. Example: "What animal is this?"</p>
-                      <p><strong className="text-foreground">2. Animal sound:</strong> For animal quizzes, the animal's sound plays immediately after the question. Example: "What animal is this? Moo."</p>
-                      <p><strong className="text-foreground">3. Replay button:</strong> If the student needs to hear it again, they press the Replay button. The question and sound are only repeated when Replay is pressed.</p>
-                      <p><strong className="text-foreground">4. No right/wrong feedback:</strong> TTS does not reveal correct or incorrect answers. It only reads the question and animal sound.</p>
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                    <p className="text-sm font-semibold text-primary mb-2">Sample Quiz Walkthrough</p>
-                    <div className="space-y-3">
-                      <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">🐶</span>
-                          <span className="text-sm font-medium">Question 1: What animal is this?</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐕 Dog</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐱 Cat</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐰 Rabbit</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐟 Fish</div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <Volume2 className="w-3 h-3 text-primary" />
-                          <p className="text-xs text-muted-foreground">TTS says: "What animal is this? Woof woof."</p>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">🐮</span>
-                          <span className="text-sm font-medium">Question 2: What animal is this?</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐶 Dog</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐮 Cow</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐷 Pig</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐴 Horse</div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <Volume2 className="w-3 h-3 text-primary" />
-                          <p className="text-xs text-muted-foreground">TTS says: "What animal is this? Moo."</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    TTS uses the Web Speech API with natural voices. It works in Chrome, Edge, and Safari. The voice can be customized in the browser settings.
-                  </p>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => setStep(5)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                    <Button size="sm" onClick={() => setStep(7)}>Next <ArrowRight className="w-4 h-4 ml-1" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 7: You're Ready! */}
-            {step === 7 && (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10 text-green-400" />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-3">You're Ready!</h1>
-                <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  You now know how to navigate the eye gaze library, take visual quizzes with text-to-speech, track progress, and compete on the shared leaderboard. Create an account to get started!
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button size="lg" onClick={() => navigate("/register")} className="gap-2">
-                    <UserPlus className="w-5 h-5" /> Create Account
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => navigate("/leaderboard")} className="gap-2">
-                    <Trophy className="w-5 h-5" /> View Leaderboard
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* TEACHER TUTORIAL                                            */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-
-        {mode === "teacher" && (
-          <>
-            {/* Step 0: Welcome */}
-            {step === 0 && (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <UserCog className="w-10 h-10 text-primary" />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-3">Teacher / Admin Tutorial</h1>
-                <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  This tutorial walks you through the admin dashboard: student management, quiz creation, messaging, notifications, and the full book library — everything you need to run A.R.I.S.E Reader.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-8">
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Users className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Manage Students</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Search, reset passwords, send messages, view quiz history</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <ClipboardList className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Create Quizzes</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Paste questions, add covers, set points</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Inbox className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">DM-Style Inbox</h3>
-                    <p className="text-xs text-muted-foreground mt-1">See all student conversations, reply, compose new</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Lock className="w-6 h-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm">Settings & Security</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Proctor password, announcement banner, name changes</p>
-                  </div>
-                </div>
-                <Button size="lg" onClick={() => setStep(1)} className="gap-2">
-                  Start the Tour <ArrowRight className="w-5 h-5" />
-                </Button>
-              </div>
-            )}
-
-            {/* Step 1: Admin Dashboard */}
-            {step === 1 && (
-              <StepContainer
-                title="Admin Dashboard Overview"
-                icon={<GraduationCap className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(2)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  The teacher dashboard shows stats, student management, quiz creation, book covers, quiz requests, inbox, proctor password, and announcement banner — all in one place. Here's what you see when you log in.
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                  {[
-                    { label: "Students", value: "24", icon: Users, color: "text-blue-400" },
-                    { label: "Quizzes Done", value: "87", icon: ClipboardList, color: "text-green-400" },
-                    { label: "Quizzes Passed", value: "71", icon: CheckCircle2, color: "text-primary" },
-                    { label: "Total Points", value: "1,420", icon: Trophy, color: "text-yellow-400" },
-                  ].map((stat) => {
-                    const Icon = stat.icon;
-                    return (
-                      <Card key={stat.label}>
-                        <CardContent className="p-3 text-center">
-                          <Icon className={`w-5 h-5 ${stat.color} mx-auto mb-1`} />
-                          <p className="text-xl font-bold">{stat.value}</p>
-                          <p className="text-xs text-muted-foreground">{stat.label}</p>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-                <div className="space-y-3">
-                  <FeatureRow icon={<ClipboardList className="w-4 h-4" />} title="Create Quizzes" desc="Paste your questions and the tool formats them into a 10-question quiz automatically. Set points, add cover image." />
-                  <FeatureRow icon={<BookPlus className="w-4 h-4" />} title="Quiz Requests" desc="When students request books, they appear here. Click 'Create Quiz' to jump straight into building it." />
-                  <FeatureRow icon={<Inbox className="w-4 h-4" />} title="DM-Style Inbox" desc="See all student conversations in one place. Click a student to open the thread. Reply, compose new, send links." />
-                </div>
-              </StepContainer>
-            )}
-
-            {/* Step 2: Student Management */}
-            {step === 2 && (
-              <StepContainer
-                title="Student Management"
-                icon={<Users className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(3)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  Search students by name or username. For each student you can: reset their password (shown right there), send them a direct message, and view their full quiz history with scores and points. You can also see which books they've passed or attempted.
-                </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Search className="w-4 h-4 text-muted-foreground" />
-                    <input type="text" placeholder="Search students..." disabled value="" className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
-                  </div>
-                  <div className="space-y-2">
-                    {[
-                      { name: "Maya R.", username: "@mayar", points: 120, quizzes: 8, status: "Passed" },
-                      { name: "Devon K.", username: "@devonk", points: 100, quizzes: 7, status: "Passed" },
-                      { name: "Marcus T.", username: "@marcust", points: 70, quizzes: 5, status: "Attempted" },
-                    ].map((student) => (
-                      <div key={student.username} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                          {student.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold">{student.name}</p>
-                          <p className="text-xs text-muted-foreground">{student.username} • {student.quizzes} quizzes • {student.points} pts</p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            student.status === "Passed" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"
-                          }`}>{student.status}</span>
-                          <button className="text-xs text-primary hover:underline">Reset Password</button>
-                          <button className="text-xs text-primary hover:underline">Message</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <Callout icon={<Users className="w-4 h-4" />}>
-                  Clicking "Reset Password" generates a new temporary password shown immediately — share it with the student verbally or via message.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 3: Create Quizzes */}
-            {step === 3 && (
-              <StepContainer
-                title="Create Quizzes"
-                icon={<ClipboardList className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(4)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  Creating a quiz is simple: paste your questions and the tool formats them into a 10-question multiple-choice quiz automatically. Set the book title, author, points value, and cover image — all from one form.
-                </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Book Title</label>
-                      <input type="text" placeholder="e.g. The Wild Robot" disabled value="The Wild Robot" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Author</label>
-                      <input type="text" placeholder="Author name" disabled value="Peter Brown" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Points Value</label>
-                      <div className="flex gap-2">
-                        <button disabled className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold">10 pts (Easy)</button>
-                        <button disabled className="px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs font-bold">20 pts (Medium)</button>
-                        <button disabled className="px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs font-bold">30 pts (Hard)</button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Paste Your Questions</label>
-                      <textarea disabled rows={4} placeholder="Paste 10 questions here..." className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70 resize-none" />
-                    </div>
-                    <Button size="sm" disabled className="w-full">Create Quiz</Button>
-                  </div>
-                </div>
-                <Callout icon={<ClipboardList className="w-4 h-4" />}>
-                  The tool parses questions in this format: "1. Question text? A) Option B) Option C) Option D) Option". It handles various formats automatically.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 4: Inbox & Messages */}
-            {step === 4 && (
-              <StepContainer
-                title="DM-Style Inbox & Messages"
-                icon={<Inbox className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(5)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  The inbox works like a DM page — a list of all your conversations with students. Click a student to open that conversation thread. You can reply, compose new messages, and send links. Students see your replies in their own inbox on the Library page.
-                </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="space-y-2">
-                    {[
-                      { name: "Maya R.", preview: "Thank you! I'll try that...", time: "10:30 AM" },
-                      { name: "Devon K.", preview: "Can I retake the quiz?", time: "Yesterday" },
-                      { name: "Aaliyah J.", preview: "I finished the book!", time: "Mon" },
-                    ].map((msg) => (
-                      <div key={msg.name} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border hover:border-primary/50 cursor-pointer">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                          {msg.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold">{msg.name}</p>
-                            <span className="text-xs text-muted-foreground">{msg.time}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">{msg.preview}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <Button size="sm" variant="outline" disabled>Compose New Message</Button>
-                  </div>
-                </div>
-                <Callout icon={<Inbox className="w-4 h-4" />}>
-                  Clicking a conversation opens the full thread with chat bubbles. Students get a red badge on their inbox button when they have new messages.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 5: Notifications */}
-            {step === 5 && (
-              <StepContainer
-                title="Notifications & Bell Icon"
-                icon={<Bell className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(6)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  The bell icon shows notifications for book requests, new student sign-ups, and more. When you open the bell, the red badge clears automatically — just like iPhone notifications. Each item has an X to dismiss individually, or "Clear all" to dismiss everything.
-                </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                          <Bell className="w-5 h-5 text-foreground" />
-                        </div>
-                        <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">2</span>
-                      </div>
-                      <span className="text-sm font-medium">Notifications</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-stretch rounded-lg bg-primary/5 border border-primary/30 hover:bg-muted/50">
-                      <div className="flex-1 flex items-center gap-2 px-3 py-2">
-                        <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                          <BookPlus className="w-3.5 h-3.5 text-orange-500" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">Harry Potter and the Sorcerer's Stone</p>
-                          <p className="text-[11px] text-muted-foreground truncate">by J.K. Rowling — requested by Maya R.</p>
-                        </div>
-                      </div>
-                      <button className="px-2 flex items-center text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
-                    </div>
-                    <div className="flex items-stretch rounded-lg bg-muted/30 hover:bg-muted/50">
-                      <div className="flex-1 flex items-center gap-2 px-3 py-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                          <UserPlus className="w-3.5 h-3.5 text-blue-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">New student: Aaliyah J.</p>
-                          <p className="text-[11px] text-muted-foreground truncate">@aaliyahj</p>
-                        </div>
-                      </div>
-                      <button className="px-2 flex items-center text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-right">
-                    <button className="text-xs text-primary hover:underline">Clear all</button>
-                  </div>
-                </div>
-                <Callout icon={<Bell className="w-4 h-4" />}>
-                  Clicking a book request notification takes you straight to that request, with the Create Quiz dialog pre-filled with the book title and author.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 6: Library Overview */}
-            {step === 6 && (
-              <StepContainer
-                title="The Full Quiz Library"
-                icon={<BookOpen className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(7)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  This is the complete library of every quiz available on A.R.I.S.E Reader. Students see this when they log in. Books are organized by point value — 10 (easy), 20 (medium), 30 (hard). Search by title or author. Each book shows its cover, author, and points.
-                </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
-                  <div className="mb-3 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Search by title or author..."
-                      value={libSearch}
-                      onChange={(e) => setLibSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  {booksLoading ? (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-muted-foreground">Loading quiz library...</p>
-                    </div>
-                  ) : displayBooks.filter(b =>
-                    (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                  ).length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-muted-foreground mb-2">No books found for "{libSearch}".</p>
-                      <p className="text-xs text-primary">Students can request a quiz to be created!</p>
-                    </div>
-                  ) : (
-                    <>
-                      {(() => {
-                        const filtered = displayBooks.filter(b =>
-                          (b.title + " " + b.author).toLowerCase().includes(libSearch.toLowerCase())
-                        );
-                        const totalPages = Math.ceil(filtered.length / BOOKS_PER_PAGE);
-                        const currentPage = Math.min(libPage, totalPages - 1);
-                        const pageBooks = filtered.slice(currentPage * BOOKS_PER_PAGE, (currentPage + 1) * BOOKS_PER_PAGE);
-                        return (
-                          <>
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="text-xs text-muted-foreground">
-                                Page {currentPage + 1} of {totalPages} — {filtered.length} quizzes available
-                              </p>
-                              {totalPages > 1 && (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => setLibPage(Math.max(0, currentPage - 1))}
-                                    disabled={currentPage === 0}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
-                                  >
-                                    <ChevronLeft className="w-3 h-3 inline" /> Prev
-                                  </button>
-                                  <span className="text-xs text-muted-foreground">{currentPage + 1} / {totalPages}</span>
-                                  <button
-                                    onClick={() => setLibPage(Math.min(totalPages - 1, currentPage + 1))}
-                                    disabled={currentPage >= totalPages - 1}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
-                                  >
-                                    Next <ChevronRight className="w-3 h-3 inline" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                              {pageBooks.map((book) => (
-                                <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
-                                  <div className="aspect-[2/3] overflow-hidden bg-muted">
-                                    {book.coverUrl ? (
-                                      <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <BookOpen className="w-6 h-6 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="p-2">
-                                    <p className="text-xs font-semibold truncate">{book.title}</p>
-                                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
-                                      book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
-                                      book.pointsValue === 20 ? "bg-primary/20 text-primary" :
-                                      "bg-red-500/20 text-red-400"
-                                    }`}>
-                                      <Trophy className="w-2.5 h-2.5" />
-                                      {book.pointsValue} pts
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </>
-                  )}
-                </div>
-                <Callout icon={<BookOpen className="w-4 h-4" />}>
-                  As an admin, you can add new books and quizzes anytime. Update covers, change points, and manage the full library from the admin dashboard.
-                </Callout>
-              </StepContainer>
-            )}
-
-            {/* Step 7: Progress Monitoring */}
-            {step === 7 && (
-              <StepContainer
-                title="Progress Monitoring"
-                icon={<Users className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(8)}
-                onBack={() => setStep(6)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  Teachers and admins can monitor student progress from their dashboards. Here's what they can see:
-                </p>
-                <div className="space-y-2 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Points Earned</p><p className="text-xs text-muted-foreground">Total points from all quizzes passed</p></div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ClipboardList className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Quiz History</p><p className="text-xs text-muted-foreground">Which books were read and scores earned</p></div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Award className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Certificates</p><p className="text-xs text-muted-foreground">Printable certificates for passed quizzes</p></div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
-                    <div><p className="text-sm font-semibold">Reading Assessments</p><p className="text-xs text-muted-foreground">Round-based reading level assessments</p></div>
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <p className="text-xs text-muted-foreground">
-                    <strong className="text-primary">Teachers:</strong> See progress for only your assigned students. <strong className="text-primary">Admins:</strong> See progress for all students across the platform.
-                  </p>
-                </div>
-              </StepContainer>
-            )}
-
-            {/* Step 8: Grade Groups */}
-            {step === 8 && (
-              <StepContainer
-                title="Grade Groups"
-                icon={<GraduationCap className="w-6 h-6 text-primary" />}
-                onNext={() => setStep(9)}
-                onBack={() => setStep(7)}
-              >
-                <p className="text-sm text-muted-foreground mb-4">
-                  A.R.I.S.E Reader groups students by grade level so competition is fair and books are age-appropriate. Here's what teachers and admins need to know:
-                </p>
-                <div className="space-y-3 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Four Grade Bands</p>
-                    <p className="text-xs text-muted-foreground mt-1">K-2 (Ages 3-7), 3-5 (Ages 6-10), 6-8 (Ages 9-14), and 9-12 (Ages 12+). Students select their grade at signup and are automatically placed in the correct band.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Teacher Grade Assignment</p>
-                    <p className="text-xs text-muted-foreground mt-1">At signup, teachers select all grades they teach. Students searching for a teacher will only see teachers who teach their grade at their school. Admins can assign or change grades for any teacher or student from the dashboard.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Signup Cascade</p>
-                    <p className="text-xs text-muted-foreground mt-1">Students select School first, then Grade, then Teacher. Each dropdown only shows options matching the previous selections. This ensures every student lands in the right group.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Filtered Library & Leaderboard</p>
-                    <p className="text-xs text-muted-foreground mt-1">Students only see books in their grade band and only compete on the leaderboard against students in the same band. A 6th grader competes against other 6-8 students — never against high schoolers or kindergarteners.</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Why We Do This</p>
-                    <p className="text-xs text-muted-foreground mt-1">A 3rd grader reading 5-point books shouldn't be ranked below a 10th grader reading 10-point books. Grade bands make the competition fair, keep books at the right reading level, and ensure every student has a real shot at winning.</p>
-                  </div>
-                </div>
-              </StepContainer>
-            )}
-
-            {/* Step 9: You're Ready */}
-            {step === 9 && (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10 text-green-500" />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-3">You're Ready!</h1>
-                <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  You've seen everything the admin dashboard has to offer. When you're ready to start managing students and quizzes for real, log in with your admin account.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button size="lg" onClick={() => navigate("/")} className="gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    Go to Login
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => setStep(0)} className="gap-2">
-                    <ArrowLeft className="w-5 h-5" />
-                    Replay Tutorial
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => { setMode("select"); setStep(0); }} className="gap-2">
-                    <BookUser className="w-5 h-5" />
-                    Switch to Student Tutorial
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+            </div>
+          </CardContent>
+        </Card>
       </main>
-    </div>
-  );
-}
-
-// ─── Helper Components ───────────────────────────────────────────────
-
-function StepContainer({
-  title, icon, children, onNext, nextLabel, nextDisabled,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  onNext: () => void;
-  nextLabel?: string;
-  nextDisabled?: boolean;
-}) {
-  return (
-    <div>
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-          {icon}
-        </div>
-        <h2 className="text-xl font-bold text-white">{title}</h2>
-      </div>
-      {children}
-      <div className="mt-6 flex justify-end">
-        <Button onClick={onNext} disabled={nextDisabled} className="gap-2">
-          {nextLabel || "Next"} <ArrowRight className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function Callout({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
-      <div className="text-primary flex-shrink-0 mt-0.5">{icon}</div>
-      <p className="text-xs text-foreground">{children}</p>
-    </div>
-  );
-}
-
-function FeatureRow({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
-  return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border">
-      <div className="text-primary flex-shrink-0 mt-0.5">{icon}</div>
-      <div>
-        <p className="text-sm font-semibold">{title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-      </div>
     </div>
   );
 }
