@@ -9,7 +9,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 
-type Movie={id:string;title:string;subtitle:string;youtubeId:string;duration:number;license:string;attribution:string;age:string};
+type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string;emoji?:string};
 type TheaterVisitor={userId:number;displayName:string;characterId:string;x:number;z:number;facing:number;seatId:string|null};
 type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number;players:TheaterVisitor[]};movies:Movie[];changeCost:number;wallet:number};
 type ClubSelf={userId:number;displayName:string;characterId:string};
@@ -90,6 +90,8 @@ export default function ClubTheater(){
   },[token,headers]);
 
   const currentMovie=payload?.movies.find(m=>m.id===payload.state.movieId)||payload?.movies[0];
+  const guideCategories=["Featured","TV Channels","Open Movies"];
+  const stationIndex=Math.max(0,payload?.movies.findIndex(m=>m.id===payload.state.movieId)??0);
 
   useEffect(()=>{
     if(currentMovie&&payload){
@@ -238,7 +240,9 @@ export default function ClubTheater(){
 
       const iframe=document.createElement("iframe");
       youtubeRef.current=iframe;
-      iframe.src="https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||embedStart||0));
+      iframe.src=currentMovie.kind==="channel"&&currentMovie.youtubePlaylistId
+        ?"https://www.youtube-nocookie.com/embed/videoseries?list="+encodeURIComponent(currentMovie.youtubePlaylistId)+"&autoplay=1&mute=1&playsinline=1&controls=0&rel=0&enablejsapi=1&loop=1"
+        :"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||embedStart||0));
       iframe.title=currentMovie.title;
       iframe.allow="autoplay; encrypted-media; picture-in-picture";
       iframe.style.width="800px";
@@ -568,6 +572,12 @@ export default function ClubTheater(){
     }
   };
 
+  const switchStation=(delta:number)=>{
+    if(!payload?.movies.length||busy)return;
+    const next=(stationIndex+delta+payload.movies.length)%payload.movies.length;
+    void changeMovie(payload.movies[next].id);
+  };
+
   const orderPopcorn=()=>{
     if(popcorn!=="idle")return;
     setPopcorn("ordering");
@@ -595,7 +605,7 @@ export default function ClubTheater(){
     </header>
 
     <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[9px] font-black backdrop-blur sm:top-20 sm:text-[10px]">
-      {currentMovie?.title||"Loading show…"} · {payload?.state.audience||0} watching
+      {currentMovie?.emoji||"📺"} {currentMovie?.title||"Loading show…"} · {payload?.state.audience||0} watching
     </div>
 
     <div className="absolute left-2 top-16 z-30 flex flex-col gap-1.5 sm:left-4 sm:top-24">
@@ -611,8 +621,12 @@ export default function ClubTheater(){
       <button onClick={orderPopcorn} disabled={popcorn!=="idle"} className="flex min-h-10 items-center gap-2 rounded-xl bg-amber-300 px-3 text-xs font-black text-slate-950 shadow-xl disabled:opacity-70">
         <Popcorn className="h-4 w-4"/>{popcorn==="ordering"?"Popping…":popcorn==="ready"?"🍿 Ready":"Popcorn"}
       </button>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button onClick={()=>switchStation(-1)} disabled={busy} className="min-h-10 rounded-xl bg-slate-950/90 px-2 text-xs font-black shadow-xl">◀ Prev</button>
+        <button onClick={()=>switchStation(1)} disabled={busy} className="min-h-10 rounded-xl bg-slate-950/90 px-2 text-xs font-black shadow-xl">Next ▶</button>
+      </div>
       <button onClick={()=>setPicker(true)} className="min-h-10 rounded-xl bg-fuchsia-600/90 px-3 text-xs font-black shadow-xl">
-        Change Movie
+        📺 TV Guide
       </button>
     </div>
 
@@ -628,28 +642,40 @@ export default function ClubTheater(){
       <section className="max-h-[88dvh] w-[min(620px,94vw)] overflow-auto rounded-[1.7rem] border border-white/10 bg-slate-950 p-4 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-fuchsia-300">Theater channel</p>
-            <h2 className="text-2xl font-black">Choose the next movie</h2>
-            <p className="mt-1 text-sm font-semibold text-white/55">Changing it costs {payload.changeCost} Reader Coins and changes the shared screening for everyone.</p>
+            <p className="text-xs font-black uppercase tracking-widest text-fuchsia-300">A.R.I.S.E. Cinema TV</p>
+            <h2 className="text-2xl font-black">Choose a channel or show</h2>
+            <p className="mt-1 text-sm font-semibold text-white/55">Switching is free. The cinema screen changes for everyone currently watching.</p>
           </div>
           <button onClick={()=>setPicker(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10">×</button>
         </div>
-        <div className="mt-4 space-y-2">
-          {payload.movies.map(movie=><button
-            key={movie.id}
-            onClick={()=>void changeMovie(movie.id)}
-            disabled={busy||movie.id===payload.state.movieId}
-            className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-left hover:bg-white/10 disabled:opacity-45"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-black">{movie.title}</p>
-                <p className="text-xs font-semibold text-white/55">{movie.subtitle} · {movie.age}</p>
+        <div className="mt-4 space-y-5">
+          {guideCategories.map(category=>{
+            const shows=payload.movies.filter(movie=>(movie.category||"Open Movies")===category);
+            if(!shows.length)return null;
+            return <div key={category}>
+              <div className="mb-2 flex items-center gap-2"><span className="text-xs font-black uppercase tracking-[.2em] text-amber-300">{category}</span><div className="h-px flex-1 bg-white/10"/></div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {shows.map(movie=><button
+                  key={movie.id}
+                  onClick={()=>void changeMovie(movie.id)}
+                  disabled={busy||movie.id===payload.state.movieId}
+                  className="min-h-[100px] w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-left hover:border-fuchsia-300/50 hover:bg-white/10 disabled:opacity-55"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl">{movie.emoji||"📺"}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-black leading-tight">{movie.title}</p>
+                        {movie.id===payload.state.movieId&&<span className="shrink-0 rounded-full bg-cyan-300 px-2 py-1 text-[9px] font-black text-slate-950">PLAYING</span>}
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-white/55">{movie.subtitle}</p>
+                      <p className="mt-2 text-[10px] font-bold text-amber-200/70">{movie.kind==="channel"?"Official YouTube channel":movie.license}</p>
+                    </div>
+                  </div>
+                </button>)}
               </div>
-              {movie.id===payload.state.movieId&&<span className="rounded-full bg-cyan-300 px-2 py-1 text-[9px] font-black text-slate-950">PLAYING</span>}
             </div>
-            <p className="mt-2 text-[10px] font-bold text-amber-200/75">{movie.license} · {movie.attribution}</p>
-          </button>)}
+          })}
         </div>
       </section>
     </div>}
