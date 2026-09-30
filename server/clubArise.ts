@@ -202,8 +202,14 @@ function computerTurn(gameType:string,state:any){
 
 async function getClubAccess(userId:number){
   const db=getAdminSupabase();
-  const {data:user}=await db.from("users").select("teacher_id").eq("id",userId).single();
+  const {data:user}=await db.from("users").select("teacher_id,username").eq("id",userId).single();
   const teacherId=Number(user?.teacher_id||0)||null;
+  if(String(user?.username||"").startsWith("sample")){
+    return {
+      allowed:true,locked:false,teacherId,dailyLimit:null,gamesToday:0,dailyRemaining:null,
+      gamesPerPassedQuiz:0,passedQuizzes:0,automaticRemaining:null,weeklyUnlimitedOnPass:true,sample:true
+    };
+  }
   const {data:control}=await db.from("club_arise_controls").select("*").eq("student_id",userId).maybeSingle();
 
   const {count:passedCount}=await db.from("attempts")
@@ -239,9 +245,11 @@ async function awardFinishedMatch(match:any,state:any){
   const winnerIndex=Number(state?.winner||0);
   const winnerUserId=winnerIndex===1?match.player1_id:winnerIndex===2?match.player2_id:null;
   if(winnerUserId){
-    const {data:user}=await db.from("users").select("total_points").eq("id",winnerUserId).single();
-    const current=Number(user?.total_points||0);
-    await db.from("users").update({total_points:Math.round((current+10)*10)/10}).eq("id",winnerUserId);
+    const {data:user}=await db.from("users").select("total_points,username").eq("id",winnerUserId).single();
+    if(!String(user?.username||"").startsWith("sample")){
+      const current=Number(user?.total_points||0);
+      await db.from("users").update({total_points:Math.round((current+10)*10)/10}).eq("id",winnerUserId);
+    }
   }
   await db.from("club_arise_matches").update({rewards_awarded:true}).eq("id",match.id).eq("rewards_awarded",false);
 }
