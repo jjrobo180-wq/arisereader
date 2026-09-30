@@ -11,7 +11,7 @@ import { createPet, openPetCare, PET_PERSONALITIES } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
-import MobileMovePad from "@/components/MobileMovePad";
+import MobileJoystick from "@/components/MobileJoystick";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
@@ -665,7 +665,7 @@ export default function ClubArise(){
 
     <div className="pointer-events-none absolute left-1/2 top-14 z-20 max-w-[62vw] -translate-x-1/2 truncate rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-black backdrop-blur sm:top-20 sm:max-w-none sm:rounded-2xl sm:px-4 sm:py-2 sm:text-sm">{notice}</div>
 
-    <MobileMovePad onMove={move} className="bottom-24 left-3" label="Arcade movement controls"/>
+    <MobileJoystick onMove={move} className="bottom-24 left-3" label="Arcade movement controls"/>
     <div className="absolute bottom-3 right-3 z-40 flex flex-col gap-1.5 rounded-2xl border border-white/15 bg-slate-950/88 p-1.5 shadow-2xl backdrop-blur-xl">
       <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowArcade(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 hover:bg-white/20" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
       <button type="button" onClick={()=>{setShowMobileCamera(value=>!value);setShowMobileChat(false);setShowArcade(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-xs font-black hover:bg-white/20" aria-label="Camera controls">⌖</button>
