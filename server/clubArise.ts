@@ -146,6 +146,60 @@ function fourWinner(board:any[][]){
   return null;
 }
 
+function computerTurn(gameType:string,state:any){
+  if(!state?.computer||Number(state.turn)!==2||state.winner!==null&&state.winner!==undefined)return state;
+
+  if(gameType==="four"){
+    const board=(state.board||[]).map((r:any[])=>[...r]);
+    const valid:number[]=[];
+    for(let col=0;col<7;col++)if(board[0]?.[col]===null||board[0]?.[col]===undefined)valid.push(col);
+    if(!valid.length){state.winner=0;return state;}
+    const column=valid[Math.floor(Math.random()*valid.length)];
+    let row=-1;for(let r=5;r>=0;r--)if(!board[r][column]){row=r;break;}
+    if(row>=0)board[row][column]=2;
+    state.board=board;state.winner=fourWinner(board);state.turn=state.winner?2:1;return state;
+  }
+
+  if(gameType==="word_rescue"){
+    const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    const guessed=new Set<string>(state.guessed||[]);
+    const wordLetters=Array.from(new Set(String(state.word||"").split("").filter((x:string)=>/^[A-Z]$/.test(x)&&!guessed.has(x))));
+    const remaining=alphabet.filter(letter=>!guessed.has(letter));
+    if(!remaining.length){state.winner=0;return state;}
+    const smart=wordLetters.length&&Math.random()<.68;
+    const letter=(smart?wordLetters:remaining)[Math.floor(Math.random()*(smart?wordLetters.length:remaining.length))];
+    state.guessed=Array.from(new Set([...(state.guessed||[]),letter]));
+    if(!String(state.word||"").includes(letter))state.misses=Number(state.misses||0)+1;
+    const solved=String(state.word||"").split("").every((ch:string)=>state.guessed.includes(ch));
+    if(solved)state.winner=2;
+    else if(state.misses>=8)state.winner=1;
+    else state.turn=1;
+    return state;
+  }
+
+  if(CHOICE_GAMES.has(gameType)){
+    const q=state.questions?.[state.round];
+    if(!q){state.winner=0;return state;}
+    const options=Array.isArray(q.options)?q.options:[];
+    if(!options.length){state.winner=0;return state;}
+    const choice=Math.random()<.68?q.correct:options[Math.floor(Math.random()*options.length)];
+    state.scores=[...(state.scores||[0,0])];
+    if(choice===q.correct)state.scores[1]=(state.scores[1]||0)+10;
+    state.round=Number(state.round||0)+1;state.turn=1;
+    if(state.round>=state.questions.length)state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
+    return state;
+  }
+
+  const options=state.choices?.[state.round]||[];
+  if(!options.length){state.winner=0;return state;}
+  const choice=[...options].sort((a:string,b:string)=>b.length-a.length)[0];
+  state.scores=[...(state.scores||[0,0])];
+  state.scores[1]=(state.scores[1]||0)+String(choice).length;
+  state.round=Number(state.round||0)+1;state.turn=1;
+  if(state.round>=state.choices.length)state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
+  return state;
+}
+
 async function getClubAccess(userId:number){
   const db=getAdminSupabase();
   const {data:user}=await db.from("users").select("teacher_id").eq("id",userId).single();
@@ -471,6 +525,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
     try{
       if(!isStudent(req.user)) return res.status(403).json({message:"Student account required."});
       const gameType=String(req.body?.gameType||"");
+      const computer=!!req.body?.computer;
       if(!GAME_TYPES.has(gameType)) return res.status(400).json({message:"Unknown game."});
       const access=await getClubAccess(req.user.id);
       if(!access.allowed){
@@ -489,7 +544,26 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         .or("player1_id.eq."+req.user.id+",player2_id.eq."+req.user.id)
         .order("created_at",{ascending:false})
         .limit(1);
-      if(existing?.[0]) return res.json(existing[0]);
+      if(existing?.[0]){
+        const current=existing[0];
+        if(computer&&current.status==="waiting"&&current.player1_id===req.user.id){
+          const {data,error}=await db().from("club_arise_matches").update({
+            status:"active",state:{...(current.state||initialState(gameType)),computer:true,opponentName:"Computer"},updated_at:new Date().toISOString()
+          }).eq("id",current.id).select("*").single();
+          if(error)throw error;
+          return res.json(data);
+        }
+        return res.json(current);
+      }
+
+      if(computer){
+        const {data,error}=await db().from("club_arise_matches").insert({
+          game_type:gameType,status:"active",player1_id:req.user.id,player2_id:null,
+          state:{...initialState(gameType),computer:true,opponentName:"Computer"},
+        }).select("*").single();
+        if(error)throw error;
+        return res.json(data);
+      }
 
       const {data:waiting}=await db().from("club_arise_matches")
         .select("*").eq("game_type",gameType).eq("status","waiting")
@@ -525,7 +599,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const ids=[data.player1_id,data.player2_id].filter(Boolean);
       const {data:players}=await db().from("club_arise_presence").select("user_id,display_name,character_id").in("user_id",ids);
       res.set("Cache-Control","no-store");
-      res.json({...data,players:players||[]});
+      res.json({...data,players:data.state?.computer?[...(players||[]),{user_id:-1,display_name:"Computer",character_id:"computer"}]:(players||[])});
     }catch(error:any){
       res.status(500).json({message:"Could not load game."});
     }
@@ -592,6 +666,10 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
             state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
           }
         }else state.turn=2;
+      }
+
+      if(state.computer&&Number(state.turn)===2&&(state.winner===null||state.winner===undefined)){
+        computerTurn(match.game_type,state);
       }
 
       const winnerUserId=state.winner===1?match.player1_id:state.winner===2?match.player2_id:null;
