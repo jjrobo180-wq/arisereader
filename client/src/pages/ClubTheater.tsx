@@ -30,10 +30,11 @@ export default function ClubTheater(){
   const remoteRootsRef=useRef<Map<number,THREE.Group>>(new Map());
   const targetRef=useRef(new THREE.Vector3(0,0,10));
   const seatRef=useRef<string|null>(null);
+  const mutedRef=useRef(false);
   const keysRef=useRef(new Set<string>());
   const [payload,setPayload]=useState<TheaterPayload|null>(null);
   const [self,setSelf]=useState<ClubSelf|null>(null);
-  const [muted,setMuted]=useState(true);
+  const [muted,setMuted]=useState(false);
   const [seat,setSeat]=useState<string|null>(null);
   const [popcorn,setPopcorn]=useState<"idle"|"ordering"|"ready">("idle");
   const [picker,setPicker]=useState(false);
@@ -65,6 +66,7 @@ export default function ClubTheater(){
 
   useEffect(()=>{void load();},[token]);
   useEffect(()=>{seatRef.current=seat;},[seat]);
+  useEffect(()=>{mutedRef.current=muted;},[muted]);
   useEffect(()=>{
     if(!token)return;
     const timer=window.setInterval(()=>void load(),5000);
@@ -114,6 +116,18 @@ export default function ClubTheater(){
       setVideoReady(true);
     }
   },[muted]);
+
+  useEffect(()=>{
+    const iframe=youtubeRef.current;
+    if(!iframe||!currentMovie)return;
+    const src=currentMovie.kind==="channel"&&currentMovie.youtubePlaylistId
+      ?"https://www.youtube-nocookie.com/embed/videoseries?list="+encodeURIComponent(currentMovie.youtubePlaylistId)+"&autoplay=1&mute=0&playsinline=1&controls=0&rel=0&enablejsapi=1&loop=1"
+      :"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=0&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||0));
+    if(iframe.src!==src){
+      setVideoReady(false);
+      iframe.src=src;
+    }
+  },[currentMovie?.id]);
 
   useEffect(()=>{
     const controls=controlsRef.current;
@@ -241,8 +255,8 @@ export default function ClubTheater(){
       const iframe=document.createElement("iframe");
       youtubeRef.current=iframe;
       iframe.src=currentMovie.kind==="channel"&&currentMovie.youtubePlaylistId
-        ?"https://www.youtube-nocookie.com/embed/videoseries?list="+encodeURIComponent(currentMovie.youtubePlaylistId)+"&autoplay=1&mute=1&playsinline=1&controls=0&rel=0&enablejsapi=1&loop=1"
-        :"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||embedStart||0));
+        ?"https://www.youtube-nocookie.com/embed/videoseries?list="+encodeURIComponent(currentMovie.youtubePlaylistId)+"&autoplay=1&mute=0&playsinline=1&controls=0&rel=0&enablejsapi=1&loop=1"
+        :"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=0&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||embedStart||0));
       iframe.title=currentMovie.title;
       iframe.allow="autoplay; encrypted-media; picture-in-picture";
       iframe.style.width="800px";
@@ -252,7 +266,7 @@ export default function ClubTheater(){
       iframe.style.pointerEvents="none";
       iframe.addEventListener("load",()=>{
         setVideoReady(true);
-        window.setTimeout(()=>{youtubeCommand("playVideo");if(muted)youtubeCommand("mute");},250);
+        window.setTimeout(()=>{youtubeCommand("playVideo");if(mutedRef.current)youtubeCommand("mute");else youtubeCommand("unMute");},250);
       });
       screenWrap.appendChild(iframe);
 
@@ -524,7 +538,7 @@ export default function ClubTheater(){
       renderer.dispose();
       if(mount.contains(renderer.domElement))mount.removeChild(renderer.domElement);
     };
-  },[self?.characterId,currentMovie?.id]);
+  },[self?.characterId,!!currentMovie]);
 
   useEffect(()=>{
     const scene=sceneRef.current;
