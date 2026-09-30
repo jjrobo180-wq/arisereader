@@ -294,7 +294,7 @@ export default function ClubArise(){
     fetch(API_BASE+"/api/club-arise/bootstrap",{headers:{Authorization:"Bearer "+token},cache:"no-store"})
       .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d;})
       .then(d=>{setSelf(d.self);setPlayers(d.players||[]);setPhrases(d.safePhrases||[]);setAccess(d.access||null);})
-      .catch(e=>setNotice(e.message||"Could not enter Club A.R.I.S.E."));
+      .catch(e=>setNotice(e.message||"Could not enter A.R.I.S.E Arcade"));
   },[token]);
 
   useEffect(()=>{
@@ -313,7 +313,7 @@ export default function ClubArise(){
     // Neon arcade clubhouse.
     addBox(scene,[18,6,6],[0,3,-24],0x17152c);addNeonBox(scene,[15,.18,.18],[0,5.55,-20.9],0x22d3ee,4);
     addNeonBox(scene,[.18,4.3,.18],[-8.1,3,-20.9],0xa855f7,3.4);addNeonBox(scene,[.18,4.3,.18],[8.1,3,-20.9],0xec4899,3.4);
-    const clubSign=makeLabel("CLUB A.R.I.S.E.","#111827","#67e8f9");clubSign.position.set(0,7,-21);clubSign.scale.set(8.5,2.1,1);scene.add(clubSign);
+    const clubSign=makeLabel("A.R.I.S.E ARCADE","#111827","#67e8f9");clubSign.position.set(0,7,-21);clubSign.scale.set(8.5,2.1,1);scene.add(clubSign);
     addBox(scene,[7,3.8,5],[-20,1.9,-17],0x17152c);addNeonBox(scene,[6.2,.16,.16],[-20,3.7,-14.4],0x8b5cf6,3);
     addBox(scene,[7,3.8,5],[20,1.9,-17],0x17152c);addNeonBox(scene,[6.2,.16,.16],[20,3.7,-14.4],0xf43f5e,3);
 
@@ -604,11 +604,11 @@ export default function ClubArise(){
   const opponent=match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
   const onlineReaders=players.filter(p=>p.user_id!==self?.userId);
 
-  return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
+  return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/80 via-black/45 to-transparent px-2 py-2 sm:p-3">
       <button onClick={()=>setLeavingWorld(true)} className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
-      <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">Club A.R.I.S.E.</h1><p className="hidden text-xs font-bold text-white/70 sm:block">Learn · play · meet readers safely</p></div>
+      <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">A.R.I.S.E Arcade</h1><p className="hidden text-xs font-bold text-white/70 sm:block">Learn · play · meet readers safely</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);setShowMobileChat(false);setShowMobileCamera(false);}} className="pointer-events-auto flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-black/70 px-3 font-black backdrop-blur sm:min-h-11 sm:gap-2 sm:py-2" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/><span>{onlineReaders.length}</span><span className="hidden sm:inline">readers</span></button>
     </header>
 
@@ -650,7 +650,7 @@ export default function ClubArise(){
       <p className="max-w-32 px-1 text-center text-[10px] text-white/60">{cameraMode==="pan"?"Drag to slide the view":"Drag to turn the view"}</p>
     </div>
     {access&&!access.allowed&&<div className="absolute left-1/2 top-32 z-40 w-[min(430px,90vw)] -translate-x-1/2 rounded-2xl border border-amber-300/30 bg-slate-950/95 p-4 text-center shadow-2xl">
-      <p className="font-black text-amber-300">{access.locked?"Club games are locked by your teacher.":access.dailyRemaining===0?"You reached today's Club game limit.":"Pass another book quiz to unlock more Club games."}</p>
+      <p className="font-black text-amber-300">{access.locked?"Arcade games are locked by your teacher.":access.dailyRemaining===0?"You reached today's arcade game limit.":"Pass another book quiz to unlock more Arcade games."}</p>
       <p className="mt-1 text-xs font-bold text-white/55">{access.gamesPerPassedQuiz>0?access.automaticRemaining+" automatic game plays remaining":access.dailyLimit!==null?access.dailyRemaining+" games remaining today":"You can still explore, chat safely, and use emotes."}</p>
     </div>}
 
@@ -709,7 +709,7 @@ export default function ClubArise(){
                 <div className="mt-1 text-2xl font-black text-amber-300">{selectedPlayer.leaderboardPoints.toLocaleString()}</div>
               </div>
               <div className="rounded-2xl bg-cyan-400/10 p-3 ring-1 ring-cyan-300/20">
-                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-200"><Gamepad2 className="h-3.5 w-3.5"/> Club score</div>
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-200"><Gamepad2 className="h-3.5 w-3.5"/> Arcade score</div>
                 <div className="mt-1 text-2xl font-black text-cyan-300">{selectedPlayer.club.score}</div>
               </div>
             </div>
@@ -735,12 +735,12 @@ export default function ClubArise(){
     {nearStation&&!gameOpen&&<div className="absolute left-1/2 top-32 z-40 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl border border-cyan-300/25 bg-slate-950 p-5 text-white shadow-2xl">
       <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15"><Gamepad2 className="h-6 w-6 text-cyan-300"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-white/65">{nearStation.subtitle}</p><p className="mt-2 text-sm text-white/70">Ready to play this game?</p></div><button type="button" onClick={()=>setNearStation(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close game choice"><X className="h-4 w-4"/></button></div>
       <button type="button" onClick={()=>{void joinGame(nearStation);setNearStation(null);}} disabled={access?.allowed===false} className="mt-4 min-h-12 w-full rounded-2xl bg-cyan-300 px-5 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">Play {nearStation.name}</button>
-      {access?.allowed===false&&<p className="mt-2 text-sm text-amber-300">Club games are currently unavailable.</p>}
+      {access?.allowed===false&&<p className="mt-2 text-sm text-amber-300">Arcade games are currently unavailable.</p>}
     </div>}
 
     {gameOpen&&match&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
       <section className="max-h-[92dvh] w-[min(760px,96vw)] overflow-auto rounded-[2rem] bg-white p-5 text-slate-950 shadow-2xl">
-        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">Club A.R.I.S.E. multiplayer</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>setGameOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100"><X/></button></div>
+        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">A.R.I.S.E Arcade multiplayer</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>setGameOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100"><X/></button></div>
 
         {match.game_type==="four"&&<div className="mt-5 grid grid-cols-7 gap-1 rounded-2xl bg-blue-600 p-2">
           {(match.state?.board||[]).flatMap((row:any[],r:number)=>row.map((cell:any,c:number)=><button key={r+"-"+c} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({column:c})} className={"aspect-square rounded-full border-4 border-blue-700 "+(cell===1?"bg-amber-400":cell===2?"bg-rose-500":"bg-white")} aria-label={"Column "+(c+1)}/>))}
@@ -766,11 +766,11 @@ export default function ClubArise(){
           <div className="mt-3 grid gap-3 sm:grid-cols-3">{(match.state?.questions?.[match.state?.round]?.options||[]).map((choice:string)=><button key={choice} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({choice})} className="min-h-20 rounded-2xl bg-slate-950 px-3 text-base font-black text-white disabled:opacity-40">{choice}</button>)}</div>
         </div>}
 
-        {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!"}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Club</button></div>}
+        {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!"}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Arcade</button></div>}
       </section>
     </div>}
 
     <div className="absolute bottom-28 right-3 z-20 hidden rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70 sm:block">Click a player for stats · click floor to walk · WASD / arrows</div>
-    {leavingWorld&&<WorldLoadingOverlay tone="club" label="Leaving Club A.R.I.S.E.…" />}
+    {leavingWorld&&<WorldLoadingOverlay tone="club" label="Leaving A.R.I.S.E Arcade…" />}
   </main>;
 }

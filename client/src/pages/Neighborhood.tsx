@@ -182,7 +182,7 @@ export default function Neighborhood(){
   },[leavingWorld,navigate]);
 
   const neighbors=players.filter(player=>player.userId!==self?.userId);
-  return <main className="relative h-[100dvh] overflow-hidden bg-sky-300 text-white">
+  return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-sky-300 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-slate-950/85 to-transparent p-3">
       <button type="button" onClick={()=>setLeavingWorld(true)} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/75 px-3 font-black"><ArrowLeft className="h-5 w-5"/> Exit to worlds</button>

@@ -1,0 +1,57 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'wouter';
+import { Clock3, BookOpen } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { API_BASE } from '@/lib/queryClient';
+import { CLUB_WORLD_PATHS, type PlayAccess } from '@shared/clubPlay';
+
+export default function ClubPlayGate({ children }: { children: ReactNode }) {
+  const { user, token } = useAuth();
+  const [path, navigate] = useLocation();
+  const active = CLUB_WORLD_PATHS.includes(path) && user?.role === 'student' && !user.isAdmin && !user.is_eye_gaze_user;
+  const [access, setAccess] = useState<PlayAccess | null>(null), [now, setNow] = useState(Date.now()), [error, setError] = useState('');
+  const sessionId = useRef(crypto.randomUUID());
+  const offset = useRef(0);
+  const retry = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (!active || !token) { setAccess(null); return; }
+    let stopped = false, inFlight = false;
+    document.body.classList.add('club-play-active');
+    const pulse = async () => {
+      if (inFlight || stopped) return;
+      inFlight = true;
+      try {
+        const start = Date.now();
+        const res = await fetch(`${API_BASE}/api/club-play/heartbeat`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sessionId.current }), signal: AbortSignal.timeout(8000) });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || 'Could not sync your timer.');
+        if (!stopped) { offset.current = body.serverNow - (start + Date.now()) / 2; setAccess(body); setNow(Date.now() + offset.current); setError(''); }
+      } catch (e) { if (!stopped) setError(e instanceof Error ? e.message : 'Could not sync your timer.'); }
+      finally { inFlight = false; }
+    };
+    retry.current = () => { void pulse(); };
+    void pulse();
+    const heartbeat = window.setInterval(pulse, 8000);
+    const clock = window.setInterval(() => setNow(Date.now() + offset.current), 250);
+    const leave = () => { void fetch(`${API_BASE}/api/club-play/leave`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sessionId.current }), keepalive: true }).catch(() => {}); };
+    window.addEventListener('pagehide', leave);
+    return () => { stopped = true; clearInterval(heartbeat); clearInterval(clock); document.body.classList.remove('club-play-active'); window.removeEventListener('pagehide', leave); leave(); };
+  }, [active, token, user?.id]);
+  if (!active) return <>{children}</>;
+  const remaining = Math.max(0, Math.ceil(((access?.expiresAt || now) - now) / 1000));
+  const canPlay = access?.allowed && remaining > 0 && access.leaseUntil > now;
+  const time = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
+  if (!canPlay) return <main className="club-time-gate">
+    <section><Clock3 size={44} /><h1>{access?.locked ? 'Club Arise is locked' : access && !remaining ? "Today’s play time is up" : access && !error ? 'Syncing your play time…' : error ? 'Reconnect your play timer' : 'Starting your play timer…'}</h1>
+      <p>{access?.locked ? 'Your teacher has paused Club Arise.' : 'You get 10 minutes each day across all Club Arise worlds. Take and pass a book quiz to earn 10 more minutes today.'}</p>
+      {error && <p role="alert">{error}</p>}
+      <button onClick={() => navigate('/library')}><BookOpen size={20} /> Go to the library</button>
+      {error && <button className="secondary" onClick={() => retry.current()}>Try again</button>}
+    </section>
+  </main>;
+  return <>{children}<aside className={`club-play-timer ${remaining <= 60 ? 'low' : ''}`} aria-label="Club Arise daily play timer">
+    <div><Clock3 size={20} /><strong role="timer" aria-label={`${remaining} seconds of play remaining`}>{time}</strong><span>left today</span></div>
+    <p>Pass a book quiz for <b>+10 minutes</b></p>
+    <button onClick={() => navigate('/library')}><BookOpen size={18} /><span>Earn time</span></button>
+  </aside></>;
+}

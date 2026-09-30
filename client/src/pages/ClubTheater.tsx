@@ -767,15 +767,15 @@ export default function ClubTheater(){
     },1800);
   };
 
-  return <main className="relative h-[100dvh] overflow-hidden bg-black text-white">
+  return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-black text-white">
     <div ref={mountRef} className="absolute inset-0 touch-none"/>
 
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/90 to-transparent p-2 sm:p-4">
-      <button onClick={()=>navigate("/club-arise")} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-black/70 px-3 font-black backdrop-blur">
-        <ArrowLeft className="h-4 w-4"/><span className="hidden sm:inline">Back to Club</span>
+      <button onClick={()=>navigate("/worlds")} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-black/70 px-3 font-black backdrop-blur">
+        <ArrowLeft className="h-4 w-4"/><span className="hidden sm:inline">Exit to worlds</span>
       </button>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Club A.R.I.S.E.</p>
+        <p className="text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Club Arise</p>
         <h1 className="truncate text-lg font-black sm:text-2xl">🎬 Cinema Room</h1>
       </div>
       <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-amber-300/25 bg-black/70 px-2.5 py-2 text-sm font-black">

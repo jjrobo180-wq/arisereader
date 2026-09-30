@@ -224,7 +224,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
 
   app.get("/api/club-arise/bootstrap", authMiddleware, async(req:any,res)=>{
     try{
-      if(!isStudent(req.user)) return res.status(403).json({message:"Club A.R.I.S.E. is for student accounts."});
+      if(!isStudent(req.user)) return res.status(403).json({message:"A.R.I.S.E Arcade is for student accounts."});
       const payload:any=await (async()=>{
         const detail=await storage.getStudentDetail(req.user.id);
         const raw=await storage.getSetting("avatar_world_"+req.user.id);
@@ -256,7 +256,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       res.json({self:{userId:req.user.id,...payload},players:withVehicles(players||[]),safePhrases:Array.from(SAFE_PHRASES),access});
     }catch(error:any){
       console.error("[club-arise] bootstrap",error?.message);
-      res.status(500).json({message:"Could not enter Club A.R.I.S.E."});
+      res.status(500).json({message:"Could not enter A.R.I.S.E Arcade."});
     }
   });
 
@@ -296,7 +296,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       res.json({players:withVehicles(data||[])});
     }catch(error:any){
       console.error("[club-arise] presence",error?.message);
-      res.status(500).json({message:"Could not update the club."});
+      res.status(500).json({message:"Could not update the arcade."});
     }
   });
 

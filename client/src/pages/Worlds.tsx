@@ -7,10 +7,10 @@ import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
 type WorldId="club"|"theater"|"neighborhood"|"laser"|"board"|"space"|"beach"|"racetrack";
 const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:number}[]=[
-  {id:"club",title:"Club A.R.I.S.E.",description:"Dance, meet readers, and play arcade games together.",path:"/club-arise",color:0xc026d3},
+  {id:"club",title:"A.R.I.S.E Arcade",description:"Dance, meet readers, and play arcade games together.",path:"/arise-arcade",color:0xc026d3},
   {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
-  {id:"laser",title:"Laser Royale",description:"3D battle royale laser tag with public-domain heroes, power-ups, shields, a shrinking zone, and arena challenges.",path:"/laser-royale",color:0x22d3ee},
+  {id:"laser",title:"Laser Royale",description:"The laser tag arena is closed for now. Coming soon!",color:0x6b7280},
   {id:"board",title:"A.R.I.S.E. Board Quest",description:"Roll the dice, move through the 3D board, and take on reading challenges.",path:"/board-game-world",color:0xfbbf24},
   {id:"space",title:"Outer Space",description:"A glowing galaxy of planets and places to explore. Coming soon.",color:0x9868f4},
   {id:"beach",title:"The Beach",description:"Palm trees, a seaside boardwalk, and sunny adventures. Coming soon.",color:0xfacc6b},
@@ -65,7 +65,9 @@ function makeWorld(id:WorldId,color:number){
     const track=new THREE.Mesh(new THREE.TorusGeometry(.82,.19,12,48),new THREE.MeshStandardMaterial({color:0x202637}));track.position.y=1.24;track.rotation.x=Math.PI/2;group.add(track);
     const car=new THREE.Mesh(new THREE.BoxGeometry(.5,.22,.3),new THREE.MeshStandardMaterial({color:0xff5563,emissive:0x8b172b,emissiveIntensity:.4}));car.position.set(.55,1.45,.55);group.add(car);
   }
+  if(id==="laser")group.traverse(object=>{const mesh=object as THREE.Mesh;if(mesh.material&&!Array.isArray(mesh.material)){const material=mesh.material as THREE.MeshStandardMaterial;material.color?.set(0x6b7280);material.emissive?.set(0x252a32);if('emissiveIntensity' in material)material.emissiveIntensity=.15;}});
   const label=marker(WORLDS.find(world=>world.id===id)!.title);label.position.y=2.65;group.add(label);
+  if(id==="laser"){const soon=marker("COMING SOON");soon.position.y=3.55;soon.scale.set(3.2,.8,1);group.add(soon);}
   return group;
 }
 
@@ -111,11 +113,11 @@ export default function Worlds(){
     let raf=0;const clock=new THREE.Clock();const animate=()=>{const dt=Math.min(clock.getDelta(),.05);earth.rotation.y+=dt*.075;atmosphere.rotation.y-=dt*.035;orbit.rotation.y+=dt*.035;worlds.forEach(planet=>planet.rotation.y+=dt*.09);controls.update();renderer.render(scene,camera);raf=requestAnimationFrame(animate);};animate();
     return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);controls.dispose();scene.traverse(object=>{const mesh=object as THREE.Mesh;if(mesh.geometry)mesh.geometry.dispose();if(mesh.material){const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];materials.forEach(material=>{if("map" in material&&(material as THREE.SpriteMaterial).map)(material as THREE.SpriteMaterial).map?.dispose();material.dispose();});}});renderer.dispose();mount.removeChild(renderer.domElement);};
   },[]);
-  return <main className="relative h-[100dvh] overflow-hidden bg-[#070b1b] text-white">
+  return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-[#070b1b] text-white">
     <div ref={mountRef} className="absolute inset-0 touch-none" aria-hidden="true"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-3 bg-gradient-to-b from-slate-950/90 to-transparent p-3 sm:p-5">
       <button type="button" onClick={()=>setTravel({path:"/library",label:"Returning to the library…"})} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-slate-950/80 px-4 font-black"><ArrowLeft className="h-5 w-5"/> Library</button>
-      <div className="ml-auto text-right"><p className="text-xs font-black uppercase tracking-[.22em] text-cyan-300">A.R.I.S.E. universe</p><h1 className="text-xl font-black sm:text-3xl">Choose a world</h1><p className="hidden text-xs font-bold text-white/70 sm:block"><Rotate3D className="mr-1 inline h-4 w-4"/>Drag to spin · scroll or pinch to zoom · tap a world</p></div>
+      <div className="ml-auto text-right"><p className="text-sm font-black uppercase tracking-[.15em] text-cyan-300">Club Arise</p><h1 className="text-xl font-black sm:text-3xl">Choose a world</h1><p className="hidden text-sm font-bold text-white/70 sm:block"><Rotate3D className="mr-1 inline h-4 w-4"/>Drag to spin · scroll or pinch to zoom · tap a world</p></div>
     </header>
     <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-[#070b1b] via-[#070b1b]/90 to-transparent px-3 pb-3 pt-16 sm:px-6 sm:pb-6">
       <div className="pointer-events-auto mx-auto max-w-3xl rounded-[1.5rem] border border-cyan-300/25 bg-slate-950/85 p-3 shadow-2xl backdrop-blur-xl sm:p-5">

@@ -88,10 +88,10 @@ import ReadingClub from "./pages/ReadingClub";
 import TTSAudioBooks from "./pages/TTSAudioBooks";
 import AvatarWorld from "./pages/AvatarWorld";
 import ClubArise from "./pages/ClubArise";
+import ClubPlayGate from "./components/ClubPlayGate";
 import ClubTheater from "./pages/ClubTheater";
 import Worlds from "./pages/Worlds";
 import Neighborhood from "./pages/Neighborhood";
-import LaserRoyale from "./pages/LaserRoyale";
 import BoardGameWorld from "./pages/BoardGameWorld";
 import NotFound from "./pages/not-found";
 
@@ -272,6 +272,11 @@ function AppRoutes() {
       </Route>
       <Route path="/club-arise">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><Redirect to="/worlds" replace /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/arise-arcade">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><ClubArise /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
@@ -297,7 +302,7 @@ function AppRoutes() {
       </Route>
       <Route path="/laser-royale">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><LaserRoyale /></ProtectedRoute>
+          ? <ProtectedRoute><Redirect to="/worlds" replace /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/course/:id">
@@ -468,7 +473,7 @@ function AppInner() {
       {isParent && <ParentTutorialPopup />}
       <Router hook={useHashLocation}>
         <EyeGazeSiteShell>
-          <AppRoutes />
+          <ClubPlayGate><AppRoutes /></ClubPlayGate>
           <EyeGazeCelebrations />
         </EyeGazeSiteShell>
       </Router>
