@@ -269,7 +269,8 @@ export default function Quiz() {
   }
 
   if (alreadyTaken) {
-    const passed = alreadyTaken.score >= Math.ceil(alreadyTaken.total * 0.7);
+    const passingScore = Math.ceil(alreadyTaken.total * (alreadyTaken.total > 10 ? 0.70 : 0.60));
+    const passed = alreadyTaken.score >= passingScore;
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <Card className="max-w-md w-full shadow-xl">
@@ -284,7 +285,7 @@ export default function Quiz() {
             {passed ? (
               <p className="text-sm text-green-400 font-semibold mb-4">You passed and earned {alreadyTaken.points ?? 0} points!</p>
             ) : (
-              <p className="text-sm text-muted-foreground mb-4">You needed {Math.ceil(alreadyTaken.total * 0.7)} correct to pass and earn points.</p>
+              <p className="text-sm text-muted-foreground mb-4">You needed {passingScore} correct to pass and earn points.</p>
             )}
             <Button onClick={() => navigate("/library")} data-testid="button-back-library">
               <ArrowLeft className="w-4 h-4 mr-2" />
