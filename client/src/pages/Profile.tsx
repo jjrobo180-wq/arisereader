@@ -230,6 +230,10 @@ export default function Profile() {
   const [nameMsg, setNameMsg] = useState("");
   const [nameError, setNameError] = useState("");
   const [nameLoading, setNameLoading] = useState(false);
+  const [weeklyClubUnlimited, setWeeklyClubUnlimited] = useState(true);
+  const [weeklyClubStudentCount, setWeeklyClubStudentCount] = useState(0);
+  const [weeklyClubLoading, setWeeklyClubLoading] = useState(false);
+  const [weeklyClubMsg, setWeeklyClubMsg] = useState("");
   const [eyeGazeEnabled, setEyeGazeEnabled] = useState(user?.is_eye_gaze_user || false);
   const [eyeGazeRankInfo, setEyeGazeRankInfo] = useState<{ band: string; overallRank: number | null; eyeGazeRank: number | null; totalInBand: number; totalEyeGazeInBand: number } | null>(null);
   const [showEyeGazeRank, setShowEyeGazeRank] = useState(false);
@@ -320,6 +324,46 @@ export default function Profile() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    const canManage = !!user && (user.role === "teacher" || user.isAdmin || user.role === "admin");
+    if (!canManage) return;
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    fetch(`${API_BASE}/api/teacher/club-arise/profile-rule`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      cache: "no-store",
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        setWeeklyClubUnlimited(d.enabled !== false);
+        setWeeklyClubStudentCount(Number(d.studentCount) || 0);
+      })
+      .catch(() => {});
+  }, [user?.id, user?.role, user?.isAdmin, token]);
+
+  const saveWeeklyClubRule = async (enabled: boolean) => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken || weeklyClubLoading) return;
+    setWeeklyClubLoading(true); setWeeklyClubMsg("");
+    try {
+      const r = await fetch(`${API_BASE}/api/teacher/club-arise/profile-rule`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.message || "Could not update Club play settings.");
+      setWeeklyClubUnlimited(d.enabled !== false);
+      setWeeklyClubStudentCount(Number(d.studentCount) || 0);
+      setWeeklyClubMsg(enabled ? "Passed quizzes now unlock unlimited play for the rest of the week." : "Weekly unlimited play reward is off.");
+    } catch (e: any) {
+      setWeeklyClubMsg(e.message || "Could not update Club play settings.");
+    } finally {
+      setWeeklyClubLoading(false);
+    }
+  };
 
   useEffect(() => {
     const isStudentAccount = !!user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent" && user.role !== "admin";
@@ -948,6 +992,40 @@ export default function Profile() {
             </Button>
           </CardContent>
         </Card>
+
+        {(user?.role === "teacher" || user?.isAdmin || user?.role === "admin") && (
+          <Card className="shadow-md border-cyan-500/25">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="w-5 h-5" />
+                A.R.I.S.E. Weekly Play Rule
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="font-medium">Passed book quiz → unlimited play for the rest of the week</p>
+                <p className="text-xs text-muted-foreground mt-1">This profile setting applies to {user?.isAdmin || user?.role === "admin" ? "all regular students" : "your regular students"} ({weeklyClubStudentCount}). Individual Club Controls can still lock a student when needed.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={weeklyClubUnlimited ? "default" : "outline"}
+                  disabled={weeklyClubLoading}
+                  onClick={() => void saveWeeklyClubRule(true)}
+                >
+                  On — Unlimited Week
+                </Button>
+                <Button
+                  variant={!weeklyClubUnlimited ? "destructive" : "outline"}
+                  disabled={weeklyClubLoading}
+                  onClick={() => void saveWeeklyClubRule(false)}
+                >
+                  Off
+                </Button>
+              </div>
+              {weeklyClubMsg && <p className="text-sm font-medium">{weeklyClubMsg}</p>}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Change password */}
         <Card className="shadow-md">
