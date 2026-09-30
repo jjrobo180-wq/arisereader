@@ -15,12 +15,13 @@ export type View={code:string;hostId:number;level:Level;players:Player[];turn:nu
 export function moveLandingAt(cue:Cue){return cue.startAt+TIMING.roll+TIMING.reveal+(cue.to-cue.from)*TIMING.step;}
 export function rpsWinner(a:Hand,b:Hand):0|1|null{return a===b?null:((a==='rock'&&b==='scissors')||(a==='paper'&&b==='rock')||(a==='scissors'&&b==='paper'))?0:1;}
 const SKY_PATH=[
- [-24,17],[-22,14],[-20,11],[-18,9],
- [-14,0],[-11,-1],[-8,-1],[-5,-1],[-3,-1],[-1,-1],[1,-1],[1,0],[0,1],
- [4,0],[7,-2],[10,-5],[13,-8],
- [15,-5],[17,-2],[19,1],[20,4],
- [16,7],[12,10],
- [14,7],[16,3],[18,-2],[20,-8],[22,-14]
+ [-30,20],[-27,17],[-23,13],[-19,10],
+ [-18,6],[-17,3],[-16,0],[-15,-2],[-15,-4],[-14,-5],[-13.5,-5.5],[-13,-6],
+ [0,0],
+ [4,-1],[7,-3],[10,-5],[13,-8],
+ [16,-6],[18,-3],[20,0],[21,4],
+ [15,9],[8,14],
+ [12,10],[16,6],[20,1],[23,-8],[27,-17]
 ] as const;
 export function boardPosition(space:number){const p=SKY_PATH[Math.max(0,Math.min(SKY_PATH.length-1,space))];return {x:p[0],z:p[1]};}
 export function cueStage(cue:Cue|null,now:number){
