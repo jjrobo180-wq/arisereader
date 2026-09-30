@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 import BookAccessLinks from "@/components/BookAccessLinks";
 import { EngagementHub } from "@/components/EngagementHub";
-import { Arise2HomeAnnouncement, Arise2UpdateButton } from "@/components/Arise2Update";
+import { Arise2UpdateButton } from "@/components/Arise2Update";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -1312,7 +1312,6 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
-        <Arise2HomeAnnouncement />
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <div className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
