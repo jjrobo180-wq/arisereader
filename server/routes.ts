@@ -1881,7 +1881,7 @@ export async function registerRoutes(
 
     if(touchUserId){
       const existing=clubTheaterPresence.get(touchUserId);
-      clubTheaterPresence.set(touchUserId,existing?{...existing,lastSeen:now}:{userId:touchUserId,displayName:"Reader",characterId:"robin-hood",x:0,z:20,facing:Math.PI,seatId:null,lastSeen:now});
+      clubTheaterPresence.set(touchUserId,existing?{...existing,lastSeen:now}:{userId:touchUserId,displayName:"Reader",characterId:"robin-hood",petId:"pet-none",x:0,z:20,facing:Math.PI,seatId:null,lastSeen:now});
       if(!state.playing){
         state.startedAt=now;
         state.playing=true;
