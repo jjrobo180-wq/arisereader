@@ -1907,6 +1907,9 @@ export async function registerRoutes(
       equipped: { car:"car-none", home:"home-basic", pet:"pet-none" } as Record<string,string>,
       furniture: [] as string[],
       petCare: {} as Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>,
+      runawayPets: [] as string[],
+      runawaySpent: 0,
+      lastRunaway: null as null|{petId:string;ranAwayAt:number},
       careSpent: 0,
       spent: 0,
     };
@@ -1925,11 +1928,20 @@ export async function registerRoutes(
       const unlock=characterUnlockId(previousCharacter);
       if(validIds.has(unlock)&&!purchased.includes(unlock))purchased.push(unlock);
     }
-    const purchasedSet=new Set(purchased);
     const now=Date.now();
+    const validPetIds=new Set(AVATAR_WORLD_CATALOG.filter(item=>item.type==="pet").map(item=>item.id));
+    const runawayPets:string[]=Array.isArray(source.runawayPets)
+      ? Array.from(new Set<string>(source.runawayPets.map(String).filter((id:string)=>validPetIds.has(id)))).slice(0,30)
+      : [];
+    let runawaySpent=Math.max(0,Number(source.runawaySpent)||0);
+    let lastRunaway=source.lastRunaway&&validPetIds.has(String(source.lastRunaway.petId))
+      ? {petId:String(source.lastRunaway.petId),ranAwayAt:Math.max(0,Number(source.lastRunaway.ranAwayAt)||0)}
+      : null;
+    const runawaySet=new Set(runawayPets);
     const petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>={};
     for(const id of purchased){
-      if(AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type!=="pet")continue;
+      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
+      if(item?.type!=="pet")continue;
       const previous=source.petCare?.[id]||{};
       const previousUpdated=Number(previous.lastUpdatedAt);
       const lastUpdatedAt=Number.isFinite(previousUpdated)&&previousUpdated>0?previousUpdated:now;
@@ -1940,17 +1952,29 @@ export async function registerRoutes(
       }
       const decay=Math.floor(Math.max(0,now-lastUpdatedAt)/PET_HAPPINESS_DECAY_MS);
       const happiness=Math.max(0,Math.min(100,Math.round(stored)-decay));
+      const advancedAt=decay>0?lastUpdatedAt+decay*PET_HAPPINESS_DECAY_MS:lastUpdatedAt;
       petCare[id]={
         happiness,
-        lastUpdatedAt:now,
+        lastUpdatedAt:advancedAt,
         lastFedAt:Math.max(0,Number(previous.lastFedAt)||0),
         lastTreatAt:Math.max(0,Number(previous.lastTreatAt)||0),
         lastWalkAt:Math.max(0,Number(previous.lastWalkAt)||0),
       };
+      if(happiness<=0&&!runawaySet.has(id)){
+        runawaySet.add(id);
+        runawayPets.push(id);
+        runawaySpent+=Number(item.price||0);
+        lastRunaway={petId:id,ranAwayAt:now};
+      }
     }
+    const activePurchased=purchased.filter((id:string)=>{
+      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
+      return !!item&&AVATAR_WORLD_SHOP_TYPES.has(item.type)&&!(item.type==="pet"&&runawaySet.has(id));
+    });
+    const activePurchasedSet=new Set(activePurchased);
     const rawCareSpent=Number(source.careSpent);
     const careSpent=Number.isFinite(rawCareSpent)?Math.max(0,Math.floor(rawCareSpent)):0;
-    const allowed=(id:any)=>AVATAR_WORLD_FREE.has(String(id))||purchasedSet.has(String(id));
+    const allowed=(id:any)=>AVATAR_WORLD_FREE.has(String(id))||activePurchasedSet.has(String(id));
     const selectedCharacter=AVATAR_WORLD_CHARACTERS.has(String(source.selectedCharacter||""))
       ? String(source.selectedCharacter)
       : base.selectedCharacter;
@@ -1960,19 +1984,15 @@ export async function registerRoutes(
       if(candidate&&allowed(candidate)) equipped[slot]=candidate;
     }
     const furniture=Array.isArray(source.furniture)
-      ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>purchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
+      ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>activePurchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
       : [];
-    const activePurchased=purchased.filter((id:string)=>{
-      const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
-      return !!item&&AVATAR_WORLD_SHOP_TYPES.has(item.type);
-    });
-    // Only active world purchases count against the wallet. Retired wearable
-    // purchases are automatically refunded by excluding them from this total.
+    // Active purchases, pet-care purchases, and pets already lost to neglect all
+    // remain spent. Re-adopting a runaway pet costs its purchase price again.
     const spent=activePurchased.reduce((sum:number,id:string)=>{
       const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
       return sum+(item?.price||0);
-    },careSpent);
-    return {purchased:activePurchased,selectedCharacter,equipped,furniture,petCare,careSpent,spent};
+    },careSpent+runawaySpent);
+    return {purchased:activePurchased,selectedCharacter,equipped,furniture,petCare,runawayPets,runawaySpent,lastRunaway,careSpent,spent};
   }
 
   async function getAvatarWorldPayload(userId:number) {
@@ -2006,9 +2026,14 @@ export async function registerRoutes(
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
     const state=normalizeAvatarWorldState(parsed||{});
-    // Migrate legacy pet-care records without ever unequipping the student's companion.
-    if(state.purchased.some(id=>id.startsWith("pet-")&&(!parsed?.petCare?.[id]||parsed?.petCare?.[id]?.fedUntil!==undefined)))
-      await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
+    // Persist only when normalization changed something meaningful: legacy data,
+    // elapsed-time happiness decay, or a pet running away while the student was offline.
+    const comparableRaw=parsed?normalizeAvatarWorldState({...parsed,petCare:parsed.petCare||{}}):null;
+    const shouldPersist=!parsed
+      ||JSON.stringify(state)!==JSON.stringify(comparableRaw)
+      ||state.purchased.some(id=>id.startsWith("pet-")&&(!parsed?.petCare?.[id]||parsed?.petCare?.[id]?.fedUntil!==undefined))
+      ||state.runawayPets.length!==(Array.isArray(parsed?.runawayPets)?parsed.runawayPets.length:0);
+    if(shouldPersist)await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
     const theaterSpent=Math.max(0,Number(await storage.getSetting("avatar_world_theater_spent_"+userId))||0);
     const wallet=Math.max(0,lifetimeCoins-state.spent-theaterSpent);
     return {
@@ -2119,7 +2144,9 @@ export async function registerRoutes(
       if(payload.state.purchased.includes(item.id)) return res.json(payload);
       if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
       const now=Date.now();
+      const wasRunaway=item.type==="pet"&&payload.state.runawayPets?.includes(item.id);
       const next={...payload.state,purchased:[...payload.state.purchased,item.id],
+        runawayPets:wasRunaway?payload.state.runawayPets.filter((id:string)=>id!==item.id):payload.state.runawayPets,
         petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{happiness:90,lastUpdatedAt:now,lastFedAt:now,lastTreatAt:0,lastWalkAt:0}}:payload.state.petCare};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
       res.set("Cache-Control","no-store");
