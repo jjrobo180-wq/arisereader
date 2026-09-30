@@ -1743,13 +1743,17 @@ export async function registerRoutes(
   ]);
   const AVATAR_WORLD_SHOP_TYPES = new Set(["car","home","furniture","pet","character"]);
   const characterUnlockId=(characterId:string)=>"unlock-"+characterId;
-  const PET_DAY=24*60*60*1000;
-  const PET_FEED_COST=40;
-  const PET_RETURN_COST=80;
+  const PET_HAPPINESS_DECAY_MS=3*60*60*1000;
+  const PET_FEED_COST=30;
+  const PET_TREAT_COST=10;
+  const PET_FEED_BOOST=30;
+  const PET_TREAT_BOOST=12;
+  const PET_ACTIVITY_BOOST=22;
   const CLUB_THEATER_CHANGE_COST=0;
+  const CLUB_THEATER_POPCORN_COST=25;
   const THREE_SAFE=(value:number,min:number,max:number,fallback:number)=>Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;
   const CLUB_THEATER_PRESENCE_TTL=15000;
-  type ClubTheaterVisitor={userId:number;displayName:string;characterId:string;x:number;z:number;facing:number;seatId:string|null;lastSeen:number};
+  type ClubTheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null;lastSeen:number};
   const clubTheaterPresence=new Map<number,ClubTheaterVisitor>();
   const CLUB_THEATER_CHANNELS=YOUTUBE_CHANNEL_OPTIONS.map(channel=>({
     id:"channel-"+channel.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),
@@ -1894,7 +1898,7 @@ export async function registerRoutes(
       selectedCharacter:"robin-hood",
       equipped: { car:"car-none", home:"home-basic", pet:"pet-none" } as Record<string,string>,
       furniture: [] as string[],
-      petCare: {} as Record<string,{fedUntil:number}>,
+      petCare: {} as Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>,
       careSpent: 0,
       spent: 0,
     };
@@ -1914,11 +1918,27 @@ export async function registerRoutes(
       if(validIds.has(unlock)&&!purchased.includes(unlock))purchased.push(unlock);
     }
     const purchasedSet=new Set(purchased);
-    const petCare:Record<string,{fedUntil:number}>={};
+    const now=Date.now();
+    const petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>={};
     for(const id of purchased){
       if(AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type!=="pet")continue;
-      const until=Number(source.petCare?.[id]?.fedUntil);
-      petCare[id]={fedUntil:Number.isFinite(until)&&until>0?until:Date.now()+7*PET_DAY};
+      const previous=source.petCare?.[id]||{};
+      const previousUpdated=Number(previous.lastUpdatedAt);
+      const lastUpdatedAt=Number.isFinite(previousUpdated)&&previousUpdated>0?previousUpdated:now;
+      let stored=Number(previous.happiness);
+      if(!Number.isFinite(stored)){
+        const legacyUntil=Number(previous.fedUntil);
+        stored=Number.isFinite(legacyUntil)&&legacyUntil>now?85:70;
+      }
+      const decay=Math.floor(Math.max(0,now-lastUpdatedAt)/PET_HAPPINESS_DECAY_MS);
+      const happiness=Math.max(0,Math.min(100,Math.round(stored)-decay));
+      petCare[id]={
+        happiness,
+        lastUpdatedAt:now,
+        lastFedAt:Math.max(0,Number(previous.lastFedAt)||0),
+        lastTreatAt:Math.max(0,Number(previous.lastTreatAt)||0),
+        lastWalkAt:Math.max(0,Number(previous.lastWalkAt)||0),
+      };
     }
     const rawCareSpent=Number(source.careSpent);
     const careSpent=Number.isFinite(rawCareSpent)?Math.max(0,Math.floor(rawCareSpent)):0;
@@ -1978,11 +1998,9 @@ export async function registerRoutes(
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
     const state=normalizeAvatarWorldState(parsed||{});
-    // Give pets purchased before care existed a full first week, once.
-    if(state.purchased.some(id=>id.startsWith("pet-")&&!parsed?.petCare?.[id]))
+    // Migrate legacy pet-care records without ever unequipping the student's companion.
+    if(state.purchased.some(id=>id.startsWith("pet-")&&(!parsed?.petCare?.[id]||parsed?.petCare?.[id]?.fedUntil!==undefined)))
       await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
-    if(state.equipped.pet!=="pet-none"&&state.petCare[state.equipped.pet]?.fedUntil<=Date.now())
-      state.equipped.pet="pet-none";
     const theaterSpent=Math.max(0,Number(await storage.getSetting("avatar_world_theater_spent_"+userId))||0);
     const wallet=Math.max(0,lifetimeCoins-state.spent-theaterSpent);
     return {
@@ -2011,12 +2029,12 @@ export async function registerRoutes(
       clubTheaterPresence.set(req.user.id,{
         userId:req.user.id,
         displayName:detail?.user?.displayName||req.user.displayName||req.user.username||"Reader",
-        characterId:world.state.selectedCharacter||"robin-hood",
+        characterId:world.state.selectedCharacter||"robin-hood",petId:world.state.equipped.pet||"pet-none",
         x:current?.x??0,z:current?.z??20,facing:current?.facing??Math.PI,seatId:current?.seatId??null,lastSeen:Date.now()
       });
       const refreshed=await getClubTheaterState(req.user.id);
       res.set("Cache-Control","no-store");
-      res.json({state:refreshed,movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,wallet:world.economy.wallet});
+      res.json({state:refreshed,movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,popcornCost:CLUB_THEATER_POPCORN_COST,wallet:world.economy.wallet});
     }catch(error:any){
       console.error("[club-theater] load:",error?.message);
       res.status(500).json({message:"Could not open the Club theater."});
@@ -2033,7 +2051,7 @@ export async function registerRoutes(
       const z=THREE_SAFE(Number(req.body?.z),-7,27,current?.z??20);
       const facing=THREE_SAFE(Number(req.body?.facing),-Math.PI,Math.PI,current?.facing??Math.PI);
       const seatId=/^S(?:[1-9]|1[0-2])$/.test(String(req.body?.seatId||""))?String(req.body.seatId):null;
-      clubTheaterPresence.set(req.user.id,{userId:req.user.id,displayName:detail?.user?.displayName||req.user.displayName||"Reader",characterId:world.state.selectedCharacter||"robin-hood",x,z,facing,seatId,lastSeen:Date.now()});
+      clubTheaterPresence.set(req.user.id,{userId:req.user.id,displayName:detail?.user?.displayName||req.user.displayName||"Reader",characterId:world.state.selectedCharacter||"robin-hood",petId:world.state.equipped.pet||"pet-none",x,z,facing,seatId,lastSeen:Date.now()});
       const state=await getClubTheaterState(req.user.id);
       res.set("Cache-Control","no-store");res.json({state});
     }catch(error:any){console.error("[club-theater] presence:",error?.message);res.status(500).json({message:"Could not update theater presence."});}
@@ -2060,10 +2078,27 @@ export async function registerRoutes(
       await storage.upsertSetting("club_theater_state",JSON.stringify(state));
       const refreshed=await getAvatarWorldPayload(req.user.id);
       res.set("Cache-Control","no-store");
-      res.json({state:{...state,currentPosition:0,audience:current.audience},movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,wallet:refreshed.economy.wallet});
+      res.json({state:{...state,currentPosition:0,audience:current.audience},movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,popcornCost:CLUB_THEATER_POPCORN_COST,wallet:refreshed.economy.wallet});
     }catch(error:any){
       console.error("[club-theater] change:",error?.message);
       res.status(500).json({message:"Could not change the movie."});
+    }
+  });
+
+  app.post("/api/club-theater/popcorn", authMiddleware, async(req:any,res)=>{
+    try{
+      if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user)return res.status(403).json({message:"The Club theater is for student accounts."});
+      const world=await getAvatarWorldPayload(req.user.id);
+      if(world.economy.wallet<CLUB_THEATER_POPCORN_COST)return res.status(400).json({message:"You need "+CLUB_THEATER_POPCORN_COST+" Reader Coins for popcorn."});
+      const spendKey="avatar_world_theater_spent_"+req.user.id;
+      const currentSpent=Math.max(0,Number(await storage.getSetting(spendKey))||0);
+      await storage.upsertSetting(spendKey,String(currentSpent+CLUB_THEATER_POPCORN_COST));
+      const refreshed=await getAvatarWorldPayload(req.user.id);
+      res.set("Cache-Control","no-store");
+      res.json({ok:true,cost:CLUB_THEATER_POPCORN_COST,wallet:refreshed.economy.wallet});
+    }catch(error:any){
+      console.error("[club-theater] popcorn:",error?.message);
+      res.status(500).json({message:"Could not buy popcorn right now."});
     }
   });
 
@@ -2075,8 +2110,9 @@ export async function registerRoutes(
       const payload=await getAvatarWorldPayload(req.user.id);
       if(payload.state.purchased.includes(item.id)) return res.json(payload);
       if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
+      const now=Date.now();
       const next={...payload.state,purchased:[...payload.state.purchased,item.id],
-        petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{fedUntil:Date.now()+7*PET_DAY}}:payload.state.petCare};
+        petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{happiness:90,lastUpdatedAt:now,lastFedAt:now,lastTreatAt:0,lastWalkAt:0}}:payload.state.petCare};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
       res.set("Cache-Control","no-store");
       res.json(await getAvatarWorldPayload(req.user.id));
@@ -2108,8 +2144,6 @@ export async function registerRoutes(
         if(AVATAR_WORLD_FREE.has(itemId)){
           nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
         }else if(item&&item.type===slotType[slot]&&payload.state.purchased.includes(itemId)){
-          if(slot==="pet"&&payload.state.petCare[itemId]?.fedUntil<=Date.now())
-            return res.status(400).json({message:"Your pet is resting at the sanctuary. Bring them home first."});
           nextRaw.equipped={...payload.state.equipped,[slot]:itemId};
         }else return res.status(400).json({message:"Unlock that item before equipping it."});
       }else if(action==="furniture"){
@@ -2137,14 +2171,22 @@ export async function registerRoutes(
       const payload=await getAvatarWorldPayload(req.user.id);
       if(!payload.state.purchased.includes(itemId)||AVATAR_WORLD_CATALOG.find(item=>item.id===itemId)?.type!=="pet")
         return res.status(400).json({message:"Unlock this pet first."});
-      const oldUntil=payload.state.petCare[itemId]?.fedUntil||0;
-      const away=oldUntil<=Date.now();
-      if(action!==(away?"return":"feed"))return res.status(400).json({message:away?"Bring this pet home from the sanctuary first.":"This pet is home. You can feed them."});
-      const cost=away?PET_RETURN_COST:PET_FEED_COST;
+      if(!["feed","treat","walk","play"].includes(action))return res.status(400).json({message:"Choose food, a treat, a walk, or play time."});
+      const current=payload.state.petCare[itemId]||{happiness:70,lastUpdatedAt:Date.now(),lastFedAt:0,lastTreatAt:0,lastWalkAt:0};
+      const cost=action==="feed"?PET_FEED_COST:action==="treat"?PET_TREAT_COST:0;
       if(payload.economy.wallet<cost)return res.status(400).json({message:"Earn "+(cost-payload.economy.wallet)+" more Reader Coins by reading or playing."});
-      const fedUntil=away?Date.now()+3*PET_DAY:Math.min(Math.max(Date.now(),oldUntil)+3*PET_DAY,Date.now()+14*PET_DAY);
+      const boost=action==="feed"?PET_FEED_BOOST:action==="treat"?PET_TREAT_BOOST:PET_ACTIVITY_BOOST;
+      const now=Date.now();
+      const care={
+        ...current,
+        happiness:Math.min(100,Math.max(0,Number(current.happiness)||0)+boost),
+        lastUpdatedAt:now,
+        lastFedAt:action==="feed"?now:Number(current.lastFedAt)||0,
+        lastTreatAt:action==="treat"?now:Number(current.lastTreatAt)||0,
+        lastWalkAt:(action==="walk"||action==="play")?now:Number(current.lastWalkAt)||0,
+      };
       const next={...payload.state,careSpent:payload.state.careSpent+cost,
-        petCare:{...payload.state.petCare,[itemId]:{fedUntil}}};
+        petCare:{...payload.state.petCare,[itemId]:care}};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
       res.set("Cache-Control","no-store");
       res.json(await getAvatarWorldPayload(req.user.id));
