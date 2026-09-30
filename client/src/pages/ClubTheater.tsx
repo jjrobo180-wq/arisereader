@@ -219,14 +219,20 @@ export default function ClubTheater(){
     floor.userData.ground=true;
     scene.add(floor);
 
+    // Camera blockers keep orbit/pan controls inside the actual room instead of
+    // letting the camera pass through a wall, a seat, or behind the movie screen.
+    const cameraBlockers:THREE.Object3D[]=[];
+
     const back=new THREE.Mesh(new THREE.BoxGeometry(28,11,.7),new THREE.MeshStandardMaterial({color:0x100811}));
     back.position.set(0,5.5,-10);
     scene.add(back);
+    cameraBlockers.push(back);
 
     for(const x of [-14,14]){
       const wall=new THREE.Mesh(new THREE.BoxGeometry(.7,11,58),new THREE.MeshStandardMaterial({color:0x120914}));
       wall.position.set(x,5.5,9);
       scene.add(wall);
+      cameraBlockers.push(wall);
     }
 
     const frame=new THREE.Mesh(
@@ -235,6 +241,7 @@ export default function ClubTheater(){
     );
     frame.position.set(0,5.4,-9.35);
     scene.add(frame);
+    cameraBlockers.push(frame);
 
     const fakeScreen=new THREE.Mesh(
       new THREE.PlaneGeometry(15.4,7.9),
@@ -349,6 +356,7 @@ export default function ClubTheater(){
 
       const headrest=new THREE.Mesh(new THREE.BoxGeometry(1.75,.72,.58),leatherDark);
       headrest.position.set(0,2.55,.83);headrest.rotation.x=-.14;headrest.castShadow=true;root.add(headrest);
+      cameraBlockers.push(cushion,backrest,headrest);
 
       const lumbar=new THREE.Mesh(new THREE.BoxGeometry(1.62,.52,.18),new THREE.MeshStandardMaterial({color:0x8f1725,roughness:.48}));
       lumbar.position.set(0,1.62,.38);lumbar.rotation.x=-.12;root.add(lumbar);
@@ -466,6 +474,7 @@ export default function ClubTheater(){
     }
 
     const ray=new THREE.Raycaster();
+    const cameraRay=new THREE.Raycaster();
     const pointer=new THREE.Vector2();
     const click=(e:PointerEvent)=>{
       const rect=renderer.domElement.getBoundingClientRect();
@@ -574,14 +583,55 @@ export default function ClubTheater(){
         }else{
           controls.enabled=true;
           const center=new THREE.Vector3(root.position.x,1.5,root.position.z);
-          camera.position.add(center.clone().sub(controls.target));
+
+          // Move the camera only by the same small amount that the target moved.
+          // The old code added the full center-to-target gap every frame, which
+          // compounded and could fling the camera through the theater geometry.
+          const previousTarget=controls.target.clone();
           controls.target.lerp(center,.15);
+          camera.position.add(controls.target.clone().sub(previousTarget));
         }
       }
       remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
       controls.update();
-      camera.position.z=Math.max(camera.position.z,-5.85);
-      controls.target.z=Math.max(controls.target.z,-8.95);
+
+      const seatedNow=!!seatRef.current;
+      if(!seatedNow&&rootRef.current){
+        // Hard room bounds: free-look can rotate 360°, but the camera itself
+        // never gets outside the auditorium or behind the screen.
+        camera.position.x=THREE.MathUtils.clamp(camera.position.x,-12.65,12.65);
+        camera.position.y=THREE.MathUtils.clamp(camera.position.y,1.05,8.8);
+        camera.position.z=THREE.MathUtils.clamp(camera.position.z,-4.9,26.6);
+        controls.target.x=THREE.MathUtils.clamp(controls.target.x,-12,12);
+        controls.target.y=THREE.MathUtils.clamp(controls.target.y,.55,6);
+        controls.target.z=THREE.MathUtils.clamp(controls.target.z,-5.05,26.6);
+
+        // If a seat or wall is between the player and the camera, pull the
+        // camera forward just before that surface instead of showing a giant
+        // blank/black clipped face.
+        const focus=new THREE.Vector3(rootRef.current.position.x,1.55,rootRef.current.position.z);
+        const offset=camera.position.clone().sub(focus);
+        const distance=offset.length();
+        if(distance>1.5){
+          const direction=offset.clone().normalize();
+          cameraRay.set(focus,direction);
+          cameraRay.near=.35;
+          cameraRay.far=distance;
+          const obstruction=cameraRay.intersectObjects(cameraBlockers,true)[0];
+          if(obstruction&&obstruction.distance<distance){
+            const safeDistance=Math.max(1.55,obstruction.distance-.5);
+            camera.position.copy(focus).add(direction.multiplyScalar(safeDistance));
+          }
+        }
+      }else{
+        // Seated mode keeps the movie-screen focus target, while the actual
+        // camera remains on the audience side of the stage.
+        camera.position.x=THREE.MathUtils.clamp(camera.position.x,-12,12);
+        camera.position.y=THREE.MathUtils.clamp(camera.position.y,1.4,7.5);
+        camera.position.z=THREE.MathUtils.clamp(camera.position.z,-4.9,26.6);
+      }
+
+      camera.lookAt(controls.target);
       renderer.render(scene,camera);
       cssRenderer.render(cssScene,camera);
       raf=requestAnimationFrame(loop);
