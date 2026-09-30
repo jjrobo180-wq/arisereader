@@ -484,7 +484,7 @@ export default function ClubTheater(){
               const sz=2+s.row*3.7;
               targetRef.current.set(sx,.18+s.row*.1,sz+.15);
               setSeat(seatId);
-              setNotice("Walking to seat "+seatId+"…");
+              setNotice("Walking to seat "+seatId+"… The camera will switch to movie view when you sit.");
             }
             return;
           }
@@ -563,14 +563,25 @@ export default function ClubTheater(){
           root.rotation.y=Math.PI;
         }else root.position.y=0;
 
-        const center=new THREE.Vector3(root.position.x,1.5,root.position.z);
-        camera.position.add(center.clone().sub(controls.target));
-        controls.target.lerp(center,.15);
+        if(seatRef.current&&delta.length()<=.1){
+          const seated=SEATS.find(s=>s.id===seatRef.current);
+          const eyeY=2.05+(seated?.row||0)*.1;
+          const desiredCamera=new THREE.Vector3(root.position.x,eyeY,root.position.z+.48);
+          const screenFocus=new THREE.Vector3(0,5.15,-8.95);
+          camera.position.lerp(desiredCamera,.12);
+          controls.target.lerp(screenFocus,.14);
+          controls.enabled=false;
+        }else{
+          controls.enabled=true;
+          const center=new THREE.Vector3(root.position.x,1.5,root.position.z);
+          camera.position.add(center.clone().sub(controls.target));
+          controls.target.lerp(center,.15);
+        }
       }
       remoteRootsRef.current.forEach(remote=>(remote.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt));
       controls.update();
       camera.position.z=Math.max(camera.position.z,-5.85);
-      controls.target.z=Math.max(controls.target.z,-5.2);
+      controls.target.z=Math.max(controls.target.z,-8.95);
       renderer.render(scene,camera);
       cssRenderer.render(cssScene,camera);
       raf=requestAnimationFrame(loop);
