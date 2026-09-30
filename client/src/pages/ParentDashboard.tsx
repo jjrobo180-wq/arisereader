@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Trophy, BookOpen, Award, LogOut, Brain, Users } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
+import { Arise2HomeAnnouncement } from "@/components/Arise2Update";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -141,6 +142,7 @@ export default function ParentDashboard() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <Arise2HomeAnnouncement />
         {/* Student header */}
         <div className="flex items-center gap-4 p-5 rounded-xl bg-card border border-border">
           <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl">
