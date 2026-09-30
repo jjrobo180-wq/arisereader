@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
+import { Arise2HomeAnnouncement } from "@/components/Arise2Update";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
@@ -2151,6 +2152,7 @@ Generate exactly 10 questions.`;
       </header>
 
       <main className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 overflow-x-hidden">
+        <Arise2HomeAnnouncement />
         {/* Pending AI quiz alert banner */}
         {pendingQuizzes.length > 0 && (
           <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
