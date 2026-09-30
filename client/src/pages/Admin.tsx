@@ -569,9 +569,8 @@ export default function Admin() {
     }
   };
 
-  const handleNotifNavigate = (type: "request" | "user" | "teacher" | "message", id: number) => {
+  const handleNotifNavigate = (type: "request" | "user" | "teacher" | "parent" | "message" | "ai_quiz", id: number) => {
     if (type === "request") {
-      // Scroll to quiz requests and open create dialog for this request
       quizRequestsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       const req = quizRequests.find(r => r.id === id);
       if (req) {
@@ -587,14 +586,21 @@ export default function Admin() {
         setShowAddQuiz(true);
       }
     } else if (type === "teacher") {
-      // Scroll to teachers section
       teachersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (type === "parent") {
+      document.querySelector('[data-section="pending-parent-approvals"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (type === "ai_quiz") {
+      document.querySelector('[data-section="ai-quiz-review"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (type === "message") {
+      fetchStudentMsgs();
+      fetchSentMsgs();
+      fetchUnreadMsgCount();
+      setShowInbox(true);
     } else {
-      // Scroll to students table
       studentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    // Refresh notifications (NotificationBell will auto-mark-read on open, but this ensures the badge clears)
-    setNotifRefreshKey(k => k + 1);
+    // Action notifications stay visible until the task is actually resolved.
+    window.setTimeout(() => setNotifRefreshKey(k => k + 1), 250);
   };
 
   const fetchQuizRequests = async () => {
@@ -3002,7 +3008,7 @@ Generate exactly 10 questions.`;
 
         {/* Pending Parent Approvals */}
         {pendingParents.length > 0 && (
-          <Card className="shadow-md border-blue-500/30">
+          <Card data-section="pending-parent-approvals" className="shadow-md border-blue-500/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-400">
                 <Users className="w-5 h-5" />
