@@ -539,24 +539,12 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         return res.status(403).json({message,access});
       }
 
-      const {data:existing}=await db().from("club_arise_matches")
-        .select("*")
-        .eq("game_type",gameType)
-        .in("status",["waiting","active"])
-        .or("player1_id.eq."+req.user.id+",player2_id.eq."+req.user.id)
-        .order("created_at",{ascending:false})
-        .limit(1);
-      if(existing?.[0]){
-        const current=existing[0];
-        if(computer&&current.status==="waiting"&&current.player1_id===req.user.id){
-          const {data,error}=await db().from("club_arise_matches").update({
-            status:"active",state:{...(current.state||initialState(gameType)),computer:true,opponentName:"Computer"},updated_at:new Date().toISOString()
-          }).eq("id",current.id).select("*").single();
-          if(error)throw error;
-          return res.json(data);
-        }
-        return res.json(current);
-      }
+      // Starting a game is always a fresh choice. Cancel any unfinished match
+      // this student left behind so an old human/computer turn cannot reopen.
+      await db().from("club_arise_matches").update({
+        status:"cancelled",updated_at:new Date().toISOString(),
+      }).in("status",["waiting","active"])
+        .or("player1_id.eq."+req.user.id+",player2_id.eq."+req.user.id);
 
       if(computer){
         const {data,error}=await db().from("club_arise_matches").insert({
@@ -567,9 +555,11 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         return res.json(data);
       }
 
+      const freshWaitingSince=new Date(Date.now()-15*60*1000).toISOString();
       const {data:waiting}=await db().from("club_arise_matches")
         .select("*").eq("game_type",gameType).eq("status","waiting")
-        .neq("player1_id",req.user.id).order("created_at",{ascending:true}).limit(1);
+        .neq("player1_id",req.user.id).gte("created_at",freshWaitingSince)
+        .order("created_at",{ascending:true}).limit(1);
 
       if(waiting?.[0]){
         const match=waiting[0];
@@ -588,6 +578,25 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
     }catch(error:any){
       console.error("[club-arise] join",error?.message);
       res.status(500).json({message:"Could not join that game."});
+    }
+  });
+
+  app.post("/api/club-arise/matches/:id/leave", authMiddleware, async(req:any,res)=>{
+    try{
+      if(!isStudent(req.user)) return res.status(403).json({message:"Student account required."});
+      const {data:match,error}=await db().from("club_arise_matches").select("id,status,player1_id,player2_id").eq("id",req.params.id).single();
+      if(error||!match) return res.status(404).json({message:"Game not found."});
+      if(match.player1_id!==req.user.id&&match.player2_id!==req.user.id) return res.status(403).json({message:"This is not your game."});
+      if(["waiting","active"].includes(match.status)){
+        const {error:updateError}=await db().from("club_arise_matches").update({
+          status:"cancelled",updated_at:new Date().toISOString(),
+        }).eq("id",match.id);
+        if(updateError)throw updateError;
+      }
+      res.json({ok:true});
+    }catch(error:any){
+      console.error("[club-arise] leave match",error?.message);
+      res.status(500).json({message:"Could not leave that game."});
     }
   });
 
