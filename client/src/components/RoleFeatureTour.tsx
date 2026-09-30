@@ -39,53 +39,31 @@ export default function RoleFeatureTour() {
     checked.current = true;
 
     const sampleKey = `arise_sample_tour_seen_${user.username}`;
-    if (isSample) {
-      if (sessionStorage.getItem(sampleKey) !== "true") {
-        const open = () => setTimeout(() => setShow(true), 700);
-        if (role === "student" && sessionStorage.getItem("show_profile_setup") === "true") {
-          const poll = window.setInterval(() => {
-            if (sessionStorage.getItem("show_profile_setup") !== "true") {
-              window.clearInterval(poll);
-              open();
-            }
-          }, 400);
-          window.setTimeout(() => { window.clearInterval(poll); open(); }, 12000);
-        } else {
+    const versionKey = `arise_feature_tour_2026_09_${user.id}_${role}`;
+    const alreadySeen = isSample
+      ? sessionStorage.getItem(sampleKey) === "true"
+      : localStorage.getItem(versionKey) === "true";
+    if (alreadySeen) return;
+
+    const open = () => setTimeout(() => setShow(true), 700);
+    if (role === "student" && sessionStorage.getItem("show_profile_setup") === "true") {
+      const poll = window.setInterval(() => {
+        if (sessionStorage.getItem("show_profile_setup") !== "true") {
+          window.clearInterval(poll);
           open();
         }
-      }
-      return;
+      }, 400);
+      window.setTimeout(() => { window.clearInterval(poll); open(); }, 12000);
+    } else {
+      open();
     }
-
-    const token = tokenFromCookie();
-    if (!token) return;
-    fetch(`${API_BASE}/api/easter-eggs/status`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data?.tutorialShown) {
-          const open = () => setTimeout(() => setShow(true), 700);
-          if (role === "student" && sessionStorage.getItem("show_profile_setup") === "true") {
-            const poll = window.setInterval(() => {
-              if (sessionStorage.getItem("show_profile_setup") !== "true") {
-                window.clearInterval(poll);
-                open();
-              }
-            }, 400);
-            window.setTimeout(() => { window.clearInterval(poll); open(); }, 12000);
-          } else {
-            open();
-          }
-        }
-      })
-      .catch(() => {});
   }, [user?.id, role, isSample]);
 
   const finish = async () => {
     if (isSample) {
       sessionStorage.setItem(`arise_sample_tour_seen_${user?.username}`, "true");
     } else {
+      if (user?.id && role) localStorage.setItem(`arise_feature_tour_2026_09_${user.id}_${role}`, "true");
       const token = tokenFromCookie();
       if (token) {
         try {
