@@ -1,70 +1,37 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-function edit(path: string, fn: (s: string) => string) {
-  const p = resolve(process.cwd(), path);
-  const old = readFileSync(p, "utf8");
-  const next = fn(old);
-  if (next === old) console.log(`[arise2] no change ${path}`);
-  else {
-    writeFileSync(p, next);
-    console.log(`[arise2] updated ${path}`);
+// Keep A.R.I.S.E. 2.0 available from the Library Quick Menu only.
+// Do not add homepage announcement cards or a global floating launcher.
+const libraryPath = resolve(process.cwd(), "client/src/pages/Library.tsx");
+let library = readFileSync(libraryPath, "utf8");
+let changed = false;
+
+if (!library.includes('Arise2UpdateButton } from "@/components/Arise2Update"')) {
+  const marker = 'import { EngagementHub } from "@/components/EngagementHub";';
+  if (library.includes(marker)) {
+    library = library.replace(
+      marker,
+      marker + '\nimport { Arise2UpdateButton } from "@/components/Arise2Update";'
+    );
+    changed = true;
   }
 }
 
-edit("client/src/pages/Library.tsx", s => {
-  if (s.includes('Arise2HomeAnnouncement')) return s;
-  s = s.replace(
-    'import { EngagementHub } from "@/components/EngagementHub";',
-    'import { EngagementHub } from "@/components/EngagementHub";\nimport { Arise2HomeAnnouncement, Arise2UpdateButton } from "@/components/Arise2Update";'
-  );
-  s = s.replace(
-    '<div className="px-2 pb-2 pt-1">\n                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick menu</p>\n                      </div>',
-    '<div className="px-2 pb-2 pt-1">\n                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick menu</p>\n                      </div>\n                      <div className="mb-2"><Arise2UpdateButton compact /></div>'
-  );
-  s = s.replace(
-    '<div className="space-y-1">\n                      {user?.isAdmin',
-    '<div className="space-y-1">\n                      <div className="mb-2"><Arise2UpdateButton compact /></div>\n                      {user?.isAdmin'
-  );
-  s = s.replace(
-    '<main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">',
-    '<main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">\n        <Arise2HomeAnnouncement />'
-  );
-  return s;
-});
-
-const dashboardFiles = [
-  "client/src/pages/TeacherDashboard.tsx",
-  "client/src/pages/ParentDashboard.tsx",
-  "client/src/pages/EyeGazeHome.tsx",
-  "client/src/pages/Admin.tsx",
-];
-
-for (const file of dashboardFiles) edit(file, s => {
-  if (s.includes('Arise2HomeAnnouncement')) return s;
-
-  // Prepend the import instead of trying to identify the last import line.
-  // Some pages use multi-line imports beginning with `import {`, which made the
-  // old installer accidentally split the first React import during production builds.
-  s = 'import { Arise2HomeAnnouncement } from "@/components/Arise2Update";\n' + s;
-
-  const main = s.indexOf('<main');
-  if (main >= 0) {
-    const close = s.indexOf('>', main);
-    if (close >= 0) {
-      return s.slice(0, close + 1) + '\n        <Arise2HomeAnnouncement />' + s.slice(close + 1);
-    }
+if (!library.includes("<Arise2UpdateButton compact")) {
+  const quickMenuMarker = '<div className="px-2 pb-2 pt-1">\n                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick menu</p>\n                      </div>';
+  if (library.includes(quickMenuMarker)) {
+    library = library.replace(
+      quickMenuMarker,
+      quickMenuMarker + '\n                      <div className="mb-2"><Arise2UpdateButton compact /></div>'
+    );
+    changed = true;
   }
+}
 
-  const ret = s.indexOf('return (');
-  if (ret >= 0) {
-    const div = s.indexOf('<div', ret);
-    if (div >= 0) {
-      const close = s.indexOf('>', div);
-      if (close >= 0) {
-        return s.slice(0, close + 1) + '\n      <div className="mx-auto max-w-7xl px-3 pt-4 sm:px-6"><Arise2HomeAnnouncement /></div>' + s.slice(close + 1);
-      }
-    }
-  }
-  return s;
-});
+if (changed) {
+  writeFileSync(libraryPath, library);
+  console.log("[arise2] kept A.R.I.S.E. 2.0 in Quick Menu only");
+} else {
+  console.log("[arise2] Quick Menu entry already present; no homepage promo added");
+}
