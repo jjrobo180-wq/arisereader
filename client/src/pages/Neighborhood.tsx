@@ -7,7 +7,7 @@ import { ArrowLeft, Home, Map as MapIcon, Users, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
-import { createPet } from "@/lib/pets";
+import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
@@ -114,7 +114,10 @@ export default function Neighborhood(){
       if(!pointerStart||pointerStart.id!==event.pointerId)return;
       const moved=Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y);pointerStart=null;if(moved>10)return;
       const rect=renderer.domElement.getBoundingClientRect();pointer.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
-      const portalHit=raycaster.intersectObjects(scene.children,true).some(hit=>{let node:THREE.Object3D|null=hit.object;while(node){if(node.userData.worldExit)return true;node=node.parent;}return false;});
+      const hits=raycaster.intersectObjects(scene.children,true);
+      const ownPetHit=hits.find(hit=>{const petRoot=findPetRoot(hit.object);return !!petRoot&&petRoot.parent===selfRootRef.current;});
+      if(ownPetHit){openPetCare();return;}
+      const portalHit=hits.some(hit=>{let node:THREE.Object3D|null=hit.object;while(node){if(node.userData.worldExit)return true;node=node.parent;}return false;});
       if(portalHit){setLeavingWorld(true);return;}
       const groundHit=raycaster.intersectObject(ground)[0];if(groundHit)targetRef.current.set(THREE.MathUtils.clamp(groundHit.point.x,-31,31),0,THREE.MathUtils.clamp(groundHit.point.z,-22,22));
     };
