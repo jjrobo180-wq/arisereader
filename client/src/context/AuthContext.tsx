@@ -73,7 +73,7 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
     if (!raw) return { user: null, token: null };
     const data = JSON.parse(atob(raw));
     // Sample account: always reset to login page on fresh page load
-    if (data.user?.username === 'sample') {
+    if (typeof data.user?.username === 'string' && data.user.username.startsWith('sample')) {
       deleteCookie(COOKIE_NAME);
       return { user: null, token: null };
     }
