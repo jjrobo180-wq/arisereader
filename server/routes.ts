@@ -899,7 +899,21 @@ async function authMiddleware(req: any, res: any, next: any) {
   if (!session) {
     return res.status(401).json({ message: "Invalid or expired session" });
   }
-  req.user = session.user;
+  const previewHeader = String(req.headers["x-arise-admin-preview"] || "");
+  const previewMode = session.user?.isAdmin && (previewHeader === "regular" || previewHeader === "eye-gaze")
+    ? previewHeader
+    : null;
+  req.realUser = session.user;
+  req.adminPreview = previewMode;
+  req.user = previewMode
+    ? {
+        ...session.user,
+        isAdmin: false,
+        role: "student",
+        is_eye_gaze_user: previewMode === "eye-gaze",
+        username: "admin-preview",
+      }
+    : session.user;
   req.sessionToken = token;
   next();
 }
@@ -1579,10 +1593,12 @@ export async function registerRoutes(
   app.get("/api/books/:id/quiz", authMiddleware, async (req: any, res) => {
     const bookId = parseInt(req.params.id);
 
-    // Check if already attempted
-    const existingAttempt = await storage.getAttempt(req.user.id, bookId);
-    if (existingAttempt) {
-      return res.status(403).json({ message: "You have already taken this quiz", score: existingAttempt.score, total: existingAttempt.totalQuestions, points: existingAttempt.pointsEarned || 0 });
+    // Admin preview can retake quizzes freely without creating student records.
+    if (!req.adminPreview) {
+      const existingAttempt = await storage.getAttempt(req.user.id, bookId);
+      if (existingAttempt) {
+        return res.status(403).json({ message: "You have already taken this quiz", score: existingAttempt.score, total: existingAttempt.totalQuestions, points: existingAttempt.pointsEarned || 0 });
+      }
     }
 
     const book = await storage.getBook(bookId);
@@ -1607,10 +1623,12 @@ export async function registerRoutes(
   app.post("/api/books/:id/quiz", authMiddleware, async (req: any, res) => {
     const bookId = parseInt(req.params.id);
 
-    // Check if already attempted
-    const existingAttempt = await storage.getAttempt(req.user.id, bookId);
-    if (existingAttempt) {
-      return res.status(403).json({ message: "You have already taken this quiz" });
+    // Admin preview can take the full quiz repeatedly without persisting attempts.
+    if (!req.adminPreview) {
+      const existingAttempt = await storage.getAttempt(req.user.id, bookId);
+      if (existingAttempt) {
+        return res.status(403).json({ message: "You have already taken this quiz" });
+      }
     }
 
     // No grade band restriction — all students can take any quiz
@@ -1641,6 +1659,22 @@ export async function registerRoutes(
       if (userAnswer && userAnswer === correctAnswer) {
         score++;
       }
+    }
+
+    if (req.adminPreview) {
+      const passingScore = arPassingScore(allQuestions.length);
+      const passed = score >= passingScore;
+      return res.json({
+        score,
+        total: allQuestions.length,
+        points: 0,
+        bookPoints: effectivePoints,
+        passed,
+        passingScore,
+        bookTitle: book?.title,
+        studentName: req.realUser?.displayName || "Admin Preview",
+        preview: true,
+      });
     }
 
     const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, normalizedAnswers, effectivePoints);
@@ -5679,6 +5713,9 @@ export async function registerRoutes(
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+      if (req.adminPreview) {
+        return res.json({ ...quiz, attemptId: -quizId, preview: true });
+      }
       const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
       if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
       const attempt = await storage.startEyeGazeAttempt(req.user.id, quizId);
@@ -5692,6 +5729,34 @@ export async function registerRoutes(
     try {
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
+      if (req.adminPreview && attemptId < 0) {
+        const quizId = Math.abs(attemptId);
+        const questions = await storage.getEyeGazeQuizQuestions(quizId);
+        let score = 0;
+        const skillScores: Record<string, { correct: number; total: number }> = {};
+        for (const q of questions) {
+          const userAnswer = String(answers?.[q.id] || "");
+          const correct = userAnswer === String(q.correct_answer || "");
+          if (correct) score++;
+          const skill = q.skill_type || "identification";
+          if (!skillScores[skill]) skillScores[skill] = { correct: 0, total: 0 };
+          skillScores[skill].total++;
+          if (correct) skillScores[skill].correct++;
+        }
+        const total = questions.length;
+        const pct = total > 0 ? (score / total) * 100 : 0;
+        const passingScore = Math.ceil(total * 0.7);
+        return res.json({
+          score,
+          total,
+          pct,
+          passed: score >= passingScore,
+          passingScore,
+          pointsEarned: 0,
+          skill_scores: skillScores,
+          preview: true,
+        });
+      }
       const result = await storage.submitEyeGazeAttempt(attemptId, answers);
       res.json(result);
     } catch (error: any) {
