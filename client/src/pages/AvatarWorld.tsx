@@ -14,7 +14,7 @@ type Payload={
   state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>;careSpent:number;spent:number};
   catalog:CatalogItem[];
 };
-type Tab="character"|"shop"|"garage"|"home";
+type Tab="character"|"shop"|"garage";
 
 const FREE_ITEMS:CatalogItem[]=[
   {id:"car-none",type:"car",name:"No Car",price:0,rarity:"starter"},
@@ -107,7 +107,6 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   if(!payload)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center p-6"><div className="text-center"><p className="text-xl font-black">{message||"Avatar World is unavailable."}</p><button onClick={()=>navigate("/library")} className="mt-4 rounded-2xl bg-white text-slate-950 px-5 py-3 font-black">Back to Library</button></div></main>;
 
   const carId=payload.state.equipped.car||"car-none";
-  const homeId=payload.state.equipped.home||"home-basic";
   const petId=payload.state.equipped.pet||"pet-none";
   const quizzesIntoLevel=payload.economy.passedQuizzes%2;
   const starterCharacters=new Set(["robin-hood","sherlock-holmes","sinbad","alice"]);
@@ -124,7 +123,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   return <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554,#0f172a_50%,#020617)] text-white">
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/85 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 py-3 flex items-center gap-3">
-        <button onClick={()=>navigate(initialTab==="home"?"/neighborhood":"/library")} className="min-h-12 rounded-2xl bg-white/10 border border-white/15 px-3 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> {initialTab==="home"?"The Block":"Library"}</button>
+        <button onClick={()=>navigate("/library")} className="min-h-12 rounded-2xl bg-white/10 border border-white/15 px-3 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Library</button>
         <div className="flex-1 min-w-0"><p className="text-[10px] font-black tracking-[.28em] text-cyan-300">A.R.I.S.E.</p><h1 className="text-lg sm:text-2xl font-black truncate">Avatar World</h1></div>
         <div className="rounded-2xl bg-amber-400/10 border border-amber-300/30 px-3 py-2 text-center"><div className="text-[10px] font-black text-amber-200">COINS</div><div className="font-black text-amber-300">{payload.economy.wallet.toLocaleString()}</div></div>
         <div className="rounded-2xl bg-violet-500/10 border border-violet-300/30 px-3 py-2 text-center"><div className="text-[10px] font-black text-violet-200">LEVEL</div><div className="font-black text-xl">{payload.economy.level}</div></div>
@@ -148,8 +147,9 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
 
       <nav className="mt-3 grid grid-cols-4 gap-1.5 rounded-2xl bg-white/5 border border-white/10 p-1.5">
         {([
-          ["character",UserRound,"Character"],["shop",ShoppingBag,"Shop"],["garage",Car,"Garage"],["home",Home,"Home"]
+          ["character",UserRound,"Character"],["shop",ShoppingBag,"Shop"],["garage",Car,"Garage"]
         ] as const).map(([id,Icon,label])=><button key={id} onClick={()=>setTab(id)} className={"min-h-12 sm:min-h-14 rounded-xl font-black text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 "+(tab===id?"bg-white text-slate-950 shadow-lg":"text-white/70 hover:bg-white/10")}><Icon className="w-5 h-5"/>{label}</button>)}
+        <button onClick={()=>navigate("/my-home")} className="min-h-12 sm:min-h-14 rounded-xl font-black text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-white/70 hover:bg-white/10"><Home className="w-5 h-5"/>Home</button>
       </nav>
       {message&&<div className="mt-3 rounded-2xl bg-white/10 border border-white/15 p-3 text-center font-black flex items-center justify-center gap-2">{message}<button onClick={()=>setMessage("")}><X className="w-4 h-4"/></button></div>}
     </section>
@@ -257,9 +257,9 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
           return <article key={product.id} className={"rounded-[2rem] overflow-hidden border-2 bg-gradient-to-br "+(rarityClass[product.rarity]||rarityClass.common)}>
             <div className="h-44 grid place-items-center bg-black/25 relative"><div className="text-7xl">{icon}</div><span className="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-[10px] font-black uppercase">{product.rarity}</span>{product.type==="character"?<button type="button" onClick={()=>{setPreviewCharacterId(product.id.replace(/^unlock-/,""));setTab("character");}} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview character</button>:["pet","car","home"].includes(product.type)&&<button type="button" onClick={()=>setPreviewProduct(product)} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview in 3D</button>}</div>
             <div className="p-4 bg-slate-950/85"><h3 className="text-lg font-black">{product.name}</h3><p className="text-xs font-black text-white/45 uppercase">{product.type}</p>
-              {product.type==="pet"&&<p className="mt-2 text-xs text-white/70"><strong className="text-cyan-200">{PET_PERSONALITIES[product.id]?.trait}.</strong> {PET_PERSONALITIES[product.id]?.greeting} · Loves {PET_PERSONALITIES[product.id]?.favorite.toLowerCase()}. Care starts with 7 days.</p>}
+              {product.type==="pet"&&<p className="mt-2 text-xs text-white/70"><strong className="text-cyan-200">{PET_PERSONALITIES[product.id]?.trait}.</strong> {PET_PERSONALITIES[product.id]?.greeting} · Loves {PET_PERSONALITIES[product.id]?.favorite.toLowerCase()}. Keep happiness high with food, treats, walks, and play.</p>}
               {product.type==="pet"&&isOwned
-                ?<button onClick={showPets} className="mt-4 w-full min-h-12 rounded-xl bg-emerald-500/20 font-black text-emerald-300">{petAway(product.id)?"VISIT SANCTUARY":"CARE FOR PET"}</button>
+                ?<button onClick={showPets} className="mt-4 w-full min-h-12 rounded-xl bg-emerald-500/20 font-black text-emerald-300">CARE FOR PET</button>
                 :<button disabled={isOwned||!canAfford||!!busy} onClick={()=>setPendingPurchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{product.price} · UNLOCK</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>}
             </div>
           </article>;
@@ -280,26 +280,6 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
           </>}
         </div>
         <aside className="space-y-3"><h3 className="text-xl font-black">My Cars</h3>{allItems.filter(x=>x.type==="car"&&owned(x.id)).map(car=><button key={car.id} onClick={()=>equip("car",car.id)} className={"w-full rounded-2xl border p-4 text-left "+(carId===car.id?"bg-cyan-400 text-slate-950 border-cyan-200":"bg-white/5 border-white/10")}><strong className="block">{car.name}</strong><span className="text-xs font-black opacity-60 uppercase">{car.rarity}</span></button>)}<button onClick={()=>{setTab("shop");setShopFilter("car");}} className="w-full min-h-14 rounded-2xl bg-amber-400 text-slate-950 font-black">UNLOCK MORE CARS</button></aside>
-      </div>
-    </section>}
-
-    {tab==="home"&&<section className="max-w-7xl mx-auto p-3 sm:p-5">
-      <div className="grid lg:grid-cols-[1fr_340px] gap-5">
-        <div className={"min-h-[680px] rounded-[2.5rem] border border-white/10 relative overflow-hidden "+(homeId==="home-modern"?"bg-[linear-gradient(180deg,#7dd3fc_0_36%,#e2e8f0_36%_39%,#d6d3d1_39%)]":homeId==="home-loft"?"bg-[linear-gradient(180deg,#111827_0_58%,#4c1d95_58%_61%,#292524_61%)]":homeId==="home-studio"?"bg-[linear-gradient(180deg,#334155_0_58%,#0f766e_58%_61%,#1f2937_61%)]":"bg-[linear-gradient(180deg,#dbeafe_0_58%,#f8fafc_58%_61%,#cbd5e1_61%)]")}>
-          <div className="absolute top-5 left-5 z-20"><p className="text-xs font-black text-cyan-300 drop-shadow">MY HOME</p><h2 className="text-3xl font-black drop-shadow">{getItem(homeId)?.name||"Starter Room"}</h2></div>
-          <WorldModelPreview id={homeId} className="absolute right-0 top-[9%] h-[42%] w-[75%] z-10"/>
-          <div className="absolute left-[8%] bottom-[12%] w-[42%] h-[24%] rounded-[2rem] bg-slate-700 shadow-2xl"><div className="absolute -top-5 left-6 right-6 h-12 rounded-2xl bg-slate-600"/></div>
-          <div className="absolute right-[8%] bottom-[13%] w-[28%] h-[25%] bg-amber-950 rounded-xl shadow-2xl"><div className="absolute -top-[60%] left-[10%] right-[10%] h-[62%] bg-slate-900 rounded-t-xl"><div className="absolute inset-[8%] bg-gradient-to-br from-cyan-400 to-violet-600"/></div></div>
-          {payload.state.furniture.includes("furniture-books")&&<div className="absolute right-[3%] top-[18%] w-[22%] h-[38%] bg-amber-950 p-2 grid grid-rows-4 gap-2 shadow-2xl">{[0,1,2,3].map(i=><div key={i} className="bg-gradient-to-r from-cyan-400 via-amber-300 to-fuchsia-400"/>)}</div>}
-          {payload.state.furniture.includes("furniture-neon")&&<div className="absolute left-[8%] top-[22%] text-3xl sm:text-5xl font-black text-cyan-300 drop-shadow-[0_0_16px_rgba(34,211,238,.8)]">READ • RISE • REPEAT</div>}
-          {payload.state.furniture.includes("furniture-sofa")&&<div className="absolute left-[30%] bottom-[9%] w-[34%] h-[20%] rounded-[2rem] bg-violet-600 border-t-[18px] border-violet-400 shadow-2xl"/>}
-          <div className="absolute right-[2%] bottom-[1%] w-[310px] h-[450px] z-10"><ARISEAvatar3D characterId={payload.state.selectedCharacter} equipped={payload.state.equipped} compact className="w-full h-full rounded-3xl overflow-hidden"/></div>
-        </div>
-        <aside className="space-y-3"><h3 className="text-xl font-black">My Places</h3>{allItems.filter(x=>x.type==="home"&&owned(x.id)).map(home=><button key={home.id} onClick={()=>equip("home",home.id)} className={"w-full rounded-2xl p-4 border text-left "+(homeId===home.id?"bg-cyan-400 text-slate-950 border-cyan-200":"bg-white/5 border-white/10")}><strong>{home.name}</strong><span className="block text-xs font-black opacity-60 uppercase">{home.rarity}</span></button>)}
-          <h3 className="text-xl font-black pt-3">Furniture</h3>{(payload.catalog||[]).filter(x=>x.type==="furniture"&&owned(x.id)).map(furn=>{const active=payload.state.furniture.includes(furn.id);return <button key={furn.id} onClick={()=>customize({action:"furniture",itemIds:active?payload.state.furniture.filter(id=>id!==furn.id):[...payload.state.furniture,furn.id]})} className={"w-full rounded-2xl p-4 border text-left "+(active?"bg-emerald-400 text-slate-950 border-emerald-200":"bg-white/5 border-white/10")}><div className="flex items-center justify-between"><strong>{furn.name}</strong>{active&&<Check className="w-5 h-5"/>}</div></button>})}
-          <button onClick={()=>{setTab("shop");setShopFilter("home");}} className="w-full min-h-14 rounded-2xl bg-amber-400 text-slate-950 font-black">UPGRADE MY HOME</button>
-          <button onClick={()=>{setTab("shop");setShopFilter("furniture");}} className="w-full min-h-14 rounded-2xl bg-white text-slate-950 font-black">SHOP FURNITURE</button>
-        </aside>
       </div>
     </section>}
 
