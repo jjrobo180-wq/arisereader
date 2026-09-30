@@ -9,7 +9,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
-import MobileMovePad from "@/components/MobileMovePad";
+import MobileJoystick from "@/components/MobileJoystick";
 
 type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string;emoji?:string};
 type TheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null};
@@ -883,7 +883,7 @@ export default function ClubTheater(){
       {notice}
     </div>
 
-    <MobileMovePad onMove={move} className="bottom-24 left-3" label="Cinema movement controls"/>
+    <MobileJoystick onMove={move} className="bottom-24 left-3" label="Cinema movement controls"/>
     <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-xl bg-black/60 px-3 py-2 text-center text-[10px] font-bold text-white/70 backdrop-blur sm:text-xs">
       {seat?("Seated in "+seat+" · "):""}WASD/arrows walk · drag to look · tap a seat to sit {videoReady?"· show playing":""}
     </div>
