@@ -73,8 +73,7 @@ import StudentProfileView from "./pages/StudentProfileView";
 import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import ParentDashboard from "./pages/ParentDashboard";
-import ParentTutorialPopup from "./components/ParentTutorialPopup";
-import GuidedTour from "./components/GuidedTour";
+import RoleFeatureTour from "./components/RoleFeatureTour";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import PointsSideTab from "./components/PointsSideTab";
@@ -276,6 +275,9 @@ function AppRoutes() {
       <Route path="/tutorial/eye-gaze">
         <Tutorial />
       </Route>
+      <Route path="/tutorial/parent">
+        <Tutorial />
+      </Route>
       <Route path="/leaderboard">
         {isEyeGazeStudent
           ? <ProtectedRoute><EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate></ProtectedRoute>
@@ -460,7 +462,7 @@ function AppInner() {
   const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
   const isParent = user && user.role === 'parent';
   const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
-  const isSampleStudent = isStudent && user?.username === 'sample';
+  const isSampleStudent = isStudent && !!user?.username?.startsWith('sample');
   const isAdminPreview = !!realUser?.isAdmin && !!adminPreviewMode;
   const [sampleTourDone, setSampleTourDone] = useState(false);
   const [tourShown, setTourShown] = useState(false);
@@ -506,13 +508,11 @@ function AppInner() {
 
   return (
     <>
-      {/* All students get GuidedTour (replaces old FypAnnouncementPopup) */}
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && !tourShown && <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />}
+      <RoleFeatureTour />
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
       {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isParent && <ParentTutorialPopup />}
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       <Router hook={useHashLocation}>
         <AdminPreviewBar />
         <EyeGazeSiteShell>
