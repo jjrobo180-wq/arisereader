@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { NotificationBell } from "@/components/NotificationBell";
+import { Arise2HomeAnnouncement } from "@/components/Arise2Update";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
@@ -568,7 +569,7 @@ export default function Admin() {
     }
   };
 
-  const handleNotifNavigate = (type: "request" | "user" | "teacher" | "message", id: number) => {
+  const handleNotifNavigate = (type: "request" | "user" | "teacher" | "parent" | "message" | "ai_quiz" | "review", id: number) => {
     if (type === "request") {
       // Scroll to quiz requests and open create dialog for this request
       quizRequestsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -586,13 +587,16 @@ export default function Admin() {
         setShowAddQuiz(true);
       }
     } else if (type === "teacher") {
-      // Scroll to teachers section
       teachersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (type === "parent") {
+      document.querySelector('[data-section="parent-accounts"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (type === "ai_quiz") {
+      document.querySelector('[data-section="ai-quiz-review"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (type === "review") {
+      reviewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      // Scroll to students table
       studentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    // Refresh notifications (NotificationBell will auto-mark-read on open, but this ensures the badge clears)
     setNotifRefreshKey(k => k + 1);
   };
 
@@ -2151,6 +2155,7 @@ Generate exactly 10 questions.`;
       </header>
 
       <main className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 overflow-x-hidden">
+        <Arise2HomeAnnouncement />
         {/* Pending AI quiz alert banner */}
         {pendingQuizzes.length > 0 && (
           <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex flex-col sm:flex-row sm:items-center gap-3">

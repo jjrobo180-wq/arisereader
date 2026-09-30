@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
+import { Arise2GlobalLaunch } from "./components/Arise2Update";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -472,6 +473,7 @@ function AppInner() {
       {isStudent && !isEyeGazeStudent && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isEyeGazeStudent && (tourShown || isSampleStudent) && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isParent && <ParentTutorialPopup />}
+      <Arise2GlobalLaunch autoLaunch={!isStudent || isSampleStudent || isEyeGazeStudent || (tourShown && !tourActive)} />
       <Router hook={useHashLocation}>
         <EyeGazeSiteShell>
           <ClubPlayGate><AppRoutes /></ClubPlayGate>

@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
+import { Arise2HomeAnnouncement } from "@/components/Arise2Update";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -69,6 +70,7 @@ export default function EyeGazeHome() {
 
   return (
     <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+      <Arise2HomeAnnouncement />
       <section className="rounded-[2rem] bg-gradient-to-r from-teal-100 via-emerald-50 to-amber-50 border border-sky-100 p-5 sm:p-7">
         <div className="flex flex-col lg:flex-row lg:items-center gap-5">
           <div className="flex-1">

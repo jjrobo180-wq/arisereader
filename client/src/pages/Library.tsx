@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 import BookAccessLinks from "@/components/BookAccessLinks";
 import { EngagementHub } from "@/components/EngagementHub";
+import { Arise2HomeAnnouncement, Arise2UpdateButton } from "@/components/Arise2Update";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -1225,6 +1226,7 @@ export default function Library() {
                       <div className="px-2 pb-2 pt-1">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick menu</p>
                       </div>
+                      <div className="mb-2"><Arise2UpdateButton compact /></div>
                       <div className="grid grid-cols-2 gap-1.5">
                         <button data-tour="fyp" onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Sparkles className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Discover</span>
@@ -1273,6 +1275,7 @@ export default function Library() {
                     </>
                   ) : (
                     <div className="space-y-1">
+                      <div className="mb-2"><Arise2UpdateButton compact /></div>
                       {user?.isAdmin && <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Admin</button>}
                       {user?.role === 'teacher' && <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Teacher Dashboard</button>}
                       <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
@@ -1310,6 +1313,7 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        <Arise2HomeAnnouncement />
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <div className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
