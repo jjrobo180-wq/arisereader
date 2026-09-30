@@ -102,8 +102,8 @@ export default function Quiz() {
         setBook(data.book || null);
         const qs = Array.isArray(data.questions) ? data.questions : [];
         const sorted = qs.sort((a: SafeQuestion, b: SafeQuestion) => a.questionOrder - b.questionOrder);
-        // Sample student: only show 3 questions
-        setQuestions(isSampleStudent ? sorted.slice(0, 3) : sorted);
+        // Sample accounts get the complete quiz experience; the server keeps demo attempts noncompetitive.
+        setQuestions(sorted);
       } catch (err) {
         setError("Failed to load quiz");
       } finally {
@@ -177,23 +177,6 @@ export default function Quiz() {
 
   const handleSubmit = async () => {
     if (!token || !id) return;
-    // Sample student: don't submit to server, show sample result
-    if (isSampleStudent) {
-      let correct = 0;
-      questions.forEach(q => {
-        const ans = answers[String(q.id)];
-        if (ans === 'A') correct++; // Just count A answers for sample
-      });
-      setResult({
-        score: correct,
-        total: questions.length,
-        passed: true,
-        points: 0,
-        isSample: true,
-      });
-      setSubmitting(false);
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await fetch(`${API_BASE}/api/books/${id}/quiz`, {
@@ -528,8 +511,8 @@ export default function Quiz() {
       <main className="max-w-3xl mx-auto px-4 py-8">
         {isSampleStudent && (
           <div className="mb-6 rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 text-center">
-            <p className="text-sm font-bold text-amber-400">🎯 Sample Quiz Mode</p>
-            <p className="text-xs text-muted-foreground mt-1">You're taking a 3-question sample quiz. Create a free account to take the full 10-question quiz and earn points!</p>
+            <p className="text-sm font-bold text-amber-400">🎯 Sample Account Mode</p>
+            <p className="text-xs text-muted-foreground mt-1">This is the full quiz experience. Your score is shown, but demo attempts and points are not saved to student rankings.</p>
           </div>
         )}
         {/* Book cover and info */}
