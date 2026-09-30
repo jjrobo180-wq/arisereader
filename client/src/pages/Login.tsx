@@ -89,7 +89,16 @@ export default function Login() {
               <div className="text-center text-sm text-muted-foreground">New here?{" "}<button type="button" onClick={() => navigate("/register")} className="text-primary font-medium hover:underline">Create an account</button></div>
             </form>
             <div className="mt-4 pt-4 border-t border-border">
-              <div className="grid grid-cols-1 gap-2"><button type="button" onClick={() => navigate("/tutorial")} className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border text-sm font-medium text-white hover:bg-muted hover:border-primary/50 transition-all"><PlayCircle className="w-4 h-4 text-primary" /> Tutorial</button></div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Tutorials</p>
+                <button type="button" onClick={() => navigate("/tutorial")} className="text-xs font-bold text-primary hover:underline">View all</button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => navigate("/tutorial/student")} className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs font-bold text-foreground transition-all hover:border-orange-400/60 hover:bg-orange-500/10"><Users className="h-4 w-4 text-orange-400" /> Student</button>
+                <button type="button" onClick={() => navigate("/tutorial/teacher")} className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs font-bold text-foreground transition-all hover:border-blue-400/60 hover:bg-blue-500/10"><PlayCircle className="h-4 w-4 text-blue-400" /> Teacher</button>
+                <button type="button" onClick={() => navigate("/tutorial/eye-gaze")} className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs font-bold text-foreground transition-all hover:border-cyan-400/60 hover:bg-cyan-500/10"><Eye className="h-4 w-4 text-cyan-400" /> Eye Gazer</button>
+                <button type="button" onClick={() => navigate("/tutorial/parent")} className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs font-bold text-foreground transition-all hover:border-purple-400/60 hover:bg-purple-500/10"><Heart className="h-4 w-4 text-purple-400" /> Parent</button>
+              </div>
               <button type="button" onClick={() => navigate("/leaderboard")} className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary/10 border border-primary/30 text-sm font-medium text-primary hover:bg-primary/20 transition-all"><Trophy className="w-4 h-4" /> View Leaderboard</button>
               <button type="button" onClick={() => navigate('/parent-signup')} className="w-full mt-2 rounded-lg border border-primary/30 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/10">Parent sign up with a code</button>
               <button type="button" onClick={() => navigate("/about")} className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-muted/30 border border-border text-sm font-medium text-foreground hover:bg-muted/50 transition-all"><Info className="w-4 h-4 text-primary" /> About A.R.I.S.E.</button>
