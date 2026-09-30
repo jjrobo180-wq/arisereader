@@ -268,7 +268,9 @@ export default function Admin() {
   const [correctedAnswers, setCorrectedAnswers] = useState<Record<string, string>>({});
   const [updateAnswerKey, setUpdateAnswerKey] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
+  const [manualReviewScore, setManualReviewScore] = useState("");
   const [regradeMsg, setRegradeMsg] = useState("");
+  const [regradeBusy, setRegradeBusy] = useState(false);
   const reviewRef = useRef<HTMLDivElement>(null);
   // i-Ready score state
   const [ireadyGrade, setIreadyGrade] = useState("");
@@ -2020,6 +2022,7 @@ Generate exactly 10 questions.`;
     setCorrectedAnswers({});
     setUpdateAnswerKey(false);
     setAdminNotes("");
+    setManualReviewScore("");
     setRegradeMsg("");
     try {
       const res = await fetch(`${API_BASE}/api/admin/review-requests/${reviewId}`, {
@@ -2030,7 +2033,7 @@ Generate exactly 10 questions.`;
         setReviewDetail(data);
         const initialCorrected: Record<string, string> = {};
         (data.questions || []).forEach((q: any) => {
-          initialCorrected[String(q.id)] = q.correctAnswer;
+          initialCorrected[String(q.id)] = String(q.correctAnswer || "").trim().toUpperCase();
         });
         setCorrectedAnswers(initialCorrected);
       }
@@ -2041,8 +2044,10 @@ Generate exactly 10 questions.`;
     }
   };
 
-  const handleRegrade = async () => {
-    if (!token || !activeReview) return;
+  const handleRegrade = async (manualScore?: number) => {
+    if (!token || !activeReview || regradeBusy) return;
+    setRegradeBusy(true);
+    setRegradeMsg("");
     try {
       const res = await fetch(`${API_BASE}/api/admin/review-requests/${activeReview.id}/regrade`, {
         method: "POST",
@@ -2051,22 +2056,28 @@ Generate exactly 10 questions.`;
           correctedAnswers,
           updateAnswerKey,
           adminNotes: adminNotes || undefined,
+          manualScore: manualScore === undefined ? undefined : manualScore,
         }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setRegradeMsg(`Regraded! New score: ${data.newScore}/${data.total}. Points: ${data.newPoints} (was ${data.oldPoints}).`);
-        fetchReviewRequests();
-        fetchStudents();
-        setNotifRefreshKey(k => k + 1);
-        setTimeout(() => {
-          setActiveReview(null);
-          setReviewDetail(null);
-          setRegradeMsg("");
-        }, 4000);
+      const data = await res.json();
+      if (!res.ok) {
+        setRegradeMsg(data.message || "Could not save the new grade.");
+        return;
       }
+      setRegradeMsg(`Saved. New grade: ${data.newScore}/${data.total}. Points: ${data.newPoints} (was ${data.oldPoints}).`);
+      fetchReviewRequests();
+      fetchStudents();
+      setNotifRefreshKey(k => k + 1);
+      setTimeout(() => {
+        setActiveReview(null);
+        setReviewDetail(null);
+        setRegradeMsg("");
+      }, 3500);
     } catch (err) {
       console.error("Failed to regrade:", err);
+      setRegradeMsg("Could not save the new grade.");
+    } finally {
+      setRegradeBusy(false);
     }
   };
 
@@ -3752,18 +3763,18 @@ Generate exactly 10 questions.`;
                   )}
                   <div className="space-y-3">
                     {(reviewDetail.questions || []).map((q: any, idx: number) => {
-                      const studentAns = q.studentAnswer;
-                      const correctAns = correctedAnswers[String(q.id)] || q.correctAnswer;
-                      const isCorrect = studentAns === correctAns;
+                      const studentAns = String(q.studentAnswer || "").trim().toUpperCase();
+                      const correctAns = String(correctedAnswers[String(q.id)] || q.correctAnswer || "").trim().toUpperCase();
+                      const isCorrect = !!studentAns && studentAns === correctAns;
                       return (
                         <div key={q.id} className={`rounded-lg border p-4 ${isCorrect ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
                           <p className="font-medium mb-2">{idx + 1}. {q.questionText}</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                             {[
-                              { letter: "a", text: q.optionA },
-                              { letter: "b", text: q.optionB },
-                              { letter: "c", text: q.optionC },
-                              { letter: "d", text: q.optionD },
+                              { letter: "A", text: q.optionA },
+                              { letter: "B", text: q.optionB },
+                              { letter: "C", text: q.optionC },
+                              { letter: "D", text: q.optionD },
                             ].map((opt) => {
                               const isStudent = studentAns === opt.letter;
                               const isCorrectOpt = correctAns === opt.letter;
@@ -3785,38 +3796,71 @@ Generate exactly 10 questions.`;
                               onChange={(e) => setCorrectedAnswers(prev => ({ ...prev, [String(q.id)]: e.target.value }))}
                               className="bg-background border border-border rounded px-2 py-1 text-sm"
                             >
-                              <option value="a">A</option>
-                              <option value="b">B</option>
-                              <option value="c">C</option>
-                              <option value="d">D</option>
+                              <option value="A">A</option>
+                              <option value="B">B</option>
+                              <option value="C">C</option>
+                              <option value="D">D</option>
                             </select>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="space-y-3 border-t border-border pt-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="updateKey"
-                        checked={updateAnswerKey}
-                        onChange={(e) => setUpdateAnswerKey(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="updateKey" className="text-sm">Also update the answer key for future students</label>
+                  <div className="space-y-4 border-t border-border pt-4">
+                    <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
+                      <p className="font-semibold">Automatic recheck: {reviewDetail.calculatedScore ?? "—"}/{reviewDetail.attempt?.total}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">If the answer key is correct, this is the grade the student should receive. Press the button below and you are done.</p>
+                      <Button disabled={regradeBusy} onClick={() => void handleRegrade()} className="mt-3 w-full">
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Confirm automatic grade
+                      </Button>
                     </div>
+
+                    <div className="rounded-xl border border-border p-4">
+                      <p className="font-semibold">Or enter a grade yourself</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Use this only when you want to override the calculated score. Enter the number correct, from 0 to {reviewDetail.attempt?.total}.</p>
+                      <div className="mt-3 flex gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={reviewDetail.attempt?.total || 10}
+                          step={1}
+                          value={manualReviewScore}
+                          onChange={(e) => setManualReviewScore(e.target.value)}
+                          placeholder={`0-${reviewDetail.attempt?.total || 10}`}
+                        />
+                        <Button
+                          variant="secondary"
+                          disabled={regradeBusy || manualReviewScore === "" || Number(manualReviewScore) < 0 || Number(manualReviewScore) > Number(reviewDetail.attempt?.total || 10)}
+                          onClick={() => void handleRegrade(Number(manualReviewScore))}
+                        >
+                          Save manual grade
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+                      <p className="font-semibold">Was the quiz answer key wrong?</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Change the correct answer on the question above. Turn this on only if future students should use your corrected answer key too.</p>
+                      <label className="mt-3 flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          id="updateKey"
+                          checked={updateAnswerKey}
+                          onChange={(e) => setUpdateAnswerKey(e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        Save my changed answers to the quiz for future students
+                      </label>
+                    </div>
+
                     <Textarea
-                      placeholder="Admin notes (optional)..."
+                      placeholder="Notes to remember why you changed the grade (optional)"
                       value={adminNotes}
                       onChange={(e) => setAdminNotes(e.target.value)}
                       rows={2}
                       className="resize-none"
                     />
-                    <Button onClick={handleRegrade} className="w-full">
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Regrade Quiz
-                    </Button>
                   </div>
                 </div>
               ) : (
