@@ -7,23 +7,24 @@ export const EVENTS=['points','safe','steal','shield','power','rps','bonus'] as 
 export type SpaceEvent=typeof EVENTS[number];
 export const SPACE_LABELS:Record<SpaceEvent,string>={points:'+50 POINTS',safe:'SAFE SPACE',steal:'POINT STEAL',shield:'SHIELD',power:'POWER +2',rps:'ROCK PAPER SCISSORS',bonus:'JACKPOT +100'};
 export const HANDS:Hand[]=['rock','paper','scissors'];
-export const TIMING={roll:2800,reveal:900,step:650,landing:1400,reward:3000,countdown:3000,duelResult:2800};
+export const TIMING={introPlayer:1100,introHold:700,roll:2800,reveal:900,step:650,landing:1400,reward:3000,countdown:3000,duelResult:2800};
 export type Player={id:number;name:string;characterId:string;team:Team;space:number;strikes:number;shield:number;power:number;out:boolean;bot:boolean};
 export type Cue={id:number;kind:'move'|'strike'|'duel';startAt:number;actor:number;from:number;to:number;raw:number;bonus:number;steps:number;event:SpaceEvent;rival?:number;hands?:[Hand,Hand];duelWinner?:number|null;title?:string;deltas?:{blue:number;gold:number};blocked?:boolean};
-export type Phase='lobby'|'question'|'cinematic'|'rps'|'finished';
+export type Phase='lobby'|'intro'|'question'|'cinematic'|'rps'|'finished';
 export type View={code:string;hostId:number;level:Level;players:Player[];turn:number;phase:Phase;phaseAt:number;serverNow:number;scores:Record<Team,number>;cue:Cue|null;question:{id:number;q:string;a:string[]}|null;winner:string|null;rpsReady:number[];rpsDeadline:number;revision:number};
 export function moveLandingAt(cue:Cue){return cue.startAt+TIMING.roll+TIMING.reveal+(cue.to-cue.from)*TIMING.step;}
 export function rpsWinner(a:Hand,b:Hand):0|1|null{return a===b?null:((a==='rock'&&b==='scissors')||(a==='paper'&&b==='rock')||(a==='scissors'&&b==='paper'))?0:1;}
+export const BOARD_LAST_SPACE=55;
 const SKY_PATH=[
- [-30,20],[-27,17],[-23,13],[-19,10],
- [-18,6],[-17,3],[-16,0],[-15,-2],[-15,-4],[-14,-5],[-13.5,-5.5],[-13,-6],
- [0,0],
- [4,-1],[7,-3],[10,-5],[13,-8],
- [16,-6],[18,-3],[20,0],[21,4],
- [15,9],[8,14],
- [12,10],[16,6],[20,1],[23,-8],[27,-17]
+ [-36,24],[-34,22],[-32,20],[-30,18],[-28,16],[-26,14],[-24,12],[-22,10],[-21,8],[-20,6],[-19,4],
+ [-20,1],[-21,-2],[-22,-5],[-23,-8],[-23,-11],[-22,-14],[-20,-17],[-17,-20],
+ [-14,-19],[-11,-17],[-8,-15],[-6,-12],[-4,-9],[-3,-6],[-2,-4],[0,-2],
+ [4,-3],[8,-4],[12,-5],[16,-6],[19,-7],[22,-8],[25,-9],[27,-10],[29,-9],[30,-7],[31,-5],
+ [32,-2],[33,1],[32,4],[30,7],
+ [27,10],[24,13],[21,17],[18,20],[15,22],[12,24],[10,25],[8,24],[7,21],
+ [12,17],[18,12],[24,6],[30,-2],[38,-14]
 ] as const;
-export function boardPosition(space:number){const p=SKY_PATH[Math.max(0,Math.min(SKY_PATH.length-1,space))];return {x:p[0]*1.24,z:p[1]*1.24};}
+export function boardPosition(space:number){const p=SKY_PATH[Math.max(0,Math.min(SKY_PATH.length-1,space))];return {x:p[0]*1.18,z:p[1]*1.18};}}
 export function cueStage(cue:Cue|null,now:number){
  if(!cue)return 'idle';const t=now-cue.startAt;
  if(cue.kind==='strike')return 'reward';
