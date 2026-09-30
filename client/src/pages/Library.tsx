@@ -79,7 +79,7 @@ let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; 
 };
 
 export default function Library() {
-  const { user, token, logout, refreshUser } = useAuth();
+  const { user, realUser, token, logout, refreshUser, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   // Initialize from cache so data shows instantly on remount
   const [books, setBooks] = useState<Book[]>(libraryCache.books);
@@ -1268,7 +1268,7 @@ export default function Library() {
                         <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <BarChart3 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="block text-xs font-black">Polls</span>
                         </button>
-                        <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                        <button onClick={() => { if (realUser?.isAdmin) { startAdminPreview("regular"); navigate("/profile"); } else { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); } setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Settings className="mb-1.5 h-4 w-4 text-muted-foreground" /><span className="block text-xs font-black">Account</span>
                         </button>
                       </div>
@@ -1277,7 +1277,7 @@ export default function Library() {
                     <div className="space-y-1">
                       {user?.isAdmin && <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Admin</button>}
                       {user?.role === 'teacher' && <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Teacher Dashboard</button>}
-                      <button onClick={() => { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
+                      <button onClick={() => { if (realUser?.isAdmin) { startAdminPreview("regular"); navigate("/profile"); } else { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); } setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
                     </div>
                   )}
                   <div className="mt-2 border-t border-border pt-2">
