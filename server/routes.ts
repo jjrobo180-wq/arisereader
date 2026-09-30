@@ -1593,8 +1593,10 @@ export async function registerRoutes(
   app.get("/api/books/:id/quiz", authMiddleware, async (req: any, res) => {
     const bookId = parseInt(req.params.id);
 
-    // Admin preview can retake quizzes freely without creating student records.
-    if (!req.adminPreview) {
+    const sampleAccount = String(req.user?.username || "").startsWith("sample");
+
+    // Admin preview and sample accounts can retake quizzes freely without creating student records.
+    if (!req.adminPreview && !sampleAccount) {
       const existingAttempt = await storage.getAttempt(req.user.id, bookId);
       if (existingAttempt) {
         return res.status(403).json({ message: "You have already taken this quiz", score: existingAttempt.score, total: existingAttempt.totalQuestions, points: existingAttempt.pointsEarned || 0 });
@@ -1623,8 +1625,10 @@ export async function registerRoutes(
   app.post("/api/books/:id/quiz", authMiddleware, async (req: any, res) => {
     const bookId = parseInt(req.params.id);
 
-    // Admin preview can take the full quiz repeatedly without persisting attempts.
-    if (!req.adminPreview) {
+    const sampleAccount = String(req.user?.username || "").startsWith("sample");
+
+    // Admin preview and sample accounts can take the full quiz repeatedly without persisting attempts.
+    if (!req.adminPreview && !sampleAccount) {
       const existingAttempt = await storage.getAttempt(req.user.id, bookId);
       if (existingAttempt) {
         return res.status(403).json({ message: "You have already taken this quiz" });
@@ -1661,7 +1665,7 @@ export async function registerRoutes(
       }
     }
 
-    if (req.adminPreview) {
+    if (req.adminPreview || sampleAccount) {
       const passingScore = arPassingScore(allQuestions.length);
       const passed = score >= passingScore;
       return res.json({
@@ -1672,7 +1676,7 @@ export async function registerRoutes(
         passed,
         passingScore,
         bookTitle: book?.title,
-        studentName: req.realUser?.displayName || "Admin Preview",
+        studentName: req.adminPreview ? (req.realUser?.displayName || "Admin Preview") : (req.user?.displayName || "Sample Student"),
         preview: true,
       });
     }
@@ -3435,7 +3439,7 @@ export async function registerRoutes(
       : await storage.getLeaderboard();
     
     // Exclude sample/demo account from leaderboard
-    leaderboard = leaderboard.filter((entry: any) => entry.username !== 'sample');
+    leaderboard = leaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
     
     // Filter by grade band if requested
     if (band) {
@@ -3475,7 +3479,7 @@ export async function registerRoutes(
       : await storage.getLeaderboard();
 
     // Exclude sample/demo account from leaderboard
-    leaderboard = leaderboard.filter((entry: any) => entry.username !== 'sample');
+    leaderboard = leaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
 
     // Fetch enrichment data: user grades, eye gaze flags, schools
     const rawGrades = await storage.getSetting('user_grades');
@@ -3583,7 +3587,7 @@ export async function registerRoutes(
       const fullLeaderboard = await storage.getLeaderboard();
 
       // Exclude sample/demo account
-      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => entry.username !== 'sample');
+      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
 
       // Filter to user's band (or all if no band)
       const bandLeaderboard = myBand
@@ -3670,7 +3674,7 @@ export async function registerRoutes(
       const fullLeaderboard = await storage.getLeaderboard();
 
       // Exclude sample/demo account
-      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => entry.username !== 'sample');
+      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
       
       // Filter to user's band
       const bandLeaderboard = filteredLeaderboard.filter((entry: any) => {
@@ -5713,7 +5717,8 @@ export async function registerRoutes(
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-      if (req.adminPreview) {
+      const sampleAccount = String(req.user?.username || "").startsWith("sample");
+      if (req.adminPreview || sampleAccount) {
         return res.json({ ...quiz, attemptId: -quizId, preview: true });
       }
       const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
@@ -5729,7 +5734,8 @@ export async function registerRoutes(
     try {
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
-      if (req.adminPreview && attemptId < 0) {
+      const sampleAccount = String(req.user?.username || "").startsWith("sample");
+      if ((req.adminPreview || sampleAccount) && attemptId < 0) {
         const quizId = Math.abs(attemptId);
         const questions = await storage.getEyeGazeQuizQuestions(quizId);
         let score = 0;
