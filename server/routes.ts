@@ -1943,7 +1943,8 @@ export async function registerRoutes(
         const legacyUntil=Number(previous.fedUntil);
         stored=Number.isFinite(legacyUntil)&&legacyUntil>now?85:70;
       }
-      const decay=Math.floor(Math.max(0,now-lastUpdatedAt)/PET_HAPPINESS_DECAY_MS);
+      const elapsed=Math.max(0,now-lastUpdatedAt);
+      const decay=Math.floor(elapsed/PET_HAPPINESS_DECAY_MS);
       const happiness=Math.max(0,Math.min(100,Math.round(stored)-decay));
       if(happiness<=0&&!lostPets.includes(id)){
         lostPets.push(id);
@@ -1952,7 +1953,8 @@ export async function registerRoutes(
       }
       petCare[id]={
         happiness,
-        lastUpdatedAt:now,
+        // Preserve the unused partial interval so frequent refreshes cannot pause decay.
+        lastUpdatedAt:decay>0?lastUpdatedAt+decay*PET_HAPPINESS_DECAY_MS:lastUpdatedAt,
         lastFedAt:Math.max(0,Number(previous.lastFedAt)||0),
         lastTreatAt:Math.max(0,Number(previous.lastTreatAt)||0),
         lastWalkAt:Math.max(0,Number(previous.lastWalkAt)||0),
