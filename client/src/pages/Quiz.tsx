@@ -57,7 +57,7 @@ export default function Quiz() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
-  const isSampleStudent = user?.username === 'sample';
+  const isSampleStudent = !!user?.username?.startsWith('sample');
 
   const handleRequestReview = async () => {
     if (!token || !result?.attemptId) return;
