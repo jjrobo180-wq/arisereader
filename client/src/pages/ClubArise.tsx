@@ -11,6 +11,7 @@ import { createPet, openPetCare, PET_PERSONALITIES } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
+import MobileJoystick from "@/components/MobileJoystick";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
@@ -602,6 +603,7 @@ export default function ClubArise(){
   const yourTurn=!!match&&match.status==="active"&&Number(match.state?.turn)===myIndex;
   const opponent=match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
   const onlineReaders=players.filter(p=>p.user_id!==self?.userId);
+  const touchMove=(key:"w"|"a"|"s"|"d",active:boolean)=>{if(active)keysRef.current.add(key);else keysRef.current.delete(key);};
 
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
@@ -634,6 +636,10 @@ export default function ClubArise(){
     </aside>}
 
     <div className="pointer-events-none absolute left-1/2 top-14 z-20 max-w-[62vw] -translate-x-1/2 truncate rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-black backdrop-blur sm:top-20 sm:max-w-none sm:rounded-2xl sm:px-4 sm:py-2 sm:text-sm">{notice}</div>
+
+    <div className="absolute bottom-3 right-20 z-35 xl:hidden">
+      <MobileJoystick onMove={touchMove} label={driving?"Drive":"Walk"}/>
+    </div>
 
     <div className="absolute bottom-3 right-3 z-40 flex flex-col gap-1.5 rounded-2xl border border-white/15 bg-slate-950/88 p-1.5 shadow-2xl backdrop-blur-xl">
       <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowArcade(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 hover:bg-white/20" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
