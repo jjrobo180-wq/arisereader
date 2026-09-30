@@ -3,11 +3,12 @@ import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Home, Paintbrush, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, Home, Paintbrush, RotateCcw, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet, openPetCare } from "@/lib/pets";
+import MobileJoystick from "@/components/MobileJoystick";
 
 type CatalogItem={id:string;type:string;name:string;price:number;rarity:string};
 type Payload={
@@ -222,12 +223,7 @@ export default function HomeInterior(){
 
     <div className="pointer-events-none absolute left-1/2 top-[74px] z-20 -translate-x-1/2 rounded-full bg-slate-950/70 px-3 py-1 text-[10px] font-black text-white/85 backdrop-blur sm:top-24">Drag to look · pinch to zoom · tap floor to walk</div>
 
-    <div className="absolute bottom-5 left-4 z-40 grid grid-cols-3 gap-1.5 rounded-[1.6rem] border border-white/10 bg-slate-950/75 p-2 shadow-2xl backdrop-blur sm:hidden" aria-label="Home movement controls">
-      <span/><button aria-label="Walk forward" onPointerDown={e=>{e.preventDefault();move("w",true)}} onPointerUp={()=>move("w",false)} onPointerCancel={()=>move("w",false)} onPointerLeave={()=>move("w",false)} className="grid h-12 w-12 place-items-center rounded-xl bg-white/15 active:bg-cyan-300 active:text-slate-950"><ArrowUp/></button><span/>
-      <button aria-label="Walk left" onPointerDown={e=>{e.preventDefault();move("a",true)}} onPointerUp={()=>move("a",false)} onPointerCancel={()=>move("a",false)} onPointerLeave={()=>move("a",false)} className="grid h-12 w-12 place-items-center rounded-xl bg-white/15 active:bg-cyan-300 active:text-slate-950"><ArrowLeft/></button>
-      <button aria-label="Walk backward" onPointerDown={e=>{e.preventDefault();move("s",true)}} onPointerUp={()=>move("s",false)} onPointerCancel={()=>move("s",false)} onPointerLeave={()=>move("s",false)} className="grid h-12 w-12 place-items-center rounded-xl bg-white/15 active:bg-cyan-300 active:text-slate-950"><ArrowDown/></button>
-      <button aria-label="Walk right" onPointerDown={e=>{e.preventDefault();move("d",true)}} onPointerUp={()=>move("d",false)} onPointerCancel={()=>move("d",false)} onPointerLeave={()=>move("d",false)} className="grid h-12 w-12 place-items-center rounded-xl bg-white/15 active:bg-cyan-300 active:text-slate-950"><ArrowRight/></button>
-    </div>
+    <div className="absolute bottom-5 right-3 z-40 xl:hidden"><MobileJoystick onMove={(key,active)=>move(key,active)} label="Walk"/></div>
 
     <div className="pointer-events-none absolute bottom-5 left-1/2 z-20 max-w-[72vw] -translate-x-1/2 rounded-xl bg-slate-950/72 px-3 py-2 text-center text-[10px] font-bold text-white/80 backdrop-blur sm:text-xs">{notice}</div>
 
