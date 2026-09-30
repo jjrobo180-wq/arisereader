@@ -637,7 +637,7 @@ export default function ClubArise(){
 
     <div className="pointer-events-none absolute left-1/2 top-14 z-20 max-w-[62vw] -translate-x-1/2 truncate rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-black backdrop-blur sm:top-20 sm:max-w-none sm:rounded-2xl sm:px-4 sm:py-2 sm:text-sm">{notice}</div>
 
-    <div className="absolute bottom-3 right-20 z-35 xl:hidden">
+    <div className="absolute bottom-3 right-20 z-[35] xl:hidden">
       <MobileJoystick onMove={touchMove} label={driving?"Drive":"Walk"}/>
     </div>
 
