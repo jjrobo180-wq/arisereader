@@ -1907,6 +1907,8 @@ export async function registerRoutes(
       equipped: { car:"car-none", home:"home-basic", pet:"pet-none" } as Record<string,string>,
       furniture: [] as string[],
       petCare: {} as Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>,
+      lostPets: [] as string[],
+      lostPetSpent: 0,
       careSpent: 0,
       spent: 0,
     };
@@ -1925,8 +1927,11 @@ export async function registerRoutes(
       const unlock=characterUnlockId(previousCharacter);
       if(validIds.has(unlock)&&!purchased.includes(unlock))purchased.push(unlock);
     }
-    const purchasedSet=new Set(purchased);
     const now=Date.now();
+    const lostPets:string[]=Array.isArray(source.lostPets)
+      ? Array.from(new Set<string>(source.lostPets.map(String).filter((id:string)=>validIds.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="pet")))
+      : [];
+    let lostPetSpent=Math.max(0,Number(source.lostPetSpent)||0);
     const petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>={};
     for(const id of purchased){
       if(AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type!=="pet")continue;
@@ -1940,6 +1945,11 @@ export async function registerRoutes(
       }
       const decay=Math.floor(Math.max(0,now-lastUpdatedAt)/PET_HAPPINESS_DECAY_MS);
       const happiness=Math.max(0,Math.min(100,Math.round(stored)-decay));
+      if(happiness<=0&&!lostPets.includes(id)){
+        lostPets.push(id);
+        const lostItem=AVATAR_WORLD_CATALOG.find(item=>item.id===id);
+        lostPetSpent+=Number(lostItem?.price||0);
+      }
       petCare[id]={
         happiness,
         lastUpdatedAt:now,
@@ -1948,6 +1958,8 @@ export async function registerRoutes(
         lastWalkAt:Math.max(0,Number(previous.lastWalkAt)||0),
       };
     }
+    const activePurchasedBase=purchased.filter(id=>!lostPets.includes(id));
+    const purchasedSet=new Set(activePurchasedBase);
     const rawCareSpent=Number(source.careSpent);
     const careSpent=Number.isFinite(rawCareSpent)?Math.max(0,Math.floor(rawCareSpent)):0;
     const allowed=(id:any)=>AVATAR_WORLD_FREE.has(String(id))||purchasedSet.has(String(id));
@@ -1962,17 +1974,18 @@ export async function registerRoutes(
     const furniture=Array.isArray(source.furniture)
       ? Array.from(new Set(source.furniture.map(String).filter((id:string)=>purchasedSet.has(id)&&AVATAR_WORLD_CATALOG.find(item=>item.id===id)?.type==="furniture"))).slice(0,12)
       : [];
-    const activePurchased=purchased.filter((id:string)=>{
+    const activePurchased=activePurchasedBase.filter((id:string)=>{
       const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
       return !!item&&AVATAR_WORLD_SHOP_TYPES.has(item.type);
     });
+    if(lostPets.includes(equipped.pet))equipped.pet="pet-none";
     // Only active world purchases count against the wallet. Retired wearable
     // purchases are automatically refunded by excluding them from this total.
     const spent=activePurchased.reduce((sum:number,id:string)=>{
       const item=AVATAR_WORLD_CATALOG.find(entry=>entry.id===id);
       return sum+(item?.price||0);
-    },careSpent);
-    return {purchased:activePurchased,selectedCharacter,equipped,furniture,petCare,careSpent,spent};
+    },careSpent+lostPetSpent);
+    return {purchased:activePurchased,selectedCharacter,equipped,furniture,petCare,lostPets,lostPetSpent,careSpent,spent};
   }
 
   async function getAvatarWorldPayload(userId:number) {
@@ -2006,8 +2019,8 @@ export async function registerRoutes(
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
     const state=normalizeAvatarWorldState(parsed||{});
-    // Migrate legacy pet-care records without ever unequipping the student's companion.
-    if(state.purchased.some(id=>id.startsWith("pet-")&&(!parsed?.petCare?.[id]||parsed?.petCare?.[id]?.fedUntil!==undefined)))
+    // Persist real-time pet decay, including offline time and runaways.
+    if(JSON.stringify(state)!==JSON.stringify(parsed||{}))
       await storage.upsertSetting("avatar_world_"+userId,JSON.stringify(state));
     const theaterSpent=Math.max(0,Number(await storage.getSetting("avatar_world_theater_spent_"+userId))||0);
     const wallet=Math.max(0,lifetimeCoins-state.spent-theaterSpent);
@@ -2120,6 +2133,7 @@ export async function registerRoutes(
       if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
       const now=Date.now();
       const next={...payload.state,purchased:[...payload.state.purchased,item.id],
+        lostPets:item.type==="pet"?(payload.state.lostPets||[]).filter((id:string)=>id!==item.id):(payload.state.lostPets||[]),
         petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{happiness:90,lastUpdatedAt:now,lastFedAt:now,lastTreatAt:0,lastWalkAt:0}}:payload.state.petCare};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
       res.set("Cache-Control","no-store");
@@ -2178,7 +2192,7 @@ export async function registerRoutes(
       const action=String(req.body?.action||"");
       const payload=await getAvatarWorldPayload(req.user.id);
       if(!payload.state.purchased.includes(itemId)||AVATAR_WORLD_CATALOG.find(item=>item.id===itemId)?.type!=="pet")
-        return res.status(400).json({message:"Unlock this pet first."});
+        return res.status(400).json({message:"This pet is no longer with you. Re-adopt it from the pet shop."});
       if(!["feed","treat","walk","play"].includes(action))return res.status(400).json({message:"Choose food, a treat, a walk, or play time."});
       const current=payload.state.petCare[itemId]||{happiness:70,lastUpdatedAt:Date.now(),lastFedAt:0,lastTreatAt:0,lastWalkAt:0};
       const cost=action==="feed"?PET_FEED_COST:action==="treat"?PET_TREAT_COST:0;
