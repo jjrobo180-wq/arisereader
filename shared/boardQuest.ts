@@ -24,7 +24,7 @@ const SKY_PATH=[
  [27,10],[24,13],[21,17],[18,20],[15,22],[12,24],[10,25],[8,24],[7,21],
  [12,17],[18,12],[24,6],[30,-2],[38,-14]
 ] as const;
-export function boardPosition(space:number){const p=SKY_PATH[Math.max(0,Math.min(SKY_PATH.length-1,space))];return {x:p[0]*1.18,z:p[1]*1.18};}}
+export function boardPosition(space:number){const p=SKY_PATH[Math.max(0,Math.min(SKY_PATH.length-1,space))];return {x:p[0]*1.18,z:p[1]*1.18};}
 export function cueStage(cue:Cue|null,now:number){
  if(!cue)return 'idle';const t=now-cue.startAt;
  if(cue.kind==='strike')return 'reward';
