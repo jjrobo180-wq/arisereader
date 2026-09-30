@@ -94,10 +94,10 @@ function addNeon(scene:THREE.Scene,text:string,x:number,y:number,z:number,rotY=0
 }
 function blocked(x:number,z:number){
   if(x<-11.8||x>11.8||z<-8.9||z>8.9)return true;
-  // Center vertical wall. Doorways around z=-2.1 and z=2.2.
-  if(Math.abs(x)<.42 && ((z<-3.2)||(z>-1&&z<1)||(z>3.25)))return true;
-  // Center horizontal wall. Doorways around x=-2.2 and x=2.3.
-  if(Math.abs(z)<.42 && ((x<-3.25)||(x>-1&&x<1)||(x>3.25)))return true;
+  // Hall wall separates the front rooms from the back rooms, with a wide center doorway.
+  if(Math.abs(z)<.42 && Math.abs(x)>2)return true;
+  // Back divider separates the reading room and bedroom. Return through the hall to cross sides.
+  if(Math.abs(x)<.42 && z<-2)return true;
   // Keep avatar out of the biggest furniture.
   const zones=[
     [-9,-4.1,5.25,7.8],[-9,-4.1,-6.6,-3.1],[3.2,9.4,-8.8,-2.6],
@@ -152,12 +152,11 @@ export default function HomeInterior(){
     // Outer shell with a real entry opening at the south side.
     addBox(scene,[25,5.4,.36],[0,2.7,-9.5],wall);addBox(scene,[.36,5.4,19],[-12.5,2.7,0],wall);addBox(scene,[.36,5.4,19],[12.5,2.7,0],wall);
     addBox(scene,[10.1,5.4,.36],[-7.45,2.7,9.5],wall);addBox(scene,[10.1,5.4,.36],[7.45,2.7,9.5],wall);addBox(scene,[4.9,.6,.36],[0,5.1,9.5],wall);
-    // Interior walls with wide door openings.
-    addBox(scene,[.34,5.1,5.7],[0,2.55,-6.65],wall);addBox(scene,[.34,5.1,2.15],[0,2.55,-2.08],wall);addBox(scene,[.34,5.1,2.15],[0,2.55,2.08],wall);addBox(scene,[.34,5.1,5.7],[0,2.55,6.65],wall);
-    addBox(scene,[8.9,5.1,.34],[-8.05,2.55,0],wall);addBox(scene,[2.15,5.1,.34],[-2.08,2.55,0],wall);addBox(scene,[2.15,5.1,.34],[2.08,2.55,0],wall);addBox(scene,[8.9,5.1,.34],[8.05,2.55,0],wall);
-    // Door trim and windows sell the feeling of an actual interior.
-    for(const z of [-2.1,2.1]){addBox(scene,[.16,4.6,.55],[-.65,2.3,z],0x94a3b8);addBox(scene,[.16,4.6,.55],[.65,2.3,z],0x94a3b8);addBox(scene,[1.45,.16,.55],[0,4.5,z],0x94a3b8);}
-    for(const x of [-2.1,2.1]){addBox(scene,[.55,4.6,.16],[x,2.3,-.65],0x94a3b8);addBox(scene,[.55,4.6,.16],[x,2.3,.65],0x94a3b8);addBox(scene,[.55,.16,1.45],[x,4.5,0],0x94a3b8);}
+    // Real room layout: living + kitchen are open at the front, a center hall leads to two back rooms.
+    addBox(scene,[10.5,5.1,.34],[-7.25,2.55,0],wall);addBox(scene,[10.5,5.1,.34],[7.25,2.55,0],wall);
+    addBox(scene,[.34,5.1,7.5],[0,2.55,-5.75],wall);
+    // Trim the wide hallway opening.
+    addBox(scene,[.36,4.6,.36],[-2,2.3,0],0x94a3b8);addBox(scene,[.36,4.6,.36],[2,2.3,0],0x94a3b8);addBox(scene,[4.35,.18,.36],[0,4.5,0],0x94a3b8);
     addWindow(scene,-7.2,-9.28,0);addWindow(scene,7.2,-9.28,0);addWindow(scene,-12.28,5.2,Math.PI/2);addWindow(scene,12.28,5.2,-Math.PI/2);
     // Living room.
     addCouch(scene,-6.7,6.5,0x475569);addTable(scene,-6.7,3.75,0x92400e);addTv(scene,-6.7,.75);addPlant(scene,-10.7,7.6);addLamp(scene,-3.4,7.6);
