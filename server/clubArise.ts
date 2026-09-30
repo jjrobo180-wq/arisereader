@@ -483,14 +483,16 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       if(!detail) return res.status(404).json({message:"Player not found."});
 
       const {data:matches,error}=await db().from("club_arise_matches")
-        .select("id,game_type,status,player1_id,player2_id,winner_id")
+        .select("id,game_type,status,player1_id,player2_id,winner_id,state")
         .eq("status","finished")
         .or("player1_id.eq."+userId+",player2_id.eq."+userId);
       if(error)throw error;
 
       const finished=matches||[];
-      const wins=finished.filter((m:any)=>m.winner_id===userId).length;
-      const ties=finished.filter((m:any)=>!m.winner_id).length;
+      const won=(m:any)=>m.winner_id===userId||(m.state?.computer&&m.player1_id===userId&&Number(m.state?.winner)===1);
+      const tied=(m:any)=>m.state?.computer?Number(m.state?.winner)===0:!m.winner_id;
+      const wins=finished.filter(won).length;
+      const ties=finished.filter(tied).length;
       const losses=Math.max(0,finished.length-wins-ties);
       const clubScore=wins*100+ties*40+losses*10;
       const byGame:any={};
@@ -498,7 +500,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         const rows=finished.filter((m:any)=>m.game_type===type);
         byGame[type]={
           played:rows.length,
-          wins:rows.filter((m:any)=>m.winner_id===userId).length,
+          wins:rows.filter(won).length,
         };
       }
 
