@@ -467,15 +467,31 @@ export default function ClubArise(){
             }
           }
         }else{
-          let dx=0,dz=0;const k=keysRef.current;if(k.has("w")||k.has("arrowup"))dz-=1;if(k.has("s")||k.has("arrowdown"))dz+=1;if(k.has("a")||k.has("arrowleft"))dx-=1;if(k.has("d")||k.has("arrowright"))dx+=1;
+          const before=root.position.clone();
+          const k=keysRef.current;
+          const inputRight=((k.has("d")||k.has("arrowright"))?1:0)-((k.has("a")||k.has("arrowleft"))?1:0);
+          const inputForward=((k.has("w")||k.has("arrowup"))?1:0)-((k.has("s")||k.has("arrowdown"))?1:0);
           const dest=targetRef.current.clone();
-          if(dx||dz){const v=new THREE.Vector3(dx,0,dz).normalize().multiplyScalar((drivingRef.current?10:5)*dt);root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);}
-          else{const diff=dest.sub(root.position);diff.y=0;if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}}
+          if(inputRight||inputForward){
+            const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;
+            if(forward.lengthSq()<.0001)forward.set(0,0,-1);
+            forward.normalize();
+            const right=forward.clone().cross(new THREE.Vector3(0,1,0)).normalize();
+            const v=forward.multiplyScalar(inputForward).add(right.multiplyScalar(inputRight)).normalize().multiplyScalar((drivingRef.current?10:5)*dt);
+            root.position.add(v);targetRef.current.copy(root.position);root.rotation.y=Math.atan2(v.x,v.z);
+          }else{
+            const diff=dest.sub(root.position);diff.y=0;
+            if(diff.length()>.18){diff.normalize();root.position.addScaledVector(diff,(drivingRef.current?8:4.2)*dt);root.rotation.y=Math.atan2(diff.x,diff.z);}
+          }
+          if(root.position.distanceToSquared(before)>.000001){
+            const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);
+            const shift=desired.clone().sub(controls.target);
+            controls.target.copy(desired);camera.position.add(shift);
+          }
         }
         root.position.x=THREE.MathUtils.clamp(root.position.x,-28,28);root.position.z=THREE.MathUtils.clamp(root.position.z,-27,27);
         if(!carTransitionRef.current&&Math.hypot(root.position.x,root.position.z-22)<1.7){setLeavingWorld(true);return;}
         if(drivingRef.current&&selfCarRef.current&&!carTransitionRef.current){selfCarRef.current.position.set(root.position.x,0,root.position.z);selfCarRef.current.rotation.y=root.rotation.y;
-          const desired=new THREE.Vector3(root.position.x,1.3,root.position.z);const shift=desired.sub(controls.target).multiplyScalar(.12);camera.position.add(shift);controls.target.add(shift);
         }
         const pet=root.getObjectByName("clubPet");if(pet&&!drivingRef.current){const personality=PET_PERSONALITIES[String(pet.userData.petId)];const t=performance.now()*.001;pet.position.y=personality?.motion==="bounce"?Math.abs(Math.sin(t*3))*.16:Math.sin(t*2)*.045;pet.rotation.z=personality?.motion==="sway"?Math.sin(t*2)*.12:0;pet.rotation.y=personality?.motion==="spin"?Math.sin(t*.7)*.35:0;}
       }
