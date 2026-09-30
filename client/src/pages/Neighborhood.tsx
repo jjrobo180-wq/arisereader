@@ -11,6 +11,7 @@ import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
 import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
+import MobileJoystick from "@/components/MobileJoystick";
 
 type Visitor={userId:number;displayName:string;characterId:string;petId:string;homeId:string;lot:number;x:number;z:number;facing:number;updatedAt:number};
 const LOTS=[
@@ -185,6 +186,7 @@ export default function Neighborhood(){
   },[leavingWorld,navigate]);
 
   const neighbors=players.filter(player=>player.userId!==self?.userId);
+  const touchMove=(key:"w"|"a"|"s"|"d",active:boolean)=>{if(active)keysRef.current.add(key);else keysRef.current.delete(key);};
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-sky-300 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-slate-950/85 to-transparent p-3">
@@ -205,6 +207,7 @@ export default function Neighborhood(){
       <div className="flex items-center justify-between"><h2 className="font-black">Neighbors here</h2><button type="button" onClick={()=>setShowReaders(false)} className="grid h-10 w-10 place-items-center rounded-lg bg-white/10" aria-label="Close neighbors"><X className="h-4 w-4"/></button></div>
       {neighbors.length?neighbors.map(player=><button type="button" key={player.userId} onClick={()=>walkTo(player)} className="mt-2 min-h-12 w-full rounded-xl bg-white/10 p-3 text-left text-sm font-bold">{player.displayName}<span className="block text-xs text-cyan-200">Walk over</span></button>):<p className="mt-3 text-sm text-white/70">You are the first reader on the block right now.</p>}
     </aside>}
+    <div className="absolute bottom-4 right-3 z-40 xl:hidden"><MobileJoystick onMove={touchMove} label="Walk"/></div>
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 max-w-[90vw] -translate-x-1/2 rounded-xl bg-slate-950/75 px-4 py-2 text-center text-xs font-bold backdrop-blur">{notice}</div>
     {!self&&<div className="absolute inset-0 z-40 grid place-items-center bg-slate-950/70 p-5 text-center"><div><MapIcon className="mx-auto h-12 w-12 text-cyan-300"/><p className="mt-3 text-xl font-black">{notice.startsWith("Could not")?notice:"Opening The Block…"}</p></div></div>}
     {leavingWorld&&<WorldLoadingOverlay tone="block" label="Leaving The Block…" />}
