@@ -85,7 +85,6 @@ import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
 import FypMyBooksPage from "./pages/FypMyBooksPage";
 import ReadingClub from "./pages/ReadingClub";
-import TTSAudioBooks from "./pages/TTSAudioBooks";
 import AvatarWorld from "./pages/AvatarWorld";
 import ClubArise from "./pages/ClubArise";
 import ClubPlayGate from "./components/ClubPlayGate";
@@ -306,9 +305,6 @@ function AppRoutes() {
       </Route>
       <Route path="/reading-club">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ReadingClub />}
-      </Route>
-      <Route path="/tts-audiobooks">
-        {isEyeGazeStudent ? <Redirect to="/library" replace /> : <TTSAudioBooks />}
       </Route>
       <Route path="/polls">
         {isEyeGazeStudent ? <Redirect to="/eye-gaze-home" replace /> : <ProtectedRoute><Polls /></ProtectedRoute>}
