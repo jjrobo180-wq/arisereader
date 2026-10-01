@@ -39,6 +39,7 @@ import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import PointsSideTab from "./components/PointsSideTab";
 import AvatarWorldSideTab from "./components/AvatarWorldSideTab";
 import LeaderboardPopup from "./components/LeaderboardPopup";
+import HalloreadWelcome from "./components/HalloreadWelcome";
 import ClubPlayGate from "./components/ClubPlayGate";
 import NotFound from "./pages/not-found";
 
@@ -356,6 +357,11 @@ function AppRoutes() {
           ? <ProtectedRoute><BoardGameWorld /></ProtectedRoute>
           : <Redirect to="/eye-gaze-home" replace />}
       </Route>
+      <Route path="/halloread-mystery">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><BoardGameWorld theme="halloread" /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
       <Route path="/ultimate-chess">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><UltimateChess /></ProtectedRoute>
@@ -488,7 +494,7 @@ function AppInner() {
   return (
     <>
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
-      {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
+      {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}\n      {isStudent && !isEyeGazeStudent && !isAdminPreview && <HalloreadWelcome />}
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}

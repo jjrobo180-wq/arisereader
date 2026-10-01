@@ -3,6 +3,7 @@ import { Bone, Coins, Heart, PawPrint, ShoppingBag, Utensils, X } from "lucide-r
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { PET_CARE_EVENT, PET_PERSONALITIES } from "@/lib/pets";
+import { halloreadPetGearName } from "@/lib/halloread";
 
 type PetCare={happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number};
 type WorldPayload={
@@ -96,7 +97,7 @@ export default function PetCompanionHUD(){
       <section className="w-[min(520px,96vw)] overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 text-white shadow-2xl" onClick={e=>e.stopPropagation()}>
         <header className="flex items-center gap-3 border-b border-white/10 p-4">
           <span className="text-5xl">{PET_PERSONALITIES[petId]?.emoji||"🐾"}</span>
-          <div className="min-w-0 flex-1"><p className="text-xs font-black uppercase tracking-widest text-cyan-300">My Pet</p><h2 className="truncate text-2xl font-black">{pet.name}</h2><p className="text-sm font-bold text-white/65">{PET_PERSONALITIES[petId]?.trait||"Your reading buddy"}</p></div>
+          <div className="min-w-0 flex-1"><p className="text-xs font-black uppercase tracking-widest text-cyan-300">My Pet</p><h2 className="truncate text-2xl font-black">{pet.name}</h2><p className="text-sm font-bold text-white/65">{PET_PERSONALITIES[petId]?.trait||"Your reading buddy"}</p>{halloreadPetGearName(petId)&&<p className="mt-1 inline-flex rounded-full bg-orange-400/15 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-orange-200">🎃 Halloread gear · {halloreadPetGearName(petId)}</p>}</div>
           <button onClick={()=>setOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl bg-white/10" aria-label="Close pet care"><X className="h-5 w-5"/></button>
         </header>
         <div className="p-4">

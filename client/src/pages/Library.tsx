@@ -16,12 +16,33 @@ import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 import BookAccessLinks from "@/components/BookAccessLinks";
 import { EngagementHub } from "@/components/EngagementHub";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
+import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
+import { HALLOREAD_ACTIVE } from "@/lib/halloread";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
 
 // Hispanic Heritage Month book IDs - empowering, uplifting, inspiring stories
 const HISPANIC_HERITAGE_BOOK_IDS = [856, 857, 858, 859, 874, 875, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891, 892, 893];
+
+const HALLOREAD_TITLE_MATCHES = [
+  "goosebumps",
+  "coraline",
+  "graveyard book",
+  "the witches",
+  "ghost town at sundown",
+  "ghost that had to go",
+  "room on the broom",
+  "bunnicula",
+  "scary stories",
+  "haunted mask",
+  "night of the living dummy",
+  "monster blood",
+  "welcome to dead house",
+  "say cheese and die",
+  "horrorland",
+  "haunted school",
+];
 
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
@@ -1122,7 +1143,15 @@ export default function Library() {
   const displayedIAriseBooks = isSampleStudent && !iAriseExpanded ? iAriseBooks.slice(0, 5) : iAriseBooks;
   const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
   const hispanicHeritageBooks = sortedBooks.filter(b => HISPANIC_HERITAGE_BOOK_IDS.includes(b.id));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id) && !HISPANIC_HERITAGE_BOOK_IDS.includes(b.id));
+  const halloreadBooks = HALLOREAD_ACTIVE ? sortedBooks
+    .filter(b => {
+      const title=(b.title||"").toLowerCase();
+      const points=Number(b.pointsValue||0);
+      return points >= 5 && points <= 30 && HALLOREAD_TITLE_MATCHES.some(match => title.includes(match));
+    })
+    .sort((a,b)=>(Number(a.pointsValue||0)-Number(b.pointsValue||0))||a.title.localeCompare(b.title)) : [];
+  const halloreadBookIds = new Set(halloreadBooks.map(b=>b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id) && !HISPANIC_HERITAGE_BOOK_IDS.includes(b.id) && !halloreadBookIds.has(b.id));
   const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
   const classReadingBooks = sortedBooks.filter(b => classReadingIds.includes(b.id));
   const favoriteBooks = sortedBooks.filter(b => favBookIds.includes(b.id));
@@ -1156,6 +1185,7 @@ export default function Library() {
 
   return (
     <div className="min-h-screen bg-background">
+      <HalloreadAtmosphere compact />
       {/* Header */}
       <header data-tour={isStudentHeader ? "welcome" : undefined} className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-0 min-h-16 sm:h-16 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
@@ -1945,6 +1975,52 @@ export default function Library() {
                   })}
                 </div>
               </div>
+            )}
+
+            {/* Halloread — seasonal kid-friendly spooky shelf */}
+            {HALLOREAD_ACTIVE && halloreadBooks.length > 0 && (!showEyeGaze || isSampleStudent || user?.isAdmin) && (
+              <section className="relative mb-10 overflow-hidden rounded-[1.75rem] border border-orange-500/25 bg-gradient-to-br from-[#12091d] via-[#1d1028] to-[#2a130b] p-4 text-white shadow-xl sm:p-5">
+                <div className="pointer-events-none absolute -left-12 bottom-0 h-28 w-56 rounded-full bg-violet-200/10 blur-3xl" />
+                <div className="pointer-events-none absolute -right-12 top-2 h-24 w-56 rounded-full bg-orange-300/10 blur-3xl" />
+                <div className="relative flex flex-wrap items-center gap-2">
+                  <span className="text-2xl" aria-hidden="true">🎃</span>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[.22em] text-orange-300">October takeover</p>
+                    <h2 className="text-xl font-black tracking-tight sm:text-2xl">Halloread</h2>
+                  </div>
+                  <span className="rounded-full border border-orange-300/20 bg-orange-400/10 px-2.5 py-1 text-xs font-black text-orange-200">{halloreadBooks.length} spooky quizzes</span>
+                  <span className="rounded-full border border-violet-300/20 bg-violet-400/10 px-2.5 py-1 text-xs font-black text-violet-100">5–30 points</span>
+                </div>
+                <p className="relative mt-2 max-w-3xl text-sm font-semibold text-violet-100/70">Kid-friendly chills, ghosts, witches and creepy mysteries — spooky enough for Halloween, never gory. Start easy and work your way up to the 30-point reads.</p>
+                <div className="relative mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{scrollSnapType:"x mandatory"}}>
+                  {halloreadBooks.map((book)=>{
+                    const result=results.find(r=>r.bookId===book.id);
+                    const isDone=completedIds.has(book.id);
+                    return <Card key={book.id} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden border-orange-400/20 bg-[#160d20] text-white transition-all duration-200 hover:-translate-y-1 hover:border-orange-300/50 hover:shadow-[0_12px_40px_rgba(249,115,22,.16)] sm:w-[180px]" style={{scrollSnapAlign:"start"}} onClick={()=>navigate(`/quiz/${book.id}`)}>
+                      <div className="relative aspect-[2/3] overflow-hidden bg-[#261337]">
+                        {book.coverUrl?<img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy"/>:<div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-950 to-orange-950 p-4 text-center"><span className="font-black">{book.title}</span></div>}
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#100716] to-transparent"/>
+                        {isDone&&<div className="absolute right-2 top-2 rounded-full bg-emerald-500 px-2 py-1 text-xs font-black text-white shadow">✓ Done</div>}
+                        <div className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-orange-200">Halloread</div>
+                      </div>
+                      <div className="p-3">
+                        <h3 className="line-clamp-2 text-sm font-bold leading-tight">{book.title}</h3>
+                        <p className="mt-1 line-clamp-1 text-xs text-violet-100/60">{book.author}</p>
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-400/15 px-2 py-1 text-xs font-black text-orange-200"><Trophy className="h-3 w-3"/>{book.pointsValue||5} pts</span>
+                          <span className="text-[10px] font-black uppercase tracking-wide text-violet-200/70">{Number(book.pointsValue||0)>=25?"Big scare":Number(book.pointsValue||0)>=15?"Medium":"Starter"}</span>
+                        </div>
+                        {result&&<p className="mt-1 text-xs font-bold text-emerald-300">{result.score}/{result.total} correct</p>}
+                        <div className="mt-2 flex gap-1.5">
+                          {book.readUrl&&<Button size="sm" variant="outline" className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={(e)=>{e.stopPropagation();navigate(`/read/${book.id}`);}}><BookOpen className="mr-1 h-3 w-3"/>Read</Button>}
+                          {!(user?.role==="teacher"||user?.isAdmin)&&<Button size="sm" className="h-7 flex-1 bg-orange-500 text-xs font-black text-white hover:bg-orange-400" onClick={(e)=>{e.stopPropagation();navigate(`/quiz/${book.id}`);}}>Quiz</Button>}
+                        </div>
+                        <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id}/>
+                      </div>
+                    </Card>;
+                  })}
+                </div>
+              </section>
             )}
 
             {/* iArise Section */}

@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
 import MobileJoystick from "@/components/MobileJoystick";
+import { addHalloreadSceneDecor, HALLOREAD_ACTIVE } from "@/lib/halloread";
 
 import { theaterEmbedUrl, theaterMediaKey, type TheaterMovie } from "@shared/clubTheater";
 type Movie=TheaterMovie;
@@ -175,8 +176,8 @@ export default function ClubTheater(){
     // WebGL layer so avatars, seats, curtains, rails, etc. can properly cover
     // the movie instead of the iframe painting over everything.
     scene.background=null;
-    scene.fog=new THREE.Fog(0x101423,38,72);
-    mount.style.background="#101423";
+    scene.fog=new THREE.Fog(HALLOREAD_ACTIVE?0x16091f:0x101423,HALLOREAD_ACTIVE?30:38,HALLOREAD_ACTIVE?68:72);
+    mount.style.background=HALLOREAD_ACTIVE?"#0b0510":"#101423";
 
     const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/Math.max(1,mount.clientHeight),.1,100);
     camera.position.set(0,5.6,18.5);
@@ -230,6 +231,7 @@ export default function ClubTheater(){
     houseLight.position.set(-7,14,18);
     houseLight.castShadow=true;
     scene.add(houseLight);
+    if(HALLOREAD_ACTIVE)addHalloreadSceneDecor(scene,"theater");
 
     const screenGlow=new THREE.PointLight(0x9be7ff,6.5,30);
     screenGlow.position.set(0,5,-8);
@@ -465,7 +467,7 @@ export default function ClubTheater(){
     const sign=new THREE.Mesh(new THREE.BoxGeometry(5.2,.9,.22),new THREE.MeshStandardMaterial({color:0xfacc15,emissive:0xf59e0b,emissiveIntensity:.9}));
     sign.position.set(-8.7,4.1,21.7);scene.add(sign);
     const signLabel=document.createElement("canvas");signLabel.width=512;signLabel.height=128;const sctx=signLabel.getContext("2d")!;
-    sctx.fillStyle="#facc15";sctx.fillRect(0,0,512,128);sctx.fillStyle="#3f1d0b";sctx.font="900 42px system-ui";sctx.textAlign="center";sctx.textBaseline="middle";sctx.fillText("POPCORN • SNACKS",256,64);
+    sctx.fillStyle="#facc15";sctx.fillRect(0,0,512,128);sctx.fillStyle="#3f1d0b";sctx.font="900 42px system-ui";sctx.textAlign="center";sctx.textBaseline="middle";sctx.fillText(HALLOREAD_ACTIVE?"HALLOREAD TREATS":"POPCORN • SNACKS",256,64);
     const signTex=new THREE.CanvasTexture(signLabel);signTex.colorSpace=THREE.SRGBColorSpace;
     const signFront=new THREE.Mesh(new THREE.PlaneGeometry(5,.78),new THREE.MeshBasicMaterial({map:signTex}));signFront.position.set(-8.7,4.1,21.58);scene.add(signFront);
     for(let i=0;i<5;i++){
@@ -835,7 +837,7 @@ export default function ClubTheater(){
       </button>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Club Arise</p>
-        <h1 className="flex items-center gap-2 truncate text-lg font-black sm:text-2xl"><Clapperboard className="h-5 w-5 text-fuchsia-300"/> Cinema Room</h1>
+        <h1 className="flex items-center gap-2 truncate text-lg font-black sm:text-2xl"><Clapperboard className="h-5 w-5 text-fuchsia-300"/> {HALLOREAD_ACTIVE?"Halloread Cinema":"Cinema Room"}</h1>
       </div>
       <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-amber-300/25 bg-black/70 px-2.5 py-2 text-sm font-black">
         <Coins className="h-4 w-4 text-amber-300"/>{payload?.wallet?.toLocaleString()??"—"}
