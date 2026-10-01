@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bell, BookPlus, UserPlus, X, MessageSquare, Brain, ShieldCheck, CheckCircle2, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -101,6 +102,7 @@ export function NotificationBell({
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const requestSequence = useRef(0);
 
@@ -131,7 +133,10 @@ export function NotificationBell({
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowDropdown(false);
+      const target = event.target as Node;
+      const insideTrigger = triggerRef.current?.contains(target);
+      const insideDropdown = dropdownRef.current?.contains(target);
+      if (!insideTrigger && !insideDropdown) setShowDropdown(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -262,31 +267,44 @@ export function NotificationBell({
     </div>;
   };
 
-  return <div className="relative" ref={dropdownRef}>
-    <button onClick={()=>void handleBellClick()} className="relative rounded-full p-2 transition-colors hover:bg-muted" aria-label={badgeCount?`Notifications, ${badgeCount} items`:"Notifications"} aria-expanded={showDropdown}>
-      <Bell className="h-5 w-5 text-foreground"/>
-      {badgeCount>0&&<span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{badgeCount>99?"99+":badgeCount}</span>}
-    </button>
-
-    {showDropdown&&<div className="fixed left-2 right-2 top-14 z-[120] flex max-h-[78vh] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[400px]">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+  const dropdown = showDropdown ? (
+    <div
+      ref={dropdownRef}
+      className="fixed left-2 right-2 top-[4.5rem] z-[10000] flex max-h-[78vh] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10 backdrop-blur-xl sm:left-auto sm:right-4 sm:w-[400px]"
+      role="dialog"
+      aria-label="Notifications"
+    >
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/[.06] to-cyan-400/[.07] px-4 py-3">
         <div>
-          <div className="flex items-center gap-2"><p className="text-sm font-black">Notifications</p>{badgeCount>0&&<span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">{badgeCount}</span>}</div>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-black">Notifications</p>
+            {badgeCount>0&&<span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-black text-violet-200">{badgeCount}</span>}
+          </div>
           <p className="mt-0.5 text-[11px] text-muted-foreground">{actionItems.length? `${actionItems.length} item${actionItems.length===1?"":"s"} need attention` : "No action items waiting"}</p>
         </div>
-        {items.length>0&&<button onClick={()=>void clearAll()} disabled={busyKey==="clear-all"} className="rounded-lg px-2 py-1 text-[11px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50">{busyKey==="clear-all"?"Clearing…":"Clear all"}</button>}
+        {items.length>0&&<button onClick={()=>void clearAll()} disabled={busyKey==="clear-all"} className="rounded-lg px-2 py-1 text-[11px] font-bold text-muted-foreground hover:bg-white/[.07] hover:text-foreground disabled:opacity-50">{busyKey==="clear-all"?"Clearing…":"Clear all"}</button>}
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {loading&&items.length===0?<p className="py-8 text-center text-xs text-muted-foreground">Checking notifications…</p>:items.length===0?
-          <div className="px-5 py-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-500/10 text-emerald-500"><CheckCircle2 className="h-6 w-6"/></div><p className="mt-3 text-sm font-black">You’re all caught up</p><p className="mt-1 text-xs text-muted-foreground">New tasks and updates will appear here.</p></div>
+          <div className="px-5 py-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-cyan-500/10 text-cyan-300"><CheckCircle2 className="h-6 w-6"/></div><p className="mt-3 text-sm font-black">You’re all caught up</p><p className="mt-1 text-xs text-muted-foreground">New tasks and updates will appear here.</p></div>
         :<>
-          {actionItems.length>0&&<section><div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/60 bg-card/95 px-3 py-2 backdrop-blur"><span className="h-2 w-2 rounded-full bg-orange-500"/><span className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">Needs action</span><span className="ml-auto text-[10px] font-bold text-orange-500">{actionItems.length}</span></div>{actionItems.map(renderItem)}</section>}
-          {updateItems.length>0&&<section><div className="sticky top-0 z-10 flex items-center gap-2 border-y border-border/60 bg-card/95 px-3 py-2 backdrop-blur"><span className="h-2 w-2 rounded-full bg-blue-500"/><span className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">Updates</span><span className="ml-auto text-[10px] font-bold text-blue-500">{updateItems.length}</span></div>{updateItems.map(renderItem)}</section>}
+          {actionItems.length>0&&<section><div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/10 bg-[#151326]/95 px-3 py-2 backdrop-blur"><span className="h-2 w-2 rounded-full bg-fuchsia-400"/><span className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">Needs action</span><span className="ml-auto text-[10px] font-bold text-fuchsia-300">{actionItems.length}</span></div>{actionItems.map(renderItem)}</section>}
+          {updateItems.length>0&&<section><div className="sticky top-0 z-10 flex items-center gap-2 border-y border-white/10 bg-[#151326]/95 px-3 py-2 backdrop-blur"><span className="h-2 w-2 rounded-full bg-cyan-400"/><span className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">Updates</span><span className="ml-auto text-[10px] font-bold text-cyan-300">{updateItems.length}</span></div>{updateItems.map(renderItem)}</section>}
         </>}
       </div>
 
-      {actionItems.length>0&&<div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2 text-[10px] leading-4 text-muted-foreground">Opening a task does <strong>not</strong> remove it. It disappears when the task is resolved, or when you dismiss it with ×.</div>}
-    </div>}
-  </div>;
+      {actionItems.length>0&&<div className="shrink-0 border-t border-white/10 bg-white/[.035] px-3 py-2 text-[10px] leading-4 text-muted-foreground">Opening a task does <strong>not</strong> remove it. It disappears when the task is resolved, or when you dismiss it with ×.</div>}
+    </div>
+  ) : null;
+
+  return <>
+    <div className="relative" ref={triggerRef}>
+      <button onClick={()=>void handleBellClick()} className="relative rounded-full p-2 transition-colors hover:bg-muted" aria-label={badgeCount?`Notifications, ${badgeCount} items`:"Notifications"} aria-expanded={showDropdown}>
+        <Bell className="h-5 w-5 text-foreground"/>
+        {badgeCount>0&&<span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-black text-white">{badgeCount>99?"99+":badgeCount}</span>}
+      </button>
+    </div>
+    {dropdown && typeof document !== "undefined" ? createPortal(dropdown, document.body) : null}
+  </>;
 }
