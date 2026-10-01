@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
@@ -85,15 +85,17 @@ import FypPage from "./pages/FypPage";
 import FypSharePage from "./pages/FypSharePage";
 import FypMyBooksPage from "./pages/FypMyBooksPage";
 import ReadingClub from "./pages/ReadingClub";
-import AvatarWorld from "./pages/AvatarWorld";
-import ClubArise from "./pages/ClubArise";
 import ClubPlayGate from "./components/ClubPlayGate";
-import ClubTheater from "./pages/ClubTheater";
-import Worlds from "./pages/Worlds";
-import Neighborhood from "./pages/Neighborhood";
-import HomeInterior from "./pages/HomeInterior";
-import BoardGameWorld from "./pages/BoardGameWorld";
 import NotFound from "./pages/not-found";
+
+// Keep the initial login/library bundle light. The 3D worlds load only when a student opens them.
+const AvatarWorld = lazy(() => import("./pages/AvatarWorld"));
+const ClubArise = lazy(() => import("./pages/ClubArise"));
+const ClubTheater = lazy(() => import("./pages/ClubTheater"));
+const Worlds = lazy(() => import("./pages/Worlds"));
+const Neighborhood = lazy(() => import("./pages/Neighborhood"));
+const HomeInterior = lazy(() => import("./pages/HomeInterior"));
+const BoardGameWorld = lazy(() => import("./pages/BoardGameWorld"));
 
 // Gate that shows profile setup overlay after student registration
 function StudentSetupGate({ children }: { children: React.ReactNode }) {
@@ -253,6 +255,7 @@ function AppRoutes() {
     );
   }
   return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
@@ -463,6 +466,7 @@ function AppRoutes() {
       </Route>
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 
