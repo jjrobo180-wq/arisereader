@@ -10,7 +10,7 @@ import {
   Users, ClipboardList, GraduationCap, Bell, Inbox, Search, ChevronDown,
   Lock, MessageSquarePlus, BookPlus, UserPlus, X, ShieldCheck, Settings,
   Sparkles, ChevronLeft, ChevronRight, BookUser, UserCog, PlayCircle, Eye,
-  Volume2
+  Volume2, Heart
 } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import { generateCertificate } from "@/lib/certificate";
@@ -204,7 +204,7 @@ export default function Tutorial() {
             </div>
             <h1 className="text-3xl font-bold text-white mb-3">Welcome to A.R.I.S.E Reader!</h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-              Choose the tutorial that fits you. Both walk through every feature with no login and nothing saved.
+              Choose the tutorial that fits you. Explore each walkthrough with no login and nothing saved.
             </p>
           </div>
 
@@ -1727,7 +1727,7 @@ export default function Tutorial() {
             )}
           </>
         )}
-        {mode !== "select" && step === totalSteps - 1 && (
+        {step === totalSteps - 1 && (
           <CurrentFeatureShowcase mode={mode as TutorialRole} />
         )}
       </main>
@@ -1813,12 +1813,13 @@ function ParentTutorialContent({ step, onNext }: { step: number; onNext: () => v
 }
 
 function StepContainer({
-  title, icon, children, onNext, nextLabel, nextDisabled,
+  title, icon, children, onNext, onBack, nextLabel, nextDisabled,
 }: {
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
-  onNext: () => void;
+  onNext?: () => void;
+  onBack?: () => void;
   nextLabel?: string;
   nextDisabled?: boolean;
 }) {
@@ -1831,10 +1832,11 @@ function StepContainer({
         <h2 className="text-xl font-bold text-white">{title}</h2>
       </div>
       {children}
-      <div className="mt-6 flex justify-end">
-        <Button onClick={onNext} disabled={nextDisabled} className="gap-2">
+      <div className="mt-6 flex justify-end gap-2">
+        {onBack && <Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="w-4 h-4" /> Back</Button>}
+        {onNext && <Button onClick={onNext} disabled={nextDisabled} className="gap-2">
           {nextLabel || "Next"} <ArrowRight className="w-4 h-4" />
-        </Button>
+        </Button>}
       </div>
     </div>
   );

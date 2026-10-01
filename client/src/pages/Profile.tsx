@@ -1136,9 +1136,9 @@ export default function Profile() {
                       key={opt.value}
                       onClick={() => {
                         setCelebrationStyle(opt.value as CelebrationStyle);
-                        const token = authToken || getTokenFromCookie();
+                        const requestToken = token || getTokenFromCookie();
                         const headers: Record<string, string> = { "Content-Type": "application/json" };
-                        if (token) headers["Authorization"] = `Bearer ${token}`;
+                        if (requestToken) headers["Authorization"] = `Bearer ${requestToken}`;
                         fetch(`${API_BASE}/api/eye-gaze/celebration-style`, {
                           method: "POST",
                           headers,
