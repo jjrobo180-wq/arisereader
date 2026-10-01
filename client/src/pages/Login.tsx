@@ -5,101 +5,53 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ArrowRight,
-  BookOpen,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  Gamepad2,
-  GraduationCap,
-  Heart,
-  LogIn,
-  Megaphone,
-  PlayCircle,
-  Sparkles,
-  Trophy,
-  UserRound,
-  Users,
-  Zap,
+  ArrowRight, Award, BookOpen, Bot, ChevronDown, ChevronUp, Eye, Gamepad2,
+  GraduationCap, Heart, Home, LibraryBig, LogIn, Megaphone, MessageCircle,
+  PlayCircle, Search, Sparkles, Trophy, UserRound, Users, Zap,
 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import DonationGoal from "@/components/DonationGoal";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
 
-type FeatureId = "reader" | "live" | "club" | "eye" | "family" | "teacher";
+type SampleType = "student" | "eye-gaze" | "parent";
 type FrontTab = "signin" | "create" | "explore";
+type FeatureId =
+  | "discover" | "quizzes" | "iarise" | "progress" | "live" | "leaderboard"
+  | "club" | "board" | "avatar" | "pets" | "theater" | "worlds"
+  | "eye" | "talker" | "myworld" | "lifeskills" | "family" | "teacher";
 
-const FEATURES: Record<FeatureId, {
+type Feature = {
   label: string;
+  category: string;
   kicker: string;
   title: string;
   description: string;
   bullets: string[];
   icon: any;
   tutorial: string;
-  sample?: "student" | "eye-gaze" | "parent";
-}> = {
-  reader: {
-    label: "Reader",
-    kicker: "READ + DISCOVER",
-    title: "Find a book. Take a quiz. Keep growing.",
-    description: "Book discovery, comprehension quizzes, iARISE lessons, progress, certificates, rewards, and a fast way to find the next read.",
-    bullets: ["Book discovery", "Quizzes + instant results", "Points, badges + certificates"],
-    icon: BookOpen,
-    tutorial: "/tutorial/student",
-    sample: "student",
-  },
-  live: {
-    label: "A.R.I.S.E. Live",
-    kicker: "LIVE CLASSROOM PLAY",
-    title: "Turn review into a live game.",
-    description: "Teachers launch a quiz, students join with a short code, and the class sees questions and standings update together.",
-    bullets: ["Short join codes", "Live questions", "Real-time standings"],
-    icon: Zap,
-    tutorial: "/tutorial/teacher",
-    sample: "student",
-  },
-  club: {
-    label: "Club A.R.I.S.E.",
-    kicker: "EARN + PLAY",
-    title: "Reading unlocks more to do.",
-    description: "Students can earn access to Club A.R.I.S.E., arcade games, avatars, pets, homes, Board Quest, the cinema, and expanding worlds.",
-    bullets: ["Arcade + multiplayer", "Avatars, pets + homes", "Teacher/family controls"],
-    icon: Gamepad2,
-    tutorial: "/tutorial/student",
-    sample: "student",
-  },
-  eye: {
-    label: "Eye Gazer",
-    kicker: "ACCESS FOR MORE LEARNERS",
-    title: "A visual-first learning experience.",
-    description: "My Talker AAC, visual quizzes, games, Life Skills, My World, Shorts, Flash Cards, My Buddy, progress, and family personalization.",
-    bullets: ["My Talker AAC", "Visual learning", "Accessible games"],
-    icon: Eye,
-    tutorial: "/tutorial/eye-gaze",
-    sample: "eye-gaze",
-  },
-  family: {
-    label: "Families",
-    kicker: "SEE + SUPPORT",
-    title: "One parent account can follow every child.",
-    description: "Parents can quickly switch between linked children, see progress and certificates, and manage controls for Student and Eye Gazer accounts.",
-    bullets: ["Quick child switching", "Progress + certificates", "Family controls"],
-    icon: Heart,
-    tutorial: "/tutorial/parent",
-    sample: "parent",
-  },
-  teacher: {
-    label: "Teachers",
-    kicker: "CONTROL + MOTIVATE",
-    title: "Everything teachers need in one place.",
-    description: "Manage students, review quizzes, create live games, monitor progress, connect families, create rewards, and control game access.",
-    bullets: ["Student + quiz tools", "A.R.I.S.E. Live", "Rewards + controls"],
-    icon: GraduationCap,
-    tutorial: "/tutorial/teacher",
-  },
+  sample?: SampleType;
 };
 
+const FEATURES: Record<FeatureId, Feature> = {
+  discover: { label: "Book Discovery", category: "Reading", kicker: "FIND THE NEXT BOOK", title: "Browse books without digging through a giant list.", description: "Students can search the library, explore recommendations, save books, use the fast FYP-style discovery experience, and find books that fit their interests and reading goals.", bullets: ["Library + search", "FYP-style discovery", "Saved books + recommendations"], icon: Search, tutorial: "/tutorial/student", sample: "student" },
+  quizzes: { label: "Book Quizzes", category: "Reading", kicker: "READ + PROVE IT", title: "Comprehension quizzes turn reading into progress.", description: "Students take book quizzes, get results, earn points for passing, and build a record of what they have completed.", bullets: ["Book comprehension quizzes", "Instant results", "Points for passing"], icon: BookOpen, tutorial: "/tutorial/student", sample: "student" },
+  iarise: { label: "iARISE", category: "Learning", kicker: "LEARN BEYOND BOOKS", title: "Short learning experiences built into the same platform.", description: "iARISE gives students focused learning topics and quizzes so reading, life knowledge, interests, and skill-building can live together.", bullets: ["Student-friendly topics", "Short learning experiences", "Built-in quizzes"], icon: LibraryBig, tutorial: "/tutorial/student", sample: "student" },
+  progress: { label: "Progress + Rewards", category: "Motivation", kicker: "MAKE GROWTH VISIBLE", title: "Students can see that their work is adding up.", description: "Points, certificates, badges, quiz history, rewards, reading growth, and progress tools celebrate effort instead of hiding it in a gradebook.", bullets: ["Certificates + badges", "Points + rewards", "Reading progress"], icon: Award, tutorial: "/tutorial/student", sample: "student" },
+  live: { label: "A.R.I.S.E. Live", category: "Classroom", kicker: "LIVE CLASSROOM PLAY", title: "A Kahoot-style live quiz experience built into A.R.I.S.E.", description: "Teachers create or launch a live quiz, students join with a short code, answer together, and watch the live standings update.", bullets: ["Short join codes", "Live questions", "Real-time standings"], icon: Zap, tutorial: "/tutorial/teacher", sample: "student" },
+  leaderboard: { label: "Leaderboard", category: "Motivation", kicker: "CELEBRATE READING", title: "Reading points become something students can see and celebrate.", description: "Leaderboards make quiz points and reading progress visible while giving teachers another way to build friendly motivation around reading.", bullets: ["Reading points", "Friendly competition", "Recognition for progress"], icon: Trophy, tutorial: "/tutorial/student", sample: "student" },
+  club: { label: "Club A.R.I.S.E.", category: "Play", kicker: "EARN + PLAY", title: "A social 3D arcade students can earn access to.", description: "Club A.R.I.S.E. connects reading rewards to a 3D student world with multiplayer arcade games, safe social features, movement, and teacher-controlled access.", bullets: ["3D arcade", "Multiplayer games", "Teacher-controlled access"], icon: Gamepad2, tutorial: "/tutorial/student", sample: "student" },
+  board: { label: "Board Quest", category: "Play", kicker: "GAME NIGHT MEETS LEARNING", title: "A dramatic multiplayer board game inside the platform.", description: "Board Quest uses 3D dice, player order challenges, questions, points, animations, and multiplayer turns to make review feel like a full game.", bullets: ["3D board experience", "Multiplayer turns", "Questions + point events"], icon: Gamepad2, tutorial: "/tutorial/student", sample: "student" },
+  avatar: { label: "Avatar World", category: "Rewards", kicker: "BUILD YOUR IDENTITY", title: "Students earn coins and make the experience their own.", description: "Students can choose characters, unlock items, customize their avatar, collect cars and furniture, and use what they earn across A.R.I.S.E. worlds.", bullets: ["Characters + accessories", "Cars + furniture", "Reader Coins"], icon: UserRound, tutorial: "/tutorial/student", sample: "student" },
+  pets: { label: "Pets + Homes", category: "Rewards", kicker: "CARE + CREATE", title: "Pets and homes make rewards feel alive.", description: "Students can adopt pets, keep their happiness up with care, choose a home, decorate it, and visit The Block as part of the connected A.R.I.S.E. world.", bullets: ["Pet happiness + care", "Homes + decorating", "The Block neighborhood"], icon: Home, tutorial: "/tutorial/student", sample: "student" },
+  theater: { label: "A.R.I.S.E. Theater", category: "Play", kicker: "WATCH TOGETHER", title: "A virtual theater inside the student world.", description: "Students can enter a 3D cinema experience with seats, a lobby, snacks, shared viewing, and administrator-controlled video programming.", bullets: ["3D cinema", "Lobby + seats", "Admin-controlled programming"], icon: PlayCircle, tutorial: "/tutorial/student", sample: "student" },
+  worlds: { label: "Worlds", category: "Play", kicker: "ONE CONNECTED EXPERIENCE", title: "Move between A.R.I.S.E. spaces instead of opening disconnected games.", description: "The world portal connects Club A.R.I.S.E., The Block, the theater, Board Quest, and future destinations through one student-facing world experience.", bullets: ["World portal", "Connected destinations", "Expanding experiences"], icon: Sparkles, tutorial: "/tutorial/student", sample: "student" },
+  eye: { label: "Eye Gazer", category: "Accessibility", kicker: "ACCESS FOR MORE LEARNERS", title: "A dedicated visual-first experience, not just larger buttons.", description: "Eye Gazer accounts have their own home, visual quizzes, games, learning tools, progress, family controls, and accessible navigation designed around different ways of communicating and learning.", bullets: ["Dedicated Eye Gazer home", "Visual learning", "Accessible games"], icon: Eye, tutorial: "/tutorial/eye-gaze", sample: "eye-gaze" },
+  talker: { label: "My Talker AAC", category: "Accessibility", kicker: "COMMUNICATE + LEARN", title: "An AAC-style communication space built into Eye Gazer.", description: "My Talker organizes words by category, speaks words and sentences, supports personalized pictures and phrases, and gives families tools to shape communication around the learner.", bullets: ["Words + sentences", "Custom pictures + phrases", "Family personalization"], icon: MessageCircle, tutorial: "/tutorial/eye-gaze", sample: "eye-gaze" },
+  myworld: { label: "My World", category: "Accessibility", kicker: "LEARN FROM REAL LIFE", title: "Turn familiar spaces into interactive learning scenes.", description: "Families can add room or environment images, create tappable labels, use visual prompts, and build learning around the places and objects a student already knows.", bullets: ["Personal room images", "Interactive labels", "I-spy style prompts"], icon: Eye, tutorial: "/tutorial/eye-gaze", sample: "eye-gaze" },
+  lifeskills: { label: "Life Skills", category: "Accessibility", kicker: "PRACTICE EVERYDAY SKILLS", title: "Everyday routines get their own learning space.", description: "Eye Gazer Life Skills includes practical supports such as potty coaching, timers, routines, visual steps, and family-guided practice.", bullets: ["Visual routines", "Potty coaching", "Timers + guided practice"], icon: Heart, tutorial: "/tutorial/eye-gaze", sample: "eye-gaze" },
+  family: { label: "Family Controls", category: "Families", kicker: "SEE + SUPPORT", title: "One parent account can support multiple children.", description: "Parents can link children, switch between Student and Eye Gazer profiles, review progress and certificates, and manage controls and personalization from one family experience.", bullets: ["Quick child switching", "Progress + certificates", "Student + Eye Gazer controls"], icon: Heart, tutorial: "/tutorial/parent", sample: "parent" },
+  teacher: { label: "Teacher Dashboard", category: "Teachers", kicker: "CONTROL + MOTIVATE", title: "Teachers manage the reading experience from one dashboard.", description: "Teachers can review students, create live quizzes, monitor progress, connect families, manage rewards, control game access and club hours, and support both regular and Eye Gazer students.", bullets: ["Student + quiz tools", "Rewards + game controls", "Family connections + progress"], icon: GraduationCap, tutorial: "/tutorial/teacher" },
+};
 
 export default function Login() {
   const { login } = useAuth();
@@ -109,406 +61,115 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSampleChooser, setShowSampleChooser] = useState(false);
-  const [sampleLoading, setSampleLoading] = useState<"student" | "eye-gaze" | "parent" | null>(null);
+  const [sampleLoading, setSampleLoading] = useState<SampleType | null>(null);
   const [loginBanner, setLoginBanner] = useState<{ text: string; bgColor: string; textColor: string } | null>(null);
-  const [activeFeature, setActiveFeature] = useState<FeatureId>("reader");
+  const [activeFeature, setActiveFeature] = useState<FeatureId>("discover");
   const [frontTab, setFrontTab] = useState<FrontTab>("signin");
   const [donationOpen, setDonationOpen] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/banners/login`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data && data.text) setLoginBanner(data); })
-      .catch(() => {});
+    fetch(`${API_BASE}/api/banners/login`).then(res => res.ok ? res.json() : null).then(data => { if (data?.text) setLoginBanner(data); }).catch(() => {});
   }, []);
 
   const feature = FEATURES[activeFeature];
   const FeatureIcon = feature.icon;
   const featureKeys = useMemo(() => Object.keys(FEATURES) as FeatureId[], []);
+  const categories = useMemo(() => Array.from(new Set(featureKeys.map(key => FEATURES[key].category))), [featureKeys]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await login(username, password);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    e.preventDefault(); setError(""); setLoading(true);
+    try { await login(username, password); }
+    catch (err: any) { setError(err.message); }
+    finally { setLoading(false); }
   };
 
-  const loginSample = async (type: "student" | "eye-gaze" | "parent") => {
-    const usernameByType = {
-      student: "sample",
-      "eye-gaze": "tutorial-eye",
-      parent: "sample-parent",
-    } as const;
+  const loginSample = async (type: SampleType) => {
+    const usernameByType = { student: "sample", "eye-gaze": "tutorial-eye", parent: "sample-parent" } as const;
+    setError(""); setSampleLoading(type);
+    try { await login(usernameByType[type], "sample1234"); setShowSampleChooser(false); }
+    catch (err: any) { setError(err.message || "Could not open that sample account."); }
+    finally { setSampleLoading(null); }
+  };
 
-    setError("");
-    setSampleLoading(type);
-
-    try {
-      await login(usernameByType[type], "sample1234");
-      setShowSampleChooser(false);
-    } catch (err: any) {
-      setError(err.message || "Could not open that sample account.");
-    } finally {
-      setSampleLoading(null);
-    }
+  const chooseFeature = (key: FeatureId) => {
+    setActiveFeature(key);
+    requestAnimationFrame(() => document.getElementById("feature-detail")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(124,58,237,.24),transparent_28%),radial-gradient(circle_at_90%_8%,rgba(6,182,212,.16),transparent_26%),radial-gradient(circle_at_52%_45%,rgba(217,70,239,.08),transparent_35%),#0b0a16] text-slate-100 selection:bg-violet-500/100/40">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(124,58,237,.24),transparent_28%),radial-gradient(circle_at_90%_8%,rgba(6,182,212,.16),transparent_26%),radial-gradient(circle_at_52%_45%,rgba(217,70,239,.08),transparent_35%),#0b0a16] text-slate-100">
       <header className="border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl lg:sticky lg:top-0 lg:z-50">
         <div className="mx-auto flex max-w-[1500px] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <button type="button" onClick={() => navigate("/")} className="group flex min-w-0 items-center gap-3 text-left">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 shadow-sm">
-              <BookOpen className="h-5 w-5 text-white" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="whitespace-nowrap text-base font-black tracking-[.07em] sm:text-lg">
-                  A.R.I.S.E. <span className="tracking-[.02em] bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">Reader</span>
-                </span>
-                <span className="rounded-full border border-violet-400/25 bg-violet-500/100/10 px-2 py-0.5 text-[9px] font-black tracking-[.14em] text-violet-200">2.0</span>
-              </div>
-              <p className="hidden text-[9px] font-bold uppercase tracking-[.2em] text-slate-400 sm:block">Read · Learn · Earn · Play · Grow</p>
-            </div>
+          <button type="button" onClick={() => navigate("/")} className="flex min-w-0 items-center gap-3 text-left">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400"><BookOpen className="h-5 w-5" /></div>
+            <div><p className="font-black tracking-[.07em]">A.R.I.S.E. <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300 bg-clip-text text-transparent">Reader</span> <span className="text-[9px] text-violet-300">2.0</span></p><p className="hidden text-[9px] font-bold uppercase tracking-[.2em] text-slate-400 sm:block">Read · Learn · Earn · Play · Grow</p></div>
           </button>
-
-          <nav className="ml-auto hidden items-center gap-1 md:flex">
-            <button type="button" onClick={() => navigate("/about")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-400 hover:bg-white/[.09] hover:text-cyan-200">About</button>
-            <button type="button" onClick={() => navigate("/tutorial")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-400 hover:bg-white/[.09] hover:text-fuchsia-200">Tutorials</button>
-            <button type="button" onClick={() => navigate("/leaderboard")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-400 hover:bg-white/[.09] hover:text-violet-200">Leaderboard</button>
-          </nav>
+          <nav className="ml-auto hidden gap-1 md:flex"><button onClick={() => navigate("/about")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white">About</button><button onClick={() => navigate("/tutorial")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white">Tutorials</button><button onClick={() => navigate("/leaderboard")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white">Leaderboard</button></nav>
         </div>
       </header>
 
-
-      <div className="mx-auto max-w-[1500px] px-4 pt-3 sm:px-6 lg:px-8">
-          <section className="overflow-hidden rounded-[1.5rem] border border-violet-400/25 bg-gradient-to-r from-[#211338] via-[#21152f] to-[#102434] shadow-[0_18px_55px_rgba(0,0,0,.22)]">
-          <button
-            type="button"
-            onClick={() => setDonationOpen(open => !open)}
-            className="flex w-full items-center gap-3 px-4 py-3.5 text-left sm:px-5"
-            aria-expanded={donationOpen}
-          >
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-fuchsia-500/10"><Heart className="h-5 w-5 text-fuchsia-300" fill="currentColor" /></div>
-            <div className="min-w-0 flex-1">
-              <p className="font-black text-white">Support Our Readers</p>
-              <p className="truncate text-xs font-semibold text-slate-400">Help fund books, rewards, and reading experiences for students.</p>
-            </div>
-            <span className="hidden text-xs font-black text-fuchsia-300 sm:block">{donationOpen ? "Close" : "See donation goal"}</span>
-            {donationOpen ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-          </button>
-
-          {donationOpen && (
-            <div className="border-t border-fuchsia-400/15 bg-fuchsia-500/[.06] p-3 sm:p-4">
-              <DonationGoal />
-            </div>
-          )}
-          </section>
-      </div>
-
-      {loginBanner && (
-        <div className="mx-auto max-w-[1500px] px-4 pt-3 sm:px-6 lg:px-8">
-          <div className="flex items-start gap-3 rounded-2xl border border-black/5 p-3 shadow-sm" style={{ background: loginBanner.bgColor, color: loginBanner.textColor }}>
-            <Megaphone className="mt-0.5 h-4 w-4 shrink-0" />
-            <p className="text-sm font-bold leading-relaxed">{loginBanner.text}</p>
-          </div>
-        </div>
-      )}
-
-      <div className="mx-auto max-w-[1500px] px-4 pt-3 sm:px-6 lg:px-8" aria-label="Open the A.R.I.S.E. 2.0 update">
+      <div className="mx-auto max-w-[1500px] space-y-3 px-4 pt-3 sm:px-6 lg:px-8">
         <Arise2UpdateButton compact />
+        <section className="overflow-hidden rounded-[1.4rem] border border-fuchsia-400/20 bg-gradient-to-r from-[#211338] via-[#21152f] to-[#102434]">
+          <button type="button" onClick={() => setDonationOpen(v => !v)} className="flex w-full items-center gap-3 px-4 py-3 text-left sm:px-5">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-fuchsia-500/10"><Heart className="h-5 w-5 text-fuchsia-300" fill="currentColor" /></div><div className="min-w-0 flex-1"><p className="font-black">Support Our Readers</p><p className="truncate text-xs font-semibold text-slate-400">Help fund books, rewards, and reading experiences for students.</p></div>{donationOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </button>
+          {donationOpen && <div className="border-t border-white/10 p-3 sm:p-4"><DonationGoal /></div>}
+        </section>
+        {loginBanner && <div className="flex gap-3 rounded-2xl p-3 text-sm font-bold" style={{ background: loginBanner.bgColor, color: loginBanner.textColor }}><Megaphone className="h-4 w-4 shrink-0" />{loginBanner.text}</div>}
       </div>
 
-      <main className="mx-auto max-w-[1500px] px-4 py-4 sm:px-6 sm:py-7 lg:px-8 lg:py-9">
+      <main className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] lg:items-start">
-          <section className="order-2 min-w-0 lg:order-1">
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-[0_28px_90px_rgba(0,0,0,.28)]">
+          <div className="order-2 space-y-5 lg:order-1">
+            <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] p-6 shadow-2xl sm:p-8 lg:p-10">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-violet-200"><Sparkles className="h-3.5 w-3.5" /> A.R.I.S.E. Reader 2.0</div>
+              <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[.98] tracking-[-.05em] sm:text-5xl lg:text-6xl">Read. Learn. Earn.<span className="mt-1 block bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300 bg-clip-text text-transparent">Then keep exploring.</span></h1>
+              <p className="mt-5 max-w-3xl text-base font-semibold leading-7 text-slate-400">A reading platform that connects books and quizzes to live classroom games, rewards, accessible learning, avatars, pets, families, progress, and student worlds.</p>
+              <div className="mt-7 flex flex-wrap gap-3"><Button onClick={() => setFrontTab("create")} className="h-11 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 px-5 font-black">Create an account <ArrowRight className="ml-2 h-4 w-4" /></Button><Button variant="outline" onClick={() => setShowSampleChooser(true)} className="h-11 rounded-full border-white/10 bg-white/5 px-5 font-black text-white"><PlayCircle className="mr-2 h-4 w-4" /> Try a sample</Button></div>
+            </section>
 
-              <div className="grid gap-7 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center lg:p-10">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/100/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-violet-200">
-                    <Sparkles className="h-3.5 w-3.5" /> A.R.I.S.E. Reader 2.0
-                  </div>
+            <section className="rounded-[2rem] border border-white/10 bg-[#151326] p-5 shadow-xl sm:p-7">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Explore every major feature</p><h2 className="mt-1 text-2xl font-black sm:text-3xl">Tap anything to see what it does.</h2></div><p className="text-xs font-semibold text-slate-500">No dead buttons. Every feature below is clickable.</p></div>
 
-                  <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[.98] tracking-[-.05em] text-white sm:text-5xl lg:text-6xl">
-                    Read. Learn. Earn.
-                    <span className="mt-1 block bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">Then keep exploring.</span>
-                  </h1>
-
-                  <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-400">
-                    Books, quizzes, live classroom games, rewards, accessible learning, avatars, pets, family controls, and progress — all in one student-centered experience.
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    {["Books + quizzes", "A.R.I.S.E. Live", "Club + games", "Eye Gazer", "Family controls"].map(item => (
-                      <span key={item} className="rounded-full border border-white/10 bg-white/[.045] px-3 py-2 text-xs font-bold text-slate-300 backdrop-blur">{item}</span>
-                    ))}
-                  </div>
-
-                  <div className="mt-7 flex flex-wrap gap-3">
-                    <Button onClick={() => setFrontTab("create")} className="h-11 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 px-5 font-black text-white shadow-lg shadow-violet-500/15 hover:brightness-105">
-                      Create an account <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowSampleChooser(true)} className="h-11 rounded-full border-white/10 bg-white/[.055] px-5 font-black text-slate-100 hover:bg-white/[.04]">
-                      <PlayCircle className="mr-2 h-4 w-4" /> Try a sample
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="relative mx-auto w-full max-w-[360px] lg:max-w-none">
-                  <div className="absolute -inset-3 rounded-[2.5rem] bg-gradient-to-br from-violet-500/18 via-fuchsia-500/14 to-cyan-400/16 blur-xl" />
-                  <div className="relative rounded-[2rem] border border-white/10 bg-[#1b1830] p-4 shadow-xl sm:p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-[.2em] text-violet-300">Explore A.R.I.S.E.</p>
-                        <p className="mt-1 text-base font-black">See what’s inside.</p>
-                      </div>
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white"><FeatureIcon className="h-5 w-5" /></div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      {featureKeys.map(key => {
-                        const item = FEATURES[key];
-                        const Icon = item.icon;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setActiveFeature(key)}
-                            className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-black transition ${activeFeature === key ? "border-violet-300/45 bg-gradient-to-r from-violet-500/18 via-fuchsia-500/12 to-cyan-400/12 text-white" : "border-white/8 bg-white/[.035] text-slate-400 hover:bg-white/[.07] hover:text-white"}`}
-                          >
-                            <Icon className="h-4 w-4 shrink-0" /> {item.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-4 rounded-2xl border border-white/8 bg-[#100e20] p-4">
-                      <p className="text-[9px] font-black uppercase tracking-[.18em] text-cyan-300">{feature.kicker}</p>
-                      <h2 className="mt-1 text-lg font-black leading-tight text-white">{feature.title}</h2>
-                      <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">{feature.description}</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Button size="sm" onClick={() => navigate(feature.tutorial)} className="rounded-full arise-gradient-button px-4 text-xs font-black">
-                          Tutorial <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                        </Button>
-                        {feature.sample && (
-                          <Button size="sm" variant="outline" onClick={() => setShowSampleChooser(true)} className="rounded-full border-white/10 bg-white/[.055] px-4 text-xs font-black text-slate-100">
-                            Try sample
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="mt-6 space-y-5">
+                {categories.map(category => <div key={category}><p className="mb-2 text-[10px] font-black uppercase tracking-[.18em] text-slate-500">{category}</p><div className="flex flex-wrap gap-2">{featureKeys.filter(key => FEATURES[key].category === category).map(key => { const item=FEATURES[key]; const Icon=item.icon; return <button key={key} type="button" onClick={() => chooseFeature(key)} className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition ${activeFeature===key ? "border-cyan-300/50 bg-gradient-to-r from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 text-white shadow-lg" : "border-white/10 bg-white/[.04] text-slate-300 hover:-translate-y-0.5 hover:bg-white/10 hover:text-white"}`}><Icon className="h-4 w-4" />{item.label}</button>; })}</div></div>)}
               </div>
 
-            </div>
-          </section>
+              <div id="feature-detail" className="mt-7 grid gap-5 rounded-[1.7rem] border border-cyan-300/15 bg-[#0f0d1d] p-5 sm:grid-cols-[64px_1fr] sm:p-6">
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400"><FeatureIcon className="h-7 w-7" /></div>
+                <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-cyan-300">{feature.kicker}</p><h3 className="mt-1 text-2xl font-black">{feature.title}</h3><p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-400">{feature.description}</p><div className="mt-4 flex flex-wrap gap-2">{feature.bullets.map(item => <span key={item} className="rounded-full bg-white/7 px-3 py-1.5 text-xs font-bold text-slate-300">{item}</span>)}</div><div className="mt-5 flex flex-wrap gap-2"><Button size="sm" onClick={() => navigate(feature.tutorial)} className="rounded-full arise-gradient-button px-4 font-black">See tutorial <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button>{feature.sample && <Button size="sm" variant="outline" onClick={() => setShowSampleChooser(true)} className="rounded-full border-white/10 bg-white/5 px-4 font-black text-white">Try this experience</Button>}</div></div>
+              </div>
+            </section>
+          </div>
 
           <aside className="order-1 lg:order-2 lg:sticky lg:top-24">
-            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-[0_24px_75px_rgba(0,0,0,.3)]">
-              <div className="grid grid-cols-3 gap-1 border-b border-white/8 bg-[#100e20] p-2">
-                {([
-                  ["signin", "Sign in", LogIn],
-                  ["create", "Create", Users],
-                  ["explore", "Explore", Sparkles],
-                ] as const).map(([key, label, Icon]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setFrontTab(key)}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black transition ${frontTab === key ? "bg-white/[.08] text-white shadow-sm ring-1 ring-slate-200" : "text-slate-400 hover:bg-white/[.06] hover:text-slate-100"}`}
-                  >
-                    <Icon className="h-4 w-4" /> {label}
-                  </button>
-                ))}
-              </div>
+            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-2xl">
+              <div className="grid grid-cols-3 gap-1 border-b border-white/10 bg-[#100e20] p-2">{([ ["signin","Sign in",LogIn], ["create","Create",Users], ["explore","Explore",Sparkles] ] as const).map(([key,label,Icon]) => <button key={key} type="button" onClick={() => setFrontTab(key)} className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black ${frontTab===key ? "bg-white/10 text-white ring-1 ring-white/10" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}><Icon className="h-4 w-4" />{label}</button>)}</div>
 
-              {frontTab === "signin" && (
-                <div className="p-5 sm:p-6">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500/10"><LogIn className="h-5 w-5 text-violet-300" /></div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">Welcome back</p>
-                      <h2 className="text-xl font-black tracking-tight">Sign in to A.R.I.S.E.</h2>
-                    </div>
-                  </div>
+              {frontTab === "signin" && <div className="p-5 sm:p-6"><p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300">Welcome back</p><h2 className="mt-1 text-xl font-black">Sign in to A.R.I.S.E.</h2><form onSubmit={handleSubmit} className="mt-5 space-y-4"><div className="space-y-2"><Label htmlFor="username">Username</Label><Input id="username" value={username} onChange={e => setUsername(e.target.value)} placeholder="Your username" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div><div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>{error && <div className="rounded-xl border border-red-400/25 bg-red-500/10 p-3 text-sm font-bold text-red-200">{error}</div>}<Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 font-black">{loading ? "Logging in…" : "Log in"}</Button></form><button type="button" onClick={() => setShowSampleChooser(true)} className="mt-3 min-h-11 w-full rounded-xl border border-violet-300/20 bg-violet-500/10 text-sm font-black text-violet-200"><Sparkles className="mr-2 inline h-4 w-4" />Try sample account</button><button type="button" onClick={() => setFrontTab("create")} className="mt-4 w-full text-center text-sm font-bold text-slate-400 hover:text-white">New here? <span className="text-violet-300">Create an account</span></button></div>}
 
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username" className="text-slate-200">Username</Label>
-                      <Input id="username" type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Your username" required className="h-12 border-white/10 bg-[#0f0d1d] text-white placeholder:text-slate-500 focus-visible:ring-violet-500/50" data-testid="input-username" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-slate-200">Password</Label>
-                      <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" required className="h-12 border-white/10 bg-[#0f0d1d] text-white placeholder:text-slate-500 focus-visible:ring-violet-500/50" data-testid="input-password" />
-                    </div>
-                    {error && <div className="rounded-xl border border-red-400/25 bg-red-500/10 p-3 text-sm font-bold text-red-200" data-testid="text-error">{error}</div>}
-                    <Button type="submit" className="h-12 w-full rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 font-black text-white shadow-lg shadow-violet-500/15 hover:brightness-105" disabled={loading} data-testid="button-login">
-                      {loading ? "Logging in…" : "Log in"}
-                    </Button>
-                  </form>
+              {frontTab === "create" && <div className="p-5 sm:p-6"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">Choose your account</p><h2 className="mt-1 text-xl font-black">Get started with A.R.I.S.E.</h2><div className="mt-5 space-y-3">
+                <button type="button" onClick={() => navigate("/register")} className="flex w-full items-center gap-3 rounded-2xl border border-violet-300/20 bg-violet-500/8 p-4 text-left hover:bg-violet-500/15"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500"><SchoolIcon /></div><div className="flex-1"><p className="font-black">School Student</p><p className="text-xs text-slate-400">Connect to a school and teacher.</p></div><ArrowRight className="h-4 w-4" /></button>
+                <button type="button" onClick={() => navigate("/register?independent=1")} className="flex w-full items-center gap-3 rounded-2xl border border-cyan-300/25 bg-cyan-500/8 p-4 text-left hover:bg-cyan-500/15"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-400 text-slate-950"><UserRound className="h-5 w-5" /></div><div className="flex-1"><p className="font-black">Independent Student</p><p className="text-xs text-slate-300">A separate signup — no school checkbox to remember.</p></div><ArrowRight className="h-4 w-4 text-cyan-300" /></button>
+                <button type="button" onClick={() => navigate("/teacher-signup")} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><GraduationCap className="h-6 w-6 text-fuchsia-300" /><div className="flex-1"><p className="font-black">Teacher</p><p className="text-xs text-slate-400">Students, live games, rewards, controls.</p></div><ArrowRight className="h-4 w-4" /></button>
+                <button type="button" onClick={() => navigate("/parent-signup")} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><Heart className="h-6 w-6 text-fuchsia-300" /><div className="flex-1"><p className="font-black">Parent / Guardian</p><p className="text-xs text-slate-400">Link children, progress, controls.</p></div><ArrowRight className="h-4 w-4" /></button>
+              </div></div>}
 
-                  <button
-                    type="button"
-                    onClick={() => setShowSampleChooser(true)}
-                    disabled={loading || !!sampleLoading}
-                    className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-500/12 via-fuchsia-500/10 to-cyan-400/10 px-4 text-sm font-black text-violet-200 transition hover:border-fuchsia-400/25 hover:shadow-sm disabled:opacity-50"
-                  >
-                    <Sparkles className="h-4 w-4" /> Try sample account
-                  </button>
-
-                  <button type="button" onClick={() => setFrontTab("create")} className="mt-4 w-full text-center text-sm font-bold text-slate-400 hover:text-white">
-                    New here? <span className="text-violet-300">Create an account</span>
-                  </button>
-                </div>
-              )}
-
-              {frontTab === "create" && (
-                <div className="p-5 sm:p-6">
-                  <div className="mb-5">
-                    <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">Choose your account</p>
-                    <h2 className="mt-1 text-xl font-black">Get started with A.R.I.S.E.</h2>
-                    <p className="mt-1 text-sm font-semibold text-slate-400">Choose school-connected Student, Independent Student, Teacher, or Parent.</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <button type="button" onClick={() => navigate("/register")} className="group flex w-full items-center gap-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-500/12 to-fuchsia-500/10 p-4 text-left transition hover:-translate-y-0.5 hover:border-fuchsia-400/25">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-500/100 text-white"><Users className="h-5 w-5" /></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black text-white">Student</p>
-                        <p className="text-xs font-semibold text-slate-400">Read, quiz, earn, play, and build your profile.</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-violet-300" />
-                    </button>
-
-                    <button type="button" onClick={() => navigate("/register?independent=1")} className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-400/25 bg-gradient-to-r from-cyan-500/10 via-violet-500/10 to-fuchsia-500/[.08] p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-300/50">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-500 via-violet-600 to-fuchsia-600 text-white"><UserRound className="h-5 w-5" /></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black text-white">Independent Student</p>
-                        <p className="text-xs font-semibold text-slate-300">Not attached to a school? Create your own reader account here.</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-cyan-300" />
-                    </button>
-
-                    <button type="button" onClick={() => navigate("/teacher-signup")} className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-400/25 bg-gradient-to-r from-cyan-500/12 to-blue-500/10 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-300">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white"><GraduationCap className="h-5 w-5" /></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black text-white">Teacher</p>
-                        <p className="text-xs font-semibold text-slate-400">Manage students, live games, quizzes, rewards, and controls.</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-cyan-300" />
-                    </button>
-
-                    <button type="button" onClick={() => navigate("/parent-signup")} className="group flex w-full items-center gap-4 rounded-2xl border border-fuchsia-400/25 bg-gradient-to-r from-fuchsia-500/12 to-violet-500/10 p-4 text-left transition hover:-translate-y-0.5 hover:border-violet-300">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-violet-600 text-white"><Heart className="h-5 w-5" /></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black text-white">Parent</p>
-                        <p className="text-xs font-semibold text-slate-400">Link children, switch quickly, track growth, and manage controls.</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-violet-300" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {frontTab === "explore" && (
-                <div className="p-5 sm:p-6">
-                  <div className="mb-5">
-                    <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">No login required</p>
-                    <h2 className="mt-1 text-xl font-black">Look around first.</h2>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <button type="button" onClick={() => navigate("/tutorial")} className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-center transition hover:bg-white/[.09]">
-                      <PlayCircle className="mx-auto h-5 w-5 text-cyan-300" />
-                      <p className="mt-2 text-sm font-black">Tutorials</p>
-                    </button>
-                    <button type="button" onClick={() => navigate("/leaderboard")} className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-center transition hover:bg-white/[.09]">
-                      <Trophy className="mx-auto h-5 w-5 text-fuchsia-300" />
-                      <p className="mt-2 text-sm font-black">Leaderboard</p>
-                    </button>
-                    <button type="button" onClick={() => navigate("/about")} className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-center transition hover:bg-white/[.09]">
-                      <Heart className="mx-auto h-5 w-5 text-fuchsia-300" />
-                      <p className="mt-2 text-sm font-black">About</p>
-                    </button>
-                    <button type="button" onClick={() => setShowSampleChooser(true)} className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-center transition hover:bg-white/[.09]">
-                      <Sparkles className="mx-auto h-5 w-5 text-violet-300" />
-                      <p className="mt-2 text-sm font-black">Sample</p>
-                    </button>
-                  </div>
-                </div>
-              )}
+              {frontTab === "explore" && <div className="p-5 sm:p-6"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">No login required</p><h2 className="mt-1 text-xl font-black">Look around first.</h2><div className="mt-5 grid grid-cols-2 gap-3"><ExploreButton icon={PlayCircle} label="Tutorials" onClick={() => navigate("/tutorial")} /><ExploreButton icon={Trophy} label="Leaderboard" onClick={() => navigate("/leaderboard")} /><ExploreButton icon={Heart} label="About" onClick={() => navigate("/about")} /><ExploreButton icon={Sparkles} label="Sample" onClick={() => setShowSampleChooser(true)} /></div></div>}
             </div>
           </aside>
         </div>
 
-        <section className="mt-5 rounded-[1.7rem] border border-white/10 bg-gradient-to-r from-[#17142a] via-[#1b1530] to-[#102331] p-5 shadow-[0_18px_55px_rgba(0,0,0,.18)] sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl arise-icon-tile"><Heart className="h-5 w-5" /></div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-fuchsia-300">The story behind A.R.I.S.E.</p>
-              <h2 className="mt-1 text-xl font-black text-white">About A.R.I.S.E. Reader</h2>
-              <p className="mt-1 text-sm font-semibold leading-6 text-slate-400">Meet Mr. J, see the classroom story behind the platform, and learn what A.R.I.S.E. stands for.</p>
-            </div>
-            <Button onClick={() => navigate("/about")} className="h-11 shrink-0 rounded-full arise-gradient-button px-5 font-black">
-              About A.R.I.S.E. <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </section>
-
-        <footer className="mt-7 flex flex-col gap-3 border-t border-white/10 py-6 text-xs font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>A.R.I.S.E. Reader · Advocating Resilience, Inclusion, Support & Empowerment</p>
-          <div className="flex flex-wrap gap-4">
-            <button onClick={() => navigate("/tutorial")} className="hover:text-fuchsia-200">Tutorials</button>
-            <button onClick={() => navigate("/parent-signup")} className="hover:text-white">Families</button>
-          </div>
-        </footer>
+        <section className="mt-5 flex flex-col gap-4 rounded-[1.7rem] border border-white/10 bg-gradient-to-r from-[#17142a] via-[#1b1530] to-[#102331] p-5 sm:flex-row sm:items-center sm:p-6"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-fuchsia-500/10"><Heart className="h-5 w-5 text-fuchsia-300" /></div><div className="flex-1"><p className="text-[10px] font-black uppercase tracking-[.2em] text-fuchsia-300">The story behind A.R.I.S.E.</p><h2 className="mt-1 text-xl font-black">About A.R.I.S.E. Reader</h2><p className="mt-1 text-sm font-semibold text-slate-400">Meet Mr. J, see the classroom story behind the platform, and learn what A.R.I.S.E. stands for.</p></div><Button onClick={() => navigate("/about")} className="rounded-full arise-gradient-button px-5 font-black">About A.R.I.S.E. <ArrowRight className="ml-2 h-4 w-4" /></Button></section>
       </main>
 
-      {showSampleChooser && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-[#06050d]/85 p-4 backdrop-blur-md">
-          <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-2xl">
-            <div className="border-b border-white/8 p-6 sm:p-7">
-              <p className="text-xs font-black uppercase tracking-[.18em] text-violet-300">Sample Experience</p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Choose the account you want to try.</h2>
-              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-slate-400">Sample accounts are sandbox demos and do not enter student leaderboards or competition rankings.</p>
-            </div>
-
-            <div className="grid gap-3 p-5 sm:p-6 md:grid-cols-3">
-              <button type="button" onClick={() => void loginSample("student")} disabled={!!sampleLoading} className="rounded-2xl border-2 border-white/10 bg-white/[.045] p-5 text-left transition hover:-translate-y-1 hover:border-violet-200 hover:bg-violet-500/10 disabled:opacity-50">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-500/16"><Users className="h-6 w-6 text-violet-300" /></div>
-                <p className="mt-4 font-black">{sampleLoading === "student" ? "Opening…" : "Student"}</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">Library, quizzes, Club, arcade, avatars, pets, worlds, rewards, and more.</p>
-              </button>
-
-              <button type="button" onClick={() => void loginSample("eye-gaze")} disabled={!!sampleLoading} className="rounded-2xl border-2 border-white/10 bg-white/[.045] p-5 text-left transition hover:-translate-y-1 hover:border-cyan-400/25 hover:bg-cyan-500/10 disabled:opacity-50">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-500/16"><Eye className="h-6 w-6 text-cyan-200" /></div>
-                <p className="mt-4 font-black">{sampleLoading === "eye-gaze" ? "Opening…" : "Eye Gazer Tutorial"}</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">Dedicated accessible tutorial account with My Talker, visual quizzes, games, Life Skills, My World, and progress.</p>
-              </button>
-
-              <button type="button" onClick={() => void loginSample("parent")} disabled={!!sampleLoading} className="rounded-2xl border-2 border-white/10 bg-white/[.045] p-5 text-left transition hover:-translate-y-1 hover:border-violet-200 hover:bg-violet-500/10 disabled:opacity-50">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-500/16"><UserRound className="h-6 w-6 text-violet-200" /></div>
-                <p className="mt-4 font-black">{sampleLoading === "parent" ? "Opening…" : "Parent"}</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">Linked children, progress, certificates, family controls, and more.</p>
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 bg-[#100e20] p-5 sm:px-6">
-              <button type="button" onClick={() => setShowSampleChooser(false)} disabled={!!sampleLoading} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-400 hover:bg-white/[.04] hover:text-white">Cancel</button>
-              <button type="button" onClick={() => { setShowSampleChooser(false); navigate("/tutorial"); }} disabled={!!sampleLoading} className="rounded-xl border border-white/10 bg-white px-4 py-2 text-sm font-black text-slate-100 hover:bg-white/[.04]">View tutorials instead</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showSampleChooser && <div className="fixed inset-0 z-[250] flex items-center justify-center bg-[#06050d]/90 p-4 backdrop-blur-md"><div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-2xl"><div className="border-b border-white/10 p-6"><p className="text-xs font-black uppercase tracking-[.18em] text-violet-300">Sample Experience</p><h2 className="mt-1 text-2xl font-black">Choose exactly what you want to preview.</h2><p className="mt-2 text-sm font-semibold text-slate-400">The regular Student sample is now strictly non-Eye-Gazer. Eye Gazer has its own separate sample.</p></div><div className="grid gap-3 p-5 md:grid-cols-3"><SampleButton icon={Users} title={sampleLoading==="student"?"Opening…":"Student"} text="Regular student: books, quizzes, rewards, Club, avatars, pets, homes and worlds." onClick={() => void loginSample("student")} disabled={!!sampleLoading} /><SampleButton icon={Eye} title={sampleLoading==="eye-gaze"?"Opening…":"Eye Gazer"} text="Accessible sample: My Talker, visual learning, games, My World and Life Skills." onClick={() => void loginSample("eye-gaze")} disabled={!!sampleLoading} /><SampleButton icon={UserRound} title={sampleLoading==="parent"?"Opening…":"Parent"} text="Family sample: linked children, progress, certificates and controls." onClick={() => void loginSample("parent")} disabled={!!sampleLoading} /></div><div className="border-t border-white/10 p-5"><button type="button" onClick={() => setShowSampleChooser(false)} className="rounded-xl px-4 py-2 text-sm font-black text-slate-300 hover:bg-white/10">Cancel</button></div></div></div>}
     </div>
   );
 }
+
+function SchoolIcon() { return <Users className="h-5 w-5" />; }
+function ExploreButton({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) { return <button type="button" onClick={onClick} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center hover:bg-white/10"><Icon className="mx-auto h-5 w-5 text-cyan-300" /><p className="mt-2 text-sm font-black">{label}</p></button>; }
+function SampleButton({ icon: Icon, title, text, onClick, disabled }: { icon: any; title: string; text: string; onClick: () => void; disabled: boolean }) { return <button type="button" onClick={onClick} disabled={disabled} className="rounded-2xl border-2 border-white/10 bg-white/5 p-5 text-left transition hover:-translate-y-1 hover:border-cyan-300/30 hover:bg-white/10 disabled:opacity-50"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-500/15"><Icon className="h-6 w-6 text-cyan-200" /></div><p className="mt-4 font-black">{title}</p><p className="mt-1 text-xs font-semibold leading-5 text-slate-400">{text}</p></button>; }
