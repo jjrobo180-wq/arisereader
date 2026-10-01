@@ -138,10 +138,10 @@ function GradeBandChange() {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Current Group:</span>
-          <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-bold">{gradeInfo?.band || 'N/A'}</span>
+          <span className="px-2 py-1 rounded-md bg-violet-500/15 text-violet-200 text-xs font-bold">{gradeInfo?.band || 'N/A'}</span>
         </div>
-        <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
-          <p className="text-sm text-amber-400 font-medium">Pending Request</p>
+        <div className="rounded-lg bg-cyan-500/10 border border-cyan-400/25 p-3">
+          <p className="text-sm text-cyan-300 font-medium">Pending Request</p>
           <p className="text-xs text-muted-foreground mt-1">
             You requested to switch to Grade {pendingRequest.newGrade} ({band} Band). Waiting for teacher/admin approval.
           </p>
@@ -154,7 +154,7 @@ function GradeBandChange() {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Current Group:</span>
-        <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-bold">{gradeInfo?.band || 'N/A'}</span>
+        <span className="px-2 py-1 rounded-md bg-violet-500/15 text-violet-200 text-xs font-bold">{gradeInfo?.band || 'N/A'}</span>
         {gradeInfo && <span className="text-xs text-muted-foreground">({gradeInfo.bookCount} books available)</span>}
       </div>
       <p className="text-xs text-muted-foreground">
@@ -168,7 +168,7 @@ function GradeBandChange() {
             { band: "K-2", grades: ["K", "1", "2"], label: "Early Readers", color: "bg-green-500/20" },
             { band: "3-5", grades: ["3", "4", "5"], label: "Elementary", color: "bg-blue-500/20" },
             { band: "6-8", grades: ["6", "7", "8"], label: "Middle School", color: "bg-purple-500/20" },
-            { band: "9-12", grades: ["9", "10", "11", "12"], label: "High School", color: "bg-orange-500/20" },
+            { band: "9-12", grades: ["9", "10", "11", "12"], label: "High School", color: "bg-fuchsia-500/15" },
           ].map((band) => (
             <div key={band.band} className={`rounded-lg ${band.color} border border-border p-2 space-y-2`}>
               <div className="flex items-center justify-between">
@@ -182,7 +182,7 @@ function GradeBandChange() {
                     type="button"
                     onClick={() => setNewGrade(g)}
                     className={`px-2 py-1 rounded text-xs font-medium ${
-                      newGrade === g ? "bg-primary text-primary-foreground" : "bg-muted/50 text-white hover:bg-muted"
+                      newGrade === g ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white" : "bg-muted/50 text-white hover:bg-muted"
                     }`}
                   >
                     {g}
@@ -195,7 +195,7 @@ function GradeBandChange() {
         <button
           onClick={submitRequest}
           disabled={!newGrade || submitting}
-          className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+          className="w-full px-4 py-2 rounded-lg bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white text-sm font-medium disabled:opacity-50"
         >
           {submitting ? "Submitting..." : "Request Change"}
         </button>
@@ -651,8 +651,8 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
+    <div className="min-h-screen arise-page-bg">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl shadow-sm">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 flex items-center gap-1 sm:gap-3 h-16">
           <Button variant="ghost" size="sm" onClick={() => navigate("/progress")}>
             <Brain className="w-4 h-4" />
@@ -663,7 +663,7 @@ export default function Profile() {
             <span className="hidden sm:inline">Library</span>
           </Button>
           <div className="flex-1 flex items-center gap-1">
-            <span className="px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium bg-primary text-white flex items-center gap-1.5">
+            <span className="px-2 sm:px-3 py-1.5 rounded-xl text-sm font-black bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white flex items-center gap-1.5 shadow-lg shadow-violet-500/15">
               <User className="w-4 h-4" />
               <span className="hidden sm:inline">Account</span>
             </span>
@@ -686,7 +686,7 @@ export default function Profile() {
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         <>
         {user?.role === 'student' && (
-          <Card className="shadow-md border-primary/30">
+          <Card className="arise-surface border-violet-400/20 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="w-5 h-5 text-primary" />
@@ -705,10 +705,10 @@ export default function Profile() {
         )}
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="shadow-md">
+          <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500/25 via-fuchsia-500/18 to-cyan-400/18 border border-violet-400/15 flex items-center justify-center">
+                <Trophy className="w-6 h-6 text-violet-300" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{totalPoints}</div>
@@ -716,10 +716,10 @@ export default function Profile() {
               </div>
             </CardContent>
           </Card>
-          <Card className="shadow-md">
+          <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-blue-400" />
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-400/15 flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-cyan-300" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{quizzesTaken}</div>
@@ -727,10 +727,10 @@ export default function Profile() {
               </div>
             </CardContent>
           </Card>
-          <Card className="shadow-md">
+          <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-green-400" />
+              <div className="w-12 h-12 rounded-2xl bg-fuchsia-500/15 border border-fuchsia-400/15 flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-fuchsia-300" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{totalBooks - quizzesTaken}</div>
@@ -742,10 +742,10 @@ export default function Profile() {
 
         {/* My Teacher */}
         {teacher && (
-          <Card className="shadow-md">
+          <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <User className="w-6 h-6 text-purple-400" />
+              <div className="w-12 h-12 rounded-2xl bg-violet-500/15 border border-violet-400/15 flex items-center justify-center">
+                <User className="w-6 h-6 text-violet-300" />
               </div>
               <div className="flex-1">
                 <div className="text-xs text-muted-foreground">My Teacher</div>
@@ -760,7 +760,7 @@ export default function Profile() {
 
         {/* Classmates */}
         {teacher && (
-          <Card className="shadow-md">
+          <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <LayoutGrid className="w-5 h-5" />
@@ -776,10 +776,10 @@ export default function Profile() {
                     <div
                       key={cm.id}
                       className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                        cm.id === user?.id ? "bg-primary/10 border border-primary/30" : "bg-muted/30"
+                        cm.id === user?.id ? "bg-primary/10 border border-primary/30" : "bg-white/[.04]"
                       }`}
                     >
-                      <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 border border-white/10 flex items-center justify-center font-bold text-sm flex-shrink-0">
                         {cm.displayName.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -789,7 +789,7 @@ export default function Profile() {
                         )}
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="font-bold text-sm text-primary">{cm.totalPoints}</div>
+                        <div className="font-black text-sm text-violet-300">{cm.totalPoints}</div>
                         <div className="text-xs text-muted-foreground">pts</div>
                       </div>
                     </div>
@@ -801,7 +801,7 @@ export default function Profile() {
         )}
 
         {/* Conversation with teacher */}
-        <Card className="shadow-md">
+        <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
@@ -821,7 +821,7 @@ export default function Profile() {
                     <div
                       className={`max-w-[80%] p-3 rounded-2xl ${
                         msg.senderType === "teacher"
-                          ? "bg-muted/50 border border-border rounded-tl-sm"
+                          ? "bg-white/[.07] border border-white/10 rounded-tl-sm"
                           : "bg-primary text-white rounded-tr-sm"
                       }`}
                     >
@@ -860,7 +860,7 @@ export default function Profile() {
             )}
 
             {/* Send message to teacher */}
-            <div className="pt-3 border-t border-border">
+            <div className="pt-3 border-t border-white/10">
               <Textarea
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
@@ -883,7 +883,7 @@ export default function Profile() {
         </Card>
 
         {/* Quiz history */}
-        <Card className="shadow-md">
+        <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="w-5 h-5" />
@@ -905,7 +905,7 @@ export default function Profile() {
                   return (
                   <div
                     key={r.bookId}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-white/[.04] hover:bg-white/[.07] transition-colors cursor-pointer"
                     onClick={() => navigate("/library")}
                   >
                     <div className="w-10 h-14 flex-shrink-0">
@@ -954,7 +954,7 @@ export default function Profile() {
         </Card>
 
         {/* Change name */}
-        <Card className="shadow-md">
+        <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="w-5 h-5" />
@@ -1028,7 +1028,7 @@ export default function Profile() {
         )}
 
         {/* Change password */}
-        <Card className="shadow-md">
+        <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lock className="w-5 h-5" />
@@ -1088,7 +1088,7 @@ export default function Profile() {
         </Card>
 
         {/* Eye Gaze Settings */}
-        <Card className="shadow-md">
+        <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -1147,8 +1147,8 @@ export default function Profile() {
                       }}
                       className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                         celebrationStyle === opt.value
-                          ? "bg-primary text-primary-foreground border-2 border-primary"
-                          : "bg-muted text-muted-foreground border-2 border-transparent hover:bg-muted/80"
+                          ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white border-2 border-primary"
+                          : "bg-muted text-muted-foreground border-2 border-transparent hover:bg-white/[.09]/80"
                       }`}
                     >
                       {opt.label}
@@ -1162,7 +1162,7 @@ export default function Profile() {
 
         {/* Grade Band Change Request - Students only */}
         {user?.role === 'student' && (
-        <Card className="shadow-md">
+        <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
