@@ -7,6 +7,18 @@ interface State {
 export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { hasError: false };
 
+  componentDidMount() {
+    window.addEventListener("hashchange", this.handleRouteChange);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("hashchange", this.handleRouteChange);
+  }
+
+  handleRouteChange = () => {
+    if (this.state.hasError) this.setState({ hasError: false });
+  };
+
   static getDerivedStateFromError(): State {
     return { hasError: true };
   }
@@ -16,15 +28,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   handleReload = () => {
-    // Reset error state WITHOUT reloading the page.
-    // Using window.location.reload() would wipe the in-memory session,
-    // logging the user out. Instead, just reset the error state and
-    // navigate using hash routing (no full page reload).
     this.setState({ hasError: false });
-    // Use hash navigation so wouter picks it up without a reload
-    if (window.location.hash !== "#/library") {
-      window.location.hash = "#/library";
-    }
+    if (window.location.hash !== "#/library") window.location.hash = "#/library";
   };
 
   render() {
@@ -39,7 +44,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
             </div>
             <h2 className="text-xl font-bold mb-2 text-foreground">Something went wrong</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              The page hit a snag. Click below to go back.
+              That page could not finish loading. The site will recover automatically from stale page files after updates; you can also return to the library.
             </p>
             <button
               onClick={this.handleReload}

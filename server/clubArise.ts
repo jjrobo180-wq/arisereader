@@ -205,7 +205,13 @@ function computerTurn(gameType:string,state:any){
   return state;
 }
 
-async function getClubAccess(userId:number){
+async function getClubAccess(userId:number, unrestricted=false){
+  if(unrestricted){
+    return {
+      allowed:true,locked:false,teacherId:null,dailyLimit:null,gamesToday:0,dailyRemaining:null,
+      gamesPerPassedQuiz:0,passedQuizzes:0,automaticRemaining:null,weeklyUnlimitedOnPass:true,adminPreview:true
+    };
+  }
   const db=getAdminSupabase();
   const {data:user}=await db.from("users").select("teacher_id,username").eq("id",userId).single();
   const teacherId=Number(user?.teacher_id||0)||null;
@@ -222,11 +228,11 @@ async function getClubAccess(userId:number){
     .eq("user_id",userId).gt("points_earned",0);
 
   const {data:finished}=await db.from("club_arise_matches")
-    .select("id,updated_at")
+    .select("id,updated_at,state")
     .eq("status","finished")
     .or("player1_id.eq."+userId+",player2_id.eq."+userId);
 
-  const allGames=finished||[];
+  const allGames=(finished||[]).filter((m:any)=>!m.state?.adminPreview);
   const today=new Date().toISOString().slice(0,10);
   const gamesToday=allGames.filter((m:any)=>String(m.updated_at||"").slice(0,10)===today).length;
   const dailyLimit=control?.daily_game_limit===null||control?.daily_game_limit===undefined?null:Number(control.daily_game_limit);
@@ -246,12 +252,16 @@ async function getClubAccess(userId:number){
 
 async function awardFinishedMatch(match:any,state:any){
   if(match.rewards_awarded)return;
+  if(state?.adminPreview){
+    await getAdminSupabase().from("club_arise_matches").update({rewards_awarded:true}).eq("id",match.id).eq("rewards_awarded",false);
+    return;
+  }
   const db=getAdminSupabase();
   const winnerIndex=Number(state?.winner||0);
   const winnerUserId=winnerIndex===1?match.player1_id:winnerIndex===2?match.player2_id:null;
   if(winnerUserId){
-    const {data:user}=await db.from("users").select("total_points,username").eq("id",winnerUserId).single();
-    if(!String(user?.username||"").startsWith("sample")){
+    const {data:user}=await db.from("users").select("total_points,username,is_admin,role").eq("id",winnerUserId).single();
+    if(!user?.is_admin && user?.role!=="admin" && !String(user?.username||"").startsWith("sample")){
       const current=Number(user?.total_points||0);
       await db.from("users").update({total_points:Math.round((current+10)*10)/10}).eq("id",winnerUserId);
     }
@@ -333,7 +343,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         .gte("updated_at",cutoff);
       if(error)throw error;
       res.set("Cache-Control","no-store");
-      const access=await getClubAccess(req.user.id);
+      const access=await getClubAccess(req.user.id, req.adminPreview === "regular");
       res.json({self:{userId:req.user.id,...payload},players:withVehicles(players||[]),safePhrases:Array.from(SAFE_PHRASES),access});
     }catch(error:any){
       console.error("[club-arise] bootstrap",error?.message);
@@ -503,7 +513,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
         .or("player1_id.eq."+userId+",player2_id.eq."+userId);
       if(error)throw error;
 
-      const finished=matches||[];
+      const finished=(matches||[]).filter((m:any)=>!m.state?.adminPreview);
       const won=(m:any)=>m.winner_id===userId||(m.state?.computer&&m.player1_id===userId&&Number(m.state?.winner)===1);
       const tied=(m:any)=>m.state?.computer?Number(m.state?.winner)===0:!m.winner_id;
       const wins=finished.filter(won).length;
@@ -544,7 +554,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const gameType=String(req.body?.gameType||"");
       const computer=!!req.body?.computer;
       if(!GAME_TYPES.has(gameType)) return res.status(400).json({message:"Unknown game."});
-      const access=await getClubAccess(req.user.id);
+      const access=await getClubAccess(req.user.id, req.adminPreview === "regular");
       if(!access.allowed){
         const message=access.locked
           ?"Your teacher has locked Club A.R.I.S.E. games."
@@ -564,7 +574,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       if(computer){
         const {data,error}=await db().from("club_arise_matches").insert({
           game_type:gameType,status:"active",player1_id:req.user.id,player2_id:null,
-          state:{...initialState(gameType),computer:true,opponentName:"Computer"},
+          state:{...initialState(gameType),computer:true,opponentName:"Computer",adminPreview:req.adminPreview==="regular"},
         }).select("*").single();
         if(error)throw error;
         return res.json(data);
@@ -579,14 +589,16 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       if(waiting?.[0]){
         const match=waiting[0];
         const {data,error}=await db().from("club_arise_matches").update({
-          player2_id:req.user.id,status:"active",updated_at:new Date().toISOString(),
+          player2_id:req.user.id,status:"active",
+          state:{...(match.state||{}),adminPreview:!!match.state?.adminPreview||req.adminPreview==="regular"},
+          updated_at:new Date().toISOString(),
         }).eq("id",match.id).eq("status","waiting").select("*").single();
         if(error)throw error;
         return res.json(data);
       }
 
       const {data,error}=await db().from("club_arise_matches").insert({
-        game_type:gameType,status:"waiting",player1_id:req.user.id,state:initialState(gameType),
+        game_type:gameType,status:"waiting",player1_id:req.user.id,state:{...initialState(gameType),adminPreview:req.adminPreview==="regular"},
       }).select("*").single();
       if(error)throw error;
       res.json(data);
