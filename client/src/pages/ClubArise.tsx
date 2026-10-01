@@ -12,6 +12,7 @@ import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 import MobileJoystick from "@/components/MobileJoystick";
+import { addHalloreadSceneDecor, HALLOREAD_ACTIVE } from "@/lib/halloread";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
@@ -319,7 +320,7 @@ export default function ClubArise(){
   useEffect(()=>{
     const mount=mountRef.current;if(!mount||!self)return;
     let disposed=false;
-    const scene=new THREE.Scene();scene.background=new THREE.Color(0x070b1a);scene.fog=new THREE.FogExp2(0x11152b,.014);sceneRef.current=scene;
+    const scene=new THREE.Scene();scene.background=new THREE.Color(HALLOREAD_ACTIVE?0x08030e:0x070b1a);scene.fog=new THREE.FogExp2(HALLOREAD_ACTIVE?0x1b0b22:0x11152b,HALLOREAD_ACTIVE?.021:.014);sceneRef.current=scene;
     const camera=new THREE.PerspectiveCamera(52,mount.clientWidth/mount.clientHeight,.1,120);camera.position.set(0,15,24);cameraRef.current=camera;
     const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setSize(mount.clientWidth,mount.clientHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.domElement.className="absolute inset-0 h-full w-full";mount.appendChild(renderer.domElement);rendererRef.current=renderer;
     const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.3,2);controls.enableDamping=true;controls.enablePan=true;controls.screenSpacePanning=false;controls.maxPolarAngle=Math.PI*.47;controls.minDistance=8;controls.maxDistance=36;
@@ -332,7 +333,7 @@ export default function ClubArise(){
     // Neon arcade clubhouse.
     addBox(scene,[18,6,6],[0,3,-24],0x17152c);addNeonBox(scene,[15,.18,.18],[0,5.55,-20.9],0x22d3ee,4);
     addNeonBox(scene,[.18,4.3,.18],[-8.1,3,-20.9],0xa855f7,3.4);addNeonBox(scene,[.18,4.3,.18],[8.1,3,-20.9],0xec4899,3.4);
-    const clubSign=makeLabel("A.R.I.S.E ARCADE","#111827","#67e8f9");clubSign.position.set(0,7,-21);clubSign.scale.set(8.5,2.1,1);scene.add(clubSign);
+    const clubSign=makeLabel(HALLOREAD_ACTIVE?"HALLOREAD ARCADE":"A.R.I.S.E ARCADE",HALLOREAD_ACTIVE?"#16071f":"#111827",HALLOREAD_ACTIVE?"#fb923c":"#67e8f9");clubSign.position.set(0,7,-21);clubSign.scale.set(8.5,2.1,1);scene.add(clubSign);if(HALLOREAD_ACTIVE)addHalloreadSceneDecor(scene,"arcade");
     addBox(scene,[7,3.8,5],[-20,1.9,-17],0x17152c);addNeonBox(scene,[6.2,.16,.16],[-20,3.7,-14.4],0x8b5cf6,3);
     addBox(scene,[7,3.8,5],[20,1.9,-17],0x17152c);addNeonBox(scene,[6.2,.16,.16],[20,3.7,-14.4],0xf43f5e,3);
 
@@ -667,7 +668,7 @@ export default function ClubArise(){
     </div>}
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/80 via-black/45 to-transparent px-2 py-2 sm:p-3">
       <button onClick={()=>setLeavingWorld(true)} className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
-      <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">A.R.I.S.E Arcade</h1><p className="hidden text-xs font-bold text-white/70 sm:block">Learn · play · meet readers safely</p></div>
+      <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">{HALLOREAD_ACTIVE?"Halloread Arcade":"A.R.I.S.E Arcade"}</h1><p className="hidden text-xs font-bold text-white/70 sm:block">{HALLOREAD_ACTIVE?"After-hours arcade takeover · spooky, not gory":"Learn · play · meet readers safely"}</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);setShowMobileChat(false);setShowMobileCamera(false);}} className="pointer-events-auto flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-black/70 px-3 font-black backdrop-blur sm:min-h-11 sm:gap-2 sm:py-2" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/><span>{onlineReaders.length}</span><span className="hidden sm:inline">readers</span></button>
     </header>
 
