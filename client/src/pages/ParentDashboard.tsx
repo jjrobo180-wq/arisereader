@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Trophy, BookOpen, Award, LogOut, Brain, Users, Gamepad2, Settings2,
-  UserPlus, ChevronDown, Eye, ShieldCheck, Clock3, Sparkles, MessageSquareText, Home
+  UserPlus, ChevronDown, Eye, ShieldCheck, Clock3, Sparkles, MessageSquareText, Home, KeyRound, Copy
 } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
@@ -92,6 +92,8 @@ export default function ParentDashboard() {
   const [controlMessage, setControlMessage] = useState("");
   const profileRequest = useRef(0);
   const [controlsError, setControlsError] = useState("");
+  const [proctorPassword, setProctorPassword] = useState("");
+  const [proctorCopied, setProctorCopied] = useState(false);
 
   const authToken = token || getTokenFromCookie();
 
@@ -190,6 +192,26 @@ export default function ParentDashboard() {
 
   useEffect(() => { void loadFamily(); }, [authToken]);
 
+  useEffect(() => {
+    if (!authToken) return;
+    fetch(`${API_BASE}/api/parent/proctor-password`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      cache: "no-store",
+    })
+      .then(async (res) => res.ok ? res.json() : null)
+      .then((body) => { if (body?.password) setProctorPassword(String(body.password)); })
+      .catch(() => {});
+  }, [authToken, linkedStudents.length]);
+
+  const copyProctorPassword = async () => {
+    if (!proctorPassword) return;
+    try {
+      await navigator.clipboard.writeText(proctorPassword);
+      setProctorCopied(true);
+      window.setTimeout(() => setProctorCopied(false), 1600);
+    } catch {}
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem("arise_parent_child_id");
     logout();
@@ -275,6 +297,28 @@ export default function ParentDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {proctorPassword && (
+          <section className="overflow-hidden rounded-[1.75rem] border border-violet-400/25 bg-gradient-to-r from-violet-500/14 via-fuchsia-500/[.08] to-cyan-400/10 p-4 shadow-[0_18px_55px_rgba(0,0,0,.20)] sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl arise-icon-tile">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-200">Parent Proctor Code</p>
+                <h2 className="mt-1 text-lg font-black text-white">Use this code when your child starts a quiz or reading test.</h2>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">This is your private family proctor code. It works for every child linked to this Parent account and records the test as parent-administered.</p>
+              </div>
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0f0d1d] px-4 py-3">
+                <span className="font-mono text-2xl font-black tracking-[.22em] text-cyan-200">{proctorPassword}</span>
+                <button type="button" onClick={() => void copyProctorPassword()} className="rounded-xl p-2 text-violet-200 hover:bg-white/[.07]" aria-label="Copy Parent Proctor Code">
+                  <Copy className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {proctorCopied && <p className="mt-2 text-right text-xs font-black text-cyan-200">Copied</p>}
+          </section>
+        )}
+
         <section className="rounded-[1.75rem] arise-surface border border-white/10 p-4 sm:p-5 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="flex-1">
