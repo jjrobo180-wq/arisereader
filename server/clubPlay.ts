@@ -3,6 +3,63 @@ import { getAdminSupabase } from './supabase';
 import { clubDay, clubWeek, updatePlayRecord, type PlayAccess, type PlayRecord } from '../shared/clubPlay';
 
 const cached = new Map<number, { access: PlayAccess; until: number }>();
+type ClubClosingHours = { enabled: boolean; start: string; end: string; days: number[]; timeZone: string };
+let closingCache: { value: ClubClosingHours; until: number } | null = null;
+
+const DEFAULT_CLOSING_HOURS: ClubClosingHours = {
+  enabled: false,
+  start: "21:00",
+  end: "07:00",
+  days: [0,1,2,3,4,5,6],
+  timeZone: "America/Denver",
+};
+
+async function getClosingHours(): Promise<ClubClosingHours> {
+  const now = Date.now();
+  if (closingCache && closingCache.until > now) return closingCache.value;
+  const db = getAdminSupabase();
+  const { data, error } = await db.from("settings").select("value").eq("key", "club_closing_hours").maybeSingle();
+  if (error) throw error;
+  let value = { ...DEFAULT_CLOSING_HOURS };
+  if (data?.value) {
+    try {
+      const parsed = JSON.parse(data.value);
+      value = {
+        enabled: parsed?.enabled === true,
+        start: /^\d{2}:\d{2}$/.test(String(parsed?.start || "")) ? String(parsed.start) : DEFAULT_CLOSING_HOURS.start,
+        end: /^\d{2}:\d{2}$/.test(String(parsed?.end || "")) ? String(parsed.end) : DEFAULT_CLOSING_HOURS.end,
+        days: Array.isArray(parsed?.days) ? parsed.days.map(Number).filter((d:number)=>Number.isInteger(d)&&d>=0&&d<=6) : DEFAULT_CLOSING_HOURS.days,
+        timeZone: "America/Denver",
+      };
+    } catch {}
+  }
+  closingCache = { value, until: now + 5_000 };
+  return value;
+}
+
+function closingStatus(schedule: ClubClosingHours, now = Date.now()) {
+  if (!schedule.enabled || !schedule.days.length) return false;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: schedule.timeZone,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type:string) => parts.find(p => p.type === type)?.value || "";
+  const weekdays: Record<string,number> = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+  const day = weekdays[get("weekday")] ?? 0;
+  const minute = Number(get("hour")) * 60 + Number(get("minute"));
+  const toMinute = (value:string) => {
+    const [h,m] = value.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const start = toMinute(schedule.start), end = toMinute(schedule.end);
+  if (start === end) return schedule.days.includes(day);
+  if (start < end) return schedule.days.includes(day) && minute >= start && minute < end;
+  const previousDay = (day + 6) % 7;
+  return (schedule.days.includes(day) && minute >= start) || (schedule.days.includes(previousDay) && minute < end);
+}
 const entitlements = new Map<number, {
   passedThisWeek: number;
   locked: boolean;
@@ -60,14 +117,17 @@ async function allowance(userId: number, now: number) {
 
 async function playTime(userId: number, sessionId?: string, leaving = false) {
   const now = Date.now(), grant = await allowance(userId, now);
+  const closingHours = await getClosingHours();
+  const closedByAdmin = closingStatus(closingHours, now);
+  const effectiveLocked = grant.locked || closedByAdmin;
   const hit = cached.get(userId);
 
   if (!sessionId && hit && hit.until > now && hit.access.day === grant.day && hit.access.week === grant.week &&
-      hit.access.locked === grant.locked && hit.access.unlimitedThisWeek === grant.unlimitedThisWeek &&
+      hit.access.locked === effectiveLocked && hit.access.unlimitedThisWeek === grant.unlimitedThisWeek &&
       hit.access.weeklyUnlimitedOnPass === grant.weeklyUnlimitedOnPass && hit.access.passedThisWeek === grant.passedThisWeek) {
-    if (hit.access.unlimitedThisWeek) return { ...hit.access, serverNow: now, allowed: !grant.locked };
+    if (hit.access.unlimitedThisWeek) return { ...hit.access, serverNow: now, allowed: !effectiveLocked, locked: grant.locked, closedByAdmin, closingHours };
     const remainingMs = Math.max(0, hit.access.expiresAt - now);
-    return { ...hit.access, remainingMs, serverNow: now, allowed: !grant.locked && remainingMs > 0 && hit.access.leaseUntil > now };
+    return { ...hit.access, remainingMs, serverNow: now, allowed: !effectiveLocked && remainingMs > 0 && hit.access.leaseUntil > now, locked: grant.locked, closedByAdmin, closingHours };
   }
 
   const db = getAdminSupabase(), key = `club_play_time_${userId}`;
@@ -83,7 +143,7 @@ async function playTime(userId: number, sessionId?: string, leaving = false) {
       Date.now(),
       sessionId,
       leaving,
-      grant.locked,
+      effectiveLocked,
       grant.unlimitedThisWeek,
       grant.weeklyUnlimitedOnPass,
       grant.passedThisWeek,
@@ -102,8 +162,9 @@ async function playTime(userId: number, sessionId?: string, leaving = false) {
       }
     }
 
-    cached.set(userId, { access, until: Date.now() + 2_000 });
-    return access;
+    const finalAccess = { ...access, locked: grant.locked, closedByAdmin, closingHours, allowed: access.allowed && !closedByAdmin };
+    cached.set(userId, { access: finalAccess, until: Date.now() + 2_000 });
+    return finalAccess;
   }
   throw new Error('Play time is syncing. Please try again.');
 }
@@ -125,6 +186,8 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
       dailyMinutes: 0,
       weeklyUnlimitedOnPass: true,
       passedThisWeek: 0,
+      closedByAdmin: false,
+      closingHours: null,
       sample: true,
     };
   };
@@ -134,6 +197,44 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
     if (!/^[a-zA-Z0-9-]{16,64}$/.test(id)) throw new Error('Open Club Arise again to start your timer.');
     return id;
   };
+
+  app.get('/api/admin/club-closing-hours', auth, async (req:any,res) => {
+    if (!req.user?.isAdmin) return res.status(403).json({ message: 'Admin access required.' });
+    try {
+      const schedule = await getClosingHours();
+      res.set('Cache-Control','no-store');
+      res.json({ ...schedule, closedNow: closingStatus(schedule) });
+    } catch {
+      res.status(500).json({ message: 'Could not load Club closing hours.' });
+    }
+  });
+
+  app.post('/api/admin/club-closing-hours', auth, async (req:any,res) => {
+    if (!req.user?.isAdmin) return res.status(403).json({ message: 'Admin access required.' });
+    try {
+      const start = String(req.body?.start || '');
+      const end = String(req.body?.end || '');
+      const days = Array.isArray(req.body?.days) ? req.body.days.map(Number).filter((d:number)=>Number.isInteger(d)&&d>=0&&d<=6) : [];
+      if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
+        return res.status(400).json({ message: 'Choose a valid closing and reopening time.' });
+      }
+      const schedule: ClubClosingHours = {
+        enabled: req.body?.enabled === true,
+        start,
+        end,
+        days: Array.from(new Set(days)).sort((a,b)=>a-b),
+        timeZone: 'America/Denver',
+      };
+      const db = getAdminSupabase();
+      const { error } = await db.from('settings').upsert({ key:'club_closing_hours', value:JSON.stringify(schedule) }, { onConflict:'key' });
+      if (error) throw error;
+      closingCache = { value:schedule, until:Date.now()+5_000 };
+      cached.clear();
+      res.json({ ...schedule, closedNow: closingStatus(schedule), message:'Club closing hours saved.' });
+    } catch {
+      res.status(500).json({ message: 'Could not save Club closing hours.' });
+    }
+  });
 
   app.post('/api/club-play/heartbeat', auth, async (req: any, res) => {
     res.set('Cache-Control', 'no-store');
@@ -159,9 +260,11 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
       const access = await playTime(Number(req.user.id));
       if (!access.allowed) {
         return res.status(403).json({
-          message: access.locked
-            ? 'Club Arise is locked by your teacher.'
-            : access.weeklyUnlimitedOnPass
+          message: access.closedByAdmin
+            ? `Club A.R.I.S.E. is closed right now. Admin hours: ${access.closingHours?.start || ''}–${access.closingHours?.end || ''} Mountain Time.`
+            : access.locked
+              ? 'Club Arise is locked by your teacher.'
+              : access.weeklyUnlimitedOnPass
               ? 'Your daily Club A.R.I.S.E. time is up. Pass a book quiz to unlock unlimited play for the rest of this week.'
               : 'Your daily Club A.R.I.S.E. time is up.',
           playAccess: access,
