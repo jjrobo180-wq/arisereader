@@ -159,19 +159,19 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-slate-950 selection:bg-orange-200">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_15%_0%,rgba(124,58,237,.07),transparent_24%),radial-gradient(circle_at_85%_8%,rgba(6,182,212,.06),transparent_22%),#f8f9fc] text-slate-950 selection:bg-violet-200">
       <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-xl lg:sticky lg:top-0 lg:z-50">
         <div className="mx-auto flex max-w-[1500px] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <button type="button" onClick={() => navigate("/")} className="group flex min-w-0 items-center gap-3 text-left">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-orange-500 via-violet-500 to-cyan-400 shadow-sm">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 shadow-sm">
               <BookOpen className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="whitespace-nowrap text-base font-black tracking-[.07em] sm:text-lg">
-                  A.R.I.S.E. <span className="tracking-[.02em] text-orange-600">Reader</span>
+                  A.R.I.S.E. <span className="tracking-[.02em] bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">Reader</span>
                 </span>
-                <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[9px] font-black tracking-[.14em] text-orange-700">2.0</span>
+                <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-black tracking-[.14em] text-violet-700">2.0</span>
               </div>
               <p className="hidden text-[9px] font-bold uppercase tracking-[.2em] text-slate-400 sm:block">Read · Learn · Earn · Play · Grow</p>
             </div>
@@ -198,17 +198,17 @@ export default function Login() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] lg:items-start">
           <section className="order-2 min-w-0 lg:order-1">
             <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,.08)]">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-400 via-violet-500 to-cyan-400" />
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400" />
 
               <div className="grid gap-7 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center lg:p-10">
                 <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-orange-700">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-violet-700">
                     <Sparkles className="h-3.5 w-3.5" /> A.R.I.S.E. Reader 2.0
                   </div>
 
                   <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[.98] tracking-[-.05em] text-slate-950 sm:text-5xl lg:text-6xl">
                     Read. Learn. Earn.
-                    <span className="mt-1 block bg-gradient-to-r from-orange-600 via-violet-600 to-cyan-600 bg-clip-text text-transparent">Then keep exploring.</span>
+                    <span className="mt-1 block bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">Then keep exploring.</span>
                   </h1>
 
                   <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-500">
@@ -222,7 +222,7 @@ export default function Login() {
                   </div>
 
                   <div className="mt-7 flex flex-wrap gap-3">
-                    <Button onClick={() => setFrontTab("create")} className="h-11 rounded-full px-5 font-black">
+                    <Button onClick={() => setFrontTab("create")} className="h-11 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 px-5 font-black text-white shadow-lg shadow-violet-500/15 hover:brightness-105">
                       Create an account <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                     <Button variant="outline" onClick={() => setShowSampleChooser(true)} className="h-11 rounded-full border-slate-200 bg-white px-5 font-black text-slate-800 hover:bg-slate-50">
@@ -232,14 +232,14 @@ export default function Login() {
                 </div>
 
                 <div className="relative mx-auto w-full max-w-[300px]">
-                  <div className="absolute -inset-3 rounded-[2.5rem] bg-gradient-to-br from-orange-100 via-violet-100 to-cyan-100 blur-xl" />
+                  <div className="absolute -inset-3 rounded-[2.5rem] bg-gradient-to-br from-violet-100 via-fuchsia-100 to-cyan-100 blur-xl" />
                   <div className="relative rounded-[2rem] border border-slate-200 bg-white p-4 shadow-xl">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-[.18em] text-orange-600">Your A.R.I.S.E.</p>
+                        <p className="text-[9px] font-black uppercase tracking-[.18em] text-violet-600">Your A.R.I.S.E.</p>
                         <p className="mt-1 text-base font-black">More reasons to keep going.</p>
                       </div>
-                      <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-orange-400 text-white"><Sparkles className="h-5 w-5" /></div>
+                      <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white"><Sparkles className="h-5 w-5" /></div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       {[
@@ -288,7 +288,7 @@ export default function Login() {
               {frontTab === "signin" && (
                 <div className="p-5 sm:p-6">
                   <div className="mb-5 flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-orange-50"><LogIn className="h-5 w-5 text-orange-600" /></div>
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-50"><LogIn className="h-5 w-5 text-violet-600" /></div>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">Welcome back</p>
                       <h2 className="text-xl font-black tracking-tight">Sign in to A.R.I.S.E.</h2>
@@ -305,7 +305,7 @@ export default function Login() {
                       <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" required className="h-12 border-slate-200 bg-slate-50 text-slate-950 placeholder:text-slate-400" data-testid="input-password" />
                     </div>
                     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700" data-testid="text-error">{error}</div>}
-                    <Button type="submit" className="h-12 w-full rounded-xl font-black" disabled={loading} data-testid="button-login">
+                    <Button type="submit" className="h-12 w-full rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 font-black text-white shadow-lg shadow-violet-500/15 hover:brightness-105" disabled={loading} data-testid="button-login">
                       {loading ? "Logging in…" : "Log in"}
                     </Button>
                   </form>
@@ -314,13 +314,13 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowSampleChooser(true)}
                     disabled={loading || !!sampleLoading}
-                    className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 text-sm font-black text-orange-700 transition hover:bg-orange-100 disabled:opacity-50"
+                    className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 via-fuchsia-50 to-cyan-50 px-4 text-sm font-black text-violet-700 transition hover:border-fuchsia-200 hover:shadow-sm disabled:opacity-50"
                   >
                     <Sparkles className="h-4 w-4" /> Try sample account
                   </button>
 
                   <button type="button" onClick={() => setFrontTab("create")} className="mt-4 w-full text-center text-sm font-bold text-slate-500 hover:text-slate-900">
-                    New here? <span className="text-orange-600">Create an account</span>
+                    New here? <span className="text-violet-600">Create an account</span>
                   </button>
                 </div>
               )}
@@ -334,17 +334,17 @@ export default function Login() {
                   </div>
 
                   <div className="space-y-3">
-                    <button type="button" onClick={() => navigate("/register")} className="group flex w-full items-center gap-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-left transition hover:-translate-y-0.5 hover:bg-orange-100">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-orange-500 text-white"><Users className="h-5 w-5" /></div>
+                    <button type="button" onClick={() => navigate("/register")} className="group flex w-full items-center gap-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-fuchsia-200">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-500 text-white"><Users className="h-5 w-5" /></div>
                       <div className="min-w-0 flex-1">
                         <p className="font-black text-slate-950">Student</p>
                         <p className="text-xs font-semibold text-slate-500">Read, quiz, earn, play, and build your profile.</p>
                       </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-orange-600" />
+                      <ArrowRight className="h-4 w-4 shrink-0 text-violet-600" />
                     </button>
 
-                    <button type="button" onClick={() => navigate("/teacher-signup")} className="group flex w-full items-center gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left transition hover:-translate-y-0.5 hover:bg-blue-100">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue-500 text-white"><GraduationCap className="h-5 w-5" /></div>
+                    <button type="button" onClick={() => navigate("/teacher-signup")} className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-300">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white"><GraduationCap className="h-5 w-5" /></div>
                       <div className="min-w-0 flex-1">
                         <p className="font-black text-slate-950">Teacher</p>
                         <p className="text-xs font-semibold text-slate-500">Manage students, live games, quizzes, rewards, and controls.</p>
@@ -352,8 +352,8 @@ export default function Login() {
                       <ArrowRight className="h-4 w-4 shrink-0 text-blue-600" />
                     </button>
 
-                    <button type="button" onClick={() => navigate("/parent-signup")} className="group flex w-full items-center gap-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-left transition hover:-translate-y-0.5 hover:bg-violet-100">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-500 text-white"><Heart className="h-5 w-5" /></div>
+                    <button type="button" onClick={() => navigate("/parent-signup")} className="group flex w-full items-center gap-4 rounded-2xl border border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-violet-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-violet-300">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-violet-600 text-white"><Heart className="h-5 w-5" /></div>
                       <div className="min-w-0 flex-1">
                         <p className="font-black text-slate-950">Parent</p>
                         <p className="text-xs font-semibold text-slate-500">Link children, switch quickly, track growth, and manage controls.</p>
@@ -430,7 +430,7 @@ export default function Login() {
                     key={key}
                     type="button"
                     onClick={() => setActiveFeature(key)}
-                    className={`flex min-w-max items-center gap-2 rounded-full border px-4 py-2.5 text-xs font-black transition ${activeFeature === key ? "border-orange-200 bg-orange-50 text-orange-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
+                    className={`flex min-w-max items-center gap-2 rounded-full border px-4 py-2.5 text-xs font-black transition ${activeFeature === key ? "border-violet-200 bg-gradient-to-r from-violet-50 via-fuchsia-50 to-cyan-50 text-violet-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
                   >
                     <Icon className="h-4 w-4" /> {item.label}
                   </button>
@@ -441,7 +441,7 @@ export default function Login() {
 
           <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
             <div className="p-6 sm:p-7">
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-orange-600">{feature.kicker}</p>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">{feature.kicker}</p>
               <h2 className="mt-2 max-w-2xl text-2xl font-black tracking-[-.03em] sm:text-3xl">{feature.title}</h2>
               <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-500">{feature.description}</p>
 
@@ -452,7 +452,7 @@ export default function Login() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-2">
-                <Button onClick={() => navigate(feature.tutorial)} className="rounded-full font-black">
+                <Button onClick={() => navigate(feature.tutorial)} className="rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 font-black text-white shadow-md shadow-violet-500/10 hover:brightness-105">
                   Full tutorial <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 {feature.sample && (
@@ -463,11 +463,11 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="relative min-h-[220px] overflow-hidden border-t border-slate-100 bg-gradient-to-br from-orange-50 via-violet-50 to-cyan-50 p-6 lg:border-l lg:border-t-0">
+            <div className="relative min-h-[220px] overflow-hidden border-t border-slate-100 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-cyan-50 p-6 lg:border-l lg:border-t-0">
               <div className="absolute right-4 top-1 text-[110px] font-black leading-none text-slate-900/[.03]">{featureKeys.indexOf(activeFeature) + 1}</div>
               <div className="relative flex h-full flex-col justify-between">
                 <div className="grid h-16 w-16 place-items-center rounded-[1.4rem] border border-white bg-white shadow-md">
-                  <FeatureIcon className="h-8 w-8 text-orange-600" />
+                  <FeatureIcon className="h-8 w-8 text-violet-600" />
                 </div>
                 <p className="mt-12 text-xs font-black uppercase tracking-[.2em] text-slate-400">Interactive feature preview</p>
               </div>
@@ -489,14 +489,14 @@ export default function Login() {
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
           <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
             <div className="border-b border-slate-100 p-6 sm:p-7">
-              <p className="text-xs font-black uppercase tracking-[.18em] text-orange-600">Sample Experience</p>
+              <p className="text-xs font-black uppercase tracking-[.18em] text-violet-600">Sample Experience</p>
               <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Choose the account you want to try.</h2>
               <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-slate-500">Sample accounts are sandbox demos and do not enter student leaderboards or competition rankings.</p>
             </div>
 
             <div className="grid gap-3 p-5 sm:p-6 md:grid-cols-3">
-              <button type="button" onClick={() => void loginSample("student")} disabled={!!sampleLoading} className="rounded-2xl border-2 border-slate-100 bg-slate-50 p-5 text-left transition hover:-translate-y-1 hover:border-orange-200 hover:bg-orange-50 disabled:opacity-50">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-100"><Users className="h-6 w-6 text-orange-600" /></div>
+              <button type="button" onClick={() => void loginSample("student")} disabled={!!sampleLoading} className="rounded-2xl border-2 border-slate-100 bg-slate-50 p-5 text-left transition hover:-translate-y-1 hover:border-violet-200 hover:bg-violet-50 disabled:opacity-50">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-100"><Users className="h-6 w-6 text-violet-600" /></div>
                 <p className="mt-4 font-black">{sampleLoading === "student" ? "Opening…" : "Student"}</p>
                 <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">Library, quizzes, Club, arcade, avatars, pets, worlds, rewards, and more.</p>
               </button>
