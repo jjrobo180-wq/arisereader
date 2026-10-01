@@ -93,7 +93,7 @@ export default function About() {
             <div className="relative mx-auto md:mx-0 w-full max-w-[280px]">
               <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-primary/35 via-orange-400/20 to-violet-500/25 blur-xl" />
               <img
-                src="/about/mr-j-portrait.webp?v=20260930"
+                src="/about/mr-j-portrait.jpg?v=20260930"
                 alt="Mr. J, creator of A.R.I.S.E. Reader"
                 className="relative w-full aspect-[3/4] object-cover rounded-2xl border-2 border-primary/20 shadow-xl"
               />
@@ -194,17 +194,17 @@ export default function About() {
             <div className="grid sm:grid-cols-3 gap-4">
               {[
                 {
-                  src: "/about/mr-j-classroom-1.webp?v=20260930",
+                  src: "/about/mr-j-classroom-1.jpg?v=20260930",
                   alt: "Mr. J working with students at a classroom table",
                   caption: "Learning is stronger when students feel supported.",
                 },
                 {
-                  src: "/about/mr-j-classroom-2.webp?v=20260930",
+                  src: "/about/mr-j-classroom-2.jpg?v=20260930",
                   alt: "Mr. J working alongside students in a classroom",
                   caption: "Building confidence through real relationships.",
                 },
                 {
-                  src: "/about/mr-j-classroom-3.webp?v=20260930",
+                  src: "/about/mr-j-classroom-3.jpg?v=20260930",
                   alt: "Mr. J helping a student with classroom work",
                   caption: "Meeting students where they are and helping them grow.",
                 },
