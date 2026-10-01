@@ -108,14 +108,14 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white tracking-wide">A.R.I.S.E<span className="text-primary"> Reader</span></h1>
-          <p className="text-muted-foreground mt-2">Create your account to start earning points</p>
+    <div className="min-h-screen arise-page-bg flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-xl">
+        <div className="text-center mb-7">
+          <h1 className="text-4xl sm:text-5xl font-black text-white tracking-[-.045em]">A.R.I.S.E<span className="arise-gradient-text"> Reader</span></h1>
+          <p className="text-slate-400 mt-2 font-semibold">Create your account to start earning points</p>
         </div>
 
-        <Card className="shadow-xl bg-card">
+        <Card className="arise-surface rounded-[1.75rem] border border-white/10 overflow-hidden">
           <CardHeader>
             <CardTitle className="text-white">Create Account</CardTitle>
             <CardDescription>Choose a username and password you'll remember</CardDescription>
@@ -132,7 +132,7 @@ export default function Register() {
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Alex"
                     required
-                    className="bg-input text-white border-border"
+                    className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
                     data-testid="input-firstname"
                   />
                 </div>
@@ -145,7 +145,7 @@ export default function Register() {
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Martinez"
                     required
-                    className="bg-input text-white border-border"
+                    className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
                     data-testid="input-lastname"
                   />
                 </div>
@@ -159,7 +159,7 @@ export default function Register() {
                   onChange={(e) => { setUsername(e.target.value); setUsernameEdited(true); }}
                   placeholder="Enter your username"
                   required
-                  className="bg-input text-white border-border"
+                  className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
                   data-testid="input-username"
                 />
                 {firstName && lastName && !usernameEdited && (
@@ -175,7 +175,7 @@ export default function Register() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 4 characters"
                   required
-                  className="bg-input text-white border-border"
+                  className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
                   data-testid="input-password"
                 />
               </div>
@@ -188,7 +188,7 @@ export default function Register() {
                   onChange={(e) => setConfirm(e.target.value)}
                   placeholder="Type your password again"
                   required
-                  className="bg-input text-white border-border"
+                  className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
                   data-testid="input-confirm"
                 />
               </div>
@@ -198,7 +198,7 @@ export default function Register() {
                   id="school"
                   value={selectedSchoolId}
                   onChange={(e) => { setSelectedSchoolId(e.target.value); setSelectedGrade(""); setSelectedTeacherId(""); }}
-                  className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm"
+                  className="w-full min-h-12 p-3 rounded-xl bg-[#0f0d1d] text-white border border-white/10 text-sm outline-none focus:border-violet-400/50"
                   data-testid="select-school"
                 >
                   <option value="">Choose your school...</option>
@@ -271,7 +271,7 @@ export default function Register() {
                   value={selectedTeacherId}
                   onChange={(e) => setSelectedTeacherId(e.target.value)}
                   disabled={!selectedSchoolId || !selectedGrade}
-                  className="w-full p-2.5 rounded-lg bg-input text-white border border-border text-sm disabled:opacity-50"
+                  className="w-full min-h-12 p-3 rounded-xl bg-[#0f0d1d] text-white border border-white/10 text-sm outline-none focus:border-violet-400/50 disabled:opacity-50"
                   data-testid="select-teacher"
                 >
                   <option value="">{!selectedSchoolId || !selectedGrade ? "Select school and grade first..." : "Select your teacher..."}</option>
@@ -280,13 +280,13 @@ export default function Register() {
                   ))}
                 </select>
                 {selectedSchoolId && selectedGrade && teachers.length === 0 && (
-                  <p className="text-xs text-amber-500 mt-1">No teachers found for this school and grade. Please contact your school administrator.</p>
+                  <p className="text-xs text-fuchsia-300 mt-1">No teachers found for this school and grade. Please contact your school administrator.</p>
                 )}
                 {selectedTeacherId && (
                   <p className="text-xs text-muted-foreground mt-1">You can start reading and taking quizzes right away. Your teacher will approve you to appear under their profile.</p>
                 )}
               </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-fuchsia-500/8 to-cyan-400/10 border border-violet-400/20">
                 <input
                   type="checkbox"
                   id="eyeGaze"
@@ -304,7 +304,7 @@ export default function Register() {
                   {error}
                 </div>
               )}
-              <Button type="submit" className="w-full bg-primary" disabled={loading} data-testid="button-register">
+              <Button type="submit" className="w-full arise-gradient-button h-12 rounded-xl font-black" disabled={loading} data-testid="button-register">
                 {loading ? "Creating account..." : "Create Account"}
               </Button>
               <div className="text-center text-sm text-muted-foreground">
@@ -312,7 +312,7 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => navigate("/")}
-                  className="text-primary font-medium hover:underline"
+                  className="arise-gradient-text font-black hover:opacity-90"
                 >
                   Log in
                 </button>
@@ -328,7 +328,7 @@ export default function Register() {
           <button
             type="button"
             onClick={() => navigate("/teacher-signup")}
-            className="text-sm text-primary font-medium hover:underline"
+            className="text-sm arise-gradient-text font-black hover:opacity-90"
           >
             Are you a teacher? Sign up here
           </button>
@@ -337,7 +337,7 @@ export default function Register() {
           <button
             type="button"
             onClick={() => navigate("/parent-signup")}
-            className="text-sm text-primary font-medium hover:underline"
+            className="text-sm arise-gradient-text font-black hover:opacity-90"
           >
             Are you a parent? Sign up here
           </button>
