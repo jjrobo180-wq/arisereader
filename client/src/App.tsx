@@ -50,6 +50,7 @@ const Worlds = lazy(() => import("./pages/Worlds"));
 const Neighborhood = lazy(() => import("./pages/Neighborhood"));
 const HomeInterior = lazy(() => import("./pages/HomeInterior"));
 const BoardGameWorld = lazy(() => import("./pages/BoardGameWorld"));
+const UltimateChess = lazy(() => import("./pages/UltimateChess"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const Library = lazy(() => import("./pages/Library"));
 const Quiz = lazy(() => import("./pages/Quiz"));
@@ -354,6 +355,11 @@ function AppRoutes() {
         {!isEyeGazeStudent
           ? <ProtectedRoute><BoardGameWorld /></ProtectedRoute>
           : <Redirect to="/eye-gaze-home" replace />}
+      </Route>
+      <Route path="/ultimate-chess">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><UltimateChess /></ProtectedRoute>
+          : <Redirect to="/" replace />}
       </Route>
       <Route path="/laser-royale">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
