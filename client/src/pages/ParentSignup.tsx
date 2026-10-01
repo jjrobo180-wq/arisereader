@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, Info, UserPlus, Link2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -13,6 +13,14 @@ export default function ParentSignup() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
+      const code = new URLSearchParams(query).get("code");
+      if (code) setParentCode(code.toUpperCase());
+    } catch {}
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -50,13 +58,13 @@ export default function ParentSignup() {
         {submitted ? (
           <div style={styles.success} role="status" data-testid="status-parent-signup-success">
             <CheckCircle2 size={28} aria-hidden="true" />
-            <p style={{ margin: 0 }}>Your account is ready and connected to your child. You can log in now.</p>
+            <p style={{ margin: 0 }}>Your account is ready and connected to your child. Log in to see your Parent Proctor Code for quizzes and reading tests.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>Enter the parent code on the handout from your child's school. Your account will connect to your child automatically.</span>
+              <span>Use the student connection code from your child, email invitation, or school handout. Your account will connect to your child automatically.</span>
             </div>
             <Field id="parent-display-name" label="Your Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="parent-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
