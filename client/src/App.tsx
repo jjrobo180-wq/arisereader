@@ -494,7 +494,8 @@ function AppInner() {
   return (
     <>
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
-      {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}\n      {isStudent && !isEyeGazeStudent && !isAdminPreview && <HalloreadWelcome />}
+      {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && <HalloreadWelcome />}
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
