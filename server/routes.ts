@@ -1024,7 +1024,7 @@ export async function registerRoutes(
     throw new Error("Could not create a unique parent proctor code.");
   };
 
-  type QuizKind = "book" | "eye_gaze" | "custom_eye_gaze";
+  type QuizKind = "book" | "eye_gaze" | "custom_eye_gaze" | "reading_assessment";
   type ProctorIdentity = { type: "parent" | "teacher"; userId: number | null; name: string };
 
   const createProctorSession = async (studentId: number, quizKind: QuizKind, quizId: number, proctor: ProctorIdentity) => {
@@ -5370,7 +5370,7 @@ export async function registerRoutes(
       const quizKind = String(req.body?.quizKind || "book") as QuizKind;
       const quizId = Number(req.body?.quizId);
       if (!password) return res.status(400).json({ message: "Proctor password is required." });
-      if (!["book", "eye_gaze", "custom_eye_gaze"].includes(quizKind) || !Number.isSafeInteger(quizId)) {
+      if (!["book", "eye_gaze", "custom_eye_gaze", "reading_assessment"].includes(quizKind) || !Number.isSafeInteger(quizId)) {
         return res.status(400).json({ message: "A valid quiz is required." });
       }
 
@@ -5754,10 +5754,33 @@ export async function registerRoutes(
   // ─── COMPREHENSIVE ASSESSMENT (Timed, all passages) ──────────────
 
   // Start comprehensive assessment
-  app.post("/api/reading-assessment/start-comprehensive", authMiddleware, async (req, res) => {
+  app.post("/api/reading-assessment/start-comprehensive", authMiddleware, async (req: any, res) => {
     try {
-      const result = await storage.startComprehensiveAssessment(req.user.id);
-      res.json(result);
+      const sampleAccount = isDemoStudent(req.user);
+      let proctor: ProctorIdentity | null = null;
+      if (!req.adminPreview && !sampleAccount && !req.user?.isAdmin && req.user?.role !== "teacher") {
+        const parentIds = await getStudentParentIds(req.user.id);
+        if (!parentIds.length) {
+          return res.status(403).json({
+            message: "Connect a parent or guardian account before starting the Progress Monitor.",
+            parentRequired: true,
+          });
+        }
+        proctor = await validateProctorSession(
+          String(req.body?.proctorSessionToken || ""),
+          req.user.id,
+          "reading_assessment",
+          0,
+          true
+        );
+        if (!proctor) {
+          return res.status(403).json({
+            message: "Your proctor session expired or is not valid. Ask your parent/guardian or teacher to enter the proctor code again."
+          });
+        }
+      }
+      const result = await storage.startComprehensiveAssessment(req.user.id, proctor);
+      res.json({ ...result, proctorType: proctor?.type || null, proctorName: proctor?.name || null });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to start assessment" });
     }
@@ -5767,14 +5790,20 @@ export async function registerRoutes(
   // Kept for backwards compatibility but not used in round-based flow
 
   // Submit comprehensive assessment — receives answersByQuestionId, scores server-side
-  app.post("/api/reading-assessment/:attemptId/submit-comprehensive", authMiddleware, async (req, res) => {
+  app.post("/api/reading-assessment/:attemptId/submit-comprehensive", authMiddleware, async (req: any, res) => {
     try {
       const { answersByQuestionId, timeUsedSeconds } = req.body;
       if (!answersByQuestionId || typeof answersByQuestionId !== "object") {
         return res.status(400).json({ message: "answersByQuestionId object is required" });
       }
+      const attemptId = parseInt(req.params.attemptId);
+      const attempt = await storage.getAssessmentAttempt(attemptId);
+      if (!attempt) return res.status(404).json({ message: "Assessment attempt not found" });
+      if (!req.adminPreview && Number(attempt.user_id) !== Number(req.user.id)) {
+        return res.status(403).json({ message: "That assessment attempt does not belong to this student." });
+      }
       const result = await storage.submitComprehensiveAssessment(
-        parseInt(req.params.attemptId),
+        attemptId,
         answersByQuestionId,
         timeUsedSeconds || 0
       );
@@ -8663,8 +8692,12 @@ Important:
           passed,
           passingScore,
           completedAt: a.completedAt,
+          proctorType: a.proctorType || null,
+          proctorUserId: a.proctorUserId ?? null,
+          proctorName: a.proctorName || null,
         };
       });
+      const readingAssessments = await storage.getAssessmentHistory(studentId);
       const totalPoints = Math.max(student.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0));
       res.json({
         student: {
@@ -8677,6 +8710,7 @@ Important:
         quizzesTaken: attempts.length,
         totalBooks: books.length,
         quizResults,
+        readingAssessments,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -8954,6 +8988,9 @@ Important:
           passed,
           passingScore,
           completedAt: a.completedAt,
+          proctorType: a.proctorType || null,
+          proctorUserId: a.proctorUserId ?? null,
+          proctorName: a.proctorName || null,
         };
       });
       const totalPoints = Math.max(student.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0));
