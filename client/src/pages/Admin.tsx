@@ -70,6 +70,9 @@ interface StudentDetail {
     score: number;
     total: number;
     completedAt: string;
+    proctorType?: "parent" | "teacher" | null;
+    proctorUserId?: number | null;
+    proctorName?: string | null;
   }[];
   messages: any[];
 }
@@ -4484,6 +4487,12 @@ Generate exactly 10 questions.`;
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{q.title}</p>
                           <p className="text-xs text-muted-foreground">{q.pointsValue || 10} pts</p>
+                          {q.proctorType && (
+                            <p className={`mt-1 text-[11px] font-bold ${q.proctorType === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
+                              {q.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
+                              {q.proctorName ? ` · ${q.proctorName}` : ""}
+                            </p>
+                          )}
                         </div>
                         <div className="w-full sm:w-auto flex sm:block items-center justify-between sm:text-right flex-shrink-0">
                           <div className="font-bold text-sm">{q.score}/{q.total}</div>
@@ -4526,7 +4535,14 @@ Generate exactly 10 questions.`;
                     {readingProgress.history.slice(0, 5).map((h: any, i: number) => (
                       <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded bg-muted/20">
                         <span className="truncate">{h.reading_passages?.title || "Assessment"}</span>
-                        <span className="font-semibold shrink-0 ml-2">{h.score}/{h.total}</span>
+                        <div className="shrink-0 ml-2 text-right">
+                          <span className="font-semibold">{h.score}/{h.total}</span>
+                          {h.proctor_type && (
+                            <div className={`text-[10px] font-bold ${h.proctor_type === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
+                              {h.proctor_type === "parent" ? "Parent" : "Teacher / staff"}{h.proctor_name ? ` · ${h.proctor_name}` : ""}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
