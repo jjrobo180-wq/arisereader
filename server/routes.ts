@@ -1725,7 +1725,7 @@ export async function registerRoutes(
   app.get("/api/books/:id/quiz", authMiddleware, async (req: any, res) => {
     const bookId = parseInt(req.params.id);
 
-    const sampleAccount = String(req.user?.username || "").startsWith("sample");
+    const sampleAccount = isDemoStudent(req.user);
 
     // Admin preview and sample accounts can retake quizzes freely without creating student records.
     if (!req.adminPreview && !sampleAccount) {
@@ -1757,7 +1757,7 @@ export async function registerRoutes(
   app.post("/api/books/:id/quiz", authMiddleware, async (req: any, res) => {
     const bookId = parseInt(req.params.id);
 
-    const sampleAccount = String(req.user?.username || "").startsWith("sample");
+    const sampleAccount = isDemoStudent(req.user);
 
     // Admin preview and sample accounts can take the full quiz repeatedly without persisting attempts.
     if (!req.adminPreview && !sampleAccount) {
@@ -1771,9 +1771,30 @@ export async function registerRoutes(
     const book = await storage.getBook(bookId);
     const effectivePoints = Number(book?.pointsValue ?? 0);
 
-    const { answers } = req.body; // { questionId: "A"|"B"|"C"|"D" }
+    const { answers, proctorSessionToken } = req.body; // { questionId: "A"|"B"|"C"|"D" }
     if (!answers || typeof answers !== "object") {
       return res.status(400).json({ message: "Answers are required" });
+    }
+
+    let verifiedProctor: ProctorIdentity | null = null;
+    if (!req.adminPreview && !sampleAccount) {
+      const parentIds = await getStudentParentIds(req.user.id);
+      if (!parentIds.length) {
+        return res.status(403).json({
+          message: "Connect a parent or guardian account before taking quizzes.",
+          parentRequired: true,
+        });
+      }
+      verifiedProctor = await validateProctorSession(
+        String(proctorSessionToken || ""),
+        req.user.id,
+        "book",
+        bookId,
+        true
+      );
+      if (!verifiedProctor) {
+        return res.status(403).json({ message: "Your proctor session expired or is not valid. Ask your parent/guardian or teacher to enter the proctor code again." });
+      }
     }
 
     const normalizedAnswers = Object.fromEntries(
@@ -1813,7 +1834,15 @@ export async function registerRoutes(
       });
     }
 
-    const attempt = await storage.createAttempt(req.user.id, bookId, score, allQuestions.length, normalizedAnswers, effectivePoints);
+    const attempt = await storage.createAttempt(
+      req.user.id,
+      bookId,
+      score,
+      allQuestions.length,
+      normalizedAnswers,
+      effectivePoints,
+      verifiedProctor
+    );
     res.json({
       score,
       total: allQuestions.length,
@@ -1850,6 +1879,9 @@ export async function registerRoutes(
         passed,
         passingScore,
         completedAt: a.completedAt,
+        proctorType: a.proctorType || null,
+        proctorUserId: a.proctorUserId ?? null,
+        proctorName: a.proctorName || null,
       };
     });
 
