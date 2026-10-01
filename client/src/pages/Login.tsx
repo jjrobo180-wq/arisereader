@@ -360,7 +360,7 @@ export default function Login() {
                   <div className="mb-5">
                     <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">Choose your account</p>
                     <h2 className="mt-1 text-xl font-black">Get started with A.R.I.S.E.</h2>
-                    <p className="mt-1 text-sm font-semibold text-slate-400">Student, teacher, and parent sign-up are separated so each option is easy to find.</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-400">Choose school-connected Student, Independent Student, Teacher, or Parent.</p>
                   </div>
 
                   <div className="space-y-3">
@@ -371,6 +371,15 @@ export default function Login() {
                         <p className="text-xs font-semibold text-slate-400">Read, quiz, earn, play, and build your profile.</p>
                       </div>
                       <ArrowRight className="h-4 w-4 shrink-0 text-violet-300" />
+                    </button>
+
+                    <button type="button" onClick={() => navigate("/register?independent=1")} className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-400/25 bg-gradient-to-r from-cyan-500/10 via-violet-500/10 to-fuchsia-500/[.08] p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-300/50">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-500 via-violet-600 to-fuchsia-600 text-white"><UserRound className="h-5 w-5" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-black text-white">Independent Student</p>
+                        <p className="text-xs font-semibold text-slate-300">Not attached to a school? Create your own reader account here.</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-cyan-300" />
                     </button>
 
                     <button type="button" onClick={() => navigate("/teacher-signup")} className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-400/25 bg-gradient-to-r from-cyan-500/12 to-blue-500/10 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-300">
