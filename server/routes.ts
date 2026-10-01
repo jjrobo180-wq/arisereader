@@ -5318,19 +5318,24 @@ export async function registerRoutes(
         });
       }
 
-      const parentIds = await getStudentParentIds(req.user.id);
-      if (!parentIds.length) {
-        return res.status(403).json({
-          message: "A parent or guardian must connect an A.R.I.S.E. Parent account before quizzes can be started.",
-          parentRequired: true,
-        });
-      }
-
       let identity: ProctorIdentity | null = null;
-      const schoolPassword = await storage.getProctorPassword();
-      if (schoolPassword && password === schoolPassword) {
+
+      // School staff proctoring must work even when a student's parent account is
+      // not linked yet. Check the shared school proctor password first.
+      const schoolPassword = String((await storage.getProctorPassword()) || "").trim();
+      if (schoolPassword && password.toLowerCase() === schoolPassword.toLowerCase()) {
         identity = { type: "teacher", userId: null, name: "Teacher / School Staff" };
       } else {
+        // Parent/guardian proctoring still requires the parent to be linked to
+        // this specific student.
+        const parentIds = await getStudentParentIds(req.user.id);
+        if (!parentIds.length) {
+          return res.status(403).json({
+            message: "A parent or guardian must connect an A.R.I.S.E. Parent account before using a parent proctor code. School staff may use the school proctor password.",
+            parentRequired: true,
+          });
+        }
+
         const adminDb = getAdminSupabase();
         const { data: credential, error } = await adminDb.from("parent_proctor_credentials")
           .select("parent_id,password")
