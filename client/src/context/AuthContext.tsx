@@ -113,24 +113,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdminPreviewMode(null);
   }, []);
 
-  // Admin preview must be attached to every API request immediately.
-  // Read the mode from sessionStorage at request time so navigation that happens
-  // in the same click as startAdminPreview() cannot race the React effect.
+  // Attach session-scoped viewing context to API requests.
+  // Admin preview is read at request time to avoid navigation races.
+  // Parent child selection follows the parent across progress/control pages.
   useEffect(() => {
-    if (!user?.isAdmin) return;
+    if (!user) return;
     const originalFetch = window.fetch.bind(window);
     window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
       const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       if (!rawUrl.includes("/api/")) return originalFetch(input, init);
-      const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
-      if (previewMode !== "regular" && previewMode !== "eye-gaze") return originalFetch(input, init);
       const headers = new Headers(input instanceof Request ? input.headers : undefined);
       new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-      headers.set("X-ARISE-Admin-Preview", previewMode);
+
+      if (user.isAdmin) {
+        const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
+        if (previewMode === "regular" || previewMode === "eye-gaze") {
+          headers.set("X-ARISE-Admin-Preview", previewMode);
+        }
+      }
+      if (user.role === "parent") {
+        const childId = Number(sessionStorage.getItem("arise_parent_child_id"));
+        if (Number.isSafeInteger(childId) && childId > 0) headers.set("X-ARISE-Child-ID", String(childId));
+      }
+
       return originalFetch(input, { ...init, headers });
     }) as typeof window.fetch;
     return () => { window.fetch = originalFetch; };
-  }, [user?.isAdmin]);
+  }, [user?.id, user?.role, user?.isAdmin]);
 
   // Validate session on app load — if the token is expired, clear the cookie
   // and redirect to login. This prevents blank pages from stale cookies.
