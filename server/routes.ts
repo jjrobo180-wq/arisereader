@@ -8643,20 +8643,99 @@ Important:
     }
   });
 
+  // Parent controls for a regular (non-Eye-Gazer) student.
+  // These mirror the teacher Club A.R.I.S.E. controls, but are scoped strictly
+  // to children linked to the signed-in parent.
+  app.get("/api/parent/student-controls/:studentId", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "parent") return res.status(403).json({ message: "Parent account required." });
+      const studentId = Number(req.params.studentId);
+      if (!Number.isSafeInteger(studentId) || studentId <= 0 || !(await parentHasStudent(req.user.id, studentId))) {
+        return res.status(403).json({ message: "That student is not linked to your account." });
+      }
+      const student = await storage.getUser(studentId);
+      if (!student || student.role !== "student") return res.status(404).json({ message: "Student not found." });
+      if (student.is_eye_gaze_user) {
+        return res.json({
+          student: { id: student.id, displayName: student.displayName, isEyeGazeUser: true },
+          mode: "eye-gaze",
+        });
+      }
+      const { data: control, error } = await getAdminSupabase()
+        .from("club_arise_controls")
+        .select("*")
+        .eq("student_id", studentId)
+        .maybeSingle();
+      if (error) throw error;
+      res.set("Cache-Control", "no-store");
+      res.json({
+        student: { id: student.id, displayName: student.displayName, isEyeGazeUser: false },
+        mode: "regular",
+        control: control || {
+          student_id: studentId,
+          locked: false,
+          daily_game_limit: null,
+          games_per_passed_quiz: 0,
+          weekly_unlimited_on_pass: true,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not load parent controls." });
+    }
+  });
+
+  app.post("/api/parent/student-controls/:studentId", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "parent") return res.status(403).json({ message: "Parent account required." });
+      const studentId = Number(req.params.studentId);
+      if (!Number.isSafeInteger(studentId) || studentId <= 0 || !(await parentHasStudent(req.user.id, studentId))) {
+        return res.status(403).json({ message: "That student is not linked to your account." });
+      }
+      const student = await storage.getUser(studentId);
+      if (!student || student.role !== "student" || student.is_eye_gaze_user) {
+        return res.status(400).json({ message: "Use Eye Gazer family controls for this student." });
+      }
+      const locked = !!req.body?.locked;
+      const rawLimit = req.body?.dailyGameLimit;
+      const dailyGameLimit = rawLimit === null || rawLimit === "" || rawLimit === undefined
+        ? null
+        : Math.max(0, Math.min(180, Math.floor(Number(rawLimit) || 0)));
+      const gamesPerPassedQuiz = Math.max(0, Math.min(20, Math.floor(Number(req.body?.gamesPerPassedQuiz) || 0)));
+      const weeklyUnlimitedOnPass = req.body?.weeklyUnlimitedOnPass !== false;
+      const row = {
+        student_id: studentId,
+        teacher_id: student.teacherId || null,
+        locked,
+        daily_game_limit: dailyGameLimit,
+        games_per_passed_quiz: gamesPerPassedQuiz,
+        weekly_unlimited_on_pass: weeklyUnlimitedOnPass,
+        updated_at: new Date().toISOString(),
+      };
+      const { data, error } = await getAdminSupabase()
+        .from("club_arise_controls")
+        .upsert(row, { onConflict: "student_id" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      res.set("Cache-Control", "no-store");
+      res.json({ success: true, control: data });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not save parent controls." });
+    }
+  });
+
   // Reading Club sign-up — students and parents can sign up
   app.post("/api/club/signup", authMiddleware, async (req: any, res) => {
     try {
       const { studentName, grade, parentName, parentContact, parentEmail, notes } = req.body;
       if (!studentName) return res.status(400).json({ message: "Student name is required" });
 
-      // Determine student_id: parent's linked student, or the logged-in student
+      // Determine student_id: selected linked child for parents, or the logged-in student.
       let studentId = req.user.id;
       if (req.user.role === 'parent') {
-        const rawLinks = await storage.getSetting('parent_student_links');
-        if (rawLinks) {
-          const parentLinks = JSON.parse(rawLinks);
-          studentId = parentLinks[String(req.user.id)] || req.user.id;
-        }
+        const linkedIds = await getParentStudentIds(req.user.id);
+        const requestedId = requestedParentStudentId(req);
+        studentId = requestedId && linkedIds.includes(requestedId) ? requestedId : (linkedIds[0] || req.user.id);
       }
 
       // Check if already signed up
@@ -8720,11 +8799,9 @@ Important:
     try {
       let studentId = req.user.id;
       if (req.user.role === 'parent') {
-        const rawLinks = await storage.getSetting('parent_student_links');
-        if (rawLinks) {
-          const parentLinks = JSON.parse(rawLinks);
-          studentId = parentLinks[String(req.user.id)] || req.user.id;
-        }
+        const linkedIds = await getParentStudentIds(req.user.id);
+        const requestedId = requestedParentStudentId(req);
+        studentId = requestedId && linkedIds.includes(requestedId) ? requestedId : (linkedIds[0] || req.user.id);
       }
 
       const { data, error } = await supabase
@@ -8918,9 +8995,12 @@ Important:
               changed = true;
             }
             if (key === "parent_student_links") {
-              for (const [parentId, studentId] of Object.entries(parsed)) {
-                if (Number(studentId) === userId) {
-                  delete parsed[parentId];
+              for (const [parentId, studentValue] of Object.entries(parsed)) {
+                const ids = normalizeLinkedIds(studentValue);
+                const next = ids.filter(id => id !== userId);
+                if (next.length !== ids.length) {
+                  if (next.length) parsed[parentId] = next;
+                  else delete parsed[parentId];
                   changed = true;
                 }
               }
