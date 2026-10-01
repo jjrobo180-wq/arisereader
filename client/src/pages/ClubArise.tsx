@@ -229,6 +229,8 @@ export default function ClubArise(){
   const [showEmotes,setShowEmotes]=useState(false);
   const [access,setAccess]=useState<any>(null);
   const [leavingWorld,setLeavingWorld]=useState(false);
+  const [bootstrapError,setBootstrapError]=useState("");
+  const [bootstrapRetry,setBootstrapRetry]=useState(0);
 
   const headers=useMemo(()=>({Authorization:"Bearer "+token,"Content-Type":"application/json"}),[token]);
 
@@ -291,11 +293,28 @@ export default function ClubArise(){
 
   useEffect(()=>{
     if(!token)return;
-    fetch(API_BASE+"/api/club-arise/bootstrap",{headers:{Authorization:"Bearer "+token},cache:"no-store"})
-      .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d;})
-      .then(d=>{setSelf(d.self);setPlayers(d.players||[]);setPhrases(d.safePhrases||[]);setAccess(d.access||null);})
-      .catch(e=>setNotice(e.message||"Could not enter A.R.I.S.E Arcade"));
-  },[token]);
+    let active=true;
+    const controller=new AbortController();
+    const timeout=window.setTimeout(()=>controller.abort(),12000);
+    setBootstrapError("");
+    setNotice("Entering A.R.I.S.E Arcade…");
+    setSelf(null);
+    (async()=>{
+      try{
+        const r=await fetch(API_BASE+"/api/club-arise/bootstrap",{headers:{Authorization:"Bearer "+token},cache:"no-store",signal:controller.signal});
+        const d=await r.json();
+        if(!r.ok)throw new Error(d.message||"Could not enter A.R.I.S.E Arcade.");
+        if(!active)return;
+        setSelf(d.self);setPlayers(d.players||[]);setPhrases(d.safePhrases||[]);setAccess(d.access||null);
+        setNotice("Tap a cabinet or choose a game below. Press Play to start.");
+      }catch(error:any){
+        if(!active)return;
+        const message=error?.name==="AbortError"?"The arcade connection took too long. Tap Retry Arcade.":error?.message||"Could not enter A.R.I.S.E Arcade.";
+        setBootstrapError(message);setNotice(message);
+      }finally{window.clearTimeout(timeout);}
+    })();
+    return()=>{active=false;window.clearTimeout(timeout);controller.abort();};
+  },[token,bootstrapRetry]);
 
   useEffect(()=>{
     const mount=mountRef.current;if(!mount||!self)return;
@@ -635,6 +654,17 @@ export default function ClubArise(){
 
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
+    {!self&&<div className="absolute inset-0 z-[80] grid place-items-center bg-slate-950/96 p-6 text-center backdrop-blur-sm">
+      <div className="max-w-sm">
+        <div className="mx-auto h-14 w-14 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent"/>
+        <h2 className="mt-5 text-2xl font-black">{bootstrapError?"Arcade connection snagged":"Entering A.R.I.S.E Arcade…"}</h2>
+        <p className="mt-2 text-sm font-bold text-white/65">{bootstrapError||"Loading your avatar, games, and readers online."}</p>
+        {bootstrapError&&<div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={()=>setBootstrapRetry(v=>v+1)} className="min-h-12 rounded-xl bg-cyan-300 px-4 font-black text-slate-950">Retry Arcade</button>
+          <button type="button" onClick={()=>navigate("/worlds")} className="min-h-12 rounded-xl bg-white/10 px-4 font-black text-white">Back to Worlds</button>
+        </div>}
+      </div>
+    </div>}
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/80 via-black/45 to-transparent px-2 py-2 sm:p-3">
       <button onClick={()=>setLeavingWorld(true)} className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
       <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">A.R.I.S.E Arcade</h1><p className="hidden text-xs font-bold text-white/70 sm:block">Learn · play · meet readers safely</p></div>
