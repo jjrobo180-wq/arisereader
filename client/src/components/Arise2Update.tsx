@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Sparkles, Gamepad2, Users, BookOpen, Trophy, Volume2, Accessibility, Zap, ChevronRight, Rocket, Coins, House } from "lucide-react";
+import { X, Sparkles, Gamepad2, Users, BookOpen, Trophy, Volume2, Accessibility, Zap, ChevronRight, ChevronLeft, Rocket, Coins, House } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const updates = [
@@ -14,7 +14,10 @@ const updates = [
 ];
 
 function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [activeIndex, setActiveIndex] = useState(0);
   if (!open) return null;
+  const active = updates[activeIndex];
+  const ActiveIcon = active.icon;
   return <div className="fixed inset-0 z-[300] overflow-y-auto bg-black/85 p-2 backdrop-blur-xl sm:p-6" onClick={onClose}>
     <div className="mx-auto min-h-full max-w-5xl py-2 sm:py-6" onClick={e => e.stopPropagation()}>
       <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#070912] text-white shadow-[0_30px_100px_rgba(0,0,0,.65)]">
@@ -38,6 +41,61 @@ function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) 
             </p>
             <div className="mx-auto mt-8 grid max-w-3xl grid-cols-5 gap-1.5 rounded-3xl border border-white/10 bg-white/[.04] p-2 sm:gap-2">
               {["READ","LEARN","EARN","PLAY","GROW"].map((word,i)=><div key={word} className="rounded-2xl bg-white/[.05] px-1 py-3 text-[9px] font-black tracking-wider text-white/75 sm:text-xs">{word}<div className="mx-auto mt-2 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-violet-400 to-amber-300"/></div>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-white/10 bg-gradient-to-b from-violet-950/25 to-[#070912] px-4 py-10 sm:px-10 sm:py-14">
+          <div className="mx-auto max-w-4xl">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="text-xs font-black uppercase tracking-[.25em] text-cyan-300">Explore the update</div>
+                <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Tap through A.R.I.S.E. 2.0</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">Each part of 2.0 connects back to reading. Pick a feature below to see what students unlock and why it was added.</p>
+              </div>
+              <div className="text-xs font-black text-white/45">{activeIndex + 1} / {updates.length}</div>
+            </div>
+
+            <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
+              {updates.map((item, index) => {
+                const Icon = item.icon;
+                const selected = index === activeIndex;
+                return <button
+                  key={item.title}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className={`min-w-[112px] rounded-2xl border px-3 py-3 text-left transition ${selected ? "border-amber-300/60 bg-amber-300/12 text-white shadow-[0_10px_35px_rgba(245,158,11,.12)]" : "border-white/10 bg-white/[.035] text-white/55 hover:border-violet-300/35 hover:text-white"}`}
+                >
+                  <Icon className={`h-5 w-5 ${selected ? "text-amber-300" : "text-violet-300"}`}/>
+                  <div className="mt-2 text-[9px] font-black uppercase tracking-wider">{item.eyebrow}</div>
+                </button>;
+              })}
+            </div>
+
+            <div className="relative mt-4 overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_15%_15%,rgba(139,92,246,.24),transparent_30%),radial-gradient(circle_at_90%_80%,rgba(251,191,36,.12),transparent_30%),rgba(255,255,255,.04)] p-6 sm:p-8">
+              <div className="absolute right-[-40px] top-[-50px] text-[180px] font-black leading-none text-white/[.025]">{activeIndex + 1}</div>
+              <div className="relative grid gap-6 md:grid-cols-[150px_1fr] md:items-center">
+                <div className="mx-auto grid h-32 w-32 place-items-center rounded-[34px] border border-white/15 bg-gradient-to-br from-violet-500/30 via-fuchsia-500/15 to-amber-400/20 shadow-[0_20px_70px_rgba(124,58,237,.18)]">
+                  <ActiveIcon className="h-14 w-14 text-white"/>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[.28em] text-amber-300">{active.eyebrow}</div>
+                  <h3 className="mt-2 text-2xl font-black sm:text-3xl">{active.title}</h3>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">{active.text}</p>
+                  <div className="mt-5 rounded-2xl border border-violet-300/15 bg-black/25 p-4">
+                    <div className="text-[9px] font-black uppercase tracking-[.2em] text-violet-300">Why it matters</div>
+                    <p className="mt-1 text-sm leading-6 text-slate-300">{active.why}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative mt-6 flex items-center justify-between">
+                <button type="button" onClick={() => setActiveIndex(i => (i - 1 + updates.length) % updates.length)} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.06] hover:bg-white/[.12]" aria-label="Previous A.R.I.S.E. 2.0 feature"><ChevronLeft className="h-5 w-5"/></button>
+                <div className="flex gap-1.5">
+                  {updates.map((_, index) => <button key={index} type="button" onClick={() => setActiveIndex(index)} aria-label={`Open feature ${index + 1}`} className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-8 bg-amber-300" : "w-2 bg-white/20"}`}/>)}
+                </div>
+                <button type="button" onClick={() => setActiveIndex(i => (i + 1) % updates.length)} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.06] hover:bg-white/[.12]" aria-label="Next A.R.I.S.E. 2.0 feature"><ChevronRight className="h-5 w-5"/></button>
+              </div>
             </div>
           </div>
         </section>
