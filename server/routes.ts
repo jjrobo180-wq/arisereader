@@ -939,6 +939,30 @@ export async function registerRoutes(
   const myWorldGrownupPasses = new Map<string, { studentId: number; expiresAt: number }>();
   const talkerChallenges = new Map<string, { studentId: number; answer: number; expiresAt: number }>();
   const talkerGrownupPasses = new Map<string, { studentId: number; expiresAt: number }>();
+
+  type ParentStudentLinks = Record<string, number | number[]>;
+  const normalizeLinkedIds = (value: unknown): number[] => {
+    const raw = Array.isArray(value) ? value : value === null || value === undefined ? [] : [value];
+    return Array.from(new Set(raw.map(Number).filter(id => Number.isSafeInteger(id) && id > 0)));
+  };
+  const readParentStudentLinks = async (): Promise<ParentStudentLinks> => {
+    const raw = await storage.getSetting('parent_student_links');
+    if (!raw) return {};
+    try { return JSON.parse(raw) as ParentStudentLinks; } catch { return {}; }
+  };
+  const getParentStudentIds = async (parentId: number): Promise<number[]> => {
+    const links = await readParentStudentLinks();
+    return normalizeLinkedIds(links[String(parentId)]);
+  };
+  const parentHasStudent = async (parentId: number, studentId: number) => {
+    const ids = await getParentStudentIds(parentId);
+    return ids.includes(Number(studentId));
+  };
+  const requestedParentStudentId = (req: any) => {
+    const raw = req.query?.studentId ?? req.body?.studentId ?? req.headers['x-arise-child-id'];
+    const id = Number(raw);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  };
   // Seed data on startup
   await seedData();
   await storage.seedEyeGazeQuizzes();
@@ -1148,9 +1172,9 @@ export async function registerRoutes(
 
       // Link parent to student by storing parent_id in a setting
       const rawLinks = await storage.getSetting('parent_student_links');
-      let parentLinks: Record<string, number> = {};
+      let parentLinks: ParentStudentLinks = {};
       if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
-      parentLinks[String(user.id)] = student.id;
+      parentLinks[String(user.id)] = [student.id];
       await storage.upsertSetting('parent_student_links', JSON.stringify(parentLinks));
 
       res.status(201).json({
@@ -5835,11 +5859,15 @@ export async function registerRoutes(
   async function talkerStudent(req: any): Promise<{ id: number; displayName: string } | null> {
     if (req.user.role === 'student' && req.user.is_eye_gaze_user) return req.user;
     if (req.user.role !== 'parent' || req.user.accountApproved === false) return null;
-    const raw = await storage.getSetting('parent_student_links');
-    const linkedId = raw ? JSON.parse(raw)[String(req.user.id)] : null;
-    if (!Number.isSafeInteger(Number(linkedId)) || Number(linkedId) <= 0) return null;
-    const child = await storage.getUser(Number(linkedId));
-    return child?.role === 'student' && child.is_eye_gaze_user ? child : null;
+    const linkedIds = await getParentStudentIds(req.user.id);
+    const requestedId = requestedParentStudentId(req);
+    const candidates = requestedId ? [requestedId] : linkedIds;
+    for (const id of candidates) {
+      if (!linkedIds.includes(id)) continue;
+      const child = await storage.getUser(id);
+      if (child?.role === 'student' && child.is_eye_gaze_user) return child;
+    }
+    return null;
   }
 
 
@@ -7847,12 +7875,12 @@ Important:
       const { data: invite, error } = await getAdminSupabase().from('parent_invite_codes').select('student_id').eq('code', code).maybeSingle();
       if (error) return res.status(503).json({ message: 'Parent codes are unavailable.' });
       if (!invite) return res.status(400).json({ message: 'That parent code was not found.' });
-      const rawLinks = await storage.getSetting('parent_student_links');
-      const links: Record<string, number> = rawLinks ? JSON.parse(rawLinks) : {};
-      if (links[String(req.user.id)] && links[String(req.user.id)] !== invite.student_id) return res.status(409).json({ message: 'Your account is already linked to a student. Contact the school for help.' });
-      links[String(req.user.id)] = invite.student_id;
+      const links = await readParentStudentLinks();
+      const ids = normalizeLinkedIds(links[String(req.user.id)]);
+      if (!ids.includes(Number(invite.student_id))) ids.push(Number(invite.student_id));
+      links[String(req.user.id)] = ids;
       await storage.upsertSetting('parent_student_links', JSON.stringify(links));
-      res.json({ success: true });
+      res.json({ success: true, studentIds: ids });
     } catch { res.status(500).json({ message: 'Could not link this student right now.' }); }
   });
 
@@ -8541,17 +8569,37 @@ Important:
     }
   });
 
-  // Parent: get their linked student's profile
+  app.get("/api/parent/students", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'parent') return res.status(403).json({ message: "Only parents can access this endpoint" });
+      const ids = await getParentStudentIds(req.user.id);
+      const students = (await Promise.all(ids.map(id => storage.getUser(id))))
+        .filter((student: any) => student?.role === 'student')
+        .map((student: any) => ({
+          id: student.id,
+          displayName: student.displayName,
+          username: student.username,
+          isEyeGazeUser: !!student.is_eye_gaze_user,
+          teacherId: student.teacherId || null,
+        }));
+      res.set("Cache-Control", "no-store");
+      res.json({ students });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to load linked students" });
+    }
+  });
+
+  // Parent: get one linked student's profile. If no studentId is supplied, use the first linked child.
   app.get("/api/parent/student-profile", authMiddleware, async (req: any, res) => {
     try {
       if (req.user.role !== 'parent') {
         return res.status(403).json({ message: "Only parents can access this endpoint" });
       }
-      const rawLinks = await storage.getSetting('parent_student_links');
-      if (!rawLinks) return res.status(404).json({ message: "No student linked to your account" });
-      const parentLinks = JSON.parse(rawLinks);
-      const studentId = parentLinks[String(req.user.id)];
-      if (!studentId) return res.status(404).json({ message: "No student linked to your account" });
+      const linkedIds = await getParentStudentIds(req.user.id);
+      if (!linkedIds.length) return res.status(404).json({ message: "No student linked to your account" });
+      const requestedId = requestedParentStudentId(req);
+      const studentId = requestedId || linkedIds[0];
+      if (!linkedIds.includes(studentId)) return res.status(403).json({ message: "That student is not linked to your account" });
       const student = await storage.getUser(studentId);
       if (!student) return res.status(404).json({ message: "Student not found" });
       const attempts = await storage.getUserAttempts(studentId);
@@ -10544,11 +10592,9 @@ Important:
     try {
       const studentId = parseInt(req.params.studentId);
       // Verify parent has access to this student
-      const rawLinks = await storage.getSetting('parent_student_links');
-      let parentLinks: Record<string, number> = {};
-      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
-      const linkedStudentId = parentLinks[String(req.user.id)];
-      if (linkedStudentId !== studentId && !req.user.isAdmin) return res.status(403).json({ error: "Not authorized for this student" });
+      if (!req.user.isAdmin && (req.user.role !== 'parent' || !(await parentHasStudent(req.user.id, studentId)))) {
+        return res.status(403).json({ error: "Not authorized for this student" });
+      }
       const summary = await storage.getStudentGrowthCheckSummary(studentId);
       if (!summary) return res.json({ available: false });
       res.json({ available: true, ...summary });
