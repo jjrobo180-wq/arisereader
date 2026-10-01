@@ -49,6 +49,7 @@ export function registerBoardQuestRoutes(app: Express, auth: RequestHandler) {
    case 'name':g.rename(id,req.body.team as Team,req.body.name);break;
    case 'start':g.start(id,now);break;
    case 'answer':g.answer(id,req.body.questionId,req.body.choice,now);break;
+   case 'opening-hand':g.openingChoose(id,req.body.hand,now);break;
    case 'hand':g.choose(id,req.body.hand,req.body.cueId,now);break;
    default:throw Error('Unknown game action.');
   }res.json(g.snapshot(now));
