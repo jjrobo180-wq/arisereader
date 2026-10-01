@@ -8505,19 +8505,14 @@ Important:
         .eq("account_approved", false)
         .order("created_at", { ascending: false });
 
-      // Get linked student info
-      const rawLinks = await storage.getSetting('parent_student_links');
-      let parentLinks: Record<string, number> = {};
-      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
-
+      const parentLinks = await readParentStudentLinks();
       const parentsWithStudents = await Promise.all((parents || []).map(async (p: any) => {
-        const studentId = parentLinks[String(p.id)];
-        let studentName = "Unknown";
-        if (studentId) {
-          const { data: student } = await supabase.from("users").select("display_name, username").eq("id", studentId).single();
-          if (student) studentName = student.display_name || student.username;
-        }
-        return { ...p, studentName };
+        const studentIds = normalizeLinkedIds(parentLinks[String(p.id)]);
+        const students = studentIds.length
+          ? (await supabase.from("users").select("id, display_name, username, is_eye_gaze_user").in("id", studentIds)).data || []
+          : [];
+        const studentNames = students.map((student: any) => student.display_name || student.username);
+        return { ...p, studentName: studentNames.join(", ") || "Unknown", studentNames, studentCount: students.length };
       }));
 
       res.json(parentsWithStudents);
@@ -8536,19 +8531,22 @@ Important:
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
 
-      // Get linked student info
-      const rawLinks = await storage.getSetting('parent_student_links');
-      let parentLinks: Record<string, number> = {};
-      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
-
+      const parentLinks = await readParentStudentLinks();
       const parentsWithStudents = await Promise.all((parents || []).map(async (p: any) => {
-        const studentId = parentLinks[String(p.id)];
-        let studentName = "Unknown";
-        if (studentId) {
-          const { data: student } = await supabase.from("users").select("display_name, username").eq("id", studentId).single();
-          if (student) studentName = student.display_name || student.username;
-        }
-        return { ...p, accountApproved: p.account_approved, displayName: p.display_name, schoolId: p.school_id };
+        const studentIds = normalizeLinkedIds(parentLinks[String(p.id)]);
+        const students = studentIds.length
+          ? (await supabase.from("users").select("id, display_name, username, is_eye_gaze_user").in("id", studentIds)).data || []
+          : [];
+        const studentNames = students.map((student: any) => student.display_name || student.username);
+        return {
+          ...p,
+          accountApproved: p.account_approved,
+          displayName: p.display_name,
+          schoolId: p.school_id,
+          studentName: studentNames.join(", ") || "Unknown",
+          studentNames,
+          studentCount: students.length,
+        };
       }));
 
       res.json(parentsWithStudents);
