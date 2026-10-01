@@ -150,7 +150,7 @@ export default function Login() {
   const loginSample = async (type: "student" | "eye-gaze" | "parent") => {
     const usernameByType = {
       student: "sample",
-      "eye-gaze": "sample-eye",
+      "eye-gaze": "tutorial-eye",
       parent: "sample-parent",
     } as const;
 
@@ -510,8 +510,8 @@ export default function Login() {
 
               <button type="button" onClick={() => void loginSample("eye-gaze")} disabled={!!sampleLoading} className="rounded-2xl border-2 border-white/10 bg-white/[.045] p-5 text-left transition hover:-translate-y-1 hover:border-cyan-400/25 hover:bg-cyan-500/10 disabled:opacity-50">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-500/16"><Eye className="h-6 w-6 text-cyan-200" /></div>
-                <p className="mt-4 font-black">{sampleLoading === "eye-gaze" ? "Opening…" : "Eye Gazer"}</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">My Talker, visual quizzes, games, Life Skills, My World, and progress.</p>
+                <p className="mt-4 font-black">{sampleLoading === "eye-gaze" ? "Opening…" : "Eye Gazer Tutorial"}</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">Dedicated accessible tutorial account with My Talker, visual quizzes, games, Life Skills, My World, and progress.</p>
               </button>
 
               <button type="button" onClick={() => void loginSample("parent")} disabled={!!sampleLoading} className="rounded-2xl border-2 border-white/10 bg-white/[.045] p-5 text-left transition hover:-translate-y-1 hover:border-violet-200 hover:bg-violet-500/10 disabled:opacity-50">
