@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "./storage";
 
-const HOME_IDS=new Set(["home-studio","home-loft","home-modern"]);
+const HOME_IDS=new Set(["home-basic","home-studio","home-loft","home-modern"]);
 const REGISTRY_KEY="avatar_home_registry_v2";
 
 type HomeRecord={
@@ -59,10 +59,12 @@ async function readAvatarState(userId:number){
 
 function ownedHomeId(state:any){
   const purchased=new Set(Array.isArray(state?.purchased)?state.purchased.map(String):[]);
-  const equipped=String(state?.equipped?.home||"");
+  const equipped=String(state?.equipped?.home||"home-basic");
+  // Every regular student owns the free starter home. Premium homes require a purchase.
+  if(equipped==="home-basic")return "home-basic";
   if(HOME_IDS.has(equipped)&&purchased.has(equipped))return equipped;
-  const first=Array.from(purchased).find(id=>HOME_IDS.has(String(id)));
-  return first?String(first):null;
+  const first=Array.from(purchased).find(id=>HOME_IDS.has(String(id))&&String(id)!=="home-basic");
+  return first?String(first):"home-basic";
 }
 
 async function ensureHome(user:any,registry?:HomeRegistry){
