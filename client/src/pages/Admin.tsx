@@ -21,7 +21,7 @@ import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
-  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, ChevronRight, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck
+  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, ChevronRight, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck, Clock3
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -204,6 +204,16 @@ export default function Admin() {
   const [proctorPassword, setProctorPassword] = useState("");
   const [newProctorPassword, setNewProctorPassword] = useState("");
   const [proctorMsg, setProctorMsg] = useState("");
+  const [clubClosingHours, setClubClosingHours] = useState({
+    enabled: false,
+    start: "21:00",
+    end: "07:00",
+    days: [0,1,2,3,4,5,6] as number[],
+    timeZone: "America/Denver",
+    closedNow: false,
+  });
+  const [clubClosingMsg, setClubClosingMsg] = useState("");
+  const [clubClosingSaving, setClubClosingSaving] = useState(false);
   const [easterEggs, setEasterEggs] = useState({ active: false, totalEggs: 0, remainingEggs: 0, pointsPerEgg: 2, claims: [] as any[] });
   const [eggCount, setEggCount] = useState(0);
   const [eggMsg, setEggMsg] = useState("");
@@ -680,6 +690,7 @@ export default function Admin() {
     fetchDonationSettings();
     fetchAiSettings();
     fetchProctorPassword();
+    fetchClubClosingHours();
     fetchEasterEggs();
     fetchCompetitionSettings();
     fetchPendingParents();
@@ -1089,6 +1100,47 @@ export default function Admin() {
         fetchBanners();
       }
     } catch {}
+  };
+
+  const fetchClubClosingHours = async () => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/club-closing-hours`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClubClosingHours(prev => ({ ...prev, ...data }));
+      }
+    } catch {}
+  };
+
+  const handleSaveClubClosingHours = async () => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    setClubClosingSaving(true);
+    setClubClosingMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/club-closing-hours`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(clubClosingHours),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setClubClosingMsg(data.message || "Could not save Club closing hours.");
+        return;
+      }
+      setClubClosingHours(prev => ({ ...prev, ...data }));
+      setClubClosingMsg("Club closing hours saved.");
+      setTimeout(() => setClubClosingMsg(""), 3500);
+    } catch {
+      setClubClosingMsg("Could not save Club closing hours.");
+    } finally {
+      setClubClosingSaving(false);
+    }
   };
 
   const fetchProctorPassword = async () => {
@@ -2186,6 +2238,65 @@ Generate exactly 10 questions.`;
                   <Eye className="mr-2 h-4 w-4" /> Eye Gazer
                 </Button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-violet-400/25 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.05] to-cyan-400/[.07] shadow-md">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl arise-icon-tile">
+                  <Clock3 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase tracking-[.16em] text-violet-200">Admin Only · Club A.R.I.S.E.</p>
+                  <h2 className="mt-1 text-lg font-black">Game Closing Hours</h2>
+                  <p className="mt-1 text-sm text-slate-400">Set the hours when all Club games and worlds are unavailable to student accounts. Times use Mountain Time.</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-black ${clubClosingHours.enabled ? (clubClosingHours.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>
+                  {!clubClosingHours.enabled ? "OFF" : clubClosingHours.closedNow ? "CLOSED NOW" : "OPEN NOW"}
+                </span>
+              </div>
+
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.035] p-3">
+                <input
+                  type="checkbox"
+                  checked={clubClosingHours.enabled}
+                  onChange={(e) => setClubClosingHours(s => ({ ...s, enabled: e.target.checked }))}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm font-bold">Enable automatic closing hours</span>
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Close games at</span>
+                  <input type="time" value={clubClosingHours.start} onChange={(e) => setClubClosingHours(s => ({...s,start:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Reopen games at</span>
+                  <input type="time" value={clubClosingHours.end} onChange={(e) => setClubClosingHours(s => ({...s,end:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
+                </label>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">Closing days</p>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((label, day) => {
+                    const selected = clubClosingHours.days.includes(day);
+                    return <button key={label} type="button" onClick={() => setClubClosingHours(s => ({...s,days:selected?s.days.filter(d=>d!==day):[...s.days,day].sort((a,b)=>a-b)}))} className={`rounded-xl border px-2 py-2 text-xs font-black transition ${selected?"border-violet-400/35 bg-violet-500/15 text-violet-100":"border-white/10 bg-white/[.03] text-slate-500"}`}>{label}</button>;
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-slate-400">An overnight schedule such as 9:00 PM → 7:00 AM closes the Club across midnight automatically.</p>
+                <Button onClick={handleSaveClubClosingHours} disabled={clubClosingSaving} className="arise-gradient-button rounded-xl font-black">
+                  {clubClosingSaving ? "Saving…" : "Save Closing Hours"}
+                </Button>
+              </div>
+              {clubClosingMsg && <p className="text-xs font-bold text-cyan-200">{clubClosingMsg}</p>}
             </div>
           </CardContent>
         </Card>
