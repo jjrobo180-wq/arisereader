@@ -215,6 +215,9 @@ export default function Admin() {
   });
   const [clubClosingMsg, setClubClosingMsg] = useState("");
   const [clubClosingSaving, setClubClosingSaving] = useState(false);
+  const [teacherClubClosingHours, setTeacherClubClosingHours] = useState<any[]>([]);
+  const [teacherClubClosingSavingId, setTeacherClubClosingSavingId] = useState<number | null>(null);
+  const [teacherClubClosingMsg, setTeacherClubClosingMsg] = useState("");
   const [easterEggs, setEasterEggs] = useState({ active: false, totalEggs: 0, remainingEggs: 0, pointsPerEgg: 2, claims: [] as any[] });
   const [eggCount, setEggCount] = useState(0);
   const [eggMsg, setEggMsg] = useState("");
@@ -692,6 +695,7 @@ export default function Admin() {
     fetchAiSettings();
     fetchProctorPassword();
     fetchClubClosingHours();
+    fetchTeacherClubClosingHours();
     fetchEasterEggs();
     fetchCompetitionSettings();
     fetchPendingParents();
@@ -1101,6 +1105,40 @@ export default function Admin() {
         fetchBanners();
       }
     } catch {}
+  };
+
+  const fetchTeacherClubClosingHours = async () => {
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/teacher-club-closing-hours`, { headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setTeacherClubClosingHours(Array.isArray(data?.teachers) ? data.teachers : []);
+      }
+    } catch {}
+  };
+
+  const saveTeacherClubClosingHours = async (teacherId: number) => {
+    const authToken = token || getTokenFromCookie();
+    const row = teacherClubClosingHours.find((item:any) => item.id === teacherId);
+    if (!authToken || !row) return;
+    setTeacherClubClosingSavingId(teacherId);
+    setTeacherClubClosingMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/teacher-club-closing-hours/${teacherId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(row.schedule),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setTeacherClubClosingMsg(data.message || "Could not override class hours."); return; }
+      setTeacherClubClosingHours(items => items.map((item:any) => item.id === teacherId ? { ...item, schedule: data.schedule } : item));
+      setTeacherClubClosingMsg("Teacher class hours overridden.");
+      setTimeout(() => setTeacherClubClosingMsg(""), 3000);
+    } catch {
+      setTeacherClubClosingMsg("Could not override class hours.");
+    } finally { setTeacherClubClosingSavingId(null); }
   };
 
   const fetchClubClosingHours = async () => {
@@ -2298,6 +2336,33 @@ Generate exactly 10 questions.`;
                 </Button>
               </div>
               {clubClosingMsg && <p className="text-xs font-bold text-cyan-200">{clubClosingMsg}</p>}
+
+              <details className="rounded-2xl border border-white/10 bg-black/10 p-3">
+                <summary className="cursor-pointer text-sm font-black text-violet-100">Teacher class hours · admin override</summary>
+                <p className="mt-2 text-xs text-slate-400">Teachers can set hours for their own students. You can review or replace any teacher's class schedule here. The global admin closing window above still takes priority over every class.</p>
+                <div className="mt-3 space-y-3">
+                  {teacherClubClosingHours.length ? teacherClubClosingHours.map((teacher:any) => {
+                    const schedule = teacher.schedule || { enabled:false,start:"21:00",end:"07:00",days:[0,1,2,3,4,5,6] };
+                    return <div key={teacher.id} className="rounded-xl border border-white/10 bg-[#0f0d1d] p-3">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div><p className="font-black text-white">{teacher.displayName}</p><p className="text-xs text-slate-500">@{teacher.username}</p></div>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${schedule.enabled ? (schedule.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>{!schedule.enabled ? "OFF" : schedule.closedNow ? "CLOSED NOW" : "OPEN NOW"}</span>
+                      </div>
+                      <label className="mb-3 flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={!!schedule.enabled} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,enabled:e.target.checked}}:item))}/> Use class hours</label>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="text-xs font-bold text-slate-400">Close at<input type="time" value={schedule.start} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,start:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
+                        <label className="text-xs font-bold text-slate-400">Reopen at<input type="time" value={schedule.end} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,end:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((label,day)=>{
+                        const selected=(schedule.days||[]).includes(day);
+                        return <button type="button" key={label} onClick={()=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,days:selected?schedule.days.filter((d:number)=>d!==day):[...schedule.days,day].sort((a:number,b:number)=>a-b)}}:item))} className={`rounded-lg border px-2 py-1.5 text-[10px] font-black ${selected?"border-violet-400/40 bg-violet-500/15 text-violet-100":"border-white/10 text-slate-500"}`}>{label}</button>;
+                      })}</div>
+                      <Button size="sm" onClick={()=>void saveTeacherClubClosingHours(teacher.id)} disabled={teacherClubClosingSavingId===teacher.id} className="mt-3 rounded-xl font-black">{teacherClubClosingSavingId===teacher.id?"Saving…":"Override class hours"}</Button>
+                    </div>;
+                  }) : <p className="text-xs text-slate-500">No teacher accounts found.</p>}
+                </div>
+                {teacherClubClosingMsg && <p className="mt-2 text-xs font-bold text-cyan-200">{teacherClubClosingMsg}</p>}
+              </details>
             </div>
           </CardContent>
         </Card>
