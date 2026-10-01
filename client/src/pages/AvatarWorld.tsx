@@ -82,7 +82,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
       const r=await fetch(API_BASE+"/api/avatar-world/purchase",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({itemId:product.id})});
       const d=await r.json();
       if(!r.ok)throw new Error(d.message||"Could not unlock that.");
-      setPayload(d);setMessage("Unlocked "+product.name+"!");
+      setPayload(d);setMessage(product.type==="home"?"Unlocked "+product.name+" and set it as your active home. The Block is ready!":"Unlocked "+product.name+"!");
     }catch(error:any){setMessage(error.message||"Could not unlock that.");}
     finally{setBusy("");}
   };
@@ -107,6 +107,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   if(!payload)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center p-6"><div className="text-center"><p className="text-xl font-black">{message||"Avatar World is unavailable."}</p><button onClick={()=>navigate("/library")} className="mt-4 rounded-2xl bg-white text-slate-950 px-5 py-3 font-black">Back to Library</button></div></main>;
 
   const carId=payload.state.equipped.car||"car-none";
+  const homeId=payload.state.equipped.home||"home-basic";
   const petId=payload.state.equipped.pet||"pet-none";
   const quizzesIntoLevel=payload.economy.passedQuizzes%2;
   const starterCharacters=new Set(["robin-hood","sherlock-holmes","sinbad","alice"]);
@@ -261,7 +262,9 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
               {product.type==="pet"&&<p className="mt-2 text-xs text-white/70"><strong className="text-cyan-200">{PET_PERSONALITIES[product.id]?.trait}.</strong> {PET_PERSONALITIES[product.id]?.greeting} · Loves {PET_PERSONALITIES[product.id]?.favorite.toLowerCase()}. Keep happiness high with food, treats, walks, and play.</p>}
               {product.type==="pet"&&isOwned
                 ?<button onClick={showPets} className="mt-4 w-full min-h-12 rounded-xl bg-emerald-500/20 font-black text-emerald-300">CARE FOR PET</button>
-                :<button disabled={isOwned||!canAfford||!!busy} onClick={()=>setPendingPurchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{product.price} · {wasLost?"RE-ADOPT":"UNLOCK"}</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>}
+                :product.type==="home"&&isOwned
+                  ?<button disabled={!!busy||homeId===product.id} onClick={()=>void customize({action:"equip",slot:"home",itemId:product.id})} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(homeId===product.id?"bg-cyan-300 text-slate-950":"bg-emerald-500/20 text-emerald-300")}>{homeId===product.id?<><Check className="w-5 h-5"/>CURRENT HOME</>:<><Home className="w-5 h-5"/>USE AS MY HOME</>}</button>
+                  :<button disabled={isOwned||!canAfford||!!busy} onClick={()=>setPendingPurchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{product.price} · {wasLost?"RE-ADOPT":"UNLOCK"}</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>}
             </div>
           </article>;
         })}
