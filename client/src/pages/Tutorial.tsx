@@ -1744,9 +1744,9 @@ function CurrentFeatureShowcase({ mode }: { mode: TutorialRole }) {
       <div className="mb-5 flex items-start gap-3">
         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-500/15 text-2xl">✨</div>
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Current A.R.I.S.E. experience</p>
-          <h2 className="mt-1 text-2xl font-bold text-white">Everything added since the original tutorial</h2>
-          <p className="mt-1 text-sm text-muted-foreground">The original interactive tutorial is preserved. These cards add the newest features without removing any of the demos you already had.</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Explore A.R.I.S.E.</p>
+          <h2 className="mt-1 text-2xl font-bold text-white">More tools in your A.R.I.S.E. experience</h2>
+          <p className="mt-1 text-sm text-muted-foreground">These features are part of the platform. Use the cards below to learn what each tool does and where it fits into reading, learning, family support, and play.</p>
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
