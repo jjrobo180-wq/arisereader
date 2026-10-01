@@ -1,23 +1,36 @@
 /* A.R.I.S.E. public landing page layout + mobile containment.
    The page itself must never scroll left/right on a phone. */
 
+/* HERO + EXPLORE INTRO -----------------------------------------------------
+   Keep the Read. Learn. Earn. hero exactly as the main introduction, but make
+   the Explore heading part of that same card instead of a second floating box. */
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(1)::after {
+  content: "EXPLORE A.R.I.S.E.\A Find the experience built for you.";
+  display: block;
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,.10);
+  white-space: pre-line;
+  color: #fff;
+  font-size: clamp(1.65rem, 4vw, 2.55rem);
+  font-weight: 900;
+  line-height: 1.06;
+  letter-spacing: -.04em;
+}
+
+/* The first line of the pseudo heading is intentionally kept visually tied to
+   the hero rather than creating another standalone card. */
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > div:first-child {
+  display: none !important;
+}
+
 /* EXPERIENCE SECTIONS ------------------------------------------------------
-   The feature area should read like a series of destinations, not one giant
-   card full of smaller cards. Each category gets its own visual break. */
+   The feature area reads like a series of destinations, not one giant card. */
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) {
   overflow: visible;
   border: 0;
   background: transparent;
   box-shadow: none;
-}
-
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > div:first-child {
-  margin-bottom: 14px;
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 2rem;
-  background:
-    radial-gradient(circle at 88% 18%, rgba(34,211,238,.16), transparent 28%),
-    linear-gradient(135deg, #171329 0%, #21143a 55%, #102837 100%);
 }
 
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 {
@@ -37,8 +50,6 @@ body:has(#account-panel) main > div:first-child > div:first-child > section:nth-
   box-shadow: 0 22px 60px rgba(3, 2, 14, .24);
 }
 
-/* Big playful visual marks inspired by the energy of the supplied reference,
-   while keeping A.R.I.S.E.'s own colors and content. */
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div::before {
   position: absolute;
   z-index: -1;
@@ -67,71 +78,40 @@ body:has(#account-panel) main > div:first-child > div:first-child > section:nth-
 }
 
 /* Reading */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(1) {
-  background: linear-gradient(135deg, #4324a8 0%, #7137d1 48%, #b832b6 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(1) { background: linear-gradient(135deg, #4324a8 0%, #7137d1 48%, #b832b6 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(1)::before { content: "📚"; }
-
 /* Learning */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(2) {
-  background: linear-gradient(135deg, #075d75 0%, #0b8e9b 50%, #18a7a0 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(2) { background: linear-gradient(135deg, #075d75 0%, #0b8e9b 50%, #18a7a0 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(2)::before { content: "🧠"; animation-delay: -.6s; }
-
 /* Motivation */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(3) {
-  background: linear-gradient(135deg, #7a3b04 0%, #c06c09 50%, #e9a51b 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(3) { background: linear-gradient(135deg, #7a3b04 0%, #c06c09 50%, #e9a51b 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(3)::before { content: "🏆"; animation-delay: -1.2s; }
-
 /* Classroom */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(4) {
-  background: linear-gradient(135deg, #2035a3 0%, #3d59d8 48%, #5f78f2 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(4) { background: linear-gradient(135deg, #2035a3 0%, #3d59d8 48%, #5f78f2 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(4)::before { content: "⚡"; animation-delay: -.3s; }
-
 /* Play */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(5) {
-  background: linear-gradient(135deg, #761b75 0%, #b31e9a 46%, #db2777 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(5) { background: linear-gradient(135deg, #761b75 0%, #b31e9a 46%, #db2777 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(5)::before { content: "🎮"; animation-delay: -1.7s; }
-
 /* Rewards */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(6) {
-  background: linear-gradient(135deg, #9a3412 0%, #dc5d18 50%, #f59e0b 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(6) { background: linear-gradient(135deg, #9a3412 0%, #dc5d18 50%, #f59e0b 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(6)::before { content: "🪙"; animation-delay: -.9s; }
-
 /* Accessibility */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(7) {
-  background: linear-gradient(135deg, #0b6170 0%, #0d8c96 48%, #14b8a6 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(7) { background: linear-gradient(135deg, #0b6170 0%, #0d8c96 48%, #14b8a6 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(7)::before { content: "💬"; animation-delay: -1.4s; }
-
 /* Families */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(8) {
-  background: linear-gradient(135deg, #8b1d4c 0%, #c62c68 48%, #ec4899 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(8) { background: linear-gradient(135deg, #8b1d4c 0%, #c62c68 48%, #ec4899 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(8)::before { content: "❤️"; animation-delay: -.5s; }
-
 /* Teachers */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(9) {
-  background: linear-gradient(135deg, #334155 0%, #475569 45%, #5b4bb7 100%);
-}
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(9) { background: linear-gradient(135deg, #334155 0%, #475569 45%, #5b4bb7 100%); }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div:nth-child(9)::before { content: "🎓"; animation-delay: -1.1s; }
 
-/* Make headings readable over the richer category backgrounds. */
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > div:first-child {
   position: relative;
   z-index: 1;
   max-width: calc(100% - 92px);
   margin-bottom: 18px !important;
 }
-
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > div:first-child p {
-  color: rgba(255,255,255,.72) !important;
-}
-
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > div:first-child p { color: rgba(255,255,255,.72) !important; }
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > div:first-child h3 {
   color: #fff;
   font-size: clamp(1.65rem, 4vw, 2.35rem);
@@ -139,8 +119,6 @@ body:has(#account-panel) main > div:first-child > div:first-child > section:nth-
   letter-spacing: -.035em;
   text-transform: uppercase;
 }
-
-/* Feature cards sit inside each destination section like individual choices. */
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > .grid > button {
   border-color: rgba(255,255,255,.18) !important;
   background: rgba(12,8,29,.34) !important;
@@ -148,7 +126,6 @@ body:has(#account-panel) main > div:first-child > div:first-child > section:nth-
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > .grid > button:hover {
   background: rgba(12,8,29,.48) !important;
   border-color: rgba(255,255,255,.32) !important;
@@ -158,24 +135,13 @@ body:has(#account-panel) main > div:first-child > div:first-child > section:nth-
   0%, 100% { transform: translate3d(0,0,0) rotate(-3deg) scale(1); }
   50% { transform: translate3d(0,-10px,0) rotate(4deg) scale(1.06); }
 }
-
 @media (prefers-reduced-motion: reduce) {
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div::before {
-    animation: none;
-  }
+  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div::before { animation: none; }
 }
 
 /* MOBILE CONTAINMENT ------------------------------------------------------- */
 @media (max-width: 900px) {
-  html,
-  body,
-  #root {
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: hidden !important;
-    overscroll-behavior-x: none;
-  }
-
+  html, body, #root { width: 100%; max-width: 100vw; overflow-x: hidden !important; overscroll-behavior-x: none; }
   body:has(#account-panel) #root,
   body:has(#account-panel) #root > div,
   body:has(#account-panel) header,
@@ -186,110 +152,38 @@ body:has(#account-panel) main > div:first-child > div:first-child > section:nth-
   body:has(#account-panel) main section,
   body:has(#account-panel) main aside,
   body:has(#account-panel) #account-panel,
-  body:has(#account-panel) #account-panel > div {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0 !important;
-    max-width: 100% !important;
-  }
-
-  body:has(#account-panel) #root * {
-    box-sizing: border-box;
-    min-width: 0;
-  }
-
-  body:has(#account-panel) main > div:first-child {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) !important;
-    width: 100%;
-    max-width: 100%;
-  }
-
+  body:has(#account-panel) #account-panel > div { box-sizing: border-box; width: 100%; min-width: 0 !important; max-width: 100% !important; }
+  body:has(#account-panel) #root * { box-sizing: border-box; min-width: 0; }
+  body:has(#account-panel) main > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr) !important; width: 100%; max-width: 100%; }
   body:has(#account-panel) section,
   body:has(#account-panel) aside,
   body:has(#account-panel) form,
   body:has(#account-panel) input,
-  body:has(#account-panel) button {
-    max-width: 100%;
-  }
-
-  body:has(#account-panel) img,
-  body:has(#account-panel) video {
-    max-width: 100%;
-    height: auto;
-  }
-
-  body:has(#account-panel) main [class*="overflow-x-auto"] {
-    width: 100%;
-    min-width: 0 !important;
-    max-width: 100%;
-    overflow-x: auto !important;
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-    contain: inline-size;
-  }
-
-  body:has(#account-panel) main {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
-
+  body:has(#account-panel) button { max-width: 100%; }
+  body:has(#account-panel) img, body:has(#account-panel) video { max-width: 100%; height: auto; }
+  body:has(#account-panel) main [class*="overflow-x-auto"] { width: 100%; min-width: 0 !important; max-width: 100%; overflow-x: auto !important; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; contain: inline-size; }
+  body:has(#account-panel) main { padding-left: 10px !important; padding-right: 10px !important; }
   body:has(#account-panel) header > div,
-  body:has(#account-panel) #root > div > div:not(main) {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  body:has(#account-panel) #account-panel {
-    scroll-margin-top: 12px;
-  }
-
-  body:has(#account-panel) h1 {
-    font-size: clamp(2rem, 10vw, 2.6rem);
-    overflow-wrap: anywhere;
-  }
-
+  body:has(#account-panel) #root > div > div:not(main) { padding-left: 10px; padding-right: 10px; }
+  body:has(#account-panel) #account-panel { scroll-margin-top: 12px; }
+  body:has(#account-panel) h1 { font-size: clamp(2rem, 10vw, 2.6rem); overflow-wrap: anywhere; }
   body:has(#account-panel) h2,
   body:has(#account-panel) h3,
   body:has(#account-panel) p,
-  body:has(#account-panel) span {
-    overflow-wrap: anywhere;
-  }
+  body:has(#account-panel) span { overflow-wrap: anywhere; }
 
-  /* On phones, each category feels like a full-width chapter break. */
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > div:first-child,
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div {
-    border-radius: 1.65rem;
+  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(1)::after {
+    margin-top: 26px;
+    padding-top: 22px;
+    font-size: clamp(1.55rem, 7vw, 2rem);
   }
-
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div {
-    padding: 24px 16px 18px;
-  }
-
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div::before {
-    top: 18px;
-    right: 14px;
-    font-size: clamp(58px, 19vw, 78px);
-  }
-
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > div:first-child {
-    max-width: calc(100% - 76px);
-  }
-
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > .grid {
-    grid-template-columns: minmax(0,1fr) !important;
-  }
+  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div { border-radius: 1.65rem; padding: 24px 16px 18px; }
+  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div::before { top: 18px; right: 14px; font-size: clamp(58px, 19vw, 78px); }
+  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > div:first-child { max-width: calc(100% - 76px); }
+  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > .grid { grid-template-columns: minmax(0,1fr) !important; }
 }
 
 @media (max-width: 390px) {
-  body:has(#account-panel) main {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-  }
-
-  body:has(#account-panel) header > div {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
+  body:has(#account-panel) main { padding-left: 8px !important; padding-right: 8px !important; }
+  body:has(#account-panel) header > div { padding-left: 10px !important; padding-right: 10px !important; }
 }
