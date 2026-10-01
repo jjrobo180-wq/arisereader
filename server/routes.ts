@@ -13,6 +13,7 @@ import { createTheaterCatalogStore, registerTheaterAdminRoutes } from "./theater
 import { theaterMediaKey, type TheaterMovie } from "../shared/clubTheater";
 import { registerClubPlayRoutes } from "./clubPlay";
 import { registerClubAriseRoutes } from "./clubArise";
+import { registerChessArenaRoutes } from "./chessArena";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
@@ -934,6 +935,7 @@ export async function registerRoutes(
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   registerClubAriseRoutes(app, authMiddleware);
+  registerChessArenaRoutes(app, authMiddleware);
   registerBoardQuestRoutes(app, authMiddleware);
   const theaterCatalog = createTheaterCatalogStore(storage);
   // My World uses a lightweight grown-up math gate from the child's account.
