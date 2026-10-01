@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Trophy, BookOpen, Award, LogOut, Brain, Users, Gamepad2, Settings2,
-  UserPlus, ChevronDown, Eye, ShieldCheck, Clock3, Sparkles
+  UserPlus, ChevronDown, Eye, ShieldCheck, Clock3, Sparkles, MessageSquareText, Home
 } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
@@ -254,15 +254,15 @@ export default function ParentDashboard() {
   };
 
   if (loading) {
-    return <div className="min-h-screen grid place-items-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="min-h-screen grid place-items-center arise-page-bg"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl shadow-sm">
+    <div className="min-h-screen arise-page-bg">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl shadow-sm">
         <div className="max-w-6xl mx-auto px-4 min-h-16 py-2 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">A.R.I.S.E. Family</p>
+            <p className="text-[10px] font-black uppercase tracking-[.2em] arise-gradient-text">A.R.I.S.E. Family</p>
             <h1 className="text-lg font-black text-foreground">Parent Portal</h1>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowLink(v => !v)}>
@@ -275,7 +275,7 @@ export default function ParentDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <section className="rounded-[1.75rem] border border-border bg-card p-4 sm:p-5 shadow-sm">
+        <section className="rounded-[1.75rem] arise-surface border border-white/10 p-4 sm:p-5 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="flex-1">
               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Viewing child</p>
@@ -292,10 +292,10 @@ export default function ParentDashboard() {
                     type="button"
                     disabled={switching || controlSaving}
                     onClick={() => void loadProfile(child.id)}
-                    className={`min-w-[145px] rounded-2xl border-2 px-4 py-3 text-left transition ${selectedChildId === child.id ? "border-primary bg-primary/10 shadow-md" : "border-border bg-muted/20 hover:border-primary/40"}`}
+                    className={`min-w-[145px] rounded-2xl border-2 px-4 py-3 text-left transition ${selectedChildId === child.id ? "border-violet-400/40 bg-gradient-to-r from-violet-500/12 via-fuchsia-500/[.08] to-cyan-400/[.08] shadow-md" : "border-white/10 bg-white/[.04] hover:border-violet-400/40"}`}
                   >
                     <div className="flex items-center gap-2">
-                      <div className={`grid h-9 w-9 place-items-center rounded-xl ${child.isEyeGazeUser ? "bg-cyan-500/15 text-cyan-400" : "bg-orange-500/15 text-orange-400"}`}>
+                      <div className={`grid h-9 w-9 place-items-center rounded-xl ${child.isEyeGazeUser ? "bg-cyan-500/15 text-cyan-300" : "bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 text-violet-200"}`}>
                         {child.isEyeGazeUser ? <Eye className="h-5 w-5" /> : <BookOpen className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0">
@@ -310,13 +310,13 @@ export default function ParentDashboard() {
           </div>
 
           {showLink && (
-            <div className="mt-5 border-t border-border pt-5">
+            <div className="mt-5 border-t border-white/10 pt-5">
               <p className="font-bold text-foreground">Connect another child</p>
               <p className="mt-1 text-sm text-muted-foreground">Enter the parent code from that child’s account or school handout. One parent account can now hold multiple children.</p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <input
                   aria-label="Parent code"
-                  className="min-h-11 flex-1 rounded-xl border border-border bg-background px-3"
+                  className="min-h-11 flex-1 rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white"
                   placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
                   value={parentCode}
                   onChange={e => setParentCode(e.target.value.toUpperCase())}
@@ -332,28 +332,28 @@ export default function ParentDashboard() {
         {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-300">{error}</div>}
 
         {switching ? (
-          <section role="status" className="rounded-[2rem] border border-border bg-card p-10 text-center">
+          <section role="status" className="rounded-[2rem] arise-surface border border-white/10 p-10 text-center">
             <p className="text-lg font-bold">Loading your child's progress and controls…</p>
           </section>
         ) : !data ? (
-          <section className="rounded-[2rem] border border-dashed border-primary/40 bg-card p-10 text-center">
-            <Users className="mx-auto h-12 w-12 text-primary" />
+          <section className="rounded-[2rem] border border-dashed border-violet-400/30 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.05] to-cyan-400/10 p-10 text-center">
+            <Users className="mx-auto h-12 w-12 text-violet-300" />
             <h2 className="mt-4 text-2xl font-black">Connect your first child</h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Once connected, you’ll be able to switch between children, see each child’s progress, and manage the controls that match their account type.</p>
             <Button className="mt-5" onClick={() => setShowLink(true)}>Add child</Button>
           </section>
         ) : (
           <>
-            <section className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-md">
-              <div className={`p-5 sm:p-6 ${data.student.isEyeGazeUser ? "bg-gradient-to-r from-cyan-500/15 via-violet-500/10 to-card" : "bg-gradient-to-r from-orange-500/15 via-amber-500/5 to-card"}`}>
+            <section className="overflow-hidden rounded-[2rem] arise-surface border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,.24)]">
+              <div className={`p-5 sm:p-6 ${data.student.isEyeGazeUser ? "bg-gradient-to-r from-cyan-500/15 via-violet-500/10 to-[#151326]" : "bg-gradient-to-r from-violet-500/18 via-fuchsia-500/10 to-cyan-400/[.08]"}`}>
                 <div className="flex flex-wrap items-center gap-4">
-                  <div className={`grid h-16 w-16 place-items-center rounded-2xl text-2xl font-black ${data.student.isEyeGazeUser ? "bg-cyan-400 text-slate-950" : "bg-primary text-primary-foreground"}`}>
+                  <div className={`grid h-16 w-16 place-items-center rounded-2xl text-2xl font-black ${data.student.isEyeGazeUser ? "bg-cyan-400 text-slate-950" : "bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white shadow-lg shadow-violet-500/20"}`}>
                     {data.student.displayName.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-2xl font-black">{data.student.displayName}</h2>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${data.student.isEyeGazeUser ? "bg-cyan-500/15 text-cyan-300" : "bg-orange-500/15 text-orange-300"}`}>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${data.student.isEyeGazeUser ? "bg-cyan-500/15 text-cyan-300" : "bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-cyan-400/10 text-violet-200 ring-1 ring-violet-400/20"}`}>
                         {data.student.isEyeGazeUser ? "Eye Gazer" : "Non-Eye Gazer"}
                       </span>
                     </div>
@@ -363,15 +363,15 @@ export default function ParentDashboard() {
               </div>
 
               <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
-                <div className="rounded-2xl border border-border bg-muted/20 p-4"><Trophy className="h-5 w-5 text-primary" /><div className="mt-2 text-2xl font-black">{data.totalPoints}</div><div className="text-xs text-muted-foreground">Total Points</div></div>
-                <div className="rounded-2xl border border-border bg-muted/20 p-4"><BookOpen className="h-5 w-5 text-blue-400" /><div className="mt-2 text-2xl font-black">{data.quizzesTaken}</div><div className="text-xs text-muted-foreground">Quizzes Taken</div></div>
-                <div className="rounded-2xl border border-border bg-muted/20 p-4"><Sparkles className="h-5 w-5 text-green-400" /><div className="mt-2 text-2xl font-black">{Math.max(0, data.totalBooks - data.quizzesTaken)}</div><div className="text-xs text-muted-foreground">Books Left</div></div>
+                <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4"><Trophy className="h-5 w-5 text-violet-300" /><div className="mt-2 text-2xl font-black">{data.totalPoints}</div><div className="text-xs text-muted-foreground">Total Points</div></div>
+                <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4"><BookOpen className="h-5 w-5 text-blue-400" /><div className="mt-2 text-2xl font-black">{data.quizzesTaken}</div><div className="text-xs text-muted-foreground">Quizzes Taken</div></div>
+                <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4"><Sparkles className="h-5 w-5 text-green-400" /><div className="mt-2 text-2xl font-black">{Math.max(0, data.totalBooks - data.quizzesTaken)}</div><div className="text-xs text-muted-foreground">Books Left</div></div>
               </div>
             </section>
 
-            <Card className="overflow-hidden border-primary/25 shadow-md">
-              <CardHeader className="bg-primary/5">
-                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Parent Controls · {data.student.displayName}</CardTitle>
+            <Card className="overflow-hidden border-violet-400/20 shadow-md">
+              <CardHeader className="bg-violet-500/[.07]">
+                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-violet-300" /> Parent Controls · {data.student.displayName}</CardTitle>
               </CardHeader>
               <CardContent className="p-5">
                 {controlsError ? (
@@ -386,15 +386,15 @@ export default function ParentDashboard() {
                         <Settings2 className="h-6 w-6 text-cyan-300" /><h3 className="mt-3 font-black">Access & Game Controls</h3><p className="mt-1 text-xs text-muted-foreground">Choose which learning areas, games, Life Skills, progress, and media your child can open.</p>
                       </button>
                       <button onClick={() => window.location.hash = "#/eye-gaze-parent"} className="rounded-2xl border-2 border-teal-400/30 bg-teal-500/10 p-4 text-left hover:border-teal-400">
-                        <span className="text-2xl">🗣️</span><h3 className="mt-3 font-black">My Talker</h3><p className="mt-1 text-xs text-muted-foreground">Personal words, pictures, voice, categories, phrases, and communication setup.</p>
+                        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-fuchsia-500/20 to-violet-500/20 ring-1 ring-fuchsia-400/20"><MessageSquareText className="h-5 w-5 text-fuchsia-200" /></span><h3 className="mt-3 font-black">My Talker</h3><p className="mt-1 text-xs text-muted-foreground">Personal words, pictures, voice, categories, phrases, and communication setup.</p>
                       </button>
                       <button onClick={() => window.location.hash = "#/my-world"} className="rounded-2xl border-2 border-violet-400/30 bg-violet-500/10 p-4 text-left hover:border-violet-400">
-                        <span className="text-2xl">🏠</span><h3 className="mt-3 font-black">My World</h3><p className="mt-1 text-xs text-muted-foreground">Build familiar rooms, labels, I-Spy prompts, and real-life learning spaces.</p>
+                        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-400/20 ring-1 ring-violet-400/20"><Home className="h-5 w-5 text-cyan-200" /></span><h3 className="mt-3 font-black">My World</h3><p className="mt-1 text-xs text-muted-foreground">Build familiar rooms, labels, I-Spy prompts, and real-life learning spaces.</p>
                       </button>
                     </div>
 
                     {eyeControls && (
-                      <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 sm:grid-cols-3">
+                      <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4 sm:grid-cols-3">
                         <label className="flex items-center justify-between gap-4">
                           <div><strong className="block text-sm">Eye Gazer games</strong><span className="text-xs text-muted-foreground">Quickly allow or block the Games area.</span></div>
                           <input
@@ -420,11 +420,11 @@ export default function ParentDashboard() {
                             value={eyeControls.gameDailyMinutes}
                             onChange={e => setEyeControls({ ...eyeControls, gameDailyMinutes: Math.max(0, Math.min(240, Number(e.target.value) || 0)) })}
                             onBlur={() => eyeControls && void saveEyeControls(eyeControls)}
-                            className="w-20 rounded-lg border border-border bg-background p-2 text-right"
+                            className="w-20 rounded-xl border border-white/10 bg-[#0f0d1d] p-2 text-right"
                           />
                         </label>
                         <label className="flex items-center gap-3">
-                          <Clock3 className="h-5 w-5 text-primary" />
+                          <Clock3 className="h-5 w-5 text-violet-300" />
                           <div className="flex-1"><strong className="block text-sm">A.R.I.S.E. Shorts daily limit</strong><span className="text-xs text-muted-foreground">0 means unlimited.</span></div>
                           <input
                             type="number"
@@ -433,7 +433,7 @@ export default function ParentDashboard() {
                             value={eyeControls.tvDailyMinutes}
                             onChange={e => setEyeControls({ ...eyeControls, tvDailyMinutes: Math.max(0, Math.min(240, Number(e.target.value) || 0)) })}
                             onBlur={() => eyeControls && void saveEyeControls(eyeControls)}
-                            className="w-20 rounded-lg border border-border bg-background p-2 text-right"
+                            className="w-20 rounded-xl border border-white/10 bg-[#0f0d1d] p-2 text-right"
                           />
                         </label>
                       </div>
@@ -451,7 +451,7 @@ export default function ParentDashboard() {
                         <h3 className="mt-3 font-black">{regularControls.locked ? "Games are locked" : "Games are available"}</h3>
                         <p className="mt-1 text-xs text-muted-foreground">Tap to {regularControls.locked ? "allow" : "lock"} Club A.R.I.S.E. and arcade play.</p>
                       </button>
-                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4">
                         <label className="text-sm font-black">Daily game limit</label>
                         <p className="mt-1 text-xs text-muted-foreground">Leave blank for no daily game-count limit.</p>
                         <input
@@ -460,11 +460,11 @@ export default function ParentDashboard() {
                           max={180}
                           value={regularControls.dailyGameLimit ?? ""}
                           onChange={e => setRegularControls(c => ({ ...c, dailyGameLimit: e.target.value === "" ? null : Math.max(0, Number(e.target.value) || 0) }))}
-                          className="mt-3 w-full rounded-xl border border-border bg-background p-3"
+                          className="mt-3 w-full rounded-xl border border-white/10 bg-background p-3"
                           placeholder="Unlimited"
                         />
                       </div>
-                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4">
                         <label className="text-sm font-black">Games earned per passed quiz</label>
                         <p className="mt-1 text-xs text-muted-foreground">0 means this rule is off.</p>
                         <input
@@ -473,15 +473,15 @@ export default function ParentDashboard() {
                           max={20}
                           value={regularControls.gamesPerPassedQuiz}
                           onChange={e => setRegularControls(c => ({ ...c, gamesPerPassedQuiz: Math.max(0, Math.min(20, Number(e.target.value) || 0)) }))}
-                          className="mt-3 w-full rounded-xl border border-border bg-background p-3"
+                          className="mt-3 w-full rounded-xl border border-white/10 bg-background p-3"
                         />
                       </div>
                       <button
                         type="button"
                         onClick={() => setRegularControls(c => ({ ...c, weeklyUnlimitedOnPass: !c.weeklyUnlimitedOnPass }))}
-                        className={`rounded-2xl border-2 p-4 text-left ${regularControls.weeklyUnlimitedOnPass ? "border-primary/40 bg-primary/10" : "border-border bg-muted/20"}`}
+                        className={`rounded-2xl border-2 p-4 text-left ${regularControls.weeklyUnlimitedOnPass ? "border-primary/40 bg-primary/10" : "border-white/10 bg-white/[.04]"}`}
                       >
-                        <Trophy className="h-6 w-6 text-primary" />
+                        <Trophy className="h-6 w-6 text-violet-300" />
                         <h3 className="mt-3 font-black">Unlimited week after passing a quiz</h3>
                         <p className="mt-1 text-xs text-muted-foreground">{regularControls.weeklyUnlimitedOnPass ? "ON — a passed quiz unlocks unlimited play for the week." : "OFF — normal game limits continue after a passed quiz."}</p>
                       </button>
@@ -522,12 +522,12 @@ export default function ParentDashboard() {
                         </div>
                         <div className="text-right flex-shrink-0">
                           <div className="font-bold text-sm">{r.score}/{r.total}</div>
-                          <div className="text-xs text-primary font-semibold">{r.pointsEarned || 0} pts</div>
+                          <div className="text-xs text-violet-300 font-semibold">{r.pointsEarned || 0} pts</div>
                           <div className={`text-xs font-semibold ${r.passed ? "text-green-400" : "text-red-400"}`}>{r.passed ? "Passed" : "Not Passed"}</div>
                           {r.passed && (
                             <button
                               onClick={() => generateCertificate(data.student.displayName, r.title, r.pointsEarned ?? 0, new Date(r.completedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }))}
-                              className="text-xs text-primary hover:underline mt-1 flex items-center gap-0.5"
+                              className="text-xs text-violet-300 hover:underline mt-1 flex items-center gap-0.5"
                             >
                               <Award className="w-3 h-3" /> Certificate
                             </button>
@@ -545,8 +545,8 @@ export default function ParentDashboard() {
                 <CardHeader><CardTitle className="flex items-center gap-2"><Brain className="w-5 h-5" /> Arise Reading Growth Check</CardTitle></CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-6 mb-4">
-                    <div className="text-center"><div className="text-4xl font-bold text-primary">{growthCheck.latest?.arise_reading_score}</div><div className="text-xs text-muted-foreground">Arise Reading Score</div></div>
-                    {growthCheck.scoreChange !== 0 && <div className="text-center"><div className={`text-2xl font-bold ${growthCheck.scoreChange > 0 ? "text-green-400" : "text-orange-400"}`}>{growthCheck.scoreChange > 0 ? "+" : ""}{growthCheck.scoreChange}</div><div className="text-xs text-muted-foreground">Change</div></div>}
+                    <div className="text-center"><div className="text-4xl font-bold text-violet-300">{growthCheck.latest?.arise_reading_score}</div><div className="text-xs text-muted-foreground">Arise Reading Score</div></div>
+                    {growthCheck.scoreChange !== 0 && <div className="text-center"><div className={`text-2xl font-bold ${growthCheck.scoreChange > 0 ? "text-green-400" : "text-violet-300"}`}>{growthCheck.scoreChange > 0 ? "+" : ""}{growthCheck.scoreChange}</div><div className="text-xs text-muted-foreground">Change</div></div>}
                   </div>
                   {growthCheck.latest?.student_summary && <p className="text-sm text-muted-foreground mb-3">{growthCheck.latest.student_summary}</p>}
                   {Array.isArray(growthCheck.skillSummary) && growthCheck.skillSummary.length > 0 && (
