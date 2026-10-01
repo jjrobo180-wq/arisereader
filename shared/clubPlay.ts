@@ -31,7 +31,15 @@ export type PlayAccess = {
   weeklyUnlimitedOnPass: boolean;
   passedThisWeek: number;
   closedByAdmin?: boolean;
+  closedByTeacher?: boolean;
   closingHours?: {
+    enabled: boolean;
+    start: string;
+    end: string;
+    days: number[];
+    timeZone: string;
+  } | null;
+  teacherClosingHours?: {
     enabled: boolean;
     start: string;
     end: string;
