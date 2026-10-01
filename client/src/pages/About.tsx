@@ -7,31 +7,31 @@ const LETTERS = [
   {
     letter: "A",
     word: "Advocating",
-    color: "from-rose-500 to-pink-500",
+    color: "from-violet-500 to-fuchsia-500",
     text: "Every child deserves to feel heard, seen, and worthy of success. A.R.I.S.E. encourages students to advocate for themselves, ask for help when they need it, and believe that their voice matters.",
   },
   {
     letter: "R",
     word: "Resilience",
-    color: "from-amber-500 to-orange-500",
+    color: "from-fuchsia-500 to-violet-500",
     text: "Not every book will be easy. Not every quiz will be passed on the first try. A.R.I.S.E. teaches students that struggling doesn't mean they're failing — it means they're growing. We celebrate the courage to keep turning the page.",
   },
   {
     letter: "I",
     word: "Inclusion",
-    color: "from-emerald-500 to-teal-500",
+    color: "from-cyan-500 to-blue-500",
     text: "Every student deserves a place in the world of reading. Whether a student reads far above grade level, struggles to decode a sentence, or needs additional support, A.R.I.S.E. is built on the belief that every reader belongs.",
   },
   {
     letter: "S",
     word: "Support",
-    color: "from-sky-500 to-blue-500",
+    color: "from-blue-500 to-violet-500",
     text: "Sometimes students don't need someone to tell them they're behind. They need someone to tell them, \u201cI've got you. Let's figure this out together.\u201d A.R.I.S.E. surrounds students with encouragement, accessible books, meaningful support, and people who believe in them.",
   },
   {
     letter: "E",
     word: "Empowerment",
-    color: "from-violet-500 to-purple-500",
+    color: "from-violet-500 to-fuchsia-500",
     text: "The greatest reward isn't a prize — it's a student realizing, \u201cI did that.\u201d A.R.I.S.E. gives students opportunities to make choices, set goals, celebrate their accomplishments, and discover that they are capable of more than they thought.",
   },
 ];
@@ -41,7 +41,7 @@ export default function About() {
   const [expanded, setExpanded] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen arise-page-bg">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
@@ -50,7 +50,7 @@ export default function About() {
             <span className="text-sm font-medium text-muted-foreground">Back</span>
           </button>
           <h1 className="text-lg font-bold">
-            <span className="text-primary">A.R.I.S.E</span> Reader
+            <span className="arise-gradient-text">A.R.I.S.E</span> Reader
           </h1>
           <div className="w-16" />
         </div>
@@ -58,14 +58,14 @@ export default function About() {
 
       {/* Hero */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/15 via-fuchsia-500/[.05] to-cyan-400/10" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-16 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-6">
             <Heart className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-medium text-primary">Our Mission</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
-            What does <span className="text-primary">A.R.I.S.E.</span> mean?
+            What does <span className="arise-gradient-text">A.R.I.S.E.</span> mean?
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
             We aren't just trying to get students to read more books. We're trying to help them believe in themselves.
@@ -75,11 +75,11 @@ export default function About() {
 
       {/* Meet Mr. J */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-2xl border border-white/10 arise-surface overflow-hidden">
           {/* Section header */}
           <div className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent px-6 sm:px-8 py-8 border-b border-border">
             <div className="flex items-center gap-3 mb-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center shadow-lg">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-500 flex items-center justify-center shadow-lg">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <span className="text-xs font-semibold text-primary uppercase tracking-wider">The Story Behind A.R.I.S.E.</span>
@@ -91,7 +91,7 @@ export default function About() {
           {/* Educator profile */}
           <div className="grid md:grid-cols-[280px_1fr] gap-6 sm:gap-8 px-6 sm:px-8 pt-8 items-center">
             <div className="relative mx-auto md:mx-0 w-full max-w-[280px]">
-              <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-primary/35 via-orange-400/20 to-violet-500/25 blur-xl" />
+              <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-violet-500/35 via-fuchsia-500/25 to-cyan-400/25 blur-xl" />
               <img
                 src="/about/mr-j-portrait.jpg?v=20260930"
                 alt="Mr. J, creator of A.R.I.S.E. Reader"
@@ -111,13 +111,13 @@ export default function About() {
               </p>
               <div className="mt-5 grid grid-cols-3 gap-2">
                 {[
-                  ["📚", "Reading"],
-                  ["🤝", "Support"],
-                  ["⭐", "Confidence"],
-                ].map(([icon, label]) => (
-                  <div key={label} className="rounded-xl bg-primary/5 border border-primary/15 px-2 py-3 text-center">
-                    <div className="text-2xl">{icon}</div>
-                    <div className="text-xs font-semibold mt-1">{label}</div>
+                  { label: "Reading", Icon: BookOpen },
+                  { label: "Support", Icon: Heart },
+                  { label: "Confidence", Icon: Award },
+                ].map(({ label, Icon }) => (
+                  <div key={label} className="rounded-xl bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.07] to-cyan-400/10 border border-violet-400/15 px-2 py-3 text-center">
+                    <div className="mx-auto grid h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Icon className="h-4 w-4" /></div>
+                    <div className="text-xs font-semibold mt-2">{label}</div>
                   </div>
                 ))}
               </div>
@@ -129,7 +129,7 @@ export default function About() {
 
             {/* #1 AR winner */}
             <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-violet-500 flex items-center justify-center shadow">
                 <Award className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1">
@@ -142,7 +142,7 @@ export default function About() {
 
             {/* The problem */}
             <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center shadow">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1">
@@ -155,7 +155,7 @@ export default function About() {
 
             {/* Ariana */}
             <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-violet-600 flex items-center justify-center shadow">
                 <Baby className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1">
@@ -179,9 +179,9 @@ export default function About() {
           </div>
 
           {/* Classroom gallery */}
-          <div className="border-t border-border bg-muted/15 px-6 sm:px-8 py-8">
+          <div className="border-t border-white/10 bg-white/[.025] px-6 sm:px-8 py-8">
             <div className="flex items-start gap-3 mb-6">
-              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-violet-600 flex items-center justify-center shadow">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-blue-500 to-violet-600 flex items-center justify-center shadow">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -209,7 +209,7 @@ export default function About() {
                   caption: "Meeting students where they are and helping them grow.",
                 },
               ].map((photo) => (
-                <figure key={photo.src} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <figure key={photo.src} className="group overflow-hidden rounded-2xl border border-white/10 arise-surface shadow-sm">
                   <div className="overflow-hidden">
                     <img
                       src={photo.src}
@@ -233,7 +233,7 @@ export default function About() {
         {LETTERS.map((item, i) => (
           <div
             key={item.letter}
-            className="rounded-2xl border border-border bg-card overflow-hidden transition-all"
+            className="rounded-2xl border border-white/10 arise-surface overflow-hidden transition-all"
           >
             <button
               onClick={() => setExpanded(expanded === i ? null : i)}
@@ -271,7 +271,7 @@ export default function About() {
 
       {/* Closing statement */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-20">
-        <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 p-8 sm:p-12 text-center">
+        <div className="rounded-2xl bg-gradient-to-br from-violet-500/14 via-fuchsia-500/[.07] to-cyan-400/10 border border-violet-400/20 p-8 sm:p-12 text-center shadow-[0_20px_60px_rgba(0,0,0,.18)]">
           <h2 className="text-xl sm:text-2xl font-bold mb-4">A.R.I.S.E. Reader</h2>
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
             We aren't just trying to get students to read more books. We're trying to help them believe in themselves.
@@ -287,7 +287,7 @@ export default function About() {
 
       {/* CTA */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-20 text-center">
-        <Button onClick={() => navigate("/")} size="lg" className="px-8">
+        <Button onClick={() => navigate("/")} size="lg" className="px-8 arise-gradient-button rounded-full font-black">
           Back to Home
         </Button>
       </div>
