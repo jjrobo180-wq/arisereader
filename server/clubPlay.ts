@@ -5,6 +5,7 @@ import { clubDay, clubWeek, updatePlayRecord, type PlayAccess, type PlayRecord }
 const cached = new Map<number, { access: PlayAccess; until: number }>();
 type ClubClosingHours = { enabled: boolean; start: string; end: string; days: number[]; timeZone: string };
 let closingCache: { value: ClubClosingHours; until: number } | null = null;
+const teacherClosingCache = new Map<number, { value: ClubClosingHours; until: number }>();
 
 const DEFAULT_CLOSING_HOURS: ClubClosingHours = {
   enabled: false,
@@ -34,6 +35,30 @@ async function getClosingHours(): Promise<ClubClosingHours> {
     } catch {}
   }
   closingCache = { value, until: now + 5_000 };
+  return value;
+}
+
+async function getTeacherClosingHours(teacherId: number): Promise<ClubClosingHours> {
+  const now = Date.now();
+  const hit = teacherClosingCache.get(teacherId);
+  if (hit && hit.until > now) return hit.value;
+  const db = getAdminSupabase();
+  const { data, error } = await db.from("settings").select("value").eq("key", `club_closing_hours_teacher_${teacherId}`).maybeSingle();
+  if (error) throw error;
+  let value = { ...DEFAULT_CLOSING_HOURS, enabled: false };
+  if (data?.value) {
+    try {
+      const parsed = JSON.parse(data.value);
+      value = {
+        enabled: parsed?.enabled === true,
+        start: /^\d{2}:\d{2}$/.test(String(parsed?.start || "")) ? String(parsed.start) : DEFAULT_CLOSING_HOURS.start,
+        end: /^\d{2}:\d{2}$/.test(String(parsed?.end || "")) ? String(parsed.end) : DEFAULT_CLOSING_HOURS.end,
+        days: Array.isArray(parsed?.days) ? parsed.days.map(Number).filter((d:number)=>Number.isInteger(d)&&d>=0&&d<=6) : DEFAULT_CLOSING_HOURS.days,
+        timeZone: "America/Denver",
+      };
+    } catch {}
+  }
+  teacherClosingCache.set(teacherId, { value, until: now + 5_000 });
   return value;
 }
 
@@ -76,7 +101,7 @@ async function allowance(userId: number, now: number) {
 
   const db = getAdminSupabase();
   const since = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString();
-  const [attempts, control] = await Promise.all([
+  const [attempts, control, student] = await Promise.all([
     db.from('attempts')
       .select('book_id,score,total,completed_at')
       .eq('user_id', userId)
@@ -87,10 +112,12 @@ async function allowance(userId: number, now: number) {
       .select('locked,weekly_unlimited_on_pass')
       .eq('student_id', userId)
       .maybeSingle(),
+    db.from('users').select('teacher_id').eq('id', userId).maybeSingle(),
   ]);
 
   if (attempts.error) throw attempts.error;
   if (control.error) throw control.error;
+  if (student.error) throw student.error;
 
   const books = new Set<number>();
   for (const a of attempts.data || []) {
@@ -104,6 +131,7 @@ async function allowance(userId: number, now: number) {
   const weeklyUnlimitedOnPass = control.data?.weekly_unlimited_on_pass !== false;
   const result = {
     passedThisWeek: books.size,
+    teacherId: Number(student.data?.teacher_id) || null,
     locked: !!control.data?.locked,
     weeklyUnlimitedOnPass,
     unlimitedThisWeek: weeklyUnlimitedOnPass && books.size > 0,
@@ -118,16 +146,18 @@ async function allowance(userId: number, now: number) {
 async function playTime(userId: number, sessionId?: string, leaving = false) {
   const now = Date.now(), grant = await allowance(userId, now);
   const closingHours = await getClosingHours();
+  const teacherClosingHours = grant.teacherId ? await getTeacherClosingHours(grant.teacherId) : null;
   const closedByAdmin = closingStatus(closingHours, now);
-  const effectiveLocked = grant.locked || closedByAdmin;
+  const closedByTeacher = teacherClosingHours ? closingStatus(teacherClosingHours, now) : false;
+  const effectiveLocked = grant.locked || closedByAdmin || closedByTeacher;
   const hit = cached.get(userId);
 
   if (!sessionId && hit && hit.until > now && hit.access.day === grant.day && hit.access.week === grant.week &&
       hit.access.locked === effectiveLocked && hit.access.unlimitedThisWeek === grant.unlimitedThisWeek &&
       hit.access.weeklyUnlimitedOnPass === grant.weeklyUnlimitedOnPass && hit.access.passedThisWeek === grant.passedThisWeek) {
-    if (hit.access.unlimitedThisWeek) return { ...hit.access, serverNow: now, allowed: !effectiveLocked, locked: grant.locked, closedByAdmin, closingHours };
+    if (hit.access.unlimitedThisWeek) return { ...hit.access, serverNow: now, allowed: !effectiveLocked, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours };
     const remainingMs = Math.max(0, hit.access.expiresAt - now);
-    return { ...hit.access, remainingMs, serverNow: now, allowed: !effectiveLocked && remainingMs > 0 && hit.access.leaseUntil > now, locked: grant.locked, closedByAdmin, closingHours };
+    return { ...hit.access, remainingMs, serverNow: now, allowed: !effectiveLocked && remainingMs > 0 && hit.access.leaseUntil > now, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours };
   }
 
   const db = getAdminSupabase(), key = `club_play_time_${userId}`;
@@ -162,7 +192,7 @@ async function playTime(userId: number, sessionId?: string, leaving = false) {
       }
     }
 
-    const finalAccess = { ...access, locked: grant.locked, closedByAdmin, closingHours, allowed: access.allowed && !closedByAdmin };
+    const finalAccess = { ...access, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours, allowed: access.allowed && !closedByAdmin && !closedByTeacher };
     cached.set(userId, { access: finalAccess, until: Date.now() + 2_000 });
     return finalAccess;
   }
@@ -236,6 +266,44 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
     }
   });
 
+  app.get('/api/teacher/club-closing-hours', auth, async (req:any,res) => {
+    if (req.user?.role !== 'teacher' || req.user?.accountApproved === false) return res.status(403).json({ message: 'Approved teacher access required.' });
+    try {
+      const schedule = await getTeacherClosingHours(Number(req.user.id));
+      const adminSchedule = await getClosingHours();
+      res.set('Cache-Control','no-store');
+      res.json({ ...schedule, closedNow: closingStatus(schedule), adminOverrideClosedNow: closingStatus(adminSchedule), adminSchedule });
+    } catch {
+      res.status(500).json({ message: 'Could not load your class Club closing hours.' });
+    }
+  });
+
+  app.post('/api/teacher/club-closing-hours', auth, async (req:any,res) => {
+    if (req.user?.role !== 'teacher' || req.user?.accountApproved === false) return res.status(403).json({ message: 'Approved teacher access required.' });
+    try {
+      const start = String(req.body?.start || '');
+      const end = String(req.body?.end || '');
+      const days = Array.isArray(req.body?.days) ? req.body.days.map(Number).filter((d:number)=>Number.isInteger(d)&&d>=0&&d<=6) : [];
+      if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return res.status(400).json({ message: 'Choose a valid closing and reopening time.' });
+      const schedule: ClubClosingHours = {
+        enabled: req.body?.enabled === true,
+        start,
+        end,
+        days: Array.from(new Set(days)).sort((a,b)=>a-b),
+        timeZone:'America/Denver',
+      };
+      const db=getAdminSupabase();
+      const { error }=await db.from('settings').upsert({ key:`club_closing_hours_teacher_${req.user.id}`, value:JSON.stringify(schedule) }, { onConflict:'key' });
+      if(error) throw error;
+      teacherClosingCache.set(Number(req.user.id),{value:schedule,until:Date.now()+5_000});
+      cached.clear();
+      const adminSchedule = await getClosingHours();
+      res.json({ ...schedule, closedNow:closingStatus(schedule), adminOverrideClosedNow:closingStatus(adminSchedule), adminSchedule, message:'Your class Club closing hours are saved.' });
+    } catch {
+      res.status(500).json({ message:'Could not save your class Club closing hours.' });
+    }
+  });
+
   app.post('/api/club-play/heartbeat', auth, async (req: any, res) => {
     res.set('Cache-Control', 'no-store');
     if (req.user.role !== 'student' || req.user.isAdmin || req.user.is_eye_gaze_user) return res.status(403).json({ message: 'Club Arise is for regular student accounts.' });
@@ -262,6 +330,8 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
         return res.status(403).json({
           message: access.closedByAdmin
             ? `Club A.R.I.S.E. is closed right now. Admin hours: ${access.closingHours?.start || ''}–${access.closingHours?.end || ''} Mountain Time.`
+            : access.closedByTeacher
+              ? `Club A.R.I.S.E. is closed for your class right now. Class hours: ${access.teacherClosingHours?.start || ''}–${access.teacherClosingHours?.end || ''} Mountain Time.`
             : access.locked
               ? 'Club Arise is locked by your teacher.'
               : access.weeklyUnlimitedOnPass
