@@ -2,6 +2,19 @@
    Goal: the PAGE itself must never scroll left/right on a phone.
    Purpose-built horizontal rails can still swipe inside their own container. */
 
+/* Put the complete feature gallery first, then the large Explore preview.
+   The JSX stays intact; this only changes the visual reading order. */
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) {
+  display: flex;
+  flex-direction: column;
+}
+
+body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > div:nth-child(3) {
+  order: -1;
+  border-top: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 @media (max-width: 900px) {
   /* Hard viewport guard. This also covers Safari cases where :has() layout
      containment is inconsistent while the page is hydrating. */
