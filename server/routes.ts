@@ -5931,7 +5931,8 @@ export async function registerRoutes(
       const quiz = await storage.getEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
       const sampleAccount = isDemoStudent(req.user);
-      if (req.adminPreview || sampleAccount) {
+      const staffPreview = req.user?.isAdmin || req.user?.role === "teacher";
+      if (req.adminPreview || sampleAccount || staffPreview) {
         return res.json({ ...quiz, attemptId: -quizId, preview: true });
       }
 
