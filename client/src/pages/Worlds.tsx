@@ -5,12 +5,12 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ArrowLeft, ArrowRight, Compass, LockKeyhole, Rotate3D } from "lucide-react";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
-type WorldId="club"|"theater"|"neighborhood"|"laser"|"board"|"chess"|"space"|"beach"|"racetrack";
+type WorldId="club"|"theater"|"neighborhood"|"laser"|"board"|"halloread"|"chess"|"space"|"beach"|"racetrack";
 const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:number}[]=[
   {id:"club",title:"A.R.I.S.E Arcade",description:"Dance, meet readers, and play arcade games together.",path:"/arise-arcade",color:0xc026d3},
   {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
-  {id:"board",title:"A.R.I.S.E. Board Quest",description:"Roll the dice, move through the 3D board, and take on reading challenges.",path:"/board-game-world",color:0xfbbf24},
+  {id:"board",title:"A.R.I.S.E. Board Quest",description:"Roll the dice, move through the 3D board, and take on reading challenges.",path:"/board-game-world",color:0xfbbf24},\n  {id:"halloread",title:"Halloread: Midnight Mystery",description:"A spooky after-hours 3D mystery board world with multiplayer, creepy clues, strange clockwork characters, and Halloween surprises — never gory.",path:"/halloread-mystery",color:0xf97316},
   {id:"chess",title:"Ultimate Chess",description:"Enter a cinematic chess arena, challenge the computer, or battle another reader live.",path:"/ultimate-chess",color:0xe5c55f},
   {id:"laser",title:"Laser Royale",description:"The laser tag arena is closed for now. Coming soon!",color:0x6b7280},
   {id:"space",title:"Outer Space",description:"A glowing galaxy of planets and places to explore. Coming soon.",color:0x9868f4},
@@ -28,7 +28,7 @@ function marker(text:string){
 }
 function makeWorld(id:WorldId,color:number){
   const group=new THREE.Group();group.userData.worldId=id;
-  const surface=sphere(1.25,id==="club"?0x251b51:id==="theater"?0x2a1621:id==="neighborhood"?0x65af7a:id==="laser"?0x102d3b:id==="board"?0x5b3a13:id==="chess"?0x241b32:id==="space"?0x27205d:id==="beach"?0x43b9cb:0x34775d);group.add(surface);
+  const surface=sphere(1.25,id==="club"?0x251b51:id==="theater"?0x2a1621:id==="neighborhood"?0x65af7a:id==="laser"?0x102d3b:id==="board"?0x5b3a13:id==="halloread"?0x190822:id==="chess"?0x241b32:id==="space"?0x27205d:id==="beach"?0x43b9cb:0x34775d);group.add(surface);
   const band=new THREE.Mesh(new THREE.TorusGeometry(1.4,.045,10,64),new THREE.MeshBasicMaterial({color}));band.rotation.x=Math.PI/2.5;group.add(band);
   if(id==="club"){
     const base=new THREE.Mesh(new THREE.CylinderGeometry(.65,.8,.28,12),new THREE.MeshStandardMaterial({color:0x191936,emissive:color,emissiveIntensity:.25}));base.position.y=1.16;group.add(base);
@@ -54,6 +54,12 @@ function makeWorld(id:WorldId,color:number){
     const tileColors=[0xef4444,0x3b82f6,0x22c55e,0xfacc15];
     for(let i=0;i<8;i++){const tile=new THREE.Mesh(new THREE.BoxGeometry(.28,.08,.28),new THREE.MeshStandardMaterial({color:tileColors[i%4]}));const a=i*Math.PI/4;tile.position.set(Math.cos(a)*.52,1.35,Math.sin(a)*.36);group.add(tile);}
     const die=new THREE.Mesh(new THREE.BoxGeometry(.34,.34,.34),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3}));die.position.set(0,1.7,0);die.rotation.set(.4,.6,.2);group.add(die);
+  }else if(id==="halloread"){
+    const mansion=new THREE.Mesh(new THREE.BoxGeometry(1.25,.95,.72),new THREE.MeshStandardMaterial({color:0x21102e,emissive:0x2e1065,emissiveIntensity:.28,roughness:.75}));mansion.position.y=1.55;group.add(mansion);
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(.92,.72,4),new THREE.MeshStandardMaterial({color:0x09040e,roughness:.9}));roof.position.y=2.28;roof.rotation.y=Math.PI/4;group.add(roof);
+    for(const x of [-.34,.34]){const eye=new THREE.Mesh(new THREE.PlaneGeometry(.16,.2),new THREE.MeshBasicMaterial({color:0xff8a24}));eye.position.set(x,1.72,.37);group.add(eye);}
+    const pumpkin=new THREE.Mesh(new THREE.SphereGeometry(.3,12,10),new THREE.MeshStandardMaterial({color:0xf97316,emissive:0x7c2d12,emissiveIntensity:.6}));pumpkin.scale.set(1,.82,1);pumpkin.position.set(.75,1.28,.42);group.add(pumpkin);
+    for(const x of [-.7,.7]){const web=new THREE.Mesh(new THREE.TorusGeometry(.35,.018,6,24),new THREE.MeshBasicMaterial({color:0xe9d5ff,transparent:true,opacity:.62}));web.position.set(x,2.45,.1);web.rotation.x=Math.PI/2;group.add(web);}
   }else if(id==="chess"){
     const board=new THREE.Mesh(new THREE.BoxGeometry(1.42,.14,1.42),new THREE.MeshStandardMaterial({color:0x33263e,metalness:.28,roughness:.45}));board.position.y=1.23;group.add(board);
     for(let r=0;r<4;r++)for(let cc=0;cc<4;cc++){const tile=new THREE.Mesh(new THREE.BoxGeometry(.3,.045,.3),new THREE.MeshStandardMaterial({color:(r+cc)%2?0x5b476b:0xe5d8bc,roughness:.52}));tile.position.set(-.45+cc*.3,1.32,-.45+r*.3);group.add(tile);}
@@ -89,7 +95,7 @@ export default function Worlds(){
     if(selected==="club") void import("./ClubArise");
     else if(selected==="theater") void import("./ClubTheater");
     else if(selected==="neighborhood") void import("./Neighborhood");
-    else if(selected==="board") void import("./BoardGameWorld");
+    else if(selected==="board"||selected==="halloread") void import("./BoardGameWorld");
     else if(selected==="chess") void import("./UltimateChess");
   },[selected]);
   useEffect(()=>{
