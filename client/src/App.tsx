@@ -74,8 +74,7 @@ import StudentProfileView from "./pages/StudentProfileView";
 import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import ParentDashboard from "./pages/ParentDashboard";
-import RoleFeatureTour from "./components/RoleFeatureTour";
-import GuidedTour from "./components/GuidedTour";
+import ParentConnectionBanner from "./components/ParentConnectionBanner";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import PointsSideTab from "./components/PointsSideTab";
@@ -472,64 +471,21 @@ function AppRoutes() {
 }
 
 function AppInner() {
-  const { user, realUser, adminPreviewMode, token } = useAuth();
+  const { user, realUser, adminPreviewMode } = useAuth();
   const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
-  const isParent = user && user.role === 'parent';
   const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
-  const isSampleStudent = isStudent && !!user?.username?.startsWith('sample');
+  const isDemoStudent = !!isStudent && (
+    !!user?.username?.startsWith('sample') || user?.username === 'tutorial-eye'
+  );
   const isAdminPreview = !!realUser?.isAdmin && !!adminPreviewMode;
-  const [sampleTourDone, setSampleTourDone] = useState(false);
-  const [tourShown, setTourShown] = useState(false);
-  const [tourActive, setTourActive] = useState(false);
-
-  // Check server-side if tutorial was already shown for this student
-  useEffect(() => {
-    if (!isStudent || isSampleStudent) {
-      setTourShown(false);
-      return;
-    }
-    const checkTutorial = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/easter-eggs/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) { setTourShown(false); return; }
-        const data = await res.json();
-        if (data.tutorialShown) {
-          setTourShown(true);
-        }
-      } catch {
-        setTourShown(false);
-      }
-    };
-    checkTutorial();
-  }, [user, token, isStudent, isSampleStudent]);
-
-  const handleTourComplete = async () => {
-    setSampleTourDone(true);
-    setTourActive(false);
-    setTourShown(true);
-    // Mark tutorial as shown server-side for non-sample students
-    if (!isSampleStudent && token) {
-      try {
-        await fetch(`${API_BASE}/api/tutorial/dismiss`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        });
-      } catch {}
-    }
-  };
 
   return (
     <>
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && !tourShown && (
-        <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />
-      )}
-      {(!isStudent || isEyeGazeStudent) && <RoleFeatureTour />}
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
       {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       <Router hook={useHashLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />
