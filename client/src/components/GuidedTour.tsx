@@ -12,69 +12,72 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="welcome"]',
-    title: "Welcome to A.R.I.S.E Reader!",
-    desc: "This is your library. Browse books, take quizzes, and earn points. Let me show you around — click Next to start.",
+    title: "Welcome to A.R.I.S.E. Reader 2.0!",
+    desc: "This is your reading home. The original library is still here, but now reading also connects to live quiz games, rewards, avatars, pets, worlds, Club A.R.I.S.E., and more.",
     position: "bottom",
   },
   {
     selector: '[data-tour="band-badge"]',
     title: "Your Grade Band",
-    desc: "This shows your reading level band. Your quizzes and leaderboard are filtered to your band so you compete with peers at your level. Click it anytime to learn more!",
+    desc: "Your grade band helps organize reading and competition with students at an appropriate level. You can still open it anytime to learn how your band works.",
     position: "bottom",
   },
   {
     selector: '[data-tour="iarise-section"]',
-    title: "iArise Lessons",
-    desc: "These are quick skill-building lessons. Each one has a 10-question quiz. As a sample user, you'll get 3 questions per quiz.",
+    title: "iARISE Lessons",
+    desc: "iARISE gives you short real-life learning lessons on topics like friendship, feelings, wellness, money, careers, study skills, mindset, and digital citizenship — each connected to a quiz.",
     position: "bottom",
   },
   {
-    selector: '[data-tour="first-book"]',
-    title: "Try a Sample Quiz",
-    desc: "Click any book here to take a 3-question sample quiz. When you're ready for the full experience, create a free account!",
-    position: "right",
-  },
-  {
-    selector: '[data-tour="book-quizzes"]',
-    title: "Book Quizzes",
-    desc: "These are full book quizzes! You can take them to test your knowledge and earn points. Create a free account to unlock all quizzes.",
-    position: "bottom",
-  },
-  {
-    selector: '[data-tour="point-books"]',
-    title: "Point Books",
-    desc: "Books are grouped by points — 10, 15, 20, 25 points. The higher the points, the bigger the reward! Take quizzes to climb the leaderboard.",
-    position: "bottom",
-  },
-  {
-    selector: '[data-tour="points"]',
-    title: "Your Points",
-    desc: "This shows your total points earned. Every quiz you complete adds points here. Compete with classmates on the leaderboard!",
-    position: "bottom",
-  },
-  {
-    selector: '[data-tour="leaderboard-link"]',
-    title: "Leaderboard",
-    desc: "Click here to see the leaderboard! You'll see your rank, top readers in your band, and tips to climb higher. The more you read, the higher you go!",
-    position: "bottom",
-  },
-  {
-    selector: '[data-tour="eye-gaze-section"]',
-    title: "Eye Gazer & Non-Verbal Quizzes",
-    desc: "These are special eye gaze quizzes for non-verbal learners. Students look at pictures to answer — no clicking needed! Teachers and parents can create custom quizzes with their own images. Create a free account to unlock this feature!",
+    selector: '[data-tour="request-quiz"]',
+    title: "Request a Quiz or Use Instant AI",
+    desc: "Don't see your book? Request it, or use Instant AI Quiz when available. A.R.I.S.E. is built so one missing title does not stop you from reading something you actually chose.",
     position: "bottom",
   },
   {
     selector: '[data-tour="fyp"]',
-    title: "FYP Feed",
-    desc: "Swipe through book recommendations like TikTok. Find hidden easter eggs for bonus points! This is where reading gets fun.",
+    title: "Discover Books Fast",
+    desc: "Use the FYP-style book feed to swipe through recommendations, save books, and discover something that looks worth reading without digging through a giant list.",
     position: "left",
   },
   {
-    selector: '[data-tour="request-quiz"]',
-    title: "Request or Instant AI Quiz — Unlimited Books!",
-    desc: "We have close to 1,000 quizzes and counting! Don't see a book you want? Click 'Request a Quiz' and your teacher will create one. Or click 'Instant AI Quiz' to have AI generate a 10-question quiz for ANY book instantly — ready to take right away!",
+    selector: '[data-tour="points"]',
+    title: "Points + Reader Coins",
+    desc: "Leaderboard points celebrate reading performance. Reader Coins are separate and can be spent on characters, pets, homes, care, and other A.R.I.S.E. experiences.",
     position: "bottom",
+  },
+  {
+    selector: '[data-tour="leaderboard-link"]',
+    title: "Leaderboards & Rewards",
+    desc: "See eligible reader standings, badges, certificates, and teacher rewards. Sample accounts and admin previews never compete with real students.",
+    position: "bottom",
+  },
+  {
+    selector: '[data-tour="eye-gaze-section"]',
+    title: "Eye Gazer Learning",
+    desc: "A.R.I.S.E. also includes a dedicated Eye Gazer experience with visual quizzes, My Talker AAC, games, Life Skills, My World, Shorts, Flash Cards, My Buddy, and family controls.",
+    position: "bottom",
+  },
+  {
+    selector: '[data-tour="welcome"]',
+    title: "A.R.I.S.E. Live",
+    desc: "Teachers can launch a live classroom quiz. Students join with a short code, answer in real time, and watch the live board update — A.R.I.S.E.'s own live game-show learning experience.",
+    position: "bottom",
+    noTarget: true,
+  },
+  {
+    selector: '[data-tour="welcome"]',
+    title: "Club A.R.I.S.E., Arcade & Worlds",
+    desc: "Reading can unlock Club A.R.I.S.E., multiplayer or computer arcade games, Avatar World, pets, homes, The Block, the cinema, Board Quest, and expanding 3D worlds. Teachers and families can control access.",
+    position: "bottom",
+    noTarget: true,
+  },
+  {
+    selector: '[data-tour="welcome"]',
+    title: "You're ready — nothing was removed",
+    desc: "Everything you used before is still part of the experience. A.R.I.S.E. 2.0 builds on the reading program instead of replacing it. Use the Quick Menu whenever you want a fast way into the newest features.",
+    position: "bottom",
+    noTarget: true,
   },
 ];
 
@@ -99,7 +102,7 @@ export default function GuidedTour({ onComplete, onActiveChange }: { onComplete?
     startedRef.current = true;
 
     // For non-sample students, check sessionStorage dismissal
-    if (user.username !== "sample" && sessionStorage.getItem("guided_tour_dismissed") === "true") {
+    if (!String(user.username || "").startsWith("sample") && sessionStorage.getItem("guided_tour_dismissed") === "true") {
       if (onCompleteRef.current) onCompleteRef.current();
       return;
     }
