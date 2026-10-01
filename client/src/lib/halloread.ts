@@ -153,13 +153,13 @@ export function addHalloreadHomeDecor(root:THREE.Group,seed:number,facing=0){
   root.add(decor);
 }
 
-export function halloreadPetGearName(petId:string){
+export function halloreadPetGearName(petId:string|null|undefined){
   if(!HALLOREAD_ACTIVE||!petId||petId==="pet-none")return "";
   const code=Array.from(petId).reduce((n,c)=>n+c.charCodeAt(0),0)%3;
   return code===0?"Midnight Witch Hat":code===1?"Pumpkin Charm":"Little Bat Wings";
 }
 
-export function addHalloreadPetGear(root:THREE.Group,petId:string,height=1){
+export function addHalloreadPetGear(root:THREE.Group,petId:string|null|undefined,height=1){
   const name=halloreadPetGearName(petId);if(!name)return;
   const code=Array.from(petId).reduce((n,c)=>n+c.charCodeAt(0),0)%3;
   const gear=new THREE.Group();gear.name="halloreadPetGear";gear.userData.gearName=name;
