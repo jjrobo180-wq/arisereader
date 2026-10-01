@@ -1,8 +1,8 @@
 import {BANK,BOARD_LAST_SPACE,EVENTS,HANDS,TIMING,moveLandingAt,rpsWinner,safeTeamName,type Team,type Level,type Player,type Cue,type Hand,type View,type Q} from '../shared/boardQuest';
 export class BoardQuestGame {
- view:View;private question:Q|null=null;private choices=new Map<number,Hand>();private awarded=false;private nextId=1;
+ view:View;private question:Q|null=null;private choices=new Map<number,Hand>();private openingChoices=new Map<number,Hand>();private awarded=false;private nextId=1;
  touched=Date.now();private humansSeen=new Map<number,number>();
- constructor(code:string,host:Player,level:Level,private random:()=>number=Math.random){this.view={code,hostId:host.id,level,players:[host],turn:0,phase:'lobby',phaseAt:0,serverNow:0,scores:{blue:0,gold:0},cue:null,question:null,winner:null,rpsReady:[],rpsDeadline:0,openingRolls:{},openingTotals:{blue:0,gold:0},startingTeam:null,revision:0,teamNames:{blue:"Blue Readers",gold:"Golden Hornets"},captains:{blue:host.id,gold:null},fillCpu:true,publicLobby:false};}
+ constructor(code:string,host:Player,level:Level,private random:()=>number=Math.random){this.view={code,hostId:host.id,level,players:[host],turn:0,phase:'lobby',phaseAt:0,serverNow:0,scores:{blue:0,gold:0},cue:null,question:null,winner:null,rpsReady:[],rpsDeadline:0,openingRolls:{},openingTotals:{blue:0,gold:0},startingTeam:null,openingReady:[],openingHands:{},openingScores:{},openingWinner:null,openingTied:[],openingRandomized:false,openingDeadline:0,openingResolvedAt:0,revision:0,teamNames:{blue:"Blue Readers",gold:"Golden Hornets"},captains:{blue:host.id,gold:null},fillCpu:true,publicLobby:false};}
  member(id:number){return this.view.players.some(p=>p.id===id&&!p.bot);}
  touch(id:number,now:number){this.touched=now;this.humansSeen.set(id,now);}
  add(p:Player){if(this.member(p.id))return;if(this.view.phase!=='lobby')throw Error('This game has already started.');if(this.view.players.length>=6)throw Error('This room is full.');const blue=this.view.players.filter(x=>x.team==='blue').length,gold=this.view.players.filter(x=>x.team==='gold').length;p.team=blue<=gold?'blue':'gold';this.view.players.push(p);this.syncCaptains();this.view.revision++;}
@@ -20,9 +20,42 @@ export class BoardQuestGame {
   const teams={blue:humans.filter(p=>p.team==='blue'),gold:humans.filter(p=>p.team==='gold')};
   if(this.view.fillCpu)for(const team of ['blue','gold'] as Team[])while(teams[team].length<3){const i=(team==='blue'?0:3)+teams[team].length;teams[team].push({id:-i-1,name:names[i]+' CPU',characterId:chars[i],bot:true,team,space:0,strikes:0,shield:0,power:0,out:false});}
   this.view.players=[];for(let i=0;i<3;i++)for(const team of ['blue','gold'] as Team[])if(teams[team][i])this.view.players.push({...teams[team][i],space:0,strikes:0,shield:0,power:0,out:false});
-  this.view.scores={blue:0,gold:0};this.view.winner=null;this.view.turn=0;this.view.question=null;this.question=null;this.view.cue=null;this.view.rpsReady=[];this.view.rpsDeadline=0;this.choices.clear();this.awarded=false;
-  let rolls:Record<number,number>={},blue=0,gold=0,tries=0;do{rolls={};blue=0;gold=0;for(const p of this.view.players){const n=1+Math.floor(this.random()*6);rolls[p.id]=n;if(p.team==='blue')blue+=n;else gold+=n;}}while(blue===gold&&++tries<8);
-  this.view.openingRolls=rolls;this.view.openingTotals={blue,gold};this.view.startingTeam=blue===gold?(this.random()<.5?'blue':'gold'):blue>gold?'blue':'gold';this.view.phase='intro';this.view.phaseAt=now;this.view.revision++;
+  this.view.scores={blue:0,gold:0};this.view.winner=null;this.view.turn=0;this.view.question=null;this.question=null;this.view.cue=null;this.view.rpsReady=[];this.view.rpsDeadline=0;this.choices.clear();this.openingChoices.clear();this.awarded=false;
+  this.view.openingRolls={};this.view.openingTotals={blue:0,gold:0};this.view.startingTeam=null;this.view.openingReady=[];this.view.openingHands={};this.view.openingScores={};this.view.openingWinner=null;this.view.openingTied=[];this.view.openingRandomized=false;this.view.openingDeadline=0;this.view.openingResolvedAt=0;this.view.phase='intro';this.view.phaseAt=now;this.view.revision++;
+ }
+ openingChoose(id:number,hand:Hand,now:number){
+  if(this.view.phase!=='opening-roll'||this.view.openingWinner!==null)throw Error('The opening competition is not accepting choices.');
+  const player=this.view.players.find(p=>p.id===id);
+  if(!player||!HANDS.includes(hand))throw Error('Choose Rock, Paper, or Scissors.');
+  if(this.openingChoices.has(id))return;
+  this.openingChoices.set(id,hand);
+  this.view.openingReady=Array.from(this.openingChoices.keys());
+  this.view.revision++;
+  if(this.openingChoices.size===this.view.players.length)this.resolveOpening(now);
+ }
+ private resolveOpening(now:number){
+  if(this.view.openingWinner!==null)return;
+  for(const p of this.view.players)if(!this.openingChoices.has(p.id))this.openingChoices.set(p.id,HANDS[Math.floor(this.random()*HANDS.length)]);
+  const players=this.view.players;
+  const scores:Record<number,number>={};
+  for(const p of players)scores[p.id]=0;
+  for(let i=0;i<players.length;i++)for(let j=i+1;j<players.length;j++){
+    const result=rpsWinner(this.openingChoices.get(players[i].id)!,this.openingChoices.get(players[j].id)!);
+    if(result===0)scores[players[i].id]++;
+    else if(result===1)scores[players[j].id]++;
+  }
+  const best=Math.max(...Object.values(scores));
+  const tied=players.filter(p=>scores[p.id]===best).map(p=>p.id);
+  const winnerId=tied.length===1?tied[0]:tied[Math.floor(this.random()*tied.length)];
+  this.view.openingReady=players.map(p=>p.id);
+  this.view.openingHands=Object.fromEntries(players.map(p=>[p.id,this.openingChoices.get(p.id)!])) as Record<number,Hand>;
+  this.view.openingScores=scores;
+  this.view.openingTied=tied;
+  this.view.openingRandomized=tied.length>1;
+  this.view.openingWinner=winnerId;
+  this.view.openingResolvedAt=now;
+  this.view.turn=Math.max(0,players.findIndex(p=>p.id===winnerId));
+  this.view.revision++;
  }
  private ask(now:number){this.question=BANK[this.view.level][Math.floor(this.random()*BANK[this.view.level].length)];this.view.question={id:this.nextId++,q:this.question.q,a:this.question.a};this.view.phase='question';this.view.phaseAt=now;this.view.cue=null;this.view.rpsReady=[];this.view.rpsDeadline=0;this.choices.clear();this.awarded=false;this.view.revision++;}
  answer(id:number,questionId:number,choice:number,now:number){const p=this.view.players[this.view.turn];if(this.view.phase!=='question'||p.id!==id||questionId!==this.view.question?.id)throw Error('Wait for your current question.');if(!Number.isInteger(choice)||choice<0||choice>3)throw Error('Choose an answer.');const correct=choice===this.question?.correct;this.view.question=null;this.question=null;this.view.phase='cinematic';this.view.phaseAt=now;this.awarded=false;
@@ -39,7 +72,13 @@ export class BoardQuestGame {
  default:cue.title='SAFE AND SOUND';}
  this.view.scores.blue+=cue.deltas.blue;this.view.scores.gold+=cue.deltas.gold;this.awarded=true;this.view.revision++;}
  private advance(now:number){const alive=this.view.players.filter(p=>!p.out),p=this.view.players[this.view.turn];const blue=alive.some(x=>x.team==='blue'),gold=alive.some(x=>x.team==='gold');if(!blue||!gold||p.space===BOARD_LAST_SPACE){this.view.winner=this.view.teamNames[!blue?'gold':!gold?'blue':p.team];this.view.phase='finished';this.view.phaseAt=now;this.view.revision++;return;}do{this.view.turn=(this.view.turn+1)%this.view.players.length;}while(this.view.players[this.view.turn].out);this.ask(now);}
- tick(now:number){const v=this.view;v.serverNow=now;if(v.phase==='intro'){const blue=v.players.filter(p=>p.team==='blue').length,gold=v.players.filter(p=>p.team==='gold').length,introDuration=TIMING.teamBanner+blue*TIMING.introPlayer+TIMING.introTeamGap+TIMING.teamBanner+gold*TIMING.introPlayer+TIMING.introHold;if(now-v.phaseAt>=introDuration){v.phase='opening-roll';v.phaseAt=now;v.revision++;}return;}if(v.phase==='opening-roll'){const duration=TIMING.openingCountdown+v.players.length*TIMING.openingRollPlayer+TIMING.openingResultHold;if(now-v.phaseAt>=duration){const first=v.players.findIndex(p=>p.team===v.startingTeam);v.turn=first>=0?first:0;this.ask(now);}return;}const p=v.players[v.turn];if(v.phase==='question'&&this.question){const disconnected=!p.bot&&now-(this.humansSeen.get(p.id)||v.phaseAt)>45000;if((p.bot&&now-v.phaseAt>1800)||now-v.phaseAt>60000||disconnected){const correct=this.question.correct;this.answer(p.id,v.question!.id,p.bot&&this.random()<.7?correct:(correct+1)%4,now);}return;}
+ tick(now:number){const v=this.view;v.serverNow=now;if(v.phase==='intro'){const blue=v.players.filter(p=>p.team==='blue').length,gold=v.players.filter(p=>p.team==='gold').length,introDuration=TIMING.teamBanner+blue*TIMING.introPlayer+TIMING.introTeamGap+TIMING.teamBanner+gold*TIMING.introPlayer+TIMING.introHold;if(now-v.phaseAt>=introDuration){v.phase='opening-roll';v.phaseAt=now;v.openingDeadline=now+TIMING.openingCountdown;v.revision++;}return;}if(v.phase==='opening-roll'){
+  if(v.openingWinner===null){
+    for(const p of v.players)if(p.bot&&!this.openingChoices.has(p.id)&&now-v.phaseAt>700+Math.abs(p.id%4)*220)this.openingChoose(p.id,HANDS[Math.floor(this.random()*HANDS.length)],now);
+    if(now>=v.openingDeadline)this.resolveOpening(now);
+  }else if(now-v.openingResolvedAt>=TIMING.openingResultHold)this.ask(now);
+  return;
+}const p=v.players[v.turn];if(v.phase==='question'&&this.question){const disconnected=!p.bot&&now-(this.humansSeen.get(p.id)||v.phaseAt)>45000;if((p.bot&&now-v.phaseAt>1800)||now-v.phaseAt>60000||disconnected){const correct=this.question.correct;this.answer(p.id,v.question!.id,p.bot&&this.random()<.7?correct:(correct+1)%4,now);}return;}
  if(v.phase==='rps'){const cue=v.cue!;for(const id of [cue.actor,cue.rival!]){const player=v.players.find(p=>p.id===id)!;if(!this.choices.has(id)&&((player.bot&&now-v.phaseAt>1200)||now>=v.rpsDeadline)){this.choose(id,HANDS[Math.floor(this.random()*3)],cue.id,now);if(v.phase!=='rps')break;}}return;}
  if(v.phase!=='cinematic'||!v.cue)return;const cue=v.cue;
  if(cue.kind==='strike'){if(now>cue.startAt+TIMING.reward)this.advance(now);return;}
