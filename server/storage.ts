@@ -600,7 +600,7 @@ export class DatabaseStorage implements IStorage {
     return cached('leaderboard', 300000, async () => {
       // Fetch users with regular attempts AND eye gaze attempts AND total_points
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, role, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false).not("username", "like", "sample%")
+        supabase.from("users").select("id, username, display_name, role, total_points, attempts:attempts!attempts_user_id_fkey(points_earned), eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)").eq("is_admin", false).not("username", "like", "sample%")
       );
       const leaderboardUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (leaderboardUsers.length === 0) return [];
@@ -640,7 +640,7 @@ export class DatabaseStorage implements IStorage {
     return cached('eye_gaze_leaderboard', 300000, async () => {
       const allUsers = await fetchList(
         supabase.from("users")
-          .select("id, username, display_name, eye_gaze_attempts(score, total)")
+          .select("id, username, display_name, eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)")
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .not("username", "like", "sample%")
@@ -671,7 +671,7 @@ export class DatabaseStorage implements IStorage {
     return cached(`eye_gaze_leaderboard_${yearMonth}`, 300000, async () => {
       const allUsers = await fetchList(
         supabase.from("users")
-          .select("id, username, display_name, eye_gaze_attempts(score, total)")
+          .select("id, username, display_name, eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)")
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .not("username", "like", "sample%")
@@ -1089,7 +1089,7 @@ export class DatabaseStorage implements IStorage {
 
       // Fetch users with regular attempts AND eye gaze attempts
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, role, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false).not("username", "like", "sample%")
+        supabase.from("users").select("id, username, display_name, role, attempts:attempts!attempts_user_id_fkey(points_earned, completed_at), eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at)").eq("is_admin", false).not("username", "like", "sample%")
       );
       const monthlyUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (monthlyUsers.length === 0) return [];
@@ -1157,7 +1157,7 @@ export class DatabaseStorage implements IStorage {
       // Fetch all students with their teacher_id, total_points, and attempts
       const allStudentAccounts = await fetchList(
         supabase.from("users")
-          .select("id, username, display_name, role, total_points, teacher_id, attempts(points_earned), eye_gaze_attempts(score, total)")
+          .select("id, username, display_name, role, total_points, teacher_id, attempts:attempts!attempts_user_id_fkey(points_earned), eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)")
           .eq("is_admin", false)
           .not("username", "like", "sample%")
       );
