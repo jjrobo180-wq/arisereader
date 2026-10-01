@@ -74,6 +74,7 @@ import StudentMessages from "./pages/StudentMessages";
 import StudentCertificates from "./pages/StudentCertificates";
 import ParentDashboard from "./pages/ParentDashboard";
 import RoleFeatureTour from "./components/RoleFeatureTour";
+import GuidedTour from "./components/GuidedTour";
 import AssessmentPopup from "./components/AssessmentPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import PointsSideTab from "./components/PointsSideTab";
@@ -508,7 +509,10 @@ function AppInner() {
 
   return (
     <>
-      <RoleFeatureTour />
+      {isStudent && !isEyeGazeStudent && !isAdminPreview && !tourShown && (
+        <GuidedTour onComplete={handleTourComplete} onActiveChange={setTourActive} />
+      )}
+      {(!isStudent || isEyeGazeStudent) && <RoleFeatureTour />}
       {isStudent && !isEyeGazeStudent && <PointsSideTab />}
       {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
