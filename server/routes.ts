@@ -2276,6 +2276,7 @@ export async function registerRoutes(
       if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
       const now=Date.now();
       const next={...payload.state,purchased:[...payload.state.purchased,item.id],
+        equipped:item.type==="home"?{...payload.state.equipped,home:item.id}:payload.state.equipped,
         lostPets:item.type==="pet"?(payload.state.lostPets||[]).filter((id:string)=>id!==item.id):(payload.state.lostPets||[]),
         petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{happiness:90,lastUpdatedAt:now,lastFedAt:now,lastTreatAt:0,lastWalkAt:0}}:payload.state.petCare};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
