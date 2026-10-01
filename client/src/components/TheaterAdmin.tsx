@@ -6,6 +6,7 @@ import { parseTheaterSource, THEATER_SERVICES, type TheaterCatalog, type Theater
 export default function TheaterAdmin({ token }: { token: string | null }) {
   const [open, setOpen] = useState(false), [catalog, setCatalog] = useState<TheaterCatalog | null>(null);
   const [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   async function load() {
     setBusy(true); setError('');
@@ -35,6 +36,20 @@ export default function TheaterAdmin({ token }: { token: string | null }) {
       if (!response.ok) throw Error(data.message || 'Could not save the guide.');
       setCatalog(data); setDirty(false); setMessage('Saved. The theatre guide updates for everyone.');
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  }
+  async function remove(movieId: string, title: string) {
+    if (!catalog) return;
+    const previous = catalog;
+    const next = { ...catalog, movies: catalog.movies.filter(movie => movie.id !== movieId) };
+    setPendingDeleteId(null); setBusy(true); setError(''); setMessage('Removing show…');
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/theater-catalog`, { method: 'PUT', headers, body: JSON.stringify(next) });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.message || 'Could not remove the show.');
+      setCatalog(data); setDirty(false); setMessage(`Removed “${title || 'show'}” and saved the theatre guide.`);
+    } catch (e: any) {
+      setCatalog(previous); setMessage(''); setError(e.message || 'Could not remove the show. Nothing was deleted.');
+    } finally { setBusy(false); }
   }
   async function play(movieId: string) {
     setBusy(true); setError(''); setMessage('');
@@ -69,7 +84,10 @@ export default function TheaterAdmin({ token }: { token: string | null }) {
               <span className="mr-auto text-sm font-bold text-cyan-500">{index + 1}. {source?.provider === 'external' ? 'Provider link · Admin only' : source?.provider === 'video' ? 'Direct video' : 'YouTube'}</span>
               <button disabled={busy || index === 0} onClick={() => move(index, -1)} aria-label={`Move ${movie.title} up`} className="grid h-11 w-11 place-items-center rounded-lg border border-border disabled:opacity-40"><ChevronUp size={18} /></button>
               <button disabled={busy || index === catalog.movies.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${movie.title} down`} className="grid h-11 w-11 place-items-center rounded-lg border border-border disabled:opacity-40"><ChevronDown size={18} /></button>
-              <button disabled={busy} onClick={() => { if (window.confirm(`Remove “${movie.title || 'this show'}” from the guide?`)) { setCatalog({ ...catalog, movies: catalog.movies.filter(item => item.id !== movie.id) }); setDirty(true); setMessage(''); } }} aria-label={`Remove ${movie.title}`} className="grid h-11 w-11 place-items-center rounded-lg border border-red-500/30 text-red-500"><Trash2 size={18} /></button>
+              {pendingDeleteId === movie.id ? <>
+                <button disabled={busy} onClick={() => void remove(movie.id, movie.title)} className="min-h-11 rounded-lg border border-red-500 bg-red-500 px-3 text-sm font-black text-white">Delete now</button>
+                <button disabled={busy} onClick={() => setPendingDeleteId(null)} className="min-h-11 rounded-lg border border-border px-3 text-sm font-bold">Cancel</button>
+              </> : <button disabled={busy} onClick={() => { setPendingDeleteId(movie.id); setMessage(''); setError(''); }} aria-label={`Remove ${movie.title}`} className="grid h-11 w-11 place-items-center rounded-lg border border-red-500/30 text-red-500"><Trash2 size={18} /></button>}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-bold">Show or movie title<input disabled={busy} value={movie.title} maxLength={100} onChange={event => edit(movie.id, { title: event.target.value })} className={inputClass} /></label>
