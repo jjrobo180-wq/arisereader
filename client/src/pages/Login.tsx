@@ -74,7 +74,7 @@ export default function Login() {
   const feature = FEATURES[activeFeature];
   const FeatureIcon = feature.icon;
   const featureKeys = useMemo(() => Object.keys(FEATURES) as FeatureId[], []);
-  const categories = useMemo(() => Array.from(new Set(featureKeys.map(key => FEATURES[key].category))), [featureKeys]);
+  const activeFeatureIndex = featureKeys.indexOf(activeFeature);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(""); setLoading(true);
@@ -91,7 +91,18 @@ export default function Login() {
     finally { setSampleLoading(null); }
   };
 
-  const chooseFeature = (key: FeatureId) => setActiveFeature(key);
+  const chooseFeature = (key: FeatureId, moveToPreview = false) => {
+    setActiveFeature(key);
+    if (moveToPreview && typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      requestAnimationFrame(() => document.getElementById("feature-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  };
+
+  const stepFeature = (direction: number) => {
+    const nextIndex = (activeFeatureIndex + direction + featureKeys.length) % featureKeys.length;
+    setActiveFeature(featureKeys[nextIndex]);
+    requestAnimationFrame(() => document.getElementById("feature-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   const openFrontTab = (tab: FrontTab) => {
     setFrontTab(tab);
@@ -133,40 +144,38 @@ export default function Login() {
             </section>
 
             <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-xl">
-              <div className="px-5 pb-3 pt-6 sm:px-7 sm:pt-8">
-                <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Explore A.R.I.S.E.</p>
-                <h2 className="mt-1 max-w-2xl text-3xl font-black tracking-[-.035em] sm:text-4xl">One platform. A lot more inside.</h2>
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">Choose a feature and the preview changes right here — no jumping to the bottom of the page.</p>
+              <div className="border-b border-white/10 bg-[#100e20]/80 py-6">
+                <div className="mb-4 flex items-center justify-between gap-3 px-5 sm:px-7"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-slate-500">Feature gallery</p><p className="mt-1 text-sm font-bold text-slate-300">Swipe through features. Tap one to open its preview.</p></div><span className="hidden text-xs font-semibold text-slate-500 sm:block">← swipe / scroll →</span></div>
+                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {featureKeys.map(key => { const item = FEATURES[key]; const Icon = item.icon; const active = activeFeature === key; return <button key={key} type="button" onClick={() => chooseFeature(key, true)} className={`group relative min-h-[132px] w-[68%] max-w-[225px] shrink-0 snap-start overflow-hidden rounded-[1.5rem] border p-4 text-left transition-all duration-300 sm:w-[210px] ${active ? "border-cyan-300/45 bg-gradient-to-br from-violet-500/25 via-fuchsia-500/15 to-cyan-400/15 shadow-[0_16px_45px_rgba(34,211,238,.12)]" : "border-white/10 bg-white/[.035] hover:border-white/20 hover:bg-white/[.07]"}`}><div className={`grid h-9 w-9 place-items-center rounded-2xl transition duration-300 ${active ? "bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-white" : "bg-white/[.07] text-slate-300 group-hover:text-white"}`}><Icon className="h-4.5 w-4.5" /></div><p className="mt-4 text-[9px] font-black uppercase tracking-[.16em] text-slate-500">{item.category}</p><p className="mt-1 font-black leading-tight text-white">{item.label}</p><ArrowRight className={`absolute bottom-4 right-4 h-4 w-4 transition ${active ? "text-cyan-300" : "text-slate-600 group-hover:text-cyan-300"}`} /></button>; })}
+                </div>
               </div>
 
-              <div className="px-5 pb-5 sm:px-7">
+              <div id="feature-preview" className="scroll-mt-3 px-5 pb-3 pt-6 sm:px-7 sm:pt-8">
+                <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Explore A.R.I.S.E.</p>
+                <h2 className="mt-1 max-w-2xl text-3xl font-black tracking-[-.035em] sm:text-4xl">One platform. A lot more inside.</h2>
+                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">Swipe the gallery once, then use Previous and Next right here to keep exploring without scrolling back up.</p>
+              </div>
+
+              <div className="px-5 pb-6 sm:px-7">
                 <div key={activeFeature} className="relative min-h-[310px] overflow-hidden rounded-[1.8rem] border border-white/10 bg-[radial-gradient(circle_at_82%_18%,rgba(34,211,238,.18),transparent_30%),radial-gradient(circle_at_15%_85%,rgba(168,85,247,.2),transparent_32%),#0f0d1d] p-6 shadow-2xl sm:p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-fuchsia-500/10 blur-3xl" />
                   <div className="relative grid gap-6 md:grid-cols-[1fr_170px] md:items-center">
                     <div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-cyan-200"><FeatureIcon className="h-3.5 w-3.5" />{feature.category}</div>
+                      <div className="flex items-center justify-between gap-3"><div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-cyan-200"><FeatureIcon className="h-3.5 w-3.5" />{feature.category}</div><span className="text-[10px] font-black tracking-[.14em] text-slate-500">{activeFeatureIndex + 1} / {featureKeys.length}</span></div>
                       <p className="mt-5 text-[10px] font-black uppercase tracking-[.2em] text-violet-300">{feature.kicker}</p>
                       <h3 className="mt-2 max-w-2xl text-2xl font-black leading-tight tracking-[-.03em] sm:text-3xl">{feature.title}</h3>
                       <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">{feature.description}</p>
                       <div className="mt-5 flex flex-wrap gap-2">{feature.bullets.map(item => <span key={item} className="rounded-full border border-white/8 bg-white/[.06] px-3 py-1.5 text-xs font-bold text-slate-300">{item}</span>)}</div>
                       <div className="mt-6 flex flex-wrap gap-2"><Button size="sm" onClick={() => navigate(feature.tutorial)} className="rounded-full arise-gradient-button px-4 font-black">See tutorial <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Button>{feature.sample && <Button size="sm" variant="outline" onClick={() => setShowSampleChooser(true)} className="rounded-full border-white/10 bg-white/5 px-4 font-black text-white">Try this experience</Button>}</div>
                     </div>
-                    <div className="hidden md:grid place-items-center">
-                      <div className="relative grid h-36 w-36 place-items-center rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-violet-600/80 via-fuchsia-500/75 to-cyan-400/70 shadow-[0_25px_80px_rgba(124,58,237,.3)] transition duration-500 hover:scale-105 hover:rotate-2">
-                        <div className="absolute inset-3 rounded-[2rem] border border-white/20" />
-                        <FeatureIcon className="h-14 w-14 drop-shadow-xl" />
-                      </div>
-                    </div>
+                    <div className="hidden md:grid place-items-center"><div className="relative grid h-36 w-36 place-items-center rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-violet-600/80 via-fuchsia-500/75 to-cyan-400/70 shadow-[0_25px_80px_rgba(124,58,237,.3)]"><div className="absolute inset-3 rounded-[2rem] border border-white/20" /><FeatureIcon className="h-14 w-14 drop-shadow-xl" /></div></div>
+                  </div>
+                  <div className="relative mt-6 grid grid-cols-2 gap-2 border-t border-white/10 pt-4">
+                    <button type="button" onClick={() => stepFeature(-1)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.05] px-3 text-sm font-black text-slate-200 transition hover:bg-white/10"><ArrowRight className="h-4 w-4 rotate-180" /> Previous</button>
+                    <button type="button" onClick={() => stepFeature(1)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15">Next <ArrowRight className="h-4 w-4" /></button>
                   </div>
                 </div>
-              </div>
-
-              <div className="border-t border-white/10 bg-[#100e20]/80 py-6">
-                <div className="mb-4 flex items-center justify-between gap-3 px-5 sm:px-7"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-slate-500">Feature gallery</p><p className="mt-1 text-sm font-bold text-slate-300">Swipe on mobile. Tap a card to preview it.</p></div><span className="hidden text-xs font-semibold text-slate-500 sm:block">← swipe / scroll →</span></div>
-                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-3 sm:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {featureKeys.map(key => { const item = FEATURES[key]; const Icon = item.icon; const active = activeFeature === key; return <button key={key} type="button" onClick={() => chooseFeature(key)} className={`group relative min-h-[150px] w-[72%] max-w-[245px] shrink-0 snap-start overflow-hidden rounded-[1.5rem] border p-4 text-left transition-all duration-300 sm:w-[220px] ${active ? "-translate-y-1 border-cyan-300/45 bg-gradient-to-br from-violet-500/25 via-fuchsia-500/15 to-cyan-400/15 shadow-[0_16px_45px_rgba(34,211,238,.12)]" : "border-white/10 bg-white/[.035] hover:-translate-y-1 hover:border-white/20 hover:bg-white/[.07]"}`}><div className={`grid h-10 w-10 place-items-center rounded-2xl transition duration-300 ${active ? "bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-white" : "bg-white/[.07] text-slate-300 group-hover:scale-105 group-hover:text-white"}`}><Icon className="h-5 w-5" /></div><p className="mt-5 text-[9px] font-black uppercase tracking-[.16em] text-slate-500">{item.category}</p><p className="mt-1 font-black leading-tight text-white">{item.label}</p><ArrowRight className={`absolute bottom-4 right-4 h-4 w-4 transition ${active ? "translate-x-0 text-cyan-300" : "-translate-x-1 text-slate-600 group-hover:translate-x-0 group-hover:text-cyan-300"}`} /></button>; })}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 px-5 sm:px-7">{categories.map(category => <button key={category} type="button" onClick={() => { const first = featureKeys.find(key => FEATURES[key].category === category); if (first) chooseFeature(first); }} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-slate-400 transition hover:border-cyan-300/25 hover:bg-cyan-400/10 hover:text-cyan-200">{category}</button>)}</div>
               </div>
             </section>
           </div>
@@ -177,12 +186,7 @@ export default function Login() {
 
               {frontTab === "signin" && <div className="p-5 sm:p-6"><p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300">Welcome back</p><h2 className="mt-1 text-xl font-black">Sign in to A.R.I.S.E.</h2><form onSubmit={handleSubmit} className="mt-5 space-y-4"><div className="space-y-2"><Label htmlFor="username">Username</Label><Input id="username" value={username} onChange={e => setUsername(e.target.value)} placeholder="Your username" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div><div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>{error && <div className="rounded-xl border border-red-400/25 bg-red-500/10 p-3 text-sm font-bold text-red-200">{error}</div>}<Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 font-black">{loading ? "Logging in…" : "Log in"}</Button></form><button type="button" onClick={() => setShowSampleChooser(true)} className="mt-3 min-h-11 w-full rounded-xl border border-violet-300/20 bg-violet-500/10 text-sm font-black text-violet-200"><Sparkles className="mr-2 inline h-4 w-4" />Try sample account</button><button type="button" onClick={() => openFrontTab("create")} className="mt-4 w-full text-center text-sm font-bold text-slate-400 hover:text-white">New here? <span className="text-violet-300">Create an account</span></button></div>}
 
-              {frontTab === "create" && <div className="p-5 sm:p-6"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">Choose your account</p><h2 className="mt-1 text-xl font-black">Get started with A.R.I.S.E.</h2><div className="mt-5 space-y-3">
-                <button type="button" onClick={() => navigate("/register")} className="flex w-full items-center gap-3 rounded-2xl border border-violet-300/20 bg-violet-500/8 p-4 text-left hover:bg-violet-500/15"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500"><SchoolIcon /></div><div className="flex-1"><p className="font-black">School Student</p><p className="text-xs text-slate-400">Connect to a school and teacher.</p></div><ArrowRight className="h-4 w-4" /></button>
-                <button type="button" onClick={() => navigate("/register?independent=1")} className="flex w-full items-center gap-3 rounded-2xl border border-cyan-300/25 bg-cyan-500/8 p-4 text-left hover:bg-cyan-500/15"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-400 text-slate-950"><UserRound className="h-5 w-5" /></div><div className="flex-1"><p className="font-black">Independent Student</p><p className="text-xs text-slate-300">A separate signup — no school checkbox to remember.</p></div><ArrowRight className="h-4 w-4 text-cyan-300" /></button>
-                <button type="button" onClick={() => navigate("/teacher-signup")} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><GraduationCap className="h-6 w-6 text-fuchsia-300" /><div className="flex-1"><p className="font-black">Teacher</p><p className="text-xs text-slate-400">Students, live games, rewards, controls.</p></div><ArrowRight className="h-4 w-4" /></button>
-                <button type="button" onClick={() => navigate("/parent-signup")} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><Heart className="h-6 w-6 text-fuchsia-300" /><div className="flex-1"><p className="font-black">Parent / Guardian</p><p className="text-xs text-slate-400">Link children, progress, controls.</p></div><ArrowRight className="h-4 w-4" /></button>
-              </div></div>}
+              {frontTab === "create" && <div className="p-5 sm:p-6"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">Choose your account</p><h2 className="mt-1 text-xl font-black">Get started with A.R.I.S.E.</h2><div className="mt-5 space-y-3"><button type="button" onClick={() => navigate("/register")} className="flex w-full items-center gap-3 rounded-2xl border border-violet-300/20 bg-violet-500/8 p-4 text-left hover:bg-violet-500/15"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500"><SchoolIcon /></div><div className="flex-1"><p className="font-black">School Student</p><p className="text-xs text-slate-400">Connect to a school and teacher.</p></div><ArrowRight className="h-4 w-4" /></button><button type="button" onClick={() => navigate("/register?independent=1")} className="flex w-full items-center gap-3 rounded-2xl border border-cyan-300/25 bg-cyan-500/8 p-4 text-left hover:bg-cyan-500/15"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-400 text-slate-950"><UserRound className="h-5 w-5" /></div><div className="flex-1"><p className="font-black">Independent Student</p><p className="text-xs text-slate-300">A separate signup — no school checkbox to remember.</p></div><ArrowRight className="h-4 w-4 text-cyan-300" /></button><button type="button" onClick={() => navigate("/teacher-signup")} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><GraduationCap className="h-6 w-6 text-fuchsia-300" /><div className="flex-1"><p className="font-black">Teacher</p><p className="text-xs text-slate-400">Students, live games, rewards, controls.</p></div><ArrowRight className="h-4 w-4" /></button><button type="button" onClick={() => navigate("/parent-signup")} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><Heart className="h-6 w-6 text-fuchsia-300" /><div className="flex-1"><p className="font-black">Parent / Guardian</p><p className="text-xs text-slate-400">Link children, progress, controls.</p></div><ArrowRight className="h-4 w-4" /></button></div></div>}
 
               {frontTab === "explore" && <div className="p-5 sm:p-6"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-400">No login required</p><h2 className="mt-1 text-xl font-black">Look around first.</h2><div className="mt-5 grid grid-cols-2 gap-3"><ExploreButton icon={PlayCircle} label="Tutorials" onClick={() => navigate("/tutorial")} /><ExploreButton icon={Trophy} label="Leaderboard" onClick={() => navigate("/leaderboard")} /><ExploreButton icon={Heart} label="About" onClick={() => navigate("/about")} /><ExploreButton icon={Sparkles} label="Sample" onClick={() => setShowSampleChooser(true)} /></div></div>}
             </div>
