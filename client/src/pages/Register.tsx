@@ -1,378 +1,180 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ArrowLeft, BookOpen, GraduationCap, School, UserRound } from "lucide-react";
+
+const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const BANDS = [
+  { id: "K-2", label: "K–2", sub: "Early Readers", grades: ["K", "1", "2"] },
+  { id: "3-5", label: "3–5", sub: "Elementary", grades: ["3", "4", "5"] },
+  { id: "6-8", label: "6–8", sub: "Middle School", grades: ["6", "7", "8"] },
+  { id: "9-12", label: "9–12", sub: "High School", grades: ["9", "10", "11", "12"] },
+];
+
+function isIndependentRoute() {
+  try {
+    const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : window.location.search.replace(/^\?/, "");
+    return new URLSearchParams(query).get("independent") === "1";
+  } catch { return false; }
+}
 
 export default function Register() {
   const { register } = useAuth();
   const [, navigate] = useLocation();
+  const independentStudent = useMemo(() => isIndependentRoute(), []);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [usernameEdited, setUsernameEdited] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [isEyeGaze, setIsEyeGaze] = useState(false);
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [schools, setSchools] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const [gradeBand, setGradeBand] = useState("");
-  const [independentStudent, setIndependentStudent] = useState(false);
-
-  const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
-
-  useEffect(() => {
-    try {
-      const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
-      if (new URLSearchParams(query).get("independent") === "1") setIndependentStudent(true);
-    } catch {}
-  }, []);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/schools`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setSchools(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
+    if (independentStudent) return;
+    fetch(`${API_BASE}/api/schools`).then(r => r.ok ? r.json() : []).then(data => setSchools(Array.isArray(data) ? data : [])).catch(() => {});
+  }, [independentStudent]);
 
-  // Fetch teachers when school and grade are selected
   useEffect(() => {
     if (!independentStudent && selectedSchoolId && selectedGrade) {
       fetch(`${API_BASE}/api/teachers/by-school-grade?schoolId=${selectedSchoolId}&grade=${selectedGrade}`)
-        .then(r => r.ok ? r.json() : [])
-        .then(data => setTeachers(Array.isArray(data) ? data : []))
-        .catch(() => setTeachers([]));
-    } else {
-      setTeachers([]);
-      setSelectedTeacherId("");
-    }
+        .then(r => r.ok ? r.json() : []).then(data => setTeachers(Array.isArray(data) ? data : [])).catch(() => setTeachers([]));
+    } else { setTeachers([]); setSelectedTeacherId(""); }
   }, [selectedSchoolId, selectedGrade, independentStudent]);
 
-  // Auto-generate suggested username from first + last name
   useEffect(() => {
     if (!usernameEdited && firstName && lastName) {
-      const suggested = (firstName + lastName).replace(/\s+/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      setUsername(suggested);
-      setDisplayName(`${firstName} ${lastName}`);
-    } else if (!usernameEdited && firstName && !lastName) {
-      setDisplayName(firstName);
+      setUsername((firstName + lastName).replace(/\s+/g, "").toLowerCase().replace(/[^a-z0-9]/g, ""));
     }
   }, [firstName, lastName, usernameEdited]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("Please enter your first and last name");
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwords don't match");
-      return;
-    }
-    if (username.length < 3) {
-      setError("Username must be at least 3 characters");
-      return;
-    }
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters");
-      return;
-    }
-    if (!independentStudent && !selectedSchoolId) {
-      setError("Please select your school");
-      return;
-    }
-    if (!selectedGrade) {
-      setError("Please select your grade");
-      return;
-    }
-    if (!independentStudent && !selectedTeacherId) {
-      setError("Please select your teacher");
-      return;
-    }
-
-    const finalDisplayName = displayName || `${firstName} ${lastName}`;
+    e.preventDefault(); setError("");
+    if (!firstName.trim() || !lastName.trim()) return setError("Please enter your first and last name.");
+    if (username.length < 3) return setError("Username must be at least 3 characters.");
+    if (password.length < 4) return setError("Password must be at least 4 characters.");
+    if (password !== confirm) return setError("Passwords don't match.");
+    if (!selectedGrade) return setError("Please select your grade.");
+    if (!independentStudent && !selectedSchoolId) return setError("Please select your school.");
+    if (!independentStudent && !selectedTeacherId) return setError("Please select your teacher.");
 
     setLoading(true);
     try {
-      sessionStorage.setItem('show_profile_setup', 'true');
-      await register(username, password, finalDisplayName, isEyeGaze, independentStudent ? null : (selectedTeacherId ? parseInt(selectedTeacherId) : null), independentStudent ? null : (selectedSchoolId ? parseInt(selectedSchoolId) : null), selectedGrade);
-      // Navigation is handled by AppRouter redirects based on isAdmin
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      sessionStorage.setItem("show_profile_setup", "true");
+      await register(
+        username,
+        password,
+        `${firstName.trim()} ${lastName.trim()}`,
+        isEyeGaze,
+        independentStudent ? null : Number(selectedTeacherId),
+        independentStudent ? null : Number(selectedSchoolId),
+        selectedGrade,
+      );
+    } catch (err: any) { setError(err.message || "Could not create account."); }
+    finally { setLoading(false); }
   };
 
+  const band = BANDS.find(item => item.id === gradeBand);
+
   return (
-    <div className="min-h-screen arise-page-bg flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-xl">
-        <div className="text-center mb-7">
-          <h1 className="text-4xl sm:text-5xl font-black text-white tracking-[-.045em]">A.R.I.S.E<span className="arise-gradient-text"> Reader</span></h1>
-          <p className="text-slate-400 mt-2 font-semibold">{independentStudent ? "Create an independent reader account — no school required" : "Create your account to start earning points"}</p>
-        </div>
+    <main className={`min-h-screen px-4 py-6 text-white sm:px-6 ${independentStudent ? "bg-[radial-gradient(circle_at_15%_0%,rgba(6,182,212,.24),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(124,58,237,.2),transparent_30%),#090b18]" : "arise-page-bg"}`}>
+      <div className="mx-auto w-full max-w-2xl">
+        <button type="button" onClick={() => navigate("/")} className="mb-5 inline-flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-sm font-black text-slate-200 hover:bg-white/10">
+          <ArrowLeft className="h-4 w-4" /> Back to sign in
+        </button>
 
-        <Card className="arise-surface rounded-[1.75rem] border border-white/10 overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-white">Create Account</CardTitle>
-            <CardDescription>Choose a username and password you'll remember</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Alex"
-                    required
-                    className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
-                    data-testid="input-firstname"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Martinez"
-                    required
-                    className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
-                    data-testid="input-lastname"
-                  />
-                </div>
+        <section className={`overflow-hidden rounded-[2rem] border shadow-2xl ${independentStudent ? "border-cyan-300/25 bg-[#111827]" : "border-violet-300/20 bg-[#151326]"}`}>
+          <div className={`p-6 sm:p-8 ${independentStudent ? "bg-gradient-to-r from-cyan-500/14 via-violet-500/10 to-fuchsia-500/10" : "bg-gradient-to-r from-violet-500/12 via-fuchsia-500/8 to-cyan-500/8"}`}>
+            <div className="flex items-start gap-4">
+              <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ${independentStudent ? "bg-cyan-400 text-slate-950" : "bg-violet-500 text-white"}`}>
+                {independentStudent ? <UserRound className="h-7 w-7" /> : <School className="h-7 w-7" />}
               </div>
+              <div>
+                <p className={`text-xs font-black uppercase tracking-[.18em] ${independentStudent ? "text-cyan-300" : "text-violet-300"}`}>{independentStudent ? "Independent reader" : "School-connected student"}</p>
+                <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">{independentStudent ? "Independent Student Signup" : "Student Signup"}</h1>
+                <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-slate-300">
+                  {independentStudent ? "This account is not attached to a school or teacher. You can read, quiz, earn rewards, and connect a parent or guardian after signup." : "Connect your account to your school and teacher so your reading progress, quizzes, and rewards show in the right class."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5 p-6 sm:p-8">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="firstName">First name</Label><Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Alex" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
+              <div className="space-y-2"><Label htmlFor="lastName">Last name</Label><Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Martinez" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" value={username} onChange={e => { setUsername(e.target.value); setUsernameEdited(true); }} placeholder="Choose a username" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" />
+              {!usernameEdited && firstName && lastName && <p className="text-xs text-slate-400">Suggested from your name. You can change it.</p>}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 4 characters" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
+              <div className="space-y-2"><Label htmlFor="confirm">Confirm password</Label><Input id="confirm" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Type it again" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
+            </div>
+
+            {!independentStudent && <>
               <div className="space-y-2">
-                <Label htmlFor="username">Username {firstName && lastName && !usernameEdited && <span className="text-muted-foreground text-xs">(suggested from your name)</span>}</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => { setUsername(e.target.value); setUsernameEdited(true); }}
-                  placeholder="Enter your username"
-                  required
-                  className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
-                  data-testid="input-username"
-                />
-                {firstName && lastName && !usernameEdited && (
-                  <p className="text-xs text-muted-foreground">We suggest using your first and last name as your username. You can change it if you'd like.</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 4 characters"
-                  required
-                  className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
-                  data-testid="input-password"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm">Confirm Password</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="Type your password again"
-                  required
-                  className="h-12 rounded-xl bg-[#0f0d1d] text-white border-white/10 focus-visible:ring-violet-500/50"
-                  data-testid="input-confirm"
-                />
-              </div>
-              <div className="rounded-2xl border border-violet-400/20 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/[.06] to-cyan-400/[.08] p-4">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={independentStudent}
-                    onChange={(e) => {
-                      const checked=e.target.checked;
-                      setIndependentStudent(checked);
-                      if(checked){setSelectedSchoolId("");setSelectedTeacherId("");}
-                    }}
-                    className="mt-1 h-5 w-5 accent-violet-500"
-                  />
-                  <span>
-                    <strong className="block text-sm text-white">I’m an independent student</strong>
-                    <span className="mt-1 block text-xs leading-5 text-slate-400">Choose this if you’re using A.R.I.S.E. on your own and are not joining through a school or teacher.</span>
-                  </span>
-                </label>
-              </div>
-              {!independentStudent && (
-              <div className="space-y-2">
-                <Label htmlFor="school">Select Your School</Label>
-                <select
-                  id="school"
-                  value={selectedSchoolId}
-                  onChange={(e) => { setSelectedSchoolId(e.target.value); setSelectedGrade(""); setSelectedTeacherId(""); }}
-                  className="w-full min-h-12 p-3 rounded-xl bg-[#0f0d1d] text-white border border-white/10 text-sm outline-none focus:border-violet-400/50"
-                  data-testid="select-school"
-                >
-                  <option value="">Choose your school...</option>
-                  {schools.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                <Label htmlFor="school">School</Label>
+                <select id="school" value={selectedSchoolId} onChange={e => { setSelectedSchoolId(e.target.value); setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0f0d1d] p-3 text-sm text-white">
+                  <option value="">Choose your school…</option>{schools.map((school: any) => <option key={school.id} value={school.id}>{school.name}</option>)}
                 </select>
               </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="grade">Select Your Grade</Label>
-                {!independentStudent && !selectedSchoolId ? (
-                  <p className="text-xs text-muted-foreground italic">Please select your school first</p>
-                ) : !gradeBand ? (
-                  <div className="space-y-3" data-testid="grade-picker">
-                    <p className="text-xs text-muted-foreground">First, pick your grade band:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => setGradeBand("K-2")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "K-2" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-K-2">
-                        <p className="text-sm font-bold text-white">K-2 Band</p>
-                        <p className="text-xs text-muted-foreground">Early Readers</p>
-                      </button>
-                      <button type="button" onClick={() => setGradeBand("3-5")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "3-5" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-3-5">
-                        <p className="text-sm font-bold text-white">3-5 Band</p>
-                        <p className="text-xs text-muted-foreground">Elementary</p>
-                      </button>
-                      <button type="button" onClick={() => setGradeBand("6-8")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "6-8" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-6-8">
-                        <p className="text-sm font-bold text-white">6-8 Band</p>
-                        <p className="text-xs text-muted-foreground">Middle School</p>
-                      </button>
-                      <button type="button" onClick={() => setGradeBand("9-12")} className={`p-3 rounded-lg border-2 transition-colors text-left ${gradeBand === "9-12" ? "border-primary bg-primary/10" : "border-border hover:border-primary"}`} data-testid="band-9-12">
-                        <p className="text-sm font-bold text-white">9-12 Band</p>
-                        <p className="text-xs text-muted-foreground">High School</p>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2" data-testid="grade-selected">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Your group: <span className="font-semibold text-primary">{gradeBand} Band</span></span>
-                      <button type="button" onClick={() => { setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="text-xs text-primary hover:underline">Change Band</button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Now pick your grade:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {GRADES.filter(g => {
-                        if (gradeBand === "K-2") return ["K","1","2"].includes(g);
-                        if (gradeBand === "3-5") return ["3","4","5"].includes(g);
-                        if (gradeBand === "6-8") return ["6","7","8"].includes(g);
-                        if (gradeBand === "9-12") return ["9","10","11","12"].includes(g);
-                        return false;
-                      }).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => { setSelectedGrade(g); setSelectedTeacherId(""); }}
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                            selectedGrade === g ? "bg-primary text-primary-foreground" : "bg-muted text-white hover:bg-muted/80"
-                          }`}
-                          data-testid={`grade-btn-${g}`}
-                        >
-                          Grade {g}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              {!independentStudent && (
-              <div className="space-y-2">
-                <Label htmlFor="teacher">Select Your Teacher <span className="text-destructive">*</span></Label>
-                <select
-                  id="teacher"
-                  value={selectedTeacherId}
-                  onChange={(e) => setSelectedTeacherId(e.target.value)}
-                  disabled={!selectedSchoolId || !selectedGrade}
-                  className="w-full min-h-12 p-3 rounded-xl bg-[#0f0d1d] text-white border border-white/10 text-sm outline-none focus:border-violet-400/50 disabled:opacity-50"
-                  data-testid="select-teacher"
-                >
-                  <option value="">{!selectedSchoolId || !selectedGrade ? "Select school and grade first..." : "Select your teacher..."}</option>
-                  {teachers.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.display_name}</option>
-                  ))}
-                </select>
-                {selectedSchoolId && selectedGrade && teachers.length === 0 && (
-                  <p className="text-xs text-fuchsia-300 mt-1">No teachers found for this school and grade. Please contact your school administrator.</p>
-                )}
-                {selectedTeacherId && (
-                  <p className="text-xs text-muted-foreground mt-1">You can start reading and taking quizzes right away. Your teacher will approve you to appear under their profile.</p>
-                )}
-              </div>
-              )}
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-fuchsia-500/8 to-cyan-400/10 border border-violet-400/20">
-                <input
-                  type="checkbox"
-                  id="eyeGaze"
-                  checked={isEyeGaze}
-                  onChange={(e) => setIsEyeGaze(e.target.checked)}
-                  className="mt-0.5 w-5 h-5 accent-primary cursor-pointer"
-                />
-                <label htmlFor="eyeGaze" className="text-sm text-foreground cursor-pointer">
-                  <span className="font-semibold">I am an eye gazer / non-verbal user</span>
-                  <span className="block text-xs text-muted-foreground mt-0.5">Shows accessible quizzes with large buttons and visual choices. Best on tablet or computer.</span>
-                </label>
-              </div>
-              {error && (
-                <div className="text-sm text-destructive bg-destructive/10 rounded-lg p-3" data-testid="text-error">
-                  {error}
+            </>}
+
+            <div className="space-y-3">
+              <Label>Grade</Label>
+              {!independentStudent && !selectedSchoolId ? <p className="rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-400">Select your school first.</p> : !gradeBand ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {BANDS.map(item => <button key={item.id} type="button" onClick={() => { setGradeBand(item.id); setSelectedGrade(""); }} className="rounded-xl border border-white/10 bg-white/5 p-3 text-left hover:border-cyan-300/40 hover:bg-white/10"><span className="block font-black">{item.label}</span><span className="text-xs text-slate-400">{item.sub}</span></button>)}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-center justify-between gap-3"><p className="text-sm font-black">{band?.label} · {band?.sub}</p><button type="button" onClick={() => { setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="text-xs font-black text-cyan-300">Change</button></div>
+                  <div className="mt-3 flex flex-wrap gap-2">{GRADES.filter(g => band?.grades.includes(g)).map(g => <button key={g} type="button" onClick={() => { setSelectedGrade(g); setSelectedTeacherId(""); }} className={`min-h-10 rounded-xl px-4 text-sm font-black ${selectedGrade === g ? "bg-cyan-300 text-slate-950" : "bg-white/10 text-white"}`}>Grade {g}</button>)}</div>
                 </div>
               )}
-              <Button type="submit" className="w-full arise-gradient-button h-12 rounded-xl font-black" disabled={loading} data-testid="button-register">
-                {loading ? "Creating account..." : "Create Account"}
-              </Button>
-              <div className="text-center text-sm text-muted-foreground">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/")}
-                  className="arise-gradient-text font-black hover:opacity-90"
-                >
-                  Log in
-                </button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+            </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          {independentStudent ? "Independent readers can connect a parent or guardian after signup." : "Forgot your password? Ask your teacher to reset it."}
-        </p>
-        <div className="text-center mt-3">
-          <button
-            type="button"
-            onClick={() => navigate("/teacher-signup")}
-            className="text-sm arise-gradient-text font-black hover:opacity-90"
-          >
-            Are you a teacher? Sign up here
-          </button>
+            {!independentStudent && <div className="space-y-2">
+              <Label htmlFor="teacher">Teacher</Label>
+              <select id="teacher" value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} disabled={!selectedSchoolId || !selectedGrade} className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0f0d1d] p-3 text-sm text-white disabled:opacity-40">
+                <option value="">{!selectedGrade ? "Select school and grade first…" : "Choose your teacher…"}</option>{teachers.map((teacher: any) => <option key={teacher.id} value={teacher.id}>{teacher.display_name}</option>)}
+              </select>
+              {selectedSchoolId && selectedGrade && teachers.length === 0 && <p className="text-xs font-semibold text-fuchsia-300">No teacher is listed for that school and grade yet.</p>}
+            </div>}
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/8 via-violet-500/8 to-fuchsia-500/8 p-4">
+              <input type="checkbox" checked={isEyeGaze} onChange={e => setIsEyeGaze(e.target.checked)} className="mt-1 h-5 w-5 accent-cyan-400" />
+              <span><strong className="block text-sm">Eye Gazer / non-verbal account</strong><span className="mt-1 block text-xs leading-5 text-slate-400">Use the dedicated accessible experience with large visual choices, My Talker, Eye Gazer games, Life Skills, and family personalization.</span></span>
+            </label>
+
+            {error && <div className="rounded-xl border border-red-400/25 bg-red-500/10 p-3 text-sm font-bold text-red-200">{error}</div>}
+            <Button type="submit" disabled={loading} className={`h-12 w-full rounded-xl font-black text-white ${independentStudent ? "bg-gradient-to-r from-cyan-500 via-violet-600 to-fuchsia-600" : "arise-gradient-button"}`}>{loading ? "Creating account…" : independentStudent ? "Create Independent Account" : "Create Student Account"}</Button>
+          </form>
+        </section>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {independentStudent ? <button type="button" onClick={() => navigate("/register")} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><School className="h-5 w-5 text-violet-300" /><p className="mt-2 font-black">Joining through a school?</p><p className="text-xs text-slate-400">Open the school-connected signup.</p></button> : <button type="button" onClick={() => navigate("/register?independent=1")} className="rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-4 text-left hover:bg-cyan-500/10"><UserRound className="h-5 w-5 text-cyan-300" /><p className="mt-2 font-black">Not joining through a school?</p><p className="text-xs text-slate-400">Use Independent Student Signup instead.</p></button>}
+          <button type="button" onClick={() => navigate("/teacher-signup")} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><GraduationCap className="h-5 w-5 text-fuchsia-300" /><p className="mt-2 font-black">Are you a teacher?</p><p className="text-xs text-slate-400">Open teacher signup.</p></button>
         </div>
-        <div className="text-center mt-2">
-          <button
-            type="button"
-            onClick={() => navigate("/parent-signup")}
-            className="text-sm arise-gradient-text font-black hover:opacity-90"
-          >
-            Are you a parent? Sign up here
-          </button>
-        </div>
+        <p className="mt-5 text-center text-xs font-semibold text-slate-500"><BookOpen className="mr-1 inline h-3.5 w-3.5" /> A.R.I.S.E. Reader · Read · Learn · Earn · Play · Grow</p>
       </div>
-    </div>
+    </main>
   );
 }
