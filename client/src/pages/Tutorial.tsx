@@ -10,7 +10,7 @@ import {
   Users, ClipboardList, GraduationCap, Bell, Inbox, Search, ChevronDown,
   Lock, MessageSquarePlus, BookPlus, UserPlus, X, ShieldCheck, Settings,
   Sparkles, ChevronLeft, ChevronRight, BookUser, UserCog, PlayCircle, Eye,
-  Volume2, Heart
+  Volume2, Heart, Dog, Cat, Rabbit, Fish, BarChart3
 } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import { generateCertificate } from "@/lib/certificate";
@@ -1181,14 +1181,14 @@ export default function Tutorial() {
                     <div className="space-y-3">
                       <div className="p-3 rounded-lg bg-white/[.04] border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">🐶</span>
+                          <span className="grid h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Dog className="h-5 w-5" /></span>
                           <span className="text-sm font-medium">Question 1: What animal is this?</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐕 Dog</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐱 Cat</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐰 Rabbit</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐟 Fish</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Dog className="mx-auto mb-1 h-5 w-5 text-violet-300" />Dog</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Cat className="mx-auto mb-1 h-5 w-5 text-fuchsia-300" />Cat</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Rabbit className="mx-auto mb-1 h-5 w-5 text-cyan-300" />Rabbit</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Fish className="mx-auto mb-1 h-5 w-5 text-blue-300" />Fish</div>
                         </div>
                         <div className="mt-2 flex items-center gap-2">
                           <Volume2 className="w-3 h-3 text-violet-300" />
@@ -1197,14 +1197,14 @@ export default function Tutorial() {
                       </div>
                       <div className="p-3 rounded-lg bg-white/[.04] border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">🐮</span>
+                          <span className="grid h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Cat className="h-5 w-5" /></span>
                           <span className="text-sm font-medium">Question 2: What animal is this?</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐶 Dog</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐮 Cow</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐷 Pig</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐴 Horse</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Dog className="mx-auto mb-1 h-5 w-5 text-violet-300" />Dog</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Cat className="mx-auto mb-1 h-5 w-5 text-fuchsia-300" />Cat</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Rabbit className="mx-auto mb-1 h-5 w-5 text-cyan-300" />Rabbit</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs"><Fish className="mx-auto mb-1 h-5 w-5 text-blue-300" />Fish</div>
                         </div>
                         <div className="mt-2 flex items-center gap-2">
                           <Volume2 className="w-3 h-3 text-violet-300" />
@@ -1797,12 +1797,12 @@ function ParentTutorialContent({ step, onNext }: { step: number; onNext: () => v
         </div>
         <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
           <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
-            <div className="text-2xl">📊</div>
+            <div className="grid h-10 w-10 place-items-center rounded-xl arise-icon-tile"><BarChart3 className="h-5 w-5" /></div>
             <h4 className="mt-2 font-bold text-white">Linked child view</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">See reading progress, quizzes, points, certificates, and messages without entering the student competition.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
-            <div className="text-2xl">👁️</div>
+            <div className="grid h-10 w-10 place-items-center rounded-xl arise-icon-tile"><Eye className="h-5 w-5" /></div>
             <h4 className="mt-2 font-bold text-white">Eye Gazer family tools</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">Personalize My Talker, My World, Life Skills, videos, flash cards, and supported access settings for a linked learner.</p>
           </div>
