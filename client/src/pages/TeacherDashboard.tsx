@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock } from "lucide-react";
+import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -27,8 +27,10 @@ type Teacher = { id: number; displayName: string; username: string };
 type PendingStudent = { id: number; username: string; displayName: string; teacherId?: number; teacherName?: string | null };
 type PendingQuiz = { id: number; student_id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group: string; cover_url: string; status: string };
 type BookRequest = { id: number; bookTitle: string; studentName: string; message: string; createdAt: string };
+type ParentConnection = { id: number; displayName: string; username: string; code: string; signupUrl: string; parents: Array<{ id: number; displayName: string; username: string; email?: string | null; accountApproved: boolean }> };
+type ClubClosingSchedule = { enabled: boolean; start: string; end: string; days: number[]; timeZone?: string; closedNow?: boolean; adminOverrideClosedNow?: boolean; adminSchedule?: { enabled: boolean; start: string; end: string; days: number[] } };
 
-type Tab = "students" | "all-students" | "pending" | "book-requests" | "proctor" | "grade-changes" | "growth-check" | "club-controls";
+type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "grade-changes" | "growth-check" | "club-controls";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -68,6 +70,11 @@ export default function TeacherDashboard() {
   const [bellRefreshKey, setBellRefreshKey] = useState(0);
   const [clubControls, setClubControls] = useState<any[]>([]);
   const [clubControlsLoading, setClubControlsLoading] = useState(false);
+  const [parentConnections, setParentConnections] = useState<ParentConnection[]>([]);
+  const [parentConnectionsLoading, setParentConnectionsLoading] = useState(false);
+  const [clubClosing, setClubClosing] = useState<ClubClosingSchedule>({ enabled: false, start: "21:00", end: "07:00", days: [0,1,2,3,4,5,6] });
+  const [clubClosingLoading, setClubClosingLoading] = useState(false);
+  const [clubClosingSaving, setClubClosingSaving] = useState(false);
   const printLetters = (studentId?: number) => printParentInvites(studentId).catch(err => window.alert(err.message));
 
   const authorized = Boolean(user && (user.role === "teacher" || user.isAdmin));
@@ -120,6 +127,45 @@ export default function TeacherDashboard() {
     }
   };
 
+  const loadParentConnections = async () => {
+    setParentConnectionsLoading(true);
+    try {
+      const data = await request("/api/teacher/parent-connections");
+      setParentConnections(Array.isArray(data?.students) ? data.students : []);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Unable to load parent connections.");
+    } finally { setParentConnectionsLoading(false); }
+  };
+
+  const loadClubClosing = async () => {
+    if (user?.role !== "teacher") return;
+    setClubClosingLoading(true);
+    try {
+      const data = await request("/api/teacher/club-closing-hours");
+      setClubClosing(data);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Unable to load class closing hours.");
+    } finally { setClubClosingLoading(false); }
+  };
+
+  const saveClubClosing = async () => {
+    if (user?.role !== "teacher") return;
+    setClubClosingSaving(true); setActionError("");
+    try {
+      const data = await request("/api/teacher/club-closing-hours", { method: "POST", body: JSON.stringify({ enabled: clubClosing.enabled, start: clubClosing.start, end: clubClosing.end, days: clubClosing.days }) });
+      setClubClosing(data);
+      setActionSuccess("Your class Club closing hours are saved.");
+      setTimeout(() => setActionSuccess(""), 2600);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Unable to save class closing hours.");
+    } finally { setClubClosingSaving(false); }
+  };
+
+  const copyText = async (value: string, label: string) => {
+    try { await navigator.clipboard.writeText(value); setActionSuccess(label + " copied."); setTimeout(() => setActionSuccess(""), 1800); }
+    catch { setActionError("Could not copy " + label.toLowerCase() + "."); }
+  };
+
   const saveClubControl = async (studentId: number, patch: any) => {
     const current = clubControls.find((s:any) => s.id === studentId)?.control || {};
     const next = {
@@ -158,9 +204,6 @@ export default function TeacherDashboard() {
     if (!authorized) { navigate("/library"); return; }
     if (accountApproved) {
       void loadData();
-      void loadAllStudentsData();
-      void loadBookRequests();
-      void loadClubControls();
       const token = getTokenFromCookie();
       if (token) {
         fetch(`${API_BASE}/api/proctor-password`, { headers: { Authorization: `Bearer ${token}` } })
@@ -179,6 +222,17 @@ export default function TeacherDashboard() {
       }
     } else { setLoading(false); }
   }, [user, authorized, accountApproved]);
+
+  useEffect(() => {
+    if (!accountApproved) return;
+    if (tab === "all-students" && !allStudents.length && !allLoading) void loadAllStudentsData();
+    if (tab === "book-requests" && !bookReqLoading) void loadBookRequests();
+    if (tab === "parents" && !parentConnectionsLoading) void loadParentConnections();
+    if (tab === "club-controls") {
+      if (!clubControlsLoading) void loadClubControls();
+      if (user?.role === "teacher" && !clubClosingLoading) void loadClubClosing();
+    }
+  }, [tab, accountApproved]);
 
   const approve = async (studentId: number) => {
     try { await request(`/api/teacher/approve/${studentId}`, { method: "POST" }); setPending((items) => items.filter((item) => item.id !== studentId)); await loadData(); }
@@ -344,6 +398,7 @@ export default function TeacherDashboard() {
         <TabButton active={tab === "all-students"} onClick={() => setTab("all-students")} icon={<Users size={19} />}>All Students</TabButton>
         <TabButton active={tab === "pending"} onClick={() => setTab("pending")} icon={<UserRound size={19} />}>Pending Approvals{pending.length ? ` (${pending.length})` : ""}</TabButton>
         <TabButton active={tab === "book-requests"} onClick={() => setTab("book-requests")} icon={<BookOpen size={19} />}>Book Requests{bookRequests.length ? ` (${bookRequests.length})` : ""}</TabButton>
+        <TabButton active={tab === "parents"} onClick={() => setTab("parents")} icon={<Users size={19} />}>Parents</TabButton>
         <TabButton active={tab === "proctor"} onClick={() => setTab("proctor")} icon={<KeyRound size={19} />}>Proctor</TabButton>
         <TabButton active={tab === "grade-changes"} onClick={() => setTab("grade-changes")} icon={<GraduationCap size={19} />}>Grade Changes{gradeChangeRequests.length ? ` (${gradeChangeRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "growth-check"} onClick={() => setTab("growth-check")} icon={<Brain size={19} />}>Growth Check</TabButton>
@@ -352,8 +407,6 @@ export default function TeacherDashboard() {
 
       {actionSuccess && <div style={styles.successBanner}><CheckCircle2 size={18} /> {actionSuccess}</div>}
       {actionError && <div style={styles.errorBanner}><X size={18} /> {actionError}</div>}
-
-      {tab === 'students' && <button style={styles.primaryBtn} onClick={() => printLetters()}>Print parent letters for my students</button>}
 
       {/* === ALL STUDENTS TAB === */}
       {tab === "all-students" && (
@@ -540,6 +593,40 @@ export default function TeacherDashboard() {
         </div>
       )}
 
+      {/* === PARENTS TAB === */}
+      {tab === "parents" && (
+        <div>
+          <div style={{ ...styles.proctorCard, marginBottom: 18 }}>
+            <h2 style={styles.proctorTitle}><Users size={22} /> Parent Codes & Accounts</h2>
+            <p style={styles.proctorDesc}>Give families their private code or signup link, print letters, and see which parent/guardian accounts are already connected to your students.</p>
+            <button style={styles.primaryBtn} onClick={() => printLetters()}>Print parent letters for my students</button>
+          </div>
+          {parentConnectionsLoading ? <p style={styles.muted}>Loading parent connections...</p> : (
+            <div style={styles.grid}>
+              {parentConnections.length ? parentConnections.map((student) => (
+                <article key={student.id} style={styles.card}>
+                  <div style={styles.cardHead}>
+                    <div><h2 style={styles.studentName}>{student.displayName}</h2><p style={styles.username}>@{student.username}</p></div>
+                    <span style={{...styles.pendingBadge,background:student.parents.length?"hsl(145 70% 45% / .16)":"hsl(38 90% 50% / .16)",color:student.parents.length?"hsl(145 65% 62%)":"hsl(38 95% 68%)"}}>{student.parents.length ? student.parents.length + " LINKED" : "NOT LINKED"}</span>
+                  </div>
+                  <label style={styles.label}>Parent code</label>
+                  <div style={styles.proctorDisplay}><code style={{...styles.proctorCode,fontSize:18}}>{student.code}</code><button onClick={() => void copyText(student.code, "Parent code")} style={styles.copyBtn}><Copy size={15}/> Copy</button></div>
+                  <div style={{...styles.actions,marginTop:12}}>
+                    <ActionButton onClick={() => printLetters(student.id)} icon={<BookOpen size={16}/>}>Print Letter</ActionButton>
+                    <ActionButton onClick={() => void copyText(student.signupUrl, "Signup link")} icon={<Copy size={16}/>}>Copy Link</ActionButton>
+                    <ActionButton onClick={() => window.open(student.signupUrl, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={16}/>}>Open Signup</ActionButton>
+                  </div>
+                  <div style={{marginTop:16,borderTop:"1px solid rgba(255,255,255,.09)",paddingTop:12}}>
+                    <p style={styles.label}>Linked parent / guardian accounts</p>
+                    {student.parents.length ? student.parents.map((parent) => <div key={parent.id} style={{...styles.rewardItem,marginTop:8}}><div><strong>{parent.displayName}</strong><p style={styles.quizMeta}>@{parent.username}{parent.email ? " · " + parent.email : ""}</p></div><span style={parent.accountApproved?styles.activeBadge:styles.inactiveBadge}>{parent.accountApproved?"Active":"Pending"}</span></div>) : <p style={styles.quizMeta}>No parent account is linked yet.</p>}
+                  </div>
+                </article>
+              )) : <div style={styles.empty}>No students are assigned to you.</div>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* === MY STUDENTS TAB (original) === */}
       {loading ? <p style={styles.muted}>Loading students...</p> : error ? <div style={styles.error} role="alert">{error}</div> : tab === "students" ? <div style={styles.grid}>{students.length ? students.map((student) => <article key={student.id} style={styles.card} data-testid={`card-student-${student.id}`}><div style={styles.cardHead}><div><h2 style={styles.studentName}>{name(student)}</h2><p style={styles.username}>@{student.username}</p></div></div><div style={styles.stats}><span><strong>{points(student)}</strong> total points</span><span><strong>{quizzes(student)}</strong> quizzes taken</span></div><div style={styles.actions}><ActionButton onClick={() => navigate(`/student-profile/${student.id}`)} icon={<UserRound size={16} />}>View Profile</ActionButton><ActionButton onClick={() => navigate(`/messages/${student.id}`)} icon={<Mail size={16} />}>Message</ActionButton><ActionButton onClick={() => { setActionStudent(student); setActionType("password"); setNewPassword(""); setActionError(""); }} icon={<KeyRound size={16} />}>Reset Password</ActionButton><ActionButton onClick={() => navigate(`/student-certificates/${student.id}`)} icon={<Award size={16} />}>Certificates</ActionButton></div></article>) : <div style={styles.empty}>No students have joined your classroom yet.</div>}</div> : null}
 
@@ -560,6 +647,25 @@ export default function TeacherDashboard() {
             <p style={styles.proctorDesc}>The default rule gives a student unlimited A.R.I.S.E. world/game play for the rest of the school week after they pass one book quiz. You can turn that reward off for any student, lock Club play, or keep separate multiplayer-game limits.</p>
             <p style={styles.quizMeta}><strong>Weekly reward:</strong> A qualifying quiz passed Monday–Sunday unlocks unlimited play until the next Monday. Teacher/admin locks still override it.</p>
           </div>
+          {user?.role === "teacher" && <div style={{ ...styles.proctorCard, marginBottom: 18 }}>
+            <h2 style={styles.proctorTitle}><Clock3 size={22} /> My Class Closing Hours</h2>
+            <p style={styles.proctorDesc}>Set when Club A.R.I.S.E. closes for students assigned to you. Admin closing hours always override teacher hours.</p>
+            {clubClosingLoading ? <p style={styles.muted}>Loading class hours...</p> : <>
+              {clubClosing.adminOverrideClosedNow && <div style={{...styles.notice,margin:"10px 0"}}>Admin has Club A.R.I.S.E. closed right now. Your class schedule cannot reopen it until the admin window ends.</div>}
+              <label style={{...styles.label,display:"flex",alignItems:"center",gap:8}}><input type="checkbox" checked={clubClosing.enabled} onChange={e=>setClubClosing(v=>({...v,enabled:e.target.checked}))}/> Use class closing hours</label>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginTop:10}}>
+                <label style={styles.label}>Close at<input type="time" value={clubClosing.start} onChange={e=>setClubClosing(v=>({...v,start:e.target.value}))} style={styles.input}/></label>
+                <label style={styles.label}>Reopen at<input type="time" value={clubClosing.end} onChange={e=>setClubClosing(v=>({...v,end:e.target.value}))} style={styles.input}/></label>
+              </div>
+              <p style={{...styles.label,marginTop:12}}>Days this closing window starts</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:12}}>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day,index)=>{
+                const active=clubClosing.days.includes(index);
+                return <button type="button" key={day} onClick={()=>setClubClosing(v=>({...v,days:active?v.days.filter(d=>d!==index):[...v.days,index].sort((a,b)=>a-b)}))} style={{...styles.copyBtn,background:active?"#7c3aed":"#171326",color:"#fff"}}>{day}</button>;
+              })}</div>
+              <button disabled={clubClosingSaving} onClick={()=>void saveClubClosing()} style={styles.primaryBtn}>{clubClosingSaving?"Saving...":"Save class closing hours"}</button>
+              <p style={styles.quizMeta}>Times use Mountain Time. If the closing time is later than the reopening time, the window runs overnight.</p>
+            </>}
+          </div>}
           {clubControlsLoading ? <p style={styles.muted}>Loading Club controls...</p> : (
             <div style={styles.grid}>
               {clubControls.length ? clubControls.map((student:any) => {
