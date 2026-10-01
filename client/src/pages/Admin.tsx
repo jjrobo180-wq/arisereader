@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
+import TheaterAdmin from "@/components/TheaterAdmin";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
@@ -2300,6 +2301,8 @@ Generate exactly 10 questions.`;
             </div>
           </CardContent>
         </Card>
+
+        <TheaterAdmin token={token || getTokenFromCookie()} />
 
         {/* Pending AI quiz alert banner */}
         {pendingQuizzes.length > 0 && (

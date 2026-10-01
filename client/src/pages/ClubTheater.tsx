@@ -11,7 +11,8 @@ import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
 import MobileJoystick from "@/components/MobileJoystick";
 
-type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string};
+import { theaterEmbedUrl, theaterMediaKey, type TheaterMovie } from "@shared/clubTheater";
+type Movie=TheaterMovie;
 type TheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null};
 type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number;players:TheaterVisitor[]};movies:Movie[];changeCost:number;popcornCost:number;wallet:number};
 type ClubSelf={userId:number;displayName:string;characterId:string;petId:string};
@@ -23,6 +24,8 @@ export default function ClubTheater(){
   const [,navigate]=useLocation();
   const mountRef=useRef<HTMLDivElement>(null);
   const youtubeRef=useRef<HTMLIFrameElement|null>(null);
+  const videoRef=useRef<HTMLVideoElement|null>(null);
+  const screenWrapRef=useRef<HTMLDivElement|null>(null);
   const cssSceneRef=useRef<THREE.Scene|null>(null);
   const cssRendererRef=useRef<CSS3DRenderer|null>(null);
   const rootRef=useRef<THREE.Group|null>(null);
@@ -93,7 +96,8 @@ export default function ClubTheater(){
   },[token,headers]);
 
   const currentMovie=payload?.movies.find(m=>m.id===payload.state.movieId)||payload?.movies[0];
-  const guideCategories=["Featured","Series & Shows","Live"];
+  const guideCategories=Array.from(new Set(payload?.movies.map(movie=>movie.category||"Featured")||[]));
+  const mediaKey=theaterMediaKey(currentMovie);
   const stationIndex=Math.max(0,payload?.movies.findIndex(m=>m.id===payload.state.movieId)??0);
 
   useEffect(()=>{
@@ -101,9 +105,11 @@ export default function ClubTheater(){
       setEmbedStart(Math.max(0,Math.floor(payload.state.currentPosition||0)));
       setVideoReady(false);
     }
-  },[currentMovie?.id]);
+  },[mediaKey]);
 
   const youtubeCommand=(func:string)=>{
+    const video=videoRef.current;
+    if(video){if(func==="mute")video.muted=true;else if(func==="unMute")video.muted=false;else if(func==="playVideo")void video.play().catch(()=>setNotice("Tap Play / resume to start the movie."));return;}
     const frame=youtubeRef.current;
     if(!frame?.contentWindow)return;
     frame.contentWindow.postMessage(JSON.stringify({event:"command",func,args:[]}),"*");
@@ -129,20 +135,32 @@ export default function ClubTheater(){
     const firstGesture=()=>{tryPlay();window.removeEventListener("pointerdown",firstGesture,true);};
     window.addEventListener("pointerdown",firstGesture,true);
     return()=>{timers.forEach(window.clearTimeout);window.removeEventListener("pointerdown",firstGesture,true);};
-  },[currentMovie?.id]);
+  },[mediaKey]);
 
-  useEffect(()=>{
-    const iframe=youtubeRef.current;
-    if(!iframe||!currentMovie)return;
-    const src=currentMovie.kind==="channel"&&currentMovie.youtubePlaylistId
-      ?"https://www.youtube-nocookie.com/embed/videoseries?list="+encodeURIComponent(currentMovie.youtubePlaylistId)+"&autoplay=1&mute=0&playsinline=1&controls=0&rel=0&enablejsapi=1&loop=1"
-      :"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=0&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||0));
-    iframe.title=currentMovie.title;
-    if(iframe.src!==src){
-      setVideoReady(false);
-      iframe.src=src;
+  const mountScreenMedia=(movie:Movie,start=0)=>{
+    const screenWrap=screenWrapRef.current;if(!screenWrap)return;
+    videoRef.current?.pause();videoRef.current=null;youtubeRef.current=null;screenWrap.replaceChildren();
+    const media=movie.provider==="video"?document.createElement("video"):document.createElement("iframe");
+    media.style.width="800px";media.style.height="450px";media.style.border="0";media.style.display="block";media.style.pointerEvents="none";
+    if(media instanceof HTMLVideoElement){
+      videoRef.current=media;media.src=movie.videoUrl;media.autoplay=true;media.playsInline=true;media.loop=true;media.muted=mutedRef.current;media.style.objectFit="contain";
+      media.setAttribute("aria-label",movie.title);
+      media.addEventListener("loadedmetadata",()=>{media.currentTime=Math.min(Math.max(0,start),Math.max(0,(media.duration||start+1)-.1));void media.play().catch(()=>setNotice("Tap Play / resume to start the movie."));});
+      media.addEventListener("playing",()=>setVideoReady(true));
+      media.addEventListener("error",()=>{setVideoReady(false);setNotice("This video link could not play. Choose another show or ask the admin to check its link.");});
+    }else{
+      youtubeRef.current=media;media.src=theaterEmbedUrl(movie,start);media.title=movie.title;media.allow="autoplay; encrypted-media; picture-in-picture";
+      media.addEventListener("load",()=>{window.setTimeout(()=>{youtubeCommand("playVideo");youtubeCommand(mutedRef.current?"mute":"unMute");},250);});
     }
-  },[currentMovie?.id]);
+    screenWrap.appendChild(media);
+  };
+  useEffect(()=>{
+    if(currentMovie){setVideoReady(false);mountScreenMedia(currentMovie,Math.max(0,payload?.state.currentPosition||0));}
+  },[mediaKey]);
+  useEffect(()=>{
+    if(currentMovie&&youtubeRef.current)youtubeRef.current.title=currentMovie.title;
+    if(currentMovie&&videoRef.current)videoRef.current.setAttribute("aria-label",currentMovie.title);
+  },[currentMovie?.title]);
 
   useEffect(()=>{
     const mount=mountRef.current;
@@ -334,23 +352,8 @@ export default function ClubTheater(){
       screenWrap.style.borderRadius="8px";
       screenWrap.style.boxShadow="0 0 45px rgba(56,189,248,.22)";
 
-      const iframe=document.createElement("iframe");
-      youtubeRef.current=iframe;
-      iframe.src=currentMovie.kind==="channel"&&currentMovie.youtubePlaylistId
-        ?"https://www.youtube-nocookie.com/embed/videoseries?list="+encodeURIComponent(currentMovie.youtubePlaylistId)+"&autoplay=1&mute=0&playsinline=1&controls=0&rel=0&enablejsapi=1&loop=1"
-        :"https://www.youtube-nocookie.com/embed/"+currentMovie.youtubeId+"?autoplay=1&mute=0&playsinline=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&start="+Math.max(0,Math.floor(payload?.state.currentPosition||embedStart||0));
-      iframe.title=currentMovie.title;
-      iframe.allow="autoplay; encrypted-media; picture-in-picture";
-      iframe.style.width="800px";
-      iframe.style.height="450px";
-      iframe.style.border="0";
-      iframe.style.display="block";
-      iframe.style.pointerEvents="none";
-      iframe.addEventListener("load",()=>{
-        setVideoReady(true);
-        window.setTimeout(()=>{youtubeCommand("playVideo");if(mutedRef.current)youtubeCommand("mute");else youtubeCommand("unMute");},250);
-      });
-      screenWrap.appendChild(iframe);
+      screenWrapRef.current=screenWrap;
+      mountScreenMedia(currentMovie,Math.max(0,payload?.state.currentPosition||embedStart||0));
 
       const movieObject=new CSS3DObject(screenWrap);
       movieObject.position.set(0,5.4,-8.96);
@@ -720,6 +723,7 @@ export default function ClubTheater(){
       renderer.domElement.removeEventListener("pointerdown",pointerDown);
       renderer.domElement.removeEventListener("pointerup",pointerUp);
       controls.dispose();
+      videoRef.current?.pause();videoRef.current=null;screenWrapRef.current=null;
       youtubeRef.current=null;
       cssScene.clear();
       cssSceneRef.current=null;
@@ -775,7 +779,7 @@ export default function ClubTheater(){
       setPicker(false);
       setEmbedStart(0);
       setVideoReady(false);
-      setNotice("The new YouTube show is starting for everyone.");
+      setNotice("The new show is starting for everyone.");
     }catch(e:any){
       setNotice(e.message||"Could not change the movie.");
     }finally{
@@ -864,6 +868,7 @@ export default function ClubTheater(){
     </div>
 
     <div className="absolute right-2 top-16 z-30 flex flex-col gap-1.5 sm:right-4 sm:top-24">
+      <button type="button" onClick={()=>{youtubeCommand(muted?"mute":"unMute");youtubeCommand("playVideo");}} className="flex min-h-10 items-center gap-2 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl"><PlayCircle className="h-4 w-4"/>Play / resume</button>
       <button type="button" onClick={()=>setMuted(value=>!value)} className="flex min-h-10 items-center gap-2 rounded-xl bg-slate-950/90 px-3 text-xs font-black shadow-xl backdrop-blur">
         {muted?<VolumeX className="h-4 w-4"/>:<Volume2 className="h-4 w-4"/>}{muted?"Hear Movie":"Mute"}
       </button>
@@ -919,7 +924,7 @@ export default function ClubTheater(){
                         {movie.id===payload.state.movieId&&<span className="shrink-0 rounded-full bg-cyan-300 px-2 py-1 text-[9px] font-black text-slate-950">PLAYING</span>}
                       </div>
                       <p className="mt-1 text-xs font-semibold text-white/55">{movie.subtitle}</p>
-                      <p className="mt-2 text-[10px] font-bold text-cyan-200/70">{movie.category==="Live"?"YouTube Live":movie.kind==="channel"?"YouTube series channel":movie.license}</p>
+                      <p className="mt-2 text-[10px] font-bold text-cyan-200/70">{movie.provider==="video"?"Linked video":movie.category==="Live"?"YouTube Live":movie.kind==="channel"?"YouTube series channel":movie.license}</p>
                     </div>
                   </div>
                 </button>)}

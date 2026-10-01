@@ -9,6 +9,8 @@ import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerBoardQuestRoutes } from "./boardQuest";
+import { createTheaterCatalogStore, registerTheaterAdminRoutes } from "./theaterCatalog";
+import { theaterMediaKey, type TheaterMovie } from "../shared/clubTheater";
 import { registerClubPlayRoutes } from "./clubPlay";
 import { registerClubAriseRoutes } from "./clubArise";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
@@ -933,6 +935,7 @@ export async function registerRoutes(
   registerLiveQuizRoutes(app, authMiddleware);
   registerClubAriseRoutes(app, authMiddleware);
   registerBoardQuestRoutes(app, authMiddleware);
+  const theaterCatalog = createTheaterCatalogStore(storage);
   // My World uses a lightweight grown-up math gate from the child's account.
   // These short-lived tokens are only an editing gate, not account authentication.
   const myWorldChallenges = new Map<string, { studentId: number; answer: number; expiresAt: number }>();
@@ -1973,34 +1976,28 @@ export async function registerRoutes(
   const CLUB_THEATER_PRESENCE_TTL=15000;
   type ClubTheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null;lastSeen:number};
   const clubTheaterPresence=new Map<number,ClubTheaterVisitor>();
-  const CLUB_THEATER_MOVIES=[
-    { id:"cinema-1", title:"Cinema Pick 1", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"vq9TWtT6Uwg", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
-    { id:"cinema-2", title:"Cinema Pick 2", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"ixbkzsNCgV8", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
-    { id:"cinema-3", title:"Cinema Pick 3", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"VAfGav-5X70", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
-    { id:"cinema-4", title:"Cinema Pick 4", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"O1MSGBhXDOA", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
-    { id:"cinema-series-1", title:"YouTube Series · Season 1", subtitle:"Series selection from the supplied YouTube Show link", kind:"channel" as const, youtubeId:"", youtubePlaylistId:"UU_l_vAU56D8Sa4WCEZtWIi1w", duration:21600, license:"YouTube embed", attribution:"YouTube show/channel selection", age:"Series", category:"Series & Shows" },
-    { id:"cinema-6", title:"Cinema Pick 6", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"qvNsNOIE4CQ", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
-    { id:"cinema-7", title:"Cinema Pick 7", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"s1Ylmj87gXY", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
-    { id:"cinema-8", title:"Cinema Pick 8", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"tHNXAgZLZwk", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
-    { id:"cinema-live-1", title:"Live Cinema Channel 1", subtitle:"Live YouTube selection", kind:"video" as const, youtubeId:"_HviSyC7zSU", youtubePlaylistId:"", duration:21600, license:"YouTube live embed", attribution:"User-selected YouTube live stream", age:"Live", category:"Live" },
-    { id:"cinema-live-2", title:"Live Cinema Channel 2", subtitle:"Live YouTube selection", kind:"video" as const, youtubeId:"yzKTO-6KWHU", youtubePlaylistId:"", duration:21600, license:"YouTube live embed", attribution:"User-selected YouTube live stream", age:"Live", category:"Live" }
-  ] as const;
 
-  async function getClubTheaterState(touchUserId?:number){
+
+  async function getClubTheaterState(touchUserId?:number, suppliedMovies?:TheaterMovie[]){
+    const movies=suppliedMovies||await theaterCatalog.playable();
     const now=Date.now();
     const raw=await storage.getSetting("club_theater_state");
     let parsed:any=null;
     if(raw){try{parsed=JSON.parse(raw);}catch{}}
-    const valid=CLUB_THEATER_MOVIES.some(movie=>movie.id===String(parsed?.movieId||""));
+    const valid=movies.some(movie=>movie.id===String(parsed?.movieId||""));
+    const movie=movies.find(item=>item.id===String(parsed?.movieId||""))||movies[0];
+    const mediaKey=theaterMediaKey(movie);
+    const sourceChanged=!!parsed?.mediaKey&&parsed.mediaKey!==mediaKey;
     let state={
-      movieId:valid?String(parsed.movieId):CLUB_THEATER_MOVIES[0].id,
-      positionSeconds:Math.max(0,Number(parsed?.positionSeconds)||0),
-      startedAt:Number.isFinite(Number(parsed?.startedAt))&&Number(parsed.startedAt)>0?Number(parsed.startedAt):now,
+      movieId:movie.id,
+      mediaKey,
+      positionSeconds:valid&&!sourceChanged?Math.max(0,Number(parsed?.positionSeconds)||0):0,
+      startedAt:valid&&!sourceChanged&&Number.isFinite(Number(parsed?.startedAt))&&Number(parsed.startedAt)>0?Number(parsed.startedAt):now,
       playing:!!parsed?.playing
     };
 
     let lastExpiredAt=0;
-    for(const [userId,visitor] of clubTheaterPresence){
+    for(const [userId,visitor] of Array.from(clubTheaterPresence)){
       if(now-visitor.lastSeen>CLUB_THEATER_PRESENCE_TTL){
         lastExpiredAt=Math.max(lastExpiredAt,visitor.lastSeen+CLUB_THEATER_PRESENCE_TTL);
         clubTheaterPresence.delete(userId);
@@ -2016,24 +2013,31 @@ export async function registerRoutes(
 
     if(touchUserId){
       const existing=clubTheaterPresence.get(touchUserId);
-      clubTheaterPresence.set(touchUserId,existing?{...existing,lastSeen:now}:{userId:touchUserId,displayName:"Reader",characterId:"robin-hood",x:0,z:20,facing:Math.PI,seatId:null,lastSeen:now});
+      clubTheaterPresence.set(touchUserId,existing?{...existing,lastSeen:now}:{userId:touchUserId,displayName:"Reader",characterId:"robin-hood",petId:"pet-none",x:0,z:20,facing:Math.PI,seatId:null,lastSeen:now});
       if(!state.playing){
         state.startedAt=now;
         state.playing=true;
       }
     }
 
-    const changed=!raw||!valid
+    const changed=!raw||!valid||parsed?.mediaKey!==mediaKey
       ||state.movieId!==String(parsed?.movieId||"")
       ||state.positionSeconds!==Number(parsed?.positionSeconds||0)
       ||state.startedAt!==Number(parsed?.startedAt||0)
       ||state.playing!==!!parsed?.playing;
     if(changed)await storage.upsertSetting("club_theater_state",JSON.stringify(state));
 
-    const movie=CLUB_THEATER_MOVIES.find(item=>item.id===state.movieId)||CLUB_THEATER_MOVIES[0];
     const currentPosition=(state.positionSeconds+(state.playing?Math.max(0,(now-state.startedAt)/1000):0))%Math.max(1,movie.duration);
     return {...state,currentPosition,audience:clubTheaterPresence.size,players:Array.from(clubTheaterPresence.values()).map(({lastSeen,...visitor})=>visitor)};
   }
+
+  registerTheaterAdminRoutes(app, authMiddleware, adminMiddleware, theaterCatalog, async (movieId) => {
+    const movies=await theaterCatalog.playable();
+    const movie=movies.find(item=>item.id===movieId);
+    if(!movie)throw Error("That show is unavailable.");
+    const current=await getClubTheaterState(undefined,movies);
+    await storage.upsertSetting("club_theater_state",JSON.stringify({movieId,mediaKey:theaterMediaKey(movie),positionSeconds:0,startedAt:Date.now(),playing:current.audience>0}));
+  });
 
   function avatarWorldDefaultState() {
     return {
@@ -2190,9 +2194,10 @@ export async function registerRoutes(
         characterId:world.state.selectedCharacter||"robin-hood",petId:world.state.equipped.pet||"pet-none",
         x:current?.x??0,z:current?.z??20,facing:current?.facing??Math.PI,seatId:current?.seatId??null,lastSeen:Date.now()
       });
-      const refreshed=await getClubTheaterState(req.user.id);
+      const movies=await theaterCatalog.playable();
+      const refreshed=await getClubTheaterState(req.user.id,movies);
       res.set("Cache-Control","no-store");
-      res.json({state:refreshed,movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,popcornCost:CLUB_THEATER_POPCORN_COST,wallet:world.economy.wallet});
+      res.json({state:refreshed,movies,changeCost:CLUB_THEATER_CHANGE_COST,popcornCost:CLUB_THEATER_POPCORN_COST,wallet:world.economy.wallet});
     }catch(error:any){
       console.error("[club-theater] load:",error?.message);
       res.status(500).json({message:"Could not open the Club theater."});
@@ -2225,18 +2230,19 @@ export async function registerRoutes(
     try{
       if(req.user.isAdmin||req.user.role!=="student"||req.user.is_eye_gaze_user) return res.status(403).json({message:"The Club theater is for student accounts."});
       const movieId=String(req.body?.movieId||"");
-      if(!CLUB_THEATER_MOVIES.some(movie=>movie.id===movieId))return res.status(400).json({message:"That movie is not available."});
+      const movies=await theaterCatalog.playable();
+      if(!movies.some(movie=>movie.id===movieId))return res.status(400).json({message:"That movie is not available."});
       const world=await getAvatarWorldPayload(req.user.id);
       if(world.economy.wallet<CLUB_THEATER_CHANGE_COST)return res.status(400).json({message:"You need more Reader Coins to change the movie."});
       const spendKey="avatar_world_theater_spent_"+req.user.id;
       const currentSpent=Math.max(0,Number(await storage.getSetting(spendKey))||0);
       await storage.upsertSetting(spendKey,String(currentSpent+CLUB_THEATER_CHANGE_COST));
-      const current=await getClubTheaterState(req.user.id);
-      const state={movieId,positionSeconds:0,startedAt:Date.now(),playing:current.audience>0};
+      const current=await getClubTheaterState(req.user.id,movies);
+      const state={movieId,mediaKey:theaterMediaKey(movies.find(movie=>movie.id===movieId)),positionSeconds:0,startedAt:Date.now(),playing:current.audience>0};
       await storage.upsertSetting("club_theater_state",JSON.stringify(state));
       const refreshed=await getAvatarWorldPayload(req.user.id);
       res.set("Cache-Control","no-store");
-      res.json({state:{...state,currentPosition:0,audience:current.audience},movies:CLUB_THEATER_MOVIES,changeCost:CLUB_THEATER_CHANGE_COST,popcornCost:CLUB_THEATER_POPCORN_COST,wallet:refreshed.economy.wallet});
+      res.json({state:{...state,currentPosition:0,audience:current.audience},movies,changeCost:CLUB_THEATER_CHANGE_COST,popcornCost:CLUB_THEATER_POPCORN_COST,wallet:refreshed.economy.wallet});
     }catch(error:any){
       console.error("[club-theater] change:",error?.message);
       res.status(500).json({message:"Could not change the movie."});
