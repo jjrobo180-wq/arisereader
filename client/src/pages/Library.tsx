@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Headphones, Gamepad2 } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2 } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -1248,22 +1248,14 @@ export default function Library() {
                             <Gamepad2 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Club Arise<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
-                        {!user?.is_eye_gaze_user && (
-                          <button onClick={() => { navigate("/worlds"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <span className="mb-1.5 block text-lg">🏡</span><span className="block text-xs font-black">World Map</span>
-                          </button>
-                        )}
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Brain className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Growth Check</span>
                         </button>
-                        <button onClick={() => { navigate("/competition"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                          <Gift className="mb-1.5 h-4 w-4 text-rose-500" /><span className="block text-xs font-black">Competition</span>
+                        <button onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Trophy className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Leaderboard</span>
                         </button>
                         <button onClick={() => { navigate("/reading-club"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <GraduationCap className="mb-1.5 h-4 w-4 text-emerald-500" /><span className="block text-xs font-black">Reading Club</span>
-                        </button>
-                        <button onClick={() => { navigate("/tts-audiobooks"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                          <Headphones className="mb-1.5 h-4 w-4 text-sky-500" /><span className="block text-xs font-black">Audio Books</span>
                         </button>
                         <button onClick={() => { navigate("/polls"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <BarChart3 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="block text-xs font-black">Polls</span>
