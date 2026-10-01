@@ -5893,19 +5893,10 @@ export async function registerRoutes(
 
   // ─── EYE GAZE TESTING ────────────────────────────────────────────────
 
-  // Public endpoint - verify proctor password for eye gaze quizzes
-  app.post("/api/eye-gaze/verify-proctor", authMiddleware, async (req, res) => {
-    try {
-      const { password } = req.body;
-      const proctorPassword = await storage.getSetting('proctor_password');
-      if (password === proctorPassword) {
-        res.json({ verified: true });
-      } else {
-        res.status(403).json({ message: "Invalid proctor password" });
-      }
-    } catch (err: any) {
-      res.status(500).json({ message: err.message });
-    }
+  // Legacy Eye Gazer proctor endpoint is intentionally disabled.
+  // All quizzes now use /api/verify-proctor so parent linkage and audit identity are enforced.
+  app.post("/api/eye-gaze/verify-proctor", authMiddleware, async (_req, res) => {
+    res.status(410).json({ message: "Use the current A.R.I.S.E. proctor verification screen." });
   });
 
   app.get("/api/eye-gaze/quizzes", authMiddleware, async (req, res) => {
@@ -5934,19 +5925,39 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/eye-gaze/quizzes/:id/start", authMiddleware, async (req, res) => {
+  app.post("/api/eye-gaze/quizzes/:id/start", authMiddleware, async (req: any, res) => {
     try {
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-      const sampleAccount = String(req.user?.username || "").startsWith("sample");
+      const sampleAccount = isDemoStudent(req.user);
       if (req.adminPreview || sampleAccount) {
         return res.json({ ...quiz, attemptId: -quizId, preview: true });
       }
+
+      const parentIds = await getStudentParentIds(req.user.id);
+      if (!parentIds.length) {
+        return res.status(403).json({
+          message: "Connect a parent or guardian account before taking quizzes or reading tests.",
+          parentRequired: true,
+        });
+      }
+
+      const proctor = await validateProctorSession(
+        String(req.body?.proctorSessionToken || ""),
+        req.user.id,
+        "eye_gaze",
+        quizId,
+        true
+      );
+      if (!proctor) {
+        return res.status(403).json({ message: "Your proctor session expired or is not valid. Ask your parent/guardian or teacher to enter the proctor code again." });
+      }
+
       const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
       if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
-      const attempt = await storage.startEyeGazeAttempt(req.user.id, quizId);
-      res.json({ ...quiz, attemptId: attempt.id });
+      const attempt = await storage.startEyeGazeAttempt(req.user.id, quizId, proctor);
+      res.json({ ...quiz, attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -5956,7 +5967,7 @@ export async function registerRoutes(
     try {
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
-      const sampleAccount = String(req.user?.username || "").startsWith("sample");
+      const sampleAccount = isDemoStudent(req.user);
       if ((req.adminPreview || sampleAccount) && attemptId < 0) {
         const quizId = Math.abs(attemptId);
         const questions = await storage.getEyeGazeQuizQuestions(quizId);
@@ -5984,6 +5995,11 @@ export async function registerRoutes(
           skill_scores: skillScores,
           preview: true,
         });
+      }
+      const { data: ownedAttempt } = await getAdminSupabase().from("eye_gaze_attempts")
+        .select("user_id").eq("id", attemptId).maybeSingle();
+      if (!ownedAttempt || Number(ownedAttempt.user_id) !== Number(req.user.id)) {
+        return res.status(403).json({ message: "That quiz attempt does not belong to this student." });
       }
       const result = await storage.submitEyeGazeAttempt(attemptId, answers);
       res.json(result);
