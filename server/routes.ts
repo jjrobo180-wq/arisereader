@@ -7275,7 +7275,7 @@ Important:
     }
   }
 
-  async function generateTtsAudio(text: string, calmMode: boolean, apiKey: string): Promise<Buffer> {
+  async function generateTtsAudio(text: string, calmMode: boolean, apiKey: string, style: "buddy" | "announcer" = "buddy"): Promise<Buffer> {
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
@@ -7284,11 +7284,13 @@ Important:
       },
       body: JSON.stringify({
         model: "gpt-4o-mini-tts",
-        voice: "marin",
+        voice: style === "announcer" ? "cedar" : "marin",
         input: text,
-        instructions: (calmMode
-          ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
-          : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.")
+        instructions: (style === "announcer"
+          ? "Speak in a confident masculine game-show and sports-arena announcer style. Deep, energetic, cinematic, exciting, clear, and age-appropriate. Use dramatic pauses without shouting. Make Board Quest feel like a major competition."
+          : calmMode
+            ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
+            : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.")
           + " Read every word of the input verbatim from beginning to end; do not omit, paraphrase, or cut off the last words.",
         response_format: "mp3",
       }),
@@ -7311,6 +7313,7 @@ Important:
     try {
       const text = String(req.body?.text || "").trim();
       const calmMode = !!req.body?.calmMode;
+      const style: "buddy" | "announcer" = req.body?.style === "announcer" ? "announcer" : "buddy";
 
       if (!text) return res.status(400).json({ message: "Text is required." });
       if (text.length > 500) return res.status(400).json({ message: "Text is too long." });
@@ -7320,7 +7323,7 @@ Important:
         return res.status(503).json({ message: "AI voice is not configured." });
       }
 
-      const cacheKey = `${calmMode ? "calm" : "normal"}|${text}`;
+      const cacheKey = `${style}|${calmMode ? "calm" : "normal"}|${text}`;
       const cached = ttsAudioCache.get(cacheKey);
 
       if (cached) {
@@ -7333,7 +7336,7 @@ Important:
 
       let pending = ttsAudioInFlight.get(cacheKey);
       if (!pending) {
-        pending = generateTtsAudio(text, calmMode, apiKey);
+        pending = generateTtsAudio(text, calmMode, apiKey, style);
         ttsAudioInFlight.set(cacheKey, pending);
       }
 
