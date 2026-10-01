@@ -43,8 +43,10 @@ export default function ClubPlayGate({ children }: { children: ReactNode }) {
   const canPlay = !!access?.allowed && (!!access.unlimitedThisWeek || (remaining > 0 && access.leaseUntil > now));
   const time = access?.unlimitedThisWeek ? '∞' : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
   if (!canPlay) return <main className="club-time-gate">
-    <section><Clock3 size={44} /><h1>{access?.locked ? 'Club Arise is locked' : access && !remaining ? "Today’s play time is up" : access && !error ? 'Syncing your play time…' : error ? 'Reconnect your play timer' : 'Starting your play timer…'}</h1>
-      <p>{access?.locked ? 'Your teacher has paused Club Arise.' : access?.weeklyUnlimitedOnPass ? 'You get 10 minutes each day. Pass one book quiz to unlock unlimited A.R.I.S.E. play for the rest of this week.' : 'Your normal daily A.R.I.S.E. play time is finished for today.'}</p>
+    <section><Clock3 size={44} /><h1>{access?.closedByAdmin ? 'Club A.R.I.S.E. is closed' : access?.locked ? 'Club Arise is locked' : access && !remaining ? "Today’s play time is up" : access && !error ? 'Syncing your play time…' : error ? 'Reconnect your play timer' : 'Starting your play timer…'}</h1>
+      <p>{access?.closedByAdmin
+        ? `Games are closed during admin hours${access.closingHours ? ` · ${access.closingHours.start}–${access.closingHours.end} Mountain Time` : ''}. Come back when Club A.R.I.S.E. reopens.`
+        : access?.locked ? 'Your teacher has paused Club Arise.' : access?.weeklyUnlimitedOnPass ? 'You get 10 minutes each day. Pass one book quiz to unlock unlimited A.R.I.S.E. play for the rest of this week.' : 'Your normal daily A.R.I.S.E. play time is finished for today.'}</p>
       {error && <p role="alert">{error}</p>}
       <button onClick={() => navigate('/library')}><BookOpen size={20} /> Go to the library</button>
       {error && <button className="secondary" onClick={() => retry.current()}>Try again</button>}
