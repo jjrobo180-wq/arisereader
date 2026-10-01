@@ -6315,6 +6315,7 @@ Important:
       enabled: false,
       allowedPaths: [...EYE_GAZE_FEATURE_PATHS],
       tvDailyMinutes: 0,
+      gameDailyMinutes: 0,
       tvAgeRange: '2-4',
       tvTopics: ['animals', 'numbers', 'letters', 'feelings'],
       tvChannels: normalizeYoutubeChannels(undefined),
@@ -6353,6 +6354,7 @@ Important:
       enabled: !!source.enabled,
       allowedPaths: Array.from(new Set(allowed)),
       tvDailyMinutes: Math.max(0, Math.min(240, Number(source.tvDailyMinutes ?? 0) || 0)),
+      gameDailyMinutes: Math.max(0, Math.min(240, Number(source.gameDailyMinutes ?? 0) || 0)),
       tvAgeRange,
       tvChannels: normalizeYoutubeChannels(source.tvChannels),
       tvTopics: tvTopics.length ? tvTopics : ['animals'],
@@ -6746,6 +6748,38 @@ Important:
     } catch (error: any) {
       console.error('[eye-gaze-youtube-shorts]', error?.message);
       res.status(503).json({ message: 'Could not load YouTube Shorts right now.' });
+    }
+  });
+
+  app.get('/api/eye-gaze/game-usage', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      const day = new Date().toISOString().slice(0, 10);
+      const raw = await storage.getSetting(`eye_gaze_game_usage_${child.id}_${day}`);
+      const seconds = Math.max(0, Number(raw || 0) || 0);
+      res.set('Cache-Control', 'no-store');
+      res.json({ seconds, minutes: seconds / 60 });
+    } catch {
+      res.status(503).json({ message: 'Could not load game time.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/game-usage', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Game time is recorded from the child profile.' });
+      if (String(req.user?.username || '').startsWith('sample')) return res.json({ seconds: 0, minutes: 0, sample: true });
+      const addSeconds = Math.max(1, Math.min(30, Math.round(Number(req.body?.seconds || 0))));
+      const day = new Date().toISOString().slice(0, 10);
+      const key = `eye_gaze_game_usage_${child.id}_${day}`;
+      const raw = await storage.getSetting(key);
+      const seconds = Math.max(0, Number(raw || 0) || 0) + addSeconds;
+      await storage.upsertSetting(key, String(seconds));
+      res.set('Cache-Control', 'no-store');
+      res.json({ seconds, minutes: seconds / 60 });
+    } catch {
+      res.status(503).json({ message: 'Could not record game time.' });
     }
   });
 
