@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const exitAdminPreview = useCallback(() => {
     sessionStorage.removeItem("arise_admin_preview_mode");
-    clearAuthenticatedNavigation();
+    if (sessionRef.current.user) resetAuthenticatedNavigation(sessionRef.current.user);
     setAdminPreviewMode(null);
   }, []);
 
@@ -300,6 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     sessionStorage.removeItem("arise_admin_preview_mode");
+    clearAuthenticatedNavigation();
     setAdminPreviewMode(null);
     if (sessionRef.current.token) {
       fetch(`${API_BASE}/api/logout`, {
