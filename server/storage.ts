@@ -723,6 +723,9 @@ export class DatabaseStorage implements IStorage {
         total: a.total,
         pointsEarned: a.points_earned || 0,
         completedAt: a.completed_at,
+        proctorType: a.proctor_type || null,
+        proctorUserId: a.proctor_user_id ?? null,
+        proctorName: a.proctor_name || null,
       };
     });
 
@@ -1356,7 +1359,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssessmentHistory(userId: number): Promise<any[]> {
-    return fetchList(supabase.from("reading_assessment_attempts").select("id, passage_id, status, score, total, skill_scores, estimated_grade_level, completed_at, reading_passages(title, grade_level)").eq("user_id", userId).order("completed_at", { ascending: false }).limit(20));
+    return fetchList(supabase.from("reading_assessment_attempts").select("id, passage_id, status, score, total, skill_scores, estimated_grade_level, completed_at, proctor_type, proctor_user_id, proctor_name, reading_passages(title, grade_level)").eq("user_id", userId).order("completed_at", { ascending: false }).limit(20));
   }
 
   async getReadingRecommendations(userId: number): Promise<any> {
@@ -1544,7 +1547,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Start a comprehensive assessment — returns passages + questions (NO correct_answer)
-  async startComprehensiveAssessment(userId: number): Promise<any> {
+  async startComprehensiveAssessment(
+    userId: number,
+    proctor?: { type: "parent" | "teacher"; userId?: number | null; name: string } | null
+  ): Promise<any> {
     // Check for existing incomplete comprehensive attempt
     const existing = await fetchSingle(
       supabase.from("reading_assessment_attempts")
@@ -1557,9 +1563,18 @@ export class DatabaseStorage implements IStorage {
         .single()
     );
     if (existing) {
+      let activeAttempt = existing;
+      if (proctor && (!existing.proctor_type || !existing.proctor_name)) {
+        const { data: updated } = await supabase.from("reading_assessment_attempts").update({
+          proctor_type: proctor.type,
+          proctor_user_id: proctor.userId ?? null,
+          proctor_name: proctor.name,
+        }).eq("id", existing.id).select().single();
+        if (updated) activeAttempt = updated;
+      }
       const passages = await this.getAllPassages();
       const allQuestions = await this.getAllAssessmentQuestions();
-      return { attempt: existing, passages, questions: this.stripAnswers(allQuestions) };
+      return { attempt: activeAttempt, passages, questions: this.stripAnswers(allQuestions) };
     }
 
     // Create new comprehensive attempt
@@ -1569,6 +1584,9 @@ export class DatabaseStorage implements IStorage {
       status: "reading",
       assessment_type: "comprehensive",
       reading_started_at: new Date().toISOString(),
+      proctor_type: proctor?.type || null,
+      proctor_user_id: proctor?.userId ?? null,
+      proctor_name: proctor?.name || null,
     }).select().single();
     if (error) throw new Error(error.message);
 
