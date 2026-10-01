@@ -1,0 +1,54 @@
+/* Login / public landing page mobile containment.
+   The feature carousel is allowed to scroll inside itself, but it must never
+   make the entire page wider than the phone viewport. */
+@media (max-width: 767px) {
+  html:has(#account-panel),
+  body:has(#account-panel),
+  body:has(#account-panel) #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body:has(#account-panel) header,
+  body:has(#account-panel) header > div,
+  body:has(#account-panel) main,
+  body:has(#account-panel) main > div,
+  body:has(#account-panel) main > div > div,
+  body:has(#account-panel) main section,
+  body:has(#account-panel) #account-panel,
+  body:has(#account-panel) #account-panel > div {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* CSS Grid/Flex children default to min-width:auto, which was letting the
+     horizontal feature gallery dictate the width of the whole login page. */
+  body:has(#account-panel) main * {
+    min-width: 0;
+  }
+
+  /* Keep the Apple-style feature rail horizontally swipeable in its own lane. */
+  body:has(#account-panel) main [class*="overflow-x-auto"] {
+    width: 100%;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body:has(#account-panel) input,
+  body:has(#account-panel) button {
+    max-width: 100%;
+  }
+
+  /* Better phone proportions without changing the desktop design. */
+  body:has(#account-panel) main {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  body:has(#account-panel) #account-panel {
+    scroll-margin-top: 1rem;
+  }
+}
