@@ -1973,92 +1973,17 @@ export async function registerRoutes(
   const CLUB_THEATER_PRESENCE_TTL=15000;
   type ClubTheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null;lastSeen:number};
   const clubTheaterPresence=new Map<number,ClubTheaterVisitor>();
-  const CLUB_THEATER_CHANNELS=YOUTUBE_CHANNEL_OPTIONS.map(channel=>({
-    id:"channel-"+channel.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),
-    title:channel.name,
-    subtitle:"Official YouTube channel · continuous shows and videos",
-    kind:"channel" as const,
-    youtubeId:"",
-    youtubePlaylistId:channel.id.replace(/^UC/,"UU"),
-    duration:21600,
-    license:"YouTube embed",
-    attribution:channel.name+" official YouTube channel",
-    age:"Kid-friendly",
-    category:"TV Channels",
-    emoji:channel.emoji
-  }));
   const CLUB_THEATER_MOVIES=[
-    {
-      id:"featured-youtube-show",
-      title:"Featured YouTube Show",
-      subtitle:"Featured full-length YouTube program",
-      kind:"video" as const,
-      youtubeId:"xRfwXBitjc8",
-      youtubePlaylistId:"",
-      duration:7200,
-      license:"YouTube embed",
-      attribution:"YouTube video selected for A.R.I.S.E. Cinema",
-      age:"Featured",
-      category:"Featured",
-      emoji:"⭐"
-    },
-    ...CLUB_THEATER_CHANNELS,
-    {
-      id:"big-buck-bunny",
-      title:"Big Buck Bunny",
-      subtitle:"Open animated comedy · full short film",
-      kind:"video" as const,
-      youtubeId:"YE7VzlLtp-4",
-      youtubePlaylistId:"",
-      duration:596,
-      license:"CC BY 3.0",
-      attribution:"Blender Foundation / Peach Open Movie",
-      age:"Kid-friendly",
-      category:"Open Movies",
-      emoji:"🎬"
-    },
-    {
-      id:"caminandes-llama-drama",
-      title:"Caminandes: Llama Drama",
-      subtitle:"Animated comedy episode · Koro's first adventure",
-      kind:"video" as const,
-      youtubeId:"JOhiWY7XmoY",
-      youtubePlaylistId:"",
-      duration:90,
-      license:"Creative Commons",
-      attribution:"Blender Foundation / Caminandes",
-      age:"Kid-friendly",
-      category:"Open Movies",
-      emoji:"🦙"
-    },
-    {
-      id:"caminandes-gran-dillama",
-      title:"Caminandes: Gran Dillama",
-      subtitle:"Animated comedy episode · Koro tries again",
-      kind:"video" as const,
-      youtubeId:"Z4C82eyhwgU",
-      youtubePlaylistId:"",
-      duration:146,
-      license:"Creative Commons",
-      attribution:"Blender Foundation / Caminandes",
-      age:"Kid-friendly",
-      category:"Open Movies",
-      emoji:"🦙"
-    },
-    {
-      id:"caminandes-llamigos",
-      title:"Caminandes: Llamigos",
-      subtitle:"Animated comedy episode · Koro meets Oti",
-      kind:"video" as const,
-      youtubeId:"SkVqJ1SGeL0",
-      youtubePlaylistId:"",
-      duration:150,
-      license:"Creative Commons",
-      attribution:"Blender Foundation / Caminandes",
-      age:"Kid-friendly",
-      category:"Open Movies",
-      emoji:"🦙"
-    }
+    { id:"cinema-1", title:"Cinema Pick 1", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"vq9TWtT6Uwg", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
+    { id:"cinema-2", title:"Cinema Pick 2", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"ixbkzsNCgV8", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
+    { id:"cinema-3", title:"Cinema Pick 3", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"VAfGav-5X70", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
+    { id:"cinema-4", title:"Cinema Pick 4", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"O1MSGBhXDOA", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
+    { id:"cinema-series-1", title:"YouTube Series · Season 1", subtitle:"Series selection from the supplied YouTube Show link", kind:"channel" as const, youtubeId:"", youtubePlaylistId:"UU_l_vAU56D8Sa4WCEZtWIi1w", duration:21600, license:"YouTube embed", attribution:"YouTube show/channel selection", age:"Series", category:"Series & Shows" },
+    { id:"cinema-6", title:"Cinema Pick 6", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"qvNsNOIE4CQ", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
+    { id:"cinema-7", title:"Cinema Pick 7", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"s1Ylmj87gXY", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
+    { id:"cinema-8", title:"Cinema Pick 8", subtitle:"Selected for A.R.I.S.E. Cinema", kind:"video" as const, youtubeId:"tHNXAgZLZwk", youtubePlaylistId:"", duration:7200, license:"YouTube embed", attribution:"User-selected YouTube video", age:"Featured", category:"Featured" },
+    { id:"cinema-live-1", title:"Live Cinema Channel 1", subtitle:"Live YouTube selection", kind:"video" as const, youtubeId:"_HviSyC7zSU", youtubePlaylistId:"", duration:21600, license:"YouTube live embed", attribution:"User-selected YouTube live stream", age:"Live", category:"Live" },
+    { id:"cinema-live-2", title:"Live Cinema Channel 2", subtitle:"Live YouTube selection", kind:"video" as const, youtubeId:"yzKTO-6KWHU", youtubePlaylistId:"", duration:21600, license:"YouTube live embed", attribution:"User-selected YouTube live stream", age:"Live", category:"Live" }
   ] as const;
 
   async function getClubTheaterState(touchUserId?:number){
