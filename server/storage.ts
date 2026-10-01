@@ -159,6 +159,9 @@ function mapAttempt(row: any) {
     totalQuestions: row.total,
     pointsEarned: Number(row.points_earned || 0),
     completedAt: row.completed_at,
+    proctorType: row.proctor_type || null,
+    proctorUserId: row.proctor_user_id ?? null,
+    proctorName: row.proctor_name || null,
   };
 }
 
@@ -430,7 +433,15 @@ export class DatabaseStorage implements IStorage {
     return mapAttempt(data);
   }
 
-  async createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number) {
+  async createAttempt(
+    userId: number,
+    bookId: number,
+    score: number,
+    total: number,
+    answers?: Record<string, string>,
+    effectivePoints?: number,
+    proctor?: { type: "parent" | "teacher"; userId?: number | null; name: string } | null
+  ) {
     // Get the book's points value (use override if provided)
     let bookPoints: number;
     if (effectivePoints !== undefined && effectivePoints !== null) {
@@ -453,6 +464,9 @@ export class DatabaseStorage implements IStorage {
         total,
         points_earned: pointsEarned,
         answers: answers || null,
+        proctor_type: proctor?.type || null,
+        proctor_user_id: proctor?.userId ?? null,
+        proctor_name: proctor?.name || null,
       }).select().single()
     );
     if (!data) throw new Error("Failed to create attempt");
@@ -1890,6 +1904,9 @@ export class DatabaseStorage implements IStorage {
         total,
         points_earned: pointsEarned,
         answers: null,
+        proctor_type: attempt.proctor_type || null,
+        proctor_user_id: attempt.proctor_user_id ?? null,
+        proctor_name: attempt.proctor_name || null,
       }).then(() => {}, () => {});
     }
     await this.updateEyeGazeProfile(attempt.user_id, pct, skillScores);
