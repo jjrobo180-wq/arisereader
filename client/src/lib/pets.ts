@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { addHalloreadPetGear } from "@/lib/halloread";
 
 // Kenney Cube Pets, CC0: https://kenney.nl/assets/cube-pets
 export const PET_MODELS: Record<string, string> = {
@@ -53,6 +54,7 @@ export function createPet(petId: string | null | undefined, loader: GLTFLoader, 
   const root = new THREE.Group();
   root.name = "clubPet";
   root.userData.petId = petId;
+  addHalloreadPetGear(root, petId, height);
   loader.load(path, gltf => {
     const model = gltf.scene;
     const bounds = new THREE.Box3().setFromObject(model);
