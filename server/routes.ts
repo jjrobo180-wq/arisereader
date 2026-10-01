@@ -8243,7 +8243,7 @@ Important:
       let allUsersWithAttempts: any[] = [];
       for (let retry = 0; retry < 5; retry++) {
         try {
-          const { data, error } = await supabase.from("users").select("id, attempts(points_earned)").eq("is_admin", false).eq("role", "student");
+          const { data, error } = await supabase.from("users").select("id, role, attempts(points_earned)").eq("is_admin", false);
           if (!error && data) { allUsersWithAttempts = data; break; }
         } catch (e) {}
         if (retry < 4) await new Promise(r => setTimeout(r, 1000));
@@ -8267,6 +8267,7 @@ Important:
           approvedByTeacher: s.approvedByTeacher,
           teacherId: s.teacherId,
           teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null,
+          isEyeGazeUser: !!s.is_eye_gaze_user,
         };
       });
       res.json(result);
