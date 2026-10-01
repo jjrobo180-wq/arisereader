@@ -1,29 +1,6 @@
 /* A.R.I.S.E. public landing page layout + mobile containment.
    The page itself must never scroll left/right on a phone. */
 
-/* HERO + EXPLORE INTRO -----------------------------------------------------
-   Keep the Read. Learn. Earn. hero exactly as the main introduction, but make
-   the Explore heading part of that same card instead of a second floating box. */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(1)::after {
-  content: "EXPLORE A.R.I.S.E.\A Find the experience built for you.";
-  display: block;
-  margin-top: 30px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(255,255,255,.10);
-  white-space: pre-line;
-  color: #fff;
-  font-size: clamp(1.65rem, 4vw, 2.55rem);
-  font-weight: 900;
-  line-height: 1.06;
-  letter-spacing: -.04em;
-}
-
-/* The first line of the pseudo heading is intentionally kept visually tied to
-   the hero rather than creating another standalone card. */
-body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > div:first-child {
-  display: none !important;
-}
-
 /* EXPERIENCE SECTIONS ------------------------------------------------------
    The feature area reads like a series of destinations, not one giant card. */
 body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) {
@@ -172,11 +149,6 @@ body:has(#account-panel) main > div:first-child > div:first-child > section:nth-
   body:has(#account-panel) p,
   body:has(#account-panel) span { overflow-wrap: anywhere; }
 
-  body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(1)::after {
-    margin-top: 26px;
-    padding-top: 22px;
-    font-size: clamp(1.55rem, 7vw, 2rem);
-  }
   body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div { border-radius: 1.65rem; padding: 24px 16px 18px; }
   body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div::before { top: 18px; right: 14px; font-size: clamp(58px, 19vw, 78px); }
   body:has(#account-panel) main > div:first-child > div:first-child > section:nth-of-type(2) > .space-y-9 > div > div:first-child { max-width: calc(100% - 76px); }
