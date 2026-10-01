@@ -37,8 +37,8 @@ export default function DonationGoal() {
       data-tour="donation-goal"
       className="mb-6 rounded-2xl overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, hsl(10 80% 55%), hsl(345 75% 50%))",
-        boxShadow: "0 4px 20px hsl(345 75% 50% / 0.25)",
+        background: "linear-gradient(135deg, #6d28d9 0%, #c026d3 52%, #0891b2 100%)",
+        boxShadow: "0 18px 46px rgba(124,58,237,.22)",
       }}
     >
       <div className="p-5 sm:p-6 text-white">
@@ -61,7 +61,7 @@ export default function DonationGoal() {
               style={{ width: `${pct}%` }}
             >
               {pct > 15 && (
-                <span className="text-[10px] font-bold text-red-600">{Math.round(pct)}%</span>
+                <span className="text-[10px] font-bold text-violet-700">{Math.round(pct)}%</span>
               )}
             </div>
 
@@ -79,7 +79,7 @@ export default function DonationGoal() {
                     className="w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"
                     style={{ background: reached ? "white" : "rgba(255,255,255,0.3)" }}
                   >
-                    {reached && <Target className="w-2.5 h-2.5 text-red-600" />}
+                    {reached && <Target className="w-2.5 h-2.5 text-violet-700" />}
                   </div>
                 </div>
               );
@@ -126,7 +126,7 @@ export default function DonationGoal() {
               href={data.donateUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-red-600 text-sm font-bold hover:bg-white/90 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0d0b1a] text-cyan-200 text-sm font-black ring-1 ring-white/15 hover:bg-[#151126] transition-colors"
               style={{ animation: "donatePulse 2s ease-in-out infinite" }}
             >
               <Heart className="w-4 h-4" fill="currentColor" />
