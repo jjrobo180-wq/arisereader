@@ -37,9 +37,10 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-// Cookie helpers — survive page reloads
 const COOKIE_NAME = "arise_session";
+const SAMPLE_SESSION_KEY = "arise_sample_session";
+const SAMPLE_USERNAMES = new Set(["sample", "tutorial-eye", "sample-parent"]);
+
 function setCookie(name: string, value: string, days: number) {
   const d = new Date();
   d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
@@ -49,33 +50,27 @@ function getCookie(name: string): string | null {
   const cookies = document.cookie.split(";");
   for (let i = 0; i < cookies.length; i++) {
     const c = cookies[i].trim();
-    if (c.startsWith(name + "=")) {
-      return c.substring(name.length + 1);
-    }
+    if (c.startsWith(name + "=")) return c.substring(name.length + 1);
   }
   return null;
 }
 function deleteCookie(name: string) {
   document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax";
 }
-
-// Encode/decode session data for cookie storage
 function saveSessionCookie(user: AuthUser | null, token: string | null) {
   if (user && token) {
     const data = btoa(JSON.stringify({ user, token }));
     setCookie(COOKIE_NAME, data, 7);
-  } else {
-    deleteCookie(COOKIE_NAME);
-  }
+  } else deleteCookie(COOKIE_NAME);
 }
 function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
   try {
     const raw = getCookie(COOKIE_NAME);
     if (!raw) return { user: null, token: null };
     const data = JSON.parse(atob(raw));
-    // Sample account: always reset to login page on fresh page load
-    if (typeof data.user?.username === 'string' && data.user.username.startsWith('sample')) {
+    if (typeof data.user?.username === "string" && SAMPLE_USERNAMES.has(data.user.username)) {
       deleteCookie(COOKIE_NAME);
+      sessionStorage.removeItem(SAMPLE_SESSION_KEY);
       return { user: null, token: null };
     }
     return { user: data.user || null, token: data.token || null };
@@ -85,15 +80,9 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // useRef for session memory — survives re-renders, never triggers re-renders
-  const sessionRef = useRef<{ user: AuthUser | null; token: string | null }>(
-    loadSessionCookie()
-  );
-
-  // Initialize state from ref (already has cookie data)
+  const sessionRef = useRef<{ user: AuthUser | null; token: string | null }>(loadSessionCookie());
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
-  // Start in loading state if there's a session to validate — prevents premature routing
   const [isLoading, setIsLoading] = useState(!!sessionRef.current.token);
   const [sessionValidated, setSessionValidated] = useState(false);
   const [adminPreviewMode, setAdminPreviewMode] = useState<AdminPreviewMode>(() => {
@@ -115,9 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdminPreviewMode(null);
   }, []);
 
-  // Attach session-scoped viewing context to API requests.
-  // Admin preview is read at request time to avoid navigation races.
-  // Parent child selection follows the parent across progress/control pages.
   useEffect(() => {
     if (!user) return;
     const originalFetch = window.fetch.bind(window);
@@ -126,25 +112,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!rawUrl.includes("/api/")) return originalFetch(input, init);
       const headers = new Headers(input instanceof Request ? input.headers : undefined);
       new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-
       if (user.isAdmin) {
         const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
-        if (previewMode === "regular" || previewMode === "eye-gaze") {
-          headers.set("X-ARISE-Admin-Preview", previewMode);
-        }
+        if (previewMode === "regular" || previewMode === "eye-gaze") headers.set("X-ARISE-Admin-Preview", previewMode);
       }
       if (user.role === "parent") {
         const childId = Number(sessionStorage.getItem("arise_parent_child_id"));
         if (Number.isSafeInteger(childId) && childId > 0) headers.set("X-ARISE-Child-ID", String(childId));
       }
-
       return originalFetch(input, { ...init, headers });
     }) as typeof window.fetch;
     return () => { window.fetch = originalFetch; };
   }, [user?.id, user?.role, user?.isAdmin]);
 
-  // Validate session on app load — if the token is expired, clear the cookie
-  // and redirect to login. This prevents blank pages from stale cookies.
+  const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
+    sessionRef.current = { user: u, token: t };
+    saveSessionCookie(u, t);
+    setUser(u);
+    setToken(t);
+    if (u && u.schoolId) {
+      fetch(`${API_BASE}/api/schools`)
+        .then(r => r.ok ? r.json() : [])
+        .then(schools => {
+          const school = schools.find((s: any) => s.id === u.schoolId);
+          if (school) setSchoolTheme({ mascotName: school.mascotName, primaryHsl: school.primaryHsl, primaryForegroundHsl: school.primaryForegroundHsl, mascotEmoji: school.mascotEmoji });
+        })
+        .catch(() => {});
+    } else setSchoolTheme(null);
+    if (u && (u.role === "teacher" || u.role === "admin" || u.isAdmin)) {
+      fetch(`${API_BASE}/api/teacher/my-band`, { headers: { Authorization: `Bearer ${t}` } })
+        .then(r => r.ok ? r.json() : { bandsText: "" })
+        .then(data => setTeacherBand(data.bandsText || ""))
+        .catch(() => setTeacherBand(""));
+    } else setTeacherBand("");
+  }, []);
+
   useEffect(() => {
     if (!sessionRef.current.token || sessionValidated) return;
     setIsLoading(true);
@@ -154,106 +156,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
       .then(res => {
         if (!res.ok) {
-          // Session expired — clear everything
-          setUser(null);
-          setToken(null);
-          persistSession(null, null);
-        } else {
-          // Session valid — refresh user data from server
-          return res.json();
-        }
+          setUser(null); setToken(null); persistSession(null, null);
+        } else return res.json();
       })
       .then(userData => {
         if (userData) {
           setUser(userData);
           sessionRef.current.user = userData;
-          // Update cookie with fresh user data
           persistSession(userData, sessionRef.current.token);
         }
       })
-      .catch(() => {
-        // Network error — if we can't reach the server, the session is useless
-        // Clear it so the user sees the login page instead of a blank dashboard
-        setUser(null);
-        setToken(null);
-        persistSession(null, null);
-      })
-      .finally(() => {
-        setIsLoading(false);
-        setSessionValidated(true);
-      });
-  }, []);
+      .catch(() => { setUser(null); setToken(null); persistSession(null, null); })
+      .finally(() => { setIsLoading(false); setSessionValidated(true); });
+  }, [persistSession, sessionValidated]);
 
-  // Apply school theme on page load if user is already logged in (from cookie)
   useEffect(() => {
     if (user && user.schoolId) {
       fetch(`${API_BASE}/api/schools`)
         .then(r => r.ok ? r.json() : [])
         .then(schools => {
           const school = schools.find((s: any) => s.id === user.schoolId);
-          if (school) {
-            setSchoolTheme({
-              mascotName: school.mascotName,
-              primaryHsl: school.primaryHsl,
-              primaryForegroundHsl: school.primaryForegroundHsl,
-              mascotEmoji: school.mascotEmoji,
-            });
-          }
+          if (school) setSchoolTheme({ mascotName: school.mascotName, primaryHsl: school.primaryHsl, primaryForegroundHsl: school.primaryForegroundHsl, mascotEmoji: school.mascotEmoji });
         })
         .catch(() => {});
     }
-    // Fetch teacher band on page load
-    if (token && user && (user.role === 'teacher' || user.role === 'admin' || (user as any).isAdmin)) {
-      fetch(`${API_BASE}/api/teacher/my-band`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : { bandsText: '' })
-        .then(data => setTeacherBand(data.bandsText || ''))
-        .catch(() => setTeacherBand(''));
-    } else {
-      setTeacherBand('');
-    }
-  }, []);
-
-  const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
-    sessionRef.current = { user: u, token: t };
-    saveSessionCookie(u, t);
-    setUser(u);
-    setToken(t);
-    // Apply school theme based on logged-in user's school
-    if (u && u.schoolId) {
-      fetch(`${API_BASE}/api/schools`)
-        .then(r => r.ok ? r.json() : [])
-        .then(schools => {
-          const school = schools.find((s: any) => s.id === u.schoolId);
-          if (school) {
-            setSchoolTheme({
-              mascotName: school.mascotName,
-              primaryHsl: school.primaryHsl,
-              primaryForegroundHsl: school.primaryForegroundHsl,
-              mascotEmoji: school.mascotEmoji,
-            });
-          }
-        })
-        .catch(() => {});
-    } else {
-      setSchoolTheme(null);
-    }
-    // Fetch teacher's grade band
-    if (u && (u.role === 'teacher' || u.role === 'admin' || (u as any).isAdmin)) {
-      fetch(`${API_BASE}/api/teacher/my-band`, {
-        headers: { Authorization: `Bearer ${t}` },
-      })
-        .then(r => r.ok ? r.json() : { bandsText: '' })
-        .then(data => setTeacherBand(data.bandsText || ''))
-        .catch(() => setTeacherBand(''));
-    } else {
-      setTeacherBand('');
-    }
+    if (token && user && (user.role === "teacher" || user.role === "admin" || user.isAdmin)) {
+      fetch(`${API_BASE}/api/teacher/my-band`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : { bandsText: "" })
+        .then(data => setTeacherBand(data.bandsText || ""))
+        .catch(() => setTeacherBand(""));
+    } else setTeacherBand("");
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    // Clear any old session data before login
     persistSession(null, null);
     const res = await fetch(`${API_BASE}/api/login`, {
       method: "POST",
@@ -265,11 +200,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.message || "Login failed");
     }
     const data = await res.json();
+    if (SAMPLE_USERNAMES.has(data.user?.username)) sessionStorage.setItem(SAMPLE_SESSION_KEY, "true");
+    else sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
     persistSession(data.user, data.token);
   }, [persistSession]);
 
   const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string) => {
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     const res = await fetch(`${API_BASE}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -287,9 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (!sessionRef.current.token) return;
     try {
-      const res = await fetch(`${API_BASE}/api/me`, {
-        headers: { Authorization: `Bearer ${sessionRef.current.token}` },
-      });
+      const res = await fetch(`${API_BASE}/api/me`, { headers: { Authorization: `Bearer ${sessionRef.current.token}` } });
       if (res.ok) {
         const data = await res.json();
         const updatedUser = { ...sessionRef.current.user, ...data } as AuthUser;
@@ -300,19 +236,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     clearAuthenticatedNavigation();
     setAdminPreviewMode(null);
     if (sessionRef.current.token) {
-      fetch(`${API_BASE}/api/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${sessionRef.current.token}` },
-      }).catch(() => {});
+      fetch(`${API_BASE}/api/logout`, { method: "POST", headers: { Authorization: `Bearer ${sessionRef.current.token}` } }).catch(() => {});
     }
-    // Clear cookie, session ref, and state
     persistSession(null, null);
-    // Dispatch event so module-level caches can clear
     window.dispatchEvent(new Event("arise-logout"));
   }, [persistSession]);
+
+  useEffect(() => {
+    const exitSample = () => {
+      if (sessionStorage.getItem(SAMPLE_SESSION_KEY) !== "true") return;
+      logout();
+      window.history.replaceState(null, "", window.location.pathname + "#/");
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    };
+    const browserBack = () => {
+      if (sessionStorage.getItem(SAMPLE_SESSION_KEY) === "true") exitSample();
+    };
+    window.addEventListener("arise-exit-sample", exitSample);
+    window.addEventListener("popstate", browserBack);
+    return () => {
+      window.removeEventListener("arise-exit-sample", exitSample);
+      window.removeEventListener("popstate", browserBack);
+    };
+  }, [logout]);
 
   const contextUser: AuthUser | null = user?.isAdmin && adminPreviewMode
     ? {
@@ -326,7 +276,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         approvedByTeacher: true,
         accountApproved: true,
       }
-    : user;
+    : user?.username === "sample"
+      // The regular sample must behave exactly like a normal non-eye-gaze student.
+      // Library had legacy tutorial content keyed to the literal username "sample".
+      ? { ...user, username: "sample-student", is_eye_gaze_user: false }
+      : user;
 
   return (
     <AuthContext.Provider value={{
