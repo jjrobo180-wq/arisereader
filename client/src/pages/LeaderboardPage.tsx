@@ -100,13 +100,13 @@ export default function LeaderboardPage() {
   const medalColors = [
     { bg: "bg-gradient-to-br from-yellow-500/30 to-yellow-600/10", text: "text-yellow-400", border: "border-yellow-500/30", icon: Crown },
     { bg: "bg-gradient-to-br from-gray-400/30 to-gray-500/10", text: "text-gray-300", border: "border-gray-400/30", icon: Medal },
-    { bg: "bg-gradient-to-br from-orange-600/30 to-orange-700/10", text: "text-orange-500", border: "border-orange-600/30", icon: Award },
+    { bg: "bg-gradient-to-br from-fuchsia-500/25 to-violet-600/10", text: "text-fuchsia-300", border: "border-fuchsia-400/25", icon: Award },
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen arise-page-bg">
       {/* Header */}
-      <header className="bg-card border-b border-border">
+      <header className="border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -116,21 +116,21 @@ export default function LeaderboardPage() {
               <ArrowLeft className="w-3 h-3" /> Back to Login
             </button>
           </div>
-          <h1 className="text-xl font-bold text-white tracking-wide">A.R.I.S.E<span className="text-primary"> Reader</span></h1>
+          <h1 className="text-xl font-black text-white tracking-[-.025em]">A.R.I.S.E<span className="arise-gradient-text"> Reader</span></h1>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         {/* Title */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-            <Trophy className="w-8 h-8 text-primary" />
+          <div className="w-16 h-16 rounded-2xl arise-icon-tile flex items-center justify-center mx-auto mb-4">
+            <Trophy className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Leaderboard</h1>
+          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 tracking-[-.035em]">Leaderboard</h1>
           {userBand ? (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/15 border border-primary/30 mb-2">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-500/14 via-fuchsia-500/10 to-cyan-400/12 border border-violet-400/25 mb-2">
               <GraduationCap className="w-4 h-4 text-primary" />
-              <span className="text-sm font-bold text-primary">Your Group: Grades {userBand}</span>
+              <span className="text-sm font-bold text-violet-200">Your Group: Grades {userBand}</span>
             </div>
           ) : null}
           <p className="text-sm text-muted-foreground">
@@ -149,8 +149,8 @@ export default function LeaderboardPage() {
             onClick={() => setView("individual")}
             className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
               view === "individual"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+                ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
+                : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
             }`}
           >
             <Trophy className="w-4 h-4" />
@@ -160,8 +160,8 @@ export default function LeaderboardPage() {
             onClick={() => setView("advisory")}
             className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
               view === "advisory"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+                ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
+                : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
             }`}
           >
             <Pizza className="w-4 h-4" />
@@ -177,8 +177,8 @@ export default function LeaderboardPage() {
             onClick={() => setSelectedBand(null)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               !selectedBand
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+                ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
+                : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
             }`}
           >
             <Users className="w-3 h-3 inline mr-1" />
@@ -190,8 +190,8 @@ export default function LeaderboardPage() {
               onClick={() => setSelectedBand(band)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 selectedBand === band
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+                  ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
+                  : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
               }`}
             >
               Grades {band}
@@ -205,8 +205,8 @@ export default function LeaderboardPage() {
             onClick={() => setPeriod("all-time")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               period === "all-time"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+                ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
+                : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
             }`}
           >
             All-Time
@@ -215,8 +215,8 @@ export default function LeaderboardPage() {
             onClick={() => setPeriod("monthly")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               period === "monthly"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/30 border border-border text-foreground hover:bg-muted"
+                ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
+                : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
             }`}
           >
             Monthly
@@ -233,7 +233,7 @@ export default function LeaderboardPage() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   selectedMonth === ym
                     ? "bg-primary/20 text-primary border border-primary/50"
-                    : "bg-muted/30 border border-border text-muted-foreground hover:bg-muted"
+                    : "bg-white/[.04] border border-white/10 text-slate-400 hover:bg-white/[.08]"
                 }`}
               >
                 {getMonthLabel(ym)}
@@ -254,7 +254,7 @@ export default function LeaderboardPage() {
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : leaderboard.length === 0 ? (
-          <Card className="shadow-md">
+          <Card className="arise-surface border-white/10 shadow-md">
             <CardContent className="py-12 text-center">
               <Trophy className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
@@ -275,7 +275,7 @@ export default function LeaderboardPage() {
                   return (
                     <Card
                       key={idx}
-                      className={`shadow-lg ${colors.border} border-2 overflow-hidden ${
+                      className={`arise-surface shadow-lg ${colors.border} border-2 overflow-hidden ${
                         idx === 0 ? "sm:order-2 sm:scale-105" : idx === 1 ? "sm:order-1" : "sm:order-3"
                       }`}
                     >
@@ -296,7 +296,7 @@ export default function LeaderboardPage() {
                         </p>
                       </div>
                       <CardContent className="p-3 text-center">
-                        <div className="text-2xl font-bold text-primary">{entry.totalPoints}</div>
+                        <div className="text-2xl font-bold text-violet-300">{entry.totalPoints}</div>
                         <div className="text-xs text-muted-foreground">points</div>
                         <div className="text-xs text-muted-foreground mt-1">{entry.quizzesTaken} quizzes passed</div>
                       </CardContent>
@@ -308,7 +308,7 @@ export default function LeaderboardPage() {
 
             {/* Remaining entries */}
             {rest.length > 0 && (
-              <Card className="shadow-md">
+              <Card className="arise-surface border-white/10 shadow-md">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <Trophy className="w-4 h-4 text-primary" />
@@ -320,9 +320,9 @@ export default function LeaderboardPage() {
                     {rest.map((entry) => (
                       <div
                         key={entry.rank}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-white/[.035] hover:bg-white/[.07] border border-white/[.06] transition-colors"
                       >
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center font-bold text-sm text-muted-foreground flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-cyan-400/15 border border-white/10 flex items-center justify-center font-bold text-sm text-slate-300 flex-shrink-0">
                           {entry.rank}
                         </div>
                           <div className="flex-1 min-w-0">
@@ -339,7 +339,7 @@ export default function LeaderboardPage() {
                             <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
                           </div>
                         <div className="text-right flex-shrink-0">
-                          <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
+                          <div className="font-bold text-sm text-violet-300">{entry.totalPoints}</div>
                           <div className="text-xs text-muted-foreground">pts</div>
                         </div>
                       </div>
@@ -354,7 +354,7 @@ export default function LeaderboardPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Want to see your name here? Log in and start earning points!
               </p>
-              <Button size="lg" onClick={() => navigate("/")} className="gap-2">
+              <Button size="lg" onClick={() => navigate("/")} className="gap-2 arise-gradient-button rounded-full font-black px-6">
                 <Trophy className="w-5 h-5" />
                 Login to Start Earning Points
               </Button>
@@ -366,8 +366,8 @@ export default function LeaderboardPage() {
           /* Advisory Challenge View */
           <>
             {/* Advisory Challenge — Pizza Party */}
-            <div className="rounded-2xl overflow-hidden border-2 border-orange-500/30 shadow-lg">
-              <div className="bg-gradient-to-r from-orange-600 to-red-500 px-5 py-4 flex items-center gap-3">
+            <div className="rounded-2xl overflow-hidden border border-violet-400/25 shadow-[0_24px_70px_rgba(0,0,0,.24)]">
+              <div className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 px-5 py-4 flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                   <Pizza className="w-7 h-7 text-white" />
                 </div>
@@ -376,7 +376,7 @@ export default function LeaderboardPage() {
                   <p className="text-sm text-white/90">The advisory with the most points wins a PIZZA PARTY!</p>
                 </div>
               </div>
-              <div className="bg-card p-4 sm:p-6">
+              <div className="bg-[#151326] p-4 sm:p-6">
                 {advisoryData.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No advisory data yet. Keep reading!</p>
                 ) : (
@@ -387,17 +387,17 @@ export default function LeaderboardPage() {
                           key={adv.teacherId}
                           className={`flex items-center gap-4 rounded-xl p-4 transition-all ${
                             adv.rank === 1
-                              ? "bg-gradient-to-r from-yellow-500/10 to-orange-500/5 border-2 border-yellow-500/30"
+                              ? "bg-gradient-to-r from-violet-500/12 via-fuchsia-500/[.08] to-cyan-400/[.08] border border-violet-400/25"
                               : "bg-muted/30 border border-border"
                           }`}
                         >
                           <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold ${
                             adv.rank === 1
-                              ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
+                              ? "bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-white"
                               : adv.rank === 2
                               ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white"
                               : adv.rank === 3
-                              ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white"
+                              ? "bg-gradient-to-br from-fuchsia-500 to-violet-600 text-white"
                               : "bg-muted text-muted-foreground"
                           }`}>
                             {adv.rank}
@@ -409,7 +409,7 @@ export default function LeaderboardPage() {
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <div className="font-bold text-lg text-primary">{adv.totalPoints}</div>
+                            <div className="font-bold text-lg text-violet-300">{adv.totalPoints}</div>
                             <div className="text-[10px] text-muted-foreground">pts</div>
                           </div>
                         </div>
