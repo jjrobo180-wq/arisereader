@@ -93,9 +93,12 @@ export default function About() {
             <div className="relative mx-auto md:mx-0 w-full max-w-[280px]">
               <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-violet-500/35 via-fuchsia-500/25 to-cyan-400/25 blur-xl" />
               <img
-                src="/about/mr-j-portrait.jpg?v=20260930"
+                src="/about/mr-j-portrait.webp?v=20261001"
                 alt="Mr. J, creator of A.R.I.S.E. Reader"
-                className="relative w-full aspect-[3/4] object-cover rounded-2xl border-2 border-primary/20 shadow-xl"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+                className="relative w-full aspect-[3/4] object-cover object-top rounded-2xl border-2 border-violet-400/20 shadow-xl"
               />
               <div className="absolute left-3 right-3 bottom-3 rounded-xl bg-background/90 backdrop-blur px-3 py-2 border border-white/10 shadow-lg text-center">
                 <p className="text-sm font-bold">Educator • Mentor • Creator</p>
@@ -194,17 +197,17 @@ export default function About() {
             <div className="grid sm:grid-cols-3 gap-4">
               {[
                 {
-                  src: "/about/mr-j-classroom-1.jpg?v=20260930",
+                  src: "/about/mr-j-classroom-1.webp?v=20261001",
                   alt: "Mr. J working with students at a classroom table",
                   caption: "Learning is stronger when students feel supported.",
                 },
                 {
-                  src: "/about/mr-j-classroom-2.jpg?v=20260930",
+                  src: "/about/mr-j-classroom-2.webp?v=20261001",
                   alt: "Mr. J working alongside students in a classroom",
                   caption: "Building confidence through real relationships.",
                 },
                 {
-                  src: "/about/mr-j-classroom-3.jpg?v=20260930",
+                  src: "/about/mr-j-classroom-3.webp?v=20261001",
                   alt: "Mr. J helping a student with classroom work",
                   caption: "Meeting students where they are and helping them grow.",
                 },
@@ -215,7 +218,8 @@ export default function About() {
                       src={photo.src}
                       alt={photo.alt}
                       loading="lazy"
-                      className="w-full h-64 sm:h-72 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      decoding="async"
+                      className="w-full h-auto aspect-[4/3] object-cover object-center transition-transform duration-500 group-hover:scale-[1.015]"
                     />
                   </div>
                   <figcaption className="p-4 text-xs sm:text-sm text-muted-foreground leading-relaxed font-medium">
