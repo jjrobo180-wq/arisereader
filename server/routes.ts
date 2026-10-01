@@ -8050,6 +8050,52 @@ Important:
     }
   });
 
+  // Teacher parent hub: parent codes, signup links, and linked parent accounts for the teacher's roster.
+  app.get('/api/teacher/parent-connections', authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: 'Teacher account approval required.' });
+      const roster = req.user.isAdmin
+        ? (await storage.getAllUsers()).filter((u: any) => u.role === 'student' && !u.isAdmin)
+        : await storage.getTeacherStudents(req.user.id);
+      const links = await readParentStudentLinks();
+      const allUsers = await storage.getAllUsers();
+      const parentMap = new Map(allUsers.filter((u: any) => u.role === 'parent').map((u: any) => [u.id, u]));
+      const origin = `${req.protocol}://${req.get('host')}`;
+      const students = [];
+      for (const student of roster) {
+        const invite = await getOrCreateParentInvite(student.id);
+        const parentIds: number[] = [];
+        for (const [parentId, linkedValue] of Object.entries(links)) {
+          if (normalizeLinkedIds(linkedValue).includes(student.id)) {
+            const parsed = Number(parentId);
+            if (Number.isSafeInteger(parsed) && parsed > 0) parentIds.push(parsed);
+          }
+        }
+        const parents = parentIds.map(id => parentMap.get(id)).filter(Boolean).map((parent: any) => ({
+          id: parent.id,
+          displayName: parent.displayName,
+          username: parent.username,
+          email: parent.email || null,
+          accountApproved: parent.accountApproved !== false,
+        }));
+        students.push({
+          id: student.id,
+          displayName: student.displayName,
+          username: student.username,
+          code: invite.formattedCode,
+          signupUrl: `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`,
+          parents,
+        });
+      }
+      students.sort((a: any, b: any) => a.displayName.localeCompare(b.displayName));
+      res.set('Cache-Control', 'no-store');
+      res.json({ students });
+    } catch (error: any) {
+      console.error('[teacher-parent-connections]', error?.message);
+      res.status(500).json({ message: error?.message || 'Could not load parent connections.' });
+    }
+  });
+
   // Students can print their own parent invite letter from their profile.
   app.post('/api/parent-invites/me', authMiddleware, async (req: any, res) => {
     try {
@@ -8600,12 +8646,11 @@ Important:
   app.get("/api/teacher/student/:id/profile", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
-      // Verify student belongs to this teacher (or admin)
+      // This is a read-only educator profile. Approved teachers can open any student
+      // shown in the All Students directory; editing and messaging stay roster-restricted.
       const student = await storage.getUser(studentId);
-      if (!student) return res.status(404).json({ message: "Student not found" });
-      if (!req.user.isAdmin && student.teacherId !== req.user.id) {
-        return res.status(403).json({ message: "You can only view your own students" });
-      }
+      if (!student || student.isAdmin || student.role !== 'student') return res.status(404).json({ message: "Student not found" });
+      if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required" });
       const attempts = await storage.getUserAttempts(studentId);
       const books = await storage.getAllBooks();
       const bookMap = new Map(books.map(b => [b.id, b]));
