@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
 import EyeGazeSiteShell from "./components/EyeGazeSiteShell";
+import { trackAuthenticatedNavigation } from "./lib/navigation";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -227,6 +228,18 @@ function AdminPreviewBar() {
       </div>
     </div>
   );
+}
+
+function AuthenticatedNavigationTracker() {
+  const { user, realUser, adminPreviewMode } = useAuth();
+  const [location] = useLocation();
+
+  useEffect(() => {
+    if (!user || (adminPreviewMode && realUser?.isAdmin)) return;
+    trackAuthenticatedNavigation(location, user);
+  }, [location, user?.id, user?.role, user?.isAdmin, user?.is_eye_gaze_user, realUser?.isAdmin, adminPreviewMode]);
+
+  return null;
 }
 
 function AppRoutes() {
@@ -518,6 +531,7 @@ function AppInner() {
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {isStudent && !isEyeGazeStudent && !isAdminPreview && !isSampleStudent && tourShown && !tourActive && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       <Router hook={useHashLocation}>
+        <AuthenticatedNavigationTracker />
         <AdminPreviewBar />
         <EyeGazeSiteShell>
           <ClubPlayGate><AppRoutes /></ClubPlayGate>
