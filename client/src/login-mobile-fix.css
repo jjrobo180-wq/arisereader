@@ -1,54 +1,120 @@
-/* Login / public landing page mobile containment.
-   The feature carousel is allowed to scroll inside itself, but it must never
-   make the entire page wider than the phone viewport. */
-@media (max-width: 767px) {
-  html:has(#account-panel),
-  body:has(#account-panel),
-  body:has(#account-panel) #root {
+/* A.R.I.S.E. login / public landing page mobile containment.
+   Goal: the PAGE itself must never scroll left/right on a phone.
+   Purpose-built horizontal rails can still swipe inside their own container. */
+
+@media (max-width: 900px) {
+  /* Hard viewport guard. This also covers Safari cases where :has() layout
+     containment is inconsistent while the page is hydrating. */
+  html,
+  body,
+  #root {
     width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
+    max-width: 100vw;
+    overflow-x: hidden !important;
+    overscroll-behavior-x: none;
   }
 
+  body:has(#account-panel) #root,
+  body:has(#account-panel) #root > div,
   body:has(#account-panel) header,
   body:has(#account-panel) header > div,
   body:has(#account-panel) main,
   body:has(#account-panel) main > div,
   body:has(#account-panel) main > div > div,
   body:has(#account-panel) main section,
+  body:has(#account-panel) main aside,
   body:has(#account-panel) #account-panel,
   body:has(#account-panel) #account-panel > div {
+    box-sizing: border-box;
     width: 100%;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Grid/flex descendants use min-width:auto by default. A single wide child
+     was therefore able to make the entire landing page wider than the iPhone. */
+  body:has(#account-panel) #root * {
+    box-sizing: border-box;
     min-width: 0;
+  }
+
+  /* The two-column desktop shell must become one true phone-width column. */
+  body:has(#account-panel) main > div:first-child {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
     max-width: 100%;
   }
 
-  /* CSS Grid/Flex children default to min-width:auto, which was letting the
-     horizontal feature gallery dictate the width of the whole login page. */
-  body:has(#account-panel) main * {
-    min-width: 0;
-  }
-
-  /* Keep the Apple-style feature rail horizontally swipeable in its own lane. */
-  body:has(#account-panel) main [class*="overflow-x-auto"] {
-    width: 100%;
-    max-width: 100%;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-
+  /* Every public/login card must fit inside the viewport rather than relying
+     on clipping to hide an oversized element. */
+  body:has(#account-panel) section,
+  body:has(#account-panel) aside,
+  body:has(#account-panel) form,
   body:has(#account-panel) input,
   body:has(#account-panel) button {
     max-width: 100%;
   }
 
-  /* Better phone proportions without changing the desktop design. */
+  body:has(#account-panel) img,
+  body:has(#account-panel) video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Keep ONLY the feature gallery horizontally swipeable. Its overflow stays
+     local and can no longer change the document width. */
+  body:has(#account-panel) main [class*="overflow-x-auto"] {
+    display: flex;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    contain: inline-size;
+  }
+
+  /* Phone proportions. */
   body:has(#account-panel) main {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  body:has(#account-panel) header > div,
+  body:has(#account-panel) #root > div > div:not(main) {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   body:has(#account-panel) #account-panel {
-    scroll-margin-top: 1rem;
+    scroll-margin-top: 12px;
+  }
+
+  /* Prevent large landing-page typography from feeling desktop-sized on a
+     narrow phone while preserving the tablet/desktop design. */
+  body:has(#account-panel) h1 {
+    font-size: clamp(2rem, 10vw, 2.6rem);
+    overflow-wrap: anywhere;
+  }
+
+  body:has(#account-panel) h2,
+  body:has(#account-panel) h3,
+  body:has(#account-panel) p,
+  body:has(#account-panel) span {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 390px) {
+  body:has(#account-panel) main {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  body:has(#account-panel) header > div {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
   }
 }
