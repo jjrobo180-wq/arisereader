@@ -5327,17 +5327,75 @@ export async function registerRoutes(
     }
   });
 
-  // Verify proctor password (students use this before taking a quiz)
-  app.post("/api/verify-proctor", authMiddleware, async (req, res) => {
-    const { password } = req.body;
-    if (!password) {
-      return res.status(400).json({ message: "Password is required" });
-    }
-    const proctorPassword = await storage.getProctorPassword();
-    if (password === proctorPassword) {
-      res.json({ verified: true });
-    } else {
-      res.status(403).json({ message: "Incorrect proctor password" });
+  // Verify a quiz proctor and issue a short-lived session tied to this student + quiz.
+  // A linked parent/guardian is required for real student accounts.
+  app.post("/api/verify-proctor", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) {
+        return res.status(403).json({ message: "Student account required." });
+      }
+      const password = String(req.body?.password || "").trim();
+      const quizKind = String(req.body?.quizKind || "book") as QuizKind;
+      const quizId = Number(req.body?.quizId);
+      if (!password) return res.status(400).json({ message: "Proctor password is required." });
+      if (!["book", "eye_gaze", "custom_eye_gaze"].includes(quizKind) || !Number.isSafeInteger(quizId)) {
+        return res.status(400).json({ message: "A valid quiz is required." });
+      }
+
+      if (isDemoStudent(req.user) || req.adminPreview) {
+        return res.json({
+          verified: true,
+          preview: true,
+          proctorSessionToken: "demo",
+          proctorType: "teacher",
+          proctorName: "Tutorial Preview",
+        });
+      }
+
+      const parentIds = await getStudentParentIds(req.user.id);
+      if (!parentIds.length) {
+        return res.status(403).json({
+          message: "A parent or guardian must connect an A.R.I.S.E. Parent account before quizzes can be started.",
+          parentRequired: true,
+        });
+      }
+
+      let identity: ProctorIdentity | null = null;
+      const schoolPassword = await storage.getProctorPassword();
+      if (schoolPassword && password === schoolPassword) {
+        identity = { type: "teacher", userId: null, name: "Teacher / School Staff" };
+      } else {
+        const adminDb = getAdminSupabase();
+        const { data: credential, error } = await adminDb.from("parent_proctor_credentials")
+          .select("parent_id,password")
+          .eq("password", password)
+          .maybeSingle();
+        if (error) throw error;
+        if (credential && parentIds.includes(Number(credential.parent_id))) {
+          const parent = await storage.getUser(Number(credential.parent_id));
+          if (parent?.role === "parent" && parent.accountApproved !== false) {
+            identity = {
+              type: "parent",
+              userId: parent.id,
+              name: parent.displayName || "Parent / Guardian",
+            };
+          }
+        }
+      }
+
+      if (!identity) return res.status(403).json({ message: "That proctor code is not valid for this student." });
+
+      const session = await createProctorSession(req.user.id, quizKind, quizId, identity);
+      res.set("Cache-Control", "no-store");
+      res.json({
+        verified: true,
+        proctorSessionToken: session.token,
+        expiresAt: session.expiresAt,
+        proctorType: identity.type,
+        proctorName: identity.name,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not verify the proctor." });
     }
   });
 
