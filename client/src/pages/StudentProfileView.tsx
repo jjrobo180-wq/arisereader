@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Trophy, BookOpen, Award } from "lucide-react";
+import { ArrowLeft, Trophy, BookOpen, Award, Brain } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import { printParentInvites } from "@/lib/parentInvites";
 
