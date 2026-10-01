@@ -181,17 +181,17 @@ export default function Tutorial() {
 
   if (mode === "select") {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen arise-page-bg">
         {/* Demo banner */}
-        <div className="bg-primary text-white text-center py-2 px-4 text-xs font-semibold sticky top-0 z-50">
+        <div className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white text-center py-2 px-4 text-xs font-black sticky top-0 z-50">
           TUTORIAL MODE — No login required, nothing is saved. Choose your path below.
         </div>
 
         {/* Header */}
-        <header className="bg-card border-b border-border">
+        <header className="border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-white tracking-wide">A.R.I.S.E<span className="text-primary"> Reader</span></h1>
-            <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
+            <h1 className="text-xl font-black text-white tracking-[-.025em]">A.R.I.S.E<span className="arise-gradient-text"> Reader</span></h1>
+            <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/[.08] transition-colors">
               Exit to Login
             </button>
           </div>
@@ -199,10 +199,10 @@ export default function Tutorial() {
 
         <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
           <div className="text-center mb-8">
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-              <GraduationCap className="w-10 h-10 text-primary" />
+            <div className="w-20 h-20 rounded-[1.5rem] arise-icon-tile flex items-center justify-center mx-auto mb-6">
+              <GraduationCap className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-3">Welcome to A.R.I.S.E Reader!</h1>
+            <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">Welcome to A.R.I.S.E Reader!</h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
               Choose the tutorial that fits you. Explore each walkthrough with no login and nothing saved.
             </p>
@@ -212,16 +212,16 @@ export default function Tutorial() {
             {/* Student/Parent card */}
             <button
               onClick={() => handleSelectMode("student")}
-              className="text-left p-6 rounded-2xl bg-card border-2 border-border hover:border-primary transition-all hover:shadow-lg group"
+              className="text-left p-6 rounded-2xl arise-surface border border-white/10 hover:border-violet-400/35 transition-all hover:shadow-[0_20px_50px_rgba(124,58,237,.12)] group"
             >
-              <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <BookUser className="w-7 h-7 text-primary" />
+              <div className="w-14 h-14 rounded-2xl arise-icon-tile flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <BookUser className="w-7 h-7 text-white" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2">Student</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 See how students browse books, search the library, take quizzes, earn certificates, and check the leaderboard.
               </p>
-              <div className="flex items-center gap-1 text-primary text-sm font-medium">
+              <div className="flex items-center gap-1 text-cyan-300 text-sm font-black">
                 <PlayCircle className="w-4 h-4" />
                 Start Student Tutorial
               </div>
@@ -230,16 +230,16 @@ export default function Tutorial() {
             {/* Teacher card */}
             <button
               onClick={() => handleSelectMode("teacher")}
-              className="text-left p-6 rounded-2xl bg-card border-2 border-border hover:border-primary transition-all hover:shadow-lg group"
+              className="text-left p-6 rounded-2xl arise-surface border border-white/10 hover:border-violet-400/35 transition-all hover:shadow-[0_20px_50px_rgba(124,58,237,.12)] group"
             >
-              <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <UserCog className="w-7 h-7 text-primary" />
+              <div className="w-14 h-14 rounded-2xl arise-icon-tile flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <UserCog className="w-7 h-7 text-white" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2">Teacher / Admin</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Explore the admin dashboard: create quizzes, manage students, view the full book library, send messages, and set passwords.
               </p>
-              <div className="flex items-center gap-1 text-primary text-sm font-medium">
+              <div className="flex items-center gap-1 text-cyan-300 text-sm font-black">
                 <PlayCircle className="w-4 h-4" />
                 Start Teacher Tutorial
               </div>
@@ -248,16 +248,16 @@ export default function Tutorial() {
             {/* Eye Gaze / Non-Verbal card */}
             <button
               onClick={() => handleSelectMode("eye-gaze")}
-              className="text-left p-6 rounded-2xl bg-card border-2 border-border hover:border-primary transition-all hover:shadow-lg group"
+              className="text-left p-6 rounded-2xl arise-surface border border-white/10 hover:border-violet-400/35 transition-all hover:shadow-[0_20px_50px_rgba(124,58,237,.12)] group"
             >
-              <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Eye className="w-7 h-7 text-primary" />
+              <div className="w-14 h-14 rounded-2xl arise-icon-tile flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Eye className="w-7 h-7 text-white" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2">Eye Gaze / Non-Verbal</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Learn how eye gaze users navigate the library, take visual quizzes, track progress, and use the eye gaze leaderboard.
               </p>
-              <div className="flex items-center gap-1 text-primary text-sm font-medium">
+              <div className="flex items-center gap-1 text-cyan-300 text-sm font-black">
                 <PlayCircle className="w-4 h-4" />
                 Start Eye Gaze Tutorial
               </div>
@@ -266,16 +266,16 @@ export default function Tutorial() {
             {/* Parent card */}
             <button
               onClick={() => handleSelectMode("parent")}
-              className="text-left p-6 rounded-2xl bg-card border-2 border-border hover:border-primary transition-all hover:shadow-lg group"
+              className="text-left p-6 rounded-2xl arise-surface border border-white/10 hover:border-violet-400/35 transition-all hover:shadow-[0_20px_50px_rgba(124,58,237,.12)] group"
             >
-              <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Heart className="w-7 h-7 text-primary" />
+              <div className="w-14 h-14 rounded-2xl arise-icon-tile flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Heart className="w-7 h-7 text-white" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2">Parent / Family</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Explore linked-child progress, certificates, messages, Eye Gazer family controls, My Talker personalization, My World, Life Skills, and more.
               </p>
-              <div className="flex items-center gap-1 text-primary text-sm font-medium">
+              <div className="flex items-center gap-1 text-cyan-300 text-sm font-black">
                 <PlayCircle className="w-4 h-4" />
                 Start Parent Tutorial
               </div>
@@ -295,31 +295,31 @@ export default function Tutorial() {
   // ─── Tutorial content ───────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen arise-page-bg">
       {/* Demo banner */}
-      <div className="bg-primary text-white text-center py-2 px-4 text-xs font-semibold sticky top-0 z-50">
+      <div className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white text-center py-2 px-4 text-xs font-black sticky top-0 z-50">
         {mode === "student" ? "STUDENT" : mode === "eye-gaze" ? "EYE GAZE" : mode === "parent" ? "PARENT" : "TEACHER"} TUTORIAL — No login required, nothing is saved. Follow the steps to explore the platform.
       </div>
 
       {/* Header */}
-      <header className="bg-card border-b border-border">
+      <header className="border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => { setMode("select"); setStep(0); }}
-              className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1"
+              className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/[.08] transition-colors flex items-center gap-1"
             >
               <ChevronLeft className="w-3 h-3" /> Choose Path
             </button>
-            <h1 className="text-xl font-bold text-white tracking-wide">A.R.I.S.E<span className="text-primary"> Reader</span></h1>
+            <h1 className="text-xl font-black text-white tracking-[-.025em]">A.R.I.S.E<span className="arise-gradient-text"> Reader</span></h1>
           </div>
           <div className="flex items-center gap-2">
             {step > 0 && (
-              <button onClick={() => setStep(s => Math.max(0, s - 1))} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1">
+              <button onClick={() => setStep(s => Math.max(0, s - 1))} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/[.08] transition-colors flex items-center gap-1">
                 <ChevronLeft className="w-3 h-3" /> Back
               </button>
             )}
-            <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
+            <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/[.08] transition-colors">
               Exit to Login
             </button>
           </div>
@@ -327,7 +327,7 @@ export default function Tutorial() {
       </header>
 
       {/* Progress bar */}
-      <div className="bg-card border-b border-border">
+      <div className="border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {steps.map((label, i) => (
@@ -336,10 +336,10 @@ export default function Tutorial() {
                 onClick={() => setStep(i)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                   i === step
-                    ? "bg-primary text-white"
+                    ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white"
                     : i < step
                     ? "bg-green-500/20 text-green-400"
-                    : "bg-muted/30 text-muted-foreground hover:bg-muted"
+                    : "bg-white/[.04] text-muted-foreground hover:bg-white/[.08]"
                 }`}
               >
                 {i < step && <CheckCircle2 className="w-3 h-3" />}
@@ -347,8 +347,8 @@ export default function Tutorial() {
               </button>
             ))}
           </div>
-          <div className="h-1 bg-muted rounded-full overflow-hidden mt-1">
-            <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+          <div className="h-1.5 bg-white/[.06] rounded-full overflow-hidden mt-1">
+            <div className="h-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
         </div>
       </div>
@@ -365,26 +365,26 @@ export default function Tutorial() {
             {/* Step 0: Welcome */}
             {step === 0 && (
               <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <BookUser className="w-10 h-10 text-primary" />
+                <div className="w-20 h-20 rounded-[1.5rem] arise-icon-tile flex items-center justify-center mx-auto mb-6">
+                  <BookUser className="w-10 h-10 text-white" />
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-3">Student Tutorial</h1>
+                <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">Student Tutorial</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
                   This tutorial walks you through everything a student can do: browse the full quiz library, take a practice quiz, earn a certificate, and see the leaderboard — all without logging in.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <BookOpen className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <BookOpen className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Browse & Search</h3>
                     <p className="text-xs text-muted-foreground mt-1">Explore every book quiz in the library, organized by points</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Trophy className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <Trophy className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Earn & Compete</h3>
                     <p className="text-xs text-muted-foreground mt-1">Pass at 70% to earn points and certificates. Climb the leaderboard</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <GraduationCap className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <GraduationCap className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Profile & Inbox</h3>
                     <p className="text-xs text-muted-foreground mt-1">Check your points, view history, and message your teacher</p>
                   </div>
@@ -399,14 +399,14 @@ export default function Tutorial() {
             {step === 1 && (
               <StepContainer
                 title="The Library — Browse & Search"
-                icon={<BookOpen className="w-6 h-6 text-primary" />}
+                icon={<BookOpen className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(2)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   When students log in, they see the Library with every available book quiz. Books are organized by point value — 10 (easy), 20 (medium), 30 (hard). Each book shows its cover, author, and points. Students can search by title or author. Try the search below — it shows all the real quizzes available on the platform!
                 </p>
                 {/* Live demo of library with real books */}
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="mb-3 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
@@ -414,7 +414,7 @@ export default function Tutorial() {
                       placeholder="Search by title or author..."
                       value={libSearch}
                       onChange={(e) => setLibSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
                   {booksLoading ? (
@@ -426,7 +426,7 @@ export default function Tutorial() {
                   ).length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-sm text-muted-foreground mb-2">No books found for "{libSearch}".</p>
-                      <p className="text-xs text-primary">This is where a student can request the quiz be created!</p>
+                      <p className="text-xs text-violet-300">This is where a student can request the quiz be created!</p>
                     </div>
                   ) : (
                     <>
@@ -448,7 +448,7 @@ export default function Tutorial() {
                                   <button
                                     onClick={() => setLibPage(Math.max(0, currentPage - 1))}
                                     disabled={currentPage === 0}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-foreground hover:bg-white/[.08] disabled:opacity-30"
                                   >
                                     <ChevronLeft className="w-3 h-3 inline" /> Prev
                                   </button>
@@ -456,7 +456,7 @@ export default function Tutorial() {
                                   <button
                                     onClick={() => setLibPage(Math.min(totalPages - 1, currentPage + 1))}
                                     disabled={currentPage >= totalPages - 1}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-foreground hover:bg-white/[.08] disabled:opacity-30"
                                   >
                                     Next <ChevronRight className="w-3 h-3 inline" />
                                   </button>
@@ -465,7 +465,7 @@ export default function Tutorial() {
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                               {pageBooks.map((book) => (
-                                <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
+                                <div key={book.id} className="rounded-lg overflow-hidden bg-[#151326] border border-white/10">
                                   <div className="aspect-[2/3] overflow-hidden bg-muted">
                                     {book.coverUrl ? (
                                       <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
@@ -479,7 +479,7 @@ export default function Tutorial() {
                                     <p className="text-xs font-semibold truncate">{book.title}</p>
                                     <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
                                       book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
-                                      book.pointsValue === 20 ? "bg-primary/20 text-primary" :
+                                      book.pointsValue === 20 ? "bg-violet-500/15 text-violet-300" :
                                       "bg-red-500/20 text-red-400"
                                     }`}>
                                       <Trophy className="w-2.5 h-2.5" />
@@ -505,20 +505,20 @@ export default function Tutorial() {
             {step === 2 && (
               <StepContainer
                 title="Request a Book Quiz"
-                icon={<BookPlus className="w-6 h-6 text-primary" />}
+                icon={<BookPlus className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(3)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   If a student searches for a book and no quiz exists, they can request it right there. They provide the book title, author (required), and an optional note. The request goes straight to the teacher's notifications.
                 </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center mb-3">
                     <p className="text-sm text-yellow-400">No quizzes found for "Harry Potter"</p>
                   </div>
                   <div className="space-y-2">
-                    <input type="text" placeholder="Book title" disabled value="Harry Potter and the Sorcerer's Stone" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
-                    <input type="text" placeholder="Author (required)" disabled value="J.K. Rowling" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
-                    <textarea placeholder="Optional message to teacher..." disabled rows={2} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70 resize-none" />
+                    <input type="text" placeholder="Book title" disabled value="Harry Potter and the Sorcerer's Stone" className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm opacity-70" />
+                    <input type="text" placeholder="Author (required)" disabled value="J.K. Rowling" className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm opacity-70" />
+                    <textarea placeholder="Optional message to teacher..." disabled rows={2} className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm opacity-70 resize-none" />
                     <Button size="sm" disabled className="w-full">Submit Request</Button>
                   </div>
                 </div>
@@ -532,13 +532,13 @@ export default function Tutorial() {
             {step === 3 && (
               <StepContainer
                 title="Notifications & Bell Icon"
-                icon={<Bell className="w-6 h-6 text-primary" />}
+                icon={<Bell className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(4)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   The bell icon shows notifications for book requests, new student sign-ups, and more. When you open the bell, the red badge clears automatically — just like iPhone notifications. Each item has an X to dismiss individually.
                 </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="relative">
@@ -551,10 +551,10 @@ export default function Tutorial() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-stretch rounded-lg bg-primary/5 border border-primary/30 hover:bg-muted/50">
+                    <div className="flex items-stretch rounded-lg bg-primary/5 border border-violet-400/25 hover:bg-white/[.08]/50">
                       <div className="flex-1 flex items-center gap-2 px-3 py-2">
                         <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                          <BookPlus className="w-3.5 h-3.5 text-orange-500" />
+                          <BookPlus className="w-3.5 h-3.5 text-fuchsia-300" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate">Harry Potter and the Sorcerer's Stone</p>
@@ -563,7 +563,7 @@ export default function Tutorial() {
                       </div>
                       <button className="px-2 flex items-center text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
                     </div>
-                    <div className="flex items-stretch rounded-lg bg-muted/30 hover:bg-muted/50">
+                    <div className="flex items-stretch rounded-lg bg-white/[.04] hover:bg-white/[.08]/50">
                       <div className="flex-1 flex items-center gap-2 px-3 py-2">
                         <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
                           <UserPlus className="w-3.5 h-3.5 text-blue-400" />
@@ -577,7 +577,7 @@ export default function Tutorial() {
                     </div>
                   </div>
                   <div className="mt-2 text-right">
-                    <button className="text-xs text-primary hover:underline">Clear all</button>
+                    <button className="text-xs text-violet-300 hover:underline">Clear all</button>
                   </div>
                 </div>
                 <Callout icon={<Bell className="w-4 h-4" />}>
@@ -590,7 +590,7 @@ export default function Tutorial() {
             {step === 4 && (
               <StepContainer
                 title="Take a Quiz — Proctor Password"
-                icon={<ClipboardList className="w-6 h-6 text-primary" />}
+                icon={<ClipboardList className="w-6 h-6 text-violet-300" />}
                 onNext={() => { if (quizSubmitted) setStep(5); }}
                 nextLabel={quizSubmitted ? "See Your Certificate" : undefined}
                 nextDisabled={!quizSubmitted}
@@ -608,8 +608,8 @@ export default function Tutorial() {
                 {/* Quiz */}
                 <Card className="shadow-lg overflow-hidden mb-4">
                   <div className="flex gap-4 p-4 items-center">
-                    <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <ClipboardList className="w-8 h-8 text-primary" />
+                    <div className="w-16 h-16 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
+                      <ClipboardList className="w-8 h-8 text-violet-300" />
                     </div>
                     <div>
                       <h2 className="text-lg font-bold">{EASY_QUIZ.book.title}</h2>
@@ -666,12 +666,12 @@ export default function Tutorial() {
                         <p className="text-lg text-muted-foreground mt-2">
                           You scored {quizScore} out of {EASY_QUIZ.questions.length} ({Math.round(quizScore / EASY_QUIZ.questions.length * 100)}%)
                         </p>
-                        <div className="mt-4 inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full font-bold">
+                        <div className="mt-4 inline-flex items-center gap-2 bg-primary/10 text-violet-300 px-4 py-2 rounded-full font-bold">
                           <Trophy className="w-5 h-5" />
                           +{EASY_QUIZ.book.pointsValue} points earned!
                         </div>
                         <p className="text-xs text-muted-foreground mt-3">In the real app, right/wrong answers are never shown — only the score and points.</p>
-                        <p className="text-sm text-primary font-medium mt-2">Click "See Your Certificate" to continue →</p>
+                        <p className="text-sm text-violet-300 font-medium mt-2">Click "See Your Certificate" to continue →</p>
                       </>
                     ) : (
                       <>
@@ -692,15 +692,15 @@ export default function Tutorial() {
             {step === 5 && (
               <StepContainer
                 title="Your Certificate of Achievement"
-                icon={<Award className="w-6 h-6 text-primary" />}
+                icon={<Award className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(6)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   When a student passes a quiz with 70% or higher, a certificate is generated with their name, the book title, and the points earned. They can print it or save it as a PDF. Click the button below to see a real certificate!
                 </p>
                 <div className="text-center py-6">
-                  <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                    <Award className="w-10 h-10 text-primary" />
+                  <div className="w-20 h-20 rounded-full bg-violet-500/15 flex items-center justify-center mx-auto mb-4">
+                    <Award className="w-10 h-10 text-white" />
                   </div>
                   <h2 className="text-xl font-bold mb-2">Certificate Ready!</h2>
                   <p className="text-sm text-muted-foreground mb-6">
@@ -730,7 +730,7 @@ export default function Tutorial() {
             {step === 6 && (
               <StepContainer
                 title="Profile, Inbox & Leaderboard"
-                icon={<Trophy className="w-6 h-6 text-primary" />}
+                icon={<Trophy className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(7)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
@@ -738,27 +738,27 @@ export default function Tutorial() {
                 </p>
 
                 {/* Profile demo */}
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">D</div>
+                    <div className="w-12 h-12 rounded-full bg-violet-500/15 flex items-center justify-center text-violet-300 font-bold text-lg">D</div>
                     <div>
                       <p className="font-bold text-sm">Demo Student</p>
                       <p className="text-xs text-muted-foreground">@demostudent</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center mb-4">
-                    <div className="p-2 rounded-lg bg-muted/30"><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="text-base font-bold">40</p><p className="text-[10px] text-muted-foreground">Points</p></div>
-                    <div className="p-2 rounded-lg bg-muted/30"><ClipboardList className="w-4 h-4 text-primary mx-auto mb-1" /><p className="text-base font-bold">3</p><p className="text-[10px] text-muted-foreground">Passed</p></div>
-                    <div className="p-2 rounded-lg bg-muted/30"><BookOpen className="w-4 h-4 text-primary mx-auto mb-1" /><p className="text-base font-bold">3</p><p className="text-[10px] text-muted-foreground">Books</p></div>
+                    <div className="p-2 rounded-lg bg-white/[.04]"><Trophy className="w-4 h-4 text-violet-300 mx-auto mb-1" /><p className="text-base font-bold">40</p><p className="text-[10px] text-muted-foreground">Points</p></div>
+                    <div className="p-2 rounded-lg bg-white/[.04]"><ClipboardList className="w-4 h-4 text-violet-300 mx-auto mb-1" /><p className="text-base font-bold">3</p><p className="text-[10px] text-muted-foreground">Passed</p></div>
+                    <div className="p-2 rounded-lg bg-white/[.04]"><BookOpen className="w-4 h-4 text-violet-300 mx-auto mb-1" /><p className="text-base font-bold">3</p><p className="text-[10px] text-muted-foreground">Books</p></div>
                   </div>
                   {/* Inbox demo */}
-                  <div className="border-t border-border pt-3 mb-3">
+                  <div className="border-t border-white/10 pt-3 mb-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <Inbox className="w-4 h-4 text-primary" />
+                      <Inbox className="w-4 h-4 text-violet-300" />
                       <span className="text-sm font-semibold">Inbox</span>
                       <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">1</span>
                     </div>
-                    <div className="p-2 rounded-lg bg-primary/5 border border-primary/30">
+                    <div className="p-2 rounded-lg bg-primary/5 border border-violet-400/25">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-semibold">Teacher</span>
                         <span className="text-xs text-muted-foreground">Today</span>
@@ -767,9 +767,9 @@ export default function Tutorial() {
                     </div>
                   </div>
                   {/* Leaderboard */}
-                  <div className="border-t border-border pt-3">
+                  <div className="border-t border-white/10 pt-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <Trophy className="w-4 h-4 text-primary" />
+                      <Trophy className="w-4 h-4 text-violet-300" />
                       <span className="text-sm font-semibold">Leaderboard</span>
                     </div>
                     <div className="space-y-1">
@@ -782,7 +782,7 @@ export default function Tutorial() {
                             "bg-muted text-muted-foreground"
                           }`}>{entry.rank}</span>
                           <span className="text-xs font-medium flex-1">{entry.name}</span>
-                          <span className="text-xs text-primary font-bold">{entry.points} pts</span>
+                          <span className="text-xs text-violet-300 font-bold">{entry.points} pts</span>
                         </div>
                       ))}
                     </div>
@@ -798,7 +798,7 @@ export default function Tutorial() {
             {step === 7 && (
               <StepContainer
                 title="Progress Monitoring"
-                icon={<Users className="w-6 h-6 text-primary" />}
+                icon={<Users className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(8)}
                 onBack={() => setStep(6)}
               >
@@ -806,26 +806,26 @@ export default function Tutorial() {
                   Teachers and admins can monitor student progress from their dashboards. Here's what they can see:
                 </p>
                 <div className="space-y-2 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <Trophy className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Points Earned</p><p className="text-xs text-muted-foreground">Total points from all quizzes passed</p></div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ClipboardList className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <ClipboardList className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Quiz History</p><p className="text-xs text-muted-foreground">Which books were read and scores earned</p></div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Award className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <Award className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Certificates</p><p className="text-xs text-muted-foreground">Printable certificates for passed quizzes</p></div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <ShieldCheck className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Reading Assessments</p><p className="text-xs text-muted-foreground">Round-based reading level assessments</p></div>
                   </div>
                 </div>
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="p-3 rounded-lg bg-primary/5 border border-violet-400/20">
                   <p className="text-xs text-muted-foreground">
-                    <strong className="text-primary">Teachers:</strong> See progress for only your assigned students. <strong className="text-primary">Admins:</strong> See progress for all students across the platform.
+                    <strong className="text-violet-300">Teachers:</strong> See progress for only your assigned students. <strong className="text-violet-300">Admins:</strong> See progress for all students across the platform.
                   </p>
                 </div>
               </StepContainer>
@@ -835,7 +835,7 @@ export default function Tutorial() {
             {step === 8 && (
               <StepContainer
                 title="Grade Groups"
-                icon={<GraduationCap className="w-6 h-6 text-primary" />}
+                icon={<GraduationCap className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(9)}
                 onBack={() => setStep(7)}
               >
@@ -843,24 +843,24 @@ export default function Tutorial() {
                   A.R.I.S.E Reader groups students by grade level so competition is fair. A kindergartener should never compete against a high schooler. Here's how it works:
                 </p>
                 <div className="space-y-3 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Grade Bands</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Grade Bands</p>
                     <p className="text-xs text-muted-foreground mt-1">Students are grouped into four bands: K-2 (Ages 3-7), 3-5 (Ages 6-10), 6-8 (Ages 9-14), and 9-12 (Ages 12+). When you sign up, you select your grade and you're placed in the right band automatically.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Books by Grade Level</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Books by Grade Level</p>
                     <p className="text-xs text-muted-foreground mt-1">Your Library only shows books appropriate for your grade band. A 6th grader sees middle-grade books, not kindergarten picture books or high school novels. This keeps reading at the right level.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Leaderboard by Band</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Leaderboard by Band</p>
                     <p className="text-xs text-muted-foreground mt-1">The leaderboard only shows students in your grade band. You compete against students at your own reading level, so it's always fair.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Quiz Access</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Quiz Access</p>
                     <p className="text-xs text-muted-foreground mt-1">You can only take quizzes for books in your grade band. This prevents students from taking quizzes above or below their level.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Why We Do This</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Why We Do This</p>
                     <p className="text-xs text-muted-foreground mt-1">A 3rd grader reading 5-point books shouldn't be ranked below a 10th grader reading 10-point books. Grade bands make the competition fair, keep books at the right reading level, and ensure every student has a real shot at winning.</p>
                   </div>
                 </div>
@@ -873,7 +873,7 @@ export default function Tutorial() {
                 <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 className="w-10 h-10 text-green-500" />
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-3">You're Ready!</h1>
+                <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">You're Ready!</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
                   You've seen everything A.R.I.S.E Reader has to offer for students. When you're ready to start reading and earning points for real, create an account or log in.
                 </p>
@@ -901,26 +901,26 @@ export default function Tutorial() {
             {/* Step 0: Welcome */}
             {step === 0 && (
               <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <Eye className="w-10 h-10 text-primary" />
+                <div className="w-20 h-20 rounded-[1.5rem] arise-icon-tile flex items-center justify-center mx-auto mb-6">
+                  <Eye className="w-10 h-10 text-white" />
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-3">Eye Gaze / Non-Verbal Tutorial</h1>
+                <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">Eye Gaze / Non-Verbal Tutorial</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
                   This tutorial is designed for eye gaze users and non-verbal students. Learn how to navigate the library, take visual quizzes with text-to-speech, track progress, and compete on the leaderboard.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Eye className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <Eye className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Visual Quizzes</h3>
                     <p className="text-xs text-muted-foreground mt-1">Answer questions using images and visual prompts</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Trophy className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <Trophy className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Shared Leaderboard</h3>
                     <p className="text-xs text-muted-foreground mt-1">Compete with your grade band on the same leaderboard</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Volume2 className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <Volume2 className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Text-to-Speech</h3>
                     <p className="text-xs text-muted-foreground mt-1">Questions read aloud automatically with replay button</p>
                   </div>
@@ -936,7 +936,7 @@ export default function Tutorial() {
               <Card className="p-6">
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <BookOpen className="w-5 h-5 text-primary" />
+                    <BookOpen className="w-5 h-5 text-violet-300" />
                     Eye Gaze Library
                   </CardTitle>
                 </CardHeader>
@@ -944,12 +944,12 @@ export default function Tutorial() {
                   <p className="text-sm text-muted-foreground">
                     When eye gaze mode is enabled, your library shows eye gaze quizzes with visual prompts. These quizzes use images instead of text-heavy questions, making them accessible for non-verbal students.
                   </p>
-                  <div className="p-4 rounded-xl bg-card border border-border">
+                  <div className="p-4 rounded-xl bg-[#151326] border border-white/10">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {["Animals", "Colors", "Shapes"].map((title, i) => (
-                        <div key={i} className="p-3 rounded-lg bg-muted/30 border border-border text-center">
-                          <div className="w-16 h-16 rounded-lg bg-primary/20 flex items-center justify-center mx-auto mb-2">
-                            <Eye className="w-8 h-8 text-primary" />
+                        <div key={i} className="p-3 rounded-lg bg-white/[.04] border border-white/10 text-center">
+                          <div className="w-16 h-16 rounded-lg bg-violet-500/15 flex items-center justify-center mx-auto mb-2">
+                            <Eye className="w-8 h-8 text-violet-300" />
                           </div>
                           <p className="text-xs font-semibold">{title} Quiz</p>
                           <p className="text-xs text-muted-foreground">5 questions</p>
@@ -973,7 +973,7 @@ export default function Tutorial() {
               <Card className="p-6">
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <ClipboardList className="w-5 h-5 text-primary" />
+                    <ClipboardList className="w-5 h-5 text-violet-300" />
                     Taking Eye Gaze Quizzes
                   </CardTitle>
                 </CardHeader>
@@ -981,29 +981,29 @@ export default function Tutorial() {
                   <p className="text-sm text-muted-foreground">
                     Eye gaze quizzes show one question at a time with large images for each answer option. Students select their answer by looking at or clicking the image.
                   </p>
-                  <div className="p-4 rounded-xl bg-card border border-border">
+                  <div className="p-4 rounded-xl bg-[#151326] border border-white/10">
                     <p className="text-sm font-semibold mb-3">Sample Question</p>
                     <div className="grid grid-cols-2 gap-3">
                       {["A", "B", "C", "D"].map((letter) => (
-                        <div key={letter} className="p-3 rounded-lg bg-muted/30 border-2 border-border hover:border-primary transition-colors cursor-pointer text-center">
+                        <div key={letter} className="p-3 rounded-lg bg-white/[.04] border-2 border-white/10 hover:border-violet-400/40 transition-colors cursor-pointer text-center">
                           <div className="w-20 h-20 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                            <Eye className="w-8 h-8 text-primary/50" />
+                            <Eye className="w-8 h-8 text-violet-300/50" />
                           </div>
                           <p className="text-xs font-semibold">Option {letter}</p>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div className="p-4 rounded-xl bg-primary/5 border border-violet-400/20">
                     <div className="flex items-center gap-2 mb-2">
-                      <Volume2 className="w-4 h-4 text-primary" />
-                      <p className="text-sm font-semibold text-primary">Text-to-Speech (TTS)</p>
+                      <Volume2 className="w-4 h-4 text-violet-300" />
+                      <p className="text-sm font-semibold text-violet-300">Text-to-Speech (TTS)</p>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Each question is read aloud automatically when it appears. After the question is read, the TTS reads all four answer options back-to-back: "A. Dog. B. Cat. C. Fish. D. Bird." The currently-read option is highlighted on screen. The question and answers play once — press Replay to hear them again. When the student selects an answer, the TTS says "You chose A. Dog," then a 5-second countdown appears so they can change their answer before it's submitted.
                     </p>
                     <div className="mt-2 flex items-center gap-2">
-                      <button className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/40 text-primary text-xs font-medium flex items-center gap-1">
+                      <button className="px-3 py-1.5 rounded-lg bg-violet-500/15 border border-primary/40 text-violet-300 text-xs font-medium flex items-center gap-1">
                         <Volume2 className="w-3 h-3" /> Replay
                       </button>
                       <p className="text-xs text-muted-foreground">Press to hear the question again</p>
@@ -1026,7 +1026,7 @@ export default function Tutorial() {
               <Card className="p-6">
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <Award className="w-5 h-5 text-primary" />
+                    <Award className="w-5 h-5 text-violet-300" />
                     Score & Results
                   </CardTitle>
                 </CardHeader>
@@ -1034,13 +1034,13 @@ export default function Tutorial() {
                   <p className="text-sm text-muted-foreground">
                     After completing a quiz, students see their score immediately. Right and wrong answers are not shown — only the final score.
                   </p>
-                  <div className="p-6 rounded-xl bg-card border border-border text-center">
+                  <div className="p-6 rounded-xl bg-[#151326] border border-white/10 text-center">
                     <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-3">
                       <Trophy className="w-10 h-10 text-green-400" />
                     </div>
                     <p className="text-3xl font-bold text-white">4 / 5</p>
                     <p className="text-sm text-muted-foreground mt-1">Quiz Complete!</p>
-                    <div className="mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold">
+                    <div className="mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-violet-500/15 text-violet-300 text-xs font-semibold">
                       <Award className="w-3 h-3" /> 4 points earned
                     </div>
                   </div>
@@ -1060,7 +1060,7 @@ export default function Tutorial() {
               <Card className="p-6">
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <Users className="w-5 h-5 text-primary" />
+                    <Users className="w-5 h-5 text-violet-300" />
                     Progress Monitoring
                   </CardTitle>
                 </CardHeader>
@@ -1069,22 +1069,22 @@ export default function Tutorial() {
                     Eye gaze student progress is tracked separately from regular students. Teachers and admins can monitor:
                   </p>
                   <div className="space-y-2">
-                    <div className="p-3 rounded-lg bg-card border border-border flex items-center gap-3">
-                      <Trophy className="w-5 h-5 text-primary" />
+                    <div className="p-3 rounded-lg bg-[#151326] border border-white/10 flex items-center gap-3">
+                      <Trophy className="w-5 h-5 text-violet-300" />
                       <div><p className="text-sm font-semibold">Total Points</p><p className="text-xs text-muted-foreground">Points earned from eye gaze quizzes</p></div>
                     </div>
-                    <div className="p-3 rounded-lg bg-card border border-border flex items-center gap-3">
-                      <ClipboardList className="w-5 h-5 text-primary" />
+                    <div className="p-3 rounded-lg bg-[#151326] border border-white/10 flex items-center gap-3">
+                      <ClipboardList className="w-5 h-5 text-violet-300" />
                       <div><p className="text-sm font-semibold">Quizzes Completed</p><p className="text-xs text-muted-foreground">Number of eye gaze quizzes taken</p></div>
                     </div>
-                    <div className="p-3 rounded-lg bg-card border border-border flex items-center gap-3">
-                      <Award className="w-5 h-5 text-primary" />
+                    <div className="p-3 rounded-lg bg-[#151326] border border-white/10 flex items-center gap-3">
+                      <Award className="w-5 h-5 text-violet-300" />
                       <div><p className="text-sm font-semibold">Eye Gaze Profile</p><p className="text-xs text-muted-foreground">Skill levels and assessment results</p></div>
                     </div>
                   </div>
-                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="p-3 rounded-lg bg-primary/5 border border-violet-400/20">
                     <p className="text-xs text-muted-foreground">
-                      <strong className="text-primary">Teachers:</strong> See progress for only your assigned students. <strong className="text-primary">Admins:</strong> See progress for all students across the platform.
+                      <strong className="text-violet-300">Teachers:</strong> See progress for only your assigned students. <strong className="text-violet-300">Admins:</strong> See progress for all students across the platform.
                     </p>
                   </div>
                   <div className="flex justify-between">
@@ -1100,7 +1100,7 @@ export default function Tutorial() {
               <Card className="p-6">
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <Trophy className="w-5 h-5 text-primary" />
+                    <Trophy className="w-5 h-5 text-violet-300" />
                     Shared Leaderboard
                   </CardTitle>
                 </CardHeader>
@@ -1108,22 +1108,22 @@ export default function Tutorial() {
                   <p className="text-sm text-muted-foreground">
                     Eye gaze and non-verbal students compete on the same leaderboard as their grade band. A 6th grade eye gaze student is grouped with other 6th graders — not separated. This keeps competition inclusive and fair.
                   </p>
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div className="p-4 rounded-xl bg-primary/5 border border-violet-400/20">
                     <div className="flex items-start gap-2">
-                      <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <ShieldCheck className="w-5 h-5 text-violet-300 flex-shrink-0 mt-0.5" />
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-sm text-primary">Equitable Points System</h4>
+                        <h4 className="font-semibold text-sm text-violet-300">Equitable Points System</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           We recognize that eye gaze students often navigate reading and comprehension differently. That's why their quiz points are curved higher to ensure they're never at a disadvantage on the shared leaderboard. We regularly review performance statistics and scientific data to adjust point values — so you may notice a slight increase on your leaderboard score from time to time (never a decrease). This ensures every student competes on a level playing field, aligned with our commitment to inclusive education.
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border">
+                  <div className="p-4 rounded-xl bg-[#151326] border border-white/10">
                     <div className="space-y-2">
                       {SAMPLE_LEADERBOARD.map((entry) => (
-                        <div key={entry.rank} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${entry.rank === 1 ? "bg-yellow-500/20 text-yellow-400" : entry.rank === 2 ? "bg-gray-400/20 text-gray-300" : "bg-orange-600/20 text-orange-500"}`}>
+                        <div key={entry.rank} className="flex items-center gap-3 p-3 rounded-xl bg-white/[.04]">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${entry.rank === 1 ? "bg-yellow-500/20 text-yellow-400" : entry.rank === 2 ? "bg-gray-400/20 text-gray-300" : "bg-orange-600/20 text-fuchsia-300"}`}>
                             {entry.rank}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1136,7 +1136,7 @@ export default function Tutorial() {
                             <p className="text-xs text-muted-foreground">{entry.quizzes} quizzes</p>
                           </div>
                           <div className="text-right">
-                            <div className="font-bold text-sm text-primary">{entry.points}</div>
+                            <div className="font-bold text-sm text-violet-300">{entry.points}</div>
                             <div className="text-xs text-muted-foreground">pts</div>
                           </div>
                         </div>
@@ -1156,7 +1156,7 @@ export default function Tutorial() {
               <Card className="p-6">
                 <CardHeader className="p-0 mb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <Volume2 className="w-5 h-5 text-primary" />
+                    <Volume2 className="w-5 h-5 text-violet-300" />
                     Text-to-Speech & Sample Quiz
                   </CardTitle>
                 </CardHeader>
@@ -1164,9 +1164,9 @@ export default function Tutorial() {
                   <p className="text-sm text-muted-foreground">
                     Eye gaze quizzes include text-to-speech (TTS) that reads each question aloud. Here's what to expect during a real quiz:
                   </p>
-                  <div className="p-4 rounded-xl bg-card border border-border space-y-3">
+                  <div className="p-4 rounded-xl bg-[#151326] border border-white/10 space-y-3">
                     <div className="flex items-center gap-2">
-                      <Volume2 className="w-5 h-5 text-primary" />
+                      <Volume2 className="w-5 h-5 text-violet-300" />
                       <p className="text-sm font-semibold">How TTS Works</p>
                     </div>
                     <div className="space-y-2 text-xs text-muted-foreground">
@@ -1176,38 +1176,38 @@ export default function Tutorial() {
                       <p><strong className="text-foreground">4. No right/wrong feedback:</strong> TTS does not reveal correct or incorrect answers. It only reads the question and animal sound.</p>
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                    <p className="text-sm font-semibold text-primary mb-2">Sample Quiz Walkthrough</p>
+                  <div className="p-4 rounded-xl bg-primary/5 border border-violet-400/20">
+                    <p className="text-sm font-semibold text-violet-300 mb-2">Sample Quiz Walkthrough</p>
                     <div className="space-y-3">
-                      <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                      <div className="p-3 rounded-lg bg-white/[.04] border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-2xl">🐶</span>
                           <span className="text-sm font-medium">Question 1: What animal is this?</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐕 Dog</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐱 Cat</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐰 Rabbit</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐟 Fish</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐕 Dog</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐱 Cat</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐰 Rabbit</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐟 Fish</div>
                         </div>
                         <div className="mt-2 flex items-center gap-2">
-                          <Volume2 className="w-3 h-3 text-primary" />
+                          <Volume2 className="w-3 h-3 text-violet-300" />
                           <p className="text-xs text-muted-foreground">TTS says: "What animal is this? Woof woof."</p>
                         </div>
                       </div>
-                      <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                      <div className="p-3 rounded-lg bg-white/[.04] border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-2xl">🐮</span>
                           <span className="text-sm font-medium">Question 2: What animal is this?</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐶 Dog</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐮 Cow</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐷 Pig</div>
-                          <div className="p-2 rounded-lg bg-muted/20 border border-border text-center text-xs">🐴 Horse</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐶 Dog</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐮 Cow</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐷 Pig</div>
+                          <div className="p-2 rounded-lg bg-muted/20 border border-white/10 text-center text-xs">🐴 Horse</div>
                         </div>
                         <div className="mt-2 flex items-center gap-2">
-                          <Volume2 className="w-3 h-3 text-primary" />
+                          <Volume2 className="w-3 h-3 text-violet-300" />
                           <p className="text-xs text-muted-foreground">TTS says: "What animal is this? Moo."</p>
                         </div>
                       </div>
@@ -1230,7 +1230,7 @@ export default function Tutorial() {
                 <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 className="w-10 h-10 text-green-400" />
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-3">You're Ready!</h1>
+                <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">You're Ready!</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
                   You now know how to navigate the eye gaze library, take visual quizzes with text-to-speech, track progress, and compete on the shared leaderboard. Create an account to get started!
                 </p>
@@ -1263,31 +1263,31 @@ export default function Tutorial() {
             {/* Step 0: Welcome */}
             {step === 0 && (
               <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <UserCog className="w-10 h-10 text-primary" />
+                <div className="w-20 h-20 rounded-[1.5rem] arise-icon-tile flex items-center justify-center mx-auto mb-6">
+                  <UserCog className="w-10 h-10 text-white" />
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-3">Teacher / Admin Tutorial</h1>
+                <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">Teacher / Admin Tutorial</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
                   This tutorial walks you through the admin dashboard: student management, quiz creation, messaging, notifications, and the full book library — everything you need to run A.R.I.S.E Reader.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-8">
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Users className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <Users className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Manage Students</h3>
                     <p className="text-xs text-muted-foreground mt-1">Search, reset passwords, send messages, view quiz history</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <ClipboardList className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <ClipboardList className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Create Quizzes</h3>
                     <p className="text-xs text-muted-foreground mt-1">Paste questions, add covers, set points</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Inbox className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <Inbox className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">DM-Style Inbox</h3>
                     <p className="text-xs text-muted-foreground mt-1">See all student conversations, reply, compose new</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-card border border-border text-left">
-                    <Lock className="w-6 h-6 text-primary mb-2" />
+                  <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
+                    <Lock className="w-6 h-6 text-cyan-300 mb-2" />
                     <h3 className="font-semibold text-sm">Settings & Security</h3>
                     <p className="text-xs text-muted-foreground mt-1">Proctor password, announcement banner, name changes</p>
                   </div>
@@ -1302,7 +1302,7 @@ export default function Tutorial() {
             {step === 1 && (
               <StepContainer
                 title="Admin Dashboard Overview"
-                icon={<GraduationCap className="w-6 h-6 text-primary" />}
+                icon={<GraduationCap className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(2)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
@@ -1312,7 +1312,7 @@ export default function Tutorial() {
                   {[
                     { label: "Students", value: "24", icon: Users, color: "text-blue-400" },
                     { label: "Quizzes Done", value: "87", icon: ClipboardList, color: "text-green-400" },
-                    { label: "Quizzes Passed", value: "71", icon: CheckCircle2, color: "text-primary" },
+                    { label: "Quizzes Passed", value: "71", icon: CheckCircle2, color: "text-violet-300" },
                     { label: "Total Points", value: "1,420", icon: Trophy, color: "text-yellow-400" },
                   ].map((stat) => {
                     const Icon = stat.icon;
@@ -1339,16 +1339,16 @@ export default function Tutorial() {
             {step === 2 && (
               <StepContainer
                 title="Student Management"
-                icon={<Users className="w-6 h-6 text-primary" />}
+                icon={<Users className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(3)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   Search students by name or username. For each student you can: reset their password (shown right there), send them a direct message, and view their full quiz history with scores and points. You can also see which books they've passed or attempted.
                 </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Search className="w-4 h-4 text-muted-foreground" />
-                    <input type="text" placeholder="Search students..." disabled value="" className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
+                    <input type="text" placeholder="Search students..." disabled value="" className="flex-1 px-3 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm opacity-70" />
                   </div>
                   <div className="space-y-2">
                     {[
@@ -1356,8 +1356,8 @@ export default function Tutorial() {
                       { name: "Devon K.", username: "@devonk", points: 100, quizzes: 7, status: "Passed" },
                       { name: "Marcus T.", username: "@marcust", points: 70, quizzes: 5, status: "Attempted" },
                     ].map((student) => (
-                      <div key={student.username} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                      <div key={student.username} className="flex items-center gap-3 p-3 rounded-lg bg-[#151326] border border-white/10">
+                        <div className="w-10 h-10 rounded-full bg-violet-500/15 flex items-center justify-center text-violet-300 font-bold text-sm">
                           {student.name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1368,8 +1368,8 @@ export default function Tutorial() {
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             student.status === "Passed" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"
                           }`}>{student.status}</span>
-                          <button className="text-xs text-primary hover:underline">Reset Password</button>
-                          <button className="text-xs text-primary hover:underline">Message</button>
+                          <button className="text-xs text-violet-300 hover:underline">Reset Password</button>
+                          <button className="text-xs text-violet-300 hover:underline">Message</button>
                         </div>
                       </div>
                     ))}
@@ -1385,33 +1385,33 @@ export default function Tutorial() {
             {step === 3 && (
               <StepContainer
                 title="Create Quizzes"
-                icon={<ClipboardList className="w-6 h-6 text-primary" />}
+                icon={<ClipboardList className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(4)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   Creating a quiz is simple: paste your questions and the tool formats them into a 10-question multiple-choice quiz automatically. Set the book title, author, points value, and cover image — all from one form.
                 </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="space-y-3">
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">Book Title</label>
-                      <input type="text" placeholder="e.g. The Wild Robot" disabled value="The Wild Robot" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
+                      <input type="text" placeholder="e.g. The Wild Robot" disabled value="The Wild Robot" className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm opacity-70" />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">Author</label>
-                      <input type="text" placeholder="Author name" disabled value="Peter Brown" className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70" />
+                      <input type="text" placeholder="Author name" disabled value="Peter Brown" className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm opacity-70" />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">Points Value</label>
                       <div className="flex gap-2">
-                        <button disabled className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold">10 pts (Easy)</button>
-                        <button disabled className="px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs font-bold">20 pts (Medium)</button>
-                        <button disabled className="px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs font-bold">30 pts (Hard)</button>
+                        <button disabled className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white text-xs font-bold">10 pts (Easy)</button>
+                        <button disabled className="px-3 py-1.5 rounded-lg bg-white/[.04] text-muted-foreground text-xs font-bold">20 pts (Medium)</button>
+                        <button disabled className="px-3 py-1.5 rounded-lg bg-white/[.04] text-muted-foreground text-xs font-bold">30 pts (Hard)</button>
                       </div>
                     </div>
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">Paste Your Questions</label>
-                      <textarea disabled rows={4} placeholder="Paste 10 questions here..." className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm opacity-70 resize-none" />
+                      <textarea disabled rows={4} placeholder="Paste 10 questions here..." className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm opacity-70 resize-none" />
                     </div>
                     <Button size="sm" disabled className="w-full">Create Quiz</Button>
                   </div>
@@ -1426,21 +1426,21 @@ export default function Tutorial() {
             {step === 4 && (
               <StepContainer
                 title="DM-Style Inbox & Messages"
-                icon={<Inbox className="w-6 h-6 text-primary" />}
+                icon={<Inbox className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(5)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   The inbox works like a DM page — a list of all your conversations with students. Click a student to open that conversation thread. You can reply, compose new messages, and send links. Students see your replies in their own inbox on the Library page.
                 </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="space-y-2">
                     {[
                       { name: "Maya R.", preview: "Thank you! I'll try that...", time: "10:30 AM" },
                       { name: "Devon K.", preview: "Can I retake the quiz?", time: "Yesterday" },
                       { name: "Aaliyah J.", preview: "I finished the book!", time: "Mon" },
                     ].map((msg) => (
-                      <div key={msg.name} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border hover:border-primary/50 cursor-pointer">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                      <div key={msg.name} className="flex items-center gap-3 p-3 rounded-lg bg-[#151326] border border-white/10 hover:border-violet-400/40/50 cursor-pointer">
+                        <div className="w-10 h-10 rounded-full bg-violet-500/15 flex items-center justify-center text-violet-300 font-bold text-sm">
                           {msg.name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1453,7 +1453,7 @@ export default function Tutorial() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-border">
+                  <div className="mt-3 pt-3 border-t border-white/10">
                     <Button size="sm" variant="outline" disabled>Compose New Message</Button>
                   </div>
                 </div>
@@ -1467,13 +1467,13 @@ export default function Tutorial() {
             {step === 5 && (
               <StepContainer
                 title="Notifications & Bell Icon"
-                icon={<Bell className="w-6 h-6 text-primary" />}
+                icon={<Bell className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(6)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   The bell icon shows notifications for book requests, new student sign-ups, and more. When you open the bell, the red badge clears automatically — just like iPhone notifications. Each item has an X to dismiss individually, or "Clear all" to dismiss everything.
                 </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="relative">
@@ -1486,10 +1486,10 @@ export default function Tutorial() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-stretch rounded-lg bg-primary/5 border border-primary/30 hover:bg-muted/50">
+                    <div className="flex items-stretch rounded-lg bg-primary/5 border border-violet-400/25 hover:bg-white/[.08]/50">
                       <div className="flex-1 flex items-center gap-2 px-3 py-2">
                         <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                          <BookPlus className="w-3.5 h-3.5 text-orange-500" />
+                          <BookPlus className="w-3.5 h-3.5 text-fuchsia-300" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate">Harry Potter and the Sorcerer's Stone</p>
@@ -1498,7 +1498,7 @@ export default function Tutorial() {
                       </div>
                       <button className="px-2 flex items-center text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
                     </div>
-                    <div className="flex items-stretch rounded-lg bg-muted/30 hover:bg-muted/50">
+                    <div className="flex items-stretch rounded-lg bg-white/[.04] hover:bg-white/[.08]/50">
                       <div className="flex-1 flex items-center gap-2 px-3 py-2">
                         <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
                           <UserPlus className="w-3.5 h-3.5 text-blue-400" />
@@ -1512,7 +1512,7 @@ export default function Tutorial() {
                     </div>
                   </div>
                   <div className="mt-2 text-right">
-                    <button className="text-xs text-primary hover:underline">Clear all</button>
+                    <button className="text-xs text-violet-300 hover:underline">Clear all</button>
                   </div>
                 </div>
                 <Callout icon={<Bell className="w-4 h-4" />}>
@@ -1525,13 +1525,13 @@ export default function Tutorial() {
             {step === 6 && (
               <StepContainer
                 title="The Full Quiz Library"
-                icon={<BookOpen className="w-6 h-6 text-primary" />}
+                icon={<BookOpen className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(7)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
                   This is the complete library of every quiz available on A.R.I.S.E Reader. Students see this when they log in. Books are organized by point value — 10 (easy), 20 (medium), 30 (hard). Search by title or author. Each book shows its cover, author, and points.
                 </p>
-                <div className="rounded-xl bg-muted/20 border border-border p-4 mb-4">
+                <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="mb-3 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
@@ -1539,7 +1539,7 @@ export default function Tutorial() {
                       placeholder="Search by title or author..."
                       value={libSearch}
                       onChange={(e) => setLibSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-white/10 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
                   {booksLoading ? (
@@ -1551,7 +1551,7 @@ export default function Tutorial() {
                   ).length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-sm text-muted-foreground mb-2">No books found for "{libSearch}".</p>
-                      <p className="text-xs text-primary">Students can request a quiz to be created!</p>
+                      <p className="text-xs text-violet-300">Students can request a quiz to be created!</p>
                     </div>
                   ) : (
                     <>
@@ -1573,7 +1573,7 @@ export default function Tutorial() {
                                   <button
                                     onClick={() => setLibPage(Math.max(0, currentPage - 1))}
                                     disabled={currentPage === 0}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-foreground hover:bg-white/[.08] disabled:opacity-30"
                                   >
                                     <ChevronLeft className="w-3 h-3 inline" /> Prev
                                   </button>
@@ -1581,7 +1581,7 @@ export default function Tutorial() {
                                   <button
                                     onClick={() => setLibPage(Math.min(totalPages - 1, currentPage + 1))}
                                     disabled={currentPage >= totalPages - 1}
-                                    className="px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30"
+                                    className="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-foreground hover:bg-white/[.08] disabled:opacity-30"
                                   >
                                     Next <ChevronRight className="w-3 h-3 inline" />
                                   </button>
@@ -1590,7 +1590,7 @@ export default function Tutorial() {
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                               {pageBooks.map((book) => (
-                                <div key={book.id} className="rounded-lg overflow-hidden bg-card border border-border">
+                                <div key={book.id} className="rounded-lg overflow-hidden bg-[#151326] border border-white/10">
                                   <div className="aspect-[2/3] overflow-hidden bg-muted">
                                     {book.coverUrl ? (
                                       <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
@@ -1604,7 +1604,7 @@ export default function Tutorial() {
                                     <p className="text-xs font-semibold truncate">{book.title}</p>
                                     <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
                                       book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
-                                      book.pointsValue === 20 ? "bg-primary/20 text-primary" :
+                                      book.pointsValue === 20 ? "bg-violet-500/15 text-violet-300" :
                                       "bg-red-500/20 text-red-400"
                                     }`}>
                                       <Trophy className="w-2.5 h-2.5" />
@@ -1630,7 +1630,7 @@ export default function Tutorial() {
             {step === 7 && (
               <StepContainer
                 title="Progress Monitoring"
-                icon={<Users className="w-6 h-6 text-primary" />}
+                icon={<Users className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(8)}
                 onBack={() => setStep(6)}
               >
@@ -1638,26 +1638,26 @@ export default function Tutorial() {
                   Teachers and admins can monitor student progress from their dashboards. Here's what they can see:
                 </p>
                 <div className="space-y-2 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <Trophy className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Points Earned</p><p className="text-xs text-muted-foreground">Total points from all quizzes passed</p></div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ClipboardList className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <ClipboardList className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Quiz History</p><p className="text-xs text-muted-foreground">Which books were read and scores earned</p></div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <Award className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <Award className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Certificates</p><p className="text-xs text-muted-foreground">Printable certificates for passed quizzes</p></div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10 flex items-center gap-3">
+                    <ShieldCheck className="w-5 h-5 text-violet-300" />
                     <div><p className="text-sm font-semibold">Reading Assessments</p><p className="text-xs text-muted-foreground">Round-based reading level assessments</p></div>
                   </div>
                 </div>
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="p-3 rounded-lg bg-primary/5 border border-violet-400/20">
                   <p className="text-xs text-muted-foreground">
-                    <strong className="text-primary">Teachers:</strong> See progress for only your assigned students. <strong className="text-primary">Admins:</strong> See progress for all students across the platform.
+                    <strong className="text-violet-300">Teachers:</strong> See progress for only your assigned students. <strong className="text-violet-300">Admins:</strong> See progress for all students across the platform.
                   </p>
                 </div>
               </StepContainer>
@@ -1667,7 +1667,7 @@ export default function Tutorial() {
             {step === 8 && (
               <StepContainer
                 title="Grade Groups"
-                icon={<GraduationCap className="w-6 h-6 text-primary" />}
+                icon={<GraduationCap className="w-6 h-6 text-violet-300" />}
                 onNext={() => setStep(9)}
                 onBack={() => setStep(7)}
               >
@@ -1675,24 +1675,24 @@ export default function Tutorial() {
                   A.R.I.S.E Reader groups students by grade level so competition is fair and books are age-appropriate. Here's what teachers and admins need to know:
                 </p>
                 <div className="space-y-3 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Four Grade Bands</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Four Grade Bands</p>
                     <p className="text-xs text-muted-foreground mt-1">K-2 (Ages 3-7), 3-5 (Ages 6-10), 6-8 (Ages 9-14), and 9-12 (Ages 12+). Students select their grade at signup and are automatically placed in the correct band.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Teacher Grade Assignment</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Teacher Grade Assignment</p>
                     <p className="text-xs text-muted-foreground mt-1">At signup, teachers select all grades they teach. Students searching for a teacher will only see teachers who teach their grade at their school. Admins can assign or change grades for any teacher or student from the dashboard.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Signup Cascade</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Signup Cascade</p>
                     <p className="text-xs text-muted-foreground mt-1">Students select School first, then Grade, then Teacher. Each dropdown only shows options matching the previous selections. This ensures every student lands in the right group.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Filtered Library & Leaderboard</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Filtered Library & Leaderboard</p>
                     <p className="text-xs text-muted-foreground mt-1">Students only see books in their grade band and only compete on the leaderboard against students in the same band. A 6th grader competes against other 6-8 students — never against high schoolers or kindergarteners.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
-                    <p className="text-sm font-semibold text-primary">Why We Do This</p>
+                  <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
+                    <p className="text-sm font-semibold text-violet-300">Why We Do This</p>
                     <p className="text-xs text-muted-foreground mt-1">A 3rd grader reading 5-point books shouldn't be ranked below a 10th grader reading 10-point books. Grade bands make the competition fair, keep books at the right reading level, and ensure every student has a real shot at winning.</p>
                   </div>
                 </div>
@@ -1705,7 +1705,7 @@ export default function Tutorial() {
                 <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 className="w-10 h-10 text-green-500" />
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-3">You're Ready!</h1>
+                <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">You're Ready!</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
                   You've seen everything the admin dashboard has to offer. When you're ready to start managing students and quizzes for real, log in with your admin account.
                 </p>
@@ -1742,20 +1742,20 @@ function CurrentFeatureShowcase({ mode }: { mode: TutorialRole }) {
   return (
     <section className="mt-8 rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-7 shadow-xl">
       <div className="mb-5 flex items-start gap-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/20 text-2xl">✨</div>
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-500/15 text-2xl">✨</div>
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Current A.R.I.S.E. experience</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Current A.R.I.S.E. experience</p>
           <h2 className="mt-1 text-2xl font-bold text-white">Everything added since the original tutorial</h2>
           <p className="mt-1 text-sm text-muted-foreground">The original interactive tutorial is preserved. These cards add the newest features without removing any of the demos you already had.</p>
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
-          <article key={item.title} className="group rounded-2xl border border-border bg-background/70 p-4 transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg">
+          <article key={item.title} className="group rounded-2xl border border-white/10 bg-background/70 p-4 transition hover:-translate-y-0.5 hover:border-violet-400/40/50 hover:shadow-lg">
             <div className="flex items-start gap-3">
               <div className="text-3xl">{item.emoji}</div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-primary">{item.subtitle}</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-violet-300">{item.subtitle}</p>
                 <h3 className="mt-0.5 font-bold text-white">{item.title}</h3>
               </div>
             </div>
@@ -1783,8 +1783,8 @@ function ParentTutorialContent({ step, onNext }: { step: number; onNext: () => v
       icon={<span className="text-3xl">{current.emoji}</span>}
       onNext={isLast ? undefined : onNext}
     >
-      <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-purple-500/10 via-card to-card">
-        <div className="border-b border-border p-5 sm:p-6">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 via-card to-card">
+        <div className="border-b border-white/10 p-5 sm:p-6">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-300">{current.subtitle}</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             {current.details.map((detail, index) => (
@@ -1796,12 +1796,12 @@ function ParentTutorialContent({ step, onNext }: { step: number; onNext: () => v
           </div>
         </div>
         <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
             <div className="text-2xl">📊</div>
             <h4 className="mt-2 font-bold text-white">Linked child view</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">See reading progress, quizzes, points, certificates, and messages without entering the student competition.</p>
           </div>
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
             <div className="text-2xl">👁️</div>
             <h4 className="mt-2 font-bold text-white">Eye Gazer family tools</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">Personalize My Talker, My World, Life Skills, videos, flash cards, and supported access settings for a linked learner.</p>
@@ -1826,7 +1826,7 @@ function StepContainer({
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
           {icon}
         </div>
         <h2 className="text-xl font-bold text-white">{title}</h2>
@@ -1844,8 +1844,8 @@ function StepContainer({
 
 function Callout({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
-      <div className="text-primary flex-shrink-0 mt-0.5">{icon}</div>
+    <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-violet-400/20">
+      <div className="text-violet-300 flex-shrink-0 mt-0.5">{icon}</div>
       <p className="text-xs text-foreground">{children}</p>
     </div>
   );
@@ -1853,8 +1853,8 @@ function Callout({ icon, children }: { icon: React.ReactNode; children: React.Re
 
 function FeatureRow({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border">
-      <div className="text-primary flex-shrink-0 mt-0.5">{icon}</div>
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-[#151326] border border-white/10">
+      <div className="text-violet-300 flex-shrink-0 mt-0.5">{icon}</div>
       <div>
         <p className="text-sm font-semibold">{title}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
