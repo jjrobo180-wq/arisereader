@@ -8060,7 +8060,8 @@ Important:
       const links = await readParentStudentLinks();
       const allUsers = await storage.getAllUsers();
       const parentMap = new Map(allUsers.filter((u: any) => u.role === 'parent').map((u: any) => [u.id, u]));
-      const origin = `${req.protocol}://${req.get('host')}`;
+      const forwardedProtocol = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
+      const origin = `${forwardedProtocol}://${req.get("host")}`;
       const students = [];
       for (const student of roster) {
         const invite = await getOrCreateParentInvite(student.id);
@@ -8146,7 +8147,8 @@ Important:
       }
 
       const invite = await getOrCreateParentInvite(req.user.id);
-      const origin = `${req.protocol}://${req.get("host")}`;
+      const forwardedProtocol = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
+      const origin = `${forwardedProtocol}://${req.get("host")}`;
       const signupUrl = `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`;
       res.set("Cache-Control", "no-store");
       res.json({
@@ -8170,7 +8172,8 @@ Important:
         return res.status(400).json({ message: "Enter a valid parent or guardian email." });
       }
       const invite = await getOrCreateParentInvite(req.user.id);
-      const origin = `${req.protocol}://${req.get("host")}`;
+      const forwardedProtocol = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
+      const origin = `${forwardedProtocol}://${req.get("host")}`;
       const signupUrl = `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`;
       const studentName = String(req.user.displayName || "your student")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
