@@ -277,17 +277,12 @@ export default function Login() {
                       <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white"><Sparkles className="h-5 w-5" /></div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2">
-                      {[
-                        ["📚", "Read"],
-                        ["⚡", "Live"],
-                        ["🎮", "Play"],
-                        ["🏆", "Earn"],
-                        ["🐾", "Build"],
-                        ["👁️", "Access"],
-                      ].map(([emoji, title]) => (
-                        <div key={title} className="rounded-2xl border border-white/8 bg-white/[.045] p-3">
-                          <div className="text-xl">{emoji}</div>
-                          <div className="mt-2 text-xs font-black text-slate-100">{title}</div>
+                      {HERO_TILES.map(({ label, icon: TileIcon }) => (
+                        <div key={label} className="rounded-2xl border border-white/8 bg-white/[.045] p-3">
+                          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500/25 via-fuchsia-500/20 to-cyan-400/20 ring-1 ring-white/10">
+                            <TileIcon className="h-4 w-4 text-cyan-200" />
+                          </div>
+                          <div className="mt-2 text-xs font-black text-slate-300">{label}</div>
                         </div>
                       ))}
                     </div>
