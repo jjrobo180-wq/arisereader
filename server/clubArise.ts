@@ -102,6 +102,11 @@ function isStudent(user:any){
   return !!user && !user.isAdmin && user.role==="student" && !user.is_eye_gaze_user;
 }
 
+async function readerIdentity(userId:number,fallback:any){
+  const {data}=await getAdminSupabase().from("users").select("display_name,username").eq("id",userId).maybeSingle();
+  return String(data?.display_name||fallback?.displayName||data?.username||fallback?.username||"Reader");
+}
+
 function initialState(gameType:string){
   if(gameType==="four") return {
     board:Array.from({length:6},()=>Array(7).fill(null)),
@@ -262,14 +267,14 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       if(!isStudent(req.user))return res.status(403).json({message:"The Block is for student accounts."});
       const raw=await storage.getSetting("avatar_world_"+req.user.id);
       let state:any={};if(raw){try{state=await initializeLegacyPetCare(req.user.id,JSON.parse(raw));}catch{}}
-      const detail=await storage.getStudentDetail(req.user.id);
+      const displayName=await readerIdentity(req.user.id,req.user);
       const visitors=activeNeighborhoodVisitors();
       const existing=neighborhoodVisitors.get(req.user.id);
       const occupied=new Set(visitors.filter(v=>v.userId!==req.user.id&&v.lot>=0).map(v=>v.lot));
       const lot=existing&&existing.lot>=0?existing.lot:(Array.from({length:10},(_,i)=>i).find(i=>!occupied.has(i))??-1);
       const lotX=[0,-12,12,-24,24,0,-12,12,-24,24][lot]??0;
       const lotZ=lot>=5?-9:9;
-      const self:NeighborhoodVisitor={userId:req.user.id,displayName:detail?.user?.displayName||req.user.displayName||"Reader",
+      const self:NeighborhoodVisitor={userId:req.user.id,displayName,
         characterId:String(state.selectedCharacter||"robin-hood"),petId:activeWorldPet(state),
         homeId:HOME_IDS.has(state.equipped?.home)?state.equipped.home:"home-basic",lot,
         x:existing?.lot===lot?existing.x:lotX,z:existing?.lot===lot?existing.z:lotZ,facing:existing?.facing??0,updatedAt:Date.now()};
@@ -300,12 +305,14 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
     try{
       if(!isStudent(req.user)) return res.status(403).json({message:"A.R.I.S.E Arcade is for student accounts."});
       const payload:any=await (async()=>{
-        const detail=await storage.getStudentDetail(req.user.id);
-        const raw=await storage.getSetting("avatar_world_"+req.user.id);
+        const [displayName,raw]=await Promise.all([
+          readerIdentity(req.user.id,req.user),
+          storage.getSetting("avatar_world_"+req.user.id)
+        ]);
         let state:any={selectedCharacter:"robin-hood"};
         if(raw){try{state=await initializeLegacyPetCare(req.user.id,{...state,...JSON.parse(raw)});}catch{}}
         return {
-          displayName:detail?.user?.displayName||req.user.displayName||req.user.username||"Reader",
+          displayName,
           characterId:state.selectedCharacter||"robin-hood",
           petId:activeWorldPet(state),
           carId:CAR_IDS.has(state.equipped?.car)?state.equipped.car:"car-none",
@@ -351,10 +358,10 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       let carId="car-none";
       if(currentRaw){try{const parsed=await initializeLegacyPetCare(req.user.id,JSON.parse(currentRaw));selectedCharacter=parsed?.selectedCharacter||selectedCharacter;petId=activeWorldPet(parsed);if(CAR_IDS.has(parsed?.equipped?.car))carId=parsed.equipped.car;}catch{}}
       vehiclePresence.set(req.user.id,{carId,driving:!!req.body?.driving&&carId!=="car-none",updatedAt:Date.now()});
-      const detail=await storage.getStudentDetail(req.user.id);
+      const displayName=await readerIdentity(req.user.id,req.user);
       const row:any={
         user_id:req.user.id,
-        display_name:detail?.user?.displayName||req.user.displayName||req.user.username||"Reader",
+        display_name:displayName,
         character_id:selectedCharacter,pet_id:petId,
         x,z,facing,updated_at:new Date().toISOString(),
       };
