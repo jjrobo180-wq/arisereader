@@ -8097,6 +8097,91 @@ Important:
     }
   });
 
+  // Student-facing parent connection status. The invite disappears once any approved parent is linked.
+  app.get("/api/student/parent-connection", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      if (isDemoStudent(req.user) || req.adminPreview) {
+        return res.json({ linked: true, demo: true, parentCount: 1 });
+      }
+      const parentIds = await getStudentParentIds(req.user.id);
+      const approvedParents = [];
+      for (const parentId of parentIds) {
+        const parent = await storage.getUser(parentId);
+        if (parent?.role === "parent" && parent.accountApproved !== false) approvedParents.push(parent);
+      }
+      if (approvedParents.length) {
+        res.set("Cache-Control", "no-store");
+        return res.json({
+          linked: true,
+          parentCount: approvedParents.length,
+          parents: approvedParents.map((parent: any) => ({ id: parent.id, displayName: parent.displayName })),
+        });
+      }
+
+      const invite = await getOrCreateParentInvite(req.user.id);
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const signupUrl = `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`;
+      res.set("Cache-Control", "no-store");
+      res.json({
+        linked: false,
+        parentCount: 0,
+        code: invite.formattedCode,
+        signupUrl,
+        message: "Connect a parent or guardian to unlock book quizzes and reading tests.",
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not check parent connection." });
+    }
+  });
+
+  app.post("/api/student/parent-invite-email", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      if (isDemoStudent(req.user) || req.adminPreview) return res.json({ success: true, demo: true });
+      const email = String(req.body?.email || "").trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: "Enter a valid parent or guardian email." });
+      }
+      const invite = await getOrCreateParentInvite(req.user.id);
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const signupUrl = `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`;
+      const studentName = String(req.user.displayName || "your student")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const result = await sendEmail(
+        email,
+        `${req.user.displayName || "Your student"} invited you to A.R.I.S.E. Reader`,
+        `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;background:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px">
+          <h1 style="margin:0 0 8px;background:linear-gradient(90deg,#8b5cf6,#d946ef,#22d3ee);-webkit-background-clip:text;color:transparent">A.R.I.S.E. Reader</h1>
+          <h2 style="margin:24px 0 8px">Connect with ${studentName}</h2>
+          <p style="line-height:1.6;color:#cbd5e1">Create a free Parent account to connect to ${studentName}, view reading progress, and receive your private Parent Proctor Code for quizzes.</p>
+          <p style="margin:24px 0"><a href="${signupUrl}" style="display:inline-block;background:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:white;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px">Create / Connect Parent Account</a></p>
+          <p style="color:#94a3b8">Student link code: <strong style="color:#fff;letter-spacing:.08em">${invite.formattedCode}</strong></p>
+        </div>`
+      );
+      if (!result.sent) return res.status(503).json({ message: result.error || "Could not send the email right now." });
+      res.json({ success: true, message: "Parent invitation sent." });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not send the parent invitation." });
+    }
+  });
+
+  // A linked parent gets one private proctor code that works for every linked child.
+  app.get("/api/parent/proctor-password", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "parent" || req.user.accountApproved === false) {
+        return res.status(403).json({ message: "Approved parent account required." });
+      }
+      const linkedIds = await getParentStudentIds(req.user.id);
+      if (!linkedIds.length) return res.status(404).json({ message: "Link a student before using a Parent Proctor Code." });
+      const password = await getOrCreateParentProctorPassword(req.user.id);
+      res.set("Cache-Control", "no-store");
+      res.json({ password, linkedStudentCount: linkedIds.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not load your Parent Proctor Code." });
+    }
+  });
+
   // An existing parent account without a student may redeem a code after signing in.
   app.post('/api/parent/link-code', authMiddleware, async (req: any, res) => {
     try {
