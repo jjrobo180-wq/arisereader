@@ -50,6 +50,8 @@ export default function Quiz() {
   const [proctorPassword, setProctorPassword] = useState("");
   const [proctorError, setProctorError] = useState("");
   const [proctorLoading, setProctorLoading] = useState(false);
+  const [proctorSessionToken, setProctorSessionToken] = useState("");
+  const [proctorIdentity, setProctorIdentity] = useState<{ type: "parent" | "teacher"; name: string } | null>(null);
   const [showReviewRequest, setShowReviewRequest] = useState(false);
   const [reviewReason, setReviewReason] = useState("");
   const [speakingQId, setSpeakingQId] = useState<number | null>(null);
@@ -57,7 +59,7 @@ export default function Quiz() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
-  const isSampleStudent = !!user?.username?.startsWith('sample');
+  const isSampleStudent = !!user?.username?.startsWith('sample') || user?.username === 'tutorial-eye';
 
   const handleRequestReview = async () => {
     if (!token || !result?.attemptId) return;
@@ -158,10 +160,15 @@ export default function Quiz() {
       const res = await fetch(`${API_BASE}/api/verify-proctor`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ password: proctorPassword }),
+        body: JSON.stringify({ password: proctorPassword, quizKind: "book", quizId: Number(id) }),
       });
       const data = await res.json();
       if (res.ok && data.verified) {
+        setProctorSessionToken(String(data.proctorSessionToken || ""));
+        setProctorIdentity({
+          type: data.proctorType === "parent" ? "parent" : "teacher",
+          name: String(data.proctorName || (data.proctorType === "parent" ? "Parent / Guardian" : "Teacher / School Staff")),
+        });
         setProctorVerified(true);
       } else {
         setProctorError(data.message || "Incorrect password");
@@ -182,7 +189,7 @@ export default function Quiz() {
       const res = await fetch(`${API_BASE}/api/books/${id}/quiz`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ answers, proctorSessionToken }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -442,14 +449,14 @@ export default function Quiz() {
             </div>
             <h2 className="text-xl font-bold mb-2">Proctor Required</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Ask your teacher or proctor to enter the password to start the quiz.
+              Ask your linked parent/guardian or a teacher to enter their private proctor code to start the quiz.
             </p>
             {proctorError && (
               <p className="text-sm text-red-400 mb-3">{proctorError}</p>
             )}
             <input
               type="password"
-              placeholder="Proctor password"
+              placeholder="Parent or teacher proctor code"
               value={proctorPassword}
               onChange={(e) => { setProctorPassword(e.target.value); setProctorError(""); }}
               onKeyDown={(e) => { if (e.key === "Enter" && proctorPassword) handleProctorVerify(); }}
@@ -462,7 +469,7 @@ export default function Quiz() {
               className="w-full"
               data-testid="button-verify-proctor"
             >
-              {proctorLoading ? "Verifying..." : "Enter"}
+              {proctorLoading ? "Verifying..." : "Unlock Quiz"}
             </Button>
             <Button
               variant="ghost"
