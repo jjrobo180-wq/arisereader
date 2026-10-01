@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
+import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 
 interface AuthUser {
   id: number;
@@ -110,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const exitAdminPreview = useCallback(() => {
     sessionStorage.removeItem("arise_admin_preview_mode");
+    clearAuthenticatedNavigation();
     setAdminPreviewMode(null);
   }, []);
 
@@ -263,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.message || "Login failed");
     }
     const data = await res.json();
+    resetAuthenticatedNavigation(data.user);
     persistSession(data.user, data.token);
   }, [persistSession]);
 
@@ -277,6 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.message || "Registration failed");
     }
     const data = await res.json();
+    resetAuthenticatedNavigation(data.user);
     persistSession(data.user, data.token);
   }, [persistSession]);
 
