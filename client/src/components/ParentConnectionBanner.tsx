@@ -94,7 +94,7 @@ export default function ParentConnectionBanner() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-black tracking-[-.015em]">Connect a parent or guardian to unlock quizzes</p>
-          <p className="mt-0.5 hidden text-xs font-semibold text-slate-400 sm:block">
+          <p className="mt-0.5 hidden text-sm font-semibold text-slate-300 sm:block">
             They’ll get their own Parent Proctor Code after connecting to your account.
           </p>
         </div>
@@ -108,14 +108,14 @@ export default function ParentConnectionBanner() {
       </div>
 
       {expanded && (
-        <div className="border-t border-white/10 bg-gradient-to-r from-violet-500/[.07] via-fuchsia-500/[.04] to-cyan-400/[.06] p-4 sm:p-5">
+        <div className="border-t border-violet-400/20 bg-[#0d0b1a] p-4 sm:p-5">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[.035] p-4">
+            <div className="rounded-2xl border border-violet-400/20 bg-[#19152b] p-4 shadow-inner">
               <div className="flex items-center gap-2">
                 <Link2 className="h-4 w-4 text-violet-300" />
                 <p className="text-sm font-black">Parent sign-up link</p>
               </div>
-              <p className="mt-1 text-xs leading-5 text-slate-400">Send this link to a parent or guardian. Your private student code is already included.</p>
+              <p className="mt-1 text-sm leading-6 text-slate-200">Send this link to a parent or guardian. Your private student code is already included.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" onClick={() => void copy("link", status.signupUrl)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.055] px-3 py-2 text-xs font-black hover:bg-white/[.09]">
                   <Copy className="h-3.5 w-3.5" /> {copied === "link" ? "Copied" : "Copy link"}
@@ -127,7 +127,7 @@ export default function ParentConnectionBanner() {
                 )}
               </div>
               <div className="mt-3 rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2">
-                <p className="text-[10px] font-black uppercase tracking-[.16em] text-slate-400">Student connection code</p>
+                <p className="text-[11px] font-black uppercase tracking-[.16em] text-violet-200">Student connection code</p>
                 <div className="mt-1 flex items-center justify-between gap-2">
                   <span className="font-mono text-base font-black tracking-[.12em] text-violet-200">{status.code}</span>
                   <button type="button" onClick={() => void copy("code", status.code)} className="rounded-lg p-1.5 text-violet-200 hover:bg-white/[.07]" aria-label="Copy parent code">
@@ -137,12 +137,12 @@ export default function ParentConnectionBanner() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[.035] p-4">
+            <div className="rounded-2xl border border-violet-400/20 bg-[#19152b] p-4 shadow-inner">
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-cyan-300" />
                 <p className="text-sm font-black">Email a parent or guardian</p>
               </div>
-              <p className="mt-1 text-xs leading-5 text-slate-400">A.R.I.S.E. will email the sign-up link and your connection code for you.</p>
+              <p className="mt-1 text-sm leading-6 text-slate-200">A.R.I.S.E. will email the sign-up link and your connection code for you.</p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <input
                   type="email"
@@ -150,7 +150,7 @@ export default function ParentConnectionBanner() {
                   onChange={(event) => { setEmail(event.target.value); setMessage(""); }}
                   onKeyDown={(event) => { if (event.key === "Enter") void sendInvite(); }}
                   placeholder="parent@email.com"
-                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-400/35"
+                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-cyan-400/25 bg-[#080713] px-3 text-base font-semibold text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-400/10"
                 />
                 <button
                   type="button"
@@ -164,7 +164,7 @@ export default function ParentConnectionBanner() {
               {message && <p className="mt-2 text-xs font-bold text-cyan-200">{message}</p>}
               <div className="mt-3 flex items-start gap-2 rounded-xl border border-cyan-400/15 bg-cyan-500/[.06] p-3">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                <p className="text-[11px] leading-4 text-slate-400">Once they connect, this notice disappears automatically and their Parent Proctor Code can unlock your quizzes and tests.</p>
+                <p className="text-xs leading-5 text-slate-200">Once they connect, this notice disappears automatically and their Parent Proctor Code can unlock your quizzes and tests.</p>
               </div>
             </div>
           </div>
