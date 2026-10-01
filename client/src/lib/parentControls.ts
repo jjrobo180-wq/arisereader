@@ -7,6 +7,7 @@ export type ParentControls = {
   enabled: boolean;
   allowedPaths: string[];
   tvDailyMinutes: number;
+  gameDailyMinutes: number;
   tvAgeRange: "2-4" | "5-7" | "8-10" | "11-13";
   tvTopics: string[];
   tvChannels: string[];
@@ -31,6 +32,7 @@ export function defaultParentControls(): ParentControls {
     enabled: false,
     allowedPaths: CONTROLLED_FEATURES.map(item => item.path),
     tvDailyMinutes: 0,
+    gameDailyMinutes: 0,
     tvAgeRange: "2-4",
     tvTopics: ["animals", "numbers", "letters", "feelings"],
     tvChannels: normalizeYoutubeChannels(undefined),
@@ -48,6 +50,7 @@ export function cachedParentControls(): ParentControls {
       enabled: !!raw.enabled,
       allowedPaths: Array.isArray(raw.allowedPaths) ? raw.allowedPaths : defaultParentControls().allowedPaths,
       tvDailyMinutes: Math.max(0, Math.min(240, Number(raw.tvDailyMinutes ?? 0) || 0)),
+      gameDailyMinutes: Math.max(0, Math.min(240, Number(raw.gameDailyMinutes ?? 0) || 0)),
       tvAgeRange: ["2-4","5-7","8-10","11-13"].includes(raw.tvAgeRange) ? raw.tvAgeRange : "2-4",
       tvTopics: Array.isArray(raw.tvTopics) && raw.tvTopics.length ? raw.tvTopics : ["animals","numbers","letters","feelings"],
       tvChannels: normalizeYoutubeChannels(raw.tvChannels),
@@ -96,6 +99,17 @@ export async function saveFamilySettings(token: string | null | undefined, setti
   });
   cache(result.settings);
   return result;
+}
+
+export async function getGameUsage(token: string | null | undefined) {
+  return request<{ seconds: number; minutes: number }>(token, "/api/eye-gaze/game-usage");
+}
+
+export async function addGameUsage(token: string | null | undefined, seconds: number) {
+  return request<{ seconds: number; minutes: number }>(token, "/api/eye-gaze/game-usage", {
+    method: "POST",
+    body: JSON.stringify({ seconds }),
+  });
 }
 
 export async function getTvUsage(token: string | null | undefined) {
