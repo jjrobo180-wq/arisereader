@@ -267,6 +267,47 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
     }
   });
 
+  app.get('/api/admin/teacher-club-closing-hours', auth, async (req:any,res) => {
+    if (!req.user?.isAdmin) return res.status(403).json({ message: 'Admin access required.' });
+    try {
+      const db = getAdminSupabase();
+      const { data: teachers, error } = await db.from('users').select('id,display_name,username').eq('role','teacher').order('display_name');
+      if (error) throw error;
+      const rows = [];
+      for (const teacher of teachers || []) {
+        const schedule = await getTeacherClosingHours(Number(teacher.id));
+        rows.push({ id:Number(teacher.id), displayName:teacher.display_name || teacher.username, username:teacher.username, schedule:{...schedule,closedNow:closingStatus(schedule)} });
+      }
+      res.set('Cache-Control','no-store');
+      res.json({ teachers: rows });
+    } catch {
+      res.status(500).json({ message:'Could not load teacher Club closing hours.' });
+    }
+  });
+
+  app.post('/api/admin/teacher-club-closing-hours/:teacherId', auth, async (req:any,res) => {
+    if (!req.user?.isAdmin) return res.status(403).json({ message: 'Admin access required.' });
+    try {
+      const teacherId = Number(req.params.teacherId);
+      if (!Number.isSafeInteger(teacherId) || teacherId < 1) return res.status(400).json({ message:'Invalid teacher.' });
+      const db = getAdminSupabase();
+      const { data: teacher, error: teacherError } = await db.from('users').select('id,role').eq('id',teacherId).maybeSingle();
+      if (teacherError) throw teacherError;
+      if (!teacher || teacher.role !== 'teacher') return res.status(404).json({ message:'Teacher not found.' });
+      const start=String(req.body?.start||''), end=String(req.body?.end||'');
+      const days=Array.isArray(req.body?.days)?req.body.days.map(Number).filter((d:number)=>Number.isInteger(d)&&d>=0&&d<=6):[];
+      if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return res.status(400).json({ message:'Choose a valid closing and reopening time.' });
+      const schedule: ClubClosingHours={enabled:req.body?.enabled===true,start,end,days:Array.from(new Set(days)).sort((a,b)=>a-b),timeZone:'America/Denver'};
+      const { error }=await db.from('settings').upsert({key:`club_closing_hours_teacher_${teacherId}`,value:JSON.stringify(schedule)},{onConflict:'key'});
+      if(error) throw error;
+      teacherClosingCache.set(teacherId,{value:schedule,until:Date.now()+5_000});
+      cached.clear();
+      res.json({ teacherId, schedule:{...schedule,closedNow:closingStatus(schedule)}, message:'Teacher class closing hours overridden.' });
+    } catch {
+      res.status(500).json({ message:'Could not override teacher Club closing hours.' });
+    }
+  });
+
   app.get('/api/teacher/club-closing-hours', auth, async (req:any,res) => {
     if (req.user?.role !== 'teacher' || req.user?.accountApproved === false) return res.status(403).json({ message: 'Approved teacher access required.' });
     try {
