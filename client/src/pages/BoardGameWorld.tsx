@@ -10,7 +10,24 @@ const LEVELS:Level[]=['K-2','3-5','6-8','9-12'];
 const HAND_LABELS:Record<Hand,string>={rock:'✊ Rock',paper:'✋ Paper',scissors:'✌️ Scissors'};
 const EVENT_HELP:Record<string,string>={points:'Your team earns 50 Board Quest points.',safe:'Nothing bad happens here. You are safe this turn.',steal:'Your team takes up to 30 points from the other team.',shield:'You gain a shield. It automatically blocks your next strike.',power:'Your next dice roll gets +2 extra spaces.',rps:'Battle an opponent. Both players choose privately; Rock beats Scissors, Scissors beats Paper, and Paper beats Rock. The loser gets a strike.',bonus:'Jackpot! Your team earns 100 Board Quest points.'};
 function Score({value,team,delta,name}:{name:string;value:number;team:'blue'|'gold';delta:number}){const [display,setDisplay]=useState(value),from=useRef(value);useEffect(()=>{const start=performance.now(),initial=from.current;let frame=0;const animate=(now:number)=>{const t=Math.min(1,(now-start)/1100),v=Math.round(initial+(value-initial)*(1-(1-t)**3));from.current=v;setDisplay(v);if(t<1)frame=requestAnimationFrame(animate)};frame=requestAnimationFrame(animate);return()=>cancelAnimationFrame(frame)},[value]);return <div className={`bq-score ${team}`} aria-label={`${team} team ${value} points`}><span>{name}</span><strong>{display}</strong>{delta!==0&&<b key={value} className="bq-score-delta">{delta>0?'+':''}{delta}</b>}</div>}
-function World({view,offset}:{view:View;offset:number}){const host=useRef<HTMLDivElement>(null),scene=useRef<BoardScene|null>(null);const [failed,setFailed]=useState(false),[ready,setReady]=useState(false),[progress,setProgress]=useState(0);const roster=view.players.map(p=>p.id).join(',');useEffect(()=>{setFailed(false);setReady(false);setProgress(0);try{scene.current=new BoardScene(host.current!,view,offset,()=>setReady(true),(loaded,total)=>setProgress(Math.round(loaded/Math.max(1,total)*100)))}catch{setFailed(true)}return()=>{scene.current?.dispose();scene.current=null}},[view.code,roster]);useEffect(()=>{scene.current?.update(view,offset)},[view,offset]);return <><div ref={host} className="bq-canvas"/>{!ready&&!failed&&<div className="bq-loading" role="status"><Dices size={54}/><strong>Building Board Quest…</strong><span>Loading players & world · {progress}%</span><div><i style={{width:`${progress}%`}}/></div></div>}{failed&&<div className="bq-render-error" role="alert">The 3D view could not start.<button onClick={()=>window.location.reload()}>Reload game</button></div>}</>}
+function World({view,offset}:{view:View;offset:number}){
+ const host=useRef<HTMLDivElement>(null),scene=useRef<BoardScene|null>(null);
+ const [failed,setFailed]=useState(false),[ready,setReady]=useState(false),[progress,setProgress]=useState(0),[reset,setReset]=useState(0);
+ const roster=view.players.map(p=>p.id).join(',');
+ useEffect(()=>{
+  setFailed(false);setReady(false);setProgress(0);
+  const target=host.current;if(!target)return;
+  let canvas:HTMLCanvasElement|null=null;
+  const contextLost=(event:Event)=>{event.preventDefault();try{scene.current?.dispose()}catch{}scene.current=null;setReady(false);setFailed(true);};
+  try{
+   scene.current=new BoardScene(target,view,offset,()=>setReady(true),(loaded,total)=>setProgress(Math.round(loaded/Math.max(1,total)*100)));
+   canvas=target.querySelector('canvas');canvas?.addEventListener('webglcontextlost',contextLost,false);
+  }catch(error){console.error('[board-quest] 3D scene failed',error);setFailed(true);}
+  return()=>{canvas?.removeEventListener('webglcontextlost',contextLost,false);try{scene.current?.dispose()}catch{}scene.current=null;};
+ },[view.code,roster,reset]);
+ useEffect(()=>{try{scene.current?.update(view,offset)}catch(error){console.error('[board-quest] scene update recovered',error);try{scene.current?.dispose()}catch{}scene.current=null;setFailed(true);setReady(false);}},[view,offset]);
+ return <><div ref={host} className="bq-canvas"/>{!ready&&!failed&&<div className="bq-loading" role="status"><Dices size={54}/><strong>Building Board Quest…</strong><span>Loading players & world · {progress}%</span><div><i style={{width:`${progress}%`}}/></div></div>}{failed&&<div className="bq-render-error" role="alert">Board Quest recovered from a 3D rendering problem.<button onClick={()=>setReset(n=>n+1)}>Restart 3D view</button></div>}</>
+}
 export default function BoardGameWorld(){
  const {user,token}=useAuth();const [view,setView]=useState<View|null>(null),[level,setLevel]=useState<Level>('6-8'),[code,setCode]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[offline,setOffline]=useState(false),[offset,setOffset]=useState(0),[now,setNow]=useState(Date.now()),[sound,setSound]=useState(true),[lobbies,setLobbies]=useState<LobbySummary[]>([]);
  const soundRef=useRef<AudioContext|null>(null),soundCue=useRef(''),ambientCue=useRef(''),musicTimer=useRef<number|null>(null),musicGain=useRef<GainNode|null>(null),musicMode=useRef<'epic'|'chill'|null>(null),mounted=useRef(true),requestLock=useRef(false),requestSerial=useRef(0),latestSerial=useRef(0),pollFailures=useRef(0);
