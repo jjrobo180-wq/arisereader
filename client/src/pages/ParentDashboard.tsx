@@ -375,7 +375,7 @@ export default function ParentDashboard() {
                     </div>
 
                     {eyeControls && (
-                      <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 sm:grid-cols-2">
+                      <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 sm:grid-cols-3">
                         <label className="flex items-center justify-between gap-4">
                           <div><strong className="block text-sm">Eye Gazer games</strong><span className="text-xs text-muted-foreground">Quickly allow or block the Games area.</span></div>
                           <input
@@ -389,6 +389,19 @@ export default function ParentDashboard() {
                               void saveEyeControls({ ...eyeControls, enabled: true, allowedPaths });
                             }}
                             className="h-6 w-6"
+                          />
+                        </label>
+                        <label className="flex items-center gap-3">
+                          <Gamepad2 className="h-5 w-5 text-cyan-400" />
+                          <div className="flex-1"><strong className="block text-sm">Daily game minutes</strong><span className="text-xs text-muted-foreground">0 means unlimited.</span></div>
+                          <input
+                            type="number"
+                            min={0}
+                            max={240}
+                            value={eyeControls.gameDailyMinutes}
+                            onChange={e => setEyeControls({ ...eyeControls, gameDailyMinutes: Math.max(0, Math.min(240, Number(e.target.value) || 0)) })}
+                            onBlur={() => eyeControls && void saveEyeControls(eyeControls)}
+                            className="w-20 rounded-lg border border-border bg-background p-2 text-right"
                           />
                         </label>
                         <label className="flex items-center gap-3">
