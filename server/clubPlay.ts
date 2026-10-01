@@ -87,6 +87,7 @@ function closingStatus(schedule: ClubClosingHours, now = Date.now()) {
 }
 const entitlements = new Map<number, {
   passedThisWeek: number;
+  teacherId: number | null;
   locked: boolean;
   weeklyUnlimitedOnPass: boolean;
   unlimitedThisWeek: boolean;
