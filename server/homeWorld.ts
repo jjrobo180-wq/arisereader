@@ -87,9 +87,9 @@ async function ensureHome(user:any,registry?:HomeRegistry){
     return {registry:reg,home:next};
   }
 
-  const occupied=new Set(Object.values(reg.homes).map(home=>home.lot));
-  const lot=LOTS.findIndex((_,index)=>!occupied.has(index));
-  if(lot<0)return {registry:reg,home:null as HomeRecord|null};
+  // Property ownership is unlimited. The 18 physical lots are a view window,
+  // not a hard cap on how many students may own homes.
+  const lot=Math.abs(Number(user.id)||0)%LOTS.length;
   const coords=LOTS[lot];
   const record:HomeRecord={
     ownerId:user.id,displayName,homeId,
@@ -106,8 +106,20 @@ export function registerHomeWorldRoutes(app:Express){
     try{
       if(!isStudent(req.user))return res.status(403).json({message:"The Block is for student accounts."});
       const {registry,home}=await ensureHome(req.user);
+      const allHomes=Object.values(registry.homes);
+      const others=allHomes
+        .filter(item=>item.ownerId!==req.user.id)
+        .sort((a,b)=>a.ownerId-b.ownerId)
+        .slice(0,Math.max(0,LOTS.length-1));
+      const visible=(home?[home,...others]:others).slice(0,LOTS.length).map((item,index)=>({
+        ...item,
+        lot:index,
+        x:LOTS[index].x,
+        z:LOTS[index].z,
+      }));
+      const myHome=visible.find(item=>item.ownerId===req.user.id)||null;
       res.set("Cache-Control","no-store");
-      res.json({myHome:home,homes:Object.values(registry.homes).sort((a,b)=>a.lot-b.lot),capacity:LOTS.length});
+      res.json({myHome,homes:visible,capacity:LOTS.length,totalProperties:allHomes.length});
     }catch(error:any){
       console.error("[homes] neighborhood",error?.message);
       res.status(500).json({message:"Could not load neighborhood homes."});
