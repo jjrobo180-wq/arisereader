@@ -30,6 +30,14 @@ export type PlayAccess = {
   dailyMinutes: number;
   weeklyUnlimitedOnPass: boolean;
   passedThisWeek: number;
+  closedByAdmin?: boolean;
+  closingHours?: {
+    enabled: boolean;
+    start: string;
+    end: string;
+    days: number[];
+    timeZone: string;
+  } | null;
 };
 
 export function updatePlayRecord(
