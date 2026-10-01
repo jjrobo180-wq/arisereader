@@ -2126,9 +2126,9 @@ Generate exactly 10 questions.`;
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => safeBack(navigate)}
+            onClick={() => safeBack(navigate, "/admin")}
             className="flex-shrink-0"
-            title="Go back to the page you came from"
+            title="Go back within your signed-in A.R.I.S.E. session"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Back</span>
