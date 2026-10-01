@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { BrandText } from "@/components/BrandText";
-import { BookOpen, Brain, Trophy, Target, TrendingUp, ChevronRight, Clock, Award, BarChart3, ArrowRight, RotateCcw, CheckCircle2, Timer, Send, AlertCircle, Lock, Zap } from "lucide-react";
+import { BookOpen, Brain, Trophy, Target, TrendingUp, ChevronRight, Clock, Award, BarChart3, ArrowRight, RotateCcw, CheckCircle2, Timer, Send, AlertCircle, Lock, Zap, KeyRound } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -164,12 +164,16 @@ export default function ReadingAssessment() {
   const [showRetakeForm, setShowRetakeForm] = useState(false);
   const [retakeReason, setRetakeReason] = useState("");
   const [showStartConfirm, setShowStartConfirm] = useState(false);
+  const [assessmentProctorPassword, setAssessmentProctorPassword] = useState("");
+  const [assessmentProctorError, setAssessmentProctorError] = useState("");
+  const [assessmentProctorIdentity, setAssessmentProctorIdentity] = useState<{ type: "parent" | "teacher"; name: string } | null>(null);
   const [currentRound, setCurrentRound] = useState(0);
   const [eyeGazeProfile, setEyeGazeProfile] = useState<any>(null);
   const [eyeGazeHistory, setEyeGazeHistory] = useState<any[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const authToken = getTokenFromCookie();
+  const isDemoStudent = !!user?.username?.startsWith("sample") || user?.username === "tutorial-eye";
 
   const fetchProfile = useCallback(async () => {
     if (!authToken) return;
@@ -273,16 +277,43 @@ export default function ReadingAssessment() {
   }, []);
 
   const startAssessment = async () => {
-    setShowStartConfirm(false);
     if (!authToken) return;
+    if (!assessmentProctorPassword && !isDemoStudent && !user?.isAdmin && user?.role !== "teacher") {
+      setAssessmentProctorError("Ask your linked parent/guardian or teacher to enter their proctor code.");
+      return;
+    }
     setLoading(true);
     setError("");
-    setPhase("loading");
+    setAssessmentProctorError("");
     try {
+      let proctorSessionToken = "demo";
+      if (!isDemoStudent && !user?.isAdmin && user?.role !== "teacher") {
+        const verify = await fetch(`${API_BASE}/api/verify-proctor`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            password: assessmentProctorPassword,
+            quizKind: "reading_assessment",
+            quizId: 0,
+          }),
+        });
+        const verified = await verify.json().catch(() => ({}));
+        if (!verify.ok || !verified.verified) {
+          setAssessmentProctorError(verified.message || "That proctor code is not valid.");
+          return;
+        }
+        proctorSessionToken = String(verified.proctorSessionToken || "");
+        setAssessmentProctorIdentity({
+          type: verified.proctorType === "parent" ? "parent" : "teacher",
+          name: String(verified.proctorName || (verified.proctorType === "parent" ? "Parent / Guardian" : "Teacher / School Staff")),
+        });
+      }
+
+      setPhase("loading");
       const res = await fetch(`${API_BASE}/api/reading-assessment/start-comprehensive`, {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ proctorSessionToken }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -293,14 +324,15 @@ export default function ReadingAssessment() {
         setTimeLeft(ASSESSMENT_TIME_LIMIT);
         setTimeUsed(0);
         setCurrentRound(0);
+        setShowStartConfirm(false);
         setPhase("reading");
       } else {
-        const errData = await res.json();
-        setError(errData.message || "Failed to start assessment");
+        const errData = await res.json().catch(() => ({}));
+        setAssessmentProctorError(errData.message || "Failed to start assessment");
         setPhase("intro");
       }
     } catch {
-      setError("Failed to start assessment");
+      setAssessmentProctorError("Failed to start assessment");
       setPhase("intro");
     } finally {
       setLoading(false);
@@ -692,13 +724,13 @@ export default function ReadingAssessment() {
             ) : (
               <>
                 {canRetake ? (
-                  <Button size="lg" onClick={() => setShowStartConfirm(true)} disabled={loading} className="px-8">
+                  <Button size="lg" onClick={() => { setAssessmentProctorError(""); setAssessmentProctorPassword(""); setShowStartConfirm(true); }} disabled={loading} className="px-8">
                     <RotateCcw className="w-5 h-5 mr-2" />
                     Take Retake Assessment
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 ) : (
-                  <Button size="lg" onClick={() => setShowStartConfirm(true)} disabled={loading} className="px-8">
+                  <Button size="lg" onClick={() => { setAssessmentProctorError(""); setAssessmentProctorPassword(""); setShowStartConfirm(true); }} disabled={loading} className="px-8">
                     <Brain className="w-5 h-5 mr-2" />
                     {hasProfile ? "Take New Assessment" : "Start Reading Assessment"}
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -777,9 +809,31 @@ export default function ReadingAssessment() {
                   </div>
                 </div>
               </div>
+              {!isDemoStudent && !user?.isAdmin && user?.role !== "teacher" && (
+                <div className="mb-4">
+                  <label className="mb-2 block text-left text-xs font-black uppercase tracking-[.14em] text-muted-foreground">
+                    Parent or teacher proctor code
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+                    <input
+                      type="password"
+                      value={assessmentProctorPassword}
+                      onChange={(e) => { setAssessmentProctorPassword(e.target.value); setAssessmentProctorError(""); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") void startAssessment(); }}
+                      placeholder="Enter proctor code"
+                      className="min-h-12 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm font-bold outline-none focus:border-primary"
+                    />
+                  </div>
+                  <p className="mt-2 text-left text-xs text-muted-foreground">
+                    A linked parent/guardian can use the Parent Proctor Code from their Parent Portal. Teachers can use the school proctor code.
+                  </p>
+                  {assessmentProctorError && <p className="mt-2 text-left text-xs font-bold text-red-400">{assessmentProctorError}</p>}
+                </div>
+              )}
               <div className="flex gap-3">
-                <Button size="sm" onClick={startAssessment} disabled={loading} className="flex-1">
-                  <Zap className="w-4 h-4 mr-1" /> {loading ? "Starting..." : "Start Now"}
+                <Button size="sm" onClick={() => void startAssessment()} disabled={loading || (!isDemoStudent && !user?.isAdmin && user?.role !== "teacher" && !assessmentProctorPassword)} className="flex-1">
+                  <Zap className="w-4 h-4 mr-1" /> {loading ? "Checking..." : "Verify & Start"}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setShowStartConfirm(false)} disabled={loading} className="flex-1">
                   Cancel
@@ -807,6 +861,12 @@ export default function ReadingAssessment() {
         </header>
 
         <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+          {assessmentProctorIdentity && (
+            <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-xs">
+              <strong className="text-cyan-300">Proctored by {assessmentProctorIdentity.type === "parent" ? "Parent / Guardian" : "Teacher / School Staff"}</strong>
+              <span className="text-muted-foreground"> · {assessmentProctorIdentity.name}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-muted-foreground">
               Passage {currentRound + 1} of {passages.length}
