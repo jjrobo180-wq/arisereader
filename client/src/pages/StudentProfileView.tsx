@@ -37,6 +37,9 @@ interface QuizResult {
   passed: boolean;
   passingScore: number;
   completedAt: string;
+  proctorType?: "parent" | "teacher" | null;
+  proctorUserId?: number | null;
+  proctorName?: string | null;
 }
 
 interface ProfileData {
@@ -45,6 +48,7 @@ interface ProfileData {
   quizzesTaken: number;
   totalBooks: number;
   quizResults: QuizResult[];
+  readingAssessments?: any[];
 }
 
 export default function StudentProfileView() {
@@ -182,6 +186,12 @@ export default function StudentProfileView() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{r.title}</p>
                       <p className="text-xs text-muted-foreground">{r.author}</p>
+                      {r.proctorType && (
+                        <p className={`mt-1 text-[11px] font-bold ${r.proctorType === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
+                          {r.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
+                          {r.proctorName ? ` · ${r.proctorName}` : ""}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="font-bold text-sm">{r.score}/{r.total}</div>
@@ -211,6 +221,34 @@ export default function StudentProfileView() {
             )}
           </CardContent>
         </Card>
+
+        {!!data.readingAssessments?.length && (
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="w-5 h-5" />
+                Reading Assessment History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {data.readingAssessments.map((assessment: any) => (
+                <div key={assessment.id} className="flex flex-col gap-1 rounded-xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold">{assessment.reading_passages?.title || "Progress Monitor"}</p>
+                    <p className="text-xs text-muted-foreground">{assessment.completed_at ? new Date(assessment.completed_at).toLocaleDateString() : "In progress"}</p>
+                    {assessment.proctor_type && (
+                      <p className={`mt-1 text-[11px] font-bold ${assessment.proctor_type === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
+                        {assessment.proctor_type === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
+                        {assessment.proctor_name ? ` · ${assessment.proctor_name}` : ""}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-sm font-black">{assessment.score ?? "—"}/{assessment.total ?? "—"}</div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );
