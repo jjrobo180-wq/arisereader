@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye, Gamepad2, Image as ImageIcon, Heart, Shield, Footprints } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye, Gamepad2, Image as ImageIcon, Heart, Shield, Footprints, Lock, KeyRound } from "lucide-react";
 import { speakQuestion, speak, stopSpeaking } from "@/lib/tts";
 import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
@@ -46,8 +46,7 @@ export default function EyeGazeQuiz() {
   const quizId = parseInt(id || "0");
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  // No proctor phase - eye gaze quizzes don't require a password
-  const [phase, setPhase] = useState<"loading" | "quiz" | "results">("loading");
+  const [phase, setPhase] = useState<"proctor" | "loading" | "quiz" | "results">("proctor");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -60,6 +59,11 @@ export default function EyeGazeQuiz() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [countdownAnswer, setCountdownAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [proctorPassword, setProctorPassword] = useState("");
+  const [proctorSessionToken, setProctorSessionToken] = useState("");
+  const [proctorLoading, setProctorLoading] = useState(false);
+  const [proctorError, setProctorError] = useState("");
+  const [proctorIdentity, setProctorIdentity] = useState<{ type: "parent" | "teacher"; name: string } | null>(null);
   const countdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const [celebrationTrigger, setCelebrationTrigger] = useState(0);
@@ -71,6 +75,43 @@ export default function EyeGazeQuiz() {
   const [bossHealth, setBossHealth] = useState(0);
   const [lastFeedback, setLastFeedback] = useState<"correct" | "try" | null>(null);
   const correctButtonRef = useRef<HTMLElement | null>(null);
+
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
+  const isDemoStudent = !!user?.username?.startsWith('sample') || user?.username === 'tutorial-eye';
+
+  useEffect(() => {
+    if (!user) return;
+    if (isTeacherOrAdmin || isDemoStudent) setPhase("loading");
+  }, [user, isTeacherOrAdmin, isDemoStudent]);
+
+  const handleProctorVerify = async () => {
+    const token = getTokenFromCookie();
+    if (!token || !proctorPassword || !quizId) return;
+    setProctorLoading(true);
+    setProctorError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/verify-proctor`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ password: proctorPassword, quizKind: "eye_gaze", quizId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.verified) {
+        setProctorError(data.message || "That proctor code is not valid.");
+        return;
+      }
+      setProctorSessionToken(String(data.proctorSessionToken || ""));
+      setProctorIdentity({
+        type: data.proctorType === "parent" ? "parent" : "teacher",
+        name: String(data.proctorName || (data.proctorType === "parent" ? "Parent / Guardian" : "Teacher / School Staff")),
+      });
+      setPhase("loading");
+    } catch {
+      setProctorError("Could not verify the proctor code.");
+    } finally {
+      setProctorLoading(false);
+    }
+  };
 
   // Neural AI voice cleanup
   useEffect(() => {
@@ -99,15 +140,15 @@ export default function EyeGazeQuiz() {
     fetch(`${API_BASE}/api/eye-gaze/quizzes/${quizId}/start`, {
       method: "POST",
       headers,
+      body: JSON.stringify({ proctorSessionToken }),
     })
-      .then((r) => {
-        if (r.status === 400) {
-          return r.json().then((d) => {
-            setError(d.message);
-            return null;
-          });
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setError(d.message || "Could not start this quiz.");
+          return null;
         }
-        return r.json();
+        return d;
       })
       .then((data) => {
         if (data && data.questions) {
@@ -117,7 +158,7 @@ export default function EyeGazeQuiz() {
         }
       })
       .catch(() => setError("Failed to load quiz"));
-  }, [quizId, user, phase]);
+  }, [quizId, user, phase, proctorSessionToken]);
 
   // Speak question, then read all answer options back-to-back
   useEffect(() => {
@@ -186,7 +227,6 @@ export default function EyeGazeQuiz() {
   }, []);
 
   // Spectator mode for teachers/admins
-  const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
   const [spectatorQuestions, setSpectatorQuestions] = useState<any[]>([]);
   const [spectatorLoading, setSpectatorLoading] = useState(false);
 
@@ -241,6 +281,48 @@ export default function EyeGazeQuiz() {
           <button onClick={() => navigate("/library")} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium inline-flex items-center gap-2">
             <ArrowLeft size={16} /> Back to Library
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "proctor" && !isTeacherOrAdmin && !isDemoStudent) {
+    return (
+      <div className="min-h-screen bg-background p-4 flex items-center justify-center">
+        <div className="w-full max-w-lg rounded-[1.75rem] border border-violet-400/20 bg-card p-6 text-center shadow-2xl sm:p-8">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white">
+            <Lock className="h-8 w-8" />
+          </div>
+          <p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-violet-400">Parent or Teacher Proctor</p>
+          <h1 className="mt-2 text-2xl font-black">A grown-up must unlock this quiz.</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            Ask your linked parent or guardian for their Parent Proctor Code, or ask a teacher to enter the school proctor code.
+          </p>
+          <div className="mt-5">
+            <div className="relative">
+              <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-violet-400" />
+              <input
+                type="password"
+                value={proctorPassword}
+                onChange={(event) => { setProctorPassword(event.target.value); setProctorError(""); }}
+                onKeyDown={(event) => { if (event.key === "Enter") void handleProctorVerify(); }}
+                placeholder="Parent or teacher proctor code"
+                className="min-h-14 w-full rounded-2xl border border-border bg-background pl-12 pr-4 text-lg font-bold outline-none focus:border-violet-400"
+              />
+            </div>
+            {proctorError && <p className="mt-3 text-sm font-bold text-red-500">{proctorError}</p>}
+            <button
+              type="button"
+              onClick={() => void handleProctorVerify()}
+              disabled={!proctorPassword || proctorLoading}
+              className="mt-4 min-h-14 w-full rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 px-5 text-base font-black text-white disabled:opacity-50"
+            >
+              {proctorLoading ? "Checking…" : "Unlock Quiz"}
+            </button>
+            <button type="button" onClick={() => navigate("/library")} className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground">
+              <ArrowLeft className="h-4 w-4" /> Back to Library
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -438,6 +520,12 @@ export default function EyeGazeQuiz() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "1rem" }}>
+      {proctorIdentity && !isDemoStudent && (
+        <div className="mb-3 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm">
+          <span className="font-black text-cyan-400">Unlocked by {proctorIdentity.type === "parent" ? "Parent / Guardian" : "Teacher / School Staff"}</span>
+          <span className="text-muted-foreground"> · {proctorIdentity.name}</span>
+        </div>
+      )}
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
         <button onClick={() => { stopSpeaking(); navigate("/library"); }} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "hsl(0 0% 66%)", fontSize: "1rem", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}>
