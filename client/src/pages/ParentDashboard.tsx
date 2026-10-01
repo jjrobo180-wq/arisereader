@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -90,13 +90,20 @@ export default function ParentDashboard() {
   const [eyeControls, setEyeControls] = useState<ParentControls | null>(null);
   const [controlSaving, setControlSaving] = useState(false);
   const [controlMessage, setControlMessage] = useState("");
+  const profileRequest = useRef(0);
+  const [controlsError, setControlsError] = useState("");
 
   const authToken = token || getTokenFromCookie();
 
   const loadProfile = useCallback(async (studentId: number) => {
     if (!authToken) return;
+    const requestId = ++profileRequest.current;
     setSwitching(true);
     setError("");
+    setControlsError("");
+    setData(null);
+    setEyeControls(null);
+    setRegularControls(DEFAULT_REGULAR_CONTROLS);
     setGrowthCheck(null);
     setControlMessage("");
     try {
@@ -109,45 +116,48 @@ export default function ParentDashboard() {
       });
       const profile = await res.json();
       if (!res.ok) throw new Error(profile.message || "Failed to load student profile");
-      setData(profile);
+      if (requestId !== profileRequest.current) return;
 
       void fetch(`${API_BASE}/api/family/growth-check/student/${studentId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
         cache: "no-store",
       })
         .then(r => r.ok ? r.json() : null)
-        .then(gc => setGrowthCheck(gc?.available ? gc : null))
-        .catch(() => setGrowthCheck(null));
+        .then(gc => { if (requestId === profileRequest.current) setGrowthCheck(gc?.available ? gc : null); })
+        .catch(() => { if (requestId === profileRequest.current) setGrowthCheck(null); });
 
-      if (profile.student.isEyeGazeUser) {
-        setRegularControls(DEFAULT_REGULAR_CONTROLS);
-        void fetchFamilySettings(authToken)
-          .then(result => setEyeControls(result.settings))
-          .catch(() => setEyeControls(null));
-      } else {
-        setEyeControls(null);
-        void fetch(`${API_BASE}/api/parent/student-controls/${studentId}`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-          cache: "no-store",
-        })
-          .then(async r => ({ ok: r.ok, body: await r.json() }))
-          .then(({ ok, body }) => {
-            if (!ok) return;
-            const c = body.control || {};
-            setRegularControls({
-              locked: !!c.locked,
-              dailyGameLimit: c.daily_game_limit === null || c.daily_game_limit === undefined ? null : Number(c.daily_game_limit),
-              gamesPerPassedQuiz: Number(c.games_per_passed_quiz || 0),
-              weeklyUnlimitedOnPass: c.weekly_unlimited_on_pass !== false,
-            });
-          })
-          .catch(() => setRegularControls(DEFAULT_REGULAR_CONTROLS));
+      try {
+        if (profile.student.isEyeGazeUser) {
+          const result = await fetchFamilySettings(authToken, studentId);
+          if (requestId !== profileRequest.current) return;
+          setEyeControls(result.settings);
+        } else {
+          const controlsRes = await fetch(`${API_BASE}/api/parent/student-controls/${studentId}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+            cache: "no-store",
+          });
+          const body = await controlsRes.json();
+          if (!controlsRes.ok) throw new Error(body.message || "Could not load controls.");
+          if (requestId !== profileRequest.current) return;
+          const c = body.control || {};
+          setRegularControls({
+            locked: !!c.locked,
+            dailyGameLimit: c.daily_game_limit === null || c.daily_game_limit === undefined ? null : Number(c.daily_game_limit),
+            gamesPerPassedQuiz: Number(c.games_per_passed_quiz || 0),
+            weeklyUnlimitedOnPass: c.weekly_unlimited_on_pass !== false,
+          });
+        }
+      } catch (err: any) {
+        if (requestId !== profileRequest.current) return;
+        setControlsError(err?.message || "Could not load controls. Select this child again to retry.");
       }
+      if (requestId === profileRequest.current) setData(profile);
     } catch (err: any) {
+      if (requestId !== profileRequest.current) return;
       setError(err?.message || "Could not load this child.");
       setData(null);
     } finally {
-      setSwitching(false);
+      if (requestId === profileRequest.current) setSwitching(false);
     }
   }, [authToken]);
 
@@ -233,7 +243,7 @@ export default function ParentDashboard() {
     setControlSaving(true);
     setControlMessage("");
     try {
-      const result = await saveFamilySettings(authToken, next);
+      const result = await saveFamilySettings(authToken, next, undefined, data.student.id);
       setEyeControls(result.settings);
       setControlMessage("✓ Controls saved for " + data.student.displayName + ".");
     } catch (err: any) {
@@ -270,7 +280,7 @@ export default function ParentDashboard() {
             <div className="flex-1">
               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Viewing child</p>
               <h2 className="mt-1 text-xl font-black text-foreground">
-                {data?.student.displayName || "Connect a child"}
+                {data?.student.displayName || linkedStudents.find(child => child.id === selectedChildId)?.displayName || "Connect a child"}
               </h2>
               <p className="text-sm text-muted-foreground">Switch kids anytime. Progress and controls follow the child you select.</p>
             </div>
@@ -280,7 +290,7 @@ export default function ParentDashboard() {
                   <button
                     key={child.id}
                     type="button"
-                    disabled={switching}
+                    disabled={switching || controlSaving}
                     onClick={() => void loadProfile(child.id)}
                     className={`min-w-[145px] rounded-2xl border-2 px-4 py-3 text-left transition ${selectedChildId === child.id ? "border-primary bg-primary/10 shadow-md" : "border-border bg-muted/20 hover:border-primary/40"}`}
                   >
@@ -321,7 +331,11 @@ export default function ParentDashboard() {
 
         {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-300">{error}</div>}
 
-        {!data ? (
+        {switching ? (
+          <section role="status" className="rounded-[2rem] border border-border bg-card p-10 text-center">
+            <p className="text-lg font-bold">Loading your child's progress and controls…</p>
+          </section>
+        ) : !data ? (
           <section className="rounded-[2rem] border border-dashed border-primary/40 bg-card p-10 text-center">
             <Users className="mx-auto h-12 w-12 text-primary" />
             <h2 className="mt-4 text-2xl font-black">Connect your first child</h2>
@@ -360,7 +374,12 @@ export default function ParentDashboard() {
                 <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Parent Controls · {data.student.displayName}</CardTitle>
               </CardHeader>
               <CardContent className="p-5">
-                {data.student.isEyeGazeUser ? (
+                {controlsError ? (
+                  <div role="alert" className="space-y-3">
+                    <p className="text-sm text-destructive">{controlsError}</p>
+                    <Button onClick={() => void loadProfile(data.student.id)}>Reload controls</Button>
+                  </div>
+                ) : data.student.isEyeGazeUser ? (
                   <div className="space-y-4">
                     <div className="grid gap-3 md:grid-cols-3">
                       <button onClick={() => window.location.hash = "#/eye-gaze-parent-controls"} className="rounded-2xl border-2 border-cyan-400/30 bg-cyan-500/10 p-4 text-left hover:border-cyan-400">

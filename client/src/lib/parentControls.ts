@@ -85,14 +85,16 @@ async function request<T>(token: string | null | undefined, path: string, init?:
   return data as T;
 }
 
-export async function fetchFamilySettings(token: string | null | undefined) {
-  const result = await request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings");
+export async function fetchFamilySettings(token: string | null | undefined, studentId?: number) {
+  const path = "/api/eye-gaze/family-settings" + (studentId ? `?studentId=${studentId}` : "");
+  const result = await request<{ student: { id: number; name: string }; settings: ParentControls }>(token, path);
   cache(result.settings);
   return result;
 }
 
-export async function saveFamilySettings(token: string | null | undefined, settings: ParentControls, grownupToken?: string) {
-  const result = await request<{ student: { id: number; name: string }; settings: ParentControls }>(token, "/api/eye-gaze/family-settings", {
+export async function saveFamilySettings(token: string | null | undefined, settings: ParentControls, grownupToken?: string, studentId?: number) {
+  const path = "/api/eye-gaze/family-settings" + (studentId ? `?studentId=${studentId}` : "");
+  const result = await request<{ student: { id: number; name: string }; settings: ParentControls }>(token, path, {
     method: "POST",
     headers: grownupToken ? { "X-Talker-Grownup-Token": grownupToken } : {},
     body: JSON.stringify(settings),
