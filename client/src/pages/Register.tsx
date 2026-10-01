@@ -26,8 +26,16 @@ export default function Register() {
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const [gradeBand, setGradeBand] = useState("");
+  const [independentStudent, setIndependentStudent] = useState(false);
 
   const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+
+  useEffect(() => {
+    try {
+      const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
+      if (new URLSearchParams(query).get("independent") === "1") setIndependentStudent(true);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/schools`)
@@ -38,7 +46,7 @@ export default function Register() {
 
   // Fetch teachers when school and grade are selected
   useEffect(() => {
-    if (selectedSchoolId && selectedGrade) {
+    if (!independentStudent && selectedSchoolId && selectedGrade) {
       fetch(`${API_BASE}/api/teachers/by-school-grade?schoolId=${selectedSchoolId}&grade=${selectedGrade}`)
         .then(r => r.ok ? r.json() : [])
         .then(data => setTeachers(Array.isArray(data) ? data : []))
@@ -47,7 +55,7 @@ export default function Register() {
       setTeachers([]);
       setSelectedTeacherId("");
     }
-  }, [selectedSchoolId, selectedGrade]);
+  }, [selectedSchoolId, selectedGrade, independentStudent]);
 
   // Auto-generate suggested username from first + last name
   useEffect(() => {
@@ -80,7 +88,7 @@ export default function Register() {
       setError("Password must be at least 4 characters");
       return;
     }
-    if (!selectedSchoolId) {
+    if (!independentStudent && !selectedSchoolId) {
       setError("Please select your school");
       return;
     }
@@ -88,7 +96,7 @@ export default function Register() {
       setError("Please select your grade");
       return;
     }
-    if (!selectedTeacherId) {
+    if (!independentStudent && !selectedTeacherId) {
       setError("Please select your teacher");
       return;
     }
@@ -98,7 +106,7 @@ export default function Register() {
     setLoading(true);
     try {
       sessionStorage.setItem('show_profile_setup', 'true');
-      await register(username, password, finalDisplayName, isEyeGaze, selectedTeacherId ? parseInt(selectedTeacherId) : null, selectedSchoolId ? parseInt(selectedSchoolId) : null, selectedGrade);
+      await register(username, password, finalDisplayName, isEyeGaze, independentStudent ? null : (selectedTeacherId ? parseInt(selectedTeacherId) : null), independentStudent ? null : (selectedSchoolId ? parseInt(selectedSchoolId) : null), selectedGrade);
       // Navigation is handled by AppRouter redirects based on isAdmin
     } catch (err: any) {
       setError(err.message);
@@ -112,7 +120,7 @@ export default function Register() {
       <div className="w-full max-w-xl">
         <div className="text-center mb-7">
           <h1 className="text-4xl sm:text-5xl font-black text-white tracking-[-.045em]">A.R.I.S.E<span className="arise-gradient-text"> Reader</span></h1>
-          <p className="text-slate-400 mt-2 font-semibold">Create your account to start earning points</p>
+          <p className="text-slate-400 mt-2 font-semibold">{independentStudent ? "Create an independent reader account — no school required" : "Create your account to start earning points"}</p>
         </div>
 
         <Card className="arise-surface rounded-[1.75rem] border border-white/10 overflow-hidden">
@@ -192,6 +200,25 @@ export default function Register() {
                   data-testid="input-confirm"
                 />
               </div>
+              <div className="rounded-2xl border border-violet-400/20 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/[.06] to-cyan-400/[.08] p-4">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={independentStudent}
+                    onChange={(e) => {
+                      const checked=e.target.checked;
+                      setIndependentStudent(checked);
+                      if(checked){setSelectedSchoolId("");setSelectedTeacherId("");}
+                    }}
+                    className="mt-1 h-5 w-5 accent-violet-500"
+                  />
+                  <span>
+                    <strong className="block text-sm text-white">I’m an independent student</strong>
+                    <span className="mt-1 block text-xs leading-5 text-slate-400">Choose this if you’re using A.R.I.S.E. on your own and are not joining through a school or teacher.</span>
+                  </span>
+                </label>
+              </div>
+              {!independentStudent && (
               <div className="space-y-2">
                 <Label htmlFor="school">Select Your School</Label>
                 <select
@@ -207,9 +234,10 @@ export default function Register() {
                   ))}
                 </select>
               </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="grade">Select Your Grade</Label>
-                {!selectedSchoolId ? (
+                {!independentStudent && !selectedSchoolId ? (
                   <p className="text-xs text-muted-foreground italic">Please select your school first</p>
                 ) : !gradeBand ? (
                   <div className="space-y-3" data-testid="grade-picker">
@@ -264,6 +292,7 @@ export default function Register() {
                   </div>
                 )}
               </div>
+              {!independentStudent && (
               <div className="space-y-2">
                 <Label htmlFor="teacher">Select Your Teacher <span className="text-destructive">*</span></Label>
                 <select
@@ -286,6 +315,7 @@ export default function Register() {
                   <p className="text-xs text-muted-foreground mt-1">You can start reading and taking quizzes right away. Your teacher will approve you to appear under their profile.</p>
                 )}
               </div>
+              )}
               <div className="flex items-start gap-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-fuchsia-500/8 to-cyan-400/10 border border-violet-400/20">
                 <input
                   type="checkbox"
@@ -322,7 +352,7 @@ export default function Register() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Forgot your password? Ask your teacher to reset it.
+          {independentStudent ? "Independent readers can connect a parent or guardian after signup." : "Forgot your password? Ask your teacher to reset it."}
         </p>
         <div className="text-center mt-3">
           <button
