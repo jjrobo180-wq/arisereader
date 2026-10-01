@@ -600,14 +600,15 @@ export class DatabaseStorage implements IStorage {
     return cached('leaderboard', 300000, async () => {
       // Fetch users with regular attempts AND eye gaze attempts AND total_points
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false).eq("role", "student").not("username", "like", "sample%")
+        supabase.from("users").select("id, username, display_name, role, total_points, attempts(points_earned), eye_gaze_attempts(score, total)").eq("is_admin", false).not("username", "like", "sample%")
       );
-      if (allUsers.length === 0) return [];
+      const leaderboardUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
+      if (leaderboardUsers.length === 0) return [];
 
       const allBooks = await fetchList(supabase.from("books").select("id"));
       const totalBooks = allBooks.length;
 
-      const result = allUsers.map((user) => {
+      const result = leaderboardUsers.map((user) => {
         const attempts = user.attempts || [];
         const eyeGazeAttempts = user.eye_gaze_attempts || [];
         // Points from regular quiz attempts
@@ -1088,9 +1089,10 @@ export class DatabaseStorage implements IStorage {
 
       // Fetch users with regular attempts AND eye gaze attempts
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false).eq("role", "student").not("username", "like", "sample%")
+        supabase.from("users").select("id, username, display_name, role, attempts(points_earned, completed_at), eye_gaze_attempts(score, total, completed_at)").eq("is_admin", false).not("username", "like", "sample%")
       );
-      if (allUsers.length === 0) return [];
+      const monthlyUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
+      if (monthlyUsers.length === 0) return [];
 
       const allBooks = await fetchList(supabase.from("books").select("id"));
       const totalBooks = allBooks.length;
@@ -1105,7 +1107,7 @@ export class DatabaseStorage implements IStorage {
       for (const award of manualAwards || []) {
         manualByStudent.set(award.student_id, (manualByStudent.get(award.student_id) || 0) + award.points);
       }
-      for (const user of allUsers) {
+      for (const user of monthlyUsers) {
         const allAttempts = user.attempts || [];
         // Filter regular attempts by date
         const monthlyAttempts = allAttempts.filter(a => {
@@ -1153,13 +1155,13 @@ export class DatabaseStorage implements IStorage {
       if (teachers.length === 0) return [];
 
       // Fetch all students with their teacher_id, total_points, and attempts
-      const allStudents = await fetchList(
+      const allStudentAccounts = await fetchList(
         supabase.from("users")
-          .select("id, username, display_name, total_points, teacher_id, attempts(points_earned), eye_gaze_attempts(score, total)")
+          .select("id, username, display_name, role, total_points, teacher_id, attempts(points_earned), eye_gaze_attempts(score, total)")
           .eq("is_admin", false)
-          .eq("role", "student")
           .not("username", "like", "sample%")
       );
+      const allStudents = allStudentAccounts.filter((user: any) => !user.role || user.role === "student");
 
       const teacherMap = new Map(teachers.map((t: any) => [t.id, t.display_name || t.username]));
 
