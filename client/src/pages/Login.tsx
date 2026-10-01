@@ -100,6 +100,15 @@ const FEATURES: Record<FeatureId, {
   },
 };
 
+const HERO_TILES = [
+  { label: "Read", icon: BookOpen },
+  { label: "Live", icon: Zap },
+  { label: "Play", icon: Gamepad2 },
+  { label: "Earn", icon: Trophy },
+  { label: "Build", icon: Sparkles },
+  { label: "Access", icon: Eye },
+] as const;
+
 export default function Login() {
   const { login } = useAuth();
   const [, navigate] = useLocation();
@@ -184,6 +193,32 @@ export default function Login() {
           </nav>
         </div>
       </header>
+
+
+      <div className="mx-auto max-w-[1500px] px-4 pt-3 sm:px-6 lg:px-8">
+          <section className="overflow-hidden rounded-[1.5rem] border border-violet-400/25 bg-gradient-to-r from-[#211338] via-[#21152f] to-[#102434] shadow-[0_18px_55px_rgba(0,0,0,.22)]">
+          <button
+            type="button"
+            onClick={() => setDonationOpen(open => !open)}
+            className="flex w-full items-center gap-3 px-4 py-3.5 text-left sm:px-5"
+            aria-expanded={donationOpen}
+          >
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-fuchsia-500/10"><Heart className="h-5 w-5 text-fuchsia-300" fill="currentColor" /></div>
+            <div className="min-w-0 flex-1">
+              <p className="font-black text-white">Support Our Readers</p>
+              <p className="truncate text-xs font-semibold text-slate-400">Help fund books, rewards, and reading experiences for students.</p>
+            </div>
+            <span className="hidden text-xs font-black text-fuchsia-300 sm:block">{donationOpen ? "Close" : "See donation goal"}</span>
+            {donationOpen ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
+          </button>
+
+          {donationOpen && (
+            <div className="border-t border-fuchsia-400/15 bg-fuchsia-500/[.06] p-3 sm:p-4">
+              <DonationGoal />
+            </div>
+          )}
+          </section>
+      </div>
 
       {loginBanner && (
         <div className="mx-auto max-w-[1500px] px-4 pt-3 sm:px-6 lg:px-8">
@@ -394,29 +429,6 @@ export default function Login() {
             </div>
           </aside>
         </div>
-
-        <section className="mt-5 overflow-hidden rounded-[1.5rem] border border-fuchsia-400/20 bg-gradient-to-r from-[#171229] via-[#181329] to-[#101827] shadow-[0_18px_55px_rgba(0,0,0,.22)]">
-          <button
-            type="button"
-            onClick={() => setDonationOpen(open => !open)}
-            className="flex w-full items-center gap-3 px-4 py-3.5 text-left sm:px-5"
-            aria-expanded={donationOpen}
-          >
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-fuchsia-500/10"><Heart className="h-5 w-5 text-fuchsia-300" fill="currentColor" /></div>
-            <div className="min-w-0 flex-1">
-              <p className="font-black text-white">Support Our Readers</p>
-              <p className="truncate text-xs font-semibold text-slate-400">Help keep A.R.I.S.E. Reader growing for students.</p>
-            </div>
-            <span className="hidden text-xs font-black text-fuchsia-300 sm:block">{donationOpen ? "Close" : "See donation goal"}</span>
-            {donationOpen ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-          </button>
-
-          {donationOpen && (
-            <div className="border-t border-fuchsia-400/15 bg-fuchsia-500/[.06] p-3 sm:p-4">
-              <DonationGoal />
-            </div>
-          )}
-        </section>
 
         <section className="mt-5 overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-[0_18px_55px_rgba(0,0,0,.22)]">
           <div className="border-b border-white/8 px-5 pt-5 sm:px-7 sm:pt-6">
