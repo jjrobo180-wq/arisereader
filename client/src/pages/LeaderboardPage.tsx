@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users, Pizza } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
+import { useAuth } from "@/context/AuthContext";
 
 interface LeaderboardEntry {
   rank: number;
@@ -37,6 +38,7 @@ function getRecentMonths(count: number): string[] {
 
 export default function LeaderboardPage() {
   const [, navigate] = useLocation();
+  const { token } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<"all-time" | "monthly">("all-time");
@@ -50,20 +52,17 @@ export default function LeaderboardPage() {
 
   // Fetch user's grade band
   useEffect(() => {
-    const token = document.cookie.split('; ').find(c => c.startsWith('token='))?.split('=')[1];
     if (token) {
       fetch(`${API_BASE}/api/user-grade`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.band) setUserBand(data.band); })
         .catch(() => {});
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     setLoading(true);
-    const token = document.cookie.split('; ').find(c => c.startsWith('token='))?.split('=')[1];
-    // Use authenticated endpoint when logged in (respects teacher band filtering),
-    // fall back to public tutorial endpoint when not logged in
+    // Use the current app session token so logged-in users get the authenticated leaderboard.
     const isAuthed = !!token;
     const base = isAuthed ? `${API_BASE}/api/leaderboard` : `${API_BASE}/api/tutorial/leaderboard`;
     const params = new URLSearchParams();
@@ -79,20 +78,16 @@ export default function LeaderboardPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [period, selectedMonth, userBand, selectedBand]);
+  }, [period, selectedMonth, userBand, selectedBand, token]);
 
   // Fetch advisory leaderboard
   useEffect(() => {
-    const authToken = document.cookie.match(/arise_session=([^;]+)/);
-    if (!authToken) return;
-    try {
-      const token = JSON.parse(atob(authToken[1])).token;
-      fetch(`${API_BASE}/api/advisory-leaderboard`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.ok ? r.json() : [])
-        .then(data => { if (Array.isArray(data)) setAdvisoryData(data); })
-        .catch(() => {});
-    } catch {}
-  }, []);
+    if (!token) return;
+    fetch(`${API_BASE}/api/advisory-leaderboard`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (Array.isArray(data)) setAdvisoryData(data); })
+      .catch(() => {});
+  }, [token]);
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
