@@ -4,14 +4,14 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS3DObject, CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer.js";
-import { ArrowLeft, Coins, Popcorn, Users, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Coins, Popcorn, Users, Volume2, VolumeX, Clapperboard, Radio, Tv, PlayCircle } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
 import { createPet, findPetRoot, openPetCare } from "@/lib/pets";
 import MobileJoystick from "@/components/MobileJoystick";
 
-type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string;emoji?:string};
+type Movie={id:string;title:string;subtitle:string;youtubeId:string;youtubePlaylistId?:string;kind?:"video"|"channel";duration:number;license:string;attribution:string;age:string;category?:string};
 type TheaterVisitor={userId:number;displayName:string;characterId:string;petId:string;x:number;z:number;facing:number;seatId:string|null};
 type TheaterPayload={state:{movieId:string;positionSeconds:number;startedAt:number;playing:boolean;currentPosition:number;audience:number;players:TheaterVisitor[]};movies:Movie[];changeCost:number;popcornCost:number;wallet:number};
 type ClubSelf={userId:number;displayName:string;characterId:string;petId:string};
@@ -93,7 +93,7 @@ export default function ClubTheater(){
   },[token,headers]);
 
   const currentMovie=payload?.movies.find(m=>m.id===payload.state.movieId)||payload?.movies[0];
-  const guideCategories=["Featured","TV Channels","Open Movies"];
+  const guideCategories=["Featured","Series & Shows","Live"];
   const stationIndex=Math.max(0,payload?.movies.findIndex(m=>m.id===payload.state.movieId)??0);
 
   useEffect(()=>{
@@ -831,7 +831,7 @@ export default function ClubTheater(){
       </button>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Club Arise</p>
-        <h1 className="truncate text-lg font-black sm:text-2xl">🎬 Cinema Room</h1>
+        <h1 className="flex items-center gap-2 truncate text-lg font-black sm:text-2xl"><Clapperboard className="h-5 w-5 text-fuchsia-300"/> Cinema Room</h1>
       </div>
       <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-amber-300/25 bg-black/70 px-2.5 py-2 text-sm font-black">
         <Coins className="h-4 w-4 text-amber-300"/>{payload?.wallet?.toLocaleString()??"—"}
@@ -839,7 +839,7 @@ export default function ClubTheater(){
     </header>
 
     <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[9px] font-black backdrop-blur sm:top-20 sm:text-[10px]">
-      {currentMovie?.emoji||"📺"} {currentMovie?.title||"Loading show…"} · {payload?.state.audience||0} watching
+      <span className="inline-flex items-center gap-1.5"><Tv className="h-3.5 w-3.5 text-cyan-300"/>{currentMovie?.title||"Loading show…"} · {payload?.state.audience||0} watching</span>
     </div>
 
     <div className="absolute left-2 top-16 z-30 flex flex-col gap-1.5 sm:left-4 sm:top-24">
@@ -868,7 +868,7 @@ export default function ClubTheater(){
         {muted?<VolumeX className="h-4 w-4"/>:<Volume2 className="h-4 w-4"/>}{muted?"Hear Movie":"Mute"}
       </button>
       <button onClick={()=>void orderPopcorn()} disabled={popcorn!=="idle"||busy} className="flex min-h-10 items-center gap-2 rounded-xl bg-amber-300 px-3 text-xs font-black text-slate-950 shadow-xl disabled:opacity-70">
-        <Popcorn className="h-4 w-4"/>{popcorn==="ordering"?"Buying…":popcorn==="eating"?"Eating 🍿":"Popcorn · "+(payload?.popcornCost??25)+" 🪙"}
+        <Popcorn className="h-4 w-4"/>{popcorn==="ordering"?"Buying…":popcorn==="eating"?"Eating…":"Popcorn · "+(payload?.popcornCost??25)+" 🪙"}
       </button>
       <div className="grid grid-cols-2 gap-1.5">
         <button onClick={()=>switchStation(-1)} disabled={busy} className="min-h-10 rounded-xl bg-slate-950/90 px-2 text-xs font-black shadow-xl">◀ Prev</button>
@@ -912,14 +912,14 @@ export default function ClubTheater(){
                   className="min-h-[100px] w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-left hover:border-fuchsia-300/50 hover:bg-white/10 disabled:opacity-55"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl">{movie.emoji||"📺"}</div>
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 ring-1 ring-white/10">{movie.category==="Live"?<Radio className="h-5 w-5 text-fuchsia-200"/>:movie.kind==="channel"?<Tv className="h-5 w-5 text-cyan-200"/>:<PlayCircle className="h-5 w-5 text-violet-200"/>}</div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-black leading-tight">{movie.title}</p>
                         {movie.id===payload.state.movieId&&<span className="shrink-0 rounded-full bg-cyan-300 px-2 py-1 text-[9px] font-black text-slate-950">PLAYING</span>}
                       </div>
                       <p className="mt-1 text-xs font-semibold text-white/55">{movie.subtitle}</p>
-                      <p className="mt-2 text-[10px] font-bold text-amber-200/70">{movie.kind==="channel"?"Official YouTube channel":movie.license}</p>
+                      <p className="mt-2 text-[10px] font-bold text-cyan-200/70">{movie.category==="Live"?"YouTube Live":movie.kind==="channel"?"YouTube series channel":movie.license}</p>
                     </div>
                   </div>
                 </button>)}
