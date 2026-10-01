@@ -7,9 +7,11 @@ import { CLUB_WORLD_PATHS, type PlayAccess } from '@shared/clubPlay';
 import PetCompanionHUD from '@/components/PetCompanionHUD';
 
 export default function ClubPlayGate({ children }: { children: ReactNode }) {
-  const { user, token } = useAuth();
+  const { user, realUser, adminPreviewMode, token } = useAuth();
   const [path, navigate] = useLocation();
-  const active = CLUB_WORLD_PATHS.includes(path) && user?.role === 'student' && !user.isAdmin && !user.is_eye_gaze_user;
+  const clubRoute = CLUB_WORLD_PATHS.includes(path);
+  const adminPreview = !!realUser?.isAdmin && adminPreviewMode === 'regular';
+  const active = clubRoute && user?.role === 'student' && !user.isAdmin && !user.is_eye_gaze_user && !adminPreview;
   const [access, setAccess] = useState<PlayAccess | null>(null), [now, setNow] = useState(Date.now()), [error, setError] = useState('');
   const sessionId = useRef(crypto.randomUUID());
   const offset = useRef(0);
@@ -38,7 +40,7 @@ export default function ClubPlayGate({ children }: { children: ReactNode }) {
     window.addEventListener('pagehide', leave);
     return () => { stopped = true; clearInterval(heartbeat); clearInterval(clock); document.body.classList.remove('club-play-active'); window.removeEventListener('pagehide', leave); leave(); };
   }, [active, token, user?.id]);
-  if (!active) return <>{children}</>;
+  if (!active) return <>{children}{clubRoute && adminPreview ? <PetCompanionHUD/> : null}</>;
   const remaining = Math.max(0, Math.ceil(((access?.expiresAt || now) - now) / 1000));
   const canPlay = !!access?.allowed && (!!access.unlimitedThisWeek || (remaining > 0 && access.leaseUntil > now));
   const time = access?.unlimitedThisWeek ? '∞' : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
