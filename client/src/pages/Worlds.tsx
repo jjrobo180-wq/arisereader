@@ -77,8 +77,15 @@ export default function Worlds(){
   const [travel,setTravel]=useState<{path:string;label:string}|null>(null);
   const world=WORLDS.find(item=>item.id===selected)!;
   useEffect(()=>{
+    // Warm the next world chunk while the student is reading its card.
+    if(selected==="club") void import("./ClubArise");
+    else if(selected==="theater") void import("./ClubTheater");
+    else if(selected==="neighborhood") void import("./Neighborhood");
+    else if(selected==="board") void import("./BoardGameWorld");
+  },[selected]);
+  useEffect(()=>{
     if(!travel)return;
-    const timer=window.setTimeout(()=>navigate(travel.path),800);
+    const timer=window.setTimeout(()=>navigate(travel.path),450);
     return()=>window.clearTimeout(timer);
   },[travel,navigate]);
   useEffect(()=>{
