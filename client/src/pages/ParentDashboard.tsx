@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Trophy, BookOpen, Award, LogOut, Brain, Users } from "lucide-react";
+import {
+  Trophy, BookOpen, Award, LogOut, Brain, Users, Gamepad2, Settings2,
+  UserPlus, ChevronDown, Eye, ShieldCheck, Clock3, Sparkles
+} from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
+import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -20,6 +24,14 @@ function getTokenFromCookie(): string | null {
     }
   } catch {}
   return null;
+}
+
+interface LinkedStudent {
+  id: number;
+  displayName: string;
+  username: string;
+  isEyeGazeUser: boolean;
+  teacherId: number | null;
 }
 
 interface QuizResult {
@@ -38,311 +50,483 @@ interface QuizResult {
 }
 
 interface ProfileData {
-  student: { id: number; displayName: string; username: string; isEyeGazeUser: boolean; teacherId: number | null };
+  student: LinkedStudent;
   totalPoints: number;
   quizzesTaken: number;
   totalBooks: number;
   quizResults: QuizResult[];
 }
 
+type RegularControls = {
+  locked: boolean;
+  dailyGameLimit: number | null;
+  gamesPerPassedQuiz: number;
+  weeklyUnlimitedOnPass: boolean;
+};
+
+const DEFAULT_REGULAR_CONTROLS: RegularControls = {
+  locked: false,
+  dailyGameLimit: null,
+  gamesPerPassedQuiz: 0,
+  weeklyUnlimitedOnPass: true,
+};
+
 export default function ParentDashboard() {
   const { token, user, logout } = useAuth();
+  const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<number | null>(() => {
+    const saved = Number(sessionStorage.getItem("arise_parent_child_id"));
+    return Number.isSafeInteger(saved) && saved > 0 ? saved : null;
+  });
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
   const [error, setError] = useState("");
   const [parentCode, setParentCode] = useState("");
   const [linking, setLinking] = useState(false);
+  const [showLink, setShowLink] = useState(false);
   const [growthCheck, setGrowthCheck] = useState<any>(null);
+  const [regularControls, setRegularControls] = useState<RegularControls>(DEFAULT_REGULAR_CONTROLS);
+  const [eyeControls, setEyeControls] = useState<ParentControls | null>(null);
+  const [controlSaving, setControlSaving] = useState(false);
+  const [controlMessage, setControlMessage] = useState("");
 
-  useEffect(() => {
-    const authToken = token || getTokenFromCookie();
-    if (!authToken) { setLoading(false); return; }
-    fetch(`${API_BASE}/api/parent/student-profile`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-    })
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to load student profile");
-        return res.json();
+  const authToken = token || getTokenFromCookie();
+
+  const loadProfile = useCallback(async (studentId: number) => {
+    if (!authToken) return;
+    setSwitching(true);
+    setError("");
+    setGrowthCheck(null);
+    setControlMessage("");
+    try {
+      sessionStorage.setItem("arise_parent_child_id", String(studentId));
+      setSelectedChildId(studentId);
+
+      const res = await fetch(`${API_BASE}/api/parent/student-profile?studentId=${studentId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: "no-store",
+      });
+      const profile = await res.json();
+      if (!res.ok) throw new Error(profile.message || "Failed to load student profile");
+      setData(profile);
+
+      void fetch(`${API_BASE}/api/family/growth-check/student/${studentId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: "no-store",
       })
-      .then(d => {
-        setData(d);
-        // Fetch growth check results for this student
-        if (d?.student?.id) {
-          fetch(`${API_BASE}/api/family/growth-check/student/${d.student.id}`, {
-            headers: { Authorization: `Bearer ${authToken}` },
+        .then(r => r.ok ? r.json() : null)
+        .then(gc => setGrowthCheck(gc?.available ? gc : null))
+        .catch(() => setGrowthCheck(null));
+
+      if (profile.student.isEyeGazeUser) {
+        setRegularControls(DEFAULT_REGULAR_CONTROLS);
+        void fetchFamilySettings(authToken)
+          .then(result => setEyeControls(result.settings))
+          .catch(() => setEyeControls(null));
+      } else {
+        setEyeControls(null);
+        void fetch(`${API_BASE}/api/parent/student-controls/${studentId}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+          cache: "no-store",
+        })
+          .then(async r => ({ ok: r.ok, body: await r.json() }))
+          .then(({ ok, body }) => {
+            if (!ok) return;
+            const c = body.control || {};
+            setRegularControls({
+              locked: !!c.locked,
+              dailyGameLimit: c.daily_game_limit === null || c.daily_game_limit === undefined ? null : Number(c.daily_game_limit),
+              gamesPerPassedQuiz: Number(c.games_per_passed_quiz || 0),
+              weeklyUnlimitedOnPass: c.weekly_unlimited_on_pass !== false,
+            });
           })
-            .then(r => r.ok ? r.json() : null)
-            .then(gc => { if (gc?.available) setGrowthCheck(gc); })
-            .catch(() => {});
-        }
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [token]);
+          .catch(() => setRegularControls(DEFAULT_REGULAR_CONTROLS));
+      }
+    } catch (err: any) {
+      setError(err?.message || "Could not load this child.");
+      setData(null);
+    } finally {
+      setSwitching(false);
+    }
+  }, [authToken]);
+
+  const loadFamily = useCallback(async () => {
+    if (!authToken) { setLoading(false); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/parent/students`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: "no-store",
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || "Could not load linked students.");
+      const students: LinkedStudent[] = Array.isArray(body.students) ? body.students : [];
+      setLinkedStudents(students);
+      if (!students.length) {
+        setData(null);
+        setShowLink(true);
+        return;
+      }
+      const preferred = students.some(s => s.id === selectedChildId) ? selectedChildId! : students[0].id;
+      await loadProfile(preferred);
+    } catch (err: any) {
+      setError(err?.message || "Could not load your family dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken, loadProfile, selectedChildId]);
+
+  useEffect(() => { void loadFamily(); }, [authToken]);
 
   const handleLogout = () => {
+    sessionStorage.removeItem("arise_parent_child_id");
     logout();
     window.location.hash = "/";
   };
 
   const linkStudent = async () => {
-    const authToken = token || getTokenFromCookie();
     if (!authToken) return;
     setLinking(true);
+    setError("");
     try {
       const res = await fetch(`${API_BASE}/api/parent/link-code`, {
-        method: 'POST', headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ parentCode }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.message || 'Could not connect your child.');
-      window.location.reload();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not connect your child.'); }
-    finally { setLinking(false); }
+      if (!res.ok) throw new Error(result.message || "Could not connect your child.");
+      setParentCode("");
+      setShowLink(false);
+      await loadFamily();
+    } catch (err: any) {
+      setError(err?.message || "Could not connect your child.");
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const saveRegularControls = async () => {
+    if (!authToken || !data) return;
+    setControlSaving(true);
+    setControlMessage("");
+    try {
+      const res = await fetch(`${API_BASE}/api/parent/student-controls/${data.student.id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(regularControls),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || "Could not save controls.");
+      setControlMessage("✓ Controls saved for " + data.student.displayName + ".");
+    } catch (err: any) {
+      setControlMessage(err?.message || "Could not save controls.");
+    } finally {
+      setControlSaving(false);
+    }
+  };
+
+  const saveEyeControls = async (next: ParentControls) => {
+    if (!authToken || !data) return;
+    setControlSaving(true);
+    setControlMessage("");
+    try {
+      const result = await saveFamilySettings(authToken, next);
+      setEyeControls(result.settings);
+      setControlMessage("✓ Controls saved for " + data.student.displayName + ".");
+    } catch (err: any) {
+      setControlMessage(err?.message || "Could not save controls.");
+    } finally {
+      setControlSaving(false);
+    }
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <div className="min-h-screen grid place-items-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <p className="text-red-400">{error}</p>
-        <p className="text-sm text-muted-foreground">Have a parent code from your child's teacher? Enter it below.</p>
-        <input aria-label="Parent code" className="rounded-lg border border-border bg-card p-3" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" value={parentCode} onChange={e => setParentCode(e.target.value.toUpperCase())} />
-        <Button disabled={linking || !parentCode.trim()} onClick={linkStudent}>Connect my child</Button>
-        <Button variant="ghost" onClick={handleLogout}>
-          <LogOut className="w-4 h-4 mr-1" /> Logout
-        </Button>
-      </div>
-    );
-  }
-
-  if (!data) return null;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 flex items-center gap-3 h-16">
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-white">Parent Portal</h1>
-            <p className="text-xs text-muted-foreground">{user?.displayName || user?.username || ""}</p>
+      <header className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 min-h-16 py-2 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">A.R.I.S.E. Family</p>
+            <h1 className="text-lg font-black text-foreground">Parent Portal</h1>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setShowLink(v => !v)}>
+            <UserPlus className="w-4 h-4 mr-1" /> Add child
+          </Button>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline ml-1">Logout</span>
+            <LogOut className="w-4 h-4" /><span className="hidden sm:inline ml-1">Logout</span>
           </Button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Student header */}
-        <div className="flex items-center gap-4 p-5 rounded-xl bg-card border border-border">
-          <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl">
-            {data.student.displayName.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white">{data.student.displayName}</h2>
-            <p className="text-sm text-muted-foreground">@{data.student.username}</p>
-            {data.student.isEyeGazeUser && (
-              <span className="inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold bg-purple-500/20 text-purple-400">
-                Eye Gazer / Non-Verbal
-              </span>
-            )}
-          </div>
-        </div>
-
-        {data.student.isEyeGazeUser && (
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border-2 border-teal-400/40 bg-teal-900/30 p-5 flex flex-col gap-4">
-              <div className="text-5xl" aria-hidden="true">🗣️</div>
-              <div className="flex-1"><h3 className="text-xl font-bold text-white">Talker · Grown-up tools</h3><p className="text-sm text-teal-100 mt-1">Add familiar Talker pictures, teach daily words, and track vocabulary progress.</p></div>
-              <Button className="w-full" onClick={() => window.location.hash = "#/eye-gaze-parent"}>Open Talker tools</Button>
-            </div>
-            <div className="rounded-2xl border-2 border-violet-400/40 bg-violet-900/30 p-5 flex flex-col gap-4">
-              <div className="text-5xl" aria-hidden="true">🏠</div>
-              <div className="flex-1"><h3 className="text-xl font-bold text-white">Build My World</h3><p className="text-sm text-violet-100 mt-1">Photograph real rooms, objects, and routines so your child can learn through a personal I‑Spy world.</p></div>
-              <Button className="w-full" onClick={() => window.location.hash = "#/my-world"}>Set up My World</Button>
-            </div>
-            <div className="rounded-2xl border-2 border-sky-400/40 bg-sky-900/30 p-5 flex flex-col gap-4">
-              <div className="text-5xl" aria-hidden="true">🔒</div>
-              <div className="flex-1"><h3 className="text-xl font-bold text-white">Profile & A.R.I.S.E. Shorts</h3><p className="text-sm text-sky-100 mt-1">Choose which areas your child can open, approve their Shorts, and set an optional daily Shorts limit.</p></div>
-              <Button className="w-full" onClick={() => window.location.hash = "#/eye-gaze-parent-controls"}>Open profile controls</Button>
-            </div>
-          </div>
-        )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{data.totalPoints}</div>
-                <div className="text-xs text-muted-foreground">Total Points</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-blue-400" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{data.quizzesTaken}</div>
-                <div className="text-xs text-muted-foreground">Quizzes Taken</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-md">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-green-400" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{Math.max(0, data.totalBooks - data.quizzesTaken)}</div>
-                <div className="text-xs text-muted-foreground">Books Left</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Reading Club Sign-Up */}
-        <Card className="shadow-md border-primary/30">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-              <Users className="w-6 h-6 text-amber-500" />
-            </div>
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <section className="rounded-[1.75rem] border border-border bg-card p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="flex-1">
-              <h3 className="font-semibold text-sm">A.R.I.S.E Reading Club</h3>
-              <p className="text-xs text-muted-foreground">Thursdays after school · Earn 100 points each week</p>
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Viewing child</p>
+              <h2 className="mt-1 text-xl font-black text-foreground">
+                {data?.student.displayName || "Connect a child"}
+              </h2>
+              <p className="text-sm text-muted-foreground">Switch kids anytime. Progress and controls follow the child you select.</p>
             </div>
-            <Button size="sm" onClick={() => window.location.hash = "#/reading-club"}>
-              Sign Up
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Quiz History */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              Quiz History
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.quizResults.length === 0 ? (
-              <div className="text-center py-8">
-                <BookOpen className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  {data.student.displayName} hasn't taken any quizzes yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {data.quizResults.map((r) => (
-                  <div
-                    key={r.bookId}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"
+            {linkedStudents.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {linkedStudents.map(child => (
+                  <button
+                    key={child.id}
+                    type="button"
+                    disabled={switching}
+                    onClick={() => void loadProfile(child.id)}
+                    className={`min-w-[145px] rounded-2xl border-2 px-4 py-3 text-left transition ${selectedChildId === child.id ? "border-primary bg-primary/10 shadow-md" : "border-border bg-muted/20 hover:border-primary/40"}`}
                   >
-                    <div className="w-10 h-14 flex-shrink-0">
-                      {r.coverUrl ? (
-                        <img src={r.coverUrl} alt={r.title} className="w-full h-full object-cover rounded" />
-                      ) : (
-                        <div className="w-full h-full rounded bg-primary" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{r.title}</p>
-                      <p className="text-xs text-muted-foreground">{r.author}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(r.completedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-                      </p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-bold text-sm">{r.score}/{r.total}</div>
-                      <div className="text-xs text-primary font-semibold">
-                        {r.pointsEarned || 0} pts
+                    <div className="flex items-center gap-2">
+                      <div className={`grid h-9 w-9 place-items-center rounded-xl ${child.isEyeGazeUser ? "bg-cyan-500/15 text-cyan-400" : "bg-orange-500/15 text-orange-400"}`}>
+                        {child.isEyeGazeUser ? <Eye className="h-5 w-5" /> : <BookOpen className="h-5 w-5" />}
                       </div>
-                      <div className={`text-xs font-semibold ${r.passed ? "text-green-400" : "text-red-400"}`}>
-                        {r.passed ? "Passed" : "Not Passed"}
+                      <div className="min-w-0">
+                        <strong className="block truncate text-sm">{child.displayName}</strong>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{child.isEyeGazeUser ? "Eye Gazer" : "Reader"}</span>
                       </div>
-                      {r.passed && (
-                        <button
-                          onClick={() => {
-                            generateCertificate(
-                              data.student.displayName,
-                              r.title,
-                              r.pointsEarned ?? 0,
-                              new Date(r.completedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
-                            );
-                          }}
-                          className="text-xs text-primary hover:underline mt-1 flex items-center gap-0.5"
-                        >
-                          <Award className="w-3 h-3" />
-                          Certificate
-                        </button>
-                      )}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Growth Check Results */}
-        {growthCheck && (
-          <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="w-5 h-5" />
-                Arise Reading Growth Check
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-6 mb-4">
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-primary">{growthCheck.latest?.arise_reading_score}</div>
-                  <div className="text-xs text-muted-foreground">Arise Reading Score</div>
-                </div>
-                {growthCheck.scoreChange !== 0 && (
-                  <div className="text-center">
-                    <div className={`text-2xl font-bold ${growthCheck.scoreChange > 0 ? 'text-green-400' : 'text-orange-400'}`}>
-                      {growthCheck.scoreChange > 0 ? '+' : ''}{growthCheck.scoreChange}
+          {showLink && (
+            <div className="mt-5 border-t border-border pt-5">
+              <p className="font-bold text-foreground">Connect another child</p>
+              <p className="mt-1 text-sm text-muted-foreground">Enter the parent code from that child’s account or school handout. One parent account can now hold multiple children.</p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  aria-label="Parent code"
+                  className="min-h-11 flex-1 rounded-xl border border-border bg-background px-3"
+                  placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+                  value={parentCode}
+                  onChange={e => setParentCode(e.target.value.toUpperCase())}
+                />
+                <Button disabled={linking || !parentCode.trim()} onClick={() => void linkStudent()}>
+                  {linking ? "Connecting…" : "Connect child"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-300">{error}</div>}
+
+        {!data ? (
+          <section className="rounded-[2rem] border border-dashed border-primary/40 bg-card p-10 text-center">
+            <Users className="mx-auto h-12 w-12 text-primary" />
+            <h2 className="mt-4 text-2xl font-black">Connect your first child</h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Once connected, you’ll be able to switch between children, see each child’s progress, and manage the controls that match their account type.</p>
+            <Button className="mt-5" onClick={() => setShowLink(true)}>Add child</Button>
+          </section>
+        ) : (
+          <>
+            <section className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-md">
+              <div className={`p-5 sm:p-6 ${data.student.isEyeGazeUser ? "bg-gradient-to-r from-cyan-500/15 via-violet-500/10 to-card" : "bg-gradient-to-r from-orange-500/15 via-amber-500/5 to-card"}`}>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className={`grid h-16 w-16 place-items-center rounded-2xl text-2xl font-black ${data.student.isEyeGazeUser ? "bg-cyan-400 text-slate-950" : "bg-primary text-primary-foreground"}`}>
+                    {data.student.displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-2xl font-black">{data.student.displayName}</h2>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${data.student.isEyeGazeUser ? "bg-cyan-500/15 text-cyan-300" : "bg-orange-500/15 text-orange-300"}`}>
+                        {data.student.isEyeGazeUser ? "Eye Gazer" : "Non-Eye Gazer"}
+                      </span>
                     </div>
-                    <div className="text-xs text-muted-foreground">Change</div>
+                    <p className="text-sm text-muted-foreground">@{data.student.username}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
+                <div className="rounded-2xl border border-border bg-muted/20 p-4"><Trophy className="h-5 w-5 text-primary" /><div className="mt-2 text-2xl font-black">{data.totalPoints}</div><div className="text-xs text-muted-foreground">Total Points</div></div>
+                <div className="rounded-2xl border border-border bg-muted/20 p-4"><BookOpen className="h-5 w-5 text-blue-400" /><div className="mt-2 text-2xl font-black">{data.quizzesTaken}</div><div className="text-xs text-muted-foreground">Quizzes Taken</div></div>
+                <div className="rounded-2xl border border-border bg-muted/20 p-4"><Sparkles className="h-5 w-5 text-green-400" /><div className="mt-2 text-2xl font-black">{Math.max(0, data.totalBooks - data.quizzesTaken)}</div><div className="text-xs text-muted-foreground">Books Left</div></div>
+              </div>
+            </section>
+
+            <Card className="overflow-hidden border-primary/25 shadow-md">
+              <CardHeader className="bg-primary/5">
+                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Parent Controls · {data.student.displayName}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5">
+                {data.student.isEyeGazeUser ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <button onClick={() => window.location.hash = "#/eye-gaze-parent-controls"} className="rounded-2xl border-2 border-cyan-400/30 bg-cyan-500/10 p-4 text-left hover:border-cyan-400">
+                        <Settings2 className="h-6 w-6 text-cyan-300" /><h3 className="mt-3 font-black">Access & Game Controls</h3><p className="mt-1 text-xs text-muted-foreground">Choose which learning areas, games, Life Skills, progress, and media your child can open.</p>
+                      </button>
+                      <button onClick={() => window.location.hash = "#/eye-gaze-parent"} className="rounded-2xl border-2 border-teal-400/30 bg-teal-500/10 p-4 text-left hover:border-teal-400">
+                        <span className="text-2xl">🗣️</span><h3 className="mt-3 font-black">My Talker</h3><p className="mt-1 text-xs text-muted-foreground">Personal words, pictures, voice, categories, phrases, and communication setup.</p>
+                      </button>
+                      <button onClick={() => window.location.hash = "#/my-world"} className="rounded-2xl border-2 border-violet-400/30 bg-violet-500/10 p-4 text-left hover:border-violet-400">
+                        <span className="text-2xl">🏠</span><h3 className="mt-3 font-black">My World</h3><p className="mt-1 text-xs text-muted-foreground">Build familiar rooms, labels, I-Spy prompts, and real-life learning spaces.</p>
+                      </button>
+                    </div>
+
+                    {eyeControls && (
+                      <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 sm:grid-cols-2">
+                        <label className="flex items-center justify-between gap-4">
+                          <div><strong className="block text-sm">Eye Gazer games</strong><span className="text-xs text-muted-foreground">Quickly allow or block the Games area.</span></div>
+                          <input
+                            type="checkbox"
+                            checked={eyeControls.allowedPaths.includes("/eye-gaze-games")}
+                            disabled={controlSaving}
+                            onChange={e => {
+                              const allowedPaths = e.target.checked
+                                ? Array.from(new Set([...eyeControls.allowedPaths, "/eye-gaze-games"]))
+                                : eyeControls.allowedPaths.filter(p => p !== "/eye-gaze-games");
+                              void saveEyeControls({ ...eyeControls, enabled: true, allowedPaths });
+                            }}
+                            className="h-6 w-6"
+                          />
+                        </label>
+                        <label className="flex items-center gap-3">
+                          <Clock3 className="h-5 w-5 text-primary" />
+                          <div className="flex-1"><strong className="block text-sm">A.R.I.S.E. Shorts daily limit</strong><span className="text-xs text-muted-foreground">0 means unlimited.</span></div>
+                          <input
+                            type="number"
+                            min={0}
+                            max={240}
+                            value={eyeControls.tvDailyMinutes}
+                            onChange={e => setEyeControls({ ...eyeControls, tvDailyMinutes: Math.max(0, Math.min(240, Number(e.target.value) || 0)) })}
+                            onBlur={() => eyeControls && void saveEyeControls(eyeControls)}
+                            className="w-20 rounded-lg border border-border bg-background p-2 text-right"
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setRegularControls(c => ({ ...c, locked: !c.locked }))}
+                        className={`rounded-2xl border-2 p-4 text-left transition ${regularControls.locked ? "border-red-400/40 bg-red-500/10" : "border-emerald-400/40 bg-emerald-500/10"}`}
+                      >
+                        <Gamepad2 className={`h-6 w-6 ${regularControls.locked ? "text-red-300" : "text-emerald-300"}`} />
+                        <h3 className="mt-3 font-black">{regularControls.locked ? "Games are locked" : "Games are available"}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">Tap to {regularControls.locked ? "allow" : "lock"} Club A.R.I.S.E. and arcade play.</p>
+                      </button>
+                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                        <label className="text-sm font-black">Daily game limit</label>
+                        <p className="mt-1 text-xs text-muted-foreground">Leave blank for no daily game-count limit.</p>
+                        <input
+                          type="number"
+                          min={0}
+                          max={180}
+                          value={regularControls.dailyGameLimit ?? ""}
+                          onChange={e => setRegularControls(c => ({ ...c, dailyGameLimit: e.target.value === "" ? null : Math.max(0, Number(e.target.value) || 0) }))}
+                          className="mt-3 w-full rounded-xl border border-border bg-background p-3"
+                          placeholder="Unlimited"
+                        />
+                      </div>
+                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                        <label className="text-sm font-black">Games earned per passed quiz</label>
+                        <p className="mt-1 text-xs text-muted-foreground">0 means this rule is off.</p>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          value={regularControls.gamesPerPassedQuiz}
+                          onChange={e => setRegularControls(c => ({ ...c, gamesPerPassedQuiz: Math.max(0, Math.min(20, Number(e.target.value) || 0)) }))}
+                          className="mt-3 w-full rounded-xl border border-border bg-background p-3"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRegularControls(c => ({ ...c, weeklyUnlimitedOnPass: !c.weeklyUnlimitedOnPass }))}
+                        className={`rounded-2xl border-2 p-4 text-left ${regularControls.weeklyUnlimitedOnPass ? "border-primary/40 bg-primary/10" : "border-border bg-muted/20"}`}
+                      >
+                        <Trophy className="h-6 w-6 text-primary" />
+                        <h3 className="mt-3 font-black">Unlimited week after passing a quiz</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">{regularControls.weeklyUnlimitedOnPass ? "ON — a passed quiz unlocks unlimited play for the week." : "OFF — normal game limits continue after a passed quiz."}</p>
+                      </button>
+                    </div>
+                    <Button onClick={() => void saveRegularControls()} disabled={controlSaving} className="w-full sm:w-auto">
+                      {controlSaving ? "Saving…" : "Save controls"}
+                    </Button>
                   </div>
                 )}
-              </div>
-              {growthCheck.latest?.student_summary && (
-                <p className="text-sm text-muted-foreground mb-3">{growthCheck.latest.student_summary}</p>
-              )}
-              {growthCheck.skillSummary && Array.isArray(growthCheck.skillSummary) && growthCheck.skillSummary.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {growthCheck.skillSummary.map((s: any, i: number) => (
-                    <span key={i} className="text-xs px-2 py-1 rounded font-medium" style={{
-                      background: s.level === 'strength' ? 'rgba(34,197,94,0.2)' : s.level === 'developing' ? 'rgba(59,130,246,0.2)' : s.level === 'practice' ? 'rgba(249,115,22,0.2)' : 'rgba(107,114,128,0.2)',
-                      color: s.level === 'strength' ? '#4ade80' : s.level === 'developing' ? '#60a5fa' : s.level === 'practice' ? '#fb923c' : '#9ca3af',
-                    }}>
-                      {s.skillName}: {s.correct}/{s.total}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mt-3 italic">
-                The Arise Reading Score is a snapshot of reading skills, not a grade. It helps teachers support your child's reading growth.
-              </p>
-            </CardContent>
-          </Card>
+                {controlMessage && <p className="mt-4 rounded-xl bg-muted/30 p-3 text-sm font-bold">{controlMessage}</p>}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-md border-primary/30">
+              <CardContent className="p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0"><Users className="w-6 h-6 text-amber-500" /></div>
+                <div className="flex-1"><h3 className="font-semibold text-sm">A.R.I.S.E Reading Club</h3><p className="text-xs text-muted-foreground">Sign up the child you are currently viewing.</p></div>
+                <Button size="sm" onClick={() => window.location.hash = "#/reading-club"}>Sign Up</Button>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-md">
+              <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5" /> Quiz History</CardTitle></CardHeader>
+              <CardContent>
+                {data.quizResults.length === 0 ? (
+                  <div className="text-center py-8"><BookOpen className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" /><p className="text-sm text-muted-foreground">{data.student.displayName} hasn't taken any quizzes yet.</p></div>
+                ) : (
+                  <div className="space-y-3">
+                    {data.quizResults.map((r, index) => (
+                      <div key={`${r.bookId}-${r.completedAt}-${index}`} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
+                        <div className="w-10 h-14 flex-shrink-0">
+                          {r.coverUrl ? <img src={`${API_BASE}/api/book-cover/${r.bookId}`} alt={r.title} className="w-full h-full object-cover rounded" /> : <div className="w-full h-full rounded bg-primary" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{r.title}</p>
+                          <p className="text-xs text-muted-foreground">{r.author}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{new Date(r.completedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-bold text-sm">{r.score}/{r.total}</div>
+                          <div className="text-xs text-primary font-semibold">{r.pointsEarned || 0} pts</div>
+                          <div className={`text-xs font-semibold ${r.passed ? "text-green-400" : "text-red-400"}`}>{r.passed ? "Passed" : "Not Passed"}</div>
+                          {r.passed && (
+                            <button
+                              onClick={() => generateCertificate(data.student.displayName, r.title, r.pointsEarned ?? 0, new Date(r.completedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }))}
+                              className="text-xs text-primary hover:underline mt-1 flex items-center gap-0.5"
+                            >
+                              <Award className="w-3 h-3" /> Certificate
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {growthCheck && (
+              <Card className="shadow-md">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Brain className="w-5 h-5" /> Arise Reading Growth Check</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-6 mb-4">
+                    <div className="text-center"><div className="text-4xl font-bold text-primary">{growthCheck.latest?.arise_reading_score}</div><div className="text-xs text-muted-foreground">Arise Reading Score</div></div>
+                    {growthCheck.scoreChange !== 0 && <div className="text-center"><div className={`text-2xl font-bold ${growthCheck.scoreChange > 0 ? "text-green-400" : "text-orange-400"}`}>{growthCheck.scoreChange > 0 ? "+" : ""}{growthCheck.scoreChange}</div><div className="text-xs text-muted-foreground">Change</div></div>}
+                  </div>
+                  {growthCheck.latest?.student_summary && <p className="text-sm text-muted-foreground mb-3">{growthCheck.latest.student_summary}</p>}
+                  {Array.isArray(growthCheck.skillSummary) && growthCheck.skillSummary.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {growthCheck.skillSummary.map((skill: any, i: number) => <span key={i} className="rounded bg-muted px-2 py-1 text-xs font-medium">{skill.skillName}: {skill.correct}/{skill.total}</span>)}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-3 italic">The Arise Reading Score is a snapshot of reading skills, not a grade. It helps teachers and families support growth.</p>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </main>
     </div>
