@@ -100,14 +100,6 @@ const FEATURES: Record<FeatureId, {
   },
 };
 
-const HERO_TILES = [
-  { label: "Read", icon: BookOpen },
-  { label: "Live", icon: Zap },
-  { label: "Play", icon: Gamepad2 },
-  { label: "Earn", icon: Trophy },
-  { label: "Build", icon: Sparkles },
-  { label: "Access", icon: Eye },
-] as const;
 
 export default function Login() {
   const { login } = useAuth();
@@ -229,6 +221,10 @@ export default function Login() {
         </div>
       )}
 
+      <div className="mx-auto max-w-[1500px] px-4 pt-3 sm:px-6 lg:px-8" aria-label="Open the A.R.I.S.E. 2.0 update">
+        <Arise2UpdateButton compact />
+      </div>
+
       <main className="mx-auto max-w-[1500px] px-4 py-4 sm:px-6 sm:py-7 lg:px-8 lg:py-9">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] lg:items-start">
           <section className="order-2 min-w-0 lg:order-1">
@@ -266,33 +262,53 @@ export default function Login() {
                   </div>
                 </div>
 
-                <div className="relative mx-auto w-full max-w-[300px]">
+                <div className="relative mx-auto w-full max-w-[360px] lg:max-w-none">
                   <div className="absolute -inset-3 rounded-[2.5rem] bg-gradient-to-br from-violet-500/18 via-fuchsia-500/14 to-cyan-400/16 blur-xl" />
-                  <div className="relative rounded-[2rem] border border-white/10 bg-[#1b1830] p-4 shadow-xl">
-                    <div className="flex items-center justify-between">
+                  <div className="relative rounded-[2rem] border border-white/10 bg-[#1b1830] p-4 shadow-xl sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-[.18em] text-violet-300">Your A.R.I.S.E.</p>
-                        <p className="mt-1 text-base font-black">More reasons to keep going.</p>
+                        <p className="text-[9px] font-black uppercase tracking-[.2em] text-violet-300">Explore A.R.I.S.E.</p>
+                        <p className="mt-1 text-base font-black">See what’s inside.</p>
                       </div>
-                      <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white"><Sparkles className="h-5 w-5" /></div>
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white"><FeatureIcon className="h-5 w-5" /></div>
                     </div>
+
                     <div className="mt-4 grid grid-cols-2 gap-2">
-                      {HERO_TILES.map(({ label, icon: TileIcon }) => (
-                        <div key={label} className="rounded-2xl border border-white/8 bg-white/[.045] p-3">
-                          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500/25 via-fuchsia-500/20 to-cyan-400/20 ring-1 ring-white/10">
-                            <TileIcon className="h-4 w-4 text-cyan-200" />
-                          </div>
-                          <div className="mt-2 text-xs font-black text-slate-300">{label}</div>
-                        </div>
-                      ))}
+                      {featureKeys.map(key => {
+                        const item = FEATURES[key];
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setActiveFeature(key)}
+                            className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-black transition ${activeFeature === key ? "border-violet-300/45 bg-gradient-to-r from-violet-500/18 via-fuchsia-500/12 to-cyan-400/12 text-white" : "border-white/8 bg-white/[.035] text-slate-400 hover:bg-white/[.07] hover:text-white"}`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" /> {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-white/8 bg-[#100e20] p-4">
+                      <p className="text-[9px] font-black uppercase tracking-[.18em] text-cyan-300">{feature.kicker}</p>
+                      <h2 className="mt-1 text-lg font-black leading-tight text-white">{feature.title}</h2>
+                      <p className="mt-2 text-xs font-semibold leading-5 text-slate-400">{feature.description}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button size="sm" onClick={() => navigate(feature.tutorial)} className="rounded-full arise-gradient-button px-4 text-xs font-black">
+                          Tutorial <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                        </Button>
+                        {feature.sample && (
+                          <Button size="sm" variant="outline" onClick={() => setShowSampleChooser(true)} className="rounded-full border-white/10 bg-white/[.055] px-4 text-xs font-black text-slate-100">
+                            Try sample
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-white/8 bg-white/[.025] p-4 sm:px-8">
-                <Arise2UpdateButton />
-              </div>
             </div>
           </section>
 
@@ -434,67 +450,23 @@ export default function Login() {
           </aside>
         </div>
 
-        <section className="mt-5 overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-[0_18px_55px_rgba(0,0,0,.22)]">
-          <div className="border-b border-white/8 px-5 pt-5 sm:px-7 sm:pt-6">
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-slate-400">Explore A.R.I.S.E.</p>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-4">
-              {featureKeys.map(key => {
-                const item = FEATURES[key];
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setActiveFeature(key)}
-                    className={`flex min-w-max items-center gap-2 rounded-full border px-4 py-2.5 text-xs font-black transition ${activeFeature === key ? "border-violet-200 bg-gradient-to-r from-violet-500/12 via-fuchsia-500/10 to-cyan-400/10 text-violet-200" : "border-white/10 bg-white/[.055] text-slate-400 hover:bg-white/[.04] hover:text-white"}`}
-                  >
-                    <Icon className="h-4 w-4" /> {item.label}
-                  </button>
-                );
-              })}
+        <section className="mt-5 rounded-[1.7rem] border border-white/10 bg-gradient-to-r from-[#17142a] via-[#1b1530] to-[#102331] p-5 shadow-[0_18px_55px_rgba(0,0,0,.18)] sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl arise-icon-tile"><Heart className="h-5 w-5" /></div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-fuchsia-300">The story behind A.R.I.S.E.</p>
+              <h2 className="mt-1 text-xl font-black text-white">About A.R.I.S.E. Reader</h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-400">Meet Mr. J, see the classroom story behind the platform, and learn what A.R.I.S.E. stands for.</p>
             </div>
-          </div>
-
-          <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="p-6 sm:p-7">
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-300">{feature.kicker}</p>
-              <h2 className="mt-2 max-w-2xl text-2xl font-black tracking-[-.03em] sm:text-3xl">{feature.title}</h2>
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">{feature.description}</p>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {feature.bullets.map(bullet => (
-                  <span key={bullet} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-2 text-xs font-bold text-slate-300">✓ {bullet}</span>
-                ))}
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Button onClick={() => navigate(feature.tutorial)} className="rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 font-black text-white shadow-md shadow-violet-500/10 hover:brightness-105">
-                  Full tutorial <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                {feature.sample && (
-                  <Button variant="outline" onClick={() => setShowSampleChooser(true)} className="rounded-full border-white/10 bg-white/[.055] font-black text-slate-100 hover:bg-white/[.04]">
-                    Try sample
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="relative min-h-[220px] overflow-hidden border-t border-white/8 bg-gradient-to-br from-violet-500/14 via-fuchsia-500/10 to-cyan-400/12 p-6 lg:border-l lg:border-t-0">
-              <div className="absolute right-4 top-1 text-[110px] font-black leading-none text-white/[.03]">{featureKeys.indexOf(activeFeature) + 1}</div>
-              <div className="relative flex h-full flex-col justify-between">
-                <div className="grid h-16 w-16 place-items-center rounded-[1.4rem] border border-white/10 bg-[#211d35] shadow-md">
-                  <FeatureIcon className="h-8 w-8 text-violet-300" />
-                </div>
-                <p className="mt-12 text-xs font-black uppercase tracking-[.2em] text-slate-400">Interactive feature preview</p>
-              </div>
-            </div>
+            <Button onClick={() => navigate("/about")} className="h-11 shrink-0 rounded-full arise-gradient-button px-5 font-black">
+              About A.R.I.S.E. <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
         </section>
 
         <footer className="mt-7 flex flex-col gap-3 border-t border-white/10 py-6 text-xs font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p>A.R.I.S.E. Reader · Advocating Resilience, Inclusion, Support & Empowerment</p>
           <div className="flex flex-wrap gap-4">
-            <button onClick={() => navigate("/about")} className="hover:text-cyan-200">About</button>
             <button onClick={() => navigate("/tutorial")} className="hover:text-fuchsia-200">Tutorials</button>
             <button onClick={() => navigate("/parent-signup")} className="hover:text-white">Families</button>
           </div>
