@@ -963,6 +963,114 @@ export async function registerRoutes(
     const id = Number(raw);
     return Number.isSafeInteger(id) && id > 0 ? id : null;
   };
+
+  const getStudentParentIds = async (studentId: number): Promise<number[]> => {
+    const links = await readParentStudentLinks();
+    const parentIds: number[] = [];
+    for (const [parentId, linkedValue] of Object.entries(links)) {
+      if (normalizeLinkedIds(linkedValue).includes(Number(studentId))) {
+        const id = Number(parentId);
+        if (Number.isSafeInteger(id) && id > 0) parentIds.push(id);
+      }
+    }
+    return Array.from(new Set(parentIds));
+  };
+
+  const isDemoStudent = (user: any) => {
+    const username = String(user?.username || "").toLowerCase();
+    return username.startsWith("sample") || username === "tutorial-eye";
+  };
+
+  const getOrCreateParentInvite = async (studentId: number) => {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Parent codes are not configured.");
+    const adminDb = getAdminSupabase();
+    let { data: invite, error } = await adminDb.from("parent_invite_codes")
+      .select("code").eq("student_id", studentId).maybeSingle();
+    if (error) throw error;
+    if (!invite) {
+      const code = randomBytes(10).toString("hex").toUpperCase();
+      const inserted = await adminDb.from("parent_invite_codes")
+        .upsert({ student_id: studentId, code }, { onConflict: "student_id", ignoreDuplicates: true })
+        .select("code").maybeSingle();
+      if (inserted.error) throw inserted.error;
+      invite = inserted.data;
+      if (!invite) {
+        const again = await adminDb.from("parent_invite_codes").select("code").eq("student_id", studentId).single();
+        if (again.error) throw again.error;
+        invite = again.data;
+      }
+    }
+    const rawCode = String(invite!.code);
+    return { rawCode, formattedCode: rawCode.match(/.{1,4}/g)?.join("-") || rawCode };
+  };
+
+  const getOrCreateParentProctorPassword = async (parentId: number): Promise<string> => {
+    const adminDb = getAdminSupabase();
+    const existing = await adminDb.from("parent_proctor_credentials")
+      .select("password").eq("parent_id", parentId).maybeSingle();
+    if (existing.error) throw existing.error;
+    if (existing.data?.password) return String(existing.data.password);
+
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const value = (100000 + (parseInt(randomBytes(4).toString("hex"), 16) % 900000)).toString();
+      const inserted = await adminDb.from("parent_proctor_credentials").insert({
+        parent_id: parentId,
+        password: value,
+        updated_at: new Date().toISOString(),
+      }).select("password").maybeSingle();
+      if (!inserted.error && inserted.data?.password) return String(inserted.data.password);
+      if (inserted.error?.code !== "23505") throw inserted.error;
+    }
+    throw new Error("Could not create a unique parent proctor code.");
+  };
+
+  type QuizKind = "book" | "eye_gaze" | "custom_eye_gaze";
+  type ProctorIdentity = { type: "parent" | "teacher"; userId: number | null; name: string };
+
+  const createProctorSession = async (studentId: number, quizKind: QuizKind, quizId: number, proctor: ProctorIdentity) => {
+    const token = randomBytes(24).toString("hex");
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const { error } = await getAdminSupabase().from("quiz_proctor_sessions").insert({
+      token,
+      student_id: studentId,
+      quiz_kind: quizKind,
+      quiz_id: quizId,
+      proctor_type: proctor.type,
+      proctor_user_id: proctor.userId,
+      proctor_name: proctor.name,
+      expires_at: expiresAt,
+    });
+    if (error) throw error;
+    return { token, expiresAt };
+  };
+
+  const validateProctorSession = async (
+    token: string,
+    studentId: number,
+    quizKind: QuizKind,
+    quizId: number,
+    consume = false
+  ): Promise<ProctorIdentity | null> => {
+    if (!token) return null;
+    const adminDb = getAdminSupabase();
+    const { data, error } = await adminDb.from("quiz_proctor_sessions").select("*")
+      .eq("token", token)
+      .eq("student_id", studentId)
+      .eq("quiz_kind", quizKind)
+      .eq("quiz_id", quizId)
+      .maybeSingle();
+    if (error || !data || data.used_at || new Date(data.expires_at).getTime() <= Date.now()) return null;
+    if (consume) {
+      const { error: updateError } = await adminDb.from("quiz_proctor_sessions")
+        .update({ used_at: new Date().toISOString() }).eq("token", token).is("used_at", null);
+      if (updateError) return null;
+    }
+    return {
+      type: data.proctor_type === "parent" ? "parent" : "teacher",
+      userId: data.proctor_user_id ?? null,
+      name: String(data.proctor_name || (data.proctor_type === "parent" ? "Parent / Guardian" : "Teacher / School Staff")),
+    };
+  };
   // Seed data on startup
   await seedData();
   await storage.seedEyeGazeQuizzes();
