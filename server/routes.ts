@@ -17,6 +17,7 @@ import { theaterMediaKey, type TheaterMovie } from "../shared/clubTheater";
 import { registerClubPlayRoutes } from "./clubPlay";
 import { registerClubAriseRoutes } from "./clubArise";
 import { registerChessArenaRoutes } from "./chessArena";
+import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
@@ -2283,11 +2284,13 @@ export async function registerRoutes(
     try{
       const adminDb=getAdminSupabase();
       const {data:clubMatches}=await adminDb.from("club_arise_matches")
-        .select("winner_id,player1_id,player2_id")
+        .select("winner_id,player1_id,player2_id,state")
         .eq("status","finished")
         .or("player1_id.eq."+userId+",player2_id.eq."+userId);
-      clubGames=(clubMatches||[]).length;
-      clubWins=(clubMatches||[]).filter((m:any)=>m.winner_id===userId).length;
+      // Arcade games past the daily reward cap are marked so they don't add coins.
+      const rewarded=(clubMatches||[]).filter((m:any)=>matchEarnsCoins(m,userId));
+      clubGames=rewarded.length;
+      clubWins=rewarded.filter((m:any)=>m.winner_id===userId).length;
     }catch{}
     // Spendable coins: reading is the main source; Club play adds smaller rewards.
     const quizCoins=passedQuizzes*100;

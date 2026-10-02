@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowLeft, Film, Gamepad2, MessageCircle, Trophy, UserRound, Users, X, Zap } from "lucide-react";
+import { ArrowLeft, Film, Gamepad2, MessageCircle, Trophy, UserRound, Users, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { getAvatarCharacter } from "@/lib/avatarCharacters";
@@ -12,32 +12,32 @@ import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 import MobileJoystick from "@/components/MobileJoystick";
-import ArcadeGameModal from "@/components/ArcadeGameModal";
+import Arcade from "@/arcade/Arcade";
+import type { Reader } from "@/arcade/GameRoom";
+import { CATEGORIES, GAMES, type CategoryId } from "@shared/arcade/catalog";
 import { addHalloreadSceneDecor, HALLOREAD_ACTIVE } from "@/lib/halloread";
 
 type Player={
   user_id:number;display_name:string;character_id:string;pet_id?:string|null;x:number;z:number;facing:number;
   car_id?:string;driving?:boolean;phrase?:string|null;phrase_at?:string|null;emote?:string|null;emote_at?:string|null;updated_at:string;
 };
-type GameType="four"|"word_tiles"|"word_rescue"|"math_duel"|"synonym_sprint"|"pattern_power"|"sentence_fix"|"fact_dash";
-type Match={id:string;game_type:GameType;status:string;player1_id:number;player2_id:number|null;state:any;winner_id:number|null;players?:Array<{user_id:number;display_name:string;character_id:string}>};
 type PlayerProfile={
   userId:number;displayName:string;characterId:string;leaderboardPoints:number;quizzesTaken:number;
   club:{played:number;wins:number;ties:number;losses:number;score:number;byGame:Record<string,{played:number;wins:number}>};
 };
-type Station={id:GameType;name:string;subtitle:string;x:number;z:number};
+/** A glowing cabinet in the 3D arcade. Category cabinets open the Game Room on that shelf. */
+type Cabinet={id:CategoryId|"all"|"chess";name:string;color:string;emoji:string;art:string[];x:number;z:number};
 type CarTransition={kind:"enter"|"exit";started:number;from:THREE.Vector3;door:THREE.Vector3;car:THREE.Vector3};
 
-const STATIONS:Station[]=[
-  {id:"four",name:"Four in a Row",subtitle:"Strategy · patterns · planning",x:-12,z:-7},
-  {id:"word_tiles",name:"Word Tiles",subtitle:"Vocabulary · spelling · word play",x:12,z:-7},
-  {id:"word_rescue",name:"Word Rescue",subtitle:"Letters · clues · vocabulary",x:0,z:-15},
-  {id:"math_duel",name:"Math Duel",subtitle:"Fast math · accuracy · strategy",x:-22,z:4},
-  {id:"synonym_sprint",name:"Synonym Sprint",subtitle:"Vocabulary · word meaning",x:22,z:4},
-  {id:"pattern_power",name:"Pattern Power",subtitle:"Sequences · logic · prediction",x:-22,z:-11},
-  {id:"sentence_fix",name:"Sentence Fix",subtitle:"Grammar · punctuation · editing",x:22,z:-11},
-  {id:"fact_dash",name:"Fact Dash",subtitle:"Science · knowledge · quick thinking",x:0,z:13},
+const CABINET_SPOTS:Record<Cabinet["id"],[number,number]>={
+  all:[0,-15],board:[-12,-7],quick:[12,-7],brain:[-22,4],cards:[22,4],words:[-22,-11],learn:[22,-11],chess:[0,13],
+};
+const CABINETS:Cabinet[]=[
+  {id:"all",name:"Game Room",color:"#22d3ee",emoji:"🎮",art:["🔴","🚢","🃏","🧩"],x:CABINET_SPOTS.all[0],z:CABINET_SPOTS.all[1]},
+  ...CATEGORIES.map(c=>({id:c.id,name:c.name,color:c.color,emoji:c.emoji,art:GAMES.filter(g=>g.category===c.id).slice(0,4).map(g=>g.emoji),x:CABINET_SPOTS[c.id][0],z:CABINET_SPOTS[c.id][1]})),
+  {id:"chess",name:"Ultimate Chess",color:"#d9b44a",emoji:"♛",art:["♞","♜","♝","♚"],x:CABINET_SPOTS.chess[0],z:CABINET_SPOTS.chess[1]},
 ];
+const hexNum=(hex:string)=>parseInt(hex.replace("#",""),16);
 
 function makeLabel(text:string,bg="#111827",fg="#ffffff"){
   const canvas=document.createElement("canvas");canvas.width=512;canvas.height=128;
@@ -56,15 +56,20 @@ function addNeonBox(scene:THREE.Scene,size:[number,number,number],pos:[number,nu
   const m=new THREE.Mesh(new THREE.BoxGeometry(...size),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:intensity,roughness:.35}));
   m.position.set(...pos);scene.add(m);return m;
 }
-function stationColor(id:Station["id"]){
-  if(id==="four")return 0x2563eb;
-  if(id==="word_tiles")return 0x7c3aed;
-  if(id==="word_rescue")return 0x059669;
-  if(id==="math_duel")return 0xf59e0b;
-  if(id==="synonym_sprint")return 0xec4899;
-  if(id==="pattern_power")return 0x06b6d4;
-  if(id==="sentence_fix")return 0x8b5cf6;
-  return 0xef4444;
+/** Cabinet screen art: a row of the shelf's games over the cabinet color, with scanlines. */
+function makeCabinetScreen(cabinet:Cabinet){
+  const canvas=document.createElement("canvas");canvas.width=512;canvas.height=290;
+  const g=canvas.getContext("2d")!;
+  const grad=g.createLinearGradient(0,0,0,290);grad.addColorStop(0,cabinet.color);grad.addColorStop(1,"#0b0d2a");
+  g.fillStyle=grad;g.fillRect(0,0,512,290);
+  g.textAlign="center";g.textBaseline="middle";
+  const emojiFont="'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol',sans-serif";
+  g.font="76px "+emojiFont;
+  cabinet.art.forEach((em,i)=>{g.fillStyle="#ffffff";g.fillText(em,256+(i-(cabinet.art.length-1)/2)*112,104);});
+  g.font="900 46px system-ui,sans-serif";g.fillStyle="#ffffff";g.shadowColor="rgba(0,0,0,.6)";g.shadowBlur=8;
+  g.fillText(cabinet.name,256,222);g.shadowBlur=0;
+  g.fillStyle="rgba(0,0,0,.16)";for(let y=0;y<290;y+=6)g.fillRect(0,y,512,2);
+  const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;return tex;
 }
 
 function addDiscoBall(scene:THREE.Scene,x:number,y:number,z:number,r=1){
@@ -94,32 +99,17 @@ function addLoungeTable(scene:THREE.Scene,x:number,z:number){
   stem.position.set(x,.4,z);scene.add(stem);
   const lamp=new THREE.PointLight(0xf472b6,2.2,4,2);lamp.position.set(x,1.4,z);scene.add(lamp);
 }
-function addArcadeCabinet(scene:THREE.Scene,station:Station){
-  const color=stationColor(station.id);
-  const root=new THREE.Group();root.position.set(station.x,0,station.z);root.userData.stationId=station.id;scene.add(root);
+function addArcadeCabinet(scene:THREE.Scene,cabinet:Cabinet){
+  const color=hexNum(cabinet.color);
+  const root=new THREE.Group();root.position.set(cabinet.x,0,cabinet.z);root.userData.cabinetId=cabinet.id;scene.add(root);
   const shell=new THREE.Mesh(new THREE.BoxGeometry(3.35,3.6,2.05),new THREE.MeshStandardMaterial({color:0x0f172a,metalness:.4,roughness:.4}));
   shell.position.y=1.8;shell.castShadow=true;root.add(shell);
   const marquee=new THREE.Mesh(new THREE.BoxGeometry(3.15,.72,2.18),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:2.4,roughness:.3}));
   marquee.position.y=3.75;root.add(marquee);
   const screenFrame=new THREE.Mesh(new THREE.BoxGeometry(2.65,1.62,.12),new THREE.MeshStandardMaterial({color:0x020617,metalness:.55,roughness:.25}));
   screenFrame.position.set(0,2.35,1.08);root.add(screenFrame);
-  const screen=new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.36),new THREE.MeshBasicMaterial({color:station.id==="four"?0x1d4ed8:station.id==="word_tiles"?0x4c1d95:0x065f46}));
+  const screen=new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.36),new THREE.MeshBasicMaterial({map:makeCabinetScreen(cabinet)}));
   screen.position.set(0,2.35,1.151);root.add(screen);
-  if(station.id==="four"){
-    for(let r=0;r<4;r++)for(let col=0;col<5;col++){
-      const token=new THREE.Mesh(new THREE.CircleGeometry(.15,18),new THREE.MeshBasicMaterial({color:(r+col)%3===0?0xfacc15:(r+col)%3===1?0xf43f5e:0xe2e8f0}));
-      token.position.set(-.78+col*.39,2.78-r*.31,1.158);root.add(token);
-    }
-  }else if(station.id==="word_tiles"){
-    const letters=["R","E","A","D"];
-    letters.forEach((letter,i)=>{
-      const tile=new THREE.Mesh(new THREE.BoxGeometry(.47,.47,.08),new THREE.MeshStandardMaterial({color:0xf5deb3,roughness:.65}));
-      tile.position.set(-.78+i*.52,2.35,1.16);root.add(tile);
-      const tag=makeLabel(letter,"#f5deb3","#111827");tag.scale.set(.42,.42,1);tag.position.set(-.78+i*.52,2.35,1.22);root.add(tag);
-    });
-  }else{
-    const clue=makeLabel("WORD _ E S C U E","#064e3b","#ecfdf5");clue.scale.set(2.3,.55,1);clue.position.set(0,2.35,1.18);root.add(clue);
-  }
   const panel=new THREE.Mesh(new THREE.BoxGeometry(2.7,.65,1.45),new THREE.MeshStandardMaterial({color:0x1e293b,metalness:.5,roughness:.35}));
   panel.position.set(0,1.18,.7);panel.rotation.x=-.18;root.add(panel);
   const joystick=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.36,14),new THREE.MeshStandardMaterial({color:0x111827,metalness:.6}));
@@ -141,7 +131,7 @@ function addArcadeCabinet(scene:THREE.Scene,station:Station){
     new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})
   );
   hitbox.position.set(0,2.1,.2);
-  hitbox.userData.stationId=station.id;
+  hitbox.userData.cabinetId=cabinet.id;
   root.add(hitbox);
   return root;
 }
@@ -216,10 +206,14 @@ export default function ClubArise(){
   playersRef.current=players;
   const [self,setSelf]=useState<{userId:number;displayName:string;characterId:string;petId?:string;carId?:string;homeId?:string}|null>(null);
   const [phrases,setPhrases]=useState<string[]>([]);
-  const [nearStation,setNearStation]=useState<Station|null>(null);
-  const [match,setMatch]=useState<Match|null>(null);
-  const [gameOpen,setGameOpen]=useState(false);
-  const [notice,setNotice]=useState("Tap a cabinet or choose a game below. Press Play to start.");
+  const [roomOpen,setRoomOpen]=useState(false);
+  const [roomCategory,setRoomCategory]=useState<CategoryId|"all">("all");
+  const [challenge,setChallenge]=useState<Reader|null>(null);
+  // True while the Game Room or a game covers the 3D lounge (the lounge stops rendering then).
+  const [arcadeCovered,setArcadeCovered]=useState(false);
+  const coveredRef=useRef(false);
+  const onCoverChange=useCallback((covered:boolean)=>{coveredRef.current=covered;setArcadeCovered(covered);if(covered)keysRef.current.clear();},[]);
+  const [notice,setNotice]=useState("Tap a glowing cabinet or open the Game Room to play.");
   const [selectedPlayer,setSelectedPlayer]=useState<PlayerProfile|null>(null);
   const [selectedPlayerId,setSelectedPlayerId]=useState<number|null>(null);
   const [playerLoading,setPlayerLoading]=useState(false);
@@ -227,7 +221,6 @@ export default function ClubArise(){
   const [cameraMode,setCameraMode]=useState<"pan"|"rotate">("pan");
   const [showMobileChat,setShowMobileChat]=useState(false);
   const [showMobileCamera,setShowMobileCamera]=useState(false);
-  const [showArcade,setShowArcade]=useState(false);
   const [showEmotes,setShowEmotes]=useState(false);
   const [access,setAccess]=useState<any>(null);
   const [leavingWorld,setLeavingWorld]=useState(false);
@@ -243,7 +236,7 @@ export default function ClubArise(){
   },[leavingWorld,navigate]);
 
   const viewPlayer=async(uid:number)=>{
-    setSelectedPlayerId(uid);setSelectedPlayer(null);setPlayerLoading(true);setShowReaders(false);setNearStation(null);
+    setSelectedPlayerId(uid);setSelectedPlayer(null);setPlayerLoading(true);setShowReaders(false);
     try{
       const response=await fetch(API_BASE+"/api/club-arise/players/"+uid+"/profile",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
       const data=await response.json();
@@ -308,7 +301,7 @@ export default function ClubArise(){
         if(!r.ok)throw new Error(d.message||"Could not enter A.R.I.S.E Arcade.");
         if(!active)return;
         setSelf(d.self);setPlayers(d.players||[]);setPhrases(d.safePhrases||[]);setAccess(d.access||null);
-        setNotice("Tap a cabinet or choose a game below. Press Play to start.");
+        setNotice("Tap a glowing cabinet or open the Game Room to play.");
       }catch(error:any){
         if(!active)return;
         const message=error?.name==="AbortError"?"The arcade connection took too long. Tap Retry Arcade.":error?.message||"Could not enter A.R.I.S.E Arcade.";
@@ -359,8 +352,8 @@ export default function ClubArise(){
     addChair(scene,18.5,6,-.55,0x9d174d);addChair(scene,16.5,7.3,.2,0xbe185d);addLoungeTable(scene,17.7,5.2);
     addChair(scene,-19,-1.5,1.2,0x312e81);addChair(scene,19,-1.5,-1.2,0x0f766e);
 
-    for(const s of STATIONS){
-      const color=stationColor(s.id);
+    for(const s of CABINETS){
+      const color=hexNum(s.color);
       const light=new THREE.PointLight(color,11,14,2);light.position.set(s.x,5,s.z);scene.add(light);
       const pad=new THREE.Mesh(new THREE.CylinderGeometry(4.5,4.5,.28,48),new THREE.MeshStandardMaterial({color:0x0f172a,emissive:color,emissiveIntensity:.34,roughness:.42}));pad.position.set(s.x,.14,s.z);pad.receiveShadow=true;scene.add(pad);
       const ring=new THREE.Mesh(new THREE.TorusGeometry(4,.1,12,64),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:3}));
@@ -417,22 +410,20 @@ export default function ClubArise(){
             if(uid!==self.userId)void viewPlayer(uid);
             return;
           }
-          // A cabinet tap selects the game. Only the Play button starts a match.
-          const stationId=node.userData?.stationId as GameType|undefined;
-          if(stationId){
-            const station=STATIONS.find(s=>s.id===stationId);
-            if(station){
-              setShowReaders(false);
-              setNearStation(station);
-              return;
-            }
+          // A cabinet tap opens its shelf in the Game Room (or the chess arena).
+          const cabinetId=node.userData?.cabinetId as Cabinet["id"]|undefined;
+          if(cabinetId){
+            setShowReaders(false);
+            if(cabinetId==="chess")navigate("/ultimate-chess");
+            else{setRoomCategory(cabinetId);setRoomOpen(true);}
+            return;
           }
           node=node.parent;
         }
       }
 
       const hit=hits.find(h=>{let o:THREE.Object3D|null=h.object;while(o){if(o.userData.ground)return true;o=o.parent;}return false;});
-      if(hit){setNearStation(null);targetRef.current.set(THREE.MathUtils.clamp(hit.point.x,-28,28),0,THREE.MathUtils.clamp(hit.point.z,-27,27));}
+      if(hit){targetRef.current.set(THREE.MathUtils.clamp(hit.point.x,-28,28),0,THREE.MathUtils.clamp(hit.point.z,-27,27));}
     };
     let pointerStart:{id:number;x:number;y:number}|null=null;
     const pointerDown=(e:PointerEvent)=>{pointerStart={id:e.pointerId,x:e.clientX,y:e.clientY};};
@@ -442,13 +433,20 @@ export default function ClubArise(){
     renderer.domElement.addEventListener("pointerup",pointerUp);
     renderer.domElement.addEventListener("pointercancel",pointerCancel);
 
-    const down=(e:KeyboardEvent)=>keysRef.current.add(e.key.toLowerCase()),up=(e:KeyboardEvent)=>keysRef.current.delete(e.key.toLowerCase());
+    const down=(e:KeyboardEvent)=>{
+      const tag=(e.target as HTMLElement|null)?.tagName;
+      if(coveredRef.current||tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
+      keysRef.current.add(e.key.toLowerCase());
+    },up=(e:KeyboardEvent)=>keysRef.current.delete(e.key.toLowerCase());
     window.addEventListener("keydown",down);window.addEventListener("keyup",up);
 
     const clock=new THREE.Clock();
     let raf=0;
     const loop=()=>{
-      if(disposed)return;const dt=Math.min(.04,clock.getDelta());const root=selfRootRef.current;
+      if(disposed)return;
+      // The Game Room covers the whole lounge, so skip drawing it until the student comes back.
+      if(coveredRef.current){clock.getDelta();raf=requestAnimationFrame(loop);return;}
+      const dt=Math.min(.04,clock.getDelta());const root=selfRootRef.current;
       if(root){
         (root.userData.mixer as THREE.AnimationMixer|undefined)?.update(dt);
         const transition=carTransitionRef.current;
@@ -604,54 +602,18 @@ export default function ClubArise(){
     }catch{}
   };
 
-  const joinGame=async(station:Station,computer=false)=>{
-    setNotice(computer?"Starting a game against the computer…":"Finding another player…");
-    const r=await fetch(API_BASE+"/api/club-arise/matches/join",{method:"POST",headers,body:JSON.stringify({gameType:station.id,computer})});const d=await r.json();
-    if(!r.ok){setNotice(d.message||"Could not join game.");return;}setMatch(d);setGameOpen(true);setNotice(computer?"Game on! Good luck.":"Waiting for another reader to join…");
-  };
-
-  useEffect(()=>{
-    if(!match||!gameOpen)return;
-    const id=window.setInterval(async()=>{
-      const r=await fetch(API_BASE+"/api/club-arise/matches/"+match.id,{headers:{Authorization:"Bearer "+token},cache:"no-store"});
-      if(!r.ok)return;
-      const next=await r.json();
-      if(next.status==="cancelled"){
-        setGameOpen(false);setMatch(null);setNotice("That game ended. Choose a new opponent.");
-        return;
-      }
-      setMatch(next);
-    },700);
-    return()=>clearInterval(id);
-  },[match?.id,gameOpen,token]);
-
-  const gameAction=async(body:any)=>{
-    if(!match)return;const r=await fetch(API_BASE+"/api/club-arise/matches/"+match.id+"/action",{method:"POST",headers,body:JSON.stringify(body)});const d=await r.json();if(r.ok)setMatch(d);else setNotice(d.message||"Try again.");
-  };
-
-  const quitGame=async()=>{
-    const current=match;
-    setGameOpen(false);setMatch(null);setNearStation(null);
-    if(!current||!["waiting","active"].includes(current.status))return;
-    try{
-      await fetch(API_BASE+"/api/club-arise/matches/"+current.id+"/leave",{
-        method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:"{}",keepalive:true,
-      });
-    }catch{}
-    setNotice("Game ended. Pick a game and opponent to start fresh.");
-  };
-
-  useEffect(()=>{
-    if(!match||!gameOpen||!["waiting","active"].includes(match.status))return;
-    const leave=()=>{void fetch(API_BASE+"/api/club-arise/matches/"+match.id+"/leave",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:"{}",keepalive:true}).catch(()=>{});};
-    window.addEventListener("pagehide",leave);
-    return()=>window.removeEventListener("pagehide",leave);
-  },[match?.id,match?.status,gameOpen,token]);
-
-  const myIndex=match&&self?(match.player1_id===self.userId?1:match.player2_id===self.userId?2:0):0;
-  const yourTurn=!!match&&match.status==="active"&&Number(match.state?.turn)===myIndex;
-  const opponent=match?.state?.computer?"Computer":match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
   const onlineReaders=players.filter(p=>p.user_id!==self?.userId);
+  const arcadeReaders=useMemo<Reader[]>(()=>onlineReaders.map(p=>({userId:p.user_id,name:p.display_name})),[players,self?.userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openRoom=useCallback((category:CategoryId|"all"="all")=>{
+    setRoomCategory(category);setRoomOpen(true);
+    setShowReaders(false);setShowMobileChat(false);setShowMobileCamera(false);setShowEmotes(false);
+  },[]);
+  const challengeReader=(userId:number,name:string)=>{
+    setChallenge({userId,name});setSelectedPlayer(null);setSelectedPlayerId(null);openRoom("all");
+  };
+  const arcadeLocked=access&&!access.allowed
+    ?(access.locked?"Your teacher has locked arcade games right now.":access.dailyRemaining===0?"You reached today's arcade game limit. Come back tomorrow!":"Pass another book quiz to unlock more arcade games.")
+    :null;
   const move=(key:"w"|"a"|"s"|"d",pressed:boolean)=>{if(pressed)keysRef.current.add(key);else keysRef.current.delete(key);};
 
   // ⭐ Star Hunt: glowing stars hidden around the arcade, each worth bonus Reader Coins (daily cap on the server).
@@ -722,16 +684,17 @@ export default function ClubArise(){
       <p className="text-center text-xs text-white/65">{carTransition?"Watch your character move":driving?"Drive with WASD, arrows, or tap":"Parked by the dance floor"}</p>
     </div>}
 
-    {!showReaders&&!selectedPlayer&&!playerLoading&&!nearStation&&showMobileChat&&<div className="absolute left-3 top-20 z-40 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/88 p-3 shadow-2xl backdrop-blur">
+    {!showReaders&&!selectedPlayer&&!playerLoading&&showMobileChat&&<div className="absolute left-3 top-20 z-40 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/88 p-3 shadow-2xl backdrop-blur">
       <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wider text-white/60"><span className="flex items-center gap-2"><MessageCircle className="h-4 w-4"/> Safe chat</span><button type="button" onClick={()=>setShowMobileChat(false)} className="grid h-8 w-8 place-items-center rounded-lg bg-white/10" aria-label="Close safe chat"><X className="h-4 w-4"/></button></div>
       <div className="flex flex-wrap gap-2">{phrases.slice(0,10).map(p=><button key={p} onClick={()=>{void sendPhrase(p);setShowMobileChat(false);}} className="min-h-10 rounded-xl bg-white/10 px-3 text-xs font-black hover:bg-white/20">{p}</button>)}</div>
     </div>}
 
-    {showReaders&&!gameOpen&&<aside className="absolute right-3 top-20 z-40 max-h-[55dvh] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto rounded-2xl border border-cyan-300/25 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
+    {showReaders&&!arcadeCovered&&<aside className="absolute right-3 top-20 z-40 max-h-[55dvh] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto rounded-2xl border border-cyan-300/25 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
       <div className="mb-3 flex items-center justify-between"><h2 className="font-black">Readers online</h2><button type="button" onClick={()=>setShowReaders(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close readers list"><X className="h-4 w-4"/></button></div>
       {onlineReaders.length===0?<p className="text-sm text-white/65">No other readers are here yet.</p>:<div className="space-y-2">{onlineReaders.map(player=><div key={player.user_id} className="flex items-center gap-2 rounded-xl bg-white/10 p-2">
         <button type="button" onClick={()=>void viewPlayer(player.user_id)} className="min-h-11 min-w-0 flex-1 truncate rounded-lg px-2 text-left font-bold hover:bg-white/10" aria-label={"View "+player.display_name+"'s stats"}>{player.display_name}<span className="block text-xs font-medium text-cyan-200">View stats</span></button>
-        <button type="button" onClick={()=>walkToPlayer(player.user_id)} className="min-h-11 shrink-0 rounded-lg bg-cyan-300 px-3 text-sm font-black text-slate-950">Walk over</button>
+        <button type="button" onClick={()=>challengeReader(player.user_id,player.display_name)} className="min-h-11 shrink-0 rounded-lg bg-fuchsia-400 px-3 text-sm font-black text-slate-950">Challenge</button>
+        <button type="button" onClick={()=>walkToPlayer(player.user_id)} className="min-h-11 shrink-0 rounded-lg bg-white/15 px-3 text-sm font-black text-white">Walk over</button>
       </div>)}</div>}
     </aside>}
 
@@ -739,10 +702,10 @@ export default function ClubArise(){
 
     <MobileJoystick onMove={move} className="bottom-24 left-3" label="Arcade movement controls"/>
     <div className="absolute bottom-3 right-3 z-40 flex flex-col gap-1.5 rounded-2xl border border-white/15 bg-slate-950/88 p-1.5 shadow-2xl backdrop-blur-xl">
-      <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowArcade(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 hover:bg-white/20" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
-      <button type="button" onClick={()=>{setShowMobileCamera(value=>!value);setShowMobileChat(false);setShowArcade(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-xs font-black hover:bg-white/20" aria-label="Camera controls">⌖</button>
-      <button type="button" onClick={()=>{setShowEmotes(value=>!value);setShowArcade(false);setShowMobileChat(false);setShowMobileCamera(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-fuchsia-500/20 text-lg hover:bg-fuchsia-500/35" aria-label="Moves">💃</button>
-      <button type="button" onClick={()=>{setShowArcade(value=>!value);setShowEmotes(false);setShowMobileChat(false);setShowMobileCamera(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35" aria-label="Arcade games"><Gamepad2 className="h-4 w-4"/></button>
+      <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 hover:bg-white/20" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
+      <button type="button" onClick={()=>{setShowMobileCamera(value=>!value);setShowMobileChat(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-xs font-black hover:bg-white/20" aria-label="Camera controls">⌖</button>
+      <button type="button" onClick={()=>{setShowEmotes(value=>!value);setShowMobileChat(false);setShowMobileCamera(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-fuchsia-500/20 text-lg hover:bg-fuchsia-500/35" aria-label="Moves">💃</button>
+      <button type="button" onClick={()=>openRoom("all")} className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35" aria-label="Open the Game Room"><Gamepad2 className="h-4 w-4"/></button>
     </div>
 
     <div className={"absolute left-3 top-20 z-40 flex flex-col gap-2 rounded-2xl border border-white/15 bg-slate-950/95 p-2 shadow-xl backdrop-blur "+(showMobileCamera?"flex":"hidden")} aria-label="Camera controls">
@@ -762,35 +725,12 @@ export default function ClubArise(){
       ] as const).map(([id,icon,label])=><button key={id} type="button" onClick={()=>void doEmote(id)} className="min-h-10 rounded-xl bg-fuchsia-500/25 px-2 text-xs font-black hover:bg-fuchsia-500/45 sm:min-h-12 sm:px-4 sm:text-sm"><span className="text-base sm:mr-1 sm:text-lg">{icon}</span><span className="hidden sm:inline">{label}</span></button>)}
     </div>}
 
-    {showArcade&&<div className="absolute bottom-3 left-1/2 z-40 w-[min(760px,calc(100%-5.5rem))] -translate-x-1/2 rounded-2xl border border-cyan-300/20 bg-slate-950/94 p-2 shadow-2xl backdrop-blur-xl">
-      <div className="mb-1.5 flex items-center justify-between px-1">
-        <div>
-          <p className="text-[9px] font-black uppercase tracking-[.18em] text-cyan-300 sm:text-[10px] sm:tracking-[.22em]">Arcade games</p>
-          <p className="hidden text-xs font-bold text-white/55 sm:block">Choose a game, then press Play.</p>
-        </div>
-        <div className="flex items-center gap-1"><Zap className="h-4 w-4 text-amber-300"/><button type="button" onClick={()=>setShowArcade(false)} className="grid h-7 w-7 place-items-center rounded-lg bg-white/10" aria-label="Close arcade menu"><X className="h-3.5 w-3.5"/></button></div>
-      </div>
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5 sm:grid sm:grid-cols-4 sm:gap-2 sm:pb-1">
-        {STATIONS.map(station=>(
-          <button
-            key={station.id}
-            type="button"
-            onClick={()=>{setShowReaders(false);setShowMobileChat(false);setShowMobileCamera(false);setShowArcade(false);setNearStation(station);}}
-            className={"min-h-11 min-w-[112px] rounded-xl border px-2.5 py-1.5 text-left transition hover:-translate-y-0.5 sm:min-h-16 sm:min-w-0 sm:rounded-2xl sm:px-3 sm:py-2 "+
-              (station.id==="four"
-                ?"border-blue-300/30 bg-blue-500/20 hover:bg-blue-500/30"
-                :station.id==="word_tiles"
-                  ?"border-violet-300/30 bg-violet-500/20 hover:bg-violet-500/30"
-                  :"border-emerald-300/30 bg-emerald-500/20 hover:bg-emerald-500/30")}
-          >
-            <span className="block text-xs font-black leading-tight sm:text-sm">{station.name}</span>
-            <span className="mt-1 hidden text-[10px] font-bold text-white/55 sm:block">{station.subtitle}</span>
-          </button>
-        ))}
-      </div>
-    </div>}
+    {!showEmotes&&self&&<button type="button" onClick={()=>openRoom("all")} className="absolute bottom-3 left-1/2 z-30 flex min-h-14 -translate-x-1/2 items-center gap-3 rounded-2xl border-2 border-cyan-200/70 bg-cyan-300 px-5 text-slate-950 shadow-[0_6px_0_#0e7490,0_14px_34px_rgba(34,211,238,.35)] transition active:translate-y-[2px] active:shadow-[0_3px_0_#0e7490]" aria-label="Open the Game Room">
+      <Gamepad2 className="h-6 w-6"/>
+      <span className="text-left leading-tight"><span className="block text-base font-black sm:text-lg">Game Room</span><span className="hidden text-xs font-bold text-slate-900/70 sm:block">{GAMES.length} games with readers or the computer</span></span>
+    </button>}
 
-    {(selectedPlayer||playerLoading)&&!gameOpen&&(
+    {(selectedPlayer||playerLoading)&&!arcadeCovered&&(
       <aside className="absolute right-3 top-20 z-40 max-h-[65dvh] w-[min(330px,calc(100%-1.5rem))] overflow-y-auto rounded-[1.8rem] border border-white/15 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl">
         <div className="flex items-start gap-3">
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
@@ -804,7 +744,10 @@ export default function ClubArise(){
         </div>
         {selectedPlayer&&(
           <>
-            {selectedPlayerId!==null&&<button type="button" onClick={()=>walkToPlayer(selectedPlayerId)} className="mt-3 min-h-12 w-full rounded-xl bg-cyan-300 px-4 font-black text-slate-950">Walk over to {selectedPlayer.displayName}</button>}
+            {selectedPlayerId!==null&&<div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" onClick={()=>challengeReader(selectedPlayerId,selectedPlayer.displayName)} className="min-h-12 rounded-xl bg-fuchsia-400 px-3 font-black text-slate-950">Challenge</button>
+              <button type="button" onClick={()=>walkToPlayer(selectedPlayerId)} className="min-h-12 rounded-xl bg-cyan-300 px-3 font-black text-slate-950">Walk over</button>
+            </div>}
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-2xl bg-amber-400/10 p-3 ring-1 ring-amber-300/20">
                 <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-amber-200"><Trophy className="h-3.5 w-3.5"/> A.R.I.S.E. points</div>
@@ -820,32 +763,24 @@ export default function ClubArise(){
               <div className="rounded-xl bg-white/5 p-2"><div className="text-lg font-black text-emerald-300">{selectedPlayer.club.wins}</div><div className="text-[10px] font-bold text-white/45">WINS</div></div>
               <div className="rounded-xl bg-white/5 p-2"><div className="text-lg font-black">{selectedPlayer.quizzesTaken}</div><div className="text-[10px] font-bold text-white/45">QUIZZES</div></div>
             </div>
-            <div className="mt-3 space-y-2">
-              {STATIONS.map(station=>{
-                const stats=selectedPlayer.club.byGame?.[station.id]||{played:0,wins:0};
-                return <div key={station.id} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-xs font-bold">
-                  <span>{station.name}</span>
-                  <span className="text-white/55">{stats.wins}W · {stats.played} played</span>
-                </div>;
-              })}
-            </div>
+            {(()=>{
+              const played=GAMES.map(g=>({g,stats:selectedPlayer.club.byGame?.[g.id]||{played:0,wins:0}})).filter(x=>x.stats.played>0).sort((a,b)=>b.stats.played-a.stats.played);
+              if(!played.length)return <p className="mt-3 rounded-xl bg-white/5 px-3 py-3 text-center text-xs font-bold text-white/55">No arcade games played yet.</p>;
+              return <div className="mt-3 space-y-2">{played.slice(0,8).map(({g,stats})=>(
+                <div key={g.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-bold">
+                  <span className="truncate"><span aria-hidden="true">{g.emoji} </span>{g.name}</span>
+                  <span className="shrink-0 text-white/55">{stats.wins} {stats.wins===1?"win":"wins"} in {stats.played}</span>
+                </div>
+              ))}</div>;
+            })()}
           </>
         )}
       </aside>
     )}
 
-    {nearStation&&!gameOpen&&<div className="absolute left-1/2 top-32 z-40 w-[min(420px,90vw)] -translate-x-1/2 rounded-3xl border border-cyan-300/25 bg-slate-950 p-5 text-white shadow-2xl">
-      <div className="flex items-start gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15"><Gamepad2 className="h-6 w-6 text-cyan-300"/></div><div className="flex-1"><h2 className="text-xl font-black">{nearStation.name}</h2><p className="text-sm font-semibold text-white/65">{nearStation.subtitle}</p><p className="mt-2 text-sm text-white/70">Ready to play this game?</p></div><button type="button" onClick={()=>setNearStation(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close game choice"><X className="h-4 w-4"/></button></div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <button type="button" onClick={()=>{void joinGame(nearStation,false);setNearStation(null);}} disabled={access?.allowed===false} className="min-h-12 rounded-2xl bg-cyan-300 px-4 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">👥 Play another reader</button>
-        <button type="button" onClick={()=>{void joinGame(nearStation,true);setNearStation(null);}} disabled={access?.allowed===false} className="min-h-12 rounded-2xl bg-violet-500 px-4 font-black text-white disabled:cursor-not-allowed disabled:opacity-40">🤖 Play computer</button>
-      </div>
-      {access?.allowed===false&&<p className="mt-2 text-sm text-amber-300">Arcade games are currently unavailable.</p>}
-    </div>}
-
-    {gameOpen&&match&&<ArcadeGameModal match={match} myIndex={myIndex} yourTurn={yourTurn} opponent={opponent}
-      onAction={body=>void gameAction(body)} onQuit={()=>void quitGame()} onClose={()=>{setGameOpen(false);setMatch(null);}}
-      onRematch={()=>{const station=STATIONS.find(s=>s.id===match.game_type);const vsComputer=!!match.state?.computer;setGameOpen(false);setMatch(null);if(station)void joinGame(station,vsComputer);}}/>}
+    <Arcade token={token} open={roomOpen} onOpen={openRoom} onClose={()=>{setRoomOpen(false);setChallenge(null);}}
+      category={roomCategory} readers={arcadeReaders} challenge={challenge} onClearChallenge={()=>setChallenge(null)}
+      locked={arcadeLocked} onOpenChess={()=>navigate("/ultimate-chess")} onCoverChange={onCoverChange}/>
 
     <div className="absolute bottom-28 right-3 z-20 hidden rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70 sm:block">Click a player for stats · click floor to walk · WASD / arrows</div>
     {stars&&<div className="pointer-events-none absolute left-3 top-[112px] z-20 rounded-full bg-amber-300/95 px-3 py-1 text-xs font-black text-slate-950 shadow-lg">⭐ {stars.found}/{stars.perDay}<span className="hidden sm:inline"> Star Hunt{stars.remaining?" · find the glowing stars":" · all found today!"}</span></div>}
