@@ -5,7 +5,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ArrowLeft, ArrowRight, Compass, LockKeyhole, Rotate3D } from "lucide-react";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 
-type WorldId="club"|"theater"|"neighborhood"|"laser"|"board"|"halloread"|"chess"|"space"|"beach"|"racetrack";
+type WorldId="club"|"theater"|"neighborhood"|"laser"|"board"|"halloread"|"chess"|"space"|"racetrack";
 const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:number}[]=[
   {id:"club",title:"A.R.I.S.E Arcade",description:"Dance, meet readers, and play arcade games together.",path:"/arise-arcade",color:0xc026d3},
   {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
@@ -14,7 +14,6 @@ const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:numb
   {id:"chess",title:"Ultimate Chess",description:"Enter a cinematic chess arena, challenge the computer, or battle another reader live.",path:"/ultimate-chess",color:0xe5c55f},
   {id:"laser",title:"Prism Paintball",description:"5v5 third-person paintball: three paint markers, forts, inflatable bunkers, smart bots and live multiplayer.",path:"/paintball-arena",color:0x22d3ee},
   {id:"space",title:"Skybound Sprint",description:"Run and jump across floating crystal islands, dodge patrol bots, hit checkpoints, and reach the golden portal.",path:"/skybound-sprint",color:0x8b5cf6},
-  {id:"beach",title:"The Beach",description:"Palm trees, a seaside boardwalk, and sunny adventures. Coming soon.",color:0xfacc6b},
   {id:"racetrack",title:"Aurora Racers",description:"Kart racing on 4 wild tracks: drift for mini-turbos, throw paint bombs, win the Grand Prix and upgrade your kart.",path:"/aurora-rally",color:0xf87171},
 ];
 
@@ -28,7 +27,7 @@ function marker(text:string){
 }
 function makeWorld(id:WorldId,color:number){
   const group=new THREE.Group();group.userData.worldId=id;
-  const surface=sphere(1.25,id==="club"?0x251b51:id==="theater"?0x2a1621:id==="neighborhood"?0x65af7a:id==="laser"?0x102d3b:id==="board"?0x5b3a13:id==="halloread"?0x190822:id==="chess"?0x241b32:id==="space"?0x27205d:id==="beach"?0x43b9cb:0x34775d);group.add(surface);
+  const surface=sphere(1.25,id==="club"?0x251b51:id==="theater"?0x2a1621:id==="neighborhood"?0x65af7a:id==="laser"?0x102d3b:id==="board"?0x5b3a13:id==="halloread"?0x190822:id==="chess"?0x241b32:id==="space"?0x27205d:0x34775d);group.add(surface);
   const band=new THREE.Mesh(new THREE.TorusGeometry(1.4,.045,10,64),new THREE.MeshBasicMaterial({color}));band.rotation.x=Math.PI/2.5;group.add(band);
   if(id==="club"){
     const base=new THREE.Mesh(new THREE.CylinderGeometry(.65,.8,.28,12),new THREE.MeshStandardMaterial({color:0x191936,emissive:color,emissiveIntensity:.25}));base.position.y=1.16;group.add(base);
@@ -73,10 +72,6 @@ function makeWorld(id:WorldId,color:number){
     const moon=sphere(.46,0xffdcab);moon.position.set(.8,1.6,0);group.add(moon);
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.6,.045,8,48),new THREE.MeshBasicMaterial({color:0xe9b8ff}));ring.position.copy(moon.position);ring.rotation.x=.5;group.add(ring);
     for(let i=0;i<6;i++){const star=sphere(.07,0xffffff);star.position.set(Math.sin(i*2.4)*1.6,Math.cos(i*3)*1.6,Math.cos(i*2.4)*.9);group.add(star);}
-  }else if(id==="beach"){
-    const sand=new THREE.Mesh(new THREE.CylinderGeometry(.9,.85,.13,24),new THREE.MeshStandardMaterial({color:0xfbd892}));sand.position.y=1.2;group.add(sand);
-    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.055,.095,1.2,8),new THREE.MeshStandardMaterial({color:0x795235}));trunk.position.set(-.25,1.8,0);trunk.rotation.z=-.2;group.add(trunk);
-    for(let i=0;i<6;i++){const leaf=new THREE.Mesh(new THREE.ConeGeometry(.19,.75,5),new THREE.MeshStandardMaterial({color:0x258c58}));leaf.position.set(-.38+Math.cos(i*Math.PI/3)*.38,2.45,Math.sin(i*Math.PI/3)*.38);leaf.rotation.z=Math.PI/2-i*.4;group.add(leaf);}
   }else{
     const track=new THREE.Mesh(new THREE.TorusGeometry(.82,.19,12,48),new THREE.MeshStandardMaterial({color:0x202637}));track.position.y=1.24;track.rotation.x=Math.PI/2;group.add(track);
     const car=new THREE.Mesh(new THREE.BoxGeometry(.5,.22,.3),new THREE.MeshStandardMaterial({color:0xff5563,emissive:0x8b172b,emissiveIntensity:.4}));car.position.set(.55,1.45,.55);group.add(car);
