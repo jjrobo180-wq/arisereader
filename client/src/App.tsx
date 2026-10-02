@@ -72,6 +72,7 @@ const Worlds = lazyPage(() => import("./pages/Worlds"));
 const Neighborhood = lazyPage(() => import("./pages/Neighborhood"));
 const HomeInterior = lazyPage(() => import("./pages/HomeInterior"));
 const BoardGameWorld = lazyPage(() => import("./pages/BoardGameWorld"));
+const MidnightMystery = lazyPage(() => import("./pages/MidnightMystery"));
 const UltimateChess = lazyPage(() => import("./pages/UltimateChess"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -374,9 +375,9 @@ function AppRoutes() {
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/board-game-world">
-        {!isEyeGazeStudent
-          ? <ProtectedRoute><BoardGameWorld /></ProtectedRoute>
-          : <Redirect to="/eye-gaze-home" replace />}
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><MidnightMystery /></ProtectedRoute>
+          : <Redirect to="/" replace />}
       </Route>
       <Route path="/halloread-mystery">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
