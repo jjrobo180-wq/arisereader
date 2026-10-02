@@ -1180,11 +1180,26 @@ export async function registerRoutes(
         await storage.upsertSetting('user_grades', JSON.stringify(userGrades));
       }
 
-      // "School/teacher not listed": the student still gets a normal, fully
-      // approved account (no teacher = approved, same as independent signup).
+      // "School/teacher not listed": these are school students, not independent
+      // (homeschool) readers. They get a normal, fully approved student account
+      // right away; "teacher not listed" students keep the school they picked.
       // Save what they typed so an admin can connect them later.
       const unlistedSchoolName = typeof req.body.unlistedSchoolName === "string" ? req.body.unlistedSchoolName.trim().slice(0, 120) : "";
       const unlistedTeacherName = typeof req.body.unlistedTeacherName === "string" ? req.body.unlistedTeacherName.trim().slice(0, 120) : "";
+      // Remember how every student signed up so school-not-listed students
+      // are never confused with independent readers (both start with no school).
+      try {
+        const signupType = req.body.independent ? "independent"
+          : unlistedSchoolName ? "school_not_listed"
+          : unlistedTeacherName ? "teacher_not_listed"
+          : "school";
+        const rawTypes = await storage.getSetting("student_signup_types");
+        let signupTypes: Record<string, string> = {};
+        if (rawTypes) { try { signupTypes = JSON.parse(rawTypes); } catch {} }
+        signupTypes[String(user.id)] = signupType;
+        await storage.upsertSetting("student_signup_types", JSON.stringify(signupTypes));
+      } catch {}
+
       if (unlistedSchoolName || unlistedTeacherName) {
         try {
           const requests = await readUnlistedSignups();

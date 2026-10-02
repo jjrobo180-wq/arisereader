@@ -82,7 +82,7 @@ export default function Register({ independent = false }: { independent?: boolea
         independentStudent || teacherNotListed ? null : Number(selectedTeacherId),
         independentStudent || schoolNotListed ? null : Number(selectedSchoolId),
         selectedGrade,
-        independentStudent ? undefined : {
+        independentStudent ? { independent: true } : {
           schoolName: schoolNotListed ? unlistedSchoolName.trim() : undefined,
           teacherName: teacherNotListed ? unlistedTeacherName.trim() : undefined,
         },
