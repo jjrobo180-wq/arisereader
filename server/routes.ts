@@ -34,6 +34,20 @@ function gradeToBand(grade: string): string | null {
   return null;
 }
 
+// Students who signed up with "my school/teacher isn't listed".
+const UNLISTED_SIGNUPS_KEY = "unlisted_signup_requests";
+type UnlistedSignup = {
+  userId: number; username: string; displayName: string; gradeLevel: string | null;
+  schoolId: number | null; schoolName: string | null; teacherName: string | null;
+  createdAt: string; resolved: boolean; resolvedAt?: string;
+  resolvedTeacherId?: number | null; resolvedSchoolId?: number | null;
+};
+async function readUnlistedSignups(): Promise<UnlistedSignup[]> {
+  const stored = await storage.getSetting(UNLISTED_SIGNUPS_KEY);
+  if (!stored) return [];
+  try { const parsed = JSON.parse(stored); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+}
+
 function arPassingScore(total: number): number {
   return Math.ceil(total * 0.70);
 }
@@ -1166,11 +1180,98 @@ export async function registerRoutes(
         await storage.upsertSetting('user_grades', JSON.stringify(userGrades));
       }
 
+      // "School/teacher not listed": the student still gets a normal, fully
+      // approved account (no teacher = approved, same as independent signup).
+      // Save what they typed so an admin can connect them later.
+      const unlistedSchoolName = typeof req.body.unlistedSchoolName === "string" ? req.body.unlistedSchoolName.trim().slice(0, 120) : "";
+      const unlistedTeacherName = typeof req.body.unlistedTeacherName === "string" ? req.body.unlistedTeacherName.trim().slice(0, 120) : "";
+      if (unlistedSchoolName || unlistedTeacherName) {
+        try {
+          const requests = await readUnlistedSignups();
+          requests.push({
+            userId: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            gradeLevel: gradeLevel || null,
+            schoolId: schoolId ? parseInt(schoolId) : null,
+            schoolName: unlistedSchoolName || null,
+            teacherName: unlistedTeacherName || null,
+            createdAt: new Date().toISOString(),
+            resolved: false,
+          });
+          await storage.upsertSetting(UNLISTED_SIGNUPS_KEY, JSON.stringify(requests));
+          const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
+          const missing = [unlistedSchoolName && `school "${unlistedSchoolName}"`, unlistedTeacherName && `teacher "${unlistedTeacherName}"`].filter(Boolean).join(" and ");
+          for (const admin of adminRows || []) {
+            await supabase.from("notifications").insert({
+              user_id: admin.id,
+              type: "info",
+              title: "Student needs a teacher connection",
+              message: `${user.displayName} (@${user.username}) signed up but couldn't find their ${missing}. Connect them on the Admin page.`,
+            });
+          }
+        } catch (e: any) {
+          console.error("[unlisted-signups] save failed:", e?.message);
+        }
+      }
+
       const session = await storage.createSession(user.id);
       res.status(201).json({
         token: session.token,
         user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, schoolId: user.school_id, totalPoints: user.totalPoints || 0 },
       });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: students who signed up with "school/teacher not listed"
+  app.get("/api/admin/unlisted-signups", authMiddleware, adminMiddleware, async (_req, res) => {
+    try {
+      const requests = await readUnlistedSignups();
+      res.set("Cache-Control", "no-store");
+      res.json(requests.filter(r => !r.resolved).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: connect the student to a school and/or teacher, or just dismiss the request
+  app.post("/api/admin/unlisted-signups/:userId/resolve", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const studentId = parseInt(req.params.userId);
+      const schoolId = req.body.schoolId ? parseInt(req.body.schoolId) : null;
+      const teacherId = req.body.teacherId ? parseInt(req.body.teacherId) : null;
+      if (schoolId) await storage.assignStudentToSchool(studentId, schoolId);
+      if (teacherId) {
+        const teacher = await storage.getUser(teacherId);
+        if (!teacher || teacher.role !== "teacher") return res.status(400).json({ message: "That teacher was not found." });
+        // Keep the student approved so they never lose access while being moved.
+        const { error } = await supabase.from("users").update({ teacher_id: teacherId, approved_by_teacher: true }).eq("id", studentId);
+        if (error) throw new Error(error.message);
+        const rawLinks = await storage.getSetting("teacher_students");
+        let teacherStudents: Record<string, number[]> = {};
+        if (rawLinks) { try { teacherStudents = JSON.parse(rawLinks); } catch {} }
+        for (const [tid, sids] of Object.entries(teacherStudents)) {
+          teacherStudents[tid] = (sids as number[]).filter((sid: number) => sid !== studentId);
+        }
+        if (!teacherStudents[String(teacherId)]) teacherStudents[String(teacherId)] = [];
+        teacherStudents[String(teacherId)].push(studentId);
+        await storage.upsertSetting("teacher_students", JSON.stringify(teacherStudents));
+        try { clearCache("allUsers"); } catch {}
+        await storage.createMessage(studentId, "teacher", `You have been added to ${teacher.displayName}'s class.`);
+      }
+      const requests = await readUnlistedSignups();
+      for (const r of requests) {
+        if (r.userId === studentId && !r.resolved) {
+          r.resolved = true;
+          r.resolvedAt = new Date().toISOString();
+          r.resolvedTeacherId = teacherId;
+          r.resolvedSchoolId = schoolId;
+        }
+      }
+      await storage.upsertSetting(UNLISTED_SIGNUPS_KEY, JSON.stringify(requests));
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
