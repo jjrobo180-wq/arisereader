@@ -12,7 +12,7 @@ const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:numb
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
   {id:"halloread",title:"Halloread: Midnight Mystery",description:"Halloween after-hours mystery survival: security cameras, clues, roaming mascot robots, suspense encounters, multiplayer teams, and zero gore.",path:"/halloread-mystery",color:0xf97316},
   {id:"chess",title:"Ultimate Chess",description:"Enter a cinematic chess arena, challenge the computer, or battle another reader live.",path:"/ultimate-chess",color:0xe5c55f},
-  {id:"laser",title:"Prism Paintball",description:"Real multiplayer team paintball with animated runners, cover, towers, respawns, and live scoring.",path:"/paintball-arena",color:0x22d3ee},
+  {id:"laser",title:"Prism Paintball",description:"5v5 third-person paintball: three paint markers, forts, inflatable bunkers, smart bots and live multiplayer.",path:"/paintball-arena",color:0x22d3ee},
   {id:"space",title:"Skybound Sprint",description:"Run and jump across floating crystal islands, dodge patrol bots, hit checkpoints, and reach the golden portal.",path:"/skybound-sprint",color:0x8b5cf6},
   {id:"beach",title:"The Beach",description:"Palm trees, a seaside boardwalk, and sunny adventures. Coming soon.",color:0xfacc6b},
   {id:"racetrack",title:"Aurora Rally",description:"A third-person circuit racer with AI rivals, boost pads, drifting-style steering, and three-lap races.",path:"/aurora-rally",color:0xf87171},

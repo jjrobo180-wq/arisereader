@@ -1,263 +1,898 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import * as THREE from "three";
-import { ArrowLeft, Crosshair, Gamepad2, Loader2, LogOut, Play, RotateCcw, Shield, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useLocation } from "wouter";
+import { ArrowLeft, Copy, Crown, Gamepad2, Loader2, LogOut, Pause, Play, RotateCcw, Settings, Shield, Users, Volume2, Wifi, WifiOff, X, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { useLocation } from "wouter";
+import { PB, WEAPONS, TEAM_CSS, TEAM_NAMES, type Snapshot, type RoomMeta, type BotLevel, type Team } from "@shared/paintball";
+import type { PaintballGame } from "@/game/paintball/game";
+import { initialHud, defaultSettings, type GameSettings, type HudState } from "@/game/paintball/hud";
 
-type Team="cyan"|"magenta";
-type Player={id:number;name:string;team:Team;x:number;z:number;rot:number;moving:boolean;sprinting:boolean;tags:number;downs:number;respawnAt:number;bot:boolean};
-type Room={code:string;hostId:number;phase:"lobby"|"playing"|"finished";players:Player[];scores:Record<Team,number>;serverNow:number;timeLeft:number;winner:Team|null};
-type Lobby={code:string;hostName:string;players:number};
-type MobileInput={forward:boolean;back:boolean;left:boolean;right:boolean;sprint:boolean};
+type Lobby = { code: string; hostName: string; humans: number; players: number; phase: string; quick: boolean };
 
-function makeCharacter(team:Team,name:string){
- const root=new THREE.Group();
- const color=team==="cyan"?0x06b6d4:0xec4899;
- const accent=team==="cyan"?0x67e8f9:0xf9a8d4;
- const jersey=new THREE.MeshStandardMaterial({color,roughness:.48,metalness:.1});
- const jerseyDark=new THREE.MeshStandardMaterial({color:team==="cyan"?0x075985:0x9d174d,roughness:.5,metalness:.12});
- const pants=new THREE.MeshStandardMaterial({color:0x18202e,roughness:.68,metalness:.12});
- const armor=new THREE.MeshStandardMaterial({color:0x0d1420,roughness:.36,metalness:.48});
- const bootMat=new THREE.MeshStandardMaterial({color:0x080b10,roughness:.52,metalness:.2});
- const skin=new THREE.MeshStandardMaterial({color:0x9a674b,roughness:.9});
- const glass=new THREE.MeshStandardMaterial({color:0x07111d,roughness:.12,metalness:.7,emissive:accent,emissiveIntensity:.15});
- const white=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.38,metalness:.08});
- const addShadow=(m:THREE.Mesh)=>{m.castShadow=true;m.receiveShadow=true;return m};
+const SETTINGS_KEY = "prism-paintball-settings";
+function loadSettings(): GameSettings {
+  try { const raw = localStorage.getItem(SETTINGS_KEY); if (raw) return { ...defaultSettings, ...JSON.parse(raw) }; } catch { /* ignore */ }
+  return defaultSettings;
+}
+function saveSettings(s: GameSettings) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ } }
+const isTouchDevice = () => typeof window !== "undefined" && (window.matchMedia?.("(pointer: coarse)").matches || "ontouchstart" in window);
+const noopSubscribe = () => () => {};
+const getInitialHud = () => initialHud;
 
- const pelvis=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.62,.36,.42),pants));pelvis.position.y=1.03;root.add(pelvis);
- const torso=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.88,1.02,.5),jersey));torso.position.y=1.65;torso.scale.set(1,.98,1);root.add(torso);
- const chest=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.74,.26,.1),jerseyDark));chest.position.set(0,1.88,.31);root.add(chest);
- const vest=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.58,.54,.12),armor));vest.position.set(0,1.58,.33);root.add(vest);
- const belt=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.7,.12,.5),armor));belt.position.y=1.15;root.add(belt);
-
- const neck=new THREE.Mesh(new THREE.CylinderGeometry(.16,.18,.18,12),skin);neck.position.y=2.27;root.add(neck);
- const head=addShadow(new THREE.Mesh(new THREE.SphereGeometry(.32,22,16),skin));head.position.y=2.55;root.add(head);
- const helmet=addShadow(new THREE.Mesh(new THREE.SphereGeometry(.39,24,16,0,Math.PI*2,0,Math.PI*.72),armor));helmet.position.set(0,2.62,0);root.add(helmet);
- const visor=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.58,.2,.08),glass));visor.position.set(0,2.56,.33);root.add(visor);
- const mask=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.5,.28,.12),armor));mask.position.set(0,2.37,.34);root.add(mask);
- for(const x of [-.19,.19]){const vent=new THREE.Mesh(new THREE.BoxGeometry(.06,.1,.03),new THREE.MeshBasicMaterial({color:accent}));vent.position.set(x,2.36,.41);root.add(vent);}
- const helmetStripe=new THREE.Mesh(new THREE.BoxGeometry(.08,.4,.06),new THREE.MeshStandardMaterial({color:accent,emissive:accent,emissiveIntensity:.3}));helmetStripe.position.set(0,2.81,.3);helmetStripe.rotation.x=-.35;root.add(helmetStripe);
-
- const armL=new THREE.Group(),armR=new THREE.Group(),legL=new THREE.Group(),legR=new THREE.Group();
- const buildArm=(group:THREE.Group,x:number)=>{
-   group.position.set(x,2.02,0);
-   const shoulder=addShadow(new THREE.Mesh(new THREE.SphereGeometry(.18,14,10),jerseyDark));group.add(shoulder);
-   const upper=addShadow(new THREE.Mesh(new THREE.CapsuleGeometry(.11,.42,5,10),jersey));upper.position.y=-.28;group.add(upper);
-   const elbow=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),armor);elbow.position.y=-.55;group.add(elbow);
-   const fore=addShadow(new THREE.Mesh(new THREE.CapsuleGeometry(.1,.38,5,10),armor));fore.position.y=-.78;group.add(fore);
-   const glove=new THREE.Mesh(new THREE.SphereGeometry(.12,12,9),armor);glove.position.y=-1.05;group.add(glove);
- };
- buildArm(armL,-.55);buildArm(armR,.55);root.add(armL,armR);
-
- const buildLeg=(group:THREE.Group,x:number)=>{
-   group.position.set(x,1.02,0);
-   const thigh=addShadow(new THREE.Mesh(new THREE.CapsuleGeometry(.16,.48,5,10),pants));thigh.position.y=-.3;group.add(thigh);
-   const knee=new THREE.Mesh(new THREE.SphereGeometry(.15,12,9),armor);knee.position.y=-.6;group.add(knee);
-   const shin=addShadow(new THREE.Mesh(new THREE.CapsuleGeometry(.14,.42,5,10),pants));shin.position.y=-.9;group.add(shin);
-   const boot=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.3,.2,.48),bootMat));boot.position.set(0,-1.18,.1);group.add(boot);
- };
- buildLeg(legL,-.23);buildLeg(legR,.23);root.add(legL,legR);
-
- const marker=new THREE.Group();marker.position.set(.27,1.78,.46);marker.rotation.x=-.08;
- const markerBody=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.18,.2,.72),armor));markerBody.position.z=.28;marker.add(markerBody);
- const barrel=addShadow(new THREE.Mesh(new THREE.CylinderGeometry(.055,.06,.78,14),armor));barrel.rotation.x=Math.PI/2;barrel.position.z=.9;marker.add(barrel);
- const tip=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,.14,12),jerseyDark);tip.rotation.x=Math.PI/2;tip.position.z=1.33;marker.add(tip);
- const hopper=addShadow(new THREE.Mesh(new THREE.SphereGeometry(.22,16,10),jersey));hopper.scale.set(1,.8,1);hopper.position.set(0,.26,.18);marker.add(hopper);
- const tank=addShadow(new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.5,12),white));tank.rotation.x=Math.PI/2;tank.position.set(0,-.02,-.32);marker.add(tank);root.add(marker);
-
- const pack=addShadow(new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.24),armor));pack.position.set(0,1.55,-.36);root.add(pack);
- for(const x of [-.23,0,.23]){const pod=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.42,9),jerseyDark);pod.position.set(x,1.5,-.52);root.add(pod);}
-
- const contact=new THREE.Mesh(new THREE.CircleGeometry(.52,24),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.24,depthWrite:false}));contact.rotation.x=-Math.PI/2;contact.position.y=.015;root.add(contact);
-
- const tagCanvas=document.createElement("canvas");tagCanvas.width=640;tagCanvas.height=128;const ctx=tagCanvas.getContext("2d")!;
- ctx.fillStyle="rgba(4,10,20,.88)";ctx.beginPath();ctx.roundRect(8,8,624,112,32);ctx.fill();ctx.strokeStyle=team==="cyan"?"#67e8f9":"#f9a8d4";ctx.lineWidth=6;ctx.stroke();ctx.fillStyle="#fff";ctx.font="800 42px system-ui";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(name.slice(0,20),320,64);
- const tex=new THREE.CanvasTexture(tagCanvas);tex.colorSpace=THREE.SRGBColorSpace;const label=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));label.scale.set(2.6,.52,1);label.position.y=3.35;root.add(label);
-
- root.scale.setScalar(.92);
- root.userData={armL,armR,legL,legR,torso,pelvis,marker,step:0,baseY:0};
- return root;
+async function api<T>(token: string, path: string, method = "GET", body?: unknown): Promise<T> {
+  const res = await fetch(API_BASE + path, {
+    method,
+    headers: { Authorization: "Bearer " + token, ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  let data: any = null;
+  try { data = await res.json(); } catch { /* empty */ }
+  if (!res.ok) throw new Error((data && data.message) || "Something went wrong. Please try again.");
+  return data as T;
 }
 
-function PaintballScene({room,myId,onMove,onShoot,mobile}:{room:Room;myId:number;onMove:(x:number,z:number,rot:number,moving:boolean,sprinting:boolean)=>void;onShoot:(rot:number)=>void;mobile:MobileInput}){
- const host=useRef<HTMLDivElement>(null);
- const roomRef=useRef(room);roomRef.current=room;
- const mobileRef=useRef(mobile);mobileRef.current=mobile;
- const shootRef=useRef(onShoot);shootRef.current=onShoot;
- const moveRef=useRef(onMove);moveRef.current=onMove;
- useEffect(()=>{
-  const mount=host.current;if(!mount)return;
-  let renderer:THREE.WebGLRenderer|undefined,raf=0,lastSend=0;
-  const scene=new THREE.Scene();
-  const camera=new THREE.PerspectiveCamera(58,1,.06,220);
+const PAGE_CSS = `
+.pb-font{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif}
+.pb-skew{transform:skewX(-8deg)}.pb-unskew{transform:skewX(8deg)}
+.pb-cross{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;transition:opacity .12s}
+.pb-cross i{position:absolute;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.55);border-radius:2px;transition:transform .06s linear}
+.pb-cross i.t{width:2px;height:9px;left:-1px;top:calc(-1 * var(--spread,6px) - 9px)}
+.pb-cross i.b{width:2px;height:9px;left:-1px;top:var(--spread,6px)}
+.pb-cross i.l{height:2px;width:9px;top:-1px;left:calc(-1 * var(--spread,6px) - 9px)}
+.pb-cross i.r{height:2px;width:9px;top:-1px;left:var(--spread,6px)}
+.pb-cross b{position:absolute;width:4px;height:4px;left:-2px;top:-2px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+.pb-cross[data-enemy="1"] i,.pb-cross[data-enemy="1"] b{background:#ff4d6d}
+.pb-hit{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;opacity:0;pointer-events:none}
+.pb-hit:before,.pb-hit:after{content:"";position:absolute;left:50%;top:-2px;width:3px;height:34px;margin-left:-1.5px;background:linear-gradient(#fff 0 35%,transparent 35% 65%,#fff 65%);border-radius:2px;filter:drop-shadow(0 0 2px rgba(0,0,0,.8))}
+.pb-hit:before{transform:rotate(45deg)}.pb-hit:after{transform:rotate(-45deg)}
+.pb-hit[data-kind="head"]:before,.pb-hit[data-kind="head"]:after{background:linear-gradient(#fde047 0 35%,transparent 35% 65%,#fde047 65%)}
+.pb-hit[data-kind="kill"]:before,.pb-hit[data-kind="kill"]:after{background:linear-gradient(#ff3d6e 0 38%,transparent 38% 62%,#ff3d6e 62%);height:42px;top:-6px}
+.pb-hit-on{animation:pbHit .26s ease-out}
+.pb-hit-on[data-kind="kill"]{animation:pbKill .5s ease-out}
+@keyframes pbHit{0%{opacity:1;transform:scale(1.35)}100%{opacity:0;transform:scale(1)}}
+@keyframes pbKill{0%{opacity:1;transform:scale(1.6) rotate(0)}60%{opacity:1}100%{opacity:0;transform:scale(1.1) rotate(8deg)}}
+.pb-vig{background:radial-gradient(ellipse at center,transparent 45%,rgba(220,20,90,.25) 70%,rgba(160,0,60,.75) 100%)}
+.pb-toast{animation:pbToast 2.6s ease-out forwards}
+@keyframes pbToast{0%{opacity:0;transform:translateY(10px) scale(.8)}10%{opacity:1;transform:translateY(0) scale(1.08)}18%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
+.pb-feed{animation:pbFeed .25s ease-out}
+@keyframes pbFeed{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+.pb-count{animation:pbCount 1s ease-out infinite}
+@keyframes pbCount{0%{transform:scale(1.6);opacity:0}20%{transform:scale(1);opacity:1}85%{opacity:1}100%{opacity:0;transform:scale(.9)}}
+.pb-dmg{position:absolute;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;pointer-events:none;animation:pbDmg 1.4s ease-out forwards}
+.pb-dmg:before{content:"";position:absolute;left:50%;top:0;width:64px;height:20px;margin-left:-32px;border-radius:50% 50% 0 0;border-top:6px solid rgba(255,61,110,.95);filter:drop-shadow(0 0 6px rgba(255,0,80,.8))}
+@keyframes pbDmg{0%{opacity:1}100%{opacity:0}}
+.pb-scope{background:radial-gradient(circle at center,transparent 0 31vmin,rgba(0,0,0,.92) 31.4vmin)}
+.pb-glow{text-shadow:0 2px 0 rgba(0,0,0,.35),0 0 18px rgba(255,255,255,.25)}
+.pb-btn{transition:transform .12s ease,filter .12s ease}.pb-btn:hover{transform:translateY(-2px);filter:brightness(1.08)}.pb-btn:active{transform:translateY(1px) scale(.98)}
+.pb-bg{background:radial-gradient(1200px 600px at 15% -10%,rgba(34,211,238,.35),transparent 60%),radial-gradient(1000px 600px at 95% 0%,rgba(240,71,154,.35),transparent 60%),radial-gradient(900px 500px at 50% 120%,rgba(250,204,21,.18),transparent 60%),linear-gradient(160deg,#071026,#140a2a 60%,#0b0f1f)}
+.pb-splat-dots{background-image:radial-gradient(circle at 93% 9%,rgba(34,211,238,.5) 0 26px,transparent 27px),radial-gradient(circle at 88% 15%,rgba(34,211,238,.45) 0 8px,transparent 9px),radial-gradient(circle at 78% 28%,rgba(240,71,154,.5) 0 34px,transparent 35px),radial-gradient(circle at 72% 21%,rgba(240,71,154,.45) 0 10px,transparent 11px),radial-gradient(circle at 96% 46%,rgba(250,204,21,.4) 0 18px,transparent 19px),radial-gradient(circle at 85% 40%,rgba(167,139,250,.4) 0 12px,transparent 13px)}
+`;
 
-  try{renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance",failIfMajorPerformanceCaveat:false});}catch{return;}
-  const phone=matchMedia("(max-width: 820px)").matches;
-  renderer.setPixelRatio(Math.min(devicePixelRatio,phone?1.2:1.8));
-  renderer.outputColorSpace=THREE.SRGBColorSpace;
-  renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.14;
-  renderer.shadowMap.enabled=!phone;
-  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  mount.replaceChildren(renderer.domElement);
+// ===========================================================================
+// Page
+// ===========================================================================
 
-  scene.background=new THREE.Color(0x8ed8ff);
-  scene.fog=new THREE.Fog(0xa9d9e8,55,150);
-  scene.add(new THREE.HemisphereLight(0xeaf9ff,0x2c3c2b,2.15));
-  const sun=new THREE.DirectionalLight(0xfff3d8,4.7);sun.position.set(-22,36,18);sun.castShadow=!phone;
-  if(sun.castShadow){sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-42;sun.shadow.camera.right=42;sun.shadow.camera.top=42;sun.shadow.camera.bottom=-42;sun.shadow.camera.near=1;sun.shadow.camera.far=90;sun.shadow.bias=-.0005;}
-  scene.add(sun);
-  const fill=new THREE.DirectionalLight(0x8fd7ff,1.15);fill.position.set(26,12,-20);scene.add(fill);
+export default function PaintballArena() {
+  const { user, token } = useAuth();
+  const [, navigate] = useLocation();
+  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [view, setView] = useState<"menu" | "lobby" | "game">("menu");
+  const [meta, setMeta] = useState<RoomMeta | null>(null);
+  const [lobbies, setLobbies] = useState<Lobby[]>([]);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [botLevel, setBotLevel] = useState<BotLevel>("normal");
+  const [settings, setSettingsState] = useState<GameSettings>(loadSettings);
+  const [showSettings, setShowSettings] = useState(false);
+  const [gameKey, setGameKey] = useState(0);
+  const myId = Number(user?.id);
+  const roomCode = meta?.code || snap?.meta?.code || "";
+  const roomRef = useRef(roomCode);
+  roomRef.current = roomCode;
 
-  const makeTurf=()=>{
-    const c=document.createElement("canvas");c.width=512;c.height=512;const ctx=c.getContext("2d")!;
-    ctx.fillStyle="#5c9f61";ctx.fillRect(0,0,512,512);
-    for(let i=0;i<9000;i++){const g=80+Math.floor(Math.random()*55);ctx.fillStyle="rgba(20,"+g+",38,"+(.05+Math.random()*.1)+")";ctx.fillRect(Math.random()*512,Math.random()*512,1+Math.random()*2,1+Math.random()*4);}
-    for(let y=0;y<512;y+=64){ctx.fillStyle="rgba(255,255,255,.018)";ctx.fillRect(0,y,512,32);}
-    const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(9,9);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer?.capabilities.getMaxAnisotropy()||1);return t;
-  };
-  const groundMat=new THREE.MeshStandardMaterial({map:makeTurf(),color:0xffffff,roughness:.92,metalness:0});
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(76,76,1,1),groundMat);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+  const setSettings = useCallback((s: GameSettings) => { setSettingsState(s); saveSettings(s); }, []);
 
-  const stripeMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.45});
-  for(const x of [-27,0,27]){const stripe=new THREE.Mesh(new THREE.PlaneGeometry(.14,58),stripeMat);stripe.rotation.x=-Math.PI/2;stripe.position.set(x,.02,0);scene.add(stripe);}
-  for(const z of [-27,27]){const stripe=new THREE.Mesh(new THREE.PlaneGeometry(58,.14),stripeMat);stripe.rotation.x=-Math.PI/2;stripe.position.set(0,.02,z);scene.add(stripe);}
+  const applySnapshot = useCallback((s: Snapshot) => {
+    setSnap(s);
+    if (s.meta) setMeta(s.meta);
+    setView(s.phase === "lobby" ? "lobby" : "game");
+  }, []);
 
-  const arena=new THREE.Group();scene.add(arena);
-  const soft=(color:number)=>new THREE.MeshStandardMaterial({color,roughness:.4,metalness:.04});
-  const cyanMat=soft(0x0891b2),pinkMat=soft(0xdb2777),darkMat=soft(0x263244),yellowMat=soft(0xf4b942),whiteMat=soft(0xe8f2f4);
-  const inflatable=(x:number,z:number,shape:"can"|"wedge"|"brick"|"dorito",team:"cyan"|"pink"|"neutral",rot=0,scale=1)=>{
-    const mat=team==="cyan"?cyanMat:team==="pink"?pinkMat:darkMat;const g=new THREE.Group();
-    let body:THREE.Mesh;
-    if(shape==="can"){body=new THREE.Mesh(new THREE.CapsuleGeometry(1.05*scale,2.5*scale,8,18),mat);body.position.y=2.3*scale;}
-    else if(shape==="brick"){body=new THREE.Mesh(new THREE.BoxGeometry(4.6*scale,2.1*scale,1.5*scale,4,2,2),mat);body.position.y=1.05*scale;}
-    else if(shape==="wedge"){body=new THREE.Mesh(new THREE.CylinderGeometry(.35*scale,1.55*scale,3.8*scale,18),mat);body.rotation.z=Math.PI/2;body.position.y=1.35*scale;}
-    else {body=new THREE.Mesh(new THREE.ConeGeometry(1.7*scale,4.6*scale,4),mat);body.rotation.y=Math.PI/4;body.position.y=2.3*scale;}
-    body.castShadow=!phone;body.receiveShadow=true;g.add(body);
-    const band=new THREE.Mesh(new THREE.TorusGeometry(shape==="can"?1.03*scale:1.15*scale,.07*scale,8,30),whiteMat);band.rotation.x=Math.PI/2;band.position.y=shape==="can"?2.3*scale:1.2*scale;if(shape!=="can")band.visible=false;g.add(band);
-    g.position.set(x,0,z);g.rotation.y=rot;arena.add(g);return g;
-  };
-  inflatable(-20,-12,"can","cyan",0,1.1);inflatable(-20,12,"can","cyan",0,1.1);
-  inflatable(20,-12,"can","pink",0,1.1);inflatable(20,12,"can","pink",0,1.1);
-  inflatable(-11,-8,"wedge","cyan",-.28,1);inflatable(-11,9,"brick","cyan",.22,.95);
-  inflatable(11,8,"wedge","pink",.28,1);inflatable(11,-9,"brick","pink",-.22,.95);
-  inflatable(-4,-14,"dorito","neutral",.25,.8);inflatable(5,14,"dorito","neutral",-.25,.8);
-  inflatable(0,0,"brick","neutral",.1,1.1);inflatable(-2,7,"can","neutral",0,.75);inflatable(3,-7,"can","neutral",0,.75);
-
-  const wallMat=new THREE.MeshStandardMaterial({color:0x1c2a38,roughness:.62,metalness:.18});
-  for(const x of [-31,31]){const wall=new THREE.Mesh(new THREE.BoxGeometry(1,4.6,64),wallMat);wall.position.set(x,2.3,0);wall.castShadow=!phone;arena.add(wall);}
-  for(const z of [-31,31]){const wall=new THREE.Mesh(new THREE.BoxGeometry(64,4.6,1),wallMat);wall.position.set(0,2.3,z);wall.castShadow=!phone;arena.add(wall);}
-
-  const makeNetTexture=()=>{
-    const c=document.createElement("canvas");c.width=256;c.height=256;const ctx=c.getContext("2d")!;ctx.clearRect(0,0,256,256);ctx.strokeStyle="rgba(200,240,245,.42)";ctx.lineWidth=1;
-    for(let i=0;i<=256;i+=16){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,256);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(256,i);ctx.stroke();}
-    const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(5,1);return t;
-  };
-  const netMat=new THREE.MeshBasicMaterial({map:makeNetTexture(),transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
-  for(const [x,z,ry] of [[-32,0,Math.PI/2],[32,0,Math.PI/2],[0,-32,0],[0,32,0]] as [number,number,number][]){const net=new THREE.Mesh(new THREE.PlaneGeometry(64,10),netMat);net.position.set(x,6,z);net.rotation.y=ry;arena.add(net);}
-
-  const stand=(z:number,flip=false)=>{
-    const g=new THREE.Group();
-    for(let row=0;row<4;row++){const seat=new THREE.Mesh(new THREE.BoxGeometry(24,.5,2.2),new THREE.MeshStandardMaterial({color:row%2?0x24364a:0x31475d,roughness:.65,metalness:.15}));seat.position.set(0,row*.9,row*(flip?-1:1)*1.25);g.add(seat);}
-    const roof=new THREE.Mesh(new THREE.BoxGeometry(25,.35,6),new THREE.MeshStandardMaterial({color:0x142334,roughness:.45,metalness:.32}));roof.position.set(0,5.1,flip?-1.4:1.4);g.add(roof);
-    for(const x of [-10,-3.3,3.3,10]){const post=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,5,10),wallMat);post.position.set(x,2.6,0);g.add(post);}
-    g.position.set(0,0,z);scene.add(g);
-  };stand(-42,false);stand(42,true);
-
-  const mountainMat=new THREE.MeshStandardMaterial({color:0x668399,roughness:1});
-  for(let i=0;i<12;i++){const m=new THREE.Mesh(new THREE.ConeGeometry(10+(i%3)*4,25+(i%4)*5,6),mountainMat);const a=i/12*Math.PI*2;m.position.set(Math.cos(a)*88,9,Math.sin(a)*78);m.rotation.y=i*.7;scene.add(m);}
-  const treeTrunk=new THREE.MeshStandardMaterial({color:0x65472f,roughness:1}),treeLeaf=new THREE.MeshStandardMaterial({color:0x245c38,roughness:.95});
-  for(let i=0;i<34;i++){const a=i/34*Math.PI*2,r=50+(i%5)*2;const g=new THREE.Group();const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.28,.42,3.8,10),treeTrunk);trunk.position.y=1.9;g.add(trunk);for(let j=0;j<3;j++){const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.55-j*.15,1),treeLeaf);crown.position.set((j-1)*.45,4.2+j*.45,(j%2?-.25:.2));crown.scale.set(1,1.25,1);g.add(crown);}g.position.set(Math.cos(a)*r,0,Math.sin(a)*r);scene.add(g);}
-
-  const signCanvas=document.createElement("canvas");signCanvas.width=1024;signCanvas.height=256;const sctx=signCanvas.getContext("2d")!;
-  sctx.fillStyle="#08111f";sctx.fillRect(0,0,1024,256);const grad=sctx.createLinearGradient(0,0,1024,0);grad.addColorStop(0,"#22d3ee");grad.addColorStop(.5,"#ffffff");grad.addColorStop(1,"#f472b6");sctx.fillStyle=grad;sctx.font="900 106px system-ui";sctx.textAlign="center";sctx.textBaseline="middle";sctx.fillText("PRISM PAINTBALL",512,128);
-  const signTex=new THREE.CanvasTexture(signCanvas);signTex.colorSpace=THREE.SRGBColorSpace;const sign=new THREE.Mesh(new THREE.PlaneGeometry(18,4.5),new THREE.MeshBasicMaterial({map:signTex}));sign.position.set(0,9,-31.55);scene.add(sign);
-
-  const splashColors=[0x22d3ee,0xec4899,0xfacc15,0xa855f7];
-  for(let i=0;i<75;i++){const s=new THREE.Mesh(new THREE.CircleGeometry(.12+(i%5)*.045,12),new THREE.MeshBasicMaterial({color:splashColors[i%4],transparent:true,opacity:.6,depthWrite:false}));s.rotation.x=-Math.PI/2;s.position.set(-28+(i*17)%56,.025,-28+(i*29)%56);s.rotation.z=i*.9;scene.add(s);}
-
-  const playerGroups=new Map<number,THREE.Group>();
-  const particles:{mesh:THREE.Mesh;vel:THREE.Vector3;life:number}[]=[];
-  const keys=new Set<string>();let yaw=0,localX=0,localZ=0,initialized=false;
-  const ensurePlayers=()=>{
-    for(const p of roomRef.current.players){if(!playerGroups.has(p.id)){const g=makeCharacter(p.team,p.name);scene.add(g);playerGroups.set(p.id,g);}}
-    for(const [id,g] of playerGroups){if(!roomRef.current.players.some(p=>p.id===id)){scene.remove(g);playerGroups.delete(id);}}
-  };ensurePlayers();
-
-  const resize=()=>{if(!renderer)return;const w=mount.clientWidth,h=mount.clientHeight;camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();renderer.setSize(w,h,false)};resize();addEventListener("resize",resize);
-  const down=(e:KeyboardEvent)=>keys.add(e.key.toLowerCase()),up=(e:KeyboardEvent)=>keys.delete(e.key.toLowerCase());addEventListener("keydown",down);addEventListener("keyup",up);
-  const mouse=(e:MouseEvent)=>{if(document.pointerLockElement===renderer?.domElement)yaw-=e.movementX*.00215};addEventListener("mousemove",mouse);
-  const fireFX=()=>{
-    for(let i=0;i<18;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.045+(i%3)*.012,7,6),new THREE.MeshBasicMaterial({color:splashColors[i%4]}));const side=(Math.random()-.5)*.05;const dir=new THREE.Vector3(Math.sin(yaw)+side,.04+Math.random()*.045,Math.cos(yaw)+side).normalize();m.position.set(localX+Math.sin(yaw)*.6,.95,localZ+Math.cos(yaw)*.6);scene.add(m);particles.push({mesh:m,vel:dir.multiplyScalar(18+Math.random()*5),life:.52});}
-  };
-  const pointerDown=(e:PointerEvent)=>{if(e.button===0&&document.pointerLockElement===renderer?.domElement){shootRef.current(yaw);fireFX();}else if(e.button===0&&!phone)renderer?.domElement.requestPointerLock?.();};renderer.domElement.addEventListener("pointerdown",pointerDown);
-
-  const clock=new THREE.Clock();
-  const animate=()=>{if(!renderer)return;const dt=Math.min(clock.getDelta(),.04),now=performance.now();ensurePlayers();const state=roomRef.current;const me=state.players.find(p=>p.id===myId);
-   if(me){
-    if(!initialized){localX=me.x;localZ=me.z;yaw=me.rot;initialized=true;}if(me.respawnAt){localX=me.x;localZ=me.z;}
-    const m=mobileRef.current;const f=(keys.has("w")||keys.has("arrowup")||m.forward?1:0)-(keys.has("s")||keys.has("arrowdown")||m.back?1:0);const r=(keys.has("d")||keys.has("arrowright")||m.right?1:0)-(keys.has("a")||keys.has("arrowleft")||m.left?1:0);const sprint=keys.has("shift")||m.sprint;const mag=Math.hypot(f,r);const moving=mag>.01&&!me.respawnAt;
-    if(moving){const speed=(sprint?8.7:6.2)*dt,nf=f/mag,nr=r/mag;localX+=(Math.sin(yaw)*nf+Math.cos(yaw)*nr)*speed;localZ+=(Math.cos(yaw)*nf-Math.sin(yaw)*nr)*speed;localX=Math.max(-27.8,Math.min(27.8,localX));localZ=Math.max(-27.8,Math.min(27.8,localZ));}
-    if(phone&&Math.abs(r)>.1)yaw-=r*dt*1.5;
-    if(now-lastSend>110){lastSend=now;moveRef.current(localX,localZ,yaw,moving,sprint);}
-    for(const p of state.players){
-      const g=playerGroups.get(p.id);if(!g)continue;const targetX=p.id===myId?localX:p.x,targetZ=p.id===myId?localZ:p.z;g.position.x+=(targetX-g.position.x)*Math.min(1,dt*12);g.position.z+=(targetZ-g.position.z)*Math.min(1,dt*12);g.rotation.y=p.id===myId?yaw:p.rot;g.visible=!p.respawnAt;
-      const d=g.userData as any,walk=p.id===myId?moving:p.moving;
-      if(walk){d.step+=dt*(p.sprinting?12.5:8.7);const swing=Math.sin(d.step)*.72;d.armL.rotation.x=swing*.72-.18;d.armR.rotation.x=-swing*.55-.45;d.legL.rotation.x=-swing;d.legR.rotation.x=swing;d.torso.rotation.z=Math.sin(d.step*.5)*.025;d.torso.rotation.x=p.sprinting?.08:.035;g.position.y=Math.abs(Math.sin(d.step*2))*.035;}
-      else{d.armL.rotation.x+=(0-d.armL.rotation.x)*.16;d.armR.rotation.x+=(-.35-d.armR.rotation.x)*.16;d.legL.rotation.x*=.8;d.legR.rotation.x*=.8;d.torso.rotation.z*=.82;d.torso.rotation.x*=.82;g.position.y*=.82;}
+  const enter = async (kind: "queue" | "create" | "private" | "practice" | "join", joinCode = code) => {
+    if (!token || busy) return;
+    setBusy(true); setError("");
+    try {
+      let s: Snapshot;
+      if (kind === "queue") s = await api<Snapshot>(token, "/api/paintball/queue", "POST", {});
+      else if (kind === "join") s = await api<Snapshot>(token, "/api/paintball/rooms/" + joinCode + "/join", "POST", {});
+      else s = await api<Snapshot>(token, "/api/paintball/rooms", "POST", { practice: kind === "practice", publicLobby: kind === "create", botLevel });
+      setGameKey((k) => k + 1);
+      applySnapshot(s);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not reach Prism Paintball.");
+    } finally {
+      setBusy(false);
     }
-    const back=phone?9.8:10.8,side=phone?1.2:1.75,height=phone?4.7:5.1;
-    const tx=localX-Math.sin(yaw)*back+Math.cos(yaw)*side,tz=localZ-Math.cos(yaw)*back-Math.sin(yaw)*side;
-    camera.position.x+=(tx-camera.position.x)*Math.min(1,dt*7.2);camera.position.z+=(tz-camera.position.z)*Math.min(1,dt*7.2);camera.position.y+=(height-camera.position.y)*Math.min(1,dt*5.5);
-    camera.lookAt(localX+Math.sin(yaw)*3.4,1.35,localZ+Math.cos(yaw)*3.4);
-   }
-   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.vel.y-=2.2*dt;p.mesh.position.addScaledVector(p.vel,dt);if(p.life<=0){scene.remove(p.mesh);p.mesh.geometry.dispose();(p.mesh.material as THREE.Material).dispose();particles.splice(i,1);}}
-   renderer.render(scene,camera);raf=requestAnimationFrame(animate);
-  };animate();
+  };
 
-  return()=>{cancelAnimationFrame(raf);removeEventListener("resize",resize);removeEventListener("keydown",down);removeEventListener("keyup",up);removeEventListener("mousemove",mouse);renderer?.domElement.removeEventListener("pointerdown",pointerDown);try{document.exitPointerLock?.()}catch{};scene.traverse(o=>{const m=o as THREE.Mesh;m.geometry?.dispose?.();if(m.material)(Array.isArray(m.material)?m.material:[m.material]).forEach(mat=>{if("map" in mat)(mat as THREE.MeshBasicMaterial).map?.dispose?.();mat.dispose();});});renderer?.dispose();mount.replaceChildren();};
- },[]);
- return <div ref={host} className="absolute inset-0 bg-sky-300"/>;
+  const leave = useCallback((toWorlds: boolean) => {
+    const c = roomRef.current;
+    if (c && token) void fetch(API_BASE + "/api/paintball/rooms/" + c + "/leave", { method: "POST", headers: { Authorization: "Bearer " + token }, keepalive: true }).catch(() => {});
+    setSnap(null); setMeta(null); setView("menu");
+    if (toWorlds) navigate("/worlds");
+  }, [token, navigate]);
+
+  // leave the room if the tab is closed
+  useEffect(() => {
+    const onHide = () => {
+      const c = roomRef.current;
+      if (c && token) { try { void fetch(API_BASE + "/api/paintball/rooms/" + c + "/leave", { method: "POST", headers: { Authorization: "Bearer " + token }, keepalive: true }); } catch { /* ignore */ } }
+    };
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      onHide(); // leaving the page (e.g. browser back) also leaves the room
+    };
+  }, [token]);
+
+  // open lobbies list on the menu
+  useEffect(() => {
+    if (view !== "menu" || !token) return;
+    let stop = false;
+    const load = async () => { try { const l = await api<Lobby[]>(token, "/api/paintball/lobbies"); if (!stop) setLobbies(l); } catch { /* ignore */ } };
+    void load();
+    const t = window.setInterval(load, 3000);
+    return () => { stop = true; window.clearInterval(t); };
+  }, [view, token]);
+
+  // lobby polling
+  useEffect(() => {
+    if (view !== "lobby" || !token || !roomCode) return;
+    let stop = false;
+    let timer = 0;
+    const poll = async () => {
+      try {
+        const s = await api<Snapshot>(token, "/api/paintball/rooms/" + roomCode);
+        if (stop) return;
+        setSnap(s);
+        if (s.meta) setMeta(s.meta);
+        if (s.phase !== "lobby") { setGameKey((k) => k + 1); setView("game"); return; }
+      } catch (e) {
+        if (stop) return;
+        setError(e instanceof Error ? e.message : "The room closed.");
+        setView("menu"); setSnap(null); setMeta(null);
+        return;
+      }
+      timer = window.setTimeout(poll, 900);
+    };
+    timer = window.setTimeout(poll, 400);
+    return () => { stop = true; window.clearTimeout(timer); };
+  }, [view, token, roomCode]);
+
+  const action = async (body: Record<string, unknown>) => {
+    if (!token || !roomCode) return;
+    setError("");
+    try {
+      const s = await api<Snapshot>(token, "/api/paintball/rooms/" + roomCode + "/action", "POST", body);
+      setSnap(s);
+      if (s.meta) setMeta(s.meta);
+      if (s.phase !== "lobby" && view === "lobby") { setGameKey((k) => k + 1); setView("game"); }
+    } catch (e) { setError(e instanceof Error ? e.message : "That did not work."); }
+  };
+
+  const backToLobby = useCallback(async () => {
+    if (!token || !roomRef.current) return;
+    try {
+      const s = await api<Snapshot>(token, "/api/paintball/rooms/" + roomRef.current);
+      setSnap(s); if (s.meta) setMeta(s.meta);
+      setView("lobby");
+    } catch (e) { setError(e instanceof Error ? e.message : "The room closed."); setView("menu"); }
+  }, [token]);
+
+  const restartWithSettings = useCallback(async (s: GameSettings) => {
+    setSettings(s);
+    if (!token || !roomRef.current) return;
+    try {
+      const fresh = await api<Snapshot>(token, "/api/paintball/rooms/" + roomRef.current);
+      setSnap(fresh); if (fresh.meta) setMeta(fresh.meta);
+      setGameKey((k) => k + 1);
+    } catch { /* ignore */ }
+  }, [token, setSettings]);
+
+  if (!user || !token) return null;
+
+  return (
+    <div className="pb-font">
+      <style>{PAGE_CSS}</style>
+      {view === "menu" && (
+        <Menu
+          busy={busy} error={error} lobbies={lobbies} code={code} setCode={setCode} botLevel={botLevel} setBotLevel={setBotLevel}
+          onQuick={() => enter("queue")} onPractice={() => enter("practice")} onCreate={(pub) => enter(pub ? "create" : "private")}
+          onJoin={(c) => { setCode(c); void enter("join", c); }} onBack={() => navigate("/worlds")} onSettings={() => setShowSettings(true)}
+        />
+      )}
+      {view === "lobby" && meta && (
+        <LobbyView meta={meta} myId={myId} error={error} onAction={action} onLeave={() => leave(false)} />
+      )}
+      {view === "game" && snap && (
+        <GameView
+          key={gameKey}
+          initial={snap}
+          token={token}
+          myId={myId}
+          settings={settings}
+          onSettings={setSettings}
+          onApplyQuality={restartWithSettings}
+          onLeave={() => leave(false)}
+          onAction={action}
+          onLobby={backToLobby}
+          onEnded={(m) => { setError(m); setView("menu"); setSnap(null); setMeta(null); }}
+        />
+      )}
+      {showSettings && <SettingsPanel settings={settings} onChange={setSettings} onClose={() => setShowSettings(false)} />}
+    </div>
+  );
 }
 
-export default function PaintballArena(){
- const {user,token}=useAuth();const [,navigate]=useLocation();
- const [room,setRoom]=useState<Room|null>(null),[lobbies,setLobbies]=useState<Lobby[]>([]),[code,setCode]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
- const [mobile,setMobile]=useState<MobileInput>({forward:false,back:false,left:false,right:false,sprint:false});
- const myId=Number(user?.id),me=room?.players.find(p=>p.id===myId),host=room?.hostId===myId;
- const roomRef=useRef(room);roomRef.current=room;
- const action=async(body:any)=>{const r=roomRef.current;if(!r||!token)return;try{const res=await fetch(API_BASE+"/api/paintball/rooms/"+r.code+"/action",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(body)});const data=await res.json();if(res.ok)setRoom(data);else setError(data.message||"Action failed.");}catch{}};
- const enter=async(kind:"queue"|"create"|"practice"|"join",selectedCode=code)=>{if(!token||busy)return;setBusy(true);setError("");try{const path=kind==="queue"?"/api/paintball/queue":kind==="join"?"/api/paintball/rooms/"+selectedCode+"/join":"/api/paintball/rooms";const res=await fetch(API_BASE+path,{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(kind==="practice"?{practice:true}:{publicLobby:kind==="create"})});const data=await res.json();if(res.ok)setRoom(data);else setError(data.message||"Could not enter Paintball Arena.");}catch{setError("Could not reach Paintball Arena.")}finally{setBusy(false)}};
- useEffect(()=>{if(room||!token)return;let stop=false;const load=async()=>{try{const r=await fetch(API_BASE+"/api/paintball/lobbies",{headers:{Authorization:"Bearer "+token}});if(r.ok&&!stop)setLobbies(await r.json())}catch{}};load();const t=setInterval(load,3000);return()=>{stop=true;clearInterval(t)}},[!!room,token]);
- useEffect(()=>{if(!room?.code||!token)return;let stop=false;const poll=async()=>{try{const r=await fetch(API_BASE+"/api/paintball/rooms/"+room.code,{headers:{Authorization:"Bearer "+token},cache:"no-store"});const data=await r.json();if(r.ok&&!stop)setRoom(data);else if(!stop&&r.status===409){setRoom(null);setError(data.message||"Room ended.");}}catch{}if(!stop)setTimeout(poll,180)};const t=setTimeout(poll,180);return()=>{stop=true;clearTimeout(t)}},[room?.code,token]);
- const leave=()=>{if(room&&token)void fetch(API_BASE+"/api/paintball/rooms/"+room.code+"/leave",{method:"POST",headers:{Authorization:"Bearer "+token},keepalive:true});setRoom(null);navigate("/worlds")};
- const setPress=(key:keyof MobileInput,value:boolean)=>setMobile(m=>({...m,[key]:value}));
- const time=room?Math.ceil(room.timeLeft/1000):0;
+// ===========================================================================
+// Menu
+// ===========================================================================
 
- if(!room)return <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_20%_10%,#164e63,transparent_28%),radial-gradient(circle_at_85%_8%,#831843,transparent_27%),linear-gradient(#050816,#10182c)] p-4 text-white sm:p-8">
-  <button onClick={()=>navigate("/worlds")} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-black"><ArrowLeft className="mr-2 inline h-5 w-5"/> Worlds</button>
-  <section className="mx-auto mt-5 max-w-6xl overflow-hidden rounded-[2.5rem] border border-white/10 bg-slate-950/70 shadow-[0_40px_100px_rgba(0,0,0,.55)] backdrop-blur-xl">
-   <div className="relative min-h-[360px] overflow-hidden bg-[linear-gradient(120deg,rgba(34,211,238,.16),transparent_46%),linear-gradient(240deg,rgba(236,72,153,.17),transparent_48%),#080d18] p-7 sm:p-12">
-    <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_30%_30%,#22d3ee_0_3px,transparent_4px),radial-gradient(circle_at_70%_50%,#ec4899_0_4px,transparent_5px)] [background-size:55px_55px,71px_71px]"/>
-    <div className="relative max-w-3xl"><p className="text-xs font-black uppercase tracking-[.3em] text-cyan-300">A.R.I.S.E. competitive world</p><h1 className="mt-3 text-5xl font-black tracking-[-.05em] sm:text-8xl">PRISM<br/><span className="text-cyan-300">PAINTBALL</span></h1><p className="mt-5 max-w-2xl text-base font-bold leading-7 text-slate-300 sm:text-xl">Fast third-person team paintball with real multiplayer rooms, animated runners, towers, cover, respawns, live scores, and a bright outdoor arena.</p><div className="mt-5 flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-cyan-400/15 px-3 py-2 text-cyan-200">REAL MULTIPLAYER</span><span className="rounded-full bg-pink-400/15 px-3 py-2 text-pink-200">NO GORE</span><span className="rounded-full bg-white/10 px-3 py-2">WASD + TOUCH</span><span className="rounded-full bg-white/10 px-3 py-2">5 MINUTE MATCHES</span></div></div>
-   </div>
-   <div className="grid gap-4 p-5 sm:p-8 md:grid-cols-[1.1fr_.9fr]"><div><button disabled={busy} onClick={()=>enter("queue")} className="min-h-16 w-full rounded-2xl bg-cyan-300 text-xl font-black text-slate-950 shadow-lg"><Users className="mr-2 inline"/> Join multiplayer match</button><div className="mt-3 grid gap-2">{lobbies.slice(0,5).map(l=><button key={l.code} onClick={()=>{setCode(l.code);void enter("join",l.code)}} className="flex min-h-14 items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 text-left"><span><b>{l.hostName}'s arena</b><small className="block text-slate-500">{l.players}/8 players</small></span><span className="font-black text-cyan-300">JOIN</span></button>)}</div></div><div className="rounded-2xl border border-white/10 bg-white/[.04] p-4"><button disabled={busy} onClick={()=>enter("practice")} className="min-h-12 w-full rounded-xl bg-violet-500 font-black">Practice vs computer squad</button><button disabled={busy} onClick={()=>enter("create")} className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-white/5 font-black">Create open room</button><div className="mt-3 flex gap-2"><input value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="6-digit room" className="min-h-12 min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-900 px-3"/><button disabled={busy||code.length!==6} onClick={()=>enter("join")} className="rounded-xl bg-amber-300 px-4 font-black text-slate-950">Join</button></div></div></div>
-   {error&&<p className="mx-5 mb-5 rounded-xl bg-red-500/10 p-3 font-bold text-red-200 sm:mx-8">{error}</p>}
-  </section>
- </main>;
+function Menu(props: {
+  busy: boolean; error: string; lobbies: Lobby[]; code: string; setCode: (s: string) => void; botLevel: BotLevel; setBotLevel: (b: BotLevel) => void;
+  onQuick: () => void; onPractice: () => void; onCreate: (pub: boolean) => void; onJoin: (code: string) => void; onBack: () => void; onSettings: () => void;
+}) {
+  const { busy, error, lobbies, code, setCode, botLevel, setBotLevel } = props;
+  return (
+    <main className="pb-bg min-h-[100dvh] overflow-x-hidden px-4 pb-10 pt-4 text-white sm:px-8">
+      <div className="mx-auto flex max-w-6xl items-center justify-between">
+        <button onClick={props.onBack} className="pb-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" /> Worlds</button>
+        <button onClick={props.onSettings} className="pb-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black backdrop-blur"><Settings className="h-5 w-5" /> Settings</button>
+      </div>
+      <section className="pb-splat-dots relative mx-auto mt-6 max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-[0_40px_120px_rgba(0,0,0,.55)] backdrop-blur-xl sm:p-10">
+        <div className="relative max-w-3xl">
+          <p className="text-xs font-black uppercase tracking-[.35em] text-cyan-300">A.R.I.S.E. arena · team paint battle</p>
+          <h1 className="pb-glow mt-3 text-6xl font-black italic leading-[.9] tracking-tight sm:text-8xl">
+            PRISM<br /><span className="bg-gradient-to-r from-cyan-300 via-white to-pink-400 bg-clip-text text-transparent">PAINTBALL</span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-slate-200 sm:text-lg">
+            5v5 third-person paintball. Sprint between inflatable bunkers, climb the forts, jump crates and splat the other team. First squad to {PB.SCORE_TO_WIN} splats wins.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-wide">
+            {["Real multiplayer", "3 paint markers", "Smart bots fill empty spots", "Keyboard + mouse or touch", "No gore — just paint"].map((t) => (
+              <span key={t} className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5">{t}</span>
+            ))}
+          </div>
+        </div>
+        <div className="relative mt-8 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+          <div>
+            <button disabled={busy} onClick={props.onQuick} className="pb-btn group relative flex min-h-[86px] w-full items-center justify-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-r from-yellow-300 via-amber-300 to-orange-400 text-2xl font-black italic uppercase text-slate-950 shadow-[0_12px_0_#b45309,0_30px_60px_rgba(251,191,36,.35)] disabled:opacity-60 sm:text-3xl">
+              {busy ? <Loader2 className="h-8 w-8 animate-spin" /> : <Play className="h-8 w-8 fill-current" />} Play now
+            </button>
+            <p className="mt-3 text-center text-sm font-bold text-slate-300">Jumps into a live match with readers from your school — bots fill any empty spots.</p>
+            {lobbies.length > 0 && (
+              <div className="mt-5">
+                <h3 className="mb-2 text-xs font-black uppercase tracking-[.25em] text-slate-400">Open rooms</h3>
+                <div className="grid gap-2">
+                  {lobbies.slice(0, 5).map((l) => (
+                    <button key={l.code} disabled={busy} onClick={() => props.onJoin(l.code)} className="pb-btn flex min-h-14 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 text-left backdrop-blur">
+                      <span><b className="block">{l.hostName}'s {l.quick ? "match" : "room"}</b><small className="font-bold text-slate-400">{l.humans} reader{l.humans === 1 ? "" : "s"} · {l.phase === "lobby" ? "in lobby" : "match in progress"}</small></span>
+                      <span className="rounded-xl bg-cyan-300 px-3 py-1.5 text-sm font-black text-slate-950">JOIN</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[.06] p-4 backdrop-blur">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-black uppercase tracking-[.2em] text-violet-200">Practice difficulty</span>
+              <div className="flex rounded-xl bg-black/30 p-1">
+                {(["easy", "normal", "hard"] as BotLevel[]).map((l) => (
+                  <button key={l} onClick={() => setBotLevel(l)} className={"rounded-lg px-3 py-1.5 text-xs font-black uppercase " + (botLevel === l ? "bg-violet-400 text-slate-950" : "text-slate-300")}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <button disabled={busy} onClick={props.onPractice} className="pb-btn mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 font-black uppercase shadow-[0_6px_0_#5b21b6]"><Gamepad2 className="h-5 w-5" /> Practice vs bots</button>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button disabled={busy} onClick={() => props.onCreate(true)} className="pb-btn min-h-12 rounded-2xl border border-white/15 bg-white/5 text-sm font-black uppercase">Open room</button>
+              <button disabled={busy} onClick={() => props.onCreate(false)} className="pb-btn min-h-12 rounded-2xl border border-white/15 bg-white/5 text-sm font-black uppercase">Private room</button>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit room code" className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 font-black tracking-widest outline-none placeholder:font-bold placeholder:tracking-normal placeholder:text-slate-500 focus:border-cyan-300" />
+              <button disabled={busy || code.length !== 6} onClick={() => props.onJoin(code)} className="pb-btn rounded-2xl bg-cyan-300 px-5 font-black text-slate-950 disabled:opacity-40">Join</button>
+            </div>
+          </div>
+        </div>
+        {error && <p className="relative mt-5 rounded-2xl border border-red-400/30 bg-red-500/15 p-3 font-bold text-red-100">{error}</p>}
+      </section>
+      <section className="mx-auto mt-6 grid max-w-6xl gap-3 sm:grid-cols-3">
+        {WEAPONS.map((w, i) => (
+          <div key={w.id} className="rounded-3xl border border-white/10 bg-black/25 p-5 backdrop-blur">
+            <p className="text-xs font-black uppercase tracking-[.2em] text-slate-400">Slot {i + 1}</p>
+            <h3 className="mt-1 text-2xl font-black italic">{w.name}</h3>
+            <p className="mt-1 text-sm font-bold text-slate-300">{i === 0 ? "Full-auto all-rounder. Great at any range." : i === 1 ? "Close-range pump spray. Wins corner fights." : "Scoped long-range marker. Aim for the mask!"}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-black">
+              <Stat label="Damage" value={w.pellets > 1 ? `${w.dmg}×${w.pellets}` : String(w.dmg)} />
+              <Stat label="Ammo" value={String(w.mag)} />
+              <Stat label="Fire" value={`${Math.round(60000 / w.interval)}/min`} />
+            </div>
+          </div>
+        ))}
+      </section>
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-white/10 bg-black/25 p-5 text-sm font-bold text-slate-300 backdrop-blur">
+        <h3 className="mb-2 text-xs font-black uppercase tracking-[.25em] text-slate-400">Controls</h3>
+        <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+          {[["WASD", "Move"], ["Mouse", "Aim"], ["Left click", "Fire"], ["Right click", "Aim down sights / scope"], ["Shift", "Sprint"], ["Space", "Jump"], ["C / Ctrl", "Crouch"], ["R", "Reload"], ["1 2 3 / wheel / Q", "Switch marker"], ["Tab", "Scoreboard"], ["Esc", "Pause & settings"], ["Touch", "Left stick moves · drag right side to aim"]].map(([k, v]) => (
+            <div key={k} className="flex items-center gap-2"><kbd className="min-w-[64px] rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-center text-xs font-black text-white">{k}</kbd>{v}</div>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
 
- if(room.phase==="lobby")return <main className="min-h-screen bg-[#050816] p-4 text-white sm:p-8"><button onClick={leave} className="rounded-xl bg-white/5 px-4 py-3 font-black"><ArrowLeft className="mr-2 inline h-4 w-4"/> Worlds</button><section className="mx-auto mt-5 max-w-5xl rounded-[2.2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl sm:p-8"><p className="text-xs font-black uppercase tracking-[.25em] text-cyan-300">Paintball room {room.code}</p><h1 className="mt-2 text-4xl font-black">Choose your team</h1><div className="mt-6 grid gap-4 md:grid-cols-2">{(["cyan","magenta"] as Team[]).map(team=><div key={team} className={"rounded-2xl border p-4 "+(team==="cyan"?"border-cyan-300/25 bg-cyan-400/5":"border-pink-300/25 bg-pink-400/5")}><h2 className="text-2xl font-black uppercase">{team} squad</h2>{room.players.filter(p=>p.team===team).map(p=><div key={p.id} className="mt-2 flex items-center justify-between rounded-xl bg-black/25 px-3 py-3"><span><b>{p.name}{p.id===myId?" · YOU":""}</b><small className="block text-slate-500">{p.bot?"Computer player":p.id===room.hostId?"Host":"Player"}</small></span></div>)}</div>)}</div><div className="mt-5 flex flex-wrap gap-2">{me&&<button onClick={()=>action({type:"switch-team"})} className="min-h-12 rounded-xl border border-white/15 bg-white/5 px-4 font-black">Switch team</button>}{host&&<button onClick={()=>action({type:"add-bots",count:6})} className="min-h-12 rounded-xl border border-white/15 bg-white/5 px-4 font-black">Fill with computer players</button>}{host?<button disabled={room.players.length<2} onClick={()=>action({type:"start"})} className="min-h-12 flex-1 rounded-xl bg-cyan-300 px-5 font-black text-slate-950"><Play className="mr-2 inline h-4 w-4"/> Start match</button>:<p className="py-3 font-black text-slate-400">Waiting for host…</p>}</div>{error&&<p className="mt-4 rounded-xl bg-red-500/10 p-3 text-red-200">{error}</p>}</section></main>;
+function Stat({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl bg-white/5 px-2 py-2"><div className="text-base text-white">{value}</div><div className="text-[10px] uppercase tracking-wider text-slate-400">{label}</div></div>;
+}
 
- return <main className="relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
-  <PaintballScene room={room} myId={myId} mobile={mobile} onMove={(x,z,rot,moving,sprinting)=>void action({type:"move",x,z,rot,moving,sprinting})} onShoot={rot=>void action({type:"shoot",rot})}/>
-  <div className="pointer-events-none absolute inset-0 z-[5] bg-[radial-gradient(circle_at_50%_45%,transparent_48%,rgba(2,6,23,.12)_82%,rgba(2,6,23,.26)_100%)]"/>
-  <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start gap-2 p-3 sm:p-4"><button onClick={leave} className="pointer-events-auto rounded-xl border border-white/10 bg-black/65 px-3 py-2 font-black backdrop-blur"><LogOut className="mr-1 inline h-4 w-4"/> Exit</button><div className="mx-auto flex items-center gap-2 rounded-2xl border border-white/10 bg-black/65 px-4 py-2 shadow-xl backdrop-blur"><div className="text-center"><small className="block text-[9px] font-black uppercase text-cyan-300">CYAN</small><b className="text-2xl">{room.scores.cyan}</b></div><div className="px-3 text-center"><small className="block text-[9px] font-black uppercase text-slate-400">TIME</small><b className="text-2xl">{Math.floor(time/60)}:{String(time%60).padStart(2,"0")}</b></div><div className="text-center"><small className="block text-[9px] font-black uppercase text-pink-300">MAGENTA</small><b className="text-2xl">{room.scores.magenta}</b></div></div><div className="rounded-xl border border-white/10 bg-black/65 px-3 py-2 text-right backdrop-blur"><b className="block">{me?.name}</b><small className="font-bold text-slate-400">{me?.tags||0} tags · {me?.downs||0} tagged</small></div></header>
-  <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"><Crosshair className="h-9 w-9 text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.8)]"/></div>
-  <div className="absolute bottom-4 left-4 z-30 hidden rounded-xl border border-white/10 bg-black/55 px-3 py-2 text-xs font-black backdrop-blur md:block">WASD move · Shift sprint · Mouse aim · Click fire</div>
-  <div className="absolute bottom-4 left-4 z-30 grid grid-cols-3 gap-2 md:hidden"><span/><button onPointerDown={()=>setPress("forward",true)} onPointerUp={()=>setPress("forward",false)} onPointerCancel={()=>setPress("forward",false)} className="h-14 w-14 rounded-2xl bg-black/65 font-black backdrop-blur">▲</button><span/><button onPointerDown={()=>setPress("left",true)} onPointerUp={()=>setPress("left",false)} onPointerCancel={()=>setPress("left",false)} className="h-14 w-14 rounded-2xl bg-black/65 font-black backdrop-blur">◀</button><button onPointerDown={()=>setPress("back",true)} onPointerUp={()=>setPress("back",false)} onPointerCancel={()=>setPress("back",false)} className="h-14 w-14 rounded-2xl bg-black/65 font-black backdrop-blur">▼</button><button onPointerDown={()=>setPress("right",true)} onPointerUp={()=>setPress("right",false)} onPointerCancel={()=>setPress("right",false)} className="h-14 w-14 rounded-2xl bg-black/65 font-black backdrop-blur">▶</button></div>
-  <div className="absolute bottom-5 right-4 z-30 flex gap-2 md:hidden"><button onPointerDown={()=>setPress("sprint",true)} onPointerUp={()=>setPress("sprint",false)} className="h-16 w-16 rounded-full border-2 border-white/20 bg-amber-400/85 text-xs font-black text-slate-950 shadow-xl">RUN</button><button onClick={()=>action({type:"shoot",rot:me?.rot||0})} className="h-20 w-20 rounded-full border-4 border-white bg-pink-500 font-black shadow-2xl">FIRE</button></div>
-  {me?.respawnAt? <div className="pointer-events-none absolute left-1/2 top-24 z-40 -translate-x-1/2 rounded-2xl border border-cyan-300/25 bg-slate-950/88 px-5 py-3 text-center shadow-2xl backdrop-blur-md"><div className="flex items-center gap-3"><Shield className="h-7 w-7 text-cyan-300"/><div className="text-left"><h2 className="text-base font-black">Paint tagged — respawning</h2><p className="text-xs font-bold text-slate-400">Back at your team base in a moment</p></div></div></div>:null}
-  {room.phase==="finished"&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur"><div className="max-w-lg rounded-[2.2rem] border border-white/15 bg-slate-950/95 p-8 text-center shadow-2xl"><h2 className="text-5xl font-black">{room.winner?room.winner.toUpperCase()+" WINS!":"DRAW!"}</h2><p className="mt-3 text-xl font-bold text-slate-300">{room.scores.cyan} – {room.scores.magenta}</p>{host?<button onClick={()=>action({type:"restart"})} className="mt-5 min-h-14 w-full rounded-xl bg-cyan-300 font-black text-slate-950"><RotateCcw className="mr-2 inline"/> Play again</button>:<p className="mt-4 font-bold text-slate-400">Waiting for host…</p>}</div></div>}
- </main>;
+// ===========================================================================
+// Lobby
+// ===========================================================================
+
+function LobbyView({ meta, myId, error, onAction, onLeave }: { meta: RoomMeta; myId: number; error: string; onAction: (b: Record<string, unknown>) => Promise<void>; onLeave: () => void }) {
+  const host = meta.hostId === myId;
+  const me = meta.players.find((p) => p.id === myId);
+  const [copied, setCopied] = useState(false);
+  const hasBots = meta.players.some((p) => p.bot);
+  const copy = async () => { try { await navigator.clipboard.writeText(meta.code); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
+  return (
+    <main className="pb-bg min-h-[100dvh] px-4 pb-10 pt-4 text-white sm:px-8">
+      <div className="mx-auto flex max-w-5xl items-center justify-between">
+        <button onClick={onLeave} className="pb-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="h-5 w-5" /> Leave room</button>
+        <button onClick={copy} className="pb-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black">
+          <Copy className="h-4 w-4" /> Code <span className="tracking-[.25em] text-cyan-300">{meta.code}</span>{copied && <span className="text-xs text-emerald-300">copied!</span>}
+        </button>
+      </div>
+      <section className="mx-auto mt-5 max-w-5xl rounded-[2rem] border border-white/10 bg-black/30 p-5 shadow-2xl backdrop-blur-xl sm:p-8">
+        <p className="text-xs font-black uppercase tracking-[.3em] text-cyan-300">{meta.publicLobby ? "Open room" : "Private room"} · share the code with friends</p>
+        <h1 className="mt-2 text-4xl font-black italic sm:text-5xl">Pick your squad</h1>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {([0, 1] as Team[]).map((team) => {
+            const list = meta.players.filter((p) => p.team === team);
+            return (
+              <div key={team} className="rounded-3xl border p-4" style={{ borderColor: TEAM_CSS[team] + "55", background: `linear-gradient(160deg, ${TEAM_CSS[team]}22, transparent)` }}>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-black italic uppercase" style={{ color: TEAM_CSS[team] }}>{TEAM_NAMES[team]}</h2>
+                  <span className="text-sm font-black text-slate-300">{list.length}/{PB.MAX_PLAYERS / 2}</span>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {list.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between rounded-2xl bg-black/35 px-3 py-3">
+                      <span className="flex items-center gap-2 font-black">
+                        {p.id === meta.hostId && <Crown className="h-4 w-4 text-yellow-300" />}
+                        {p.name}{p.id === myId && <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px]">YOU</span>}
+                      </span>
+                      <small className="font-bold text-slate-400">{p.bot ? "Computer · " + meta.botLevel : p.id === meta.hostId ? "Host" : "Reader"}</small>
+                    </div>
+                  ))}
+                  {!list.length && <p className="rounded-2xl border border-dashed border-white/15 p-4 text-center text-sm font-bold text-slate-400">Nobody yet</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          {me && <button onClick={() => onAction({ type: "switch-team" })} className="pb-btn min-h-12 rounded-2xl border border-white/15 bg-white/5 px-4 font-black">Switch team</button>}
+          {host && (hasBots
+            ? <button onClick={() => onAction({ type: "remove-bots" })} className="pb-btn min-h-12 rounded-2xl border border-white/15 bg-white/5 px-4 font-black">Remove bots</button>
+            : <button onClick={() => onAction({ type: "add-bots" })} className="pb-btn min-h-12 rounded-2xl border border-white/15 bg-white/5 px-4 font-black">Fill with bots</button>)}
+          {host && hasBots && (
+            <div className="flex rounded-2xl border border-white/10 bg-black/30 p-1">
+              {(["easy", "normal", "hard"] as BotLevel[]).map((l) => (
+                <button key={l} onClick={() => onAction({ type: "bot-level", level: l })} className={"rounded-xl px-3 py-2 text-xs font-black uppercase " + (meta.botLevel === l ? "bg-violet-400 text-slate-950" : "text-slate-300")}>{l}</button>
+              ))}
+            </div>
+          )}
+          <div className="flex-1" />
+          {host
+            ? <button disabled={meta.players.length < 2} onClick={() => onAction({ type: "start" })} className="pb-btn flex min-h-14 items-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 px-8 text-lg font-black italic uppercase text-slate-950 shadow-[0_8px_0_#b45309] disabled:opacity-40"><Play className="h-5 w-5 fill-current" /> Start match</button>
+            : <p className="flex items-center gap-2 py-3 font-black text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Waiting for the host to start…</p>}
+        </div>
+        {host && meta.players.length < 2 && <p className="mt-3 text-sm font-bold text-slate-400">Add bots or wait for another reader to join to start.</p>}
+        {error && <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/15 p-3 font-bold text-red-100">{error}</p>}
+      </section>
+    </main>
+  );
+}
+
+// ===========================================================================
+// Game view + HUD
+// ===========================================================================
+
+function GameView(props: {
+  initial: Snapshot; token: string; myId: number; settings: GameSettings; onSettings: (s: GameSettings) => void; onApplyQuality: (s: GameSettings) => void;
+  onLeave: () => void; onAction: (b: Record<string, unknown>) => Promise<void>; onLobby: () => void; onEnded: (m: string) => void;
+}) {
+  const { myId, settings } = props;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const crossRef = useRef<HTMLDivElement>(null);
+  const hitRef = useRef<HTMLDivElement>(null);
+  const vigRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<HTMLCanvasElement>(null);
+  const [game, setGame] = useState<PaintballGame | null>(null);
+  const [fatal, setFatal] = useState("");
+  const [paused, setPaused] = useState(false);
+  const [board, setBoard] = useState(false);
+  const touch = useMemo(isTouchDevice, []);
+  const endedRef = useRef(props.onEnded);
+  endedRef.current = props.onEnded;
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    let g: PaintballGame | null = null;
+    let cancelled = false;
+    import("@/game/paintball/game").then(({ PaintballGame }) => {
+      if (cancelled) return;
+      try {
+        g = new PaintballGame(el, { apiBase: API_BASE, token: props.token, myId, initial: props.initial, settings, touch, onRoomEnded: (m) => endedRef.current(m) });
+        g.setSettings(settings);
+        setGame(g);
+      } catch (err) {
+        console.error(err);
+        setFatal("Your browser could not start 3D graphics. Try updating Chrome or turning on hardware acceleration.");
+      }
+    }).catch(() => setFatal("Could not load the game. Check your connection and try again."));
+    return () => { cancelled = true; g?.dispose(); setGame(null); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { game?.setSettings(settings); }, [game, settings]);
+  useEffect(() => { game?.bind({ crosshair: crossRef.current, hitmarker: hitRef.current, vignette: vigRef.current, minimap: mapRef.current }); }, [game]);
+
+  const hud: HudState = useSyncExternalStore(game ? game.store.subscribe : noopSubscribe, game ? game.store.get : getInitialHud);
+
+  // back to the lobby view when the host returns the room to the lobby
+  const lobbyRef = useRef(props.onLobby);
+  lobbyRef.current = props.onLobby;
+  useEffect(() => { if (hud.ready && hud.phase === "lobby") lobbyRef.current(); }, [hud.ready, hud.phase]);
+
+  // Tab scoreboard
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.code === "Tab") { e.preventDefault(); setBoard(true); } };
+    const up = (e: KeyboardEvent) => { if (e.code === "Tab") setBoard(false); };
+    window.addEventListener("keydown", down); window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+  }, []);
+
+  useEffect(() => { if (hud.locked) setPaused(false); }, [hud.locked]);
+
+  const meta = hud.meta;
+  const now = Date.now();
+  const secs = Math.max(0, Math.ceil((hud.phaseEndsLocal - now) / 1000));
+  const host = meta?.hostId === myId;
+  const showClickToPlay = !touch && game && !hud.locked && hud.phase !== "finished" && !fatal;
+  const w = WEAPONS[hud.weapon];
+
+  return (
+    <main className="fixed inset-0 select-none overflow-hidden bg-slate-950 text-white">
+      <div ref={hostRef} className="absolute inset-0" onClick={() => { if (!touch && game && !hud.locked && hud.phase !== "finished") game.requestLock(); }} />
+      <div ref={vigRef} className="pb-vig pointer-events-none absolute inset-0 opacity-0" />
+      {hud.scoped && <ScopeOverlay />}
+
+      {!game && !fatal && (
+        <div className="pb-bg absolute inset-0 grid place-items-center">
+          <div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-cyan-300" /><p className="mt-3 text-lg font-black italic">Inflating bunkers…</p></div>
+        </div>
+      )}
+      {fatal && (
+        <div className="pb-bg absolute inset-0 grid place-items-center p-6">
+          <div className="max-w-md rounded-3xl border border-white/10 bg-black/50 p-6 text-center"><p className="text-lg font-black">{fatal}</p><button onClick={props.onLeave} className="pb-btn mt-4 rounded-2xl bg-cyan-300 px-6 py-3 font-black text-slate-950">Back</button></div>
+        </div>
+      )}
+
+      {game && (
+        <>
+          {/* top bar */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
+            <div className="flex flex-col gap-2">
+              <canvas ref={mapRef} width={176} height={128} className="h-[96px] w-[132px] rounded-2xl border-2 border-white/25 shadow-xl sm:h-[128px] sm:w-[176px]" />
+              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-white/80">
+                {hud.connection.ok ? <Wifi className="h-3 w-3 text-emerald-300" /> : <WifiOff className="h-3 w-3 text-red-400" />}
+                {hud.connection.ok ? `${Math.round(hud.connection.rtt)}ms` : "reconnecting"}
+                {settings.showFps && <span className="ml-1">{hud.fps} fps</span>}
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <ScoreTop scores={hud.scores} secs={hud.phase === "playing" ? secs : null} myTeam={hud.myTeam} />
+              {touch && <KillFeed items={hud.feed.slice(-3)} small />}
+            </div>
+            <div className="flex w-[170px] flex-col items-end gap-1 sm:w-[300px]">
+              <button onClick={() => { game.releaseLock(); setPaused(true); }} className="pointer-events-auto rounded-xl border border-white/15 bg-black/50 p-2 backdrop-blur"><Pause className="h-5 w-5" /></button>
+              {!touch && <KillFeed items={hud.feed} />}
+            </div>
+          </div>
+
+          {/* crosshair & hitmarker */}
+          <div ref={crossRef} className="pb-cross"><i className="t" /><i className="b" /><i className="l" /><i className="r" /><b /></div>
+          <div ref={hitRef} className="pb-hit" />
+          {hud.damage.map((d) => <div key={d.id} className="pb-dmg" style={{ transform: `rotate(${(-d.angle * 180) / Math.PI}deg)` }} />)}
+
+          {/* toasts */}
+          <div className="pointer-events-none absolute left-1/2 top-[58%] flex -translate-x-1/2 flex-col items-center gap-1">
+            {hud.toasts.map((t) => (
+              <div key={t.id} className={"pb-toast pb-glow whitespace-nowrap text-center font-black italic uppercase " + (t.kind === "streak" ? "text-3xl text-yellow-300 sm:text-4xl" : t.kind === "splat" ? "text-xl text-white sm:text-2xl" : "text-sm text-slate-200")}>{t.text}</div>
+            ))}
+          </div>
+
+          {/* bottom HUD */}
+          <div className={"pointer-events-none absolute bottom-0 left-0 p-3 sm:p-4 " + (touch ? "top-auto" : "")}>
+            {!touch && <HealthBar hp={hud.hp} protectedUntil={hud.protectedUntilLocal} streak={hud.streak} team={hud.myTeam} />}
+          </div>
+          {!touch && (
+            <div className="pointer-events-none absolute bottom-0 right-0 p-3 sm:p-4">
+              <WeaponHud hud={hud} />
+            </div>
+          )}
+          {touch && <TouchControls game={game} hud={hud} />}
+          {touch && <PortraitHint />}
+
+          {/* countdown */}
+          {hud.phase === "countdown" && secs > 0 && (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+              <div className="text-center">
+                <p className="pb-glow text-lg font-black uppercase tracking-[.3em] text-white/90">Match starting</p>
+                <p key={secs} className="pb-count pb-glow text-[9rem] font-black italic leading-none text-yellow-300">{secs}</p>
+                <p className="pb-glow font-black text-white/90">You are on <span style={{ color: TEAM_CSS[hud.myTeam] }}>{TEAM_NAMES[hud.myTeam].toUpperCase()}</span></p>
+              </div>
+            </div>
+          )}
+
+          {/* respawn */}
+          {!hud.alive && hud.phase === "playing" && (
+            <div className="pointer-events-none absolute inset-x-0 top-[22%] flex justify-center px-4">
+              <div className="rounded-3xl border border-white/15 bg-black/60 px-7 py-5 text-center shadow-2xl backdrop-blur-md">
+                <p className="text-xs font-black uppercase tracking-[.3em] text-slate-300">Splatted by</p>
+                <p className="mt-1 text-3xl font-black italic" style={{ color: hud.killedBy ? TEAM_CSS[hud.killedBy.team] : "#fff" }}>{hud.killedBy?.name || "the other team"}</p>
+                {hud.killedBy && <p className="text-xs font-black uppercase text-slate-400">with the {WEAPONS[hud.killedBy.weapon]?.name}</p>}
+                <p className="mt-3 text-sm font-black text-white">Back in the game in {Math.max(0, Math.ceil((hud.respawnAtLocal - now) / 1000))}…</p>
+              </div>
+            </div>
+          )}
+
+          {/* spawn protection */}
+          {hud.alive && hud.protectedUntilLocal > now && hud.phase === "playing" && (
+            <div className="pointer-events-none absolute left-1/2 top-[18%] -translate-x-1/2 rounded-full border border-cyan-200/40 bg-cyan-400/20 px-4 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-100 backdrop-blur"><Shield className="mr-1 inline h-3.5 w-3.5" /> Spawn shield — firing drops it</div>
+          )}
+
+          {(board || hud.phase === "finished") && meta && (
+            <Scoreboard meta={meta} myId={myId} scores={hud.scores} final={hud.phase === "finished"} host={host} secs={secs} onAction={props.onAction} onLeave={props.onLeave} />
+          )}
+
+          {showClickToPlay && !paused && hud.phase !== "lobby" && (
+            <div className="absolute inset-0 grid place-items-center bg-black/35 backdrop-blur-[2px]" onClick={() => game.requestLock()}>
+              <div className="pointer-events-none text-center">
+                <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-white/90 text-slate-950 shadow-2xl"><Play className="h-9 w-9 fill-current" /></div>
+                <p className="pb-glow mt-4 text-3xl font-black italic uppercase">Click to play</p>
+                <p className="mt-1 text-sm font-bold text-white/80">WASD move · Mouse aim · Click fire · Right-click aim · Shift sprint · Space jump · C crouch · R reload · 1-3 markers</p>
+              </div>
+            </div>
+          )}
+
+          {paused && (
+            <PauseMenu settings={settings} onSettings={props.onSettings} onApplyQuality={props.onApplyQuality} onResume={() => { setPaused(false); game.requestLock(); }} onLeave={props.onLeave} quality={hud.quality} />
+          )}
+          {hud.error && (
+            <div className="absolute inset-x-0 top-1/3 mx-auto max-w-md rounded-2xl border border-red-300/30 bg-black/80 p-4 text-center font-bold">{hud.error}<button onClick={props.onLeave} className="mt-3 block w-full rounded-xl bg-white/15 py-2 font-black">Leave match</button></div>
+          )}
+        </>
+      )}
+    </main>
+  );
+}
+
+function KillFeed({ items, small }: { items: HudState["feed"]; small?: boolean }) {
+  return (
+    <div className={"flex flex-col gap-1 " + (small ? "items-center" : "items-end")}>
+      {items.map((f) => (
+        <div key={f.id} className={"pb-feed flex max-w-full items-center gap-1.5 rounded-lg px-2 py-1 font-black backdrop-blur " + (small ? "text-[10px] " : "text-[11px] sm:text-xs ") + (f.mine ? "bg-white/25" : "bg-black/45")}>
+          <span className="truncate" style={{ color: TEAM_CSS[f.kTeam] }}>{f.killer}</span>
+          <span className="rounded bg-white/15 px-1 text-[9px] text-white/90">{WEAPONS[f.weapon]?.short}{f.head ? " ◎" : ""}</span>
+          <span className="truncate" style={{ color: TEAM_CSS[f.vTeam] }}>{f.victim}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ScoreTop({ scores, secs, myTeam }: { scores: [number, number]; secs: number | null; myTeam: Team }) {
+  const pct = (n: number) => Math.min(100, (n / PB.SCORE_TO_WIN) * 100);
+  return (
+    <div className="flex items-stretch gap-1.5">
+      {([0, 1] as Team[]).map((t, i) => (
+        <div key={t} className={"pb-skew relative w-[84px] overflow-hidden rounded-xl border-2 shadow-xl sm:w-[120px] " + (i === 1 ? "order-3" : "")} style={{ borderColor: TEAM_CSS[t], background: "rgba(5,10,25,.72)" }}>
+          <div className="absolute inset-y-0 left-0 opacity-35" style={{ width: pct(scores[t]) + "%", background: TEAM_CSS[t] }} />
+          <div className="pb-unskew relative px-2 py-1 text-center">
+            <div className="text-[9px] font-black uppercase tracking-widest" style={{ color: TEAM_CSS[t] }}>{TEAM_NAMES[t]}{t === myTeam ? " · you" : ""}</div>
+            <div className="pb-glow text-2xl font-black italic leading-none sm:text-3xl">{scores[t]}</div>
+          </div>
+        </div>
+      ))}
+      <div className="order-2 grid min-w-[70px] place-items-center rounded-xl border-2 border-white/25 bg-black/70 px-2 shadow-xl">
+        <div className="text-center">
+          <div className="text-[9px] font-black uppercase tracking-widest text-yellow-200">{secs === null ? "Prism" : "Time"}</div>
+          <div className="text-lg font-black tabular-nums leading-none sm:text-xl">{secs === null ? "—" : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HealthBar({ hp, protectedUntil, streak, team, compact }: { hp: number; protectedUntil: number; streak: number; team: Team; compact?: boolean }) {
+  const low = hp <= 35;
+  return (
+    <div className={compact ? "w-[150px]" : "w-[260px]"}>
+      {streak >= 2 && <div className="pb-glow mb-1 text-xs font-black italic uppercase text-yellow-300">🔥 {streak} splat streak</div>}
+      <div className="pb-skew overflow-hidden rounded-xl border-2 border-white/30 bg-black/60 shadow-xl">
+        <div className="pb-unskew flex items-center gap-2 px-3 py-1.5">
+          <span className={"pb-glow w-12 text-2xl font-black italic tabular-nums " + (low ? "text-red-300" : "text-white")}>{hp}</span>
+          <div className="relative h-3.5 flex-1 overflow-hidden rounded-full bg-white/15">
+            <div className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-150" style={{ width: hp + "%", background: low ? "linear-gradient(90deg,#ef4444,#fb7185)" : `linear-gradient(90deg, ${TEAM_CSS[team]}, #a3e635)` }} />
+            {[25, 50, 75].map((x) => <div key={x} className="absolute inset-y-0 w-px bg-black/40" style={{ left: x + "%" }} />)}
+          </div>
+          {protectedUntil > Date.now() && <Shield className="h-4 w-4 text-cyan-200" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WeaponHud({ hud, compact }: { hud: HudState; compact?: boolean }) {
+  const w = WEAPONS[hud.weapon];
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <div className="pb-skew rounded-xl border-2 border-white/30 bg-black/60 px-4 py-1.5 shadow-xl">
+        <div className="pb-unskew flex items-end gap-2">
+          {hud.reload >= 0 ? (
+            <div className="w-[120px] py-1">
+              <div className="text-xs font-black uppercase text-yellow-200">Reloading</div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-yellow-300" style={{ width: hud.reload * 100 + "%" }} /></div>
+            </div>
+          ) : (
+            <>
+              <span className={"pb-glow text-4xl font-black italic tabular-nums leading-none " + (hud.ammo[hud.weapon] <= Math.ceil(w.mag * 0.2) ? "text-red-300" : "")}>{hud.ammo[hud.weapon]}</span>
+              <span className="pb-1 text-sm font-black text-white/60">/ {w.mag}</span>
+            </>
+          )}
+        </div>
+      </div>
+      {!compact && (
+        <div className="flex gap-1.5">
+          {WEAPONS.map((wp, i) => (
+            <div key={wp.id} className={"pb-skew rounded-lg border-2 px-2.5 py-1 text-center shadow-lg " + (i === hud.weapon ? "border-yellow-300 bg-yellow-300/25" : "border-white/20 bg-black/50")}>
+              <div className="pb-unskew"><div className="text-[9px] font-black text-white/60">{i + 1}</div><div className="text-[11px] font-black italic">{wp.short}</div></div>
+            </div>
+          ))}
+        </div>
+      )}
+      {hud.ammo[hud.weapon] === 0 && hud.reload < 0 && <div className="pb-glow text-sm font-black uppercase text-red-300">Press R to reload</div>}
+    </div>
+  );
+}
+
+function PortraitHint() {
+  const [portrait, setPortrait] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    const check = () => setPortrait(window.innerHeight > window.innerWidth * 1.1);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  if (!portrait || dismissed) return null;
+  return (
+    <div className="absolute inset-x-3 top-1/3 z-10 rounded-2xl border border-white/15 bg-black/75 p-4 text-center backdrop-blur">
+      <p className="text-lg font-black italic">Turn your device sideways</p>
+      <p className="mt-1 text-sm font-bold text-slate-300">Prism Paintball plays best in landscape.</p>
+      <button onClick={() => setDismissed(true)} className="mt-3 rounded-xl bg-white/15 px-4 py-2 text-sm font-black">Keep playing</button>
+    </div>
+  );
+}
+
+function ScopeOverlay() {
+  return (
+    <div className="pb-scope pointer-events-none absolute inset-0">
+      <div className="absolute left-1/2 top-1/2 h-[62vmin] w-[62vmin] -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-black/80 shadow-[inset_0_0_60px_rgba(0,0,0,.6)]" />
+      <div className="absolute left-1/2 top-1/2 h-[62vmin] w-px -translate-x-1/2 -translate-y-1/2 bg-black/70" />
+      <div className="absolute left-1/2 top-1/2 h-px w-[62vmin] -translate-x-1/2 -translate-y-1/2 bg-black/70" />
+      <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(255,0,0,.9)]" />
+    </div>
+  );
+}
+
+function Scoreboard({ meta, myId, scores, final, host, secs, onAction, onLeave }: { meta: RoomMeta; myId: number; scores: [number, number]; final: boolean; host: boolean; secs: number; onAction: (b: Record<string, unknown>) => Promise<void>; onLeave: () => void }) {
+  const mvp = [...meta.players].sort((a, b) => b.tags - a.tags || a.downs - b.downs)[0];
+  const winner = meta.winner;
+  const me = meta.players.find((p) => p.id === myId);
+  const won = final && winner !== null && winner !== -1 && me && winner === me.team;
+  return (
+    <div className={"absolute inset-0 grid place-items-center p-3 " + (final ? "bg-black/60 backdrop-blur-sm" : "pointer-events-none")}>
+      <div className="w-full max-w-3xl rounded-[1.75rem] border border-white/15 bg-slate-950/90 p-4 shadow-2xl sm:p-6">
+        {final && (
+          <div className="mb-4 text-center">
+            <p className="text-xs font-black uppercase tracking-[.35em] text-slate-400">Match over</p>
+            <h2 className="pb-glow text-5xl font-black italic uppercase sm:text-6xl" style={{ color: winner === 0 || winner === 1 ? TEAM_CSS[winner] : "#fff" }}>
+              {winner === -1 || winner === null ? "Draw!" : won ? "Victory!" : `${TEAM_NAMES[winner]} wins`}
+            </h2>
+            <p className="mt-1 text-2xl font-black"><span style={{ color: TEAM_CSS[0] }}>{scores[0]}</span> <span className="text-white/50">–</span> <span style={{ color: TEAM_CSS[1] }}>{scores[1]}</span></p>
+            {mvp && mvp.tags > 0 && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow-300/20 px-3 py-1 text-sm font-black text-yellow-200"><Crown className="h-4 w-4" /> MVP: {mvp.name} · {mvp.tags} splats</p>}
+          </div>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {([0, 1] as Team[]).map((t) => (
+            <div key={t} className="overflow-hidden rounded-2xl border" style={{ borderColor: TEAM_CSS[t] + "66" }}>
+              <div className="flex items-center justify-between px-3 py-2" style={{ background: TEAM_CSS[t] + "33" }}>
+                <b className="font-black italic uppercase" style={{ color: TEAM_CSS[t] }}>{TEAM_NAMES[t]}</b><b className="text-xl font-black">{scores[t]}</b>
+              </div>
+              <table className="w-full text-sm">
+                <thead><tr className="text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-1 text-left">Player</th><th>Splats</th><th>Outs</th><th>Best</th></tr></thead>
+                <tbody>
+                  {meta.players.filter((p) => p.team === t).sort((a, b) => b.tags - a.tags).map((p) => (
+                    <tr key={p.id} className={p.id === myId ? "bg-white/10" : ""}>
+                      <td className="max-w-[140px] truncate px-3 py-1.5 font-black">{p.name}{!p.connected && !p.bot ? " (away)" : ""}</td>
+                      <td className="text-center font-black">{p.tags}</td><td className="text-center text-slate-300">{p.downs}</td><td className="text-center text-slate-300">{p.best}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+        {final && (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <p className="w-full text-center text-sm font-bold text-slate-300">{meta.practice || meta.quick ? `Next match starts in ${secs}s` : `Returning to the lobby in ${secs}s`}</p>
+            {host && <button onClick={() => onAction({ type: "restart" })} className="pb-btn flex min-h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 px-6 font-black uppercase text-slate-950"><RotateCcw className="h-4 w-4" /> Play again</button>}
+            {host && !meta.practice && !meta.quick && <button onClick={() => onAction({ type: "lobby" })} className="pb-btn flex min-h-12 items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-6 font-black uppercase"><Users className="h-4 w-4" /> Back to lobby</button>}
+            <button onClick={onLeave} className="pb-btn flex min-h-12 items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 font-black uppercase"><LogOut className="h-4 w-4" /> Leave</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PauseMenu({ settings, onSettings, onApplyQuality, onResume, onLeave, quality }: { settings: GameSettings; onSettings: (s: GameSettings) => void; onApplyQuality: (s: GameSettings) => void; onResume: () => void; onLeave: () => void; quality: string }) {
+  return (
+    <div className="absolute inset-0 grid place-items-center bg-black/55 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5 shadow-2xl">
+        <h2 className="text-3xl font-black italic uppercase">Paused</h2>
+        <SettingsFields settings={settings} onChange={onSettings} onQuality={(q) => onApplyQuality({ ...settings, quality: q })} activeQuality={quality} />
+        <div className="mt-5 grid gap-2">
+          <button onClick={onResume} className="pb-btn flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-300 font-black uppercase text-slate-950"><Play className="h-4 w-4 fill-current" /> Resume</button>
+          <button onClick={onLeave} className="pb-btn flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 font-black uppercase"><LogOut className="h-4 w-4" /> Leave match</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPanel({ settings, onChange, onClose }: { settings: GameSettings; onChange: (s: GameSettings) => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5 text-white shadow-2xl">
+        <div className="flex items-center justify-between"><h2 className="text-3xl font-black italic uppercase">Settings</h2><button onClick={onClose} className="rounded-xl bg-white/10 p-2"><X className="h-5 w-5" /></button></div>
+        <SettingsFields settings={settings} onChange={onChange} onQuality={(q) => onChange({ ...settings, quality: q })} activeQuality="" />
+        <button onClick={onClose} className="pb-btn mt-5 min-h-12 w-full rounded-2xl bg-cyan-300 font-black uppercase text-slate-950">Done</button>
+      </div>
+    </div>
+  );
+}
+
+function SettingsFields({ settings, onChange, onQuality, activeQuality }: { settings: GameSettings; onChange: (s: GameSettings) => void; onQuality: (q: GameSettings["quality"]) => void; activeQuality: string }) {
+  return (
+    <div className="mt-4 grid gap-4 text-sm font-bold">
+      <label className="grid gap-1.5">
+        <span className="flex justify-between"><span>Aim sensitivity</span><span className="text-cyan-300">{settings.sensitivity.toFixed(2)}×</span></span>
+        <input type="range" min={0.2} max={3} step={0.05} value={settings.sensitivity} onChange={(e) => onChange({ ...settings, sensitivity: Number(e.target.value) })} className="accent-cyan-300" />
+      </label>
+      <label className="grid gap-1.5">
+        <span className="flex justify-between"><span className="flex items-center gap-1"><Volume2 className="h-4 w-4" /> Volume</span><span className="text-cyan-300">{Math.round(settings.volume * 100)}%</span></span>
+        <input type="range" min={0} max={1} step={0.05} value={settings.volume} onChange={(e) => onChange({ ...settings, volume: Number(e.target.value) })} className="accent-cyan-300" />
+      </label>
+      <div className="grid gap-1.5">
+        <span className="flex justify-between"><span className="flex items-center gap-1"><Zap className="h-4 w-4" /> Graphics</span>{activeQuality && <span className="text-xs uppercase text-slate-400">running: {activeQuality}</span>}</span>
+        <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/40 p-1">
+          {(["auto", "low", "medium", "high"] as GameSettings["quality"][]).map((q) => (
+            <button key={q} onClick={() => onQuality(q)} className={"rounded-lg py-2 text-xs font-black uppercase " + (settings.quality === q ? "bg-cyan-300 text-slate-950" : "text-slate-300")}>{q}</button>
+          ))}
+        </div>
+      </div>
+      <label className="flex items-center justify-between"><span>Invert look up/down</span><input type="checkbox" checked={settings.invertY} onChange={(e) => onChange({ ...settings, invertY: e.target.checked })} className="h-5 w-5 accent-cyan-300" /></label>
+      <label className="flex items-center justify-between"><span>Show FPS</span><input type="checkbox" checked={settings.showFps} onChange={(e) => onChange({ ...settings, showFps: e.target.checked })} className="h-5 w-5 accent-cyan-300" /></label>
+    </div>
+  );
+}
+
+// ===========================================================================
+// Touch controls
+// ===========================================================================
+
+function TouchControls({ game, hud }: { game: PaintballGame; hud: HudState }) {
+  const stickRef = useRef<HTMLDivElement>(null);
+  const knobRef = useRef<HTMLDivElement>(null);
+  const stickId = useRef<number | null>(null);
+  const looks = useRef(new Map<number, { x: number; y: number }>());
+
+  const stickMove = (e: React.PointerEvent) => {
+    if (stickId.current !== e.pointerId || !stickRef.current) return;
+    const r = stickRef.current.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = r.width / 2;
+    let dx = (e.clientX - cx) / R, dy = (e.clientY - cy) / R;
+    const l = Math.hypot(dx, dy);
+    if (l > 1) { dx /= l; dy /= l; }
+    game.touchSetMove(dx, dy);
+    if (knobRef.current) knobRef.current.style.transform = `translate(${dx * R * 0.6}px, ${dy * R * 0.6}px)`;
+  };
+  const stickEnd = (e: React.PointerEvent) => {
+    if (stickId.current !== e.pointerId) return;
+    stickId.current = null;
+    game.touchSetMove(0, 0);
+    if (knobRef.current) knobRef.current.style.transform = "translate(0,0)";
+  };
+  const lookStart = (e: React.PointerEvent) => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); looks.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
+  const lookMove = (e: React.PointerEvent) => {
+    const p = looks.current.get(e.pointerId);
+    if (!p) return;
+    game.touchLook(e.clientX - p.x, e.clientY - p.y);
+    looks.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  };
+  const lookEnd = (e: React.PointerEvent) => { looks.current.delete(e.pointerId); };
+  const btn = "pointer-events-auto grid place-items-center rounded-full border-2 border-white/40 font-black shadow-xl backdrop-blur active:scale-95";
+
+  return (
+    <>
+      {/* look area (right side) */}
+      <div className="absolute bottom-0 right-0 top-16 w-[58%] touch-none" onPointerDown={lookStart} onPointerMove={lookMove} onPointerUp={lookEnd} onPointerCancel={lookEnd} />
+      {/* joystick */}
+      <div
+        ref={stickRef}
+        className="absolute bottom-6 left-6 h-36 w-36 touch-none rounded-full border-2 border-white/30 bg-black/25 backdrop-blur"
+        onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); stickId.current = e.pointerId; stickMove(e); }}
+        onPointerMove={stickMove} onPointerUp={stickEnd} onPointerCancel={stickEnd}
+      >
+        <div ref={knobRef} className="absolute left-1/2 top-1/2 -ml-8 -mt-8 h-16 w-16 rounded-full border-2 border-white/60 bg-white/30 shadow-lg" />
+      </div>
+      <div className="pointer-events-none absolute left-2 top-[128px] sm:left-3 sm:top-[160px]"><HealthBar hp={hud.hp} protectedUntil={hud.protectedUntilLocal} streak={hud.streak} team={hud.myTeam} compact /></div>
+      {/* weapon + ammo */}
+      <div className="absolute right-2 top-[60px] flex flex-col items-end gap-1.5 sm:right-3">
+        <div className="pointer-events-none origin-top-right scale-[.8]"><WeaponHud hud={hud} compact /></div>
+        <div className="flex gap-1.5">
+          {WEAPONS.map((w, i) => (
+            <button key={w.id} onPointerDown={() => game.selectWeapon(i)} className={"pointer-events-auto rounded-xl border-2 px-2 py-1.5 text-[10px] font-black " + (i === hud.weapon ? "border-yellow-300 bg-yellow-300/30" : "border-white/25 bg-black/50")}>{w.short}</button>
+          ))}
+        </div>
+      </div>
+      {/* action buttons */}
+      <div className="absolute bottom-5 right-4 flex items-end gap-3">
+        <div className="flex flex-col gap-3">
+          <button onPointerDown={() => game.touchReload()} className={btn + " h-12 w-12 bg-black/45 text-[10px]"}>RLD</button>
+          <button onPointerDown={() => game.touchToggleCrouch()} className={btn + " h-12 w-12 text-[10px] " + (hud.crouch ? "bg-cyan-400/60" : "bg-black/45")}>DUCK</button>
+        </div>
+        <div className="flex flex-col gap-3">
+          <button onPointerDown={() => game.touchToggleAds()} className={btn + " h-14 w-14 text-xs " + (hud.ads ? "bg-cyan-400/60" : "bg-black/45")}>AIM</button>
+          <button onPointerDown={() => game.touchJump()} className={btn + " h-14 w-14 bg-black/45 text-xs"}>JUMP</button>
+        </div>
+        <button
+          onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); looks.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); game.touchSetFire(true); }}
+          onPointerMove={lookMove}
+          onPointerUp={(e) => { looks.current.delete(e.pointerId); game.touchSetFire(false); }}
+          onPointerCancel={(e) => { looks.current.delete(e.pointerId); game.touchSetFire(false); }}
+          className={btn + " h-24 w-24 touch-none bg-gradient-to-br from-pink-500 to-fuchsia-600 text-lg"}
+        >FIRE</button>
+      </div>
+    </>
+  );
 }
