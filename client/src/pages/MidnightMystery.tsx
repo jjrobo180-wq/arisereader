@@ -4,6 +4,7 @@ import { ArrowLeft, BatteryCharging, Camera, DoorClosed, Eye, Flashlight, KeyRou
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { speakCharacterAI } from "@/lib/tts";
 import { HANDS, cueStage, type Hand, type Level, type LobbySummary, type Team, type View } from "@shared/boardQuest";
 
 type RoomId="stage"|"arcade"|"party"|"kitchen"|"left-hall"|"right-hall";
@@ -47,11 +48,22 @@ function mascot(scene:THREE.Scene,x:number,z:number,color:number,accent:number,n
 
 function MysteryScene({room,revision,alert,halloread}:{room:RoomId;revision:number;alert:boolean;halloread:boolean}){
  const host=useRef<HTMLDivElement>(null);
+ const [failed,setFailed]=useState(false);
  useEffect(()=>{
    const mount=host.current;if(!mount)return;
+   setFailed(false);
+   let renderer:THREE.WebGLRenderer|null=null;
+   let raf=0;
+   let resize=()=>{};
+   try{
    const scene=new THREE.Scene();scene.background=new THREE.Color(0x03060b);scene.fog=new THREE.Fog(0x050812,15,55);
    const camera=new THREE.PerspectiveCamera(57,1,.1,90);camera.position.set(0,6.2,15);camera.lookAt(0,2.3,0);
-   const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setPixelRatio(Math.min(devicePixelRatio,1.55));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=true;mount.appendChild(renderer.domElement);
+   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance",failIfMajorPerformanceCaveat:false});
+   const mobile=window.matchMedia?.("(max-width: 820px)")?.matches ?? false;
+   renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.15:1.45));
+   renderer.outputColorSpace=THREE.SRGBColorSpace;
+   renderer.shadowMap.enabled=!mobile;
+   mount.replaceChildren(renderer.domElement);
 
    scene.add(new THREE.HemisphereLight(0x5b6f9b,0x10131b,.8));
    const key=new THREE.SpotLight(alert?0xff334d:(halloread?0xff7a18:0x8be9ff),22,45,Math.PI/4,.35,1.4);key.position.set(0,10,8);key.target.position.set(0,1,0);scene.add(key,key.target);
@@ -103,11 +115,12 @@ function MysteryScene({room,revision,alert,halloread}:{room:RoomId;revision:numb
    if((revision+2)%5===0)bots.push(mascot(scene,6,-7,0x0f766e,0x67e8f9,"Moxie Moose"));
    if((revision+3)%7===0)bots.push(mascot(scene,-7,-6,0xbe185d,0xf9a8d4,"Pip Panda"));
 
-   const resize=()=>{const w=mount.clientWidth,h=mount.clientHeight;camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();renderer.setSize(w,h)};resize();window.addEventListener("resize",resize);
-   let raf=0;const clock=new THREE.Clock();const animate=()=>{const t=clock.getElapsedTime();bots.forEach((bot,i)=>{bot.rotation.y=Math.sin(t*.45+i)*.12;bot.position.y=Math.sin(t*1.15+i)*.035;});key.intensity=(alert?18:12)+(Math.sin(t*9)>0.86?8:0);renderer.render(scene,camera);raf=requestAnimationFrame(animate)};animate();
-   return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);scene.traverse(o=>{const m=o as THREE.Mesh;m.geometry?.dispose?.();if(m.material){(Array.isArray(m.material)?m.material:[m.material]).forEach(mat=>{if("map" in mat)(mat as THREE.MeshBasicMaterial).map?.dispose?.();mat.dispose();});}});renderer.dispose();mount.removeChild(renderer.domElement);};
+   resize=()=>{if(!renderer)return;const w=mount.clientWidth,h=mount.clientHeight;camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();renderer.setSize(w,h,false)};resize();window.addEventListener("resize",resize);
+   const clock=new THREE.Clock();const animate=()=>{if(!renderer)return;const t=clock.getElapsedTime();bots.forEach((bot,i)=>{bot.rotation.y=Math.sin(t*.45+i)*.12;bot.position.y=Math.sin(t*1.15+i)*.035;});key.intensity=(alert?18:12)+(Math.sin(t*9)>0.86?8:0);try{renderer.render(scene,camera)}catch{setFailed(true);return}raf=requestAnimationFrame(animate)};animate();
+   return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);scene.traverse(o=>{const m=o as THREE.Mesh;m.geometry?.dispose?.();if(m.material){(Array.isArray(m.material)?m.material:[m.material]).forEach(mat=>{if("map" in mat)(mat as THREE.MeshBasicMaterial).map?.dispose?.();try{mat.dispose()}catch{}});}});try{renderer?.dispose()}catch{};try{renderer?.forceContextLoss()}catch{};try{mount.replaceChildren()}catch{};};
+   }catch(error){console.error("[midnight-mystery] 3D camera failed",error);setFailed(true);try{renderer?.dispose()}catch{};try{mount.replaceChildren()}catch{};return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);};}
  },[room,revision,alert,halloread]);
- return <div className="mm-feed relative h-full min-h-[340px] overflow-hidden rounded-[1.6rem] border border-cyan-300/20 bg-black shadow-2xl"><div ref={host} className="absolute inset-0"/><div className="mm-scan absolute inset-0 pointer-events-none"/><div className="absolute left-3 top-3 rounded-lg border border-white/15 bg-black/75 px-3 py-1.5 text-[10px] font-black tracking-[.2em] text-cyan-200">LIVE SECURITY FEED</div><div className="absolute right-3 top-3 h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]"/></div>;
+ return <div className="mm-feed relative h-full min-h-[340px] overflow-hidden rounded-[1.6rem] border border-cyan-300/20 bg-black shadow-2xl"><div ref={host} className="absolute inset-0"/>{failed&&<div className="absolute inset-0 z-10 grid place-items-center bg-[radial-gradient(circle_at_50%_30%,#1d3346,#080b12_62%)] p-6 text-center"><div><Camera className="mx-auto h-12 w-12 text-cyan-300"/><p className="mt-3 text-lg font-black">Camera feed recovered</p><p className="mt-1 text-sm font-bold text-slate-400">The 3D feed is unavailable on this device, but the mystery and all game controls still work.</p></div></div>}<div className="mm-scan absolute inset-0 pointer-events-none"/><div className="absolute left-3 top-3 z-20 rounded-lg border border-white/15 bg-black/75 px-3 py-1.5 text-[10px] font-black tracking-[.2em] text-cyan-200">LIVE SECURITY FEED</div><div className="absolute right-3 top-3 z-20 h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]"/></div>;
 }
 
 export default function MidnightMystery({halloread=false}:{halloread?:boolean}){
@@ -145,7 +158,7 @@ export default function MidnightMystery({halloread=false}:{halloread?:boolean}){
    if(view.phase==="intro"){line="The doors are locked. Cameras are online. Investigators, find the clues before the mascots reach the control room.";key=view.code+"-intro";}
    else if(view.phase==="question"&&myTurn){line="Clue decoder ready. Choose the best answer.";key=view.code+"-q-"+view.question?.id;}
    else if(view.phase==="rps"&&cue){line="Mascot nearby. Choose flash, hide, or distract.";key=view.code+"-enc-"+cue.id;}
-   if(!line||announcerCue.current===key)return;announcerCue.current=key;void speakCharacterAI(line,{calmMode:false});
+   if(!line||announcerCue.current===key)return;announcerCue.current=key;try{void speakCharacterAI(line,{calmMode:false}).catch(()=>{})}catch{}
  },[view?.phase,view?.question?.id,cue?.id,myTurn,sound]);
 
  const reward=cue&&stage==="reward"?EVENT_TEXT[cue.event]||EVENT_TEXT.points:null;
