@@ -15,19 +15,10 @@ const BANDS = [
   { id: "9-12", label: "9–12", sub: "High School", grades: ["9", "10", "11", "12"] },
 ];
 
-function isIndependentRoute() {
-  try {
-    const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : window.location.search.replace(/^\?/, "");
-    return new URLSearchParams(query).get("independent") === "1";
-  } catch { return false; }
-}
-
-export default function Register() {
+export default function Register({ independent = false }: { independent?: boolean }) {
   const { register } = useAuth();
-  const [location, navigate] = useLocation();
-  // Recompute whenever the signup URL changes so switching between
-  // independent and school-connected signup works without a full reload.
-  const independentStudent = isIndependentRoute();
+  const [, navigate] = useLocation();
+  const independentStudent = independent;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -172,7 +163,7 @@ export default function Register() {
         </section>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {independentStudent ? <button type="button" onClick={() => navigate("/register")} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><School className="h-5 w-5 text-violet-300" /><p className="mt-2 font-black">Joining through a school?</p><p className="text-xs text-slate-400">Open the school-connected signup.</p></button> : <button type="button" onClick={() => navigate("/register?independent=1")} className="rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-4 text-left hover:bg-cyan-500/10"><UserRound className="h-5 w-5 text-cyan-300" /><p className="mt-2 font-black">Not joining through a school?</p><p className="text-xs text-slate-400">Use Independent Student Signup instead.</p></button>}
+          {independentStudent ? <button type="button" onClick={() => navigate("/register")} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><School className="h-5 w-5 text-violet-300" /><p className="mt-2 font-black">Joining through a school?</p><p className="text-xs text-slate-400">Open the school-connected signup.</p></button> : <button type="button" onClick={() => navigate("/register-independent")} className="rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-4 text-left hover:bg-cyan-500/10"><UserRound className="h-5 w-5 text-cyan-300" /><p className="mt-2 font-black">Not joining through a school?</p><p className="text-xs text-slate-400">Use Independent Student Signup instead.</p></button>}
           <button type="button" onClick={() => navigate("/teacher-signup")} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><GraduationCap className="h-5 w-5 text-fuchsia-300" /><p className="mt-2 font-black">Are you a teacher?</p><p className="text-xs text-slate-400">Open teacher signup.</p></button>
         </div>
         <p className="mt-5 text-center text-xs font-semibold text-slate-500"><BookOpen className="mr-1 inline h-3.5 w-3.5" /> A.R.I.S.E. Reader · Read · Learn · Earn · Play · Grow</p>
