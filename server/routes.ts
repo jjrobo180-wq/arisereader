@@ -1939,11 +1939,19 @@ export async function registerRoutes(
     { id:"car-suv", type:"car", name:"Summit SUV", price:1750, rarity:"epic" },
     { id:"home-studio", type:"home", name:"City Studio", price:600, rarity:"rare" },
     { id:"home-loft", type:"home", name:"Skyline Loft", price:1500, rarity:"epic" },
-    { id:"home-modern", type:"home", name:"Modern House", price:2600, rarity:"legendary" },
+    { id:"home-modern", type:"home", name:"Modern Mansion", price:2600, rarity:"legendary" },
     { id:"furniture-desk", type:"furniture", name:"Creator Desk", price:160, rarity:"common" },
     { id:"furniture-sofa", type:"furniture", name:"Cloud Sofa", price:220, rarity:"rare" },
     { id:"furniture-books", type:"furniture", name:"Reader Wall", price:280, rarity:"epic" },
     { id:"furniture-neon", type:"furniture", name:"Neon Wall Sign", price:360, rarity:"epic" },
+    { id:"furniture-plants", type:"furniture", name:"Jungle Plants", price:120, rarity:"common" },
+    { id:"furniture-beanbags", type:"furniture", name:"Beanbag Pile", price:180, rarity:"common" },
+    { id:"furniture-aquarium", type:"furniture", name:"Glow Aquarium", price:320, rarity:"rare" },
+    { id:"furniture-trophy", type:"furniture", name:"Trophy Shelf", price:260, rarity:"rare" },
+    { id:"furniture-telescope", type:"furniture", name:"Star Telescope", price:340, rarity:"rare" },
+    { id:"furniture-arcade", type:"furniture", name:"Home Arcade Cabinet", price:450, rarity:"epic" },
+    { id:"furniture-fireplace", type:"furniture", name:"Cozy Fireplace", price:420, rarity:"epic" },
+    { id:"furniture-piano", type:"furniture", name:"Grand Piano", price:560, rarity:"legendary" },
     { id:"pet-dog", type:"pet", name:"Club Pup", price:450, rarity:"rare" },
     { id:"pet-cat", type:"pet", name:"Club Cat", price:450, rarity:"rare" },
     { id:"pet-bunny", type:"pet", name:"Club Bunny", price:650, rarity:"epic" },
@@ -1978,6 +1986,11 @@ export async function registerRoutes(
   const PET_FEED_BOOST=30;
   const PET_TREAT_BOOST=12;
   const PET_ACTIVITY_BOOST=22;
+  const PET_VET_COST=60;
+  const PET_ACTIVITY_COOLDOWN_MS=45*60*1000;
+  const PET_TREAT_COOLDOWN_MS=10*60*1000;
+  // Re-adopting a pet that ran away costs half its price (a rescue fee).
+  const petRescuePrice=(price:number)=>Math.ceil(price/2);
   const CLUB_THEATER_CHANGE_COST=0;
   const CLUB_THEATER_POPCORN_COST=25;
   const THREE_SAFE=(value:number,min:number,max:number,fallback:number)=>Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;
@@ -2177,6 +2190,8 @@ export async function registerRoutes(
       economy:{level,quizzesTaken,passedQuizzes,totalPoints,lifetimeCoins,wallet,nextLevelAt,coinsPerPassedQuiz:100,coinsPerGame:10,winBonusCoins:20,levelBonus:150,clubGames,clubWins,bonusCoins,theaterSpent},
       state,
       catalog:AVATAR_WORLD_CATALOG,
+      petRules:{feedCost:PET_FEED_COST,treatCost:PET_TREAT_COST,vetCost:PET_VET_COST,feedBoost:PET_FEED_BOOST,treatBoost:PET_TREAT_BOOST,activityBoost:PET_ACTIVITY_BOOST,
+        activityCooldownMs:PET_ACTIVITY_COOLDOWN_MS,treatCooldownMs:PET_TREAT_COOLDOWN_MS,decayMs:PET_HAPPINESS_DECAY_MS,serverNow:Date.now()},
     };
   }
 
@@ -2281,12 +2296,17 @@ export async function registerRoutes(
       if(!item||!AVATAR_WORLD_SHOP_TYPES.has(item.type)) return res.status(400).json({message:"That item is not available in Avatar World."});
       const payload=await getAvatarWorldPayload(req.user.id);
       if(payload.state.purchased.includes(item.id)) return res.json(payload);
-      if(payload.economy.wallet<item.price) return res.status(400).json({message:"You need more Reader Coins for that item."});
+      const rescue=item.type==="pet"&&(payload.state.lostPets||[]).includes(item.id);
+      const price=rescue?petRescuePrice(item.price):item.price;
+      if(payload.economy.wallet<price) return res.status(400).json({message:"You need "+(price-payload.economy.wallet)+" more Reader Coins for that item."});
       const now=Date.now();
+      const equipSlot=item.type==="home"||item.type==="pet"||item.type==="car"?item.type:null;
       const next={...payload.state,purchased:[...payload.state.purchased,item.id],
-        equipped:item.type==="home"?{...payload.state.equipped,home:item.id}:payload.state.equipped,
+        equipped:equipSlot?{...payload.state.equipped,[equipSlot]:item.id}:payload.state.equipped,
+        // a rescue refunds the other half of the price that was lost when the pet ran away
+        lostPetSpent:rescue?Math.max(0,payload.state.lostPetSpent-(item.price-price)):payload.state.lostPetSpent,
         lostPets:item.type==="pet"?(payload.state.lostPets||[]).filter((id:string)=>id!==item.id):(payload.state.lostPets||[]),
-        petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{happiness:90,lastUpdatedAt:now,lastFedAt:now,lastTreatAt:0,lastWalkAt:0}}:payload.state.petCare};
+        petCare:item.type==="pet"?{...payload.state.petCare,[item.id]:{happiness:100,lastUpdatedAt:now,lastFedAt:now,lastTreatAt:0,lastWalkAt:0}}:payload.state.petCare};
       await storage.upsertSetting("avatar_world_"+req.user.id,JSON.stringify(next));
       res.set("Cache-Control","no-store");
       res.json(await getAvatarWorldPayload(req.user.id));
@@ -2345,15 +2365,25 @@ export async function registerRoutes(
       const payload=await getAvatarWorldPayload(req.user.id);
       if(!payload.state.purchased.includes(itemId)||AVATAR_WORLD_CATALOG.find(item=>item.id===itemId)?.type!=="pet")
         return res.status(400).json({message:"This pet is no longer with you. Re-adopt it from the pet shop."});
-      if(!["feed","treat","walk","play"].includes(action))return res.status(400).json({message:"Choose food, a treat, a walk, or play time."});
-      const current=payload.state.petCare[itemId]||{happiness:70,lastUpdatedAt:Date.now(),lastFedAt:0,lastTreatAt:0,lastWalkAt:0};
-      const cost=action==="feed"?PET_FEED_COST:action==="treat"?PET_TREAT_COST:0;
-      if(payload.economy.wallet<cost)return res.status(400).json({message:"Earn "+(cost-payload.economy.wallet)+" more Reader Coins by reading or playing."});
-      const boost=action==="feed"?PET_FEED_BOOST:action==="treat"?PET_TREAT_BOOST:PET_ACTIVITY_BOOST;
+      if(!["feed","treat","walk","play","vet"].includes(action))return res.status(400).json({message:"Choose food, a treat, a walk, play time, or a vet visit."});
       const now=Date.now();
+      const current=payload.state.petCare[itemId]||{happiness:70,lastUpdatedAt:now,lastFedAt:0,lastTreatAt:0,lastWalkAt:0};
+      const currentHappiness=Math.max(0,Number(current.happiness)||0);
+      if(currentHappiness>=100)return res.status(400).json({message:"Your pet is already 100% happy! Come back later."});
+      if((action==="walk"||action==="play")&&now-(Number(current.lastWalkAt)||0)<PET_ACTIVITY_COOLDOWN_MS){
+        const mins=Math.ceil((PET_ACTIVITY_COOLDOWN_MS-(now-(Number(current.lastWalkAt)||0)))/60000);
+        return res.status(400).json({message:"Your pet is tired from playing. Try again in "+mins+" min, or give food or a treat."});
+      }
+      if(action==="treat"&&now-(Number(current.lastTreatAt)||0)<PET_TREAT_COOLDOWN_MS){
+        const mins=Math.ceil((PET_TREAT_COOLDOWN_MS-(now-(Number(current.lastTreatAt)||0)))/60000);
+        return res.status(400).json({message:"Too many treats! Next treat in "+mins+" min."});
+      }
+      const cost=action==="feed"?PET_FEED_COST:action==="treat"?PET_TREAT_COST:action==="vet"?PET_VET_COST:0;
+      if(payload.economy.wallet<cost)return res.status(400).json({message:"Earn "+(cost-payload.economy.wallet)+" more Reader Coins by reading or playing."});
+      const boost=action==="feed"?PET_FEED_BOOST:action==="treat"?PET_TREAT_BOOST:action==="vet"?100:PET_ACTIVITY_BOOST;
       const care={
         ...current,
-        happiness:Math.min(100,Math.max(0,Number(current.happiness)||0)+boost),
+        happiness:Math.min(100,currentHappiness+boost),
         lastUpdatedAt:now,
         lastFedAt:action==="feed"?now:Number(current.lastFedAt)||0,
         lastTreatAt:action==="treat"?now:Number(current.lastTreatAt)||0,
