@@ -123,6 +123,7 @@ const FypPage = lazyPage(() => import("./pages/FypPage"));
 const FypSharePage = lazyPage(() => import("./pages/FypSharePage"));
 const FypMyBooksPage = lazyPage(() => import("./pages/FypMyBooksPage"));
 const ReadingClub = lazyPage(() => import("./pages/ReadingClub"));
+const TeacherArise2 = lazyPage(() => import("./pages/TeacherArise2"));
 
 // Gate that shows profile setup overlay after student registration
 function StudentSetupGate({ children }: { children: React.ReactNode }) {
@@ -307,6 +308,9 @@ function AppRoutes() {
       </Route>
       <Route path="/teacher-dashboard">
         <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
+      </Route>
+      <Route path="/teacher-arise-2">
+        <ProtectedRoute><TeacherArise2 /></ProtectedRoute>
       </Route>
       <Route path="/tutorial">
         <Tutorial />
