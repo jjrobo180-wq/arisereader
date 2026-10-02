@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Sparkles, Gamepad2, Users, BookOpen, Trophy, Volume2, Accessibility, Zap, ChevronRight, ChevronLeft, Rocket, Coins, House } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -15,10 +16,17 @@ const updates = [
 
 function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open || typeof document === "undefined") return null;
   const active = updates[activeIndex];
   const ActiveIcon = active.icon;
-  return <div className="fixed inset-0 z-[300] overflow-y-auto bg-black/85 p-2 backdrop-blur-xl sm:p-6" onClick={onClose}>
+  // Rendered into <body> so it opens full-screen even when the button sits inside a small dropdown menu.
+  return createPortal(<div data-keep-menu-open="true" className="fixed inset-0 z-[300] overflow-y-auto bg-black/85 p-2 backdrop-blur-xl sm:p-6" onClick={onClose}>
     <div className="mx-auto min-h-full max-w-5xl py-2 sm:py-6" onClick={e => e.stopPropagation()}>
       <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#070912] text-white shadow-[0_30px_100px_rgba(0,0,0,.65)]">
         <button onClick={onClose} className="absolute right-4 top-4 z-30 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/35 backdrop-blur hover:bg-white/15" aria-label="Close A.R.I.S.E. 2.0 update"><X className="h-5 w-5"/></button>
@@ -134,13 +142,13 @@ function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) 
         </section>
       </div>
     </div>
-  </div>;
+  </div>, document.body);
 }
 
 export function Arise2UpdateButton({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button onClick={() => setOpen(true)} className={compact ? "group w-full rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-cyan-500/10 px-3 py-3 text-left transition hover:border-violet-400/60 hover:bg-violet-500/15" : "group relative w-full overflow-hidden rounded-[28px] border border-white/15 bg-slate-950 px-5 py-5 text-left text-white shadow-2xl sm:px-7"}>
+    <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(true); }} className={compact ? "group w-full rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-cyan-500/10 px-3 py-3 text-left transition hover:border-violet-400/60 hover:bg-violet-500/15" : "group relative w-full overflow-hidden rounded-[28px] border border-white/15 bg-slate-950 px-5 py-5 text-left text-white shadow-2xl sm:px-7"}>
       {!compact && <><div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-500/25 blur-3xl"/><div className="absolute -bottom-24 left-1/4 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl"/></>}
       <div className="relative flex items-center gap-3">
         <div className={compact ? "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/15"}><Sparkles className="h-5 w-5"/></div>
