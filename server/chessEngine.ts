@@ -1,3 +1,5 @@
+import { pickChessMove } from "./chessAI";
+
 export type ChessColor = "w" | "b";
 export type ChessPieceType = "p" | "n" | "b" | "r" | "q" | "k";
 export type ChessPiece = string;
@@ -22,13 +24,22 @@ export type ChessState = {
   timeControlSec:number;
   clocks:[number,number];
   lastTickAt:number;
+  /** Every move so far in UCI form ("e2e4", "e7e8q"), used to take moves back. */
+  uci?:string[];
+  hintsUsed?:number;
+  undosUsed?:number;
+  /** Save counter for compare-and-swap updates. */
+  v?:number;
+  rewards?:Record<string,{coins:boolean;points:boolean}>;
 };
+
+export const CHESS_HINTS_PER_GAME=3;
+export const CHESS_UNDOS_PER_GAME=3;
 
 const FILES="abcdefgh";
 const DIRS_BISHOP=[[-1,-1],[-1,1],[1,-1],[1,1]] as const;
 const DIRS_ROOK=[[-1,0],[1,0],[0,-1],[0,1]] as const;
 const KNIGHT=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]] as const;
-const PIECE_VALUE:Record<string,number>={p:100,n:320,b:330,r:500,q:900,k:20000};
 
 function piece(color:ChessColor,type:ChessPieceType):ChessPiece{return color+type.toUpperCase();}
 function colorOf(p:ChessPiece|null):ChessColor|null{return p?p[0] as ChessColor:null;}
@@ -47,7 +58,7 @@ export function initialChessState(opts?:{computer?:boolean;computerLevel?:number
     board[6][c]=piece("w","p");board[7][c]=piece("w",order[c]);
   }
   const sec=Math.max(60,Math.min(3600,Number(opts?.timeControlSec)||600));
-  const state:ChessState={board,turn:1,winner:null,result:null,check:false,castling:{wK:true,wQ:true,bK:true,bQ:true},enPassant:null,halfmove:0,fullmove:1,history:[],moveHistory:[],captured:[],legalMoves:[],lastMove:null,computer:!!opts?.computer,computerLevel:Math.max(1,Math.min(4,Number(opts?.computerLevel)||2)),timeControlSec:sec,clocks:[sec*1000,sec*1000],lastTickAt:Date.now()};
+  const state:ChessState={board,turn:1,winner:null,result:null,check:false,castling:{wK:true,wQ:true,bK:true,bQ:true},enPassant:null,halfmove:0,fullmove:1,history:[],moveHistory:[],captured:[],legalMoves:[],lastMove:null,computer:!!opts?.computer,computerLevel:Math.max(1,Math.min(4,Number(opts?.computerLevel)||2)),timeControlSec:sec,clocks:[sec*1000,sec*1000],lastTickAt:Date.now(),uci:[],hintsUsed:0,undosUsed:0,v:1};
   state.history=[positionKey(state)];
   state.legalMoves=generateLegalMoves(state,"w");
   return state;
@@ -136,10 +147,22 @@ function updateCastleRights(state:ChessState,move:ChessMove,moving:ChessPiece,ca
   return next;
 }
 
-function notation(state:ChessState,move:ChessMove,moving:ChessPiece,captured:ChessPiece|null,after:ChessState){
-  if(move.castle==="k")return "O-O"+(after.check?"+":"");
-  if(move.castle==="q")return "O-O-O"+(after.check?"+":"");
-  const t=typeOf(moving)!;const label=t==="p"?"":t.toUpperCase();const capture=captured||move.enPassant?"x":"";const promo=move.promotion?"="+move.promotion.toUpperCase():"";return label+(capture?move.from[0]:"")+capture+move.to+promo+(after.check?"+":"");
+/** Standard algebraic notation, e.g. "Nbd2", "exd5", "e8=Q+", "Qh7#". */
+function notation(legal:ChessMove[],board:(ChessPiece|null)[][],move:ChessMove,moving:ChessPiece,captured:ChessPiece|null,after:ChessState){
+  const suffix=after.result==="checkmate"?"#":after.check?"+":"";
+  if(move.castle==="k")return "O-O"+suffix;
+  if(move.castle==="q")return "O-O-O"+suffix;
+  const t=typeOf(moving)!;const capture=captured||move.enPassant?"x":"";const promo=move.promotion?"="+move.promotion.toUpperCase():"";
+  if(t==="p")return (capture?move.from[0]+"x":"")+move.to+promo+suffix;
+  // Another piece of the same kind that could also reach this square needs a file or rank to tell them apart.
+  const rivals=legal.filter(m=>m.to===move.to&&m.from!==move.from&&(()=>{const a=squareToRC(m.from);return board[a.r][a.c]===moving;})());
+  let from="";
+  if(rivals.length){
+    if(!rivals.some(m=>m.from[0]===move.from[0]))from=move.from[0];
+    else if(!rivals.some(m=>m.from[1]===move.from[1]))from=move.from[1];
+    else from=move.from;
+  }
+  return t.toUpperCase()+from+capture+move.to+promo+suffix;
 }
 
 function positionKey(state:ChessState){
@@ -172,11 +195,12 @@ export function applyChessMove(input:ChessState,moveInput:{from:string;to:string
   tickClock(state,now);if(state.winner!==null)return state;
   if(state.turn!==playerIndex)throw new Error("Wait for your turn.");
   const color:ChessColor=playerIndex===1?"w":"b";
-  const legal=generateLegalMoves(state,color).filter(m=>m.from===moveInput.from&&m.to===moveInput.to);
+  const allLegal=generateLegalMoves(state,color);
+  const legal=allLegal.filter(m=>m.from===moveInput.from&&m.to===moveInput.to);
   if(!legal.length)throw new Error("That move is not legal.");
   let chosen=legal[0];
   if(legal.some(m=>m.promotion)){const promo=(String(moveInput.promotion||"q").toLowerCase()) as "q"|"r"|"b"|"n";chosen=legal.find(m=>m.promotion===promo)||legal.find(m=>m.promotion==="q")||legal[0];}
-  const a=squareToRC(chosen.from);const moving=state.board[a.r][a.c]!;const {board,captured}=applyBoardMove(state,chosen);state.board=board;
+  const a=squareToRC(chosen.from);const moving=state.board[a.r][a.c]!;const boardBefore=state.board;const {board,captured}=applyBoardMove(state,chosen);state.board=board;
   state.castling=updateCastleRights(state,chosen,moving,captured||null);
   state.enPassant=null;
   if(typeOf(moving)==="p"){const z=squareToRC(chosen.to);if(Math.abs(z.r-a.r)===2)state.enPassant=rcToSquare((z.r+a.r)/2,a.c);}
@@ -184,43 +208,34 @@ export function applyChessMove(input:ChessState,moveInput:{from:string;to:string
   if(captured)state.captured.push(captured);
   state.lastMove={...chosen,capture:!!captured||chosen.enPassant};
   state.turn=playerIndex===1?2:1;state.lastTickAt=now;
-  const nextColor:ChessColor=state.turn===1?"w":"b";state.check=inCheck(state,nextColor);
-  const temp={...state,legalMoves:[]} as ChessState;
-  const san=notation(input,chosen,moving,captured||null,temp);
-  state.moveHistory.push(san);
+  state.uci=[...(input.uci||[]),chosen.from+chosen.to+(chosen.promotion||"")];
   finalizeTurn(state,playerIndex);
+  state.moveHistory.push(notation(allLegal,boardBefore,chosen,moving,captured||null,state));
   return state;
 }
 
 export function tickClock(input:ChessState,now=Date.now()){
   if(input.winner!==null)return input;
-  const last=Number(input.lastTickAt||now);const elapsed=Math.max(0,Math.min(300000,now-last));const idx=input.turn-1;input.clocks=[...input.clocks] as [number,number];input.clocks[idx]=Math.max(0,input.clocks[idx]-elapsed);input.lastTickAt=now;
+  const last=Number(input.lastTickAt||now);const elapsed=Math.max(0,now-last);const idx=input.turn-1;input.clocks=[...input.clocks] as [number,number];input.clocks[idx]=Math.max(0,input.clocks[idx]-elapsed);input.lastTickAt=now;
   if(input.clocks[idx]<=0){input.winner=input.turn===1?2:1;input.result="timeout";input.legalMoves=[];input.check=false;}
   return input;
 }
 
-function scoreBoard(state:ChessState,perspective:ChessColor){
-  if(state.winner===0)return 0;if(state.winner===1)return perspective==="w"?100000:-100000;if(state.winner===2)return perspective==="b"?100000:-100000;
-  let score=0;for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=state.board[r][c];if(!p)continue;const val=PIECE_VALUE[typeOf(p)!]||0;score+=(colorOf(p)===perspective?1:-1)*(val+(typeOf(p)==="p"?(perspective==="w"?(6-r):(r-1))*4:0));}
-  return score;
+/** The computer (Black) replies. Its clock is charged for the real thinking time. */
+export function computerChessTurn(input:ChessState,now=Date.now(),think:<T>(fn:()=>T)=>T=(fn)=>fn()){
+  const state={...input,board:cloneBoard(input.board),clocks:[...input.clocks] as [number,number]} as ChessState;
+  tickClock(state,now);if(state.winner!==null||!state.computer||state.turn!==2)return state;
+  const pick=think(()=>pickChessMove(state,Number(state.computerLevel)||2));
+  if(!pick){finalizeTurn(state,1);return state;}
+  return applyChessMove(state,{from:pick.from,to:pick.to,promotion:pick.promotion},2,Math.max(now,Date.now()));
 }
 
-function legalForCurrent(state:ChessState){return generateLegalMoves(state,state.turn===1?"w":"b");}
-export function computerChessTurn(input:ChessState,now=Date.now()){
-  let state={...input,board:cloneBoard(input.board),clocks:[...input.clocks] as [number,number]} as ChessState;
-  tickClock(state,now);if(state.winner!==null||!state.computer||state.turn!==2)return state;
-  const moves=legalForCurrent(state);if(!moves.length){finalizeTurn(state,1);return state;}
-  const level=Math.max(1,Math.min(4,Number(state.computerLevel)||2));
-  let chosen=moves[Math.floor(Math.random()*moves.length)];
-  if(level>=2){
-    const scored=moves.map(m=>{const z=squareToRC(m.to);const target=state.board[z.r][z.c];let s=target?PIECE_VALUE[typeOf(target)!]:0;if(m.promotion)s+=PIECE_VALUE[m.promotion]-100;if(level>=3){try{s+=-scoreBoard(applyChessMove(state,{from:m.from,to:m.to,promotion:m.promotion},2,now),"w")/40;}catch{}}return {m,s:s+Math.random()*(level===2?180:25)};});
-    scored.sort((a,b)=>b.s-a.s);chosen=scored[0].m;
-    if(level===4){
-      let best=-Infinity;
-      for(const cand of scored.slice(0,Math.min(12,scored.length))){let after:ChessState;try{after=applyChessMove(state,{from:cand.m.from,to:cand.m.to,promotion:cand.m.promotion},2,now);}catch{continue;}if(after.winner!==null){chosen=cand.m;break;}const replies=generateLegalMoves(after,"w").slice(0,24);let worst=Infinity;for(const reply of replies){try{const replyState=applyChessMove(after,{from:reply.from,to:reply.to,promotion:reply.promotion},1,now);worst=Math.min(worst,scoreBoard(replyState,"b"));}catch{}}const val=(worst===Infinity?scoreBoard(after,"b"):worst)+Math.random()*3;if(val>best){best=val;chosen=cand.m;}}
-    }
-  }
-  return applyChessMove(state,{from:chosen.from,to:chosen.to,promotion:chosen.promotion},2,now+350);
+/** Rebuilds a game from its first position, e.g. after taking moves back. Clocks are kept as they are. */
+export function replayChessMoves(base:ChessState,uci:string[]):ChessState{
+  let state=initialChessState({computer:base.computer,computerLevel:base.computerLevel,timeControlSec:base.timeControlSec});
+  const at=state.lastTickAt;
+  for(const move of uci)state=applyChessMove(state,{from:move.slice(0,2),to:move.slice(2,4),promotion:move[4]},state.turn,at);
+  return {...state,clocks:[...base.clocks] as [number,number],lastTickAt:Date.now(),hintsUsed:base.hintsUsed||0,undosUsed:base.undosUsed||0,v:base.v};
 }
 
 export function chessStatusText(state:ChessState){
