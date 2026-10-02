@@ -11,7 +11,7 @@ const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:numb
   {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
   {id:"board",title:"Midnight Mystery",description:"A kid-safe suspense mystery: watch security cameras, decode clues, avoid roaming mascot robots, and solve the case with friends.",path:"/board-game-world",color:0x22d3ee},
-  {id:"halloread",title:"Halloread: Midnight Mystery",description:"A spooky after-hours 3D mystery board world with multiplayer, creepy clues, strange clockwork characters, and Halloween surprises — never gory.",path:"/halloread-mystery",color:0xf97316},
+  {id:"halloread",title:"Halloread: Midnight Mystery",description:"Halloween after-hours mystery survival: security cameras, clues, roaming mascot robots, suspense encounters, multiplayer teams, and zero gore.",path:"/halloread-mystery",color:0xf97316},
   {id:"chess",title:"Ultimate Chess",description:"Enter a cinematic chess arena, challenge the computer, or battle another reader live.",path:"/ultimate-chess",color:0xe5c55f},
   {id:"laser",title:"Laser Royale",description:"The laser tag arena is closed for now. Coming soon!",color:0x6b7280},
   {id:"space",title:"Outer Space",description:"A glowing galaxy of planets and places to explore. Coming soon.",color:0x9868f4},
@@ -99,7 +99,7 @@ export default function Worlds(){
     else if(selected==="theater") void import("./ClubTheater");
     else if(selected==="neighborhood") void import("./Neighborhood");
     else if(selected==="board") void import("./MidnightMystery");
-    else if(selected==="halloread") void import("./BoardGameWorld");
+    else if(selected==="halloread") void import("./MidnightMystery");
     else if(selected==="chess") void import("./UltimateChess");
   },[selected]);
   useEffect(()=>{
