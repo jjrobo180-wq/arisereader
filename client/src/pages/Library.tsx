@@ -1185,7 +1185,7 @@ export default function Library() {
 
   return (
     <div className="min-h-screen bg-background">
-      <HalloreadAtmosphere compact />
+      <HalloreadAtmosphere />
       {/* Header */}
       <header data-tour={isStudentHeader ? "welcome" : undefined} className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-0 min-h-16 sm:h-16 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
