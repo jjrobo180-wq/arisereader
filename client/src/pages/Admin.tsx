@@ -18,6 +18,7 @@ import {
 import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import TheaterAdmin from "@/components/TheaterAdmin";
+import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
@@ -3183,6 +3184,9 @@ Generate exactly 10 questions.`;
           </CardContent>
         </Card>
         </div>
+
+        {/* Students whose school/teacher wasn't listed at signup */}
+        <UnlistedSignupsCard />
 
         {/* Pending Student Approvals */}
         {students.filter(s => s.approvedByTeacher === false).length > 0 && (

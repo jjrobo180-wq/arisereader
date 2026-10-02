@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, BookOpen, GraduationCap, School, UserRound } from "lucide-react";
 
 const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const NOT_LISTED = "__not_listed__";
 const BANDS = [
   { id: "K-2", label: "K–2", sub: "Early Readers", grades: ["K", "1", "2"] },
   { id: "3-5", label: "3–5", sub: "Elementary", grades: ["3", "4", "5"] },
@@ -32,8 +33,13 @@ export default function Register({ independent = false }: { independent?: boolea
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const [gradeBand, setGradeBand] = useState("");
+  const [unlistedSchoolName, setUnlistedSchoolName] = useState("");
+  const [unlistedTeacherName, setUnlistedTeacherName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const schoolNotListed = selectedSchoolId === NOT_LISTED;
+  // If the school isn't listed, its teachers can't be either.
+  const teacherNotListed = schoolNotListed || selectedTeacherId === NOT_LISTED;
 
   useEffect(() => {
     if (independentStudent) return;
@@ -41,10 +47,10 @@ export default function Register({ independent = false }: { independent?: boolea
   }, [independentStudent]);
 
   useEffect(() => {
-    if (!independentStudent && selectedSchoolId && selectedGrade) {
+    if (!independentStudent && selectedSchoolId && selectedSchoolId !== NOT_LISTED && selectedGrade) {
       fetch(`${API_BASE}/api/teachers/by-school-grade?schoolId=${selectedSchoolId}&grade=${selectedGrade}`)
         .then(r => r.ok ? r.json() : []).then(data => setTeachers(Array.isArray(data) ? data : [])).catch(() => setTeachers([]));
-    } else { setTeachers([]); setSelectedTeacherId(""); }
+    } else { setTeachers([]); setSelectedTeacherId(prev => prev === NOT_LISTED ? prev : ""); }
   }, [selectedSchoolId, selectedGrade, independentStudent]);
 
   useEffect(() => {
@@ -61,7 +67,9 @@ export default function Register({ independent = false }: { independent?: boolea
     if (password !== confirm) return setError("Passwords don't match.");
     if (!selectedGrade) return setError("Please select your grade.");
     if (!independentStudent && !selectedSchoolId) return setError("Please select your school.");
-    if (!independentStudent && !selectedTeacherId) return setError("Please select your teacher.");
+    if (!independentStudent && schoolNotListed && unlistedSchoolName.trim().length < 2) return setError("Please type the name of your school.");
+    if (!independentStudent && !teacherNotListed && !selectedTeacherId) return setError("Please select your teacher, or tap \"My teacher isn't listed\".");
+    if (!independentStudent && teacherNotListed && unlistedTeacherName.trim().length < 2) return setError("Please type your teacher's name.");
 
     setLoading(true);
     try {
@@ -71,9 +79,13 @@ export default function Register({ independent = false }: { independent?: boolea
         password,
         `${firstName.trim()} ${lastName.trim()}`,
         isEyeGaze,
-        independentStudent ? null : Number(selectedTeacherId),
-        independentStudent ? null : Number(selectedSchoolId),
+        independentStudent || teacherNotListed ? null : Number(selectedTeacherId),
+        independentStudent || schoolNotListed ? null : Number(selectedSchoolId),
         selectedGrade,
+        independentStudent ? { independent: true } : {
+          schoolName: schoolNotListed ? unlistedSchoolName.trim() : undefined,
+          teacherName: teacherNotListed ? unlistedTeacherName.trim() : undefined,
+        },
       );
     } catch (err: any) { setError(err.message || "Could not create account."); }
     finally { setLoading(false); }
@@ -126,7 +138,11 @@ export default function Register({ independent = false }: { independent?: boolea
                 <Label htmlFor="school">School</Label>
                 <select id="school" value={selectedSchoolId} onChange={e => { setSelectedSchoolId(e.target.value); setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0f0d1d] p-3 text-sm text-white">
                   <option value="">Choose your school…</option>{schools.map((school: any) => <option key={school.id} value={school.id}>{school.name}</option>)}
+                  <option value={NOT_LISTED}>My school isn't listed</option>
                 </select>
+                {schoolNotListed
+                  ? <Input value={unlistedSchoolName} onChange={e => setUnlistedSchoolName(e.target.value)} maxLength={120} placeholder="Type your school's name" className="h-12 border-fuchsia-300/30 bg-[#0f0d1d] text-white" />
+                  : <button type="button" onClick={() => { setSelectedSchoolId(NOT_LISTED); setGradeBand(""); setSelectedGrade(""); setSelectedTeacherId(""); }} className="text-xs font-black text-cyan-300 hover:underline">School not listed?</button>}
               </div>
             </>}
 
@@ -146,10 +162,16 @@ export default function Register({ independent = false }: { independent?: boolea
 
             {!independentStudent && <div className="space-y-2">
               <Label htmlFor="teacher">Teacher</Label>
-              <select id="teacher" value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} disabled={!selectedSchoolId || !selectedGrade} className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0f0d1d] p-3 text-sm text-white disabled:opacity-40">
+              {!schoolNotListed && <select id="teacher" value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} disabled={!selectedSchoolId || !selectedGrade} className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0f0d1d] p-3 text-sm text-white disabled:opacity-40">
                 <option value="">{!selectedGrade ? "Select school and grade first…" : "Choose your teacher…"}</option>{teachers.map((teacher: any) => <option key={teacher.id} value={teacher.id}>{teacher.display_name}</option>)}
-              </select>
-              {selectedSchoolId && selectedGrade && teachers.length === 0 && <p className="text-xs font-semibold text-fuchsia-300">No teacher is listed for that school and grade yet.</p>}
+                {selectedGrade && <option value={NOT_LISTED}>My teacher isn't listed</option>}
+              </select>}
+              {teacherNotListed
+                ? <Input id={schoolNotListed ? "teacher" : undefined} value={unlistedTeacherName} onChange={e => setUnlistedTeacherName(e.target.value)} maxLength={120} placeholder="Type your teacher's name (example: Mrs. Lopez)" className="h-12 border-fuchsia-300/30 bg-[#0f0d1d] text-white" />
+                : selectedSchoolId && selectedGrade && <button type="button" onClick={() => setSelectedTeacherId(NOT_LISTED)} className={`w-full rounded-xl border p-3 text-sm font-black transition ${teachers.length === 0 ? "border-fuchsia-300/40 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20" : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"}`}>
+                    {teachers.length === 0 ? "No teachers listed yet — tap here: Teacher not listed" : "Teacher not listed?"}
+                  </button>}
+              {teacherNotListed && <p className="rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3 text-xs font-semibold leading-5 text-cyan-100">No problem — you'll get full access right away. We'll connect you to your {schoolNotListed ? "school and teacher" : "teacher"} for you.</p>}
             </div>}
 
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/8 via-violet-500/8 to-fuchsia-500/8 p-4">
