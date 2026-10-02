@@ -526,7 +526,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/paintball-arena", "/aurora-rally"];
+const FULLSCREEN_GAME_ROUTES = ["/paintball-arena", "/aurora-rally", "/skybound-sprint"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);

@@ -14,7 +14,7 @@ const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:numb
   {id:"halloread",title:"Halloread: Midnight Mystery",description:"Halloween after-hours mystery survival: security cameras, clues, roaming mascot robots, suspense encounters, multiplayer teams, and zero gore.",path:"/halloread-mystery",color:0xf97316},
   {id:"chess",title:"Ultimate Chess",description:"Enter a cinematic chess arena, challenge the computer, or battle another reader live.",path:"/ultimate-chess",color:0xe5c55f},
   {id:"laser",title:"Prism Paintball",description:"5v5 third-person paintball: three paint markers, forts, inflatable bunkers, smart bots and live multiplayer.",path:"/paintball-arena",color:0x22d3ee},
-  {id:"space",title:"Skybound Sprint",description:"Run and jump across floating crystal islands, dodge patrol bots, hit checkpoints, and reach the golden portal.",path:"/skybound-sprint",color:0x8b5cf6},
+  {id:"space",title:"Skybound Sprint",description:"A 3D platform adventure across 8 sky worlds: run, jump, glide on the wind, ground-pound, collect Star Shards and defeat the Storm King.",path:"/skybound-sprint",color:0x8b5cf6},
   {id:"racetrack",title:"Aurora Racers",description:"Kart racing on 4 wild tracks: drift for mini-turbos, throw paint bombs, win the Grand Prix and upgrade your kart.",path:"/aurora-rally",color:0xf87171},
 ];
 
