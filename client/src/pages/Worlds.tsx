@@ -10,6 +10,7 @@ const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:numb
   {id:"club",title:"A.R.I.S.E Arcade",description:"Dance, meet readers, and play arcade games together.",path:"/arise-arcade",color:0xc026d3},
   {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
+  {id:"board",title:"Board Quest",description:"The original A.R.I.S.E. team board game with dice rolls, learning questions, power-ups, Rock Paper Scissors battles, points, shields, and multiplayer.",path:"/board-game-world",color:0x22d3ee},
   {id:"halloread",title:"Halloread: Midnight Mystery",description:"Halloween after-hours mystery survival: security cameras, clues, roaming mascot robots, suspense encounters, multiplayer teams, and zero gore.",path:"/halloread-mystery",color:0xf97316},
   {id:"chess",title:"Ultimate Chess",description:"Enter a cinematic chess arena, challenge the computer, or battle another reader live.",path:"/ultimate-chess",color:0xe5c55f},
   {id:"laser",title:"Prism Paintball",description:"5v5 third-person paintball: three paint markers, forts, inflatable bunkers, smart bots and live multiplayer.",path:"/paintball-arena",color:0x22d3ee},
@@ -90,6 +91,7 @@ export default function Worlds(){
     if(selected==="club") void import("./ClubArise");
     else if(selected==="theater") void import("./ClubTheater");
     else if(selected==="neighborhood") void import("./Neighborhood");
+    else if(selected==="board") void import("./BoardGameWorld");
     else if(selected==="halloread") void import("./MidnightMystery");
     else if(selected==="chess") void import("./UltimateChess");
     else if(selected==="laser") void import("./PaintballArena");
