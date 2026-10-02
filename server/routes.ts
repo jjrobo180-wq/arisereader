@@ -33,12 +33,12 @@ function gradeToBand(grade: string): string | null {
 }
 
 function arPassingScore(total: number): number {
-  return Math.ceil(total * (total > 10 ? 0.70 : 0.60));
+  return Math.ceil(total * 0.70);
 }
 
 function arPointsForScore(bookPoints: number, score: number, total: number): number {
   if (!total || score < arPassingScore(total)) return 0;
-  return Math.round((Number(bookPoints || 0) * (score / total)) * 10) / 10;
+  return Number(bookPoints || 0);
 }
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const PROXY_URL = process.env.CUSTOM_CRED_API_RESEND_COM_URL || "";
@@ -1788,13 +1788,6 @@ export async function registerRoutes(
 
     let verifiedProctor: ProctorIdentity | null = null;
     if (!req.adminPreview && !sampleAccount) {
-      const parentIds = await getStudentParentIds(req.user.id);
-      if (!parentIds.length) {
-        return res.status(403).json({
-          message: "Connect a parent or guardian account before taking quizzes.",
-          parentRequired: true,
-        });
-      }
       verifiedProctor = await validateProctorSession(
         String(proctorSessionToken || ""),
         req.user.id,
@@ -5703,13 +5696,6 @@ export async function registerRoutes(
       const sampleAccount = isDemoStudent(req.user);
       let proctor: ProctorIdentity | null = null;
       if (!req.adminPreview && !sampleAccount && !req.user?.isAdmin && req.user?.role !== "teacher") {
-        const parentIds = await getStudentParentIds(req.user.id);
-        if (!parentIds.length) {
-          return res.status(403).json({
-            message: "Connect a parent or guardian account before starting the Progress Monitor.",
-            parentRequired: true,
-          });
-        }
         proctor = await validateProctorSession(
           String(req.body?.proctorSessionToken || ""),
           req.user.id,
@@ -5907,14 +5893,6 @@ export async function registerRoutes(
       const staffPreview = req.user?.isAdmin || req.user?.role === "teacher";
       if (req.adminPreview || sampleAccount || staffPreview) {
         return res.json({ ...quiz, attemptId: -quizId, preview: true });
-      }
-
-      const parentIds = await getStudentParentIds(req.user.id);
-      if (!parentIds.length) {
-        return res.status(403).json({
-          message: "Connect a parent or guardian account before taking quizzes or reading tests.",
-          parentRequired: true,
-        });
       }
 
       const proctor = await validateProctorSession(
@@ -9745,24 +9723,62 @@ Important:
     }
   });
 
-  app.post("/api/custom-quizzes/:id/start", authMiddleware, async (req, res) => {
+  app.post("/api/custom-quizzes/:id/start", authMiddleware, async (req: any, res) => {
     try {
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getCustomEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
+      const sampleAccount = isDemoStudent(req.user);
+      const staffPreview = req.user?.isAdmin || req.user?.role === "teacher";
+      if (req.adminPreview || sampleAccount || staffPreview) {
+        const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
+        return res.json({ ...quiz, questions, attemptId: -quizId, preview: true });
+      }
+
+      const proctor = await validateProctorSession(
+        String(req.body?.proctorSessionToken || ""),
+        req.user.id,
+        "custom_eye_gaze",
+        quizId,
+        true
+      );
+      if (!proctor) {
+        return res.status(403).json({ message: "Your proctor session expired or is not valid. Ask your parent/guardian or teacher to enter the proctor code again." });
+      }
+
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);
       if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
-      const attempt = await storage.startCustomEyeGazeAttempt(req.user.id, quizId);
-      res.json({ ...quiz, attemptId: attempt.id });
+      const attempt = await storage.startCustomEyeGazeAttempt(req.user.id, quizId, proctor);
+      res.json({ ...quiz, attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.post("/api/custom-quizzes/:attemptId/submit", authMiddleware, async (req, res) => {
+  app.post("/api/custom-quizzes/:attemptId/submit", authMiddleware, async (req: any, res) => {
     try {
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
+
+      if ((req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher") && attemptId < 0) {
+        const quizId = Math.abs(attemptId);
+        const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
+        let score = 0;
+        for (const q of questions) {
+          if (String(answers?.[q.id] || "") === String(q.correct_answer || "")) score++;
+        }
+        const total = questions.length;
+        const passingScore = Math.ceil(total * 0.7);
+        return res.json({ score, total, pct: total > 0 ? Math.round((score / total) * 100) : 0, passed: score >= passingScore, passingScore, pointsEarned: 0, preview: true });
+      }
+
+      const { data: ownedAttempt } = await getAdminSupabase().from("custom_eye_gaze_attempts")
+        .select("user_id").eq("id", attemptId).maybeSingle();
+      if (!ownedAttempt || Number(ownedAttempt.user_id) !== Number(req.user.id)) {
+        return res.status(403).json({ message: "That quiz attempt does not belong to this student." });
+      }
+
       const result = await storage.submitCustomEyeGazeAttempt(attemptId, answers);
       res.json(result);
     } catch (error: any) {
