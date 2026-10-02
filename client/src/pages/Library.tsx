@@ -26,6 +26,36 @@ const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
 // "hispanic_heritage_picks_v1" setting as [{ bookId, teacher }].
 type HeritagePick = { bookId: number; teacher: string };
 
+// Festival colors used for the papel picado banner and card accents.
+const HHM_COLORS = ["#f472b6", "#fb923c", "#facc15", "#2dd4bf", "#4ade80", "#c084fc", "#f87171", "#60a5fa"];
+
+// Decorative papel picado (cut-paper flag) banner for the Hispanic Heritage shelf.
+function PapelPicado() {
+  // One 8-flag tile (416px wide) repeated across the full width at a fixed size,
+  // so the flags never stretch or get cropped on wide or narrow screens.
+  return (
+    <svg className="relative block h-[62px] w-full" aria-hidden="true">
+      <defs>
+        <mask id="hhm-papel-cut" maskContentUnits="userSpaceOnUse">
+          <path d="M0 0H44V40L38.5 50L33 40L27.5 50L22 40L16.5 50L11 40L5.5 50L0 40Z" fill="white" />
+          <circle cx="22" cy="17" r="5.5" fill="black" />
+          <path d="M22 6L25 10L22 14L19 10Z M8 12L11 15L8 18L5 15Z M36 12L39 15L36 18L33 15Z M8 26L10 29L8 32L6 29Z M36 26L38 29L36 32L34 29Z" fill="black" />
+          <path d="M15 31L22 27L29 31L22 35Z" fill="black" />
+        </mask>
+        <pattern id="hhm-papel-row" width="416" height="62" patternUnits="userSpaceOnUse">
+          <path d="M0 5 Q104 10 208 5 T416 5" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="1.2" />
+          {HHM_COLORS.map((color, i) => (
+            <g key={color} transform={`translate(${4 + i * 52}, ${6 + (i % 2) * 1.5}) rotate(${i % 2 ? 2.5 : -2.5} 22 0)`}>
+              <rect width="44" height="50" fill={color} mask="url(#hhm-papel-cut)" opacity="0.92" />
+            </g>
+          ))}
+        </pattern>
+      </defs>
+      <rect width="100%" height="62" fill="url(#hhm-papel-row)" />
+    </svg>
+  );
+}
+
 const HALLOREAD_TITLE_MATCHES = [
   "goosebumps",
   "coraline",
@@ -1905,94 +1935,101 @@ export default function Library() {
           <>
             {/* Hispanic Heritage Month Section */}
             {hispanicHeritageBooks.length > 0 && (!showEyeGaze || isSampleStudent || user?.isAdmin) && (
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-5 h-5 text-orange-500" />
-                  <h2 className="text-lg font-bold text-foreground">Hispanic Heritage Month</h2>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{hispanicHeritageBooks.length} quizzes</span>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Celebrate Hispanic Heritage Month with books our teachers recommend. Read one, then take the quiz.</p>
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
-                  {hispanicHeritageBooks.map((book) => {
-                    const result = results.find(r => r.bookId === book.id);
-                    const isDone = completedIds.has(book.id);
-                    return (
-                      <Card
-                        key={book.id}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px]"
-                        style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => navigate(`/quiz/${book.id}`)}
-                        data-testid={`card-book-${book.id}`}
-                      >
-                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {book.coverUrl ? (
-                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary text-white p-4 text-center">
-                              <span className="font-bold text-sm">{book.title}</span>
+              <section className="relative mb-10 overflow-hidden rounded-[1.75rem] border border-amber-400/25 bg-gradient-to-br from-[#2a0b1f] via-[#3a1222] to-[#1f1a0b] text-white shadow-xl" aria-labelledby="hhm-heading">
+                <PapelPicado />
+                <div className="pointer-events-none absolute -right-16 top-16 h-48 w-48 rounded-full bg-amber-400/15 blur-3xl" />
+                <div className="pointer-events-none absolute -left-16 bottom-0 h-48 w-56 rounded-full bg-fuchsia-500/15 blur-3xl" />
+                <div className="relative px-4 pb-5 pt-2 sm:px-6">
+                  <p className="text-[10px] font-black uppercase tracking-[.24em] text-amber-300">15 de septiembre – 15 de octubre</p>
+                  <div className="mt-1 flex flex-wrap items-end gap-x-3 gap-y-1">
+                    <h2 id="hhm-heading" className="text-2xl font-black tracking-tight sm:text-3xl">
+                      Hispanic Heritage <span className="bg-gradient-to-r from-amber-300 via-orange-400 to-pink-400 bg-clip-text text-transparent">Month</span>
+                    </h2>
+                    <p className="pb-1 text-sm font-bold italic text-pink-200/80">Mes de la Herencia Hispana</p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-xs font-black text-amber-100">{hispanicHeritageBooks.length} teacher {hispanicHeritageBooks.length === 1 ? "pick" : "picks"}</span>
+                    <span className="rounded-full border border-teal-300/25 bg-teal-400/10 px-2.5 py-1 text-xs font-black text-teal-100">Celebrating Latino voices</span>
+                  </div>
+                  <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-orange-50/75">Stories of family, courage and home from Latino authors, chosen by our teachers. Read one, then take the quiz.</p>
+
+                  <div className="mt-5 flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                    {hispanicHeritageBooks.map((book, index) => {
+                      const result = results.find(r => r.bookId === book.id);
+                      const isDone = completedIds.has(book.id);
+                      const accent = HHM_COLORS[index % HHM_COLORS.length];
+                      const teacher = heritageTeacher(book.id);
+                      return (
+                        <article
+                          key={book.id}
+                          className="group relative flex w-[170px] flex-shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1a0d14]/85 shadow-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl sm:w-[190px]"
+                          style={{ scrollSnapAlign: 'start', boxShadow: `0 0 0 1px ${accent}22` }}
+                          onClick={() => navigate(`/quiz/${book.id}`)}
+                          data-testid={`card-book-${book.id}`}
+                        >
+                          <div className="h-1.5 w-full" style={{ background: accent }} />
+                          <div className="relative aspect-[2/3] overflow-hidden bg-black/30">
+                            {book.coverUrl ? (
+                              <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center p-4 text-center" style={{ background: `linear-gradient(160deg, ${accent}, #3a1222)` }}>
+                                <span className="text-sm font-black">{book.title}</span>
+                              </div>
+                            )}
+                            {isDone && (
+                              <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>
+                            )}
+                          </div>
+                          <div className="flex flex-1 flex-col p-3">
+                            {teacher && (
+                              <p className="mb-1.5 w-fit rounded-lg px-2 py-1 text-[11px] font-black leading-snug" style={{ background: `${accent}26`, color: accent }}>Recommended by {teacher}</p>
+                            )}
+                            <h3 className="line-clamp-2 text-sm font-black leading-tight">{book.title}</h3>
+                            <p className="mt-1 text-xs text-orange-50/60">{book.author}</p>
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-200">
+                                <Trophy className="h-3 w-3" />
+                                {book.pointsValue || 10} pts
+                              </span>
+                              {result && <span className="text-xs font-semibold text-amber-100/80">{result.score}/{result.total} correct</span>}
                             </div>
-                          )}
-                          {isDone && (
-                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">✓ Done</div>
-                          )}
-                        </div>
-                        <div className="p-3">
-                          {heritageTeacher(book.id) && (
-                            <p className="mb-1.5 inline-flex items-center rounded-full bg-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-orange-400">Recommended by {heritageTeacher(book.id)}</p>
-                          )}
-                          <h3 className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</h3>
-                          <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
-                          <div className="mt-2">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                              book.pointsValue === 10 ? "bg-green-500/20 text-green-400" :
-                              book.pointsValue === 20 ? "bg-primary/20 text-primary" :
-                              book.pointsValue === 30 ? "bg-red-500/20 text-red-400" :
-                              "bg-muted text-muted-foreground"
-                            }`}>
-                              <Trophy className="w-3 h-3" />
-                              {book.pointsValue || 10} pts
-                            </span>
+                            <div className="mt-auto flex gap-1.5 pt-3">
+                              {book.readUrl && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/read/${book.id}`);
+                                  }}
+                                >
+                                  <BookOpen className="mr-1 h-3 w-3" />
+                                  Read
+                                </Button>
+                              )}
+                              {!(user?.role === 'teacher' || user?.isAdmin) && (
+                                <Button
+                                  size="sm"
+                                  className="h-7 flex-1 border-0 text-xs font-black text-[#1a0d14] hover:opacity-90"
+                                  style={{ background: accent }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/quiz/${book.id}`);
+                                  }}
+                                >
+                                  Quiz
+                                </Button>
+                              )}
+                            </div>
+                            <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
                           </div>
-                          {result && (
-                            <p className="text-xs text-primary font-semibold mt-1">
-                              {result.score}/{result.total} correct
-                            </p>
-                          )}
-                          <div className="flex gap-1.5 mt-2">
-                            {book.readUrl && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs flex-1"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/read/${book.id}`);
-                                }}
-                              >
-                                <BookOpen className="w-3 h-3 mr-1" />
-                                Read
-                              </Button>
-                            )}
-                            {!(user?.role === 'teacher' || user?.isAdmin) && (
-                              <Button
-                                size="sm"
-                                className="h-7 text-xs flex-1"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/quiz/${book.id}`);
-                                }}
-                              >
-                                Quiz
-                              </Button>
-                            )}
-                          </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
-                        </div>
-                      </Card>
-                    );
-                  })}
+                        </article>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </section>
             )}
 
             {/* Halloread — seasonal kid-friendly spooky shelf */}
