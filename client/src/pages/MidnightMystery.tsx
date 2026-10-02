@@ -45,7 +45,7 @@ function mascot(scene:THREE.Scene,x:number,z:number,color:number,accent:number,n
  scene.add(root);return root;
 }
 
-function MysteryScene({room,revision,alert}:{room:RoomId;revision:number;alert:boolean}){
+function MysteryScene({room,revision,alert,halloread}:{room:RoomId;revision:number;alert:boolean;halloread:boolean}){
  const host=useRef<HTMLDivElement>(null);
  useEffect(()=>{
    const mount=host.current;if(!mount)return;
@@ -54,9 +54,19 @@ function MysteryScene({room,revision,alert}:{room:RoomId;revision:number;alert:b
    const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setPixelRatio(Math.min(devicePixelRatio,1.55));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=true;mount.appendChild(renderer.domElement);
 
    scene.add(new THREE.HemisphereLight(0x5b6f9b,0x10131b,.8));
-   const key=new THREE.SpotLight(alert?0xff334d:0x8be9ff,22,45,Math.PI/4,.35,1.4);key.position.set(0,10,8);key.target.position.set(0,1,0);scene.add(key,key.target);
+   const key=new THREE.SpotLight(alert?0xff334d:(halloread?0xff7a18:0x8be9ff),22,45,Math.PI/4,.35,1.4);key.position.set(0,10,8);key.target.position.set(0,1,0);scene.add(key,key.target);
    const amber=new THREE.PointLight(0xffa34d,6,25,1.8);amber.position.set(-7,4,-5);scene.add(amber);
-   const violet=new THREE.PointLight(0x8b5cf6,5,24,1.8);violet.position.set(7,5,-8);scene.add(violet);
+   const violet=new THREE.PointLight(0x8b5cf6,halloread?9:5,24,1.8);violet.position.set(7,5,-8);scene.add(violet);
+   if(halloread){
+     const pumpkin=(x:number,z:number,scale=.65)=>{const g=new THREE.Group();const mat=new THREE.MeshStandardMaterial({color:0xf97316,emissive:0x7c2d12,emissiveIntensity:.45,roughness:.7});for(const dx of [-.22,0,.22]){const lobe=new THREE.Mesh(new THREE.SphereGeometry(.5,14,10),mat);lobe.scale.set(.8,1,.82);lobe.position.x=dx;g.add(lobe);}const stem=new THREE.Mesh(new THREE.CylinderGeometry(.07,.1,.3,8),new THREE.MeshStandardMaterial({color:0x365314}));stem.position.y=.58;g.add(stem);g.position.set(x,0,z);g.scale.setScalar(scale);scene.add(g);};
+     pumpkin(-10,-7,.8);pumpkin(10,-7,.8);pumpkin(-11,5,.62);pumpkin(11,4,.62);
+     for(const side of [-1,1]){
+       const web=new THREE.Group(),mat=new THREE.LineBasicMaterial({color:0xe9d5ff,transparent:true,opacity:.5});
+       for(let i=0;i<8;i++){const a=i*Math.PI/4;web.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(Math.cos(a)*2.2,Math.sin(a)*2.2,0)]),mat));}
+       for(const rr of [.65,1.25,1.8,2.2]){const pts=[];for(let i=0;i<=28;i++){const a=i/28*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*rr,Math.sin(a)*rr,0));}web.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat));}
+       web.position.set(side*12.5,6,-9.45);web.rotation.y=side<0?Math.PI/5:-Math.PI/5;scene.add(web);
+     }
+   }
 
    const floor=new THREE.Mesh(new THREE.PlaneGeometry(28,24),new THREE.MeshStandardMaterial({color:0x171b25,roughness:.72,metalness:.12}));
    floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
@@ -96,11 +106,11 @@ function MysteryScene({room,revision,alert}:{room:RoomId;revision:number;alert:b
    const resize=()=>{const w=mount.clientWidth,h=mount.clientHeight;camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();renderer.setSize(w,h)};resize();window.addEventListener("resize",resize);
    let raf=0;const clock=new THREE.Clock();const animate=()=>{const t=clock.getElapsedTime();bots.forEach((bot,i)=>{bot.rotation.y=Math.sin(t*.45+i)*.12;bot.position.y=Math.sin(t*1.15+i)*.035;});key.intensity=(alert?18:12)+(Math.sin(t*9)>0.86?8:0);renderer.render(scene,camera);raf=requestAnimationFrame(animate)};animate();
    return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);scene.traverse(o=>{const m=o as THREE.Mesh;m.geometry?.dispose?.();if(m.material){(Array.isArray(m.material)?m.material:[m.material]).forEach(mat=>{if("map" in mat)(mat as THREE.MeshBasicMaterial).map?.dispose?.();mat.dispose();});}});renderer.dispose();mount.removeChild(renderer.domElement);};
- },[room,revision,alert]);
+ },[room,revision,alert,halloread]);
  return <div className="mm-feed relative h-full min-h-[340px] overflow-hidden rounded-[1.6rem] border border-cyan-300/20 bg-black shadow-2xl"><div ref={host} className="absolute inset-0"/><div className="mm-scan absolute inset-0 pointer-events-none"/><div className="absolute left-3 top-3 rounded-lg border border-white/15 bg-black/75 px-3 py-1.5 text-[10px] font-black tracking-[.2em] text-cyan-200">LIVE SECURITY FEED</div><div className="absolute right-3 top-3 h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]"/></div>;
 }
 
-export default function MidnightMystery(){
+export default function MidnightMystery({halloread=false}:{halloread?:boolean}){
  const {user,token}=useAuth();const [,navigate]=useLocation();
  const [view,setView]=useState<View|null>(null),[level,setLevel]=useState<Level>("6-8"),[code,setCode]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[offline,setOffline]=useState(false),[lobbies,setLobbies]=useState<LobbySummary[]>([]),[now,setNow]=useState(Date.now()),[offset,setOffset]=useState(0),[sound,setSound]=useState(true),[manualCam,setManualCam]=useState<RoomId|null>(null);
  const requestLock=useRef(false),mounted=useRef(true),requestSerial=useRef(0),latestSerial=useRef(0),pollFailures=useRef(0),announcerCue=useRef("");
@@ -146,14 +156,14 @@ export default function MidnightMystery(){
  const openingChosen=!!view?.openingReady.includes(myId);
  const canOpening=view?.phase==="opening-roll"&&!openingResolved&&!openingChosen;
 
- if(!view)return <main className="min-h-screen bg-[radial-gradient(circle_at_50%_-10%,#273351_0%,#090d17_42%,#03050a_100%)] px-4 py-8 text-white">
+ if(!view)return <main className={`min-h-screen px-4 py-8 text-white ${halloread?"bg-[radial-gradient(circle_at_20%_0%,rgba(249,115,22,.25),transparent_28%),radial-gradient(circle_at_85%_5%,rgba(124,58,237,.32),transparent_32%),#050308]":"bg-[radial-gradient(circle_at_50%_-10%,#273351_0%,#090d17_42%,#03050a_100%)]"}`}>
    <button onClick={()=>navigate("/worlds")} className="mb-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="mr-2 inline h-5 w-5"/> Worlds</button>
    <section className="mx-auto max-w-5xl overflow-hidden rounded-[2.4rem] border border-cyan-300/20 bg-[#080c14]/95 shadow-[0_30px_90px_rgba(0,0,0,.6)]">
      <div className="relative min-h-[330px] overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_80%_25%,rgba(239,68,68,.16),transparent_24%),radial-gradient(circle_at_25%_20%,rgba(34,211,238,.17),transparent_28%),#070b12] p-7 sm:p-10">
        <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] [background-size:34px_34px]"/>
        <div className="relative max-w-3xl">
-         <p className="text-xs font-black uppercase tracking-[.28em] text-cyan-300">A.R.I.S.E. after dark · Kid-safe suspense mystery</p>
-         <h1 className="mt-3 text-5xl font-black tracking-[-.04em] sm:text-7xl">MIDNIGHT<br/><span className="text-cyan-300">MYSTERY</span></h1>
+         <p className={`text-xs font-black uppercase tracking-[.28em] ${halloread?"text-orange-300":"text-cyan-300"}`}>{halloread?"HALLOREAD · OCTOBER AFTER DARK":"A.R.I.S.E. after dark · Kid-safe suspense mystery"}</p>
+         <h1 className="mt-3 text-5xl font-black tracking-[-.04em] sm:text-7xl">{halloread?"HALLOREAD":"MIDNIGHT"}<br/><span className={halloread?"text-orange-300":"text-cyan-300"}>MYSTERY</span></h1>
          <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-slate-300 sm:text-lg">The family fun center closed for the night. The grand-prize key vanished, the show was sabotaged, and the mascot robots are wandering. Watch cameras, decode clues, survive encounters, and solve the case before morning.</p>
          <div className="mt-5 flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-white/8 px-3 py-2">NO GORE</span><span className="rounded-full bg-white/8 px-3 py-2">MULTIPLAYER</span><span className="rounded-full bg-white/8 px-3 py-2">COMPUTER PLAYERS</span><span className="rounded-full bg-white/8 px-3 py-2">CAMERAS + CLUES + SURVIVAL</span></div>
        </div>
@@ -188,11 +198,12 @@ export default function MidnightMystery(){
 
  if(view.phase==="tutorial")return <main className="min-h-screen bg-[#050810] p-4 text-white"><section className="mx-auto max-w-4xl rounded-[2rem] border border-cyan-300/20 bg-[#0a101a] p-6 shadow-2xl sm:p-9"><p className="text-xs font-black uppercase tracking-[.25em] text-cyan-300">Night Shift Briefing</p><h1 className="mt-2 text-4xl font-black">How to survive the mystery</h1><div className="mt-6 grid gap-3 sm:grid-cols-2"><div className="rounded-2xl bg-white/5 p-5"><Camera className="text-cyan-300"/><h2 className="mt-2 text-xl font-black">Watch the cameras</h2><p className="mt-1 text-sm font-semibold text-slate-400">Rooms change as the night goes on. Mascots may appear where you least expect them.</p></div><div className="rounded-2xl bg-white/5 p-5"><Search className="text-amber-300"/><h2 className="mt-2 text-xl font-black">Decode clues</h2><p className="mt-1 text-sm font-semibold text-slate-400">Answer clue questions to search rooms and add evidence to your team’s case board.</p></div><div className="rounded-2xl bg-white/5 p-5"><Flashlight className="text-violet-300"/><h2 className="mt-2 text-xl font-black">Handle encounters</h2><p className="mt-1 text-sm font-semibold text-slate-400">When a mascot gets close, choose Flash, Hide, or Distract. The wrong move can trigger an alarm.</p></div><div className="rounded-2xl bg-white/5 p-5"><KeyRound className="text-emerald-300"/><h2 className="mt-2 text-xl font-black">Solve the case</h2><p className="mt-1 text-sm font-semibold text-slate-400">Collect more evidence than the rival team and uncover who sabotaged the show and hid the grand-prize key.</p></div></div><button disabled={busy||offline} onClick={()=>act({type:"tutorial-ready",tutorialId:view.tutorialId,result:"finished"})} className="mt-6 min-h-14 w-full rounded-2xl bg-cyan-300 text-lg font-black text-slate-950">I’m ready for the night shift</button></section></main>;
 
- return <main className="min-h-screen bg-[#03050a] text-white">
+ return <main className={`min-h-screen text-white ${halloread?"bg-[#050208]":"bg-[#03050a]"}`}>
+   {halloread&&<div className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" aria-hidden="true"><div className="absolute left-[-28px] top-[-28px] text-[120px] opacity-45">🕸️</div><div className="absolute right-[-28px] top-[-28px] text-[120px] opacity-45">🕸️</div><div className="absolute left-[6%] top-20 text-3xl opacity-60">🦇</div><div className="absolute right-[8%] top-32 text-3xl opacity-60">🦇</div><div className="halloread-mm-fog absolute inset-x-[-15%] bottom-[-6%] h-[30vh] rounded-[50%] bg-violet-100/20 blur-[45px]"/></div>}
    <header className="flex min-h-16 items-center gap-3 border-b border-white/10 bg-[#080d15]/95 px-3 sm:px-5"><button onClick={leave} className="rounded-xl bg-white/5 px-3 py-2 font-black"><ArrowLeft className="mr-1 inline h-4 w-4"/> Worlds</button><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Midnight Mystery · Room {view.code}</p><h1 className="truncate text-lg font-black">Night Shift Investigation</h1></div><button onClick={()=>setSound(v=>!v)} className="grid h-11 w-11 place-items-center rounded-xl bg-white/5">{sound?<Volume2/>:<VolumeX/>}</button></header>
    <div className="mx-auto grid max-w-[1500px] gap-3 p-3 lg:grid-cols-[1fr_360px]">
      <section className="relative min-h-[520px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#080c13] p-2 shadow-2xl">
-       <MysteryScene room={activeRoom} revision={view.revision} alert={view.phase==="rps"||stage==="duel-result"}/>
+       <MysteryScene room={activeRoom} revision={view.revision} alert={view.phase==="rps"||stage==="duel-result"} halloread={halloread}/>
        <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2">{ROOMS.map(r=><button key={r.id} onClick={()=>setManualCam(r.id)} className={`rounded-xl border px-3 py-2 text-left text-xs font-black backdrop-blur ${activeRoom===r.id?"border-cyan-300 bg-cyan-300 text-slate-950":"border-white/15 bg-black/65 text-white"}`}><span className="block text-[9px] opacity-65">{r.cam}</span>{r.name}</button>)}</div>
        {view.phase==="intro"&&<div className="absolute inset-0 grid place-items-center bg-black/60 p-4 text-center backdrop-blur-sm"><div><p className="text-xs font-black uppercase tracking-[.3em] text-red-300">12:00 AM · DOORS LOCKED</p><h2 className="mt-2 text-5xl font-black sm:text-7xl">THE NIGHT SHIFT<br/>HAS BEGUN</h2><p className="mx-auto mt-4 max-w-xl font-bold text-slate-300">Stay together. Watch the feeds. Find out who sabotaged the show.</p></div></div>}
        {view.phase==="opening-roll"&&!openingResolved&&<div className="absolute inset-0 grid place-items-center bg-black/70 p-4 backdrop-blur-sm"><div className="max-w-lg rounded-[2rem] border border-cyan-300/30 bg-[#0a111d] p-6 text-center shadow-2xl"><p className="text-xs font-black uppercase tracking-[.2em] text-cyan-300">Security Console</p><h2 className="mt-2 text-3xl font-black">Choose your access move</h2><p className="mt-2 text-sm font-semibold text-slate-400">Everyone chooses privately. The strongest result opens the first camera feed.</p>{canOpening?<div className="mt-5 grid grid-cols-3 gap-2">{HANDS.map(h=><button key={h} disabled={busy} onClick={()=>act({type:"opening-hand",hand:h})} className="min-h-24 rounded-2xl border border-white/10 bg-white/5 p-3 font-black hover:bg-cyan-300 hover:text-slate-950"><span className="block text-2xl">{h==="rock"?"🔦":h==="paper"?"🚪":"📢"}</span>{ACTION_LABELS[h].title}<small className="mt-1 block text-[10px] opacity-60">{ACTION_LABELS[h].sub}</small></button>)}</div>:<p className="mt-5 rounded-xl bg-white/5 p-3 font-bold">Choice locked. Waiting for the other investigators…</p>}</div></div>}
@@ -215,7 +226,8 @@ export default function MidnightMystery(){
    <style>{`
     .mm-scan{background:repeating-linear-gradient(to bottom,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 4px),linear-gradient(90deg,rgba(34,211,238,.025),transparent 28%,rgba(239,68,68,.022));mix-blend-mode:screen;animation:mmFlicker 5s steps(1,end) infinite}
     @keyframes mmFlicker{0%,93%,100%{opacity:.75}94%{opacity:.2}95%{opacity:1}96%{opacity:.35}}
-    @media(prefers-reduced-motion:reduce){.mm-scan{animation:none}}
+    .halloread-mm-fog{animation:mmFog 9s ease-in-out infinite alternate}@keyframes mmFog{from{transform:translateX(-4%) scale(.92)}to{transform:translateX(5%) scale(1.08)}}
+    @media(prefers-reduced-motion:reduce){.mm-scan,.halloread-mm-fog{animation:none}}
    `}</style>
  </main>;
 }
