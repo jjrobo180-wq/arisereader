@@ -595,9 +595,14 @@ export class DatabaseStorage implements IStorage {
 
   async getLeaderboard() {
     return cached('leaderboard', 300000, async () => {
-      // Fetch users with regular attempts AND eye gaze attempts AND total_points
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, role, total_points, attempts:attempts!attempts_user_id_fkey(points_earned), eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)").eq("is_admin", false).not("username", "like", "sample%")
+        supabase.from("users").select(
+          "id, username, display_name, role, total_points, " +
+          "attempts:attempts!attempts_user_id_fkey(points_earned, book_id), " +
+          "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total), " +
+          "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status), " +
+          "manual_point_awards:manual_point_awards!manual_point_awards_student_id_fkey(points)"
+        ).eq("is_admin", false).not("username", "like", "sample%")
       );
       const leaderboardUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (leaderboardUsers.length === 0) return [];
@@ -605,31 +610,37 @@ export class DatabaseStorage implements IStorage {
       const allBooks = await fetchList(supabase.from("books").select("id"));
       const totalBooks = allBooks.length;
 
-      const result = leaderboardUsers.map((user) => {
-        const attempts = user.attempts || [];
+      const result = leaderboardUsers.map((user: any) => {
+        const regularAttempts = (user.attempts || []).filter((a: any) => Number(a.book_id) > 0);
         const eyeGazeAttempts = user.eye_gaze_attempts || [];
-        // Points from regular quiz attempts
-        const regularPoints = attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
-        // Points from eye gaze attempts (10 points each if passed at 70%+)
-        const eyeGazePoints = eyeGazeAttempts.reduce((sum, a) => {
+        const customAttempts = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0);
+        const manualAwards = user.manual_point_awards || [];
+
+        const regularPoints = regularAttempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0);
+        const eyeGazePoints = eyeGazeAttempts.reduce((sum: number, a: any) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
         }, 0);
-        // Use the higher of calculated points or stored total_points (total_points may include curved bonus points)
-        const calculatedPoints = regularPoints + eyeGazePoints;
-        const totalPoints = Math.max(user.total_points || 0, calculatedPoints);
-        // Only count completed/passed quizzes, not in_progress ones
+        const customEyeGazePoints = customAttempts.reduce((sum: number, a: any) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
+        const manualPoints = manualAwards.reduce((sum: number, a: any) => sum + Number(a.points || 0), 0);
+
+        const calculatedPoints = regularPoints + eyeGazePoints + customEyeGazePoints + manualPoints;
+        const totalPoints = Math.max(Number(user.total_points || 0), calculatedPoints);
         const completedEyeGaze = eyeGazeAttempts.filter((a: any) => a.total > 0).length;
+
         return {
           id: user.id,
           username: user.username,
           displayName: user.display_name,
           totalPoints,
-          quizzesTaken: attempts.length + completedEyeGaze,
+          quizzesTaken: regularAttempts.length + completedEyeGaze + customAttempts.length,
           totalBooks,
         };
       });
-      return result.sort((a, b) => b.totalPoints - a.totalPoints);
+      return result.sort((a: any, b: any) => b.totalPoints - a.totalPoints);
     });
   }
 
@@ -637,18 +648,20 @@ export class DatabaseStorage implements IStorage {
     return cached('eye_gaze_leaderboard', 300000, async () => {
       const allUsers = await fetchList(
         supabase.from("users")
-          .select("id, username, display_name, eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)")
+          .select(
+            "id, username, display_name, " +
+            "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total), " +
+            "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status)"
+          )
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
-      const result = allUsers.map((user) => {
-        const attempts = user.eye_gaze_attempts || [];
-        // Only count completed eye gaze attempts (total > 0 means it was submitted)
-        const completed = attempts.filter((a: any) => a.total > 0);
-        // 10 points per passed quiz
-        const totalScore = completed.reduce((sum: number, a: any) => {
+      const result = allUsers.map((user: any) => {
+        const standard = (user.eye_gaze_attempts || []).filter((a: any) => a.total > 0);
+        const custom = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0);
+        const totalScore = [...standard, ...custom].reduce((sum: number, a: any) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
         }, 0);
@@ -657,7 +670,7 @@ export class DatabaseStorage implements IStorage {
           username: user.username,
           displayName: user.display_name,
           totalPoints: totalScore,
-          quizzesTaken: completed.length,
+          quizzesTaken: standard.length + custom.length,
         };
       });
       return result.sort((a: any, b: any) => b.totalPoints - a.totalPoints);
@@ -668,18 +681,26 @@ export class DatabaseStorage implements IStorage {
     return cached(`eye_gaze_leaderboard_${yearMonth}`, 300000, async () => {
       const allUsers = await fetchList(
         supabase.from("users")
-          .select("id, username, display_name, eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)")
+          .select(
+            "id, username, display_name, " +
+            "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at, created_at), " +
+            "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status, completed_at)"
+          )
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
-      const result = allUsers.map((user) => {
-        const attempts = (user.eye_gaze_attempts || []).filter((a: any) => {
+      const result = allUsers.map((user: any) => {
+        const standard = (user.eye_gaze_attempts || []).filter((a: any) => {
           const d = a.completed_at || a.created_at;
           return d && d.startsWith(yearMonth) && a.total > 0;
         });
-        const totalScore = attempts.reduce((sum: number, a: any) => {
+        const custom = (user.custom_eye_gaze_attempts || []).filter((a: any) => {
+          const d = a.completed_at;
+          return a.status === "completed" && d && d.startsWith(yearMonth) && a.total > 0;
+        });
+        const totalScore = [...standard, ...custom].reduce((sum: number, a: any) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
         }, 0);
@@ -688,7 +709,7 @@ export class DatabaseStorage implements IStorage {
           username: user.username,
           displayName: user.display_name,
           totalPoints: totalScore,
-          quizzesTaken: attempts.length,
+          quizzesTaken: standard.length + custom.length,
         };
       });
       return result.sort((a: any, b: any) => b.totalPoints - a.totalPoints);
@@ -701,14 +722,18 @@ export class DatabaseStorage implements IStorage {
     );
     if (!user) return null;
 
-    const userAttempts = await fetchList(
-      supabase.from("attempts").select("*").eq("user_id", userId).order("completed_at", { ascending: false })
-    );
+    const [userAttempts, eyeGazeAttempts, customEyeGazeAttempts, manualAwards] = await Promise.all([
+      fetchList(supabase.from("attempts").select("*").eq("user_id", userId).order("completed_at", { ascending: false })),
+      fetchList(supabase.from("eye_gaze_attempts").select("score, total").eq("user_id", userId)),
+      fetchList(supabase.from("custom_eye_gaze_attempts").select("score, total, status").eq("user_id", userId)),
+      fetchList(supabase.from("manual_point_awards").select("points").eq("student_id", userId)),
+    ]);
 
+    const regularAttempts = userAttempts.filter((a: any) => Number(a.book_id) > 0);
     const allBooks = await fetchList(supabase.from("books").select("*"));
     const bookMap = new Map(allBooks.map((b) => [b.id, mapBook(b)]));
 
-    const quizHistory = userAttempts.map((a) => {
+    const quizHistory = regularAttempts.map((a: any) => {
       const book = bookMap.get(a.book_id);
       return {
         bookId: a.book_id,
@@ -727,7 +752,15 @@ export class DatabaseStorage implements IStorage {
       };
     });
 
-    const totalPoints = Math.max(user.totalPoints || 0, userAttempts.reduce((sum, a) => sum + (a.points_earned || 0), 0));
+    const regularPoints = regularAttempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0);
+    const completedEyeGaze = eyeGazeAttempts.filter((a: any) => a.total > 0);
+    const eyeGazePoints = completedEyeGaze.reduce((sum: number, a: any) => sum + (a.score >= Math.ceil(a.total * 0.7) ? 10 : 0), 0);
+    const completedCustom = customEyeGazeAttempts.filter((a: any) => a.status === "completed" && a.total > 0);
+    const customEyeGazePoints = completedCustom.reduce((sum: number, a: any) => sum + (a.score >= Math.ceil(a.total * 0.7) ? 10 : 0), 0);
+    const manualPoints = manualAwards.reduce((sum: number, a: any) => sum + Number(a.points || 0), 0);
+    const calculatedPoints = regularPoints + eyeGazePoints + customEyeGazePoints + manualPoints;
+    const totalPoints = Math.max(Number(user.total_points || 0), calculatedPoints);
+    const quizzesTaken = regularAttempts.length + completedEyeGaze.length + completedCustom.length;
 
     const userMessages = await fetchList(
       supabase.from("messages").select("*").eq("user_id", userId).order("created_at", { ascending: true })
@@ -742,7 +775,7 @@ export class DatabaseStorage implements IStorage {
         schoolId: user.school_id || null,
       },
       totalPoints,
-      quizzesTaken: userAttempts ? userAttempts.length : 0,
+      quizzesTaken,
       totalBooks: allBooks ? allBooks.length : 0,
       schoolId: user.school_id || null,
       quizHistory,
@@ -1079,14 +1112,17 @@ export class DatabaseStorage implements IStorage {
 
   async getMonthlyLeaderboard(yearMonth: string) {
     return cached('monthlyLeaderboard_' + yearMonth, 300000, async () => {
-      // yearMonth format: "YYYY-MM"
       const startDate = `${yearMonth}-01T00:00:00Z`;
       const [year, month] = yearMonth.split("-").map(Number);
       const nextMonth = month === 12 ? `${year + 1}-01-01T00:00:00Z` : `${year}-${String(month + 1).padStart(2, "0")}-01T00:00:00Z`;
 
-      // Fetch users with regular attempts AND eye gaze attempts
       const allUsers = await fetchList(
-        supabase.from("users").select("id, username, display_name, role, attempts:attempts!attempts_user_id_fkey(points_earned, completed_at), eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at)").eq("is_admin", false).not("username", "like", "sample%")
+        supabase.from("users").select(
+          "id, username, display_name, role, " +
+          "attempts:attempts!attempts_user_id_fkey(points_earned, completed_at, book_id), " +
+          "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at), " +
+          "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status, completed_at)"
+        ).eq("is_admin", false).not("username", "like", "sample%")
       );
       const monthlyUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (monthlyUsers.length === 0) return [];
@@ -1094,7 +1130,6 @@ export class DatabaseStorage implements IStorage {
       const allBooks = await fetchList(supabase.from("books").select("id"));
       const totalBooks = allBooks.length;
 
-      const result = [];
       const { data: manualAwards, error: manualAwardsError } = process.env.SUPABASE_SERVICE_ROLE_KEY
         ? await getAdminSupabase().from("manual_point_awards")
           .select("student_id, points").gte("earned_on", yearMonth + "-01").lt("earned_on", nextMonth.slice(0, 10))
@@ -1102,30 +1137,37 @@ export class DatabaseStorage implements IStorage {
       if (manualAwardsError) throw new Error(manualAwardsError.message);
       const manualByStudent = new Map<number, number>();
       for (const award of manualAwards || []) {
-        manualByStudent.set(award.student_id, (manualByStudent.get(award.student_id) || 0) + award.points);
+        manualByStudent.set(award.student_id, (manualByStudent.get(award.student_id) || 0) + Number(award.points || 0));
       }
-      for (const user of monthlyUsers) {
-        const allAttempts = user.attempts || [];
-        // Filter regular attempts by date
-        const monthlyAttempts = allAttempts.filter(a => {
-          const d = a.completed_at;
-          return d && d >= startDate && d < nextMonth;
-        });
-        const monthlyPoints = monthlyAttempts.reduce((sum, a) => sum + (a.points_earned || 0), 0);
 
-        // Filter eye gaze attempts by date — only count completed ones (total > 0)
-        const eyeGazeAttempts = user.eye_gaze_attempts || [];
-        const monthlyEyeGaze = eyeGazeAttempts.filter(a => {
+      const result = [];
+      for (const user of monthlyUsers) {
+        const monthlyAttempts = (user.attempts || []).filter((a: any) => {
+          const d = a.completed_at;
+          return Number(a.book_id) > 0 && d && d >= startDate && d < nextMonth;
+        });
+        const monthlyPoints = monthlyAttempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0);
+
+        const monthlyEyeGaze = (user.eye_gaze_attempts || []).filter((a: any) => {
           const d = a.completed_at;
           return d && d >= startDate && d < nextMonth && a.total > 0;
         });
-        const eyeGazePoints = monthlyEyeGaze.reduce((sum, a) => {
+        const eyeGazePoints = monthlyEyeGaze.reduce((sum: number, a: any) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
         }, 0);
 
-        const totalMonthlyPoints = monthlyPoints + eyeGazePoints + (manualByStudent.get(user.id) || 0);
-        const totalMonthlyQuizzes = monthlyAttempts.length + monthlyEyeGaze.length;
+        const monthlyCustomEyeGaze = (user.custom_eye_gaze_attempts || []).filter((a: any) => {
+          const d = a.completed_at;
+          return a.status === "completed" && d && d >= startDate && d < nextMonth && a.total > 0;
+        });
+        const customEyeGazePoints = monthlyCustomEyeGaze.reduce((sum: number, a: any) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
+
+        const totalMonthlyPoints = monthlyPoints + eyeGazePoints + customEyeGazePoints + (manualByStudent.get(user.id) || 0);
+        const totalMonthlyQuizzes = monthlyAttempts.length + monthlyEyeGaze.length + monthlyCustomEyeGaze.length;
         if (totalMonthlyQuizzes > 0 || (manualByStudent.get(user.id) || 0) > 0) {
           result.push({
             id: user.id,
@@ -1141,28 +1183,27 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // ─── Advisory Leaderboard (grouped by teacher) ─────────────────────────
-
   async getAdvisoryLeaderboard() {
     return cached('advisoryLeaderboard', 300000, async () => {
-      // Fetch all teachers — every teacher is included even with 0 students
       const teachers = await fetchList(
         supabase.from("users").select("id, display_name, username").eq("role", "teacher")
       );
       if (teachers.length === 0) return [];
 
-      // Fetch all students with their teacher_id, total_points, and attempts
       const allStudentAccounts = await fetchList(
         supabase.from("users")
-          .select("id, username, display_name, role, total_points, teacher_id, attempts:attempts!attempts_user_id_fkey(points_earned), eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total)")
+          .select(
+            "id, username, display_name, role, total_points, teacher_id, " +
+            "attempts:attempts!attempts_user_id_fkey(points_earned, book_id), " +
+            "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total), " +
+            "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status), " +
+            "manual_point_awards:manual_point_awards!manual_point_awards_student_id_fkey(points)"
+          )
           .eq("is_admin", false)
           .not("username", "like", "sample%")
       );
       const allStudents = allStudentAccounts.filter((user: any) => !user.role || user.role === "student");
 
-      const teacherMap = new Map(teachers.map((t: any) => [t.id, t.display_name || t.username]));
-
-      // Initialize advisory map with ALL teachers (even those with 0 students)
       const advisoryMap = new Map<number, { teacherId: number; teacherName: string; totalPoints: number; studentCount: number; quizzesCompleted: number }>();
       for (const teacher of teachers) {
         advisoryMap.set(teacher.id, {
@@ -1174,23 +1215,30 @@ export class DatabaseStorage implements IStorage {
         });
       }
 
-      // Add student data to each advisory
       for (const student of allStudents) {
         const teacherId = student.teacher_id;
         if (!teacherId || !advisoryMap.has(teacherId)) continue;
 
-        // Calculate points (same logic as leaderboard)
-        const attempts = student.attempts || [];
+        const regularAttempts = (student.attempts || []).filter((a: any) => Number(a.book_id) > 0);
         const eyeGazeAttempts = student.eye_gaze_attempts || [];
-        const regularPoints = attempts.reduce((sum: number, a: any) => sum + (a.points_earned || 0), 0);
+        const customAttempts = (student.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0);
+        const manualAwards = student.manual_point_awards || [];
+
+        const regularPoints = regularAttempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0);
         const eyeGazePoints = eyeGazeAttempts.reduce((sum: number, a: any) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
         }, 0);
-        const calculatedPoints = regularPoints + eyeGazePoints;
-        const totalPoints = Math.max(student.total_points || 0, calculatedPoints);
+        const customEyeGazePoints = customAttempts.reduce((sum: number, a: any) => {
+          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
+          return sum + (passed ? 10 : 0);
+        }, 0);
+        const manualPoints = manualAwards.reduce((sum: number, a: any) => sum + Number(a.points || 0), 0);
+
+        const calculatedPoints = regularPoints + eyeGazePoints + customEyeGazePoints + manualPoints;
+        const totalPoints = Math.max(Number(student.total_points || 0), calculatedPoints);
         const completedEyeGaze = eyeGazeAttempts.filter((a: any) => a.total > 0).length;
-        const quizzesTaken = attempts.length + completedEyeGaze;
+        const quizzesTaken = regularAttempts.length + completedEyeGaze + customAttempts.length;
 
         const advisory = advisoryMap.get(teacherId)!;
         advisory.totalPoints += totalPoints;
@@ -1199,7 +1247,6 @@ export class DatabaseStorage implements IStorage {
       }
 
       const result = Array.from(advisoryMap.values()).sort((a, b) => b.totalPoints - a.totalPoints);
-      // Add rank
       return result.map((entry, idx) => ({
         ...entry,
         rank: idx + 1,
@@ -1207,6 +1254,8 @@ export class DatabaseStorage implements IStorage {
       }));
     });
   }
+
+  
 
   // ─── Reading Assessment ─────────────────────────────────────────────
 

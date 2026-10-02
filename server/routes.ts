@@ -1868,10 +1868,11 @@ export async function registerRoutes(
   // Profile routes
   app.get("/api/profile", authMiddleware, async (req: any, res) => {
     const attempts = await storage.getUserAttempts(req.user.id);
+    const regularAttempts = attempts.filter((a: any) => Number(a.bookId) > 0);
     const books = await storage.getAllBooks();
     const bookMap = new Map(books.map(b => [b.id, b]));
 
-    const quizResults = attempts.map(a => {
+    const quizResults = regularAttempts.map(a => {
       const book = bookMap.get(a.bookId);
       const passingScore = arPassingScore(a.totalQuestions || 10);
       const passed = a.score >= passingScore;
@@ -1894,8 +1895,9 @@ export async function registerRoutes(
       };
     });
 
-    const totalPoints = Math.max(req.user.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.pointsEarned || 0), 0));
-    const quizzesTaken = attempts.length;
+    const studentDetail = await storage.getStudentDetail(req.user.id);
+    const totalPoints = Number(studentDetail?.totalPoints ?? req.user.totalPoints ?? 0);
+    const quizzesTaken = Number(studentDetail?.quizzesTaken ?? regularAttempts.length);
     const totalBooks = books.length;
 
     // Fetch teacher info if student has a teacher assigned
