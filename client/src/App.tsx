@@ -381,7 +381,7 @@ function AppRoutes() {
       </Route>
       <Route path="/halloread-mystery">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><BoardGameWorld theme="halloread" /></ProtectedRoute>
+          ? <ProtectedRoute><MidnightMystery /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/ultimate-chess">
