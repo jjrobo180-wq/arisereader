@@ -9,6 +9,7 @@ import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerBoardQuestRoutes } from "./boardQuest";
+import { registerPaintballArenaRoutes } from "./paintballArena";
 import { createTheaterCatalogStore, registerTheaterAdminRoutes } from "./theaterCatalog";
 import { theaterMediaKey, type TheaterMovie } from "../shared/clubTheater";
 import { registerClubPlayRoutes } from "./clubPlay";
@@ -937,6 +938,7 @@ export async function registerRoutes(
   registerClubAriseRoutes(app, authMiddleware);
   registerChessArenaRoutes(app, authMiddleware);
   registerBoardQuestRoutes(app, authMiddleware);
+  registerPaintballArenaRoutes(app, authMiddleware);
   const theaterCatalog = createTheaterCatalogStore(storage);
   // My World uses a lightweight grown-up math gate from the child's account.
   // These short-lived tokens are only an editing gate, not account authentication.
