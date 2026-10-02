@@ -462,19 +462,30 @@ function GameView(props: {
 
   // Tab scoreboard
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.code === "Tab") { e.preventDefault(); setBoard(true); } };
+    const down = (e: KeyboardEvent) => {
+      if (e.code === "Tab") { e.preventDefault(); setBoard(true); }
+      if (e.code === "Escape" && !e.repeat) setPaused((p) => !p);
+    };
     const up = (e: KeyboardEvent) => { if (e.code === "Tab") setBoard(false); };
     window.addEventListener("keydown", down); window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
   }, []);
 
-  useEffect(() => { if (hud.locked) setPaused(false); }, [hud.locked]);
+  // Esc releases the mouse: show the pause menu (with Leave) instead of a bare "click to play"
+  const wasLocked = useRef(false);
+  const [everLocked, setEverLocked] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  useEffect(() => {
+    if (hud.locked) { setPaused(false); setEverLocked(true); }
+    else if (wasLocked.current && hud.phase !== "finished") setPaused(true);
+    wasLocked.current = hud.locked;
+  }, [hud.locked, hud.phase]);
 
   const meta = hud.meta;
   const now = Date.now();
   const secs = Math.max(0, Math.ceil((hud.phaseEndsLocal - now) / 1000));
   const host = meta?.hostId === myId;
-  const showClickToPlay = !touch && game && !hud.locked && hud.phase !== "finished" && !fatal;
+  const showClickToPlay = !touch && game && !hud.locked && !everLocked && hud.phase !== "finished" && !fatal;
   const w = WEAPONS[hud.weapon];
 
   return (
@@ -511,7 +522,10 @@ function GameView(props: {
               {touch && <KillFeed items={hud.feed.slice(-3)} small />}
             </div>
             <div className="flex w-[170px] flex-col items-end gap-1 sm:w-[300px]">
-              <button onClick={() => { game.releaseLock(); setPaused(true); }} className="pointer-events-auto rounded-xl border border-white/15 bg-black/50 p-2 backdrop-blur"><Pause className="h-5 w-5" /></button>
+              <div className="pointer-events-auto flex gap-1.5">
+                <button onClick={() => { game.releaseLock(); setPaused(true); }} className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-black/55 px-3 py-2 text-xs font-black uppercase backdrop-blur"><Pause className="h-4 w-4" /> Menu</button>
+                <button onClick={() => { game.releaseLock(); setConfirmLeave(true); }} className="flex items-center gap-1.5 rounded-xl border border-red-300/40 bg-red-500/70 px-3 py-2 text-xs font-black uppercase backdrop-blur"><LogOut className="h-4 w-4" /> Leave</button>
+              </div>
               {!touch && <KillFeed items={hud.feed} />}
             </div>
           </div>
@@ -578,11 +592,26 @@ function GameView(props: {
                 <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-white/90 text-slate-950 shadow-2xl"><Play className="h-9 w-9 fill-current" /></div>
                 <p className="pb-glow mt-4 text-3xl font-black italic uppercase">Click to play</p>
                 <p className="mt-1 text-sm font-bold text-white/80">WASD move · Mouse aim · Click fire · Right-click aim · Shift sprint · Space jump · C crouch · R reload · 1-3 markers</p>
+                <p className="mt-2 text-sm font-black text-yellow-200">Press Esc any time to open the menu or leave the match</p>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); props.onLeave(); }} className="pb-btn absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/20 bg-black/60 px-5 py-3 font-black uppercase"><LogOut className="h-4 w-4" /> Leave match</button>
+            </div>
+          )}
+
+          {confirmLeave && (
+            <div className="absolute inset-0 grid place-items-center bg-black/55 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-sm rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5 text-center shadow-2xl">
+                <h2 className="text-2xl font-black italic uppercase">Leave the match?</h2>
+                <p className="mt-1 text-sm font-bold text-slate-300">A bot will take your spot. You can jump back in any time.</p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button onClick={() => { setConfirmLeave(false); if (!touch) game.requestLock(); }} className="pb-btn min-h-12 rounded-2xl border border-white/15 bg-white/10 font-black uppercase">Stay</button>
+                  <button onClick={props.onLeave} className="pb-btn min-h-12 rounded-2xl bg-red-500 font-black uppercase">Leave</button>
+                </div>
               </div>
             </div>
           )}
 
-          {paused && (
+          {paused && !confirmLeave && (
             <PauseMenu settings={settings} onSettings={props.onSettings} onApplyQuality={props.onApplyQuality} onResume={() => { setPaused(false); game.requestLock(); }} onLeave={props.onLeave} quality={hud.quality} />
           )}
           {hud.error && (

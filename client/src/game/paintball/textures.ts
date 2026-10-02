@@ -381,15 +381,17 @@ export function jerseyTexture(team: number, number: number) {
 export function nameTagTexture(name: string, team: number, isMate: boolean) {
   const W = 512, H = 112;
   const { c, ctx } = canvas(W, H);
-  ctx.font = "800 46px system-ui, sans-serif";
-  const tw = Math.min(W - 40, ctx.measureText(name).width + 56);
-  const x0 = (W - tw) / 2;
-  ctx.fillStyle = "rgba(6,10,22,0.72)";
-  ctx.beginPath(); ctx.roundRect(x0, 16, tw, 68, 34); ctx.fill();
+  // outlined text only (no dark panel) so tags never read as floating black boxes
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = "900 50px system-ui, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 10; ctx.strokeStyle = "rgba(4,8,20,0.85)";
+  ctx.strokeText(name, W / 2, H / 2, W - 24);
+  ctx.fillStyle = isMate ? "#ffffff" : team === 0 ? "#a5f3fc" : "#fbcfe8";
+  ctx.fillText(name, W / 2, H / 2, W - 24);
   ctx.fillStyle = team === 0 ? "#22d3ee" : "#f0479a";
-  ctx.beginPath(); ctx.roundRect(x0, 16, 14 + (isMate ? 0 : 0), 68, [34, 0, 0, 34]); ctx.fill();
-  ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(name, W / 2 + 6, 52);
+  ctx.fillRect(W / 2 - 36, H - 10, 72, 6);
   return finish(c, {});
 }
 
