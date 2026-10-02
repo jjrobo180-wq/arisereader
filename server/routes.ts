@@ -11,6 +11,7 @@ import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
 import { registerRacingRoutes, supabaseSaveStore } from "./racing";
+import { registerSkyboundRoutes } from "./skybound";
 import { createTheaterCatalogStore, registerTheaterAdminRoutes } from "./theaterCatalog";
 import { theaterMediaKey, type TheaterMovie } from "../shared/clubTheater";
 import { registerClubPlayRoutes } from "./clubPlay";
@@ -948,6 +949,7 @@ export async function registerRoutes(
     resolveToken: async (token) => (token ? (await storage.getSession(token))?.user ?? null : null),
     store: supabaseSaveStore(getAdminSupabase),
   });
+  registerSkyboundRoutes(app, authMiddleware);
   const theaterCatalog = createTheaterCatalogStore(storage);
   // My World uses a lightweight grown-up math gate from the child's account.
   // These short-lived tokens are only an editing gate, not account authentication.
