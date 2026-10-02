@@ -10,13 +10,12 @@ const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:numb
   {id:"club",title:"A.R.I.S.E Arcade",description:"Dance, meet readers, and play arcade games together.",path:"/arise-arcade",color:0xc026d3},
   {id:"theater",title:"A.R.I.S.E. Cinema",description:"Sit with friends, grab popcorn, and watch the always-on Club movie channel.",path:"/club-arise/theater",color:0xf59e0b},
   {id:"neighborhood",title:"The Block",description:"Walk your neighborhood, find your house, and see other readers.",path:"/neighborhood",color:0x4ade80},
-  {id:"board",title:"Midnight Mystery",description:"A kid-safe suspense mystery: watch security cameras, decode clues, avoid roaming mascot robots, and solve the case with friends.",path:"/board-game-world",color:0x22d3ee},
   {id:"halloread",title:"Halloread: Midnight Mystery",description:"Halloween after-hours mystery survival: security cameras, clues, roaming mascot robots, suspense encounters, multiplayer teams, and zero gore.",path:"/halloread-mystery",color:0xf97316},
   {id:"chess",title:"Ultimate Chess",description:"Enter a cinematic chess arena, challenge the computer, or battle another reader live.",path:"/ultimate-chess",color:0xe5c55f},
-  {id:"laser",title:"Laser Royale",description:"The laser tag arena is closed for now. Coming soon!",color:0x6b7280},
-  {id:"space",title:"Outer Space",description:"A glowing galaxy of planets and places to explore. Coming soon.",color:0x9868f4},
+  {id:"laser",title:"Prism Paintball",description:"Real multiplayer team paintball with animated runners, cover, towers, respawns, and live scoring.",path:"/paintball-arena",color:0x22d3ee},
+  {id:"space",title:"Skybound Sprint",description:"Run and jump across floating crystal islands, dodge patrol bots, hit checkpoints, and reach the golden portal.",path:"/skybound-sprint",color:0x8b5cf6},
   {id:"beach",title:"The Beach",description:"Palm trees, a seaside boardwalk, and sunny adventures. Coming soon.",color:0xfacc6b},
-  {id:"racetrack",title:"The Racetrack",description:"Fast lanes and a place to put your cars to the test. Coming soon.",color:0xf87171},
+  {id:"racetrack",title:"Aurora Rally",description:"A third-person circuit racer with AI rivals, boost pads, drifting-style steering, and three-lap races.",path:"/aurora-rally",color:0xf87171},
 ];
 
 function sphere(radius:number,color:number,roughness=.8){return new THREE.Mesh(new THREE.SphereGeometry(radius,32,24),new THREE.MeshStandardMaterial({color,roughness,metalness:.1}));}
@@ -82,9 +81,7 @@ function makeWorld(id:WorldId,color:number){
     const track=new THREE.Mesh(new THREE.TorusGeometry(.82,.19,12,48),new THREE.MeshStandardMaterial({color:0x202637}));track.position.y=1.24;track.rotation.x=Math.PI/2;group.add(track);
     const car=new THREE.Mesh(new THREE.BoxGeometry(.5,.22,.3),new THREE.MeshStandardMaterial({color:0xff5563,emissive:0x8b172b,emissiveIntensity:.4}));car.position.set(.55,1.45,.55);group.add(car);
   }
-  if(id==="laser")group.traverse(object=>{const mesh=object as THREE.Mesh;if(mesh.material&&!Array.isArray(mesh.material)){const material=mesh.material as THREE.MeshStandardMaterial;material.color?.set(0x6b7280);material.emissive?.set(0x252a32);if('emissiveIntensity' in material)material.emissiveIntensity=.15;}});
   const label=marker(WORLDS.find(world=>world.id===id)!.title);label.position.y=2.65;group.add(label);
-  if(id==="laser"){const soon=marker("COMING SOON");soon.position.y=3.55;soon.scale.set(3.2,.8,1);group.add(soon);}
   return group;
 }
 
@@ -98,9 +95,11 @@ export default function Worlds(){
     if(selected==="club") void import("./ClubArise");
     else if(selected==="theater") void import("./ClubTheater");
     else if(selected==="neighborhood") void import("./Neighborhood");
-    else if(selected==="board") void import("./MidnightMystery");
     else if(selected==="halloread") void import("./MidnightMystery");
     else if(selected==="chess") void import("./UltimateChess");
+    else if(selected==="laser") void import("./PaintballArena");
+    else if(selected==="space") void import("./SkyboundSprint");
+    else if(selected==="racetrack") void import("./AuroraRally");
   },[selected]);
   useEffect(()=>{
     if(!travel)return;
