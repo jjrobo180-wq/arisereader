@@ -24,8 +24,6 @@ export default function HalloreadWelcome(){
     const key="arise-halloread-welcome-2026";
     try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,"1");}catch{}
     setShow(true);playHalloreadStinger();
-    const timer=window.setTimeout(()=>setShow(false),3600);
-    return()=>window.clearTimeout(timer);
   },[]);
   if(!show)return null;
   return <button type="button" onClick={()=>setShow(false)} className="fixed inset-0 z-[360] grid cursor-pointer place-items-center overflow-hidden bg-[#050108]/88 p-5 text-white backdrop-blur-sm" aria-label="Close Halloread welcome">
@@ -35,7 +33,8 @@ export default function HalloreadWelcome(){
       <p className="mt-7 text-xs font-black uppercase tracking-[.42em] text-orange-300">October takeover</p>
       <h2 className="halloread-laugh mt-2 text-5xl font-black tracking-tight sm:text-7xl">HA… HA… HALLOREAD!</h2>
       <p className="mx-auto mt-4 max-w-xl text-sm font-bold text-violet-100/80 sm:text-base">Spooky books, haunted worlds, midnight games, costumes and surprises are live — creepy fun, never gory.</p>
-      <span className="mt-5 inline-block rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-black">Tap anywhere to enter</span>
+      <span className="mt-5 inline-block rounded-full border border-orange-300/35 bg-orange-400/15 px-5 py-3 text-sm font-black shadow-lg">ENTER HALLOREAD</span>
+      <p className="mt-3 text-[11px] font-bold uppercase tracking-[.18em] text-violet-200/60">This screen stays open until you enter</p>
     </div>
     <style>{`
       .halloread-flash{background:radial-gradient(circle at 50% 18%,rgba(216,180,254,.22),transparent 34%);animation:halloreadFlash 1.15s steps(2,end) 2}
