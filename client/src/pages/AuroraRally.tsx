@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Check, Coins, Flag, Gauge, Loader2, Lock, Pause, Play, RotateCcw, Settings, Trophy, Wrench, X } from "lucide-react";
+import { ArrowLeft, Check, Coins, Copy, Crown, Flag, Gauge, Globe, Loader2, Lock, Pause, Play, RotateCcw, Settings, Trophy, Users, Wrench, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { TRACKS } from "@/game/racing/tracks";
 import { BODIES, UPGRADES, UPGRADE_COST, MAX_UPGRADE, PAINTS, type BodyDef, type UpgradeId } from "@/game/racing/kart";
-import { loadSave, writeSave, upgradesFor, type SaveData } from "@/game/racing/save";
+import { loadSave, upgradesFor, type SaveData } from "@/game/racing/save";
+import { Profile } from "@/game/racing/profile";
+import { RacingNet } from "@/game/racing/net";
+import { API_BASE } from "@/lib/queryClient";
+import { TRACK_IDS, type RaceSnap, type RaceRoomMeta, type RacePhase } from "@shared/racing";
 import type { Race, RaceHud, RaceResult, RacerInfo, Mode } from "@/game/racing/race";
 
 const CC = [{ id: 50, label: "50cc", mul: 0.84, sub: "Relaxed" }, { id: 100, label: "100cc", mul: 1.0, sub: "Classic" }, { id: 150, label: "150cc", mul: 1.16, sub: "Expert" }];
@@ -49,12 +53,13 @@ const CSS = `
 @keyframes arRoll{0%{transform:translateY(-6px)}100%{transform:translateY(6px)}}
 `;
 
-type View = "menu" | "garage" | "tracks" | "race" | "gpStandings";
+type View = "menu" | "garage" | "tracks" | "race" | "gpStandings" | "online" | "lobby";
 
 export default function AuroraRally() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [, navigate] = useLocation();
   const uid = user?.id ?? "guest";
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [save, setSave] = useState<SaveData>(() => loadSave(uid));
   const [view, setView] = useState<View>("menu");
   const [mode, setMode] = useState<Mode>("race");
@@ -63,11 +68,23 @@ export default function AuroraRally() {
   const [showSettings, setShowSettings] = useState(false);
   const [race, setRace] = useState<{ key: number; trackId: string } | null>(null);
   const [gp, setGp] = useState<{ index: number; points: Record<string, number>; last: RaceResult | null } | null>(null);
+  const [notice, setNotice] = useState("");
+  const [online, setOnline] = useState<OnlineSession | null>(null);
   const playerName = String((user as { displayName?: string; username?: string } | null)?.displayName || (user as { username?: string } | null)?.username || "You").slice(0, 14);
 
-  useEffect(() => { setSave(loadSave(uid)); }, [uid]);
-  const update = useCallback((fn: (d: SaveData) => SaveData) => { setSave((d) => { const n = fn(d); writeSave(uid, n); return n; }); }, [uid]);
+  useEffect(() => {
+    if (!token) return;
+    let stop = false;
+    Profile.load(API_BASE, token, uid).then((p) => { if (!stop) { setProfile(p); setSave(p.save); } });
+    return () => { stop = true; };
+  }, [uid, token]);
   const setSettings = (s: Settings) => { setSettingsState(s); try { localStorage.setItem(SET_KEY, JSON.stringify(s)); } catch { /* ignore */ } };
+  /** Run a profile action and show any refusal as a notice. */
+  const act = useCallback(async (fn: (p: Profile) => Promise<unknown>) => {
+    if (!profile) return;
+    try { await fn(profile); setSave({ ...profile.save }); setNotice(""); }
+    catch (e) { setSave({ ...profile.save }); setNotice(e instanceof Error ? e.message : "That didn't work."); }
+  }, [profile]);
 
   const body = BODIES.find((b) => b.id === save.body) || BODIES[0];
   const ccMul = CC.find((c) => c.id === cc)?.mul || 1;
@@ -86,19 +103,14 @@ export default function AuroraRally() {
   const startRace = (trackId: string) => { setRace((r) => ({ key: (r?.key || 0) + 1, trackId })); setView("race"); };
 
   const onFinish = useCallback((res: RaceResult) => {
-    update((d) => {
-      const n = { ...d, coins: d.coins + res.coins, races: d.races + 1, wins: d.wins + (res.place === 1 ? 1 : 0), bestRace: { ...d.bestRace }, bestLap: { ...d.bestLap } };
-      if (res.time && (!n.bestRace[res.trackId] || res.time * 1000 < n.bestRace[res.trackId])) n.bestRace[res.trackId] = Math.round(res.time * 1000);
-      if (res.bestLap && (!n.bestLap[res.trackId] || res.bestLap * 1000 < n.bestLap[res.trackId])) n.bestLap[res.trackId] = Math.round(res.bestLap * 1000);
-      return n;
-    });
+    if (profile) void profile.result({ mode: mode === "gp" ? "gp" : mode === "tt" ? "tt" : "race", trackId: res.trackId, place: res.place, time: res.time, bestLap: res.bestLap, coins: res.standings.find((x) => x.isPlayer)?.coins ?? 0, cc }).then(() => setSave({ ...profile.save }));
     setGp((g) => {
       if (!g) return g;
       const points = { ...g.points };
-      res.standings.forEach((s, i) => { points[s.id] = (points[s.id] || 0) + POINTS[i]; });
+      res.standings.forEach((st, i) => { points[st.id] = (points[st.id] || 0) + POINTS[i]; });
       return { ...g, points, last: res };
     });
-  }, [update]);
+  }, [profile, mode, cc]);
 
   const startGp = () => { setMode("gp"); setGp({ index: 0, points: {}, last: null }); startRace(TRACKS[0].id); };
   const nextGp = () => {
@@ -108,19 +120,55 @@ export default function AuroraRally() {
     startRace(TRACKS[gp.index + 1].id);
   };
   const finishGpCup = (place: number) => {
-    const reward = place === 1 ? 300 : place === 2 ? 200 : place === 3 ? 120 : 40;
-    update((d) => ({ ...d, coins: d.coins + reward, cups: { ...d.cups, ["aurora-" + cc]: Math.min(d.cups["aurora-" + cc] || 99, place) } }));
+    void act((p) => p.cup(place, cc));
     setGp(null); setView("menu");
   };
+
+  // ---------------- online ----------------
+  const enterOnline = async (kind: "quick" | "create" | "private" | "join", code?: string) => {
+    if (!token) return;
+    setNotice("");
+    try {
+      const prof = profile?.save || save;
+      const path = kind === "quick" ? "/api/racing/quick" : kind === "join" ? `/api/racing/rooms/${code}/join` : "/api/racing/rooms";
+      const res = await fetch(API_BASE + path, { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" }, body: JSON.stringify({ publicRoom: kind === "create", profile: prof }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not join.");
+      const snap = data as RaceSnap;
+      const net = new RacingNet(API_BASE, token, snap.meta!.code, {
+        onSnap: () => {},
+        onClosed: (m) => { setNotice(m); setOnline(null); setView("online"); },
+      });
+      net.ingest(snap);
+      net.start();
+      setOnline({ net, code: snap.meta!.code });
+      setView("lobby");
+    } catch (e) { setNotice(e instanceof Error ? e.message : "Could not reach the race server."); }
+  };
+  const leaveOnline = useCallback(() => {
+    if (online && token) {
+      online.net.stop();
+      void fetch(API_BASE + "/api/racing/rooms/" + online.code + "/leave", { method: "POST", headers: { Authorization: "Bearer " + token }, keepalive: true }).catch(() => {});
+    }
+    setOnline(null);
+    setView("online");
+    if (profile) void profile.refresh().then((s) => setSave({ ...s }));
+  }, [online, token, profile]);
+  useEffect(() => () => { online?.net.stop(); }, [online]);
+  useEffect(() => {
+    const onHide = () => { if (online && token) { try { void fetch(API_BASE + "/api/racing/rooms/" + online.code + "/leave", { method: "POST", headers: { Authorization: "Bearer " + token }, keepalive: true }); } catch { /* ignore */ } } };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [online, token]);
 
   return (
     <div className="ar-font">
       <style>{CSS}</style>
       {view === "menu" && (
-        <Menu save={save} cc={cc} setCc={setCc} onBack={() => navigate("/worlds")} onSettings={() => setShowSettings(true)}
-          onGp={startGp} onRace={() => { setMode("race"); setView("tracks"); }} onTt={() => { setMode("tt"); setView("tracks"); }} onGarage={() => setView("garage")} />
+        <Menu save={save} cc={cc} setCc={setCc} onBack={() => navigate("/worlds")} onSettings={() => setShowSettings(true)} storage={profile ? profile.mode : "loading"}
+          onGp={startGp} onRace={() => { setMode("race"); setView("tracks"); }} onTt={() => { setMode("tt"); setView("tracks"); }} onGarage={() => setView("garage")} onOnline={() => setView("online")} />
       )}
-      {view === "garage" && <Garage save={save} update={update} onBack={() => setView("menu")} />}
+      {view === "garage" && <Garage save={save} act={act} notice={notice} onBack={() => { setNotice(""); setView("menu"); }} />}
       {view === "tracks" && <TrackSelect save={save} mode={mode} onBack={() => setView("menu")} onPick={startRace} />}
       {view === "race" && race && (
         <RaceView
@@ -132,16 +180,23 @@ export default function AuroraRally() {
         />
       )}
       {view === "gpStandings" && gp && <GpStandings gp={gp} racers={racers} cc={cc} onDone={finishGpCup} />}
+      {view === "online" && <OnlineMenu token={token || ""} notice={notice} onBack={() => { setNotice(""); setView("menu"); }} onEnter={enterOnline} />}
+      {view === "lobby" && online && (
+        <OnlineRoom session={online} myId={String(uid)} token={token || ""} settings={settings} onSettings={setSettings} onLeave={leaveOnline}
+          onRaceDone={() => { if (profile) void profile.refresh().then((s2) => setSave({ ...s2 })); }} />
+      )}
       {showSettings && <SettingsPanel settings={settings} onChange={setSettings} onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
 
+interface OnlineSession { net: RacingNet; code: string }
+
 // ===========================================================================
 // Menu
 // ===========================================================================
 
-function Menu({ save, cc, setCc, onBack, onSettings, onGp, onRace, onTt, onGarage }: { save: SaveData; cc: number; setCc: (c: number) => void; onBack: () => void; onSettings: () => void; onGp: () => void; onRace: () => void; onTt: () => void; onGarage: () => void }) {
+function Menu({ save, cc, setCc, onBack, onSettings, onGp, onRace, onTt, onGarage, onOnline, storage }: { save: SaveData; cc: number; setCc: (c: number) => void; onBack: () => void; onSettings: () => void; onGp: () => void; onRace: () => void; onTt: () => void; onGarage: () => void; onOnline: () => void; storage: "server" | "local" | "loading" }) {
   const cup = save.cups["aurora-" + cc];
   return (
     <main className="ar-bg min-h-[100dvh] px-4 pb-10 pt-4 text-white sm:px-8">
@@ -162,13 +217,18 @@ function Menu({ save, cc, setCc, onBack, onSettings, onGp, onRace, onTt, onGarag
             <button key={c.id} onClick={() => setCc(c.id)} className={"ar-btn rounded-xl px-4 py-2 text-sm font-black " + (cc === c.id ? "bg-white text-slate-950" : "bg-white/10 text-white")}>{c.label}<span className="ml-1 text-[10px] opacity-70">{c.sub}</span></button>
           ))}
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <button onClick={onOnline} className="ar-btn mt-6 flex w-full items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 p-5 text-left" style={{ boxShadow: "0 8px 0 #6b21a8" }}>
+          <span className="flex items-center gap-3"><Globe className="h-9 w-9" /><span><span className="block text-3xl font-black italic uppercase">Race online</span><span className="text-sm font-black opacity-90">Live races against readers from your school · win bonus coins</span></span></span>
+          <Play className="h-8 w-8 fill-current" />
+        </button>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <BigButton onClick={onGp} color="from-yellow-300 to-orange-500" shadow="#b45309" icon={<Trophy className="h-7 w-7" />} title="Grand Prix" sub={cup ? `Best: ${ordinal(cup)} place` : "4 races · win the Aurora Cup"} />
           <BigButton onClick={onRace} color="from-pink-400 to-fuchsia-600" shadow="#86198f" icon={<Flag className="h-7 w-7" />} title="Quick Race" sub="Pick any track" />
           <BigButton onClick={onTt} color="from-sky-400 to-blue-600" shadow="#1e3a8a" icon={<Gauge className="h-7 w-7" />} title="Time Trial" sub="Beat your best time" />
           <BigButton onClick={onGarage} color="from-emerald-400 to-teal-600" shadow="#115e59" icon={<Wrench className="h-7 w-7" />} title="Garage" sub="Karts, paint & upgrades" />
         </div>
-        <div className="mt-6 grid grid-cols-3 gap-2 text-center sm:max-w-md">
+        <p className="mt-4 text-xs font-bold text-slate-400">{storage === "server" ? "✓ Your coins, karts and upgrades are saved to your account." : storage === "local" ? "Progress is saved on this device for now." : "Loading your garage…"}</p>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center sm:max-w-md">
           {[["Races", save.races], ["Wins", save.wins], ["Karts", save.owned.length]].map(([k, v]) => (
             <div key={String(k)} className="rounded-2xl bg-white/5 py-3"><div className="text-2xl font-black">{v}</div><div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{k}</div></div>
           ))}
@@ -211,18 +271,14 @@ function StatBar({ label, value, bonus }: { label: string; value: number; bonus:
   );
 }
 
-function Garage({ save, update, onBack }: { save: SaveData; update: (fn: (d: SaveData) => SaveData) => void; onBack: () => void }) {
+function Garage({ save, act, notice, onBack }: { save: SaveData; act: (fn: (p: Profile) => Promise<unknown>) => Promise<void>; notice: string; onBack: () => void }) {
   const [sel, setSel] = useState(save.body);
   const body = BODIES.find((b) => b.id === sel) || BODIES[0];
   const owned = save.owned.includes(body.id);
   const up = upgradesFor(save, body.id);
   const bonus = { speed: up.engine * 0.8, accel: up.turbo * 0.8, handling: up.tires * 0.8, weight: 0 };
-  const buyBody = (b: BodyDef) => update((d) => d.coins >= b.price && !d.owned.includes(b.id) ? { ...d, coins: d.coins - b.price, owned: [...d.owned, b.id], body: b.id } : d);
-  const buyUp = (u: UpgradeId) => update((d) => {
-    const cur = upgradesFor(d, body.id); const lvl = cur[u];
-    if (lvl >= MAX_UPGRADE || d.coins < UPGRADE_COST[lvl]) return d;
-    return { ...d, coins: d.coins - UPGRADE_COST[lvl], upgrades: { ...d.upgrades, [body.id]: { ...cur, [u]: lvl + 1 } } };
-  });
+  const buyBody = (b: BodyDef) => act((p) => p.buyKart(b.id));
+  const buyUp = (u: UpgradeId) => act((p) => p.upgrade(body.id, u));
   return (
     <main className="ar-bg min-h-[100dvh] px-4 pb-10 pt-4 text-white sm:px-8">
       <div className="mx-auto flex max-w-6xl items-center justify-between">
@@ -230,6 +286,7 @@ function Garage({ save, update, onBack }: { save: SaveData; update: (fn: (d: Sav
         <span className="flex items-center gap-2 rounded-2xl border border-yellow-300/30 bg-yellow-400/15 px-4 py-3 font-black text-yellow-200"><Coins className="h-5 w-5" /> {save.coins}</span>
       </div>
       <h1 className="ar-glow mx-auto mt-4 max-w-6xl text-5xl font-black italic">Garage</h1>
+      {notice && <p className="mx-auto mt-3 max-w-6xl rounded-2xl border border-red-400/30 bg-red-500/15 p-3 font-bold text-red-100">{notice}</p>}
       <div className="mx-auto mt-4 grid max-w-6xl gap-4 lg:grid-cols-[1fr_1.1fr]">
         <section className="grid content-start gap-2">
           {BODIES.map((b) => {
@@ -246,7 +303,7 @@ function Garage({ save, update, onBack }: { save: SaveData; update: (fn: (d: Sav
           <div className="flex items-center justify-between">
             <h2 className="text-3xl font-black italic">{body.name}</h2>
             {owned ? (save.body === body.id ? <span className="flex items-center gap-1 text-sm font-black text-emerald-300"><Check className="h-4 w-4" /> Selected</span> :
-              <button onClick={() => update((d) => ({ ...d, body: body.id }))} className="ar-btn rounded-xl bg-emerald-400 px-4 py-2 font-black text-slate-950">Drive this kart</button>) :
+              <button onClick={() => act((p) => p.customize({ body: body.id }))} className="ar-btn rounded-xl bg-emerald-400 px-4 py-2 font-black text-slate-950">Drive this kart</button>) :
               <button disabled={save.coins < body.price} onClick={() => buyBody(body)} className="ar-btn rounded-xl bg-yellow-300 px-4 py-2 font-black text-slate-950 disabled:opacity-40">Buy · {body.price} coins</button>}
           </div>
           <div className="mt-4 grid gap-2">
@@ -274,11 +331,11 @@ function Garage({ save, update, onBack }: { save: SaveData; update: (fn: (d: Sav
           )}
           <div className="mt-5">
             <h3 className="text-xs font-black uppercase tracking-[.25em] text-slate-400">Paint</h3>
-            <div className="mt-2 flex flex-wrap gap-2">{PAINTS.map((c) => <button key={c} onClick={() => update((d) => ({ ...d, paint: c }))} className={"h-10 w-10 rounded-xl border-2 " + (save.paint === c ? "border-white" : "border-transparent")} style={{ background: hex(c) }} />)}</div>
+            <div className="mt-2 flex flex-wrap gap-2">{PAINTS.map((c) => <button key={c} onClick={() => act((p) => p.customize({ paint: c }))} className={"h-10 w-10 rounded-xl border-2 " + (save.paint === c ? "border-white" : "border-transparent")} style={{ background: hex(c) }} />)}</div>
             <h3 className="mt-4 text-xs font-black uppercase tracking-[.25em] text-slate-400">Helmet</h3>
-            <div className="mt-2 flex flex-wrap gap-2">{PAINTS.map((c) => <button key={c} onClick={() => update((d) => ({ ...d, helmet: c }))} className={"h-8 w-8 rounded-full border-2 " + (save.helmet === c ? "border-white" : "border-transparent")} style={{ background: hex(c) }} />)}</div>
+            <div className="mt-2 flex flex-wrap gap-2">{PAINTS.map((c) => <button key={c} onClick={() => act((p) => p.customize({ helmet: c }))} className={"h-8 w-8 rounded-full border-2 " + (save.helmet === c ? "border-white" : "border-transparent")} style={{ background: hex(c) }} />)}</div>
             <h3 className="mt-4 text-xs font-black uppercase tracking-[.25em] text-slate-400">Driver</h3>
-            <div className="mt-2 flex gap-2">{[0xf1c7a4, 0xe0ac86, 0xc68a5f, 0x9c6a43, 0x6e4a32].map((c, i) => <button key={c} onClick={() => update((d) => ({ ...d, driver: i }))} className={"h-8 w-8 rounded-full border-2 " + (save.driver === i ? "border-white" : "border-transparent")} style={{ background: hex(c) }} />)}</div>
+            <div className="mt-2 flex gap-2">{[0xf1c7a4, 0xe0ac86, 0xc68a5f, 0x9c6a43, 0x6e4a32].map((c, i) => <button key={c} onClick={() => act((p) => p.customize({ driver: i }))} className={"h-8 w-8 rounded-full border-2 " + (save.driver === i ? "border-white" : "border-transparent")} style={{ background: hex(c) }} />)}</div>
           </div>
         </section>
       </div>
@@ -326,10 +383,11 @@ function TrackShape({ id }: { id: string }) {
 // Race view + HUD
 // ===========================================================================
 
-function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinish, onRetry, onNext, onQuit }: {
+function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinish, onRetry, onNext, onQuit, online }: {
   trackId: string; mode: Mode; cc: number; racers: RacerInfo[]; settings: Settings; onSettings: (s: Settings) => void;
   gp: { index: number; points: Record<string, number>; last: RaceResult | null } | null; onFinish: (r: RaceResult) => void;
   onRetry: () => void; onNext?: () => void; onQuit: () => void;
+  online?: { net: RacingNet; myId: string; startAt: number; laps: number };
 }) {
   const host = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
@@ -345,7 +403,7 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
     import("@/game/racing/race").then(({ Race }) => {
       if (cancelled) return;
       try {
-        r = new Race(el, { trackId, mode, cc, racers, quality: settings.quality, sfx: settings.sfx, music: settings.music, touch, autoGas: settings.autoGas, onFinish: (res) => finishRef.current(res) });
+        r = new Race(el, { trackId, mode, cc, racers, quality: settings.quality, sfx: settings.sfx, music: settings.music, touch, autoGas: settings.autoGas, onFinish: (res) => finishRef.current(res), online });
         setRace(r);
       } catch (e) { console.error(e); setFatal("Your browser could not start 3D graphics. Try updating Chrome or turning on hardware acceleration."); }
     }).catch(() => setFatal("Could not load the race. Check your connection and try again."));
@@ -416,7 +474,7 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
             <div className="absolute inset-x-0 bottom-[18%] text-center">
               <p className="ar-glow text-4xl font-black italic">{TRACKS.find((t) => t.id === trackId)?.name}</p>
               {gp && <p className="font-black text-yellow-200">Grand Prix · Race {gp.index + 1} of {TRACKS.length}</p>}
-              <button onClick={() => race!.skipIntro()} className="mt-3 rounded-xl bg-white/20 px-4 py-2 text-sm font-black backdrop-blur">Skip ▸</button>
+              {online ? <p className="mt-2 text-sm font-black text-white/80">Online race · {racers.length} racers</p> : <button onClick={() => race!.skipIntro()} className="mt-3 rounded-xl bg-white/20 px-4 py-2 text-sm font-black backdrop-blur">Skip ▸</button>}
             </div>
           )}
           {hud.phase === "countdown" && <div className="pointer-events-none absolute inset-0 grid place-items-center"><p key={hud.countdown} className="ar-pop ar-glow text-[10rem] font-black italic text-yellow-300">{hud.countdown}</p></div>}
@@ -431,8 +489,8 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
                 <SettingsFields settings={settings} onChange={onSettings} note={`Graphics changes apply next race (running: ${hud.quality})`} />
                 <div className="mt-5 grid gap-2">
                   <button onClick={() => setPaused(false)} className="ar-btn rounded-2xl bg-sky-400 py-3 font-black text-slate-950"><Play className="mr-1 inline h-4 w-4" /> Resume</button>
-                  <button onClick={onRetry} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black"><RotateCcw className="mr-1 inline h-4 w-4" /> Restart race</button>
-                  <button onClick={onQuit} className="ar-btn rounded-2xl bg-red-500 py-3 font-black"><X className="mr-1 inline h-4 w-4" /> Quit to menu</button>
+                  {!online && <button onClick={onRetry} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black"><RotateCcw className="mr-1 inline h-4 w-4" /> Restart race</button>}
+                  <button onClick={onQuit} className="ar-btn rounded-2xl bg-red-500 py-3 font-black"><X className="mr-1 inline h-4 w-4" /> {online ? "Leave room" : "Quit to menu"}</button>
                 </div>
               </div>
             </div>
@@ -494,8 +552,8 @@ function Results({ result, mode, gp, onRetry, onNext, onQuit }: { result: RaceRe
           </div>
         )}
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          {onNext ? <button onClick={onNext} className="ar-btn rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 py-3 font-black text-slate-950 sm:col-span-3">{lastGp ? "See cup results" : "Next race ▸"}</button> : <button onClick={onRetry} className="ar-btn rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 py-3 font-black text-slate-950"><RotateCcw className="mr-1 inline h-4 w-4" /> Race again</button>}
-          {!onNext && <button onClick={onQuit} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black sm:col-span-2">Menu</button>}
+          {mode === "online" ? <p className="flex items-center justify-center gap-2 rounded-2xl bg-white/5 py-3 text-sm font-black text-slate-300 sm:col-span-2"><Loader2 className="h-4 w-4 animate-spin" /> Back to the lobby in a few seconds…</p> : onNext ? <button onClick={onNext} className="ar-btn rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 py-3 font-black text-slate-950 sm:col-span-3">{lastGp ? "See cup results" : "Next race ▸"}</button> : <button onClick={onRetry} className="ar-btn rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 py-3 font-black text-slate-950"><RotateCcw className="mr-1 inline h-4 w-4" /> Race again</button>}
+          {mode === "online" ? <button onClick={onQuit} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black">Leave room</button> : !onNext && <button onClick={onQuit} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black sm:col-span-2">Menu</button>}
           {onNext && <button onClick={onQuit} className="ar-btn rounded-2xl border border-white/15 bg-white/5 py-2 text-sm font-black sm:col-span-3">Quit Grand Prix</button>}
         </div>
       </div>
@@ -547,5 +605,159 @@ function SettingsPanel({ settings, onChange, onClose }: { settings: Settings; on
         <button onClick={onClose} className="ar-btn mt-5 w-full rounded-2xl bg-pink-400 py-3 font-black text-slate-950">Done</button>
       </div>
     </div>
+  );
+}
+
+// ===========================================================================
+// Online
+// ===========================================================================
+
+type OpenRoom = { code: string; host: string; humans: number; phase: string; trackId: string };
+
+function OnlineMenu({ token, notice, onBack, onEnter }: { token: string; notice: string; onBack: () => void; onEnter: (k: "quick" | "create" | "private" | "join", code?: string) => Promise<void> }) {
+  const [rooms, setRooms] = useState<OpenRoom[]>([]);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let stop = false;
+    const load = async () => { try { const r = await fetch(API_BASE + "/api/racing/rooms", { headers: { Authorization: "Bearer " + token } }); if (r.ok && !stop) setRooms(await r.json()); } catch { /* ignore */ } };
+    void load(); const t = window.setInterval(load, 3000);
+    return () => { stop = true; window.clearInterval(t); };
+  }, [token]);
+  const go = async (k: "quick" | "create" | "private" | "join", c?: string) => { if (busy) return; setBusy(true); await onEnter(k, c); setBusy(false); };
+  return (
+    <main className="ar-bg min-h-[100dvh] px-4 pb-10 pt-4 text-white sm:px-8">
+      <button onClick={onBack} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="h-5 w-5" /> Back</button>
+      <section className="mx-auto mt-5 max-w-4xl rounded-[2rem] border border-white/10 bg-black/35 p-6 shadow-2xl">
+        <p className="text-xs font-black uppercase tracking-[.3em] text-fuchsia-300">Online</p>
+        <h1 className="ar-glow text-5xl font-black italic">Race your classmates</h1>
+        <p className="mt-2 font-bold text-slate-300">Up to 8 racers. Bots fill empty spots so the grid is always full. Online races pay 25% more coins.</p>
+        <button disabled={busy} onClick={() => go("quick")} className="ar-btn mt-5 flex min-h-[80px] w-full items-center justify-center gap-3 rounded-3xl bg-gradient-to-r from-yellow-300 to-orange-400 text-2xl font-black italic uppercase text-slate-950 disabled:opacity-60" style={{ boxShadow: "0 8px 0 #b45309" }}>
+          {busy ? <Loader2 className="h-7 w-7 animate-spin" /> : <Play className="h-7 w-7 fill-current" />} Quick match
+        </button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button disabled={busy} onClick={() => go("create")} className="ar-btn min-h-12 rounded-2xl border border-white/15 bg-white/10 font-black">Create open room</button>
+          <button disabled={busy} onClick={() => go("private")} className="ar-btn min-h-12 rounded-2xl border border-white/15 bg-white/10 font-black">Create private room</button>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit room code" className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 font-black tracking-widest outline-none placeholder:font-bold placeholder:tracking-normal placeholder:text-slate-500 focus:border-fuchsia-300" />
+          <button disabled={busy || code.length !== 6} onClick={() => go("join", code)} className="ar-btn rounded-2xl bg-fuchsia-400 px-5 font-black text-slate-950 disabled:opacity-40">Join</button>
+        </div>
+        {notice && <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/15 p-3 font-bold text-red-100">{notice}</p>}
+        {rooms.length > 0 && (
+          <div className="mt-5 grid gap-2">
+            <h3 className="text-xs font-black uppercase tracking-[.25em] text-slate-400">Open rooms</h3>
+            {rooms.map((r) => (
+              <button key={r.code} disabled={busy} onClick={() => go("join", r.code)} className="ar-btn flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
+                <span><b>{r.host}'s room</b><small className="block font-bold text-slate-400">{r.humans} racer{r.humans === 1 ? "" : "s"} · {TRACKS.find((t) => t.id === r.trackId)?.name} · {r.phase === "lobby" ? "in lobby" : r.phase === "results" ? "finishing up" : "racing now"}</small></span>
+                <span className="rounded-xl bg-fuchsia-400 px-3 py-1 text-sm font-black text-slate-950">JOIN</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function OnlineRoom({ session, myId, token, settings, onSettings, onLeave, onRaceDone }: { session: OnlineSession; myId: string; token: string; settings: Settings; onSettings: (s: Settings) => void; onLeave: () => void; onRaceDone: () => void }) {
+  const [state, setState] = useState<{ meta: RaceRoomMeta | null; phase: RacePhase; startAt: number }>({ meta: null, phase: "lobby", startAt: 0 });
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [raceSetup, setRaceSetup] = useState<{ raceNo: number; meta: RaceRoomMeta; startAt: number } | null>(null);
+  const metaRef = useRef<RaceRoomMeta | null>(null);
+
+  useEffect(() => session.net.listen((s) => {
+    if (s.meta) metaRef.current = s.meta;
+    const meta = metaRef.current;
+    setState({ meta, phase: s.phase, startAt: s.startAt });
+    // freeze the line-up when a race begins
+    if (meta && (s.phase === "countdown" || s.phase === "racing")) setRaceSetup((cur) => cur && cur.raceNo === meta.raceNo ? cur : { raceNo: meta.raceNo, meta, startAt: s.startAt });
+    if (s.phase === "lobby") setRaceSetup((cur) => { if (cur) onRaceDone(); return null; });
+  }), [session, onRaceDone]);
+
+  const action = async (body: Record<string, unknown>) => {
+    setError("");
+    try {
+      const r = await fetch(API_BASE + "/api/racing/rooms/" + session.code + "/action", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "That didn't work.");
+      session.net.ingest(data as RaceSnap);
+    } catch (e) { setError(e instanceof Error ? e.message : "That didn't work."); }
+  };
+
+  const meta = state.meta;
+  if (raceSetup) {
+    const m = raceSetup.meta;
+    const host = m.hostId === myId;
+    const ccMul = CC.find((c) => c.id === m.cc)?.mul || 1;
+    const racers: RacerInfo[] = m.players.map((p) => {
+      const b = BODIES.find((x) => x.id === p.look.body) || BODIES[0];
+      const isPlayer = p.id === myId;
+      return {
+        id: p.id, name: p.name + (p.bot ? " (CPU)" : ""), isPlayer, body: b, upgrades: p.upgrades,
+        look: { ...p.look, name: p.name }, remote: !isPlayer && !(p.bot && host), localBot: p.bot && host,
+        skill: m.cc === 150 ? 0.96 : m.cc === 100 ? 0.93 : 0.88,
+      };
+    });
+    // the player must be first in the list for the race engine
+    const ordered = racers;
+    return (
+      <RaceView key={"online-" + raceSetup.raceNo} trackId={m.trackId} mode="online" cc={ccMul} racers={ordered} settings={settings} onSettings={onSettings}
+        gp={null} onFinish={() => {}} onRetry={() => {}} onQuit={onLeave}
+        online={{ net: session.net, myId, startAt: raceSetup.startAt, laps: m.laps }} />
+    );
+  }
+
+  if (!meta) return <main className="ar-bg grid min-h-[100dvh] place-items-center text-white"><Loader2 className="h-10 w-10 animate-spin" /></main>;
+  const host = meta.hostId === myId;
+  const copy = async () => { try { await navigator.clipboard.writeText(meta.code); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
+  return (
+    <main className="ar-bg min-h-[100dvh] px-4 pb-10 pt-4 text-white sm:px-8">
+      <div className="mx-auto flex max-w-5xl items-center justify-between">
+        <button onClick={onLeave} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="h-5 w-5" /> Leave room</button>
+        <button onClick={copy} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><Copy className="h-4 w-4" /> Code <span className="tracking-[.25em] text-fuchsia-300">{meta.code}</span>{copied && <span className="text-xs text-emerald-300">copied!</span>}</button>
+      </div>
+      <section className="mx-auto mt-5 grid max-w-5xl gap-4 lg:grid-cols-[1.2fr_1fr]">
+        <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5">
+          <p className="text-xs font-black uppercase tracking-[.3em] text-fuchsia-300">{meta.publicRoom ? "Open room" : "Private room"} · {state.phase === "results" ? "race finishing" : state.phase === "lobby" ? "lobby" : "starting"}</p>
+          <h1 className="ar-glow mt-1 text-4xl font-black italic">Racers</h1>
+          <div className="mt-4 grid gap-2">
+            {meta.players.map((p) => (
+              <div key={p.id} className={"flex items-center justify-between rounded-2xl px-4 py-3 " + (p.id === myId ? "bg-white/15" : "bg-white/5")}>
+                <span className="flex items-center gap-2 font-black"><i className="h-3 w-3 rounded-full" style={{ background: hex(p.look.paint) }} />{p.id === meta.hostId && <Crown className="h-4 w-4 text-yellow-300" />}{p.name}{p.id === myId && <span className="rounded-md bg-white/15 px-1.5 text-[10px]">YOU</span>}</span>
+                <small className="font-bold text-slate-400">{p.bot ? "Computer" : !p.connected ? "reconnecting…" : (BODIES.find((b) => b.id === p.look.body)?.name || "")}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5">
+          <h2 className="text-2xl font-black italic">Race settings</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {TRACK_IDS.map((id) => {
+              const t = TRACKS.find((x) => x.id === id)!;
+              return (
+                <button key={id} disabled={!host} onClick={() => action({ type: "settings", trackId: id })} className={"relative h-20 overflow-hidden rounded-2xl border-2 p-2 text-left font-black " + (meta.trackId === id ? "border-yellow-300" : "border-transparent opacity-80")} style={{ background: THEME_STYLE[t.theme] }}>
+                  <TrackShape id={id} /><span className="ar-glow relative text-sm">{t.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {CC.map((c) => <button key={c.id} disabled={!host} onClick={() => action({ type: "settings", cc: c.id })} className={"rounded-xl px-3 py-2 text-sm font-black " + (meta.cc === c.id ? "bg-white text-slate-950" : "bg-white/10")}>{c.label}</button>)}
+            {[1, 2, 3, 5].map((n) => <button key={n} disabled={!host} onClick={() => action({ type: "settings", laps: n })} className={"rounded-xl px-3 py-2 text-sm font-black " + (meta.laps === n ? "bg-white text-slate-950" : "bg-white/10")}>{n} lap{n > 1 ? "s" : ""}</button>)}
+          </div>
+          <label className="mt-3 flex items-center justify-between rounded-2xl bg-white/5 p-3 font-black">
+            <span className="flex items-center gap-2"><Users className="h-4 w-4" /> Fill empty spots with bots</span>
+            <input type="checkbox" disabled={!host} checked={meta.bots} onChange={(e) => action({ type: "settings", bots: e.target.checked })} className="h-5 w-5 accent-fuchsia-400" />
+          </label>
+          {host ? (
+            <button disabled={state.phase !== "lobby" && state.phase !== "results"} onClick={() => action({ type: "start" })} className="ar-btn mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 text-xl font-black italic uppercase text-slate-950 disabled:opacity-50" style={{ boxShadow: "0 6px 0 #b45309" }}><Flag className="h-5 w-5" /> Start race</button>
+          ) : <p className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-white/5 py-4 font-black text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Waiting for the host to start…</p>}
+          {!host && <p className="mt-2 text-center text-xs font-bold text-slate-400">Only the host (👑) can change the track and settings.</p>}
+          {error && <p className="mt-3 rounded-2xl border border-red-400/30 bg-red-500/15 p-3 text-sm font-bold text-red-100">{error}</p>}
+        </div>
+      </section>
+    </main>
   );
 }

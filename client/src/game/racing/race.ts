@@ -9,8 +9,10 @@ import { TRACKS, TrackSpace } from "./tracks";
 import { buildTrack, THEMES, type BuiltTrack, type Quality } from "./builder";
 import { KartBody, KartModel, physicsFor, type BodyDef, type KartInput, type KartLook, type UpgradeId, type Physics } from "./kart";
 import { RaceAudio } from "./audio";
+import type { RacingNet } from "./net";
+import { KF, type RaceSnap, type RaceStandingRow, type KartState } from "@shared/racing";
 
-export type Mode = "gp" | "race" | "tt";
+export type Mode = "gp" | "race" | "tt" | "online";
 export type ItemType = "turbo" | "triple" | "slick" | "bomb" | "orb" | "shield" | "rush";
 export const ITEM_INFO: Record<ItemType, { name: string; icon: string; hint: string }> = {
   turbo: { name: "Turbo Ink", icon: "🚀", hint: "Speed boost" },
@@ -22,7 +24,7 @@ export const ITEM_INFO: Record<ItemType, { name: string; icon: string; hint: str
   rush: { name: "Prism Rush", icon: "🌈", hint: "Invincible speed burst" },
 };
 
-export interface RacerInfo { id: string; name: string; look: KartLook; body: BodyDef; upgrades: Record<UpgradeId, number>; isPlayer: boolean; skill?: number }
+export interface RacerInfo { id: string; name: string; look: KartLook; body: BodyDef; upgrades: Record<UpgradeId, number>; isPlayer: boolean; skill?: number; /** online: driven by another browser */ remote?: boolean; /** online: a bot this browser drives */ localBot?: boolean }
 
 export interface Standing { id: string; name: string; color: number; isPlayer: boolean; finished: boolean; time: number; bestLap: number; coins: number }
 
@@ -64,6 +66,7 @@ export interface RaceOptions {
   touch: boolean;
   autoGas: boolean;
   onFinish: (r: RaceResult) => void;
+  online?: { net: RacingNet; myId: string; startAt: number; laps: number };
 }
 
 const FIXED = 1 / 120;
@@ -153,9 +156,11 @@ interface Racer {
   bestLap: number;
   ai: { lane: number; skill: number; laneTimer: number; nextItemCheck: number; driftHold: number } | null;
   lastPos: number;
+  remote: boolean;
+  samples: { t: number; st: KartState }[];
 }
 
-interface Hazard { kind: "slick" | "bomb" | "orb"; pos: THREE.Vector3; s: number; lat: number; owner: Racer; age: number; target: Racer | null; mesh: THREE.Object3D; dead: boolean }
+interface Hazard { kind: "slick" | "bomb" | "orb"; pos: THREE.Vector3; s: number; lat: number; owner: Racer; age: number; target: Racer | null; mesh: THREE.Object3D; dead: boolean; hid: string }
 
 let toastSeq = 1;
 
@@ -240,7 +245,9 @@ export class Race {
     // racers on the grid
     const grid = opts.mode === "tt" ? [opts.racers[0]] : opts.racers;
     const order = grid.slice(1);
-    const slots: RacerInfo[] = [...order.slice(0, 5), grid[0], ...order.slice(5)];
+    // online: the server decides the grid order; offline the player starts mid-pack
+    const slots: RacerInfo[] = opts.online ? grid.slice() : [...order.slice(0, 5), grid[0], ...order.slice(5)];
+    this.laps = opts.online ? opts.online.laps : def.laps;
     slots.forEach((info, i) => {
       const phys = physicsFor(info.body, info.upgrades, opts.cc);
       const body = new KartBody({ ...phys });
@@ -252,15 +259,17 @@ export class Race {
       const r: Racer = {
         info, body, model, basePhys: { ...phys }, input: { gas: 0, brake: 0, steer: 0, drift: false },
         item: null, itemCount: 0, rollUntil: 0, rollItem: null, heldSince: 0, lapStart: 0, lapTimes: [], bestLap: 0,
-        ai: info.isPlayer ? null : { lane: (Math.random() - 0.5) * 0.7, skill: info.skill ?? 0.95, laneTimer: 0, nextItemCheck: 0, driftHold: 0 },
+        ai: info.isPlayer || info.remote ? null : { lane: (Math.random() - 0.5) * 0.7, skill: info.skill ?? 0.95, laneTimer: 0, nextItemCheck: 0, driftHold: 0 },
         lastPos: 0,
+        remote: !!info.remote,
+        samples: [],
       };
       this.racers.push(r);
     });
     this.player = this.racers.find((r) => r.info.isPlayer)!;
 
     this.hud = {
-      phase: "intro", countdown: 3, position: this.racers.indexOf(this.player) + 1, total: this.racers.length, lap: 1, laps: def.laps,
+      phase: "intro", countdown: 3, position: this.racers.indexOf(this.player) + 1, total: this.racers.length, lap: 1, laps: this.laps,
       time: 0, lapTimes: [], item: null, itemCount: 0, rolling: false, rollIcon: "", coins: 0, kmh: 0, driftLevel: 0, boosting: false,
       wrongWay: false, toast: null, standings: [], result: null, fps: 60, quality: q,
     };
@@ -274,6 +283,11 @@ export class Race {
     const p = this.player.body;
     this.camPos.copy(p.pos).add(new THREE.Vector3(30, 18, 30));
     this.camLook.copy(p.pos);
+    if (opts.online) {
+      const on = opts.online;
+      this.unlisten = on.net.listen((snap) => this.onNet(snap));
+      on.net.getState = () => this.netState();
+    }
     if (import.meta.env.DEV) (window as unknown as { __race?: Race }).__race = this;
     this.clock.start();
     this.loop();
@@ -300,7 +314,11 @@ export class Race {
   useItem() { this.itemPressed = true; this.audio.unlock(); }
   private paused = false;
   setPaused(v: boolean) { this.paused = v; if (v) this.keys.clear(); }
-  skipIntro() { if (this.hud.phase === "intro") this.startCountdown(); }
+  skipIntro() { if (this.hud.phase === "intro" && !this.opts.online) this.startCountdown(); }
+  private laps = 3;
+  private unlisten: (() => void) | null = null;
+  private hazardSeq = 1;
+  private netSeq = 0;
 
   // ===========================================================================
   // input
@@ -349,7 +367,12 @@ export class Race {
   private frame(dt: number) {
     this.t += dt;
     const phase = this.hud.phase;
-    if (phase === "intro" && this.t > 3.2) this.startCountdown();
+    const on = this.opts.online;
+    if (on) {
+      // online: the countdown follows the server clock so everyone starts together
+      const until = (on.net.serverToLocal(on.startAt) - Date.now()) / 1000;
+      if (phase === "intro" && until <= 3) { this.startCountdown(); this.phaseStart = this.t - (3 - Math.max(0, until)); }
+    } else if (phase === "intro" && this.t > 3.2) this.startCountdown();
 
     // countdown with start lights + rocket start
     if (phase === "countdown") {
@@ -364,7 +387,7 @@ export class Race {
       if (el >= 3) {
         this.audio.beep(true);
         this.emit({ phase: "racing", countdown: 0 });
-        this.raceTime = 0;
+        this.raceTime = on ? Math.max(0, (Date.now() - on.net.serverToLocal(on.startAt)) / 1000) : 0;
         // rocket start: press the gas just as the last light comes on
         if (this.gasHeldAt >= 1.9 && this.gasHeldAt <= 2.6) { this.player.body.boost(1.2, 1.4); this.toast("ROCKET START!"); this.audio.boost(); }
         for (const r of this.racers) { r.lapStart = 0; if (r.ai && Math.random() < 0.5 * r.ai.skill) r.body.boost(0.8, 1.3); }
@@ -381,7 +404,7 @@ export class Race {
       this.acc += dt;
       let steps = 0;
       while (this.acc >= FIXED && steps < 16) {
-        for (const r of this.racers) r.body.step(FIXED, r.input, this.track, this.raceTime);
+        for (const r of this.racers) if (!r.remote) r.body.step(FIXED, r.input, this.track, this.raceTime);
         this.collide();
         this.acc -= FIXED; steps++;
       }
@@ -393,6 +416,7 @@ export class Race {
       this.checkFinish();
     }
 
+    if (on) this.updateRemotes(dt);
     // visuals
     for (const r of this.racers) {
       const showTag = !r.info.isPlayer && r.body.pos.distanceTo(this.player.body.pos) < 45;
@@ -511,7 +535,10 @@ export class Race {
       if (d > 1.9 || d < 1e-4 || Math.abs(dy) > 1.5) continue;
       const nx = dx / d, nz = dz / d, over = 1.9 - d;
       const wa = a.phys.weight + (a.rushTime > 0 ? 50 : 0), wb = b.phys.weight + (b.rushTime > 0 ? 50 : 0);
-      const ka = wb / (wa + wb), kb = wa / (wa + wb);
+      const ra = R[i].remote, rb = R[j].remote;
+      if (ra && rb) continue;
+      // remote karts are moved by their own browser: push only the local one
+      const ka = ra ? 0 : rb ? 1 : wb / (wa + wb), kb = rb ? 0 : ra ? 1 : wa / (wa + wb);
       a.pos.x -= nx * over * ka; a.pos.z -= nz * over * ka;
       b.pos.x += nx * over * kb; b.pos.z += nz * over * kb;
       const rel = (b.vel.x - a.vel.x) * nx + (b.vel.y - a.vel.y) * nz;
@@ -520,7 +547,7 @@ export class Race {
         a.vel.x -= nx * imp * ka; a.vel.y -= nz * imp * ka;
         b.vel.x += nx * imp * kb; b.vel.y += nz * imp * kb;
         if (imp > 3) {
-          if (a.rushTime > 0 && b.rushTime <= 0) b.hit(); else if (b.rushTime > 0 && a.rushTime <= 0) a.hit();
+          if (a.rushTime > 0 && b.rushTime <= 0 && !rb) b.hit(); else if (b.rushTime > 0 && a.rushTime <= 0 && !ra) a.hit();
           if (R[i] === this.player || R[j] === this.player) this.audio.wall();
         }
       }
@@ -529,6 +556,7 @@ export class Race {
 
   private pickups() {
     for (const r of this.racers) {
+      if (r.remote) continue;
       const p = r.body.pos;
       for (const b of this.built.itemBoxes) {
         if (b.respawn > 0) continue;
@@ -592,13 +620,13 @@ export class Race {
       case "slick": {
         const s = b.s - 3.2;
         const pos = this.track.point(s, b.lat, 0.05);
-        this.addHazard("slick", r, s, b.lat, pos);
+        this.netItem(r, this.addHazard("slick", r, s, b.lat, pos));
         if (isP) this.audio.throwItem();
         break;
       }
       case "bomb": {
         const s = b.s + 3;
-        this.addHazard("bomb", r, s, b.lat, this.track.point(s, b.lat, 1));
+        this.netItem(r, this.addHazard("bomb", r, s, b.lat, this.track.point(s, b.lat, 1)));
         if (isP) this.audio.throwItem();
         break;
       }
@@ -607,6 +635,7 @@ export class Race {
         const s = b.s + 3;
         const h = this.addHazard("orb", r, s, b.lat, this.track.point(s, b.lat, 1));
         h.target = ahead;
+        this.netItem(r, h);
         if (isP) this.audio.throwItem();
         break;
       }
@@ -616,12 +645,12 @@ export class Race {
     r.heldSince = this.t;
   }
 
-  private addHazard(kind: Hazard["kind"], owner: Racer, s: number, lat: number, pos: THREE.Vector3) {
+  private addHazard(kind: Hazard["kind"], owner: Racer, s: number, lat: number, pos: THREE.Vector3, hid?: string) {
     const mesh = new THREE.Mesh(this.hazardGeo[kind], this.hazardMat[kind]);
     mesh.position.copy(pos);
     mesh.castShadow = this.quality !== "low";
     this.scene.add(mesh);
-    const h: Hazard = { kind, pos: pos.clone(), s, lat, owner, age: 0, target: null, mesh, dead: false };
+    const h: Hazard = { kind, pos: pos.clone(), s, lat, owner, age: 0, target: null, mesh, dead: false, hid: hid || (this.opts.online?.myId || "l") + "-" + this.hazardSeq++ };
     this.hazards.push(h);
     if (this.hazards.length > 40) { const old = this.hazards.shift()!; this.scene.remove(old.mesh); }
     return h;
@@ -650,7 +679,7 @@ export class Race {
         h.pos.copy(this.track.point(h.s, h.lat, 1 + Math.sin(h.age * 10) * 0.2));
         if (tgt) {
           let ds = tgt.body.s - (h.s % L); if (ds < -L / 2) ds += L; if (ds > L / 2) ds -= L;
-          if (Math.abs(ds) < 2.5) { if (tgt.body.hit()) this.onHit(tgt); this.splash(h.pos, 0x60a5fa); h.dead = true; }
+          if (Math.abs(ds) < 2.5 && !tgt.remote) { if (tgt.body.hit()) this.onHit(tgt); this.splash(h.pos, 0x60a5fa); h.dead = true; this.netGone(h); }
         }
         if (h.age > 7) h.dead = true;
       } else {
@@ -660,13 +689,14 @@ export class Race {
       if (h.dead) continue;
       h.mesh.position.copy(h.pos);
       for (const r of this.racers) {
-        if ((r === h.owner && h.age < 0.6) || r.body.spinTime > 0) continue;
+        if ((r === h.owner && h.age < 0.6) || r.body.spinTime > 0 || r.remote) continue;
         const d = r.body.pos.distanceTo(h.pos);
         if (d < (h.kind === "slick" ? 1.7 : 1.8)) {
           if (h.kind === "bomb") { this.explode(h); break; }
           if (r.body.hit()) this.onHit(r);
           this.splash(h.pos, h.kind === "slick" ? 0x9333ea : 0x60a5fa);
           h.dead = true;
+          this.netGone(h);
           break;
         }
       }
@@ -678,7 +708,8 @@ export class Race {
   private explode(h: Hazard) {
     h.dead = true;
     this.splash(h.pos, 0xec4899, 2);
-    for (const r of this.racers) if (r.body.pos.distanceTo(h.pos) < 4.5 && r.body.spinTime <= 0) { if (r.body.hit()) this.onHit(r); }
+    for (const r of this.racers) if (!r.remote && r.body.pos.distanceTo(h.pos) < 4.5 && r.body.spinTime <= 0) { if (r.body.hit()) this.onHit(r); }
+    this.netGone(h);
   }
 
   private onHit(r: Racer) {
@@ -740,9 +771,10 @@ export class Race {
     r.lapStart = this.raceTime;
     r.lapTimes.push(lapTime);
     if (!r.bestLap || lapTime < r.bestLap) r.bestLap = lapTime;
-    const laps = this.track.def.laps;
+    const laps = this.laps;
     if (b.lap > laps && !b.finished) {
       b.finished = true; b.finishTime = this.raceTime;
+      if (this.opts.online && !r.remote) this.opts.online.net.send({ k: "finish", time: Math.round(this.raceTime * 1000) / 1000, id: r.info.id });
       if (r === this.player) {
         this.finishedAt = this.t;
         const place = this.rank(r) + 1;
@@ -766,11 +798,12 @@ export class Race {
   }
 
   private checkFinish() {
+    if (this.opts.online) return; // the server publishes online results
     if (this.finishedAt < 0 || this.resultSent) return;
     // give the rest of the field a few seconds, then estimate their times
     if (this.t - this.finishedAt < 4 && !this.racers.every((r) => r.body.finished)) return;
     this.resultSent = true;
-    const L = this.track.length, laps = this.track.def.laps;
+    const L = this.track.length, laps = this.laps;
     const standings: Standing[] = this.sorted().map((r) => {
       let time = r.body.finishTime;
       if (!r.body.finished) {
@@ -827,6 +860,130 @@ export class Race {
     if (Math.abs(this.camera.fov - fov) > 0.05) { this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
   }
 
+  // ===========================================================================
+  // online
+  // ===========================================================================
+
+  private netItem(r: Racer, h: Hazard) {
+    const on = this.opts.online;
+    if (!on || r.remote) return;
+    on.net.send({ k: "item", kind: h.kind, hid: h.hid, at: Math.round(h.s * 100) / 100, lat: Math.round(h.lat * 100) / 100, target: h.target ? h.target.info.id : null, by: r.info.id });
+  }
+
+  private netGone(h: Hazard) {
+    const on = this.opts.online;
+    if (on) on.net.send({ k: "gone", hid: h.hid });
+  }
+
+  private encode(b: KartBody): KartState {
+    let f = 0;
+    if (b.grounded) f |= KF.GROUNDED;
+    if (b.boostTime > 0) f |= KF.BOOST;
+    if (b.shieldTime > 0) f |= KF.SHIELD;
+    if (b.rushTime > 0) f |= KF.RUSH;
+    if (b.finished) f |= KF.FINISHED;
+    if (b.spinTime > 0) f |= KF.SPIN;
+    if (b.offroad) f |= KF.OFFROAD;
+    const r2 = (n: number) => Math.round(n * 100) / 100, r3 = (n: number) => Math.round(n * 1000) / 1000;
+    return [r2(b.pos.x), r2(b.pos.y), r2(b.pos.z), r3(b.yaw), r2(b.speed), f, b.lap, r2(b.s), r3(b.pitch), r3(b.roll), r3(b.steerVis), b.driftDir, b.driftLevel, r3(b.spinYaw), b.coins];
+  }
+
+  private netState() {
+    if (this.hud.phase === "intro" && !this.player.body.finished && this.raceTime === 0 && this.hud.countdown === 3 && this.t < 0.5) return {};
+    return {
+      st: this.encode(this.player.body),
+      bots: this.racers.filter((r) => r.info.localBot).map((r) => ({ id: r.info.id, st: this.encode(r.body) })),
+    };
+  }
+
+  private onNet(snap: RaceSnap) {
+    const on = this.opts.online!;
+    const t = on.net.serverToLocal(snap.now);
+    for (const p of snap.ps) {
+      const r = this.racers.find((x) => x.info.id === p.id);
+      if (!r || !r.remote) continue;
+      const last = r.samples[r.samples.length - 1];
+      if (last && t <= last.t) continue;
+      r.samples.push({ t, st: p.st });
+      if (r.samples.length > 30) r.samples.shift();
+    }
+    if (snap.meta) {
+      const ids = new Set(snap.meta.players.map((p) => p.id));
+      for (const r of this.racers) if (r.remote && !ids.has(r.info.id)) r.model.root.visible = false;
+    }
+    for (const ev of snap.ev || []) {
+      if (ev.s <= this.netSeq) continue;
+      this.netSeq = ev.s;
+      if (ev.k === "item") {
+        if (this.hazards.some((h) => h.hid === ev.hid)) continue; // our own echo
+        const owner = this.racers.find((x) => x.info.id === ev.by);
+        if (!owner || !owner.remote) continue;
+        const pos = this.track.point(ev.at, ev.lat, ev.kind === "slick" ? 0.05 : 1);
+        const h = this.addHazard(ev.kind, owner, ev.at, ev.lat, pos, ev.hid);
+        h.target = ev.target ? this.racers.find((x) => x.info.id === ev.target) || null : null;
+        if (pos.distanceTo(this.player.body.pos) < 50) this.audio.throwItem();
+      } else if (ev.k === "gone") {
+        const h = this.hazards.find((x) => x.hid === ev.hid);
+        if (h && !h.dead) { h.dead = true; this.scene.remove(h.mesh); this.splash(h.pos, h.kind === "slick" ? 0x9333ea : h.kind === "bomb" ? 0xec4899 : 0x60a5fa); }
+      } else if (ev.k === "finish") {
+        const r = this.racers.find((x) => x.info.id === ev.id);
+        if (r && r.remote) { r.body.finished = true; r.body.finishTime = ev.time; }
+      }
+    }
+    if (snap.results && !this.resultSent) {
+      this.resultSent = true;
+      const rows: RaceStandingRow[] = snap.results;
+      const me = rows.find((x) => x.id === on.myId);
+      const result: RaceResult = {
+        place: me ? me.place : rows.length, time: me?.time || this.player.body.finishTime || this.raceTime, bestLap: this.player.bestLap, coins: me?.coins || 0, trackId: this.track.def.id,
+        standings: rows.map((x) => ({ id: x.id, name: x.name, color: x.paint, isPlayer: x.id === on.myId, finished: x.finished, time: x.time, bestLap: 0, coins: x.coins })),
+      };
+      if (this.hud.phase !== "finished") this.emit({ phase: "finished" });
+      this.emit({ result, standings: result.standings });
+      this.opts.onFinish(result);
+    }
+  }
+
+  private updateRemotes(dt: number) {
+    const on = this.opts.online!;
+    const renderT = Date.now() - on.net.interpDelay;
+    for (const r of this.racers) {
+      if (!r.remote) continue;
+      const S = r.samples;
+      if (!S.length) continue;
+      while (S.length > 2 && S[1].t <= renderT) S.shift();
+      let a = S[0], b = S[0], k = 0;
+      if (S.length >= 2 && renderT >= S[0].t) { a = S[0]; b = S[1]; k = THREE.MathUtils.clamp((renderT - a.t) / Math.max(1, b.t - a.t), 0, 1.3); }
+      const A = a.st, B = b.st;
+      const teleport = Math.hypot(B[0] - A[0], B[2] - A[2]) > 25;
+      const kk = teleport ? 1 : k;
+      const lerp = (i: number) => A[i] + (B[i] - A[i]) * kk;
+      const body = r.body;
+      const nx = lerp(0), ny = lerp(1), nz = lerp(2);
+      body.pos.set(nx, ny, nz);
+      body.yaw = A[3] + Math.atan2(Math.sin(B[3] - A[3]), Math.cos(B[3] - A[3])) * kk;
+      body.speed = lerp(4);
+      const f = (kk < 0.5 ? A : B)[5];
+      body.grounded = !!(f & KF.GROUNDED);
+      body.boostTime = f & KF.BOOST ? 0.2 : 0;
+      body.boostPower = f & KF.BOOST ? 1.35 : 1;
+      body.shieldTime = f & KF.SHIELD ? 1 : 0;
+      body.rushTime = f & KF.RUSH ? 1 : 0;
+      body.spinTime = f & KF.SPIN ? 0.5 : 0;
+      body.offroad = !!(f & KF.OFFROAD);
+      body.finished = body.finished || !!(f & KF.FINISHED);
+      body.lap = B[6];
+      body.s = B[7];
+      body.pitch = lerp(8); body.roll = lerp(9); body.steerVis = lerp(10);
+      body.driftDir = B[11]; body.driftLevel = B[12]; body.spinYaw = lerp(13); body.coins = B[14];
+      body.progress = (body.lap - 1) * this.track.length + body.s;
+      const pr = this.track.project(nx, nz, body.hint);
+      body.hint = pr.index; body.lat = pr.lat;
+      body.vel.set(Math.sin(body.yaw) * body.speed, Math.cos(body.yaw) * body.speed);
+    }
+    void dt;
+  }
+
   private pushHud() {
     const p = this.player, b = p.body;
     const order = this.sorted();
@@ -834,7 +991,7 @@ export class Race {
     this.emit({
       position: order.indexOf(p) + 1,
       total: this.racers.length,
-      lap: Math.max(1, Math.min(this.track.def.laps, b.lap)),
+      lap: Math.max(1, Math.min(this.laps, b.lap)),
       time: this.hud.phase === "racing" || this.hud.phase === "finished" ? (b.finished ? b.finishTime : this.raceTime) : 0,
       lapTimes: p.lapTimes.slice(),
       item: p.item, itemCount: p.itemCount,
@@ -896,6 +1053,8 @@ export class Race {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.unlisten?.();
+    if (this.opts.online) this.opts.online.net.getState = () => ({});
     cancelAnimationFrame(this.raf);
     window.removeEventListener("keydown", this.onKey);
     window.removeEventListener("keyup", this.onKeyUp);

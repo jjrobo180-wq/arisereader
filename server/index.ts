@@ -53,8 +53,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    // Paintball syncs many times a second; only log its failures.
-    if (path.startsWith("/api") && (!path.startsWith("/api/paintball/") || res.statusCode >= 400)) {
+    // Paintball and racing rooms sync many times a second; only log their failures.
+    if (path.startsWith("/api") && ((!path.startsWith("/api/paintball/") && !path.startsWith("/api/racing/rooms/")) || res.statusCode >= 400)) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse && path !== '/api/parent-invites/print') logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       log(logLine);

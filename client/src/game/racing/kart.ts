@@ -7,26 +7,9 @@ import { TrackSpace } from "./tracks";
 // Stats & progression data
 // ---------------------------------------------------------------------------
 
-export interface Stats { speed: number; accel: number; handling: number; weight: number }
-
-export interface BodyDef { id: string; name: string; blurb: string; base: Stats; price: number }
-export const BODIES: BodyDef[] = [
-  { id: "comet", name: "Comet", blurb: "Balanced all-rounder", base: { speed: 5, accel: 5, handling: 5, weight: 5 }, price: 0 },
-  { id: "swirl", name: "Swirl", blurb: "Drift master, quick off the line", base: { speed: 4, accel: 7, handling: 8, weight: 3 }, price: 250 },
-  { id: "bolt", name: "Bolt", blurb: "Huge top speed, harder to turn", base: { speed: 8, accel: 3, handling: 4, weight: 6 }, price: 400 },
-  { id: "rhino", name: "Rhino", blurb: "Heavy bumper — shoves others aside", base: { speed: 6, accel: 4, handling: 4, weight: 9 }, price: 500 },
-];
-
-export type UpgradeId = "engine" | "turbo" | "tires";
-export const UPGRADES: { id: UpgradeId; name: string; blurb: string }[] = [
-  { id: "engine", name: "Engine", blurb: "+ top speed" },
-  { id: "turbo", name: "Turbo", blurb: "+ acceleration & longer boosts" },
-  { id: "tires", name: "Tires", blurb: "+ handling & grip" },
-];
-export const UPGRADE_COST = [120, 220, 360, 540, 780];
-export const MAX_UPGRADE = 5;
-
-export const PAINTS = [0xef4444, 0xf97316, 0xfacc15, 0x22c55e, 0x06b6d4, 0x3b82f6, 0x8b5cf6, 0xec4899, 0xf8fafc, 0x111827];
+import { BODIES, UPGRADES, UPGRADE_COST, MAX_UPGRADE, PAINTS, type Stats, type BodyDef, type UpgradeId } from "@shared/racing";
+export { BODIES, UPGRADES, UPGRADE_COST, MAX_UPGRADE, PAINTS };
+export type { Stats, BodyDef, UpgradeId };
 
 export interface Physics { maxSpeed: number; accel: number; turn: number; grip: number; weight: number; boostMul: number }
 
