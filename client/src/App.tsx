@@ -309,8 +309,12 @@ function AppRoutes() {
       <Route path="/teacher-dashboard">
         <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
       </Route>
+      {/* Public: shareable with teachers who don't have an account yet. */}
       <Route path="/teacher-arise-2">
-        <ProtectedRoute><TeacherArise2 /></ProtectedRoute>
+        <TeacherArise2 />
+      </Route>
+      <Route path="/for-teachers">
+        <TeacherArise2 />
       </Route>
       <Route path="/tutorial">
         <Tutorial />

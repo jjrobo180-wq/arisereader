@@ -1,12 +1,12 @@
-import { useEffect } from "react";
-import { useLocation, Redirect } from "wouter";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import {
   ArrowLeft, Zap, Gamepad2, ClipboardCheck, Sparkles, Trophy, Users, Brain, ShieldCheck,
-  Accessibility, ChevronRight, Check, Rocket, Clock3, FileQuestion,
+  Accessibility, ChevronRight, Check, Rocket, Clock3, UserPlus, LogIn, Share2, FileQuestion,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
-// Teacher-only pitch page for A.R.I.S.E. 2.0. Every claim here maps to a real
+// Public pitch page for A.R.I.S.E. 2.0 aimed at teachers (shareable link). Every claim here maps to a real
 // feature in the app (Live Quiz, Club Controls, student profiles, etc.).
 
 const heroStats = [
@@ -76,11 +76,28 @@ const steps = [
 export default function TeacherArise2() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const allowed = !!user && (user.role === "teacher" || user.isAdmin);
+  // Public page: anyone with the link can read it. Signed-in teachers/admins
+  // get shortcuts into the app; everyone else is pointed to teacher signup.
+  const isTeacher = !!user && (user.role === "teacher" || user.isAdmin);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  if (!allowed) return <Redirect to="/" replace />;
+  const [copied, setCopied] = useState(false);
+  // Public link teachers can open without an account.
+  const copyShareLink = async () => {
+    const link = `${window.location.origin}${window.location.pathname}#/for-teachers`;
+    try { await navigator.clipboard.writeText(link); } catch { window.prompt("Copy this link:", link); return; }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2500);
+  };
+
+  const signUp = () => navigate("/teacher-signup");
+  const hostGame = () => isTeacher ? navigate("/live-quiz") : signUp();
+  const openControls = () => {
+    if (!isTeacher) return signUp();
+    try { sessionStorage.setItem("teacher_dashboard_tab", "club-controls"); } catch {}
+    navigate("/teacher-dashboard");
+  };
 
   return (
     <main className="min-h-screen bg-[#070912] text-white">
@@ -89,9 +106,28 @@ export default function TeacherArise2() {
         <div className="pointer-events-none absolute -right-24 top-40 h-72 w-72 rounded-full bg-cyan-400/12 blur-[100px]" />
 
         <div className="relative mx-auto max-w-5xl px-4 pt-5 sm:px-8">
-          <button onClick={() => navigate("/teacher-dashboard")} className="inline-flex items-center gap-2 rounded-full px-2 py-2 text-sm font-bold text-slate-300 hover:text-white">
-            <ArrowLeft className="h-4 w-4" /> Teacher Dashboard
-          </button>
+          {isTeacher ? (
+            <div className="flex items-center justify-between gap-3">
+              <button onClick={() => navigate("/teacher-dashboard")} className="inline-flex items-center gap-2 rounded-full px-2 py-2 text-sm font-bold text-slate-300 hover:text-white">
+                <ArrowLeft className="h-4 w-4" /> Teacher Dashboard
+              </button>
+              <button onClick={copyShareLink} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-4 text-sm font-black text-white hover:bg-white/10">
+                {copied ? <Check className="h-4 w-4 text-emerald-300" /> : <Share2 className="h-4 w-4" />} {copied ? "Link copied" : "Copy share link"}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-black tracking-wide text-white">A.R.I.S.E. <span className="text-cyan-300">Reader</span></span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigate("/")} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">
+                  <LogIn className="h-4 w-4" /> Log in
+                </button>
+                <button onClick={signUp} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-black text-slate-950 hover:scale-[1.03] transition">
+                  <UserPlus className="h-4 w-4" /> Teacher sign up
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Hero */}
@@ -106,12 +142,21 @@ export default function TeacherArise2() {
             A.R.I.S.E. 2.0 gives you live classroom games, full control over game time, and a clear view of every student's reading — all in one place.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <button onClick={() => navigate("/live-quiz")} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-7 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
-              <Zap className="h-4 w-4" /> Host a live game
-            </button>
-            <button onClick={() => { try { sessionStorage.setItem("teacher_dashboard_tab", "club-controls"); } catch {} navigate("/teacher-dashboard"); }} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 text-sm font-black text-white transition hover:bg-white/10">
-              <Gamepad2 className="h-4 w-4" /> Set game controls
-            </button>
+            {isTeacher ? <>
+              <button onClick={hostGame} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-7 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
+                <Zap className="h-4 w-4" /> Host a live game
+              </button>
+              <button onClick={openControls} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 text-sm font-black text-white transition hover:bg-white/10">
+                <Gamepad2 className="h-4 w-4" /> Set game controls
+              </button>
+            </> : <>
+              <button onClick={signUp} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-7 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
+                <UserPlus className="h-4 w-4" /> Create a teacher account
+              </button>
+              <button onClick={() => navigate("/")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 text-sm font-black text-white transition hover:bg-white/10">
+                <LogIn className="h-4 w-4" /> I already have an account
+              </button>
+            </>}
           </div>
           <div className="mx-auto mt-10 grid max-w-xl grid-cols-3 gap-2 rounded-3xl border border-white/10 bg-white/[.04] p-2">
             {heroStats.map(s => (
@@ -179,9 +224,9 @@ export default function TeacherArise2() {
       <section className="px-4 py-12 sm:px-8 sm:py-16">
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-black uppercase tracking-[.25em] text-emerald-300">Start this week</p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Up and running in three steps</h2>
-          <ol className="mt-6 grid gap-3 md:grid-cols-3">
-            {steps.map((s, i) => (
+          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Up and running in {isTeacher ? "three" : "four"} steps</h2>
+          <ol className={`mt-6 grid gap-3 ${isTeacher ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4"}`}>
+            {(isTeacher ? steps : [{ title: "Create your teacher account", text: "Sign up in about a minute. An admin approves new teacher accounts." }, ...steps]).map((s, i) => (
               <li key={s.title} className="rounded-2xl border border-white/10 bg-white/[.04] p-5">
                 <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-sm font-black">{i + 1}</div>
                 <div className="mt-3 font-black">{s.title}</div>
@@ -193,10 +238,11 @@ export default function TeacherArise2() {
           <div className="relative mt-10 overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-r from-violet-600/30 via-fuchsia-600/20 to-cyan-500/20 p-7 text-center sm:p-10">
             <Rocket className="mx-auto h-8 w-8 text-cyan-200" />
             <h2 className="mx-auto mt-3 max-w-2xl text-2xl font-black sm:text-4xl">Try one live game with your class tomorrow.</h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">It takes about two minutes to set up. Watch what happens to the energy in the room.</p>
-            <button onClick={() => navigate("/live-quiz")} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-8 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
-              Open the Live Game Studio <ChevronRight className="h-4 w-4" />
+            <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">{isTeacher ? "It takes about two minutes to set up. Watch what happens to the energy in the room." : "Create your teacher account today. Once you're approved, setting up your first game takes about two minutes."}</p>
+            <button onClick={isTeacher ? hostGame : signUp} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-8 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
+              {isTeacher ? "Open the Live Game Studio" : "Sign up as a teacher"} <ChevronRight className="h-4 w-4" />
             </button>
+            {!isTeacher && <p className="mt-3 text-xs font-semibold text-slate-300">Already have an account? <button onClick={() => navigate("/")} className="font-black text-cyan-200 hover:underline">Log in</button></p>}
           </div>
         </div>
       </section>
