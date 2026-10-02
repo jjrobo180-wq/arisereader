@@ -21,9 +21,11 @@ export default function HalloreadWelcome(){
   const [show,setShow]=useState(false);
   useEffect(()=>{
     if(!HALLOREAD_ACTIVE)return;
-    const key="arise-halloread-welcome-2026";
-    try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,"1");}catch{}
-    setShow(true);playHalloreadStinger();
+    // This component mounts when a regular student becomes authenticated and
+    // unmounts on logout. Show the takeover once per login rather than once
+    // per browser tab/session.
+    setShow(true);
+    playHalloreadStinger();
   },[]);
   if(!show)return null;
   return <button type="button" onClick={()=>setShow(false)} className="fixed inset-0 z-[360] grid cursor-pointer place-items-center overflow-hidden bg-[#050108]/88 p-5 text-white backdrop-blur-sm" aria-label="Close Halloread welcome">
