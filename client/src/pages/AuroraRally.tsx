@@ -436,7 +436,7 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
             <div className="ar-skew rounded-xl border-2 border-white/25 bg-black/55 px-3 py-1"><div className="ar-unskew"><div className="text-[10px] font-black uppercase tracking-widest text-pink-300">Lap</div><div className="text-2xl font-black italic">{hud.lap}<span className="text-sm text-white/60">/{hud.laps}</span></div></div></div>
           </div>
           {/* top-centre: time */}
-          <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-xl border-2 border-white/25 bg-black/55 px-4 py-1 text-center">
+          <div className="pointer-events-none absolute left-3 top-[84px] rounded-xl border-2 border-white/25 bg-black/55 px-3 py-1 text-center sm:left-1/2 sm:top-3 sm:-translate-x-1/2 sm:px-4">
             <div className="text-[10px] font-black uppercase tracking-widest text-sky-300">Time</div>
             <div className="text-xl font-black tabular-nums">{fmt(hud.time)}</div>
           </div>
@@ -451,7 +451,7 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
             <button onClick={() => setPaused(true)} className="rounded-xl border border-white/20 bg-black/55 px-3 py-2 text-xs font-black uppercase"><Pause className="mr-1 inline h-4 w-4" />Menu</button>
           </div>
           {/* left: standings */}
-          {mode !== "tt" && (
+          {mode !== "tt" && !touch && (
             <div className="pointer-events-none absolute left-3 top-24 hidden flex-col gap-0.5 sm:flex">
               {hud.standings.map((s, i) => (
                 <div key={s.id} className={"flex w-36 items-center gap-2 rounded-lg px-2 py-0.5 text-xs font-black " + (s.isPlayer ? "bg-white/30" : "bg-black/40")}>
@@ -461,7 +461,7 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
             </div>
           )}
           {/* bottom-left: minimap */}
-          <canvas ref={mapRef} width={200} height={170} className={"pointer-events-none absolute left-3 h-[120px] w-[140px] rounded-2xl bg-black/35 sm:h-[170px] sm:w-[200px] " + (touch ? "top-[110px]" : "bottom-3")} />
+          <canvas ref={mapRef} width={200} height={170} className={"pointer-events-none absolute left-3 rounded-2xl bg-black/35 " + (touch ? "top-[140px] h-[110px] w-[130px] sm:top-[100px]" : "bottom-3 h-[120px] w-[140px] sm:h-[170px] sm:w-[200px]")} />
           {/* bottom-right: speed */}
           {!touch && (
             <div className="pointer-events-none absolute bottom-3 right-3 text-right">
@@ -481,6 +481,7 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
           {hud.toast && <div key={hud.toast.id} className="ar-toast ar-glow pointer-events-none absolute inset-x-0 top-[28%] text-center text-5xl font-black italic text-yellow-300 sm:text-6xl">{hud.toast.text}</div>}
           {hud.wrongWay && <div className="pointer-events-none absolute inset-x-0 top-[40%] text-center"><span className="rounded-2xl bg-red-600/85 px-6 py-3 text-3xl font-black italic">WRONG WAY!</span></div>}
           {touch && hud.phase !== "finished" && <TouchPad race={race!} autoGas={settings.autoGas} />}
+          {touch && <RotateHint />}
           {hud.result && <Results result={hud.result} mode={mode} gp={gp} onRetry={onRetry} onNext={onNext} onQuit={onQuit} />}
           {paused && !hud.result && (
             <div className="absolute inset-0 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
@@ -513,17 +514,17 @@ function TouchPad({ race, autoGas }: { race: Race; autoGas: boolean }) {
   });
   return (
     <>
-      <div className="absolute bottom-5 left-4 flex gap-3">
-        <button {...hold((v) => ({ steer: v ? -1 : 0 }))} className={btn + " h-24 w-24 text-4xl"}>◀</button>
-        <button {...hold((v) => ({ steer: v ? 1 : 0 }))} className={btn + " h-24 w-24 text-4xl"}>▶</button>
+      <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-3 flex gap-2 sm:left-4 sm:gap-3">
+        <button {...hold((v) => ({ steer: v ? -1 : 0 }))} className={btn + " h-20 w-20 text-3xl sm:h-24 sm:w-24 sm:text-4xl"}>◀</button>
+        <button {...hold((v) => ({ steer: v ? 1 : 0 }))} className={btn + " h-20 w-20 text-3xl sm:h-24 sm:w-24 sm:text-4xl"}>▶</button>
       </div>
-      <div className="absolute bottom-5 right-4 flex items-end gap-3">
-        <div className="flex flex-col gap-3">
-          <button {...hold((v) => ({ brake: v }))} className={btn + " h-14 w-14 text-xs"}>BRAKE</button>
+      <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-3 flex flex-col items-end gap-2 sm:right-4 sm:flex-row sm:items-end sm:gap-3">
+        <div className="flex gap-2 sm:gap-3">
           {!autoGas && <button {...hold((v) => ({ gas: v }))} className={btn + " h-14 w-14 bg-emerald-500/60 text-xs"}>GAS</button>}
+          <button {...hold((v) => ({ brake: v }))} className={btn + " h-14 w-14 text-xs"}>BRAKE</button>
+          <button onPointerDown={() => race.useItem()} className={btn + " h-14 w-14 bg-fuchsia-500/60 text-xs sm:h-16 sm:w-16"}>ITEM</button>
         </div>
-        <button onPointerDown={() => race.useItem()} className={btn + " h-16 w-16 bg-fuchsia-500/60 text-xs"}>ITEM</button>
-        <button {...hold((v) => ({ drift: v }))} className={btn + " h-24 w-24 bg-orange-500/70 text-base"}>DRIFT</button>
+        <button {...hold((v) => ({ drift: v }))} className={btn + " h-20 w-20 bg-orange-500/70 text-base sm:h-24 sm:w-24"}>DRIFT</button>
       </div>
     </>
   );
@@ -759,5 +760,23 @@ function OnlineRoom({ session, myId, token, settings, onSettings, onLeave, onRac
         </div>
       </section>
     </main>
+  );
+}
+
+function RotateHint() {
+  const [portrait, setPortrait] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    const check = () => setPortrait(window.innerHeight > window.innerWidth * 1.1);
+    check(); window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  if (!portrait || dismissed) return null;
+  return (
+    <div className="absolute inset-x-4 top-1/3 z-20 rounded-2xl border border-white/15 bg-black/80 p-4 text-center backdrop-blur">
+      <p className="text-xl font-black italic">Turn your phone sideways 📱↻</p>
+      <p className="mt-1 text-sm font-bold text-slate-300">Racing is much easier in landscape.</p>
+      <button onClick={() => setDismissed(true)} className="mt-3 rounded-xl bg-white/15 px-4 py-2 text-sm font-black">Keep racing</button>
+    </div>
   );
 }

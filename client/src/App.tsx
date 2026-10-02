@@ -522,8 +522,22 @@ function AppRoutes() {
   );
 }
 
+// Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
+const FULLSCREEN_GAME_ROUTES = ["/paintball-arena", "/aurora-rally"];
+function useFullscreenGameRoute() {
+  const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
+  const [inGame, setInGame] = useState(read);
+  useEffect(() => {
+    const update = () => setInGame(read());
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+  return inGame;
+}
+
 function AppInner() {
   const { user, realUser, adminPreviewMode } = useAuth();
+  const inGame = useFullscreenGameRoute();
   const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
   const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
   const isDemoStudent = !!isStudent && (
@@ -531,14 +545,15 @@ function AppInner() {
   );
   const isAdminPreview = !!realUser?.isAdmin && !!adminPreviewMode;
 
+  const overlays = !inGame;
   return (
     <>
-      {isStudent && !isEyeGazeStudent && <PointsSideTab />}
-      {isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && <HalloreadWelcome />}
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
-      {isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
+      {overlays && isStudent && !isEyeGazeStudent && <PointsSideTab />}
+      {overlays && isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
+      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && <HalloreadWelcome />}
+      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       <Router hook={useHashLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />
