@@ -1681,7 +1681,7 @@ export async function registerRoutes(
   // Public setting lookup (for anime/comic book IDs etc.)
   app.get("/api/settings/:key", async (req, res) => {
     try {
-      if (!new Set(['anime_comic_book_ids', 'class_reading_book_ids']).has(req.params.key)) {
+      if (!new Set(['anime_comic_book_ids', 'class_reading_book_ids', 'hispanic_heritage_picks_v1']).has(req.params.key)) {
         return res.status(404).json({ message: 'Setting not found' });
       }
       const value = await storage.getSetting(req.params.key);
@@ -10958,6 +10958,118 @@ Important:
     }
   } catch (e) {
     console.error("Failed to seed class reading books:", (e as Error).message);
+  }
+
+  // Hispanic Heritage Month: teacher-recommended books shown in the Library.
+  // Stored as [{ bookId, teacher }]. Reuses a book already in the library when
+  // the title matches; otherwise creates it with a quiz. Bump the key to reseed.
+  try {
+    const HHM_KEY = "hispanic_heritage_picks_v1";
+    const existingPicks = await storage.getSetting(HHM_KEY);
+    if (!existingPicks) {
+      console.log("Seeding Hispanic Heritage Month teacher picks...");
+      const picks = [
+        {
+          teacher: "Ms. Garcia",
+          title: "Esperanza Rising",
+          author: "Pam Muñoz Ryan",
+          ageGroup: "6-8",
+          description: "After tragedy strikes her wealthy family in Mexico, Esperanza and her mother move to a California farm labor camp during the Great Depression and must start over.",
+          questions: [
+            { question: "Where does Esperanza live at the beginning of the story?", options: ["A city apartment in Mexico City", "El Rancho de las Rosas in Aguascalientes, Mexico", "A farm labor camp in California", "A fishing village in Spain"], correct: "B" },
+            { question: "What happens to Esperanza's papa just before her birthday?", options: ["He moves to the United States", "He loses the ranch in a card game", "He is killed by bandits", "He becomes very sick"], correct: "C" },
+            { question: "Which uncle wants to marry Mama and take control of the ranch?", options: ["Tío Luis", "Tío Marco", "Tío Juan", "Tío Pedro"], correct: "A" },
+            { question: "Where do Esperanza and Mama move after leaving Mexico?", options: ["Texas", "New York", "Florida", "A farm labor camp in California"], correct: "D" },
+            { question: "What does the name Esperanza mean in English?", options: ["Hope", "Rose", "Strength", "Freedom"], correct: "A" },
+            { question: "Which illness does Mama catch in California?", options: ["Measles", "Valley Fever", "The flu", "Chicken pox"], correct: "B" },
+            { question: "Who is the boy, the son of the ranch's housekeeper, who travels with them?", options: ["Alfonso", "Marco", "Miguel", "Luis"], correct: "C" },
+            { question: "What does Abuelita teach Esperanza to make?", options: ["Tortillas", "A clay pot", "A doll", "A crocheted blanket"], correct: "D" },
+            { question: "What is Marta trying to organize among the workers?", options: ["A strike for better pay and conditions", "A school for the children", "A birthday party", "A trip back to Mexico"], correct: "A" },
+            { question: "How does Abuelita finally get to California?", options: ["Tío Luis sends her", "Miguel uses Esperanza's saved money to bring her", "She wins a prize trip", "Mama travels back for her"], correct: "B" },
+          ],
+        },
+        {
+          teacher: "Ms. Garcia",
+          title: "The House on Mango Street",
+          author: "Sandra Cisneros",
+          ageGroup: "6-8",
+          description: "Told in short vignettes, Esperanza Cordero grows up in a Latino neighborhood in Chicago and dreams of a house, and a future, of her own.",
+          questions: [
+            { question: "Who is the narrator of The House on Mango Street?", options: ["Nenny", "Sally", "Esperanza Cordero", "Marin"], correct: "C" },
+            { question: "In which city is Mango Street located?", options: ["Chicago", "Los Angeles", "Miami", "San Antonio"], correct: "A" },
+            { question: "How is the book written?", options: ["As one long letter", "As a play", "As a series of short vignettes", "As a poem with one rhyme"], correct: "C" },
+            { question: "How does Esperanza feel about the house on Mango Street?", options: ["It is the house of her dreams", "It is small and not the house she imagined", "It is too big for her family", "It is haunted"], correct: "B" },
+            { question: "Who was Esperanza named after?", options: ["Her great-grandmother", "Her teacher", "Her aunt", "A movie star"], correct: "A" },
+            { question: "What is the name of Esperanza's little sister?", options: ["Lucy", "Rachel", "Sally", "Nenny"], correct: "D" },
+            { question: "Which two friends share a bike with Esperanza?", options: ["Sally and Marin", "Lucy and Rachel", "Nenny and Minerva", "Alicia and Cathy"], correct: "B" },
+            { question: "What does Esperanza dream of having someday?", options: ["A house of her own", "A famous restaurant", "A horse", "A car"], correct: "A" },
+            { question: "What do the three sisters tell Esperanza she must do after she leaves?", options: ["Never return", "Become a doctor", "Come back for the ones who cannot leave", "Change her name"], correct: "C" },
+            { question: "How does Esperanza find a way to deal with Mango Street?", options: ["By ignoring everyone", "By playing sports", "By moving to Mexico", "By writing her stories down"], correct: "D" },
+          ],
+        },
+        {
+          teacher: "Ms. Garcia",
+          title: "Before We Were Free",
+          author: "Julia Alvarez",
+          ageGroup: "6-8",
+          description: "In the Dominican Republic in 1960, twelve-year-old Anita de la Torre's family is caught up in the fight against the dictator Trujillo.",
+          questions: [
+            { question: "In which country does Before We Were Free take place?", options: ["Cuba", "Puerto Rico", "The Dominican Republic", "Mexico"], correct: "C" },
+            { question: "Who is the narrator of the story?", options: ["Anita de la Torre", "Lucinda", "Mundín", "Oscar Mendoza"], correct: "A" },
+            { question: "Who is the dictator ruling the country?", options: ["Castro", "Trujillo", "Batista", "Perón"], correct: "B" },
+            { question: "What is the SIM?", options: ["A school club", "A radio station", "A soccer team", "The dictator's secret police"], correct: "D" },
+            { question: "What are Papi and Tío Toni secretly part of?", options: ["A plan to rob a bank", "A plot to overthrow the dictator", "A plan to start a business", "A government election campaign"], correct: "B" },
+            { question: "Where do Anita and Mami hide to stay safe?", options: ["In a closet in the Mendoza family's home", "In a church", "On a boat", "In a cave in the mountains"], correct: "A" },
+            { question: "Where does Anita write down her thoughts and fears?", options: ["In letters to her cousins", "In a school notebook she turns in", "In a diary", "On the walls of her room"], correct: "C" },
+            { question: "Who is the American boy Anita has a crush on?", options: ["Oscar", "Mundín", "Toni", "Sam Washburn"], correct: "D" },
+            { question: "Where does Anita go at the end of the story?", options: ["The United States", "Spain", "Haiti", "She stays home"], correct: "A" },
+            { question: "What big idea does the title Before We Were Free point to?", options: ["Winning money", "Living without fear under a dictator", "Going on vacation", "Finishing school early"], correct: "B" },
+          ],
+        },
+      ];
+      const norm = (t: string) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const allBooks = await storage.getAllBooks();
+      const saved: { bookId: number; teacher: string }[] = [];
+      for (const pick of picks) {
+        // Only reuse a library copy that already has a quiz (points > 0);
+        // 0-point books are hidden from the student library.
+        let book: any = allBooks.find((b: any) => norm(b.title) === norm(pick.title) && Number(b.pointsValue) > 0);
+        if (!book) {
+          let coverUrl: string | null = null;
+          try {
+            const searchRes = await fetch(
+              `https://openlibrary.org/search.json?title=${encodeURIComponent(pick.title)}&author=${encodeURIComponent(pick.author)}&limit=1`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (searchRes.ok) {
+              const searchData = await searchRes.json() as any;
+              if (searchData.docs?.[0]?.cover_i) coverUrl = `https://covers.openlibrary.org/b/id/${searchData.docs[0].cover_i}-L.jpg`;
+            }
+          } catch {}
+          book = await storage.createBookWithQuestions({
+            title: pick.title,
+            author: pick.author,
+            ageGroup: pick.ageGroup,
+            coverUrl,
+            description: pick.description,
+            pointsValue: 10,
+            readUrl: null,
+          }, pick.questions);
+          // If Bookfinder couldn't verify official points, fall back to 10 so the
+          // quiz still appears in the Library (it hides 0-point books).
+          if (!(Number(book.pointsValue ?? book.points_value) > 0)) {
+            await supabase.from("books").update({ points_value: 10 }).eq("id", book.id);
+            try { clearCache("allBooks"); } catch {}
+          }
+          console.log(`Created Hispanic Heritage pick: ${pick.title}`);
+        }
+        saved.push({ bookId: book.id, teacher: pick.teacher });
+      }
+      await storage.upsertSetting(HHM_KEY, JSON.stringify(saved));
+      console.log(`Saved ${saved.length} Hispanic Heritage Month teacher picks.`);
+    }
+  } catch (e) {
+    console.error("Failed to seed Hispanic Heritage picks:", (e as Error).message);
   }
 
   // Auto-fetch covers for any books missing them (especially anime/comic books)

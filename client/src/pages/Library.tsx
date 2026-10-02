@@ -22,8 +22,9 @@ import { HALLOREAD_ACTIVE } from "@/lib/halloread";
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
 
-// Hispanic Heritage Month book IDs - empowering, uplifting, inspiring stories
-const HISPANIC_HERITAGE_BOOK_IDS = [856, 857, 858, 859, 874, 875, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891, 892, 893];
+// Hispanic Heritage Month: teacher-recommended books come from the
+// "hispanic_heritage_picks_v1" setting as [{ bookId, teacher }].
+type HeritagePick = { bookId: number; teacher: string };
 
 const HALLOREAD_TITLE_MATCHES = [
   "goosebumps",
@@ -145,6 +146,7 @@ export default function Library() {
   const [animeComicFilter, setAnimeComicFilter] = useState(false);
   const [animeComicIds, setAnimeComicIds] = useState<number[]>([]);
   const [classReadingIds, setClassReadingIds] = useState<number[]>([]);
+  const [heritagePicks, setHeritagePicks] = useState<HeritagePick[]>([]);
   const [favTopics, setFavTopics] = useState<string[]>([]);
   const [favBookIds, setFavBookIds] = useState<number[]>([]);
   const [suggestedBooks, setSuggestedBooks] = useState<{topic: string; title: string; author: string; coverUrl: string}[]>([]);
@@ -386,6 +388,15 @@ export default function Library() {
       .then(data => {
         if (data?.value) {
           try { setAnimeComicIds(JSON.parse(data.value)); } catch {}
+        }
+      })
+      .catch(() => {});
+    // Fetch Hispanic Heritage Month teacher picks (all users)
+    fetch(`${API_BASE}/api/settings/hispanic_heritage_picks_v1`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.value) {
+          try { const parsed = JSON.parse(data.value); if (Array.isArray(parsed)) setHeritagePicks(parsed); } catch {}
         }
       })
       .catch(() => {});
@@ -1143,7 +1154,10 @@ export default function Library() {
   // For sample student, limit iArise to 5 books unless expanded
   const displayedIAriseBooks = isSampleStudent && !iAriseExpanded ? iAriseBooks.slice(0, 5) : iAriseBooks;
   const curriculumBooks = sortedBooks.filter(b => CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id));
-  const hispanicHeritageBooks = sortedBooks.filter(b => HISPANIC_HERITAGE_BOOK_IDS.includes(b.id));
+  const heritageIds = heritagePicks.map(p => p.bookId);
+  const heritageTeacher = (bookId: number) => heritagePicks.find(p => p.bookId === bookId)?.teacher;
+  // Keep the teacher's order rather than the library sort.
+  const hispanicHeritageBooks = heritageIds.map(id => sortedBooks.find(b => b.id === id)).filter(Boolean) as typeof sortedBooks;
   const halloreadBooks = HALLOREAD_ACTIVE ? sortedBooks
     .filter(b => {
       const title=(b.title||"").toLowerCase();
@@ -1152,7 +1166,7 @@ export default function Library() {
     })
     .sort((a,b)=>(Number(a.pointsValue||0)-Number(b.pointsValue||0))||a.title.localeCompare(b.title)) : [];
   const halloreadBookIds = new Set(halloreadBooks.map(b=>b.id));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id) && !HISPANIC_HERITAGE_BOOK_IDS.includes(b.id) && !halloreadBookIds.has(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id) && !heritageIds.includes(b.id) && !halloreadBookIds.has(b.id));
   const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
   const classReadingBooks = sortedBooks.filter(b => classReadingIds.includes(b.id));
   const favoriteBooks = sortedBooks.filter(b => favBookIds.includes(b.id));
@@ -1166,7 +1180,7 @@ export default function Library() {
       return titleLower.includes(topicLower) || authorLower.includes(topicLower) ||
         topicLower.includes(titleLower);
     });
-  }).filter(b => !favBookIds.includes(b.id) && !HISPANIC_HERITAGE_BOOK_IDS.includes(b.id)) : [];
+  }).filter(b => !favBookIds.includes(b.id) && !heritageIds.includes(b.id)) : [];
 
   // Pagination — 10 books per page
   const booksPerPage = 10;
@@ -1897,7 +1911,7 @@ export default function Library() {
                   <h2 className="text-lg font-bold text-foreground">Hispanic Heritage Month</h2>
                   <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{hispanicHeritageBooks.length} quizzes</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Celebrate Hispanic Heritage Month with empowering and inspiring stories about Latino leaders, artists, scientists, and communities.</p>
+                <p className="text-sm text-muted-foreground mb-4 ml-7">Celebrate Hispanic Heritage Month with books our teachers recommend. Read one, then take the quiz.</p>
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {hispanicHeritageBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
@@ -1923,6 +1937,9 @@ export default function Library() {
                           )}
                         </div>
                         <div className="p-3">
+                          {heritageTeacher(book.id) && (
+                            <p className="mb-1.5 inline-flex items-center rounded-full bg-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-orange-400">Recommended by {heritageTeacher(book.id)}</p>
+                          )}
                           <h3 className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</h3>
                           <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
                           <div className="mt-2">
