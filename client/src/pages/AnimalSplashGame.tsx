@@ -116,15 +116,15 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
    </div>
   </header>
 
-  <section className="mx-auto grid w-full max-w-[1500px] gap-4 p-3 sm:p-4 md:grid-cols-[1.05fr_.95fr] xl:grid-cols-[1.12fr_.88fr]">
+  <section className="mx-auto grid w-full max-w-[1500px] gap-3 p-2 sm:p-3 md:grid-cols-[1.05fr_.95fr] md:gap-4 xl:grid-cols-[1.12fr_.88fr]">
    <div className="min-w-0 rounded-[2.25rem] border-4 border-white/90 bg-white/88 p-3 shadow-2xl backdrop-blur-xl sm:p-5">
-    <div className="mb-3 overflow-hidden rounded-[1.6rem] border-4 border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-3 text-center shadow-inner" aria-live="polite">
+    <div className="mb-2 overflow-hidden rounded-[1.35rem] border-4 border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-2.5 text-center shadow-inner sm:mb-3 sm:rounded-[1.6rem] sm:p-3" aria-live="polite">
      <div className="flex items-center justify-center gap-2 text-sky-900">{status==="listening"?<Mic className="h-6 w-6 animate-pulse"/>:status==="asking"&&!micAvailable?<MicOff className="h-6 w-6"/>:<Volume2 className="h-6 w-6"/>}<p className="text-lg font-black sm:text-xl xl:text-2xl">{message}</p></div>
      {heard&&<p className="mt-1 text-sm font-bold text-slate-600">I heard: “{heard}”</p>}
     </div>
 
-    {status!=="finished"?<div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-     {animals.map(animal=>{const selectedNow=selectedId===animal.id;return <button key={animal.id} type="button" onClick={()=>selectAnimal(animal)} onPointerDown={e=>beginDrag(e,animal)} onMouseEnter={()=>{if(statusRef.current!=="choose")return;if(dwellRef.current)window.clearTimeout(dwellRef.current);dwellRef.current=window.setTimeout(()=>selectAnimal(animal),900)}} onMouseLeave={stopDwell} disabled={status!=="choose"} style={{touchAction:"none",WebkitUserSelect:"none",userSelect:"none"}} className={`group relative min-h-[150px] overflow-hidden rounded-[1.45rem] border-4 bg-white shadow-lg transition focus:outline-none focus:ring-8 focus:ring-sky-300 sm:min-h-[165px] xl:min-h-[190px] ${selectedNow?"scale-[1.02] border-amber-400 ring-4 ring-amber-200":"border-white hover:border-sky-400"} disabled:opacity-55`} aria-label={`Choose the ${animal.name}`}>
+    {status!=="finished"?<div className="animal-mobile-tray flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 xl:grid-cols-4">
+     {animals.map(animal=>{const selectedNow=selectedId===animal.id;return <button key={animal.id} type="button" onClick={()=>selectAnimal(animal)} onPointerDown={e=>beginDrag(e,animal)} onMouseEnter={()=>{if(statusRef.current!=="choose")return;if(dwellRef.current)window.clearTimeout(dwellRef.current);dwellRef.current=window.setTimeout(()=>selectAnimal(animal),900)}} onMouseLeave={stopDwell} disabled={status!=="choose"} style={{touchAction:"none",WebkitUserSelect:"none",userSelect:"none"}} className={`group relative min-h-[132px] min-w-[138px] snap-center overflow-hidden rounded-[1.35rem] border-4 bg-white shadow-lg transition focus:outline-none focus:ring-8 focus:ring-sky-300 sm:min-h-[145px] sm:min-w-[150px] md:min-h-[165px] md:min-w-0 xl:min-h-[190px] ${selectedNow?"scale-[1.02] border-amber-400 ring-4 ring-amber-200":"border-white hover:border-sky-400"} disabled:opacity-55`} aria-label={`Choose the ${animal.name}`}>
       <img src={animal.image} alt={`Real ${animal.name}`} className="pointer-events-none absolute inset-0 h-full w-full object-cover" draggable={false}/>
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/65 to-transparent px-3 pb-3 pt-10 text-left text-white"><p className="text-lg font-black capitalize sm:text-xl">{animal.name}</p><p className="text-[9px] font-black uppercase tracking-wider text-white/75">gaze · tap · drag</p></div>
       {selectedNow&&<div className="absolute right-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[10px] font-black text-slate-950 shadow">READY</div>}
@@ -132,13 +132,36 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
     </div>:<div className="grid min-h-[430px] place-items-center rounded-[2rem] border-4 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-8 text-center"><div><Sparkles className="mx-auto h-16 w-16 text-amber-500"/><h2 className="mt-3 text-4xl font-black">All {ANIMALS.length} animals!</h2><p className="mt-2 text-lg font-bold text-slate-600">You listened, talked, and named the whole Animal Splash crew.</p><button type="button" onClick={reset} className="mt-6 min-h-16 rounded-2xl bg-emerald-600 px-8 text-xl font-black text-white shadow-lg">Play Again</button></div></div>}
    </div>
 
-   <div className="relative min-h-[520px] overflow-hidden rounded-[2.6rem] border-4 border-white bg-[linear-gradient(180deg,#80d7ff_0%,#dff7ff_34%,#8edb78_34%,#74c766_46%,#276c68_46%,#06466b_100%)] shadow-2xl sm:min-h-[620px]">
+   {selected && status==="choose" && (
+    <div className="md:hidden -mb-1 rounded-[1.45rem] border-4 border-amber-300 bg-white/95 p-2 shadow-xl">
+      <div className="flex items-center gap-3">
+        <img
+          src={selected.image}
+          alt={`Selected ${selected.name}`}
+          draggable={false}
+          onPointerDown={e=>beginDrag(e,selected)}
+          style={{touchAction:"none",WebkitUserSelect:"none",userSelect:"none"}}
+          className="h-24 w-24 shrink-0 rounded-[1.2rem] border-4 border-white object-cover shadow-lg"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-700">Ready to splash</p>
+          <h2 className="truncate text-2xl font-black capitalize">{selected.name}</h2>
+          <p className="mt-1 text-xs font-bold text-slate-600">Drag this big picture straight into the water below — or just tap the water.</p>
+        </div>
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-sky-100 text-sky-700">
+          <Waves className="h-7 w-7"/>
+        </div>
+      </div>
+    </div>
+   )}
+
+   <div className="relative min-h-[400px] overflow-hidden rounded-[2.35rem] border-4 border-white bg-[linear-gradient(180deg,#80d7ff_0%,#dff7ff_34%,#8edb78_34%,#74c766_46%,#276c68_46%,#06466b_100%)] shadow-2xl sm:min-h-[500px] md:min-h-[620px] md:rounded-[2.6rem]">
     <div className="absolute inset-x-0 top-0 h-[34%]"><span className="absolute left-[8%] top-[12%] h-14 w-28 rounded-full bg-white/70 blur-[1px]"/><span className="absolute right-[10%] top-[24%] h-11 w-24 rounded-full bg-white/60 blur-[1px]"/><div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-emerald-700/35 to-transparent"/></div>
     <div className="absolute inset-x-0 bottom-0 h-[54%] bg-[radial-gradient(ellipse_at_50%_0%,rgba(154,236,255,.75),transparent_40%),linear-gradient(180deg,#26b7dc_0%,#0882b8_35%,#04618e_68%,#033f66_100%)]"/>
     <div className="animal-caustics absolute inset-x-0 bottom-0 h-[54%] opacity-35"/>
     {Array.from({length:12}).map((_,i)=><span key={i} className="animal-bubble absolute bottom-[8%] h-3 w-3 rounded-full border-2 border-white/50 bg-white/10" style={{left:`${8+(i*7)%84}%`,animationDelay:`${-(i%6)*.7}s`,animationDuration:`${4+(i%4)*.8}s`}}/>)}
 
-    <button ref={poolRef} type="button" data-water-zone onClick={()=>selected&&dropAnimal(selected)} onMouseEnter={startPoolDwell} onMouseLeave={stopDwell} disabled={!selected||status!=="choose"} style={{touchAction:"none"}} className={`absolute inset-x-[3%] bottom-[3%] h-[55%] overflow-hidden rounded-[44%_44%_20%_20%/18%_18%_10%_10%] border-[7px] border-white/75 bg-transparent shadow-[inset_0_8px_30px_rgba(255,255,255,.24),0_20px_55px_rgba(3,105,161,.36)] focus:outline-none focus:ring-8 focus:ring-amber-300 disabled:cursor-default ${drag?"ring-8 ring-sky-200/80":""}`} aria-label={selected?`Put the ${selected.name} in the water`:"Water"}>
+    <button ref={poolRef} type="button" data-water-zone onClick={()=>selected&&dropAnimal(selected)} onMouseEnter={startPoolDwell} onMouseLeave={stopDwell} disabled={!selected||status!=="choose"} style={{touchAction:"none"}} className={`absolute inset-x-[2%] bottom-[2%] h-[62%] overflow-hidden md:inset-x-[3%] md:bottom-[3%] md:h-[55%] rounded-[44%_44%_20%_20%/18%_18%_10%_10%] border-[7px] border-white/75 bg-transparent shadow-[inset_0_8px_30px_rgba(255,255,255,.24),0_20px_55px_rgba(3,105,161,.36)] focus:outline-none focus:ring-8 focus:ring-amber-300 disabled:cursor-default ${drag?"ring-8 ring-sky-200/80":""}`} aria-label={selected?`Put the ${selected.name} in the water`:"Water"}>
       <div className="animal-water-surface absolute inset-x-[-8%] top-[1%] h-12 rounded-[50%] border-t-[5px] border-white/65 bg-gradient-to-b from-white/45 via-cyan-100/25 to-transparent"/>
       <div className="animal-water-wave absolute inset-x-[-5%] top-[9%] h-7 rounded-[50%] border-t-4 border-white/35"/>
       <div className="animal-water-wave animal-water-wave-2 absolute inset-x-[5%] top-[21%] h-6 rounded-[50%] border-t-4 border-cyan-50/25"/>
@@ -171,7 +194,13 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
    @keyframes animalBalloon{0%{transform:translateY(0) rotate(-5deg)}100%{transform:translateY(-120vh) rotate(9deg)}}
    @keyframes animalConfetti{0%{transform:translateY(-30px) rotate(0)}100%{transform:translateY(115vh) rotate(760deg)}}
    @keyframes animalBurst{0%{transform:translate(-50%,-25px) scale(.2) rotate(-4deg);opacity:0}75%{transform:translate(-50%,0) scale(1.1) rotate(2deg);opacity:1}100%{transform:translate(-50%,0) scale(1) rotate(0)}}
-   @media(max-width:820px){.animal-splash-game{touch-action:pan-y}.animal-splash-game button[style*="touch-action"]{touch-action:none!important}.animal-splash-game section{align-items:start}}
+   @media(max-width:820px){
+    .animal-splash-game{touch-action:pan-y}
+    .animal-splash-game button[style*="touch-action"]{touch-action:none!important}
+    .animal-splash-game section{align-items:start}
+    .animal-mobile-tray{-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .animal-mobile-tray::-webkit-scrollbar{display:none}
+   }
    @media(prefers-reduced-motion:reduce){.animal-caustics,.animal-water-surface,.animal-water-wave,.animal-bubble,.animal-ripple,.animal-splash-enter,.animal-splash-ring,.animal-droplet,.animal-party-balloon,.animal-party-confetti,.animal-party-burst{animation:none!important}}
   `}</style>
  </main>;
