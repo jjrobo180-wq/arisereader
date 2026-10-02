@@ -45,19 +45,13 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
   res.on("finish", () => {
     const duration = Date.now() - start;
+    // Never log API response bodies: they can contain student data, session tokens,
+    // parent connection codes, proctor credentials, or quiz results.
     // Paintball syncs many times a second; only log its failures.
     if (path.startsWith("/api") && (!path.startsWith("/api/paintball/") || res.statusCode >= 400)) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse && path !== '/api/parent-invites/print') logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      log(logLine);
+      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
   next();
