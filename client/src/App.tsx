@@ -74,6 +74,9 @@ const HomeInterior = lazyPage(() => import("./pages/HomeInterior"));
 const BoardGameWorld = lazyPage(() => import("./pages/BoardGameWorld"));
 const MidnightMystery = lazyPage(() => import("./pages/MidnightMystery"));
 const UltimateChess = lazyPage(() => import("./pages/UltimateChess"));
+const PaintballArena = lazyPage(() => import("./pages/PaintballArena"));
+const SkyboundSprint = lazyPage(() => import("./pages/SkyboundSprint"));
+const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const Library = lazyPage(() => import("./pages/Library"));
 const Quiz = lazyPage(() => import("./pages/Quiz"));
@@ -387,6 +390,21 @@ function AppRoutes() {
       <Route path="/ultimate-chess">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><UltimateChess /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/paintball-arena">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><PaintballArena /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/skybound-sprint">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><SkyboundSprint /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/aurora-rally">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><AuroraRally /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/laser-royale">
