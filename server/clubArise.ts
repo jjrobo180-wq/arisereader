@@ -1,6 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { getAdminSupabase } from "./supabase";
 import { storage } from "./storage";
+import { clubDay } from "../shared/clubPlay";
+import { choiceQuestions, fourAI, fourWinner, rescueGuess, RESCUE_WORDS, tileRounds } from "./arcadeContent";
 
 const SAFE_PHRASES = new Set([
   "Hi!","Want to play?","Good game!","Nice job!","Your turn!",
@@ -55,49 +57,6 @@ function withVehicles(players:any[]){
   });
 }
 
-const WORD_BANK = [
-  {word:"BOOK",hint:"You read this."},
-  {word:"FARM",hint:"A place with animals and crops."},
-  {word:"SPACE",hint:"Where stars and planets are."},
-  {word:"WATER",hint:"You drink this."},
-  {word:"MUSIC",hint:"Songs and sounds."},
-  {word:"LEARN",hint:"What you do at school."},
-  {word:"STORY",hint:"A tale with characters and events."},
-];
-
-const CHOICE_BANKS: Record<string, Array<{q:string;options:string[];correct:string}>> = {
-  math_duel:[
-    {q:"8 × 6 = ?",options:["42","48","56"],correct:"48"},
-    {q:"72 ÷ 8 = ?",options:["8","9","10"],correct:"9"},
-    {q:"35 + 27 = ?",options:["52","62","72"],correct:"62"},
-    {q:"90 - 46 = ?",options:["44","54","36"],correct:"44"},
-  ],
-  synonym_sprint:[
-    {q:"Which word means almost the same as HAPPY?",options:["Glad","Angry","Slow"],correct:"Glad"},
-    {q:"Which word means almost the same as QUICK?",options:["Fast","Quiet","Heavy"],correct:"Fast"},
-    {q:"Which word means almost the same as BEGIN?",options:["Start","Finish","Hide"],correct:"Start"},
-    {q:"Which word means almost the same as TINY?",options:["Huge","Small","Loud"],correct:"Small"},
-  ],
-  pattern_power:[
-    {q:"2, 4, 6, 8, ?",options:["9","10","12"],correct:"10"},
-    {q:"5, 10, 15, 20, ?",options:["25","30","35"],correct:"25"},
-    {q:"30, 25, 20, 15, ?",options:["5","10","12"],correct:"10"},
-    {q:"3, 6, 12, 24, ?",options:["30","36","48"],correct:"48"},
-  ],
-  sentence_fix:[
-    {q:"Pick the sentence written correctly.",options:["We went to the park.","we went to the park","We Went to the Park"],correct:"We went to the park."},
-    {q:"Pick the sentence written correctly.",options:["Where is my book?","Where is my book.","where is my book?"],correct:"Where is my book?"},
-    {q:"Pick the sentence written correctly.",options:["I like pizza, tacos, and rice.","I like pizza tacos and rice","i like pizza, tacos, and rice."],correct:"I like pizza, tacos, and rice."},
-    {q:"Pick the sentence written correctly.",options:["My dog is fast!","my dog is fast!","My dog is fast"],correct:"My dog is fast!"},
-  ],
-  fact_dash:[
-    {q:"Which planet do we live on?",options:["Mars","Earth","Venus"],correct:"Earth"},
-    {q:"Which animal is a mammal?",options:["Dolphin","Shark","Trout"],correct:"Dolphin"},
-    {q:"What do plants need to make food?",options:["Sunlight","Plastic","Sand only"],correct:"Sunlight"},
-    {q:"Which is the largest ocean?",options:["Atlantic","Pacific","Arctic"],correct:"Pacific"},
-  ],
-};
-
 function isStudent(user:any){
   return !!user && !user.isAdmin && user.role==="student" && !user.is_eye_gaze_user;
 }
@@ -108,100 +67,111 @@ async function readerIdentity(userId:number,fallback:any){
 }
 
 function initialState(gameType:string){
-  if(gameType==="four") return {
-    board:Array.from({length:6},()=>Array(7).fill(null)),
-    turn:1,
-    winner:null,
-  };
+  if(gameType==="four") return {board:Array.from({length:6},()=>Array(7).fill(null)),turn:1,winner:null,lastMove:null};
   if(gameType==="word_rescue"){
-    const pick=WORD_BANK[Math.floor(Math.random()*WORD_BANK.length)];
-    return {word:pick.word,hint:pick.hint,guessed:[],turn:1,winner:null,misses:0};
+    const pick=RESCUE_WORDS[Math.floor(Math.random()*RESCUE_WORDS.length)];
+    return {word:pick.word,hint:pick.hint,guessed:[],turn:1,winner:null,misses:0,maxMisses:8};
   }
   if(CHOICE_GAMES.has(gameType)){
-    return {round:0,turn:1,scores:[0,0],questions:CHOICE_BANKS[gameType]||[],winner:null};
+    return {round:0,turn:1,scores:[0,0],streaks:[0,0],questions:choiceQuestions(gameType),winner:null,last:null};
   }
-  return {
-    round:0,
-    turn:1,
-    scores:[0,0],
-    prompt:"Build the best word",
-    choices:[
-      ["READ","DEAR","DARE"],
-      ["BOOK","LOOK","COOK"],
-      ["STAR","ARTS","RATS"],
-      ["LEARN","NEAR","REAL"],
-    ],
-    winner:null,
-  };
+  const tiles=tileRounds();
+  return {round:0,turn:1,scores:[0,0],prompt:"Find the real word",choices:tiles.choices,real:tiles.real,winner:null,last:null};
 }
 
-function fourWinner(board:any[][]){
-  const dirs=[[1,0],[0,1],[1,1],[1,-1]];
-  for(let r=0;r<6;r++)for(let c=0;c<7;c++){
-    const p=board[r][c]; if(!p)continue;
-    for(const [dr,dc] of dirs){
-      let ok=true;
-      for(let i=1;i<4;i++){
-        const rr=r+dr*i,cc=c+dc*i;
-        if(rr<0||rr>=6||cc<0||cc>=7||board[rr][cc]!==p){ok=false;break;}
-      }
-      if(ok)return p;
-    }
-  }
-  return null;
+/** Scores one answer in a question game and moves the round along. Both players answer each round. */
+function answerChoice(state:any,playerIndex:number,choice:string){
+  const q=state.questions[state.round];
+  const correct=choice===q.correct;
+  state.scores=[...(state.scores||[0,0])];
+  state.streaks=[...(state.streaks||[0,0])];
+  const i=playerIndex-1;
+  state.streaks[i]=correct?(state.streaks[i]||0)+1:0;
+  const points=correct?10+5*Math.min(2,state.streaks[i]-1):0;
+  state.scores[i]=(state.scores[i]||0)+points;
+  state.last={player:playerIndex,choice,correct,answer:q.correct,points,round:state.round};
+  if(playerIndex===2){
+    state.round=Number(state.round||0)+1;state.turn=1;
+    if(state.round>=state.questions.length)state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
+  }else state.turn=2;
+}
+
+function answerTile(state:any,playerIndex:number,choice:string){
+  const real=String(state.real?.[state.round]||"");
+  const correct=!real||choice===real;
+  const points=correct?choice.length*2:0;
+  state.scores=[...(state.scores||[0,0])];
+  state.scores[playerIndex-1]=(state.scores[playerIndex-1]||0)+points;
+  state.last={player:playerIndex,choice,correct,answer:real||choice,points,round:state.round};
+  if(playerIndex===2){
+    state.round=Number(state.round||0)+1;state.turn=1;
+    if(state.round>=state.choices.length)state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
+  }else state.turn=2;
+}
+
+function dropPiece(state:any,column:number,playerIndex:number){
+  const board=(state.board||[]).map((r:any[])=>[...r]);
+  let row=-1;
+  for(let r=5;r>=0;r--)if(!board[r][column]){row=r;break;}
+  if(row<0)return false;
+  board[row][column]=playerIndex;
+  state.board=board;state.lastMove={row,column,player:playerIndex};
+  state.winner=fourWinner(board);
+  if(!state.winner&&board[0].every((cell:any)=>cell))state.winner=0;
+  state.turn=state.winner!==null?playerIndex:(playerIndex===1?2:1);
+  return true;
+}
+
+function guessLetter(state:any,letter:string,playerIndex:number){
+  state.guessed=Array.from(new Set([...(state.guessed||[]),letter]));
+  const hit=String(state.word).includes(letter);
+  if(!hit)state.misses=Number(state.misses||0)+1;
+  state.last={player:playerIndex,choice:letter,correct:hit};
+  const solved=String(state.word).split("").every((ch:string)=>state.guessed.includes(ch));
+  if(solved)state.winner=playerIndex;
+  else if(state.misses>=Number(state.maxMisses||8))state.winner=playerIndex===1?2:1;
+  // Guessing a right letter earns another turn.
+  else if(!hit)state.turn=playerIndex===1?2:1;
+}
+
+/** Strip answers the player should not see yet (current/future rounds, the hidden word). */
+function publicMatch(match:any){
+  const state=match?.state;
+  if(!state||typeof state!=="object")return match;
+  const done=match.status==="finished"||(state.winner!==null&&state.winner!==undefined);
+  if(done)return match;
+  const round=Number(state.round||0);
+  const out:any={...state};
+  if(Array.isArray(state.questions))out.questions=state.questions.map((q:any,i:number)=>i<round?q:{q:q.q,options:q.options});
+  if(Array.isArray(state.real))out.real=state.real.slice(0,round);
+  if(typeof state.word==="string")out.word=state.word.split("").map((ch:string)=>(state.guessed||[]).includes(ch)?ch:"_").join("");
+  return {...match,state:out};
 }
 
 function computerTurn(gameType:string,state:any){
-  if(!state?.computer||Number(state.turn)!==2||state.winner!==null&&state.winner!==undefined)return state;
-
-  if(gameType==="four"){
-    const board=(state.board||[]).map((r:any[])=>[...r]);
-    const valid:number[]=[];
-    for(let col=0;col<7;col++)if(board[0]?.[col]===null||board[0]?.[col]===undefined)valid.push(col);
-    if(!valid.length){state.winner=0;return state;}
-    const column=valid[Math.floor(Math.random()*valid.length)];
-    let row=-1;for(let r=5;r>=0;r--)if(!board[r][column]){row=r;break;}
-    if(row>=0)board[row][column]=2;
-    state.board=board;state.winner=fourWinner(board);state.turn=state.winner?2:1;return state;
+  // The computer keeps its turn after a correct letter, so loop (bounded).
+  for(let step=0;step<30;step++){
+    if(!state?.computer||Number(state.turn)!==2||(state.winner!==null&&state.winner!==undefined))return state;
+    if(gameType==="four"){
+      const column=fourAI(state.board||[],2);
+      if(column<0){state.winner=0;return state;}
+      dropPiece(state,column,2);
+    }else if(gameType==="word_rescue"){
+      const letter=rescueGuess(String(state.word||""),state.guessed||[]);
+      if(!letter){state.winner=0;return state;}
+      guessLetter(state,letter,2);
+    }else if(CHOICE_GAMES.has(gameType)){
+      const q=state.questions?.[state.round];
+      if(!q){state.winner=0;return state;}
+      const choice=Math.random()<.66?q.correct:q.options[Math.floor(Math.random()*q.options.length)];
+      answerChoice(state,2,choice);
+    }else{
+      const options:string[]=state.choices?.[state.round]||[];
+      if(!options.length){state.winner=0;return state;}
+      const real=String(state.real?.[state.round]||options[0]);
+      answerTile(state,2,Math.random()<.7?real:options[Math.floor(Math.random()*options.length)]);
+    }
   }
-
-  if(gameType==="word_rescue"){
-    const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-    const guessed=new Set<string>(state.guessed||[]);
-    const wordLetters=Array.from(new Set(String(state.word||"").split("").filter((x:string)=>/^[A-Z]$/.test(x)&&!guessed.has(x))));
-    const remaining=alphabet.filter(letter=>!guessed.has(letter));
-    if(!remaining.length){state.winner=0;return state;}
-    const smart=wordLetters.length&&Math.random()<.68;
-    const letter=(smart?wordLetters:remaining)[Math.floor(Math.random()*(smart?wordLetters.length:remaining.length))];
-    state.guessed=Array.from(new Set([...(state.guessed||[]),letter]));
-    if(!String(state.word||"").includes(letter))state.misses=Number(state.misses||0)+1;
-    const solved=String(state.word||"").split("").every((ch:string)=>state.guessed.includes(ch));
-    if(solved)state.winner=2;
-    else if(state.misses>=8)state.winner=1;
-    else state.turn=1;
-    return state;
-  }
-
-  if(CHOICE_GAMES.has(gameType)){
-    const q=state.questions?.[state.round];
-    if(!q){state.winner=0;return state;}
-    const options=Array.isArray(q.options)?q.options:[];
-    if(!options.length){state.winner=0;return state;}
-    const choice=Math.random()<.68?q.correct:options[Math.floor(Math.random()*options.length)];
-    state.scores=[...(state.scores||[0,0])];
-    if(choice===q.correct)state.scores[1]=(state.scores[1]||0)+10;
-    state.round=Number(state.round||0)+1;state.turn=1;
-    if(state.round>=state.questions.length)state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
-    return state;
-  }
-
-  const options=state.choices?.[state.round]||[];
-  if(!options.length){state.winner=0;return state;}
-  const choice=[...options].sort((a:string,b:string)=>b.length-a.length)[0];
-  state.scores=[...(state.scores||[0,0])];
-  state.scores[1]=(state.scores[1]||0)+String(choice).length;
-  state.round=Number(state.round||0)+1;state.turn=1;
-  if(state.round>=state.choices.length)state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
   return state;
 }
 
@@ -272,6 +242,37 @@ async function awardFinishedMatch(match:any,state:any){
 export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandler){
   const db=()=>getAdminSupabase();
 
+  // ─── Arcade Star Hunt: a few glowing stars a day, each worth bonus Reader Coins ───
+  const STARS_PER_DAY=6, COINS_PER_STAR=5;
+  const starKey=(userId:number)=>"arcade_stars_"+userId+"_"+clubDay(Date.now());
+  const starLocks=new Set<number>();
+  app.get("/api/club-arise/stars",authMiddleware,async(req:any,res)=>{
+    try{
+      if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
+      const found=Math.max(0,Number(await storage.getSetting(starKey(req.user.id)))||0);
+      res.set("Cache-Control","no-store");
+      res.json({found,perDay:STARS_PER_DAY,coinsPerStar:COINS_PER_STAR,remaining:Math.max(0,STARS_PER_DAY-found)});
+    }catch(error:any){res.status(500).json({message:"Could not load the star hunt."});}
+  });
+  app.post("/api/club-arise/stars/collect",authMiddleware,async(req:any,res)=>{
+    if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
+    if(starLocks.has(req.user.id))return res.status(429).json({message:"One star at a time!"});
+    starLocks.add(req.user.id);
+    try{
+      const key=starKey(req.user.id);
+      const found=Math.max(0,Number(await storage.getSetting(key))||0);
+      if(found>=STARS_PER_DAY)return res.json({found,perDay:STARS_PER_DAY,coinsPerStar:COINS_PER_STAR,remaining:0,awarded:0});
+      await storage.upsertSetting(key,String(found+1));
+      const bonusKey="avatar_world_bonus_"+req.user.id;
+      const bonus=Math.max(0,Number(await storage.getSetting(bonusKey))||0);
+      await storage.upsertSetting(bonusKey,String(bonus+COINS_PER_STAR));
+      res.json({found:found+1,perDay:STARS_PER_DAY,coinsPerStar:COINS_PER_STAR,remaining:STARS_PER_DAY-found-1,awarded:COINS_PER_STAR});
+    }catch(error:any){
+      console.error("[club-arise] star",error?.message);
+      res.status(500).json({message:"Could not collect that star."});
+    }finally{starLocks.delete(req.user.id);}
+  });
+
   app.get("/api/neighborhood/bootstrap",authMiddleware,async(req:any,res)=>{
     try{
       if(!isStudent(req.user))return res.status(403).json({message:"The Block is for student accounts."});
@@ -282,8 +283,9 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const existing=neighborhoodVisitors.get(req.user.id);
       const occupied=new Set(visitors.filter(v=>v.userId!==req.user.id&&v.lot>=0).map(v=>v.lot));
       const lot=existing&&existing.lot>=0?existing.lot:(Array.from({length:10},(_,i)=>i).find(i=>!occupied.has(i))??-1);
-      const lotX=[0,-12,12,-24,24,0,-12,12,-24,24][lot]??0;
-      const lotZ=lot>=5?-9:9;
+      // Arrive on the street just inside the entrance arch, spread out so readers don't stack.
+      const lotX=-35+(Math.max(0,lot)%5)*1.8;
+      const lotZ=lot>=5?-1.6:1.6;
       const self:NeighborhoodVisitor={userId:req.user.id,displayName,
         characterId:String(state.selectedCharacter||"robin-hood"),petId:activeWorldPet(state),
         homeId:HOME_IDS.has(state.equipped?.home)?state.equipped.home:"home-basic",lot,
@@ -299,8 +301,8 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
     if(!current)return res.status(409).json({message:"Enter The Block again to reconnect."});
     const x=Number(req.body?.x),z=Number(req.body?.z),facing=Number(req.body?.facing);
     neighborhoodVisitors.set(req.user.id,{...current,
-      x:Number.isFinite(x)?Math.max(-31,Math.min(31,x)):current.x,
-      z:Number.isFinite(z)?Math.max(-22,Math.min(22,z)):current.z,
+      x:Number.isFinite(x)?Math.max(-44,Math.min(44,x)):current.x,
+      z:Number.isFinite(z)?Math.max(-30,Math.min(30,z)):current.z,
       facing:Number.isFinite(facing)?Math.max(-Math.PI,Math.min(Math.PI,facing)):current.facing,
       updatedAt:Date.now()});
     res.set("Cache-Control","no-store");res.json({players:activeNeighborhoodVisitors()});
@@ -577,7 +579,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
           state:{...initialState(gameType),computer:true,opponentName:"Computer",adminPreview:req.adminPreview==="regular"},
         }).select("*").single();
         if(error)throw error;
-        return res.json(data);
+        return res.json(publicMatch(data));
       }
 
       const freshWaitingSince=new Date(Date.now()-15*60*1000).toISOString();
@@ -594,14 +596,14 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
           updated_at:new Date().toISOString(),
         }).eq("id",match.id).eq("status","waiting").select("*").single();
         if(error)throw error;
-        return res.json(data);
+        return res.json(publicMatch(data));
       }
 
       const {data,error}=await db().from("club_arise_matches").insert({
         game_type:gameType,status:"waiting",player1_id:req.user.id,state:{...initialState(gameType),adminPreview:req.adminPreview==="regular"},
       }).select("*").single();
       if(error)throw error;
-      res.json(data);
+      res.json(publicMatch(data));
     }catch(error:any){
       console.error("[club-arise] join",error?.message);
       res.status(500).json({message:"Could not join that game."});
@@ -637,7 +639,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       const ids=[data.player1_id,data.player2_id].filter(Boolean);
       const {data:players}=await db().from("club_arise_presence").select("user_id,display_name,character_id").in("user_id",ids);
       res.set("Cache-Control","no-store");
-      res.json({...data,players:data.state?.computer?[...(players||[]),{user_id:-1,display_name:"Computer",character_id:"computer"}]:(players||[])});
+      res.json({...publicMatch(data),players:data.state?.computer?[...(players||[]),{user_id:-1,display_name:"Computer",character_id:"computer"}]:(players||[])});
     }catch(error:any){
       res.status(500).json({message:"Could not load game."});
     }
@@ -653,57 +655,29 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       if(match.status!=="active") return res.status(400).json({message:"Waiting for another player."});
 
       const state:any={...(match.state||{})};
-      if(state.winner) return res.json(match);
+      if(state.winner!==null&&state.winner!==undefined) return res.json(publicMatch(match));
       if(Number(state.turn)!==playerIndex) return res.status(400).json({message:"Wait for your turn."});
 
       if(match.game_type==="four"){
         const column=Number(req.body?.column);
         if(!Number.isInteger(column)||column<0||column>6) return res.status(400).json({message:"Pick a column."});
-        const board=(state.board||[]).map((r:any[])=>[...r]);
-        let row=-1;
-        for(let r=5;r>=0;r--)if(!board[r][column]){row=r;break;}
-        if(row<0)return res.status(400).json({message:"That column is full."});
-        board[row][column]=playerIndex;
-        state.board=board;
-        state.winner=fourWinner(board);
-        state.turn=state.winner?playerIndex:(playerIndex===1?2:1);
+        if(!dropPiece(state,column,playerIndex))return res.status(400).json({message:"That column is full."});
       }else if(match.game_type==="word_rescue"){
         const letter=String(req.body?.letter||"").toUpperCase();
         if(!/^[A-Z]$/.test(letter)) return res.status(400).json({message:"Pick one letter."});
-        state.guessed=Array.from(new Set([...(state.guessed||[]),letter]));
-        if(!String(state.word).includes(letter))state.misses=Number(state.misses||0)+1;
-        const solved=String(state.word).split("").every((ch:string)=>state.guessed.includes(ch));
-        if(solved)state.winner=playerIndex;
-        else if(state.misses>=8)state.winner=playerIndex===1?2:1;
-        else state.turn=playerIndex===1?2:1;
+        if((state.guessed||[]).includes(letter))return res.status(400).json({message:"That letter was already picked."});
+        guessLetter(state,letter,playerIndex);
       }else if(CHOICE_GAMES.has(match.game_type)){
         const q=state.questions?.[state.round];
         if(!q)return res.status(400).json({message:"This round is complete."});
         const choice=String(req.body?.choice||"");
         if(!q.options.includes(choice))return res.status(400).json({message:"Choose one of the answers."});
-        state.scores=[...(state.scores||[0,0])];
-        if(choice===q.correct)state.scores[playerIndex-1]=(state.scores[playerIndex-1]||0)+10;
-        if(playerIndex===2){
-          state.round=Number(state.round||0)+1;
-          state.turn=1;
-          if(state.round>=state.questions.length){
-            state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
-          }
-        }else state.turn=2;
+        answerChoice(state,playerIndex,choice);
       }else{
         const choice=String(req.body?.choice||"").toUpperCase();
         const options=state.choices?.[state.round]||[];
         if(!options.includes(choice)) return res.status(400).json({message:"Choose one of the word tiles."});
-        const points=choice.length;
-        state.scores=[...(state.scores||[0,0])];
-        state.scores[playerIndex-1]=(state.scores[playerIndex-1]||0)+points;
-        if(playerIndex===2){
-          state.round=Number(state.round||0)+1;
-          state.turn=1;
-          if(state.round>=state.choices.length){
-            state.winner=state.scores[0]===state.scores[1]?0:(state.scores[0]>state.scores[1]?1:2);
-          }
-        }else state.turn=2;
+        answerTile(state,playerIndex,choice);
       }
 
       if(state.computer&&Number(state.turn)===2&&(state.winner===null||state.winner===undefined)){
@@ -717,7 +691,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
       }).eq("id",match.id).select("*").single();
       if(updateError)throw updateError;
       if(status==="finished")await awardFinishedMatch(data,state);
-      res.json({...data,rewards_awarded:status==="finished"?true:data.rewards_awarded});
+      res.json({...publicMatch(data),rewards_awarded:status==="finished"?true:data.rewards_awarded});
     }catch(error:any){
       console.error("[club-arise] action",error?.message);
       res.status(500).json({message:"Could not make that move."});

@@ -7,12 +7,15 @@ import WorldModelPreview from "@/components/WorldModelPreview";
 import { PET_PERSONALITIES } from "@/lib/pets";
 import { AVATAR_CHARACTERS, getAvatarCharacter } from "@/lib/avatarCharacters";
 import { ArrowLeft, Car, Check, Coins, Home, Lock, ShoppingBag, UserRound, X } from "lucide-react";
+import PetCareActions, { DEFAULT_PET_RULES, PET_CARE_MESSAGES, PetHealthBar, type PetAction, type PetRules } from "@/components/PetCareActions";
+import { FURNITURE_INFO, homeInfo } from "@/lib/homes";
 
 type CatalogItem={id:string;type:string;name:string;price:number;rarity:string};
 type Payload={
   economy:{level:number;quizzesTaken:number;passedQuizzes:number;totalPoints:number;lifetimeCoins:number;wallet:number;nextLevelAt:number|null;coinsPerPassedQuiz:number;coinsPerGame:number;winBonusCoins:number;levelBonus:number;clubGames:number;clubWins:number};
   state:{purchased:string[];selectedCharacter:string;equipped:Record<string,string>;furniture:string[];petCare:Record<string,{happiness:number;lastUpdatedAt:number;lastFedAt:number;lastTreatAt:number;lastWalkAt:number}>;lostPets?:string[];careSpent:number;spent:number};
   catalog:CatalogItem[];
+  petRules?:PetRules;
 };
 type Tab="character"|"shop"|"garage";
 
@@ -44,7 +47,8 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   const [previewCharacterId,setPreviewCharacterId]=useState<string|null>(null);
   const [pendingPurchase,setPendingPurchase]=useState<CatalogItem|null>(null);
   const [previewProduct,setPreviewProduct]=useState<CatalogItem|null>(null);
-  const [pendingCare,setPendingCare]=useState<{petId:string;action:"feed"|"treat"|"walk"|"play"}|null>(null);
+  const [pendingCare,setPendingCare]=useState<{petId:string;action:PetAction}|null>(null);
+  const [celebrate,setCelebrate]=useState<CatalogItem|null>(null);
   const previewRef=useRef<HTMLDivElement|null>(null);
   const petSectionRef=useRef<HTMLElement|null>(null);
 
@@ -82,22 +86,25 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
       const r=await fetch(API_BASE+"/api/avatar-world/purchase",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({itemId:product.id})});
       const d=await r.json();
       if(!r.ok)throw new Error(d.message||"Could not unlock that.");
-      setPayload(d);setMessage(product.type==="home"?"Unlocked "+product.name+" and set it as your active home. The Block is ready!":"Unlocked "+product.name+"!");
+      setPayload(d);if(["pet","home","car"].includes(product.type))setCelebrate(product);else setMessage(product.type==="furniture"?"Unlocked "+product.name+"! Place it from Decorate inside your home.":"Unlocked "+product.name+"!");
     }catch(error:any){setMessage(error.message||"Could not unlock that.");}
     finally{setBusy("");}
   };
 
-  const careForPet=async(petId:string,action:"feed"|"treat"|"walk"|"play")=>{
+  const careForPet=async(petId:string,action:PetAction)=>{
     if(!token)return;
     setPendingCare(null);setBusy("care");setMessage("");
     try{
       const r=await fetch(API_BASE+"/api/avatar-world/pet-care",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({petId,action})});
       const d=await r.json();if(!r.ok)throw new Error(d.message||"Could not care for your pet.");
-      setPayload(d);setMessage(action==="feed"?"Your pet loved the food!":action==="treat"?"Treat time!":action==="walk"?"That walk made your dog happier!":"Play time made your pet happier!");
+      setPayload(d);setMessage(PET_CARE_MESSAGES[action]);
     }catch(error:any){setMessage(error.message||"Could not care for your pet.");}
     finally{setBusy("");}
   };
 
+  const rules=payload?.petRules||DEFAULT_PET_RULES;
+  const priceFor=(item:CatalogItem)=>item.type==="pet"&&payload?.state.lostPets?.includes(item.id)?Math.ceil(item.price/2):item.price;
+  const requestCare=(petId:string,action:PetAction)=>{if(action==="walk"||action==="play")void careForPet(petId,action);else setPendingCare({petId,action});};
   const allItems=useMemo(()=>[...FREE_ITEMS,...(payload?.catalog||[])],[payload]);
   const owned=(id:string)=>FREE_ITEMS.some(x=>x.id===id)||!!payload?.state.purchased.includes(id);
   const getItem=(id:string)=>allItems.find(x=>x.id===id);
@@ -150,7 +157,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
         {([
           ["character",UserRound,"Character"],["shop",ShoppingBag,"Shop"],["garage",Car,"Garage"]
         ] as const).map(([id,Icon,label])=><button key={id} onClick={()=>setTab(id)} className={"min-h-12 sm:min-h-14 rounded-xl font-black text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 "+(tab===id?"bg-white text-slate-950 shadow-lg":"text-white/70 hover:bg-white/10")}><Icon className="w-5 h-5"/>{label}</button>)}
-        <button onClick={()=>navigate("/my-home")} className="min-h-12 sm:min-h-14 rounded-xl font-black text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-white/70 hover:bg-white/10"><Home className="w-5 h-5"/>Home</button>
+        <button onClick={()=>navigate("/my-home?owner="+(user?.id||""))} className="min-h-12 sm:min-h-14 rounded-xl font-black text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-white/70 hover:bg-white/10"><Home className="w-5 h-5"/>Home</button>
       </nav>
       {message&&<div className="mt-3 rounded-2xl bg-white/10 border border-white/15 p-3 text-center font-black flex items-center justify-center gap-2">{message}<button onClick={()=>setMessage("")}><X className="w-4 h-4"/></button></div>}
     </section>
@@ -216,25 +223,18 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
           </section>
           <section ref={petSectionRef} className="scroll-mt-28 rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <h3 className="text-xl font-black">My Club Pet</h3>
-            <p className="text-sm text-white/65 font-bold mt-1">Your pet follows you through A.R.I.S.E. worlds and games. Happiness keeps dropping with real time even when you are offline, so feed, treat, walk, and play with your pet. At 0% happiness, the pet runs away and must be re-adopted from the pet shop.</p>
+            <p className="text-sm text-white/65 font-bold mt-1">Your pet follows you through A.R.I.S.E. worlds and games. Happiness drops a little every few hours, even while you are offline. Play for free, or use coins for food, treats and vet visits. At 0% your pet runs away — you can rescue it from the pet shop for half price.</p>
             <div className="mt-3 grid sm:grid-cols-2 gap-2">
               {payload.catalog.filter(x=>x.type==="pet"&&owned(x.id)).map(pet=>{
                 const personality=PET_PERSONALITIES[pet.id];
                 const happiness=Math.max(0,Math.min(100,Math.round(payload.state.petCare[pet.id]?.happiness??90)));
-                const mood=happiness>=85?"Thrilled 🤩":happiness>=65?"Happy 😊":happiness>=40?"Okay 🙂":happiness>=20?"Needs care 🥺":"Very unhappy 😢";
-                const isDog=pet.id==="pet-dog";
                 return <div key={pet.id} className={"rounded-2xl border p-3 "+(petId===pet.id?"border-cyan-300 bg-cyan-300/10":"border-white/10 bg-white/5")}>
                   <div className="font-black text-lg">{personality?.emoji} {pet.name}</div>
                   <p className="text-sm text-cyan-200 font-bold">{personality?.trait}</p>
                   <p className="text-xs text-white/65 mt-1">“{personality?.greeting}” · Loves {personality?.favorite.toLowerCase()}.</p>
-                  <div className="mt-3 flex items-center justify-between text-xs font-black"><span>Happiness</span><span>{happiness}% · {mood}</span></div>
-                  <div className="mt-1 h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400 transition-all" style={{width:happiness+"%"}}/></div>
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <button onClick={()=>setPendingCare({petId:pet.id,action:"feed"})} disabled={!!busy||payload.economy.wallet<30} className="min-h-11 rounded-xl bg-amber-400 px-2 text-xs font-black text-slate-950 disabled:opacity-40">Food · 30 🪙<span className="block opacity-70">+30 happy</span></button>
-                    <button onClick={()=>setPendingCare({petId:pet.id,action:"treat"})} disabled={!!busy||payload.economy.wallet<10} className="min-h-11 rounded-xl bg-pink-300 px-2 text-xs font-black text-slate-950 disabled:opacity-40">Treat · 10 🪙<span className="block opacity-70">+12 happy</span></button>
-                    <button onClick={()=>setPendingCare({petId:pet.id,action:isDog?"walk":"play"})} disabled={!!busy} className="min-h-11 rounded-xl bg-emerald-300 px-2 text-xs font-black text-slate-950 disabled:opacity-40">{isDog?"Walk dog":"Play"} · Free<span className="block opacity-70">+22 happy</span></button>
-                    <button onClick={()=>equip("pet",petId===pet.id?"pet-none":pet.id)} disabled={!!busy} className="min-h-11 rounded-xl bg-cyan-300 px-2 text-xs font-black text-slate-950 disabled:opacity-40">{petId===pet.id?"Let pet rest":"Follow me"}</button>
-                  </div>
+                  <div className="mt-3"><PetHealthBar happiness={happiness} rules={rules}/></div>
+                  <div className="mt-3"><PetCareActions petId={pet.id} care={payload.state.petCare[pet.id]} wallet={payload.economy.wallet} rules={rules} busy={!!busy} onAct={a=>requestCare(pet.id,a)}/></div>
+                  <button onClick={()=>equip("pet",petId===pet.id?"pet-none":pet.id)} disabled={!!busy} className={"mt-2 min-h-11 w-full rounded-xl px-2 text-xs font-black disabled:opacity-40 "+(petId===pet.id?"bg-white/10 text-white":"bg-cyan-300 text-slate-950")}>{petId===pet.id?"✓ Following you · tap to let pet rest":"Bring this pet with me"}</button>
                 </div>;
               })}
               {!payload.catalog.some(x=>x.type==="pet"&&owned(x.id))&&<p className="text-sm text-white/60">Unlock an animal to meet your first companion.</p>}
@@ -253,18 +253,21 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
       <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","character","pet","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
         {shopItems.map(product=>{
-          const isOwned=owned(product.id),canAfford=payload.economy.wallet>=product.price;
+          const isOwned=owned(product.id),price=priceFor(product),canAfford=payload.economy.wallet>=price;
           const wasLost=product.type==="pet"&&!!payload.state.lostPets?.includes(product.id);
-          const icon=product.type==="pet"?PET_PERSONALITIES[product.id]?.emoji:product.type==="car"?"🚗":product.type==="home"?"🏠":product.type==="character"?"🧍":"🛋️";
+          const icon=product.type==="pet"?PET_PERSONALITIES[product.id]?.emoji:product.type==="car"?"🚗":product.type==="home"?"🏠":product.type==="character"?"🧍":FURNITURE_INFO[product.id]?.emoji||"🛋️";
           return <article key={product.id} className={"rounded-[2rem] overflow-hidden border-2 bg-gradient-to-br "+(rarityClass[product.rarity]||rarityClass.common)}>
             <div className="h-44 grid place-items-center bg-black/25 relative"><div className="text-7xl">{icon}</div><span className="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-[10px] font-black uppercase">{product.rarity}</span>{product.type==="character"?<button type="button" onClick={()=>{setPreviewCharacterId(product.id.replace(/^unlock-/,""));setTab("character");}} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview character</button>:["pet","car","home"].includes(product.type)&&<button type="button" onClick={()=>setPreviewProduct(product)} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview in 3D</button>}</div>
             <div className="p-4 bg-slate-950/85"><h3 className="text-lg font-black">{product.name}</h3><p className="text-xs font-black text-white/45 uppercase">{product.type}</p>
               {product.type==="pet"&&<p className="mt-2 text-xs text-white/70"><strong className="text-cyan-200">{PET_PERSONALITIES[product.id]?.trait}.</strong> {PET_PERSONALITIES[product.id]?.greeting} · Loves {PET_PERSONALITIES[product.id]?.favorite.toLowerCase()}. Keep happiness high with food, treats, walks, and play.</p>}
+              {wasLost&&<p className="mt-2 rounded-lg bg-rose-500/20 px-2 py-1 text-xs font-black text-rose-200">💔 Ran away — rescue for half price!</p>}
+              {product.type==="home"&&<><p className="mt-2 text-xs font-bold text-white/70">{homeInfo(product.id).tagline}</p><ul className="mt-2 space-y-0.5 text-xs font-bold text-cyan-100">{homeInfo(product.id).features.map(f=><li key={f}>✓ {f}</li>)}</ul></>}
+              {product.type==="furniture"&&<p className="mt-2 text-xs font-bold text-white/70">{FURNITURE_INFO[product.id]?.blurb}</p>}
               {product.type==="pet"&&isOwned
                 ?<button onClick={showPets} className="mt-4 w-full min-h-12 rounded-xl bg-emerald-500/20 font-black text-emerald-300">CARE FOR PET</button>
                 :product.type==="home"&&isOwned
                   ?<button disabled={!!busy||homeId===product.id} onClick={()=>void customize({action:"equip",slot:"home",itemId:product.id})} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(homeId===product.id?"bg-cyan-300 text-slate-950":"bg-emerald-500/20 text-emerald-300")}>{homeId===product.id?<><Check className="w-5 h-5"/>CURRENT HOME</>:<><Home className="w-5 h-5"/>USE AS MY HOME</>}</button>
-                  :<button disabled={isOwned||!canAfford||!!busy} onClick={()=>setPendingPurchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{product.price} · {wasLost?"RE-ADOPT":"UNLOCK"}</>:<><Lock className="w-5 h-5"/>{product.price}</>}</button>}
+                  :<button disabled={isOwned||!canAfford||!!busy} onClick={()=>setPendingPurchase(product)} className={"mt-4 w-full min-h-12 rounded-xl font-black flex items-center justify-center gap-2 "+(isOwned?"bg-emerald-500/20 text-emerald-300":canAfford?"bg-amber-400 text-slate-950":"bg-white/10 text-white/40")}>{isOwned?<><Check className="w-5 h-5"/>OWNED</>:canAfford?<><Coins className="w-5 h-5"/>{price} · {wasLost?"RESCUE":product.type==="pet"?"ADOPT":product.type==="home"?"BUY HOME":"UNLOCK"}</>:<><Lock className="w-5 h-5"/>{price} · need {price-payload.economy.wallet} more</>}</button>}
             </div>
           </article>;
         })}
@@ -299,17 +302,34 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     </div>}
     {pendingCare&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="care-title">
       <div className="w-[min(430px,100%)] rounded-3xl border border-amber-300/30 bg-slate-950 p-5 shadow-2xl">
-        <h2 id="care-title" className="text-2xl font-black">{pendingCare.action==="feed"?"Buy food for":pendingCare.action==="treat"?"Give a treat to":pendingCare.action==="walk"?"Walk":"Play with"} {getItem(pendingCare.petId)?.name}?</h2>
-        <p className="mt-2 text-sm text-white/70">{pendingCare.action==="feed"?"Food costs 30 Reader Coins and adds 30 happiness.":pendingCare.action==="treat"?"A treat costs 10 Reader Coins and adds 12 happiness.":pendingCare.action==="walk"?"Walking is free and adds 22 happiness.":"Play time is free and adds 22 happiness."}</p>
+        <h2 id="care-title" className="text-2xl font-black">{pendingCare.action==="feed"?"Buy food for":pendingCare.action==="treat"?"Give a treat to":"Take to the vet:"} {getItem(pendingCare.petId)?.name}?</h2>
+        <p className="mt-2 text-sm text-white/70">{pendingCare.action==="feed"?`Food costs ${rules.feedCost} Reader Coins and adds ${rules.feedBoost} happiness.`:pendingCare.action==="treat"?`A treat costs ${rules.treatCost} Reader Coins and adds ${rules.treatBoost} happiness.`:`A vet visit costs ${rules.vetCost} Reader Coins and brings happiness back to 100%.`}</p>
         <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPendingCare(null)} className="min-h-12 rounded-xl bg-white/10 font-black">Cancel</button><button type="button" onClick={()=>void careForPet(pendingCare.petId,pendingCare.action)} disabled={!!busy} className="min-h-12 rounded-xl bg-amber-400 font-black text-slate-950 disabled:opacity-40">Confirm</button></div>
       </div>
     </div>}
     {pendingPurchase&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
       <div className="w-[min(430px,100%)] rounded-3xl border border-amber-300/30 bg-slate-950 p-5 text-white shadow-2xl">
-        <h2 id="purchase-title" className="text-2xl font-black">Unlock {pendingPurchase.name}?</h2>
-        <p className="mt-2 text-sm text-white/70">This will spend <strong className="text-amber-300">{pendingPurchase.price.toLocaleString()} Reader Coins</strong>. You have {payload.economy.wallet.toLocaleString()} coins.</p>
-        <p className="mt-2 text-sm font-bold text-white/60">Your balance after unlocking: {(payload.economy.wallet-pendingPurchase.price).toLocaleString()} coins.</p>
-        <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPendingPurchase(null)} className="min-h-12 rounded-xl bg-white/10 font-black">Cancel</button><button type="button" onClick={()=>void purchase(pendingPurchase)} disabled={payload.economy.wallet<pendingPurchase.price||!!busy} className="min-h-12 rounded-xl bg-amber-400 px-3 font-black text-slate-950 disabled:opacity-50">Confirm unlock</button></div>
+        <h2 id="purchase-title" className="text-2xl font-black">{pendingPurchase.type==="pet"?(payload.state.lostPets?.includes(pendingPurchase.id)?"Rescue ":"Adopt ")+pendingPurchase.name+"?":pendingPurchase.type==="home"?"Buy the "+pendingPurchase.name+"?":"Unlock "+pendingPurchase.name+"?"}</h2>
+        {["pet","home","car"].includes(pendingPurchase.type)&&<WorldModelPreview id={pendingPurchase.id} className="mt-3 h-48 rounded-2xl bg-cyan-900/20"/>}
+        {pendingPurchase.type==="home"&&<p className="mt-2 text-sm font-bold text-cyan-100">You'll move in right away. Your house on The Block changes to the {pendingPurchase.name}, and you can switch back to any home you own later.</p>}
+        {pendingPurchase.type==="pet"&&<p className="mt-2 text-sm font-bold text-cyan-100">Your new pet starts 100% happy and will follow you around every world.</p>}
+        <p className="mt-2 text-sm text-white/70">This will spend <strong className="text-amber-300">{priceFor(pendingPurchase).toLocaleString()} Reader Coins</strong>. You have {payload.economy.wallet.toLocaleString()} coins.</p>
+        <p className="mt-2 text-sm font-bold text-white/60">Your balance after: {(payload.economy.wallet-priceFor(pendingPurchase)).toLocaleString()} coins.</p>
+        <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPendingPurchase(null)} className="min-h-12 rounded-xl bg-white/10 font-black">Cancel</button><button type="button" onClick={()=>void purchase(pendingPurchase)} disabled={payload.economy.wallet<priceFor(pendingPurchase)||!!busy} className="min-h-12 rounded-xl bg-amber-400 px-3 font-black text-slate-950 disabled:opacity-50">{pendingPurchase.type==="pet"?"Adopt!":pendingPurchase.type==="home"?"Buy & move in":"Confirm unlock"}</button></div>
+      </div>
+    </div>}
+    {celebrate&&<div className="fixed inset-0 z-[110] grid place-items-center bg-black/85 p-4" role="dialog" aria-modal="true" aria-labelledby="celebrate-title">
+      <div className="w-[min(480px,100%)] rounded-3xl border border-emerald-300/40 bg-gradient-to-b from-emerald-950 to-slate-950 p-5 text-center shadow-2xl">
+        <p className="text-4xl">🎉</p>
+        <h2 id="celebrate-title" className="mt-1 text-2xl font-black">{celebrate.type==="pet"?"Meet "+celebrate.name+"!":celebrate.type==="home"?"Welcome to your "+celebrate.name+"!":"Your "+celebrate.name+" is ready!"}</h2>
+        <WorldModelPreview id={celebrate.id} className="mt-3 h-56 rounded-2xl bg-black/20"/>
+        <p className="mt-2 text-sm font-bold text-white/75">{celebrate.type==="pet"?`“${PET_PERSONALITIES[celebrate.id]?.greeting||"Hi!"}” Your pet is following you now. Keep it happy with play, food and treats.`:celebrate.type==="home"?"You moved in! Your house on The Block has changed. Go inside to explore and decorate.":"It's parked in your garage and ready to drive."}</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {celebrate.type==="home"?<><button onClick={()=>navigate("/my-home?owner="+(user?.id||""))} className="min-h-12 rounded-xl bg-emerald-400 font-black text-slate-950">Go inside</button><button onClick={()=>navigate("/neighborhood")} className="min-h-12 rounded-xl bg-cyan-300 font-black text-slate-950">See it on The Block</button></>
+            :celebrate.type==="pet"?<><button onClick={()=>{setCelebrate(null);showPets();}} className="min-h-12 rounded-xl bg-emerald-400 font-black text-slate-950">Care for my pet</button><button onClick={()=>navigate("/neighborhood")} className="min-h-12 rounded-xl bg-cyan-300 font-black text-slate-950">Take a walk on The Block</button></>
+            :<button onClick={()=>{setCelebrate(null);setTab("garage");}} className="min-h-12 rounded-xl bg-emerald-400 font-black text-slate-950 sm:col-span-2">Open my garage</button>}
+          <button onClick={()=>setCelebrate(null)} className="min-h-11 rounded-xl bg-white/10 font-black sm:col-span-2">Keep shopping</button>
+        </div>
       </div>
     </div>}
   </main>;

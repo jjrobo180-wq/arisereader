@@ -12,6 +12,7 @@ import { createWorldModel } from "@/lib/worldModels";
 import { createWorldExit } from "@/lib/worldPortal";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 import MobileJoystick from "@/components/MobileJoystick";
+import ArcadeGameModal from "@/components/ArcadeGameModal";
 import { addHalloreadSceneDecor, HALLOREAD_ACTIVE } from "@/lib/halloread";
 
 type Player={
@@ -606,7 +607,7 @@ export default function ClubArise(){
   const joinGame=async(station:Station,computer=false)=>{
     setNotice(computer?"Starting a game against the computer…":"Finding another player…");
     const r=await fetch(API_BASE+"/api/club-arise/matches/join",{method:"POST",headers,body:JSON.stringify({gameType:station.id,computer})});const d=await r.json();
-    if(!r.ok){setNotice(d.message||"Could not join game.");return;}setMatch(d);setGameOpen(true);
+    if(!r.ok){setNotice(d.message||"Could not join game.");return;}setMatch(d);setGameOpen(true);setNotice(computer?"Game on! Good luck.":"Waiting for another reader to join…");
   };
 
   useEffect(()=>{
@@ -652,6 +653,46 @@ export default function ClubArise(){
   const opponent=match?.state?.computer?"Computer":match?.players?.find(p=>p.user_id!==self?.userId)?.display_name||"another reader";
   const onlineReaders=players.filter(p=>p.user_id!==self?.userId);
   const move=(key:"w"|"a"|"s"|"d",pressed:boolean)=>{if(pressed)keysRef.current.add(key);else keysRef.current.delete(key);};
+
+  // ⭐ Star Hunt: glowing stars hidden around the arcade, each worth bonus Reader Coins (daily cap on the server).
+  const [stars,setStars]=useState<{found:number;perDay:number;coinsPerStar:number;remaining:number}|null>(null);
+  useEffect(()=>{
+    if(!ready||!self||!token)return;
+    const scene=sceneRef.current;if(!scene)return;
+    let disposed=false,raf=0,collecting=false;
+    const group=new THREE.Group();group.name="starHunt";scene.add(group);
+    const starShape=new THREE.Shape();
+    for(let i=0;i<10;i++){const r=i%2?0.42:1,a=i/10*Math.PI*2+Math.PI/2;const x=Math.cos(a)*r,y=Math.sin(a)*r;if(i)starShape.lineTo(x,y);else starShape.moveTo(x,y);}
+    const geo=new THREE.ExtrudeGeometry(starShape,{depth:.25,bevelEnabled:true,bevelSize:.06,bevelThickness:.06,bevelSegments:1});geo.center();
+    const mat=new THREE.MeshStandardMaterial({color:0xfde047,emissive:0xf59e0b,emissiveIntensity:1.6,metalness:.3,roughness:.3});
+    const spots=[[-26,12],[26,12],[-12,18],[12,18],[-27,-14],[27,-14],[-6,-19],[6,-19],[-14,1],[14,1],[0,-6],[-8,9],[8,9]];
+    const place=(n:number)=>{
+      group.clear();
+      const picks=spots.map(p=>({p,k:Math.random()})).sort((a,b)=>a.k-b.k).slice(0,n);
+      picks.forEach(({p})=>{const star=new THREE.Mesh(geo,mat);star.scale.setScalar(.55);star.position.set(p[0],1.6,p[1]);star.castShadow=true;const glow=new THREE.PointLight(0xfde047,3,6,2);glow.position.y=0;star.add(glow);group.add(star);});
+    };
+    fetch(API_BASE+"/api/club-arise/stars",{headers:{Authorization:"Bearer "+token},cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(disposed||!d)return;setStars(d);place(Math.min(3,d.remaining));}).catch(()=>{});
+    const t0=performance.now();
+    const tick=()=>{
+      if(disposed)return;
+      const t=(performance.now()-t0)/1000;
+      const me=selfRootRef.current;
+      group.children.forEach((star,i)=>{
+        star.rotation.y=t*2+i;star.position.y=1.6+Math.sin(t*2.4+i)*.25;
+        if(me&&!collecting&&Math.hypot(me.position.x-star.position.x,me.position.z-star.position.z)<1.5){
+          collecting=true;group.remove(star);
+          fetch(API_BASE+"/api/club-arise/stars/collect",{method:"POST",headers,body:"{}"}).then(r=>r.json()).then(d=>{
+            if(disposed)return;setStars(d);
+            setNotice(d.awarded?`⭐ Star found! +${d.awarded} Reader Coins (${d.found}/${d.perDay} today)`:"You found every star today! Come back tomorrow.");
+            if(d.remaining>group.children.length&&group.children.length===0)place(Math.min(3,d.remaining));
+          }).catch(()=>{}).finally(()=>{collecting=false;});
+        }
+      });
+      raf=requestAnimationFrame(tick);
+    };
+    tick();
+    return()=>{disposed=true;cancelAnimationFrame(raf);scene.remove(group);geo.dispose();mat.dispose();};
+  },[ready,self?.userId,token]);
 
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
@@ -802,39 +843,12 @@ export default function ClubArise(){
       {access?.allowed===false&&<p className="mt-2 text-sm text-amber-300">Arcade games are currently unavailable.</p>}
     </div>}
 
-    {gameOpen&&match&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
-      <section className="max-h-[92dvh] w-[min(760px,96vw)] overflow-auto rounded-[2rem] bg-white p-5 text-slate-950 shadow-2xl">
-        <div className="flex items-start gap-3"><div className="flex-1"><p className="text-xs font-black uppercase tracking-wider text-slate-400">{match.state?.computer?"A.R.I.S.E Arcade · vs Computer":"A.R.I.S.E Arcade multiplayer"}</p><h2 className="text-2xl font-black">{STATIONS.find(s=>s.id===match.game_type)?.name}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{match.status==="waiting"?"Waiting for another reader…":match.status==="active"?(yourTurn?"Your turn!":"Waiting for "+opponent+"…"):"Game complete"}</p></div><button onClick={()=>void quitGame()} className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100" aria-label="Quit game"><X/></button></div>
-
-        {match.game_type==="four"&&<div className="mt-5 grid grid-cols-7 gap-1 rounded-2xl bg-blue-600 p-2">
-          {(match.state?.board||[]).flatMap((row:any[],r:number)=>row.map((cell:any,c:number)=><button key={r+"-"+c} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({column:c})} className={"aspect-square rounded-full border-4 border-blue-700 "+(cell===1?"bg-amber-400":cell===2?"bg-rose-500":"bg-white")} aria-label={"Column "+(c+1)}/>))}
-        </div>}
-
-        {match.game_type==="word_rescue"&&<div className="mt-5">
-          <div className="rounded-2xl bg-emerald-50 p-4 text-center"><p className="text-sm font-bold text-emerald-700">Clue: {match.state?.hint}</p><div className="mt-3 text-4xl font-black tracking-[.3em]">{String(match.state?.word||"").split("").map((ch:string)=>match.state?.guessed?.includes(ch)?ch:"_").join(" ")}</div><p className="mt-2 text-xs font-bold text-slate-500">Misses: {match.state?.misses||0} / 8</p></div>
-          <div className="mt-4 grid grid-cols-7 gap-2">{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter=><button key={letter} disabled={!yourTurn||match.state?.guessed?.includes(letter)||match.status!=="active"} onClick={()=>void gameAction({letter})} className="aspect-square rounded-xl bg-slate-100 font-black disabled:opacity-30">{letter}</button>)}</div>
-        </div>}
-
-        {match.game_type==="word_tiles"&&<div className="mt-5">
-          <div className="flex justify-between rounded-2xl bg-violet-50 p-4 font-black"><span>You: {match.state?.scores?.[myIndex-1]||0}</span><span>{opponent}: {match.state?.scores?.[myIndex===1?1:0]||0}</span></div>
-          <p className="mt-4 text-center font-black">Choose a word tile</p>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">{(match.state?.choices?.[match.state?.round]||[]).map((w:string)=><button key={w} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({choice:w})} className="min-h-20 rounded-2xl bg-violet-600 text-2xl font-black text-white disabled:opacity-40">{w}</button>)}</div>
-        </div>}
-
-        {["math_duel","synonym_sprint","pattern_power","sentence_fix","fact_dash"].includes(match.game_type)&&<div className="mt-5">
-          <div className="flex justify-between rounded-2xl bg-cyan-50 p-4 font-black"><span>You: {match.state?.scores?.[myIndex-1]||0}</span><span>{opponent}: {match.state?.scores?.[myIndex===1?1:0]||0}</span></div>
-          <div className="mt-4 rounded-2xl bg-slate-100 p-5 text-center">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Round {(match.state?.round||0)+1}</p>
-            <h3 className="mt-2 text-xl font-black">{match.state?.questions?.[match.state?.round]?.q||"Round complete"}</h3>
-          </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">{(match.state?.questions?.[match.state?.round]?.options||[]).map((choice:string)=><button key={choice} disabled={!yourTurn||match.status!=="active"} onClick={()=>void gameAction({choice})} className="min-h-20 rounded-2xl bg-slate-950 px-3 text-base font-black text-white disabled:opacity-40">{choice}</button>)}</div>
-        </div>}
-
-        {match.status==="finished"&&<div className="mt-5 rounded-2xl bg-amber-50 p-5 text-center"><h3 className="text-2xl font-black">{match.state?.computer?(Number(match.state?.winner)===1?"You won!":Number(match.state?.winner)===2?"Computer won — try again!":"Tie game!"):(match.winner_id===self?.userId?"You won!":match.winner_id?"Good game!":"Tie game!")}</h3><button onClick={()=>{setGameOpen(false);setMatch(null);}} className="mt-3 min-h-12 rounded-2xl bg-slate-950 px-5 font-black text-white">Back to Arcade</button></div>}
-      </section>
-    </div>}
+    {gameOpen&&match&&<ArcadeGameModal match={match} myIndex={myIndex} yourTurn={yourTurn} opponent={opponent}
+      onAction={body=>void gameAction(body)} onQuit={()=>void quitGame()} onClose={()=>{setGameOpen(false);setMatch(null);}}
+      onRematch={()=>{const station=STATIONS.find(s=>s.id===match.game_type);const vsComputer=!!match.state?.computer;setGameOpen(false);setMatch(null);if(station)void joinGame(station,vsComputer);}}/>}
 
     <div className="absolute bottom-28 right-3 z-20 hidden rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70 sm:block">Click a player for stats · click floor to walk · WASD / arrows</div>
+    {stars&&<div className="pointer-events-none absolute left-3 top-[112px] z-20 rounded-full bg-amber-300/95 px-3 py-1 text-xs font-black text-slate-950 shadow-lg">⭐ {stars.found}/{stars.perDay}<span className="hidden sm:inline"> Star Hunt{stars.remaining?" · find the glowing stars":" · all found today!"}</span></div>}
     {leavingWorld&&<WorldLoadingOverlay tone="club" label="Leaving A.R.I.S.E Arcade…" />}
   </main>;
 }

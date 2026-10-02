@@ -21,10 +21,12 @@ export default function WorldModelPreview({id,className=""}:{id:string;className
     if(model)scene.add(model);
     const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=false;
     controls.minDistance=4;controls.maxDistance=14;controls.target.set(0,id.startsWith("home-")||id.startsWith("pet-")?1.1:.7,0);
-    const resize=()=>{const w=mount.clientWidth,h=mount.clientHeight;camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();renderer.setSize(w,h);};
+    const resize=()=>{const w=mount.clientWidth,h=mount.clientHeight;camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
+    // The canvas follows its box instead of sizing it, so dialogs never get pushed wider than the screen.
+    Object.assign(renderer.domElement.style,{position:"absolute",inset:"0",width:"100%",height:"100%",display:"block"});
     resize();const observer=new ResizeObserver(resize);observer.observe(mount);
     let frame=0;const draw=()=>{controls.update();renderer.render(scene,camera);frame=requestAnimationFrame(draw);};draw();
     return()=>{cancelAnimationFrame(frame);observer.disconnect();controls.dispose();renderer.dispose();if(renderer.domElement.parentElement===mount)mount.removeChild(renderer.domElement);};
   },[id]);
-  return <div ref={mountRef} className={className} aria-label="Drag to rotate the 3D model"/>;
+  return <div ref={mountRef} className={(/\b(absolute|fixed)\b/.test(className)?"":"relative ")+"overflow-hidden "+className} aria-label="Drag to rotate the 3D model"/>;
 }
