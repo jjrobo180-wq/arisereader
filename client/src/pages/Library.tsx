@@ -519,6 +519,7 @@ export default function Library() {
   // Close mobile menu on click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      if ((e.target as Element)?.closest?.("[data-keep-menu-open]")) return; // e.g. the A.R.I.S.E. 2.0 pop-up opened from the menu
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
         setShowMobileMenu(false);
       }
