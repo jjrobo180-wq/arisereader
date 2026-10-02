@@ -82,6 +82,10 @@ export default function CustomEyeGazeQuiz() {
   const [bossHealth, setBossHealth] = useState(0);
   const [lastFeedback, setLastFeedback] = useState<"correct" | "try" | null>(null);
   const correctButtonRef = useRef<HTMLElement | null>(null);
+  const [proctorPassword, setProctorPassword] = useState("");
+  const [proctorSessionToken, setProctorSessionToken] = useState("");
+  const [proctorError, setProctorError] = useState("");
+  const [proctorLoading, setProctorLoading] = useState(false);
 
   // Spectator mode for teachers/admins
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
@@ -174,9 +178,31 @@ export default function CustomEyeGazeQuiz() {
     };
   }, [currentIdx, phase, quiz, ttsEnabled]);
 
+  const handleProctorVerify = async () => {
+    const token = authToken || getTokenFromCookie();
+    if (!token || !proctorPassword.trim()) return;
+    setProctorLoading(true);
+    setProctorError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/verify-proctor`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ password: proctorPassword.trim(), quizKind: "custom_eye_gaze", quizId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "That proctor code is not valid.");
+      setProctorSessionToken(String(data.proctorSessionToken || ""));
+      setProctorPassword("");
+    } catch (err: any) {
+      setProctorError(err?.message || "Could not verify the proctor code.");
+    } finally {
+      setProctorLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (!user) return;
-    if (phase !== "loading") return;
+    if (!user || isTeacherOrAdmin) return;
+    if (phase !== "loading" || !proctorSessionToken) return;
     const token = authToken || getTokenFromCookie();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -184,15 +210,15 @@ export default function CustomEyeGazeQuiz() {
     fetch(`${API_BASE}/api/custom-quizzes/${quizId}/start`, {
       method: "POST",
       headers,
+      body: JSON.stringify({ proctorSessionToken }),
     })
-      .then((r) => {
-        if (r.status === 400 || r.status === 401) {
-          return r.json().then((d) => {
-            setError(d.message || "You need to be logged in to take this quiz.");
-            return null;
-          });
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setError(data.message || "Could not start this quiz.");
+          return null;
         }
-        return r.json();
+        return data;
       })
       .then((data) => {
         if (data && data.questions) {
@@ -202,7 +228,7 @@ export default function CustomEyeGazeQuiz() {
         }
       })
       .catch(() => setError("Failed to load quiz"));
-  }, [quizId, user, phase, authToken]);
+  }, [quizId, user, phase, authToken, proctorSessionToken, isTeacherOrAdmin]);
 
   const handleSelectAnswer = (answer: string, buttonEl?: HTMLElement) => {
     if (autoAdvancing) return;
@@ -267,6 +293,41 @@ export default function CustomEyeGazeQuiz() {
       if (advanceTimer.current) clearTimeout(advanceTimer.current);
     };
   }, []);
+
+  if (!isTeacherOrAdmin && phase === "loading" && !proctorSessionToken && !error) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20, background: "hsl(0 0% 10%)", color: "hsl(0 0% 96%)" }}>
+        <div style={{ width: "min(460px, 100%)", border: "1px solid hsl(0 0% 24%)", borderRadius: 20, padding: 28, background: "hsl(0 0% 14%)", textAlign: "center" }}>
+          <div style={{ fontSize: 42, marginBottom: 10 }}>🔒</div>
+          <h1 style={{ margin: "0 0 8px", fontSize: 26 }}>Proctor Required</h1>
+          <p style={{ margin: "0 0 20px", color: "hsl(0 0% 68%)", lineHeight: 1.5 }}>
+            Ask your linked parent/guardian or a teacher to enter their private proctor code to start this quiz.
+          </p>
+          {proctorError && <p style={{ color: "hsl(0 80% 70%)", fontWeight: 700 }}>{proctorError}</p>}
+          <input
+            type="password"
+            value={proctorPassword}
+            onChange={(e) => { setProctorPassword(e.target.value); setProctorError(""); }}
+            onKeyDown={(e) => { if (e.key === "Enter") void handleProctorVerify(); }}
+            placeholder="Parent or teacher proctor code"
+            autoComplete="off"
+            style={{ width: "100%", boxSizing: "border-box", padding: "14px 16px", borderRadius: 12, border: "1px solid hsl(0 0% 30%)", background: "hsl(0 0% 9%)", color: "white", fontSize: 16, marginBottom: 12 }}
+          />
+          <button
+            type="button"
+            onClick={() => void handleProctorVerify()}
+            disabled={!proctorPassword.trim() || proctorLoading}
+            style={{ width: "100%", padding: "14px 16px", border: 0, borderRadius: 12, background: "hsl(21 100% 50%)", color: "black", fontWeight: 900, fontSize: 16, cursor: "pointer", opacity: !proctorPassword.trim() || proctorLoading ? 0.6 : 1 }}
+          >
+            {proctorLoading ? "Verifying..." : "Unlock Quiz"}
+          </button>
+          <button type="button" onClick={() => navigate("/library")} style={{ marginTop: 12, border: 0, background: "transparent", color: "hsl(0 0% 70%)", cursor: "pointer" }}>
+            ← Back to Library
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
