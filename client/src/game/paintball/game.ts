@@ -4,6 +4,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import {
   PB, F, MAP, WEAPONS, clamp, wrapAngle, stepBody, raycastWorld, rayPlayer, pelletDirs, aimDir, lineOfSight,
   type Body, type Snapshot, type RoomMeta, type GameEvent, type Team, type V3, type PlayerMeta, type Phase,
@@ -203,6 +204,12 @@ export class PaintballGame {
       const rt = new THREE.WebGLRenderTarget(Math.max(1, size.x), Math.max(1, size.y), { type: THREE.HalfFloatType, samples: q === "high" ? 4 : 2 });
       this.composer = new EffectComposer(this.renderer, rt);
       this.composer.addPass(new RenderPass(this.scene, this.camera));
+      // Some GPUs produce stray NaN/huge pixels; bloom would smear them into black squares. Clean them first.
+      this.composer.addPass(new ShaderPass({
+        uniforms: { tDiffuse: { value: null } },
+        vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        fragmentShader: "uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); if (!(c.r == c.r) || !(c.g == c.g) || !(c.b == c.b)) c = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = vec4(clamp(c.rgb, 0.0, 32.0), clamp(c.a, 0.0, 1.0)); }",
+      }));
       this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.32, 0.55, 0.88);
       this.composer.addPass(this.bloom);
       this.composer.addPass(new OutputPass());
@@ -853,7 +860,8 @@ export class PaintballGame {
       // name tags: teammates always, enemies when aimed at or recently hit
       const mate = r.meta.team === this.myTeam;
       const aimed = target.enemy === r;
-      r.ch.setTagVisible(alive && (mate || aimed || now - r.lastHitAt < 2500));
+      const near = Math.hypot(x - camPos.x, z - camPos.z) < 45;
+      r.ch.setTagVisible(alive && ((mate && near) || aimed || now - r.lastHitAt < 2500));
       r.ch.update(dt, x, y, z, {
         vx: r.vx, vz: r.vz, vy: r.vy, aimYaw: yaw, aimPitch: pitch,
         grounded: !!(flags & F.GROUNDED), crouch: !!(flags & F.CROUCH), ads: !!(flags & F.ADS), sprint: !!(flags & F.SPRINT),
