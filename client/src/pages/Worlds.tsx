@@ -15,7 +15,7 @@ const WORLDS:{id:WorldId;title:string;description:string;path?:string;color:numb
   {id:"laser",title:"Prism Paintball",description:"5v5 third-person paintball: three paint markers, forts, inflatable bunkers, smart bots and live multiplayer.",path:"/paintball-arena",color:0x22d3ee},
   {id:"space",title:"Skybound Sprint",description:"Run and jump across floating crystal islands, dodge patrol bots, hit checkpoints, and reach the golden portal.",path:"/skybound-sprint",color:0x8b5cf6},
   {id:"beach",title:"The Beach",description:"Palm trees, a seaside boardwalk, and sunny adventures. Coming soon.",color:0xfacc6b},
-  {id:"racetrack",title:"Aurora Rally",description:"A third-person circuit racer with AI rivals, boost pads, drifting-style steering, and three-lap races.",path:"/aurora-rally",color:0xf87171},
+  {id:"racetrack",title:"Aurora Racers",description:"Kart racing on 4 wild tracks: drift for mini-turbos, throw paint bombs, win the Grand Prix and upgrade your kart.",path:"/aurora-rally",color:0xf87171},
 ];
 
 function sphere(radius:number,color:number,roughness=.8){return new THREE.Mesh(new THREE.SphereGeometry(radius,32,24),new THREE.MeshStandardMaterial({color,roughness,metalness:.1}));}

@@ -255,7 +255,7 @@ function Menu(props: {
         <div className="relative max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[.35em] text-cyan-300">A.R.I.S.E. arena · team paint battle</p>
           <h1 className="pb-glow mt-3 text-6xl font-black italic leading-[.9] tracking-tight sm:text-8xl">
-            PRISM<br /><span className="bg-gradient-to-r from-cyan-300 via-white to-pink-400 bg-clip-text text-transparent">PAINTBALL</span>
+            PRISM<br /><span className="bg-gradient-to-r from-cyan-300 via-white to-pink-400 bg-clip-text text-transparent" style={{ textShadow: "none" }}>PAINTBALL</span>
           </h1>
           <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-slate-200 sm:text-lg">
             5v5 third-person paintball. Sprint between inflatable bunkers, climb the forts, jump crates and splat the other team. First squad to {PB.SCORE_TO_WIN} splats wins.
