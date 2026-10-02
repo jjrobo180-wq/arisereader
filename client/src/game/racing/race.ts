@@ -739,7 +739,12 @@ export class Race {
     if (b.offroad && Math.abs(b.speed) > 6 && b.grounded && Math.random() < dt * 30) {
       const theme = this.track.def.theme;
       const c = theme === "frost" ? 0xffffff : theme === "shores" ? 0xf3e2b0 : theme === "books" ? 0xd6b48a : 0x6366f1;
-      for (const sp of r.model.sparkPoints) this.particles.add(sp.getWorldPosition(new THREE.Vector3()), new THREE.Vector3((Math.random() - 0.5) * 2, 1.2, (Math.random() - 0.5) * 2), 0.7, 0.25, c, -0.5, 2.2);
+      for (const sp of r.model.sparkPoints) {
+        const w = sp.getWorldPosition(new THREE.Vector3());
+        // small puffs, and none right in front of the camera where they would block the view
+        if (w.distanceTo(this.camera.position) < 7) continue;
+        this.particles.add(w, new THREE.Vector3((Math.random() - 0.5) * 2, 0.8, (Math.random() - 0.5) * 2), 0.45, 0.14, c, -0.3, 1.2);
+      }
     }
     // spin stars
     if (b.spinTime > 0 && Math.random() < dt * 20) this.particles.add(b.pos.clone().add(new THREE.Vector3(0, 2.2, 0)), new THREE.Vector3((Math.random() - 0.5) * 3, 2, (Math.random() - 0.5) * 3), 0.6, 0.12, 0xfde047, 4);
