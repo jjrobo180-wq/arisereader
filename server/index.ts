@@ -49,8 +49,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     // Never log API response bodies: they can contain student data, session tokens,
     // parent connection codes, proctor credentials, or quiz results.
-    // Paintball syncs many times a second; only log its failures.
-    if (path.startsWith("/api") && (!path.startsWith("/api/paintball/") || res.statusCode >= 400)) {
+    // Paintball and racing rooms sync many times a second; only log their failures.
+    if (path.startsWith("/api") && ((!path.startsWith("/api/paintball/") && !path.startsWith("/api/racing/rooms/")) || res.statusCode >= 400)) {
       log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
