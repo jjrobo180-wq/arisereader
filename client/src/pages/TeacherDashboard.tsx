@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3 } from "lucide-react";
+import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -35,7 +35,13 @@ type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents"
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [tab, setTab] = useState<Tab>("students");
+  const [tab, setTab] = useState<Tab>(() => {
+    // Other pages can open a specific tab by setting this key before navigating here.
+    let requested: string | null = null;
+    try { requested = sessionStorage.getItem("teacher_dashboard_tab"); sessionStorage.removeItem("teacher_dashboard_tab"); } catch {}
+    const valid: Tab[] = ["students", "all-students", "pending", "book-requests", "parents", "proctor", "grade-changes", "growth-check", "club-controls"];
+    return valid.includes(requested as Tab) ? (requested as Tab) : "students";
+  });
   const [students, setStudents] = useState<Student[]>([]);
   const [pending, setPending] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -392,6 +398,15 @@ export default function TeacherDashboard() {
   return <main style={styles.page}>
     <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><NotificationBell refreshKey={bellRefreshKey} onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} /><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>
     {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={styles.content}>
+      <button onClick={() => navigate("/teacher-arise-2")} style={styles.arise2Banner} data-testid="button-teacher-arise-2">
+        <span style={styles.arise2Icon}><Sparkles size={20} /></span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={styles.arise2Eyebrow}>New for teachers</span>
+          <span style={styles.arise2Title}>What A.R.I.S.E. 2.0 can do for your class</span>
+          <span style={styles.arise2Sub}>Live games, game-time controls, and quiz tracking in one 2-minute read.</span>
+        </span>
+        <ChevronRight size={22} style={{ flexShrink: 0, opacity: 0.75 }} />
+      </button>
       <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, marginBottom: 18 }}>Host a live quiz</button>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">
         <TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton>
@@ -740,6 +755,11 @@ function TabButton({ active, onClick, icon, children }: { active: boolean; onCli
 function ActionButton({ onClick, icon, children }: { onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) { return <button onClick={onClick} style={styles.actionButton}>{icon}{children}</button>; }
 
 const styles: Record<string, React.CSSProperties> = {
+  arise2Banner: { display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", background: "linear-gradient(110deg, rgba(124,58,237,.30), rgba(192,38,211,.18) 55%, rgba(6,182,212,.20))", border: "1px solid rgba(196,181,253,.30)", borderRadius: 18, color: "#fff", cursor: "pointer", padding: "16px 18px", marginBottom: 14, boxShadow: "0 16px 40px rgba(124,58,237,.18)" },
+  arise2Icon: { display: "grid", placeItems: "center", width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: "linear-gradient(135deg,#8b5cf6,#d946ef,#22d3ee)" },
+  arise2Eyebrow: { display: "block", fontSize: 11, fontWeight: 900, letterSpacing: ".2em", textTransform: "uppercase", color: "#a5f3fc" },
+  arise2Title: { display: "block", fontSize: 18, fontWeight: 900, marginTop: 2 },
+  arise2Sub: { display: "block", fontSize: 14, color: "hsl(0 0% 78%)", marginTop: 2 },
   bannerCard: { padding: "12px 16px", borderRadius: 8, marginBottom: 16, fontSize: 15, fontWeight: 600 },
   page: { minHeight: "100vh", background: "radial-gradient(circle at 10% 0%, rgba(124,58,237,.24), transparent 28%), radial-gradient(circle at 90% 8%, rgba(6,182,212,.16), transparent 26%), radial-gradient(circle at 52% 45%, rgba(217,70,239,.08), transparent 35%), #0b0a16", color: "#f8fafc", fontFamily: "'Barlow', system-ui, sans-serif", padding: "20px clamp(16px, 4vw, 56px) 48px" },
   header: { maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,.10)", paddingBottom: 20, gap: 12 },
