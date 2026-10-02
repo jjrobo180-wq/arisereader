@@ -259,7 +259,7 @@ export default function Quiz() {
   }
 
   if (alreadyTaken) {
-    const passingScore = Math.ceil(alreadyTaken.total * (alreadyTaken.total > 10 ? 0.70 : 0.60));
+    const passingScore = Math.ceil(alreadyTaken.total * 0.70);
     const passed = alreadyTaken.score >= passingScore;
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
