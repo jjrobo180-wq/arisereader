@@ -938,7 +938,10 @@ export async function registerRoutes(
   registerClubAriseRoutes(app, authMiddleware);
   registerChessArenaRoutes(app, authMiddleware);
   registerBoardQuestRoutes(app, authMiddleware);
-  registerPaintballArenaRoutes(app, authMiddleware);
+  registerPaintballArenaRoutes(app, authMiddleware, {
+    httpServer,
+    resolveToken: async (token) => (token ? (await storage.getSession(token))?.user ?? null : null),
+  });
   const theaterCatalog = createTheaterCatalogStore(storage);
   // My World uses a lightweight grown-up math gate from the child's account.
   // These short-lived tokens are only an editing gate, not account authentication.

@@ -1,81 +1,229 @@
+// Prism Paintball — HTTP + WebSocket transport for the authoritative simulation.
 import type { Express, RequestHandler } from "express";
-import { randomInt } from "node:crypto";
+import type { Server, IncomingMessage } from "node:http";
+import type { Duplex } from "node:stream";
+import { WebSocketServer, WebSocket } from "ws";
+import { PB, type BotLevel, type ClientSync } from "../shared/paintball";
+import {
+  rooms, createRoom, addHuman, removeHuman, switchTeam, syncBots, startMatch, bumpMeta, buildSnapshot,
+  handleSync, setTickHook, ensureTicker, type Room, type SPlayer,
+} from "./paintballSim";
 
-type Team="cyan"|"magenta";
-type Phase="lobby"|"playing"|"finished";
-type Player={
-  id:number;name:string;team:Team;x:number;z:number;rot:number;moving:boolean;sprinting:boolean;
-  tags:number;downs:number;respawnAt:number;lastShotAt:number;bot:boolean;lastSeen:number;
-};
-type Room={
-  code:string;hostId:number;phase:Phase;players:Player[];scores:Record<Team,number>;
-  createdAt:number;startedAt:number;endsAt:number;publicLobby:boolean;scope:string;winner:Team|null;
-};
+type AnyUser = { id: number | string; displayName?: string; username?: string; role?: string; is_eye_gaze_user?: boolean; school_id?: unknown; teacherId?: unknown };
 
-const rooms=new Map<string,Room>();
-const GAME_MS=5*60*1000;
-const ARENA=27;
-const clamp=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
-const scope=(u:any)=>u.school_id?"school:"+u.school_id:u.teacherId?"teacher:"+u.teacherId:"readers";
-const spawn=(team:Team,index=0)=>team==="cyan"?{x:-20+(index%3)*2,z:-9+(index%4)*6}:{x:20-(index%3)*2,z:-9+(index%4)*6};
+const scopeOf = (u: AnyUser) => (u.school_id ? "school:" + u.school_id : u.teacherId ? "teacher:" + u.teacherId : "readers");
+const nameOf = (u: AnyUser) => String(u.displayName || u.username || "Reader").replace(/\s+/g, " ").trim().slice(0, 22) || "Reader";
+const levelOf = (v: unknown): BotLevel => (v === "easy" || v === "hard" ? v : "normal");
+const denied = (u: AnyUser) => u.role === "parent" || !!u.is_eye_gaze_user;
 
-function publicPlayer(p:Player){const {lastShotAt,lastSeen,...rest}=p;return rest;}
-function snapshot(room:Room,now=Date.now()){tick(room,now);return {...room,serverNow:now,players:room.players.map(publicPlayer),timeLeft:room.phase==="playing"?Math.max(0,room.endsAt-now):0};}
-function member(room:Room,id:number){return room.players.some(p=>p.id===id);}
-function makePlayer(user:any,room:Room,bot=false):Player{
-  const team:Team=room.players.filter(p=>p.team==="cyan").length<=room.players.filter(p=>p.team==="magenta").length?"cyan":"magenta";
-  const pos=spawn(team,room.players.filter(p=>p.team===team).length);
-  return {id:bot?-randomInt(100000,999999):Number(user.id),name:bot?(["Pixel","Nova","Bolt","Rocket"][room.players.length%4]+" CPU"):String(user.displayName||user.username||"Reader").slice(0,28),team,...pos,rot:team==="cyan"?Math.PI/2:-Math.PI/2,moving:false,sprinting:false,tags:0,downs:0,respawnAt:0,lastShotAt:0,bot,lastSeen:Date.now()};
+const sockets = new Map<WebSocket, { room: string; id: number }>();
+
+function findMemberRoom(id: number): Room | undefined {
+  return Array.from(rooms.values()).find((r) => r.players.some((p) => p.id === id && !p.bot));
 }
-function tag(room:Room,shooter:Player,target:Player,now:number){if(target.respawnAt||shooter.team===target.team)return false;shooter.tags++;target.downs++;room.scores[shooter.team]++;target.respawnAt=now+1600;target.moving=false;return true;}
-function findHit(room:Room,shooter:Player,now:number){
-  let best:Player|null=null,bestDist=Infinity;
-  for(const t of room.players){
-    if(t.id===shooter.id||t.team===shooter.team||t.respawnAt)continue;
-    const dx=t.x-shooter.x,dz=t.z-shooter.z,dist=Math.hypot(dx,dz);if(dist>24||dist>=bestDist)continue;
-    const aim=Math.atan2(dx,dz),delta=Math.atan2(Math.sin(aim-shooter.rot),Math.cos(aim-shooter.rot));
-    if(Math.abs(delta)<.14){best=t;bestDist=dist;}
+
+function joinable(r: Room, scope: string) {
+  return r.publicLobby && r.scope === scope && r.players.filter((p) => !p.bot).length < PB.MAX_PLAYERS;
+}
+
+/** Push snapshots to websocket clients after every tick. */
+setTickHook((room, now) => {
+  const lobbyRate = room.phase === "lobby" || room.phase === "finished";
+  if (lobbyRate && room.tickCount % 4 !== 0) return;
+  for (const p of room.players) {
+    if (p.bot) continue;
+    sockets.forEach((info, ws) => {
+      if (info.room !== room.code || info.id !== p.id || ws.readyState !== WebSocket.OPEN) return;
+      if (ws.bufferedAmount > 256 * 1024) return; // slow client: skip a frame rather than queueing
+      const snap = buildSnapshot(room, p, p.wsSentSeq, p.wsSentMv, now);
+      p.wsSentSeq = room.seq;
+      p.wsSentMv = room.metaV;
+      try { ws.send(JSON.stringify(snap)); } catch { /* socket closing */ }
+    });
   }
-  return best?tag(room,shooter,best,now):false;
-}
-function tick(room:Room,now:number){
-  if(room.phase==="playing"&&now>=room.endsAt){room.phase="finished";room.winner=room.scores.cyan===room.scores.magenta?null:(room.scores.cyan>room.scores.magenta?"cyan":"magenta");}
-  if(room.phase!=="playing")return;
-  for(const p of room.players){
-    if(p.respawnAt&&p.respawnAt<=now){const pos=spawn(p.team,Math.abs(p.id)%4);p.x=pos.x;p.z=pos.z;p.respawnAt=0;}
-    if(!p.bot||p.respawnAt)continue;
-    const enemies=room.players.filter(e=>!e.respawnAt&&e.team!==p.team);if(!enemies.length)continue;
-    const target=enemies.reduce((best,e)=>Math.hypot(e.x-p.x,e.z-p.z)<Math.hypot(best.x-p.x,best.z-p.z)?e:best,enemies[0]);
-    const dx=target.x-p.x,dz=target.z-p.z,dist=Math.max(.01,Math.hypot(dx,dz));p.rot=Math.atan2(dx,dz);
-    const step=dist>8?.08:0;p.x=clamp(p.x+dx/dist*step,-ARENA,ARENA);p.z=clamp(p.z+dz/dist*step,-ARENA,ARENA);p.moving=step>0;
-    if(dist<18&&now-p.lastShotAt>1200+Math.abs(p.id)%900){p.lastShotAt=now;tag(room,p,target,now);}
-  }
-}
-function cleanup(){const now=Date.now();for(const [code,r] of rooms){r.players=r.players.filter(p=>p.bot||now-p.lastSeen<20*60*1000);if(!r.players.some(p=>!p.bot)||now-r.createdAt>3*60*60*1000)rooms.delete(code);else tick(r,now);}}
-const timer=setInterval(cleanup,1000);timer.unref();
+});
 
-export function registerPaintballArenaRoutes(app:Express,auth:RequestHandler){
-  const access:RequestHandler=(req:any,res,next)=>{if(req.user.role==="parent"||req.user.is_eye_gaze_user){res.status(403).json({message:"Paintball Arena is for regular student accounts."});return;}next();};
-  const wrap=(fn:(req:any,res:any)=>void):RequestHandler=>(req,res)=>{try{res.set("Cache-Control","no-store");fn(req,res);}catch(e){res.status(409).json({message:e instanceof Error?e.message:"Could not update Paintball Arena."});}};
-  const getRoom=(req:any)=>{const room=rooms.get(String(req.params.code||"").toUpperCase());if(!room)throw Error("That paintball room has ended.");const id=Number(req.user.id);if(!member(room,id))throw Error("Join the room first.");const p=room.players.find(p=>p.id===id)!;p.lastSeen=Date.now();return room;};
-  const start=(room:Room,id:number)=>{if(room.hostId!==id)throw Error("Only the room host can start.");if(room.players.length<2)throw Error("You need at least 2 players.");room.phase="playing";room.startedAt=Date.now();room.endsAt=room.startedAt+GAME_MS;room.scores={cyan:0,magenta:0};room.winner=null;room.players.forEach((p,i)=>{const pos=spawn(p.team,i);Object.assign(p,pos,{tags:0,downs:0,respawnAt:0,lastShotAt:0});});};
-  const create=(req:any,isPublic=false,practice=false)=>{let code="";do{code=String(randomInt(100000,1000000));}while(rooms.has(code));const room:Room={code,hostId:Number(req.user.id),phase:"lobby",players:[],scores:{cyan:0,magenta:0},createdAt:Date.now(),startedAt:0,endsAt:0,publicLobby:isPublic,scope:scope(req.user),winner:null};room.players.push(makePlayer(req.user,room));if(practice){while(room.players.length<6)room.players.push(makePlayer(req.user,room,true));start(room,room.hostId);}rooms.set(code,room);return room;};
+export interface PaintballOptions {
+  httpServer?: Server;
+  /** Resolve a session token to a user for websocket auth. */
+  resolveToken?: (token: string) => Promise<AnyUser | null>;
+}
 
-  app.get("/api/paintball/lobbies",auth,access,wrap((req,res)=>res.json(Array.from(rooms.values()).filter(r=>r.publicLobby&&r.phase==="lobby"&&r.players.length<8&&r.scope===scope(req.user)).map(r=>({code:r.code,hostName:r.players.find(p=>p.id===r.hostId)?.name||"Reader",players:r.players.length})))));
-  app.post("/api/paintball/queue",auth,access,wrap((req,res)=>{const id=Number(req.user.id);let room=Array.from(rooms.values()).find(r=>member(r,id)&&r.phase!=="finished");if(!room)room=Array.from(rooms.values()).find(r=>r.publicLobby&&r.phase==="lobby"&&r.players.length<8&&r.scope===scope(req.user));if(!room)room=create(req,true,false);if(!member(room,id))room.players.push(makePlayer(req.user,room));room.players.find(p=>p.id===id)!.lastSeen=Date.now();res.json(snapshot(room));}));
-  app.post("/api/paintball/rooms",auth,access,wrap((req,res)=>res.json(snapshot(create(req,req.body?.publicLobby===true,req.body?.practice===true)))));
-  app.post("/api/paintball/rooms/:code/join",auth,access,wrap((req,res)=>{const room=rooms.get(String(req.params.code).toUpperCase());if(!room)throw Error("Room not found.");if(room.scope!==scope(req.user)&&room.publicLobby)throw Error("Choose a room in your school.");if(room.phase!=="lobby")throw Error("That match already started.");if(room.players.length>=8)throw Error("That room is full.");if(!member(room,Number(req.user.id)))room.players.push(makePlayer(req.user,room));res.json(snapshot(room));}));
-  app.get("/api/paintball/rooms/:code",auth,access,wrap((req,res)=>res.json(snapshot(getRoom(req)))));
-  app.post("/api/paintball/rooms/:code/leave",auth,access,wrap((req,res)=>{const room=rooms.get(String(req.params.code).toUpperCase());if(room){room.players=room.players.filter(p=>p.id!==Number(req.user.id));if(room.hostId===Number(req.user.id)){const next=room.players.find(p=>!p.bot);if(next)room.hostId=next.id;}if(!room.players.some(p=>!p.bot))rooms.delete(room.code);}res.json({ok:true});}));
-  app.post("/api/paintball/rooms/:code/action",auth,access,wrap((req,res)=>{
-    const room=getRoom(req),now=Date.now(),id=Number(req.user.id),p=room.players.find(p=>p.id===id)!;const type=String(req.body?.type||"");
-    if(type==="start")start(room,id);
-    else if(type==="add-bots"){if(room.hostId!==id||room.phase!=="lobby")throw Error("Only the host can add computer players.");while(room.players.length<Math.min(8,Math.max(2,Number(req.body?.count)||6)))room.players.push(makePlayer(req.user,room,true));}
-    else if(type==="switch-team"){if(room.phase!=="lobby")throw Error("Teams are locked after the match starts.");p.team=p.team==="cyan"?"magenta":"cyan";Object.assign(p,spawn(p.team,0));}
-    else if(type==="move"){if(room.phase!=="playing"||p.respawnAt)return res.json(snapshot(room,now));const nx=Number(req.body?.x),nz=Number(req.body?.z),rot=Number(req.body?.rot);if(Number.isFinite(nx)&&Number.isFinite(nz)){const maxStep=req.body?.sprinting?2.4:1.7;const dx=clamp(nx-p.x,-maxStep,maxStep),dz=clamp(nz-p.z,-maxStep,maxStep);p.x=clamp(p.x+dx,-ARENA,ARENA);p.z=clamp(p.z+dz,-ARENA,ARENA);}if(Number.isFinite(rot))p.rot=rot;p.moving=!!req.body?.moving;p.sprinting=!!req.body?.sprinting;}
-    else if(type==="shoot"){if(room.phase!=="playing"||p.respawnAt)return res.json(snapshot(room,now));if(now-p.lastShotAt<320)return res.json(snapshot(room,now));p.lastShotAt=now;if(Number.isFinite(Number(req.body?.rot)))p.rot=Number(req.body.rot);findHit(room,p,now);}
-    else if(type==="restart"){if(room.phase!=="finished")throw Error("Finish the current match first.");start(room,id);}
-    else throw Error("Unknown paintball action.");
-    res.json(snapshot(room,now));
+export function registerPaintballArenaRoutes(app: Express, auth: RequestHandler, options: PaintballOptions = {}) {
+  const access: RequestHandler = (req: any, res, next) => {
+    if (denied(req.user)) { res.status(403).json({ message: "Prism Paintball is for regular student accounts." }); return; }
+    next();
+  };
+  const wrap = (fn: (req: any, res: any) => void): RequestHandler => (req, res) => {
+    try { res.set("Cache-Control", "no-store"); fn(req, res); }
+    catch (e) { res.status(409).json({ message: e instanceof Error ? e.message : "Could not update Prism Paintball." }); }
+  };
+  const userRef = (req: any) => ({ id: Number(req.user.id), name: nameOf(req.user) });
+  const memberRoom = (req: any): { room: Room; me: SPlayer } => {
+    const room = rooms.get(String(req.params.code || ""));
+    if (!room) throw new Error("That paintball room has ended.");
+    const me = room.players.find((p) => p.id === Number(req.user.id) && !p.bot);
+    if (!me) throw new Error("You are not in this room any more.");
+    me.lastSeen = Date.now();
+    return { room, me };
+  };
+  /** Leave any other room before entering a new one. */
+  const leaveOthers = (id: number, except?: string) => {
+    Array.from(rooms.values()).forEach((r) => { if (r.code !== except && r.players.some((p) => p.id === id && !p.bot)) removeHuman(r, id); });
+  };
+  const fresh = (room: Room, me: SPlayer) => buildSnapshot(room, me, -1, -1, Date.now());
+
+  app.get("/api/paintball/lobbies", auth, access, wrap((req, res) => {
+    const scope = scopeOf(req.user);
+    res.json(Array.from(rooms.values()).filter((r) => joinable(r, scope)).slice(0, 12).map((r) => ({
+      code: r.code,
+      hostName: r.players.find((p) => p.id === r.hostId)?.name || "Reader",
+      humans: r.players.filter((p) => !p.bot).length,
+      players: r.players.length,
+      phase: r.phase,
+      quick: r.quick,
+    })));
   }));
+
+  // Quick play: rejoin your match, or drop into a public match in your school, or start a new one with bots.
+  app.post("/api/paintball/queue", auth, access, wrap((req, res) => {
+    const user = userRef(req), scope = scopeOf(req.user);
+    let room = findMemberRoom(user.id);
+    if (!room) {
+      const open = Array.from(rooms.values()).filter((r) => joinable(r, scope) && r.phase !== "finished");
+      open.sort((a, b) => b.players.filter((p) => !p.bot).length - a.players.filter((p) => !p.bot).length);
+      room = open[0];
+    }
+    if (!room) room = createRoom(user, { publicLobby: true, practice: false, quick: true, botLevel: "normal", scope });
+    leaveOthers(user.id, room.code);
+    const me = addHuman(room, user, scope);
+    res.json(fresh(room, me));
+  }));
+
+  app.post("/api/paintball/rooms", auth, access, wrap((req, res) => {
+    const user = userRef(req), scope = scopeOf(req.user);
+    leaveOthers(user.id);
+    const practice = req.body?.practice === true;
+    const room = createRoom(user, { publicLobby: !practice && req.body?.publicLobby !== false, practice, quick: false, botLevel: levelOf(req.body?.botLevel), scope });
+    res.json(fresh(room, room.players[0]));
+  }));
+
+  app.post("/api/paintball/rooms/:code/join", auth, access, wrap((req, res) => {
+    const room = rooms.get(String(req.params.code || ""));
+    if (!room) throw new Error("Room not found. Check the code and try again.");
+    const user = userRef(req), scope = scopeOf(req.user);
+    if (room.practice && room.hostId !== user.id) throw new Error("That is a private practice room.");
+    leaveOthers(user.id, room.code);
+    const me = addHuman(room, user, scope);
+    res.json(fresh(room, me));
+  }));
+
+  app.get("/api/paintball/rooms/:code", auth, access, wrap((req, res) => {
+    const { room, me } = memberRoom(req);
+    res.json(fresh(room, me));
+  }));
+
+  app.post("/api/paintball/rooms/:code/leave", auth, access, wrap((req, res) => {
+    const room = rooms.get(String(req.params.code || ""));
+    if (room) removeHuman(room, Number(req.user.id));
+    res.json({ ok: true });
+  }));
+
+  app.post("/api/paintball/rooms/:code/sync", auth, access, wrap((req, res) => {
+    const { room, me } = memberRoom(req);
+    const msg = (req.body || {}) as ClientSync;
+    const now = Date.now();
+    handleSync(room, me, msg, now);
+    const ack = typeof msg.ack === "number" ? msg.ack : -1;
+    const mv = typeof msg.mv === "number" ? msg.mv : -1;
+    res.json(buildSnapshot(room, me, ack, mv, now));
+  }));
+
+  app.post("/api/paintball/rooms/:code/action", auth, access, wrap((req, res) => {
+    const { room, me } = memberRoom(req);
+    const type = String(req.body?.type || "");
+    const isHost = room.hostId === me.id;
+    const hostOnly = () => { if (!isHost) throw new Error("Only the room host can do that."); };
+    if (type === "start") {
+      hostOnly();
+      if (room.phase === "playing" || room.phase === "countdown") throw new Error("The match is already running.");
+      if (room.players.length < 2) throw new Error("Add another player or computer players first.");
+      startMatch(room);
+    } else if (type === "switch-team") {
+      switchTeam(room, me);
+    } else if (type === "add-bots") {
+      hostOnly();
+      room.botTarget = PB.MAX_PLAYERS;
+      syncBots(room);
+    } else if (type === "remove-bots") {
+      hostOnly();
+      room.botTarget = 0;
+      syncBots(room);
+    } else if (type === "bot-level") {
+      hostOnly();
+      room.botLevel = levelOf(req.body?.level);
+      for (const p of room.players) if (p.bot) p.bot.level = room.botLevel;
+      bumpMeta(room);
+    } else if (type === "restart") {
+      hostOnly();
+      if (room.phase !== "finished") throw new Error("Finish the current match first.");
+      startMatch(room);
+    } else if (type === "lobby") {
+      hostOnly();
+      if (room.quick) throw new Error("Quick play rooms keep playing.");
+      room.phase = "lobby"; room.phaseEnds = 0; room.shots = [];
+      bumpMeta(room);
+    } else {
+      throw new Error("Unknown paintball action.");
+    }
+    res.json(buildSnapshot(room, me, -1, -1, Date.now()));
+  }));
+
+  // ---- WebSocket fast path (falls back to HTTP sync automatically on the client) ----
+  const { httpServer, resolveToken } = options;
+  if (!httpServer || !resolveToken) return;
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
+
+  httpServer.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+    let url: URL;
+    try { url = new URL(req.url || "", "http://localhost"); } catch { return; }
+    if (!url.pathname.endsWith("/api/paintball/ws")) return; // not ours (e.g. Vite HMR)
+    const token = url.searchParams.get("token") || "";
+    const code = url.searchParams.get("code") || "";
+    const reject = (status: number, text: string) => {
+      try { socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`); } catch { /* ignore */ }
+      socket.destroy();
+    };
+    resolveToken(token).then((user) => {
+      if (!user || denied(user)) return reject(401, "Unauthorized");
+      const room = rooms.get(code);
+      const id = Number(user.id);
+      const me = room?.players.find((p) => p.id === id && !p.bot);
+      if (!room || !me) return reject(404, "Not Found");
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        // one socket per player
+        sockets.forEach((info, other) => { if (info.id === id && other !== ws) { try { other.close(4000, "replaced"); } catch { /* ignore */ } } });
+        sockets.set(ws, { room: room.code, id });
+        me.wsSentSeq = room.seq;
+        me.wsSentMv = -1;
+        me.lastSeen = Date.now();
+        ws.on("message", (data) => {
+          const info = sockets.get(ws);
+          if (!info) return;
+          const r = rooms.get(info.room);
+          const p = r?.players.find((q) => q.id === info.id && !q.bot);
+          if (!r || !p) { try { ws.close(4001, "room ended"); } catch { /* ignore */ } return; }
+          let msg: ClientSync;
+          try { msg = JSON.parse(String(data)); } catch { return; }
+          if (!msg || typeof msg !== "object") return;
+          try { handleSync(r, p, msg, Date.now()); } catch (err) { console.error("[paintball] ws sync error", err); }
+        });
+        ws.on("close", () => { sockets.delete(ws); });
+        ws.on("error", () => { sockets.delete(ws); });
+        // first frame immediately so the client knows the socket works
+        try { ws.send(JSON.stringify(buildSnapshot(room, me, -1, -1, Date.now()))); me.wsSentMv = room.metaV; } catch { /* ignore */ }
+        ensureTicker();
+      });
+    }).catch(() => reject(500, "Internal Server Error"));
+  });
 }
