@@ -450,12 +450,9 @@ export class DatabaseStorage implements IStorage {
       const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).single());
       bookPoints = Number(book?.points_value ?? 0);
     }
-    const passingPercent = total > 10 ? 0.70 : 0.60;
-    const passingScore = Math.ceil(total * passingPercent);
+    const passingScore = Math.ceil(total * 0.70);
     const passed = score >= passingScore;
-    const pointsEarned = passed && total > 0
-      ? Math.round((bookPoints * (score / total)) * 10) / 10
-      : 0;
+    const pointsEarned = passed && total > 0 ? bookPoints : 0;
     const data = await fetchSingle(
       supabase.from("attempts").insert({
         user_id: userId,
@@ -2301,7 +2298,11 @@ export class DatabaseStorage implements IStorage {
     clearCache("custom_eye_gaze_quizzes");
   }
 
-  async startCustomEyeGazeAttempt(userId: number, quizId: number): Promise<any> {
+  async startCustomEyeGazeAttempt(
+    userId: number,
+    quizId: number,
+    proctor?: { type: "parent" | "teacher"; userId?: number | null; name: string } | null
+  ): Promise<any> {
     const existing = await fetchSingle(
       supabase.from("custom_eye_gaze_attempts")
         .select("*")
@@ -2312,11 +2313,24 @@ export class DatabaseStorage implements IStorage {
         .limit(1)
         .single()
     );
-    if (existing) return existing;
+    if (existing) {
+      if (proctor && (!existing.proctor_type || !existing.proctor_name)) {
+        const { data: updated } = await supabase.from("custom_eye_gaze_attempts").update({
+          proctor_type: proctor.type,
+          proctor_user_id: proctor.userId ?? null,
+          proctor_name: proctor.name,
+        }).eq("id", existing.id).select().single();
+        return updated || existing;
+      }
+      return existing;
+    }
     const { data, error } = await supabase.from("custom_eye_gaze_attempts").insert({
       user_id: userId,
       quiz_id: quizId,
       status: "in_progress",
+      proctor_type: proctor?.type || null,
+      proctor_user_id: proctor?.userId ?? null,
+      proctor_name: proctor?.name || null,
     }).select().single();
     if (error) throw new Error(error.message);
     return data;
