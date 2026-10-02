@@ -237,10 +237,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     sessionStorage.removeItem("arise_admin_preview_mode");
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
+    sessionStorage.removeItem("arise_parent_child_id");
     clearAuthenticatedNavigation();
     setAdminPreviewMode(null);
     if (sessionRef.current.token) {
-      fetch(`${API_BASE}/api/logout`, { method: "POST", headers: { Authorization: `Bearer ${sessionRef.current.token}` } }).catch(() => {});
+      fetch(`${API_BASE}/api/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionRef.current.token}` },
+        keepalive: true,
+      }).catch(() => {});
     }
     persistSession(null, null);
     window.dispatchEvent(new Event("arise-logout"));
