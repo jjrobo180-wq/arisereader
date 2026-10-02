@@ -12,8 +12,9 @@ import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI } from "@/lib/tts";
 import ReadingRunnerPro from "@/pages/ReadingRunnerPro";
 import ReadingNinja from "@/pages/ReadingNinja";
+import AnimalSplashGame from "@/pages/AnimalSplashGame";
 
-type GameId = "runner" | "ninja" | "match" | "pop" | "sentence" | null;
+type GameId = "animal-splash" | "runner" | "ninja" | "match" | "pop" | "sentence" | null;
 
 function getTokenFromCookie(): string | null {
   try {
@@ -512,6 +513,7 @@ export default function EyeGazeGames() {
 
   if(isChild && !permissions)return <div className="p-8 font-bold">{permissionsFailed?"Could not load activity permissions. Please reopen Games.":"Loading activities…"}</div>;
   const activePanel = panel === "games" && !canPlay ? "lessons" : panel === "lessons" && !canLearn ? "games" : panel;
+  if (canPlay && isChild && game === "animal-splash") return <AnimalSplashGame onBack={() => setGame(null)} />;
   if (canPlay && game === "runner") return <ReadingRunnerPro onBack={() => setGame(null)} />;
   if (canPlay && game === "ninja") return <ReadingNinja onBack={() => setGame(null)} />;
   if (canPlay && game === "match") return <MatchPairs onBack={() => setGame(null)} />;
@@ -549,6 +551,36 @@ export default function EyeGazeGames() {
             <p className="mt-3 text-white/80 text-base sm:text-lg font-bold max-w-xl">City is parked for now while it is rebuilt and cleaned up. It will return when the experience is ready.</p>
           </div>
         </section>
+
+        {isChild && (
+          <button
+            type="button"
+            onClick={() => setGame("animal-splash")}
+            className="relative mb-5 min-h-[250px] w-full overflow-hidden rounded-[2.2rem] border-4 border-sky-300 bg-gradient-to-br from-sky-700 via-cyan-600 to-emerald-500 p-6 text-left text-white shadow-2xl transition-all hover:-translate-y-1 sm:p-8"
+          >
+            <img
+              src="https://commons.wikimedia.org/wiki/Special:Redirect/file/White%20domesticated%20duck%2C%20stretching.jpg?width=760"
+              alt=""
+              className="absolute inset-y-0 right-0 h-full w-[46%] object-cover opacity-75"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-sky-950 via-sky-900/90 to-sky-800/15" />
+            <div className="absolute right-6 top-5 rounded-full border-2 border-white/70 bg-white/90 px-4 py-2 text-xs font-black uppercase tracking-wider text-sky-900 shadow-xl">
+              Eye Gazer Only
+            </div>
+            <div className="relative max-w-[62%]">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-widest text-slate-950">
+                <PawPrint className="h-4 w-4" /> NEW · VOICE GAME
+              </div>
+              <h2 className="text-3xl font-black sm:text-5xl">Animal Splash!</h2>
+              <p className="mt-3 text-base font-bold leading-7 text-white/95 sm:text-lg">
+                Pick a real animal photo, put it in the water, hear a real splash, and say what animal it is. The game listens automatically and celebrates correct answers.
+              </p>
+              <div className="mt-5 inline-flex rounded-2xl bg-white px-5 py-3 text-lg font-black text-sky-800 shadow-lg">
+                SPLASH & SAY →
+              </div>
+            </div>
+          </button>
+        )}
 
         <button
           type="button"
