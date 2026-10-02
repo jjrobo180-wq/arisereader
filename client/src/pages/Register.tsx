@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -24,8 +24,10 @@ function isIndependentRoute() {
 
 export default function Register() {
   const { register } = useAuth();
-  const [, navigate] = useLocation();
-  const independentStudent = useMemo(() => isIndependentRoute(), []);
+  const [location, navigate] = useLocation();
+  // Recompute whenever the signup URL changes so switching between
+  // independent and school-connected signup works without a full reload.
+  const independentStudent = isIndependentRoute();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
