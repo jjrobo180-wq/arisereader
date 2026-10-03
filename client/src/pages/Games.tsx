@@ -15,7 +15,7 @@ import { logoFor } from "@/arcade/covers/styles";
 import "@/arcade/library.css";
 import "./worlds.css";
 
-type WorldId = "city" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack";
+type WorldId = "city" | "theater" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack";
 type World = {
   id: WorldId;
   /** The cover title. */
@@ -39,9 +39,15 @@ const WORLDS: World[] = [
   },
   {
     id: "city", title: "Haven City", name: "The Block + Cinema", tag: "Open world", tagline: "Drive, hang out and race with your crew.",
-    highlights: ["Drive around the city in your own car (everyone gets a free one)", "Walk your pet and visit your house", "Watch movies together at Starlight Cinema", "Race at Haven Speedway", "Shop for cars and pets with Reader Coins"],
+    highlights: ["Drive around the city in your own car (everyone gets a free one)", "Walk your pet and visit your house", "Walk into Starlight Cinema to watch movies together", "Race at Haven Speedway", "Shop for cars and pets with Reader Coins"],
     facts: ["Open world", "Play with readers", "Free starter car"], path: "/city",
     look: { family: "strike", metal: ["#ffffff", "#bff8ff", "#3ee6ff"], glow: "rgba(62,230,255,.55)", accent: "#7ff0ff" },
+  },
+  {
+    id: "theater", title: "Starlight Cinema", name: "A.R.I.S.E. Cinema", tag: "Movies", tagline: "Grab some popcorn. The show never stops.",
+    highlights: ["Sit with friends", "Grab popcorn", "Watch the always-on Club movie channel"],
+    facts: ["Movies", "Watch with friends", "Always on"], path: "/club-arise/theater",
+    look: { family: "legend", metal: ["#fff6dc", "#ffd27a", "#d9461f"], glow: "rgba(255,150,80,.55)", accent: "#ffcf6e" },
   },
   {
     id: "board", title: "Board Quest", name: "Team board game", tag: "Team game", tagline: "Roll the dice. Answer bold. Win together.",
@@ -79,13 +85,14 @@ const BY_ID = Object.fromEntries(WORLDS.map((w) => [w.id, w])) as Record<WorldId
 const TOP_GAMES: WorldId[] = ["city", "laser", "racetrack", "space", "board"];
 
 const SHELVES: { id: string; title: string; note: string; worlds: WorldId[] }[] = [
-  { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["city", "board", "chess"] },
+  { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["city", "board", "chess", "theater"] },
   { id: "action", title: "Action and adventure", note: "Race, battle and explore", worlds: ["laser", "racetrack", "space", "halloread"] },
 ];
 
 /** Starts downloading a world while the student is looking at it. */
 const WARM: Record<WorldId, () => Promise<unknown>> = {
   city: () => import("./AriseCity"),
+  theater: () => import("./ClubTheater"),
   board: () => import("./BoardGameWorld"),
   halloread: () => import("./MidnightMystery"),
   chess: () => import("./UltimateChess"),
@@ -106,7 +113,7 @@ const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
 ];
 
 const SAVED_KEY = "games_selected";
-const ROTATION: WorldId[] = ["city", "space", "laser", "racetrack", "board", "chess", "halloread"];
+const ROTATION: WorldId[] = ["city", "space", "laser", "racetrack", "board", "chess", "theater", "halloread"];
 
 function readSaved(): WorldId | null {
   try {

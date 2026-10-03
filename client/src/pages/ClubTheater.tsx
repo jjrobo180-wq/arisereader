@@ -832,8 +832,8 @@ export default function ClubTheater(){
     <div ref={mountRef} className="absolute inset-0 touch-none"/>
 
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/90 to-transparent p-2 sm:p-4">
-      <button onClick={()=>navigate("/games")} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-black/70 px-3 font-black backdrop-blur">
-        <ArrowLeft className="h-4 w-4"/><span className="hidden sm:inline">Exit to games</span>
+      <button onClick={()=>navigate("/city?from=cinema")} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-xl bg-black/70 px-3 font-black backdrop-blur">
+        <ArrowLeft className="h-4 w-4"/><span className="hidden sm:inline">Back to Haven City</span>
       </button>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-black uppercase tracking-[.22em] text-amber-300">Club Arise</p>
