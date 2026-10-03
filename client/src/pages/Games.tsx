@@ -101,13 +101,13 @@ const WARM: Record<WorldId, () => Promise<unknown>> = {
 const warm = (id: WorldId) => { void WARM[id]().catch(() => {}); };
 
 /** Multiplayer mini-games now live directly on the Games page. */
-const ARCADE_SHELVES: { id: CategoryId; title: string; note: string }[] = [
-  { id: "board", title: "strategy classics", note: "Timeless games of planning and position" },
-  { id: "brain", title: "mind games", note: "Outthink your opponent" },
-  { id: "quick", title: "quick matches", note: "Done in a few minutes" },
-  { id: "cards", title: "cards and dice", note: "Luck meets good choices" },
-  { id: "words", title: "word arena", note: "Spelling, meaning and grammar duels" },
-  { id: "learn", title: "math, science and the world", note: "Fast facts and numbers" },
+const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
+  { id: "board", title: "Strategy classics", note: "Timeless games of planning and position" },
+  { id: "brain", title: "Mind games", note: "Outthink your opponent" },
+  { id: "quick", title: "Quick matches", note: "Done in a few minutes" },
+  { id: "cards", title: "Cards and dice", note: "Luck meets good choices" },
+  { id: "words", title: "Word arena", note: "Spelling, meaning and grammar duels" },
+  { id: "learn", title: "Math, science and the world", note: "Fast facts and numbers" },
 ];
 
 const SAVED_KEY = "games_selected";
@@ -231,8 +231,8 @@ export default function Games() {
             })}
           </Shelf>
         ))}
-        {ARCADE_SHELVES.map((s) => (
-          <Shelf key={s.id} id={`arcade-${s.id}`} title={s.title} note={s.note}>
+        {GAME_SHELVES.map((s) => (
+          <Shelf key={s.id} id={`games-${s.id}`} title={s.title} note={s.note}>
             {GAMES.filter((g) => g.category === s.id).map((g) => (
               <span key={g.id} className="worlds-cover" >
                 <CoverTile id={g.id} title={g.title} name={g.name} look={logoFor(g.id)} art={<GameArt gameId={g.id} />} onOpen={() => playGame(g.id)} testId={`game-${g.id}`} />
