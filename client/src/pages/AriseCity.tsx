@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Car, Clapperboard, Flag, Heart, Megaphone, MessageCircle, PawPrint, Popcorn, ShoppingBag, Timer, Trophy, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Car, Flag, Heart, Megaphone, MessageCircle, PawPrint, Timer, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { openPetCare, PET_PERSONALITIES } from "@/lib/pets";
@@ -9,14 +9,12 @@ import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 import { CityGame, type CityHome, type CityHud, type CityPlayer, type CitySelf } from "@/game/city/game";
 import { CARS, SHOP_CARS, carFor, type CarId } from "@shared/city/drive";
 import { formatTime } from "@shared/city/race";
-import { theaterEmbedUrl, type TheaterMovie } from "@shared/clubTheater";
-import { LOTS } from "@shared/city/layout";
+import { CINEMA, LOTS } from "@shared/city/layout";
 import { hashParam } from "@/lib/worldAvatar";
 import "./ariseCity.css";
 
-type Overlay = "cinema" | "dealer" | "petshop" | "race" | "phrases" | "help" | null;
+type Overlay = "dealer" | "petshop" | "race" | "phrases" | "help" | null;
 type World = { economy: { wallet: number }; state: { purchased: string[]; equipped: { car?: string; pet?: string }; lostPets?: string[] } };
-type Theater = { state: { movieId: string; currentPosition: number; audience: number }; movies: TheaterMovie[]; changeCost: number; popcornCost: number; wallet: number };
 
 const PETS: { id: string; name: string; price: number }[] = [
   { id: "pet-dog", name: "Club Pup", price: 450 }, { id: "pet-cat", name: "Club Cat", price: 450 }, { id: "pet-pig", name: "Puddle Pig", price: 500 },
@@ -79,6 +77,8 @@ export default function AriseCity() {
         const lot = list.find((x) => x.ownerId === from)?.lot;
         const l = lot !== undefined ? LOTS[lot] : null;
         if (l) game.teleport(l.doorX, l.doorZ + (l.facing === 0 ? 2 : -2), l.facing);
+        // coming out of the cinema: stand on the red carpet, facing the street
+        if (hashParam("from") === "cinema") game.teleport(CINEMA.door.x - 5, CINEMA.door.z, -Math.PI / 2);
         game.setPlayers(d.players || []);
         setPlayers((d.players || []).length);
         setReady(true);
@@ -125,7 +125,7 @@ export default function AriseCity() {
   const interact = useCallback(() => {
     const spot = hud?.spot; const game = gameRef.current;
     if (!spot || !game) return;
-    if (spot.kind === "cinema") setOverlay("cinema");
+    if (spot.kind === "cinema") { if (hud?.driving) { flash("Get out of your car (E) to go into the cinema."); return; } setTravel("/club-arise/theater"); }
     else if (spot.kind === "dealer") setOverlay("dealer");
     else if (spot.kind === "petshop") setOverlay("petshop");
     else if (spot.kind === "speedway") { if (hud?.driving) setOverlay("race"); else flash("Get in your car (E) to race."); }
@@ -257,7 +257,6 @@ export default function AriseCity() {
       )}
       {overlay === "dealer" && <Dealer headers={headers} onClose={() => setOverlay(null)} onChanged={refreshSelf} />}
       {overlay === "petshop" && <PetShop headers={headers} onClose={() => setOverlay(null)} onChanged={refreshSelf} />}
-      {overlay === "cinema" && <Cinema headers={headers} onClose={() => setOverlay(null)} />}
       {overlay === "race" && (
         <Sheet title="Haven Speedway" onClose={() => setOverlay(null)}>
           <p className="city-small">You're driving the {hud?.carName}. Faster cars from Velocity Motors give you a better shot at first place.</p>
@@ -275,7 +274,7 @@ export default function AriseCity() {
           <div className="city-row"><button type="button" className="city-btn" onClick={() => setRetry((n) => n + 1)}>Try again</button><button type="button" className="city-btn ghost" onClick={() => navigate("/worlds")}>Back to Worlds</button></div>
         </div></div>
       )}
-      {travel && <WorldLoadingOverlay tone="block" label={travel.startsWith("/my-home") ? "Heading inside…" : "Leaving Haven City…"} />}
+      {travel && <WorldLoadingOverlay tone="block" label={travel.startsWith("/my-home") ? "Heading inside…" : travel.startsWith("/club-arise/theater") ? "Finding a seat at Starlight Cinema…" : "Leaving Haven City…"} />}
     </main>
   );
 }
@@ -369,60 +368,6 @@ function PetShop({ headers, onClose, onChanged }: { headers: () => Record<string
       </div>
       {msg && <p className="city-msg" role="status">{msg}</p>}
       <p className="city-small"><PawPrint className="inline h-4 w-4" /> Pets that are left unhappy for too long run away, so check in on yours.</p>
-    </Sheet>
-  );
-}
-
-function Cinema({ headers, onClose }: { headers: () => Record<string, string>; onClose: () => void }) {
-  const [data, setData] = useState<Theater | null>(null);
-  const [msg, setMsg] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [start, setStart] = useState(0);
-  const seat = useRef("S" + (1 + Math.floor(Math.random() * 12)));
-  const load = useCallback(async () => {
-    const r = await fetch(API_BASE + "/api/club-theater", { headers: headers(), cache: "no-store" });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.message || "The cinema is closed right now.");
-    setData(d); setStart(Math.floor(d.state.currentPosition || 0));
-  }, [headers]);
-  useEffect(() => {
-    load().catch((e) => setMsg(e.message));
-    const ping = () => fetch(API_BASE + "/api/club-theater/presence", { method: "POST", headers: headers(), body: JSON.stringify({ x: 0, z: 0, facing: Math.PI, seatId: seat.current }) }).catch(() => {});
-    void ping();
-    const id = window.setInterval(ping, 4000);
-    return () => { window.clearInterval(id); void fetch(API_BASE + "/api/club-theater/leave", { method: "POST", headers: headers() }).catch(() => {}); };
-  }, [load, headers]);
-  const movie = data?.movies.find((m) => m.id === data.state.movieId) ?? data?.movies[0];
-  const act = async (path: string, body: object, done: string) => {
-    setBusy(true); setMsg("");
-    try {
-      const r = await fetch(API_BASE + path, { method: "POST", headers: headers(), body: JSON.stringify(body) });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.message || "That didn't work.");
-      await load(); setMsg(done);
-    } catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
-  };
-  return (
-    <Sheet title="Starlight Cinema" onClose={onClose} wide>
-      <div className="city-screen">
-        {movie?.provider === "youtube" ? <iframe key={movie.id + start} src={theaterEmbedUrl(movie, start)} title={movie.title} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
-          : movie?.provider === "video" && movie.videoUrl ? <video key={movie.id} src={movie.videoUrl} autoPlay controls playsInline onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = start; }} />
-            : <div className="city-screen-empty"><Clapperboard /> {msg || "Loading the show…"}</div>}
-      </div>
-      <p className="city-small"><b>{movie?.title ?? "…"}</b> · {data?.state.audience ?? 0} watching. Everyone in the cinema sees the same movie at the same time.</p>
-      <div className="city-row">
-        <button type="button" className="city-btn ghost" disabled={busy || !data} onClick={() => act("/api/club-theater/popcorn", {}, "Popcorn time!")}><Popcorn /> Popcorn · {data?.popcornCost ?? "…"}</button>
-      </div>
-      {data && data.movies.length > 1 && (
-        <>
-          <h3 className="city-h3">Change the movie for everyone · {data.changeCost} coins</h3>
-          <div className="city-movies">
-            {data.movies.map((m) => <button key={m.id} type="button" disabled={busy || m.id === data.state.movieId} onClick={() => act("/api/club-theater/change", { movieId: m.id }, `Now playing: ${m.title}`)}><b>{m.title}</b><span>{m.id === data.state.movieId ? "Playing now" : m.category}</span></button>)}
-          </div>
-        </>
-      )}
-      {msg && data && <p className="city-msg" role="status">{msg}</p>}
-      <p className="city-small"><ShoppingBag className="inline h-4 w-4" /> You have {data?.wallet ?? "…"} Reader Coins.</p>
     </Sheet>
   );
 }
