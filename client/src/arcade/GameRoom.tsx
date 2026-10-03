@@ -41,13 +41,13 @@ const SHELVES: { id: CategoryId; title: string; note: string }[] = [
   { id: "brain", title: "Mind games", note: "Outthink your opponent" },
   { id: "quick", title: "Quick matches", note: "Done in a few minutes" },
   { id: "cards", title: "Cards and dice", note: "Luck meets good choices" },
-  { id: "words", title: "Word arena", note: "Spelling, meaning and grammar duels" },
-  { id: "learn", title: "Math, science and the world", note: "Fast facts and numbers" },
+  { id: "words", title: "Word arena", note: "Word-building, reading, spelling, vocabulary and grammar" },
+  { id: "learn", title: "Math, science and social studies", note: "Skills practice that still feels like a game" },
 ];
 const shelfTitle = (c: CategoryId) => SHELVES.find((s) => s.id === c)?.title || CATEGORIES.find((x) => x.id === c)?.name || "";
 
 /** Spotlight games, rotated daily. */
-const FEATURED = ["chess", "seabattle", "four", "ultimate", "sentence_fix", "gofish", "reversi", "tictactoe", "fifteen", "geography", "spelling", "codebreaker"];
+const FEATURED = ["letter_forge", "reading_detective", "fraction_frenzy", "chess", "seabattle", "four", "ultimate", "science_lab", "sentence_fix", "gofish", "reversi", "history_hustle", "spelling", "codebreaker"];
 const LEVELS = [{ id: 1, name: "Easy" }, { id: 2, name: "Medium" }, { id: 3, name: "Hard" }];
 
 function useSavedLevel() {
