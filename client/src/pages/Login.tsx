@@ -161,10 +161,14 @@ function ResearchEvidenceSection({sectionId="research"}:{sectionId?:string}){
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        {RESEARCH_PROOF.map((item,index)=><article key={item.title} className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.15em] text-violet-300">Proof point {index+1}</p><h3 className="mt-1 text-lg font-black leading-tight text-white">{item.title}</h3></div>
-            <div className="shrink-0 text-right"><div className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-cyan-200">{item.strengthLabel}</div><div className="mt-1 text-[10px] font-bold text-slate-500">Research number: <span className="tabular-nums">{item.display}</span></div></div>
+        {RESEARCH_PROOF.map((item,index)=><article key={item.title} className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4 sm:p-5 lg:p-6">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-[.15em] text-violet-300">Proof point {index+1}</p>
+              <div className="text-[10px] font-bold text-slate-500">Research number: <span className="tabular-nums">{item.display}</span></div>
+            </div>
+            <h3 className="mt-3 break-words text-xl font-black leading-[1.15] text-white">{item.title}</h3>
+            <div className="mt-3 inline-flex max-w-full rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-center text-[10px] font-black uppercase leading-4 tracking-wide text-cyan-200">{item.strengthLabel}</div>
           </div>
 
           <div className="mt-4">
