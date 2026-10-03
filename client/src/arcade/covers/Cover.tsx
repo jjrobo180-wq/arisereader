@@ -1,13 +1,13 @@
-import type { CSSProperties } from "react";
-import GameArt from "./Art";
-import { logoFor, logoLines, logoScale } from "./styles";
+import type { CSSProperties, ReactNode } from "react";
+import { logoFor, logoLines, logoScale, type LogoStyle } from "./styles";
 
 /**
- * A game's title logo. It sizes itself to its box (the parent must be a size
+ * A title logo. It sizes itself to its box (the parent must be a size
  * container), so the same logo works on a small cover and in the spotlight.
+ * `look` overrides the arcade style for `id` (the Worlds page has its own).
  */
-export function TitleLogo({ id, title, classic, max }: { id: string; title: string; classic?: string; max?: number }) {
-  const st = logoFor(id);
+export function TitleLogo({ id, title, classic, max, look }: { id: string; title: string; classic?: string; max?: number; look?: LogoStyle }) {
+  const st = look ?? logoFor(id);
   // Titles are stored in title case (so they read well in sentences and to
   // screen readers); the logo itself is always set in capitals.
   const logo = title.toUpperCase();
@@ -27,8 +27,16 @@ export function TitleLogo({ id, title, classic, max }: { id: string; title: stri
   );
 }
 
-/** A 3:4 game cover: painted art, the title logo, and how many readers are waiting. */
-export function CoverTile({ id, title, name, waiting = 0, onOpen, pressed }: { id: string; title: string; name: string; waiting?: number; onOpen: () => void; pressed?: boolean }) {
+/**
+ * A 3:4 cover: painted art, the title logo, and (for arcade games) how many
+ * readers are waiting. The caller passes the art so this file stays free of
+ * any one page's scenes.
+ */
+export function CoverTile({ id, title, name, art, look, waiting = 0, onOpen, pressed, testId }: {
+  id: string; title: string; name: string; art: ReactNode; look?: LogoStyle;
+  waiting?: number; onOpen: () => void; pressed?: boolean; testId?: string;
+}) {
+  const st = look ?? logoFor(id);
   return (
     <button
       type="button"
@@ -36,12 +44,12 @@ export function CoverTile({ id, title, name, waiting = 0, onOpen, pressed }: { i
       onClick={onOpen}
       aria-label={`${title}, ${name}${waiting ? `, ${waiting} waiting` : ""}`}
       aria-pressed={pressed}
-      data-testid={`cover-${id}`}
-      style={{ "--accent": logoFor(id).accent } as CSSProperties}
+      data-testid={testId ?? `cover-${id}`}
+      style={{ "--accent": st.accent } as CSSProperties}
     >
-      <GameArt gameId={id} />
+      {art}
       <span className="axl-cover-shade" aria-hidden="true" />
-      <span className="axl-cover-logo" aria-hidden="true"><TitleLogo id={id} title={title} classic={name} /></span>
+      <span className="axl-cover-logo" aria-hidden="true"><TitleLogo id={id} title={title} classic={name} look={st} /></span>
       {waiting > 0 && <span className="axl-pill" aria-hidden="true"><i /> {waiting} waiting</span>}
     </button>
   );
