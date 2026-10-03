@@ -14,6 +14,8 @@ type Props = {
   onOpen: (category?: CategoryId | "all") => void;
   onClose: () => void;
   category?: CategoryId | "all";
+  /** Open the Game Room straight to this game's page. */
+  initialGame?: string | null;
   readers: Reader[];
   challenge?: Reader | null;
   onClearChallenge?: () => void;
@@ -38,7 +40,7 @@ function rememberGame(gameId: string) {
   } catch { /* storage off */ }
 }
 
-export default function Arcade({ token, open, onOpen, onClose, category = "all", readers, challenge, onClearChallenge, locked, onOpenChess, onCoverChange }: Props) {
+export default function Arcade({ token, open, onOpen, onClose, category = "all", initialGame, readers, challenge, onClearChallenge, locked, onOpenChess, onCoverChange }: Props) {
   const game = useArcadeMatch(token);
   const { match } = game;
   const { lobby, refresh } = useArcadeLobby(token, !match, open ? 4000 : 6000);
@@ -121,6 +123,7 @@ export default function Arcade({ token, open, onOpen, onClose, category = "all",
           error={game.error}
           locked={locked}
           initialCategory={category}
+          initialGame={initialGame}
           challenge={challenge}
           onClearChallenge={onClearChallenge}
         />

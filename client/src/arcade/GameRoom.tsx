@@ -20,6 +20,8 @@ type Props = {
   error: string;
   locked?: string | null; // why games are unavailable right now
   initialCategory?: CategoryId | "all";
+  /** Open straight to this game's page (picked on the Worlds page). */
+  initialGame?: string | null;
   challenge?: Reader | null; // set when the student picked "Challenge" on a reader
   onClearChallenge?: () => void;
   /** Games this student played most recently, newest first. */
@@ -54,7 +56,7 @@ function useSavedLevel() {
   return [level, setLevel] as const;
 }
 
-export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChess, lobby, readers, busy, error, locked, initialCategory = "all", challenge, onClearChallenge, recent = [] }: Props) {
+export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChess, lobby, readers, busy, error, locked, initialCategory = "all", initialGame, challenge, onClearChallenge, recent = [] }: Props) {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Entry | null>(null);
   const [level, setLevel] = useSavedLevel();
@@ -85,6 +87,12 @@ export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChes
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [picked, query, onClose]);
+
+  // Picked on the Worlds page: open that game's page right away.
+  useEffect(() => {
+    const e = initialGame ? GAME_INFO[initialGame] : undefined;
+    if (e) setPicked(e);
+  }, [initialGame]);
 
   // Opened from a category button in the lounge: go straight to that shelf.
   useEffect(() => {

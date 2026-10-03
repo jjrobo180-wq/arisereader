@@ -208,6 +208,7 @@ export default function ClubArise(){
   const [phrases,setPhrases]=useState<string[]>([]);
   const [roomOpen,setRoomOpen]=useState(false);
   const [roomCategory,setRoomCategory]=useState<CategoryId|"all">("all");
+  const [launchGame,setLaunchGame]=useState<string|null>(null);
   const [challenge,setChallenge]=useState<Reader|null>(null);
   // True while the Game Room or a game covers the 3D lounge (the lounge stops rendering then).
   const [arcadeCovered,setArcadeCovered]=useState(false);
@@ -302,6 +303,9 @@ export default function ClubArise(){
         if(!active)return;
         setSelf(d.self);setPlayers(d.players||[]);setPhrases(d.safePhrases||[]);setAccess(d.access||null);
         setNotice("Tap a glowing cabinet or open the Game Room to play.");
+        // A game picked on the Worlds page opens straight to its page in the Game Room.
+        let launch:string|null=null;try{launch=sessionStorage.getItem("arcade_launch");sessionStorage.removeItem("arcade_launch");}catch{}
+        if(launch){setLaunchGame(launch);setRoomCategory("all");setRoomOpen(true);}
       }catch(error:any){
         if(!active)return;
         const message=error?.name==="AbortError"?"The arcade connection took too long. Tap Retry Arcade.":error?.message||"Could not enter A.R.I.S.E Arcade.";
@@ -778,8 +782,8 @@ export default function ClubArise(){
       </aside>
     )}
 
-    <Arcade token={token} open={roomOpen} onOpen={openRoom} onClose={()=>{setRoomOpen(false);setChallenge(null);}}
-      category={roomCategory} readers={arcadeReaders} challenge={challenge} onClearChallenge={()=>setChallenge(null)}
+    <Arcade token={token} open={roomOpen} onOpen={openRoom} onClose={()=>{setRoomOpen(false);setChallenge(null);setLaunchGame(null);}}
+      category={roomCategory} initialGame={launchGame} readers={arcadeReaders} challenge={challenge} onClearChallenge={()=>setChallenge(null)}
       locked={arcadeLocked} onOpenChess={()=>navigate("/ultimate-chess")} onCoverChange={onCoverChange}/>
 
     <div className="absolute bottom-28 right-3 z-20 hidden rounded-xl bg-black/50 px-3 py-2 text-xs font-bold text-white/70 sm:block">Click a player for stats · click floor to walk · WASD / arrows</div>
