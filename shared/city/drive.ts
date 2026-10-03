@@ -1,7 +1,7 @@
 // Arcade car handling for A.R.I.S.E. City. Pure functions so they can be tested
 // and reused for computer drivers. Heading 0 faces +z; forward = (sin h, cos h),
 // matching three.js `rotation.y` for a model that faces +z.
-import { resolveCircle, surfaceAt, type Box, COLLIDERS } from "./layout";
+import { resolveCircle, surfaceAt, rampAt, type Box, COLLIDERS } from "./layout";
 
 export type CarId = "car-starter" | "car-street" | "car-electric" | "car-super" | "car-suv";
 export type CarStats = { id: CarId; name: string; top: number; accel: number; turn: number; grip: number; price: number; blurb: string };
@@ -31,8 +31,9 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
  */
 export function stepCar(car: CarState, input: DriveInput, stats: CarStats, dt: number, boxes: Box[] = COLLIDERS): { car: CarState; bumped: boolean } {
   const surface = surfaceAt(car.x, car.z);
-  const offRoad = surface === "grass";
-  const top = stats.top * (offRoad ? 0.45 + (stats.grip - 0.9) * 2.5 : 1);
+  const offRoad = surface === "grass" || surface === "sand";
+  // grass slows a car down; soft sand slows it a little more (the SUV copes best with both)
+  const top = stats.top * (surface === "grass" ? 0.45 + (stats.grip - 0.9) * 2.5 : surface === "sand" ? 0.36 + (stats.grip - 0.9) * 3 : 1);
   let speed = car.speed;
 
   if (input.throttle > 0) {
@@ -67,6 +68,36 @@ export function stepCar(car: CarState, input: DriveInput, stats: CarStats, dt: n
     drift *= 0.3;
   }
   return { car: { x, z, heading: wrapAngle(heading), speed, drift }, bumped };
+}
+
+// ─── Ramps and jumps ────────────────────────────────────────────────────────
+export const GRAVITY = 16;
+/** Height of the ground at (x, z): zero everywhere except on a stunt ramp. */
+export function groundAt(x: number, z: number) {
+  const r = rampAt(x, z);
+  return r ? Math.max(0, r.t) * r.ramp.height : 0;
+}
+
+export type Lift = { y: number; vy: number; air: boolean };
+export const GROUNDED: Lift = { y: 0, vy: 0, air: false };
+
+/**
+ * Vertical motion for a car that has just moved to (x, z). On the ground it
+ * follows the ramp surface; driving off a ramp's lip keeps its upward speed and
+ * the car flies until gravity brings it down. Running into the tall side of a
+ * ramp counts as a wall (`blocked`). `landed` is the downward speed on touchdown.
+ */
+export function stepLift(l: Lift, x: number, z: number, dt: number): { lift: Lift; blocked: boolean; landed: number } {
+  const g = groundAt(x, z);
+  if (l.air) {
+    const vy = l.vy - GRAVITY * dt, y = l.y + vy * dt;
+    if (g - y > 0.9) return { lift: l, blocked: true, landed: 0 };
+    if (y <= g) return { lift: { y: g, vy: 0, air: false }, blocked: false, landed: -vy };
+    return { lift: { y, vy, air: true }, blocked: false, landed: 0 };
+  }
+  if (g > l.y + 0.8) return { lift: l, blocked: true, landed: 0 };
+  if (g < l.y - 0.25) return { lift: { y: l.y, vy: Math.max(0, l.vy), air: true }, blocked: false, landed: 0 };
+  return { lift: { y: g, vy: (g - l.y) / Math.max(dt, 1e-4), air: false }, blocked: false, landed: 0 };
 }
 
 export function wrapAngle(a: number) {

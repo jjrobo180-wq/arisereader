@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { COLLIDERS, LOTS, SPAWN, SPOTS, ROAD_LINES, ROAD_HALF, resolveCircle, surfaceAt, clampToBounds, nearestSpot, BOUNDS, CITY } from "../shared/city/layout";
-import { CARS, stepCar, type CarState } from "../shared/city/drive";
+import { COLLIDERS, ROUND_COLLIDERS, LOTS, SPAWN, SPOTS, ROAD_LINES, ROAD_HALF, RAMPS, STARS, resolveCircle, surfaceAt, clampToBounds, nearestSpot, areaName, rampAt, BOUNDS, CITY } from "../shared/city/layout";
+import { CARS, GROUNDED, groundAt, stepCar, stepLift, type CarState, type Lift } from "../shared/city/drive";
 import { LAP_LENGTH, START_S, trackPoint, trackProgress, startTracker, updateTracker, lapsDone, makeRivals, stepRival, GRID_PLAYER } from "../shared/city/race";
 import { makeTraffic, stepTraffic, LOOPS } from "../shared/city/traffic";
 
@@ -90,4 +90,92 @@ test("traffic stays on the roads and keeps moving", () => {
     assert.ok(c.s - start[i] > 100, `car ${c.id} stalled`);
   });
   assert.ok(!resolveCircle(0, 16, 1).hit);
+});
+
+const inRound = (x: number, z: number, pad = 0) => ROUND_COLLIDERS.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + pad);
+
+test("the seaside, lake park and stunt park have the right ground", () => {
+  assert.equal(surfaceAt(-200, 0), "road"); // coast road
+  assert.equal(surfaceAt(-180, 40), "road"); // avenue out to the coast
+  assert.equal(surfaceAt(-222, 30), "paved"); // boardwalk
+  assert.equal(surfaceAt(-260, 50), "sand");
+  assert.equal(surfaceAt(-320, 0), "paved"); // pier
+  assert.equal(surfaceAt(190, 40), "road"); // avenue out to the lake
+  assert.equal(surfaceAt(252, -52), "road"); // lake loop
+  assert.equal(surfaceAt(200, -70), "road"); // stunt park access
+  assert.equal(surfaceAt(250, -130), "road"); // stunt park lot
+  assert.equal(surfaceAt(300, 60), "grass");
+  assert.equal(areaName(-320, 0), "Haven Pier");
+  assert.equal(areaName(-260, 50), "Seaside Beach");
+  assert.equal(areaName(-190, 0), "Seaside Boardwalk");
+  assert.equal(areaName(250, -130), "Stunt Park");
+  assert.equal(areaName(300, 60), "Lakeside Park");
+});
+
+test("the ocean and the far edges stop you", () => {
+  assert.deepEqual(clampToBounds(-320, 50), [-292, 50]);
+  assert.deepEqual(clampToBounds(-400, 0), [BOUNDS.minX, 0]);
+  assert.deepEqual(clampToBounds(400, 0), [BOUNDS.maxX, 0]);
+  assert.deepEqual(clampToBounds(-200, 200), [-200, CITY]);
+});
+
+test("you can't drive into the lake", () => {
+  const r = resolveCircle(252, 10 + 40, 1.7);
+  assert.ok(r.hit && Math.hypot(r.x - 252, r.z - 10) >= 42 + 1.69);
+});
+
+test("every hidden star can be reached", () => {
+  assert.equal(new Set(STARS.map((s) => s.id)).size, STARS.length);
+  for (const s of STARS) {
+    assert.deepEqual(clampToBounds(s.x, s.z, 1), [s.x, s.z], `${s.id} is out of bounds`);
+    assert.ok(!inside(s.x, s.z, 0.6) && !inRound(s.x, s.z, 0.6), `${s.id} is inside something`);
+  }
+});
+
+test("ramps sit on open road", () => {
+  for (const r of RAMPS) {
+    assert.equal(surfaceAt(r.x, r.z), "road");
+    assert.ok(!inside(r.x, r.z, r.length / 2 + 2));
+    assert.ok(Math.abs(groundAt(r.x, r.z) - r.height / 2) < 0.01);
+    assert.equal(rampAt(r.x + Math.sin(r.heading) * (r.length / 2 + 0.5), r.z + Math.cos(r.heading) * (r.length / 2 + 0.5)), null);
+  }
+});
+
+test("driving off the big ramp makes the car fly, then land", () => {
+  const big = RAMPS[1];
+  let car: CarState = { x: big.x - 30, z: big.z, heading: big.heading, speed: 24, drift: 0 };
+  let lift: Lift = GROUNDED, flew = 0, top = 0, landed = 0;
+  for (let i = 0; i < 300; i++) {
+    const before = car;
+    car = stepCar(car, { throttle: lift.air ? 0 : 1, brake: 0, steer: 0, handbrake: false }, CARS["car-starter"], 1 / 60).car;
+    const r = stepLift(lift, car.x, car.z, 1 / 60);
+    assert.ok(!r.blocked, "blocked by its own ramp");
+    if (r.blocked) car = before;
+    lift = r.lift;
+    if (lift.air) flew += 1 / 60;
+    top = Math.max(top, lift.y);
+    if (r.landed) landed = r.landed;
+  }
+  assert.ok(flew > 0.6, `only ${flew.toFixed(2)}s in the air`);
+  assert.ok(top > big.height + 0.5);
+  assert.ok(landed > 3 && !lift.air && lift.y === 0);
+  // the airborne star over the big jump is on that flight path
+  const star = STARS.find((s) => s.id === "stunt")!;
+  assert.ok(star.y! > big.height && star.y! < top + 1.5);
+});
+
+test("the tall end of a ramp is a wall", () => {
+  const big = RAMPS[1];
+  const lip = { x: big.x + Math.sin(big.heading) * (big.length / 2 - 0.2), z: big.z + Math.cos(big.heading) * (big.length / 2 - 0.2) };
+  assert.ok(stepLift(GROUNDED, lip.x, lip.z, 1 / 60).blocked);
+});
+
+test("sand is slower than road, the SUV handles it best", () => {
+  const run = (id: keyof typeof CARS, x: number) => {
+    let car: CarState = { x, z: -150, heading: 0, speed: 0, drift: 0 };
+    for (let i = 0; i < 600; i++) car = stepCar(car, { throttle: 1, brake: 0, steer: 0, handbrake: false }, CARS[id], 1 / 60).car;
+    return car.speed;
+  };
+  assert.ok(run("car-starter", -250) < run("car-starter", -200) * 0.5);
+  assert.ok(run("car-suv", -250) > run("car-starter", -250));
 });

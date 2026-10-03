@@ -1,5 +1,6 @@
 // Friendly city traffic: computer cars loop around the road grid in their lane
 // and wait politely when something is in front of them.
+import { PARK, SEASIDE } from "./layout";
 
 type P = [number, number];
 export type TrafficCar = { id: number; loop: number; s: number; speed: number; color: number; x: number; z: number; heading: number };
@@ -10,6 +11,13 @@ export const LOOPS: P[][] = [
   [[-123, 123], [123, 123], [123, -123], [-123, -123]],
   [[-37, -37], [37, -37], [37, 37], [-37, 37]],
   [[-43, 43], [43, 43], [43, -43], [-43, -43]],
+  // the coast road: south in the west lane, a U-turn at each end, north in the east lane
+  [[SEASIDE.road - 3, -150], [SEASIDE.road - 3, 150], [SEASIDE.road + 3, 150], [SEASIDE.road + 3, -150]],
+  // round the lake (angle increasing, so the inner lane is on the right)
+  Array.from({ length: 28 }, (_, i): P => {
+    const a = (i / 28) * Math.PI * 2, r = PARK.loop.r - 3;
+    return [PARK.loop.x + Math.cos(a) * r, PARK.loop.z + Math.sin(a) * r];
+  }),
 ];
 
 const loopLength = (loop: P[]) => loop.reduce((n, p, i) => { const q = loop[(i + 1) % loop.length]; return n + Math.hypot(q[0] - p[0], q[1] - p[1]); }, 0);

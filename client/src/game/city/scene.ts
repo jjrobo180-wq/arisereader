@@ -4,8 +4,9 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
-  BLOCK_HALF, CINEMA, CITY, CONNECTOR, DEALER, FOUNTAIN, PETSHOP, ROAD_HALF, ROAD_LINES, STAGE, TOWERS, TRACK, TREES, BOUNDS, SOUTH_FIELD_HALF_X, rng,
+  BLOCK_HALF, CINEMA, CITY, CONNECTOR, DEALER, FOUNTAIN, PETSHOP, ROAD_HALF, ROAD_LINES, STAGE, TOWERS, TRACK, TREES, BOUNDS, SOUTH_FIELD_HALF_X, SEASIDE, rng,
 } from "@shared/city/layout";
+import { buildDistricts } from "./districts";
 import { LAP_LENGTH, START_S, trackPoint } from "@shared/city/race";
 import { checkerTexture, doorTexture, posterTexture, signTexture, skyTexture, windowTextures } from "./textures";
 
@@ -304,14 +305,18 @@ export function buildCity(scene: THREE.Scene): CityScene {
     scene.add(crowd);
   }
 
-  // ── City edge: a low hedge so the edge reads as a park border ──
+  // ── The beach, the pier, Lakeside Park and the Stunt Park ──
+  const districts = buildDistricts(scene, keep);
+
+  // ── Outer edge: a low hedge round everything except the ocean ──
   {
     const hedge: THREE.BufferGeometry[] = [];
-    hedge.push(boxAt(CITY * 2, 1.2, 1.4, 0, 0, -CITY - 0.7), boxAt(1.4, 1.2, CITY * 2, -CITY - 0.7, 0, 0), boxAt(1.4, 1.2, CITY * 2, CITY + 0.7, 0, 0));
-    for (const s of [-1, 1]) {
-      hedge.push(boxAt(CITY - SOUTH_FIELD_HALF_X, 1.2, 1.4, s * (CITY + SOUTH_FIELD_HALF_X) / 2, 0, CITY + 0.7));
-      hedge.push(boxAt(1.4, 1.2, BOUNDS.maxZ - CITY, s * (SOUTH_FIELD_HALF_X + 0.7), 0, (CITY + BOUNDS.maxZ) / 2));
-    }
+    const west = SEASIDE.ocean, east = BOUNDS.maxX;
+    hedge.push(boxAt(east - west, 1.2, 1.4, (west + east) / 2, 0, -CITY - 0.7)); // north
+    hedge.push(boxAt(1.4, 1.2, CITY * 2, east + 0.7, 0, 0)); // east
+    hedge.push(boxAt(-SOUTH_FIELD_HALF_X - west, 1.2, 1.4, (west - SOUTH_FIELD_HALF_X) / 2, 0, CITY + 0.7)); // south, west of the speedway fields
+    hedge.push(boxAt(east - SOUTH_FIELD_HALF_X, 1.2, 1.4, (east + SOUTH_FIELD_HALF_X) / 2, 0, CITY + 0.7)); // south, east of them
+    for (const s of [-1, 1]) hedge.push(boxAt(1.4, 1.2, BOUNDS.maxZ - CITY, s * (SOUTH_FIELD_HALF_X + 0.7), 0, (CITY + BOUNDS.maxZ) / 2));
     hedge.push(boxAt(SOUTH_FIELD_HALF_X * 2, 1.2, 1.4, 0, 0, BOUNDS.maxZ + 0.7));
     add(mergeGeometries(hedge)!, keep(std(0x2f6b35)), { cast: true });
   }
@@ -321,6 +326,7 @@ export function buildCity(scene: THREE.Scene): CityScene {
       jet.scale.y = 1 + Math.sin(t * 3) * 0.12;
       water.position.y = 0.86 + Math.sin(t * 2) * 0.02;
       (neonPink as THREE.MeshBasicMaterial).color.setHSL(0.88 + Math.sin(t * 1.5) * 0.04, 1, 0.65);
+      districts.update(t);
     },
     dispose() { disposables.forEach((d) => d.dispose()); },
   };

@@ -2,13 +2,15 @@
 .city-root {
   --ink: #f4f2ff; --dim: #b9b4d6; --glass: rgba(14, 10, 30, 0.78); --line: rgba(255, 255, 255, 0.14);
   --neon: #3ee6ff; --gold: #ffd36b; --pink: #ff5fd8;
+  --map: 170px; --safe-b: env(safe-area-inset-bottom, 0px);
   position: relative; height: 100dvh; overflow: hidden; background: #0b1033; color: var(--ink);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   font-family: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
 }
 :where(.city-root) *, :where(.city-root) *::before, :where(.city-root) *::after { box-sizing: border-box; }
 :where(.city-root) button { font: inherit; color: inherit; cursor: pointer; }
 :where(.city-root) button:focus-visible { outline: 3px solid var(--neon); outline-offset: 2px; }
-.city-canvas { position: absolute; inset: 0; }
+.city-canvas { position: absolute; inset: 0; touch-action: none; }
 .city-canvas canvas { display: block; }
 .city-root svg { width: 18px; height: 18px; flex: none; }
 .city-root kbd { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.16); border: 1px solid var(--line); font: 800 12px/1 "Barlow", system-ui, sans-serif; }
@@ -17,9 +19,9 @@
 .city-top > * { pointer-events: auto; }
 .city-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); font-weight: 800; backdrop-filter: blur(8px); }
 .city-place { padding: 6px 14px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(8px); line-height: 1.2; min-width: 0; }
-.city-place b { display: block; font-size: 17px; font-weight: 800; }
+.city-place b { display: block; font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .city-place span { display: block; font-size: 13px; font-weight: 600; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.city-map { position: absolute; top: 12px; right: 12px; z-index: 20; width: 170px; height: 170px; border-radius: 50%; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+.city-map { position: absolute; top: 12px; right: 12px; z-index: 20; width: var(--map); height: var(--map); pointer-events: none; border-radius: 50%; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
 
 .city-prompt, .city-hint {
   position: absolute; left: 50%; bottom: 120px; z-index: 30; transform: translateX(-50%);
@@ -39,11 +41,47 @@
 .city-actions { position: absolute; right: 12px; bottom: 14px; z-index: 25; display: flex; gap: 8px; }
 .city-actions button { display: grid; justify-items: center; gap: 2px; min-width: 56px; min-height: 56px; padding: 6px 8px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); font-size: 11px; font-weight: 800; backdrop-filter: blur(8px); }
 .city-actions button:hover { background: rgba(40, 30, 80, 0.9); }
-.city-actions .city-hold { background: rgba(255, 95, 216, 0.25); }
-.city-joy { z-index: 25 !important; }
-@media (pointer: fine) { .city-joy { display: none !important; } .city-actions .city-hold { display: none; } }
-/* touch screens of any size (including big tablets) get the joystick */
-@media (pointer: coarse) { .city-root .city-joy { display: block !important; } }
+.city-stars { gap: 6px; margin-left: auto; color: var(--gold); }
+.city-stars b { color: var(--ink); }
+.city-starlist { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.city-starlist li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); font-weight: 700; font-size: 14px; }
+.city-starlist li svg { color: var(--gold); }
+.city-starlist li.got { color: var(--dim); }
+.city-starlist li.got svg { color: #7cf29a; }
+
+/* ── Touch controls ─────────────────────────────────────────────────────── */
+.city-stick, .city-steer, .city-pedal { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.city-stick {
+  position: absolute; left: 16px; bottom: calc(16px + var(--safe-b)); z-index: 25; width: 140px; height: 140px; border-radius: 50%;
+  display: grid; place-items: center; background: radial-gradient(circle, rgba(14, 10, 30, 0.55), rgba(14, 10, 30, 0.82)); border: 2px solid var(--line);
+}
+.city-stick.down { border-color: rgba(62, 230, 255, 0.7); }
+.city-stick-knob { width: 62px; height: 62px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c9f6ff, var(--neon)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); pointer-events: none; }
+.city-steer {
+  position: absolute; left: 12px; bottom: calc(16px + var(--safe-b)); z-index: 25; width: min(44vw, 240px); height: 96px; border-radius: 48px;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: rgba(14, 10, 30, 0.78); border: 2px solid var(--line);
+}
+.city-steer.down { border-color: rgba(62, 230, 255, 0.7); }
+.city-steer-arrow { font-size: 22px; color: var(--dim); pointer-events: none; }
+.city-steer-knob { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin-top: -32px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c9f6ff, var(--neon)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); pointer-events: none; }
+.city-pedals { position: absolute; right: 12px; bottom: calc(16px + var(--safe-b)); z-index: 25; display: grid; grid-template-columns: 72px 84px; grid-template-rows: 52px 84px; gap: 8px; }
+.city-pedal { border-radius: 16px; border: 2px solid var(--line); font-weight: 800; font-size: 15px; letter-spacing: 0.02em; display: grid; place-items: end center; padding-bottom: 10px; transition: transform 60ms; }
+.city-pedal.down { transform: scale(0.95); }
+.city-pedal.gas { grid-column: 2; grid-row: 1 / span 2; background: linear-gradient(#2fd27a, #149150); border-color: #8ff0bb; }
+.city-pedal.brake { grid-column: 1; grid-row: 2; background: linear-gradient(#ff6a7d, #c22a40); border-color: #ffb3bd; }
+.city-pedal.drift { grid-column: 1; grid-row: 1; place-items: center; padding: 0; font-size: 13px; background: rgba(255, 95, 216, 0.3); border-color: rgba(255, 95, 216, 0.6); }
+.city-pedal.gas.down { background: linear-gradient(#5cf09b, #1db463); }
+.city-pedal.brake.down { background: linear-gradient(#ff8a99, #e03a52); }
+.city-pedal.drift.down { background: rgba(255, 95, 216, 0.6); }
+
+/* touch layout: actions in a column under the map, speed above the pedals, prompts above the controls */
+.city-touch .city-actions { top: calc(var(--map) + 24px); bottom: auto; right: 10px; flex-direction: column; max-width: none; }
+.city-touch .city-actions button { min-width: 54px; min-height: 54px; }
+.city-touch .city-speed { right: 12px; bottom: calc(168px + var(--safe-b)); width: 80px; height: 80px; }
+.city-touch .city-speed b { font-size: 32px; }
+.city-touch .city-prompt, .city-touch .city-hint { bottom: calc(176px + var(--safe-b)); max-width: calc(100vw - 24px); white-space: normal; text-align: center; }
+.city-touch .city-race { top: 66px; }
+.city-touch .city-notice { top: calc(var(--map) + 24px); max-width: calc(100vw - 110px); }
 
 .city-race { position: absolute; top: 14px; left: 50%; z-index: 30; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); font-weight: 800; font-size: 16px; }
 .city-race span { display: inline-flex; align-items: center; gap: 6px; }
@@ -97,14 +135,29 @@
 .city-movies span { font-size: 12px; color: var(--dim); font-weight: 600; }
 
 @media (max-width: 640px) {
+  .city-root { --map: 104px; }
   .city-top { right: 120px; }
-  .city-map { width: 104px; height: 104px; }
   .city-chip span { display: none; }
   .city-place span { display: none; }
   .city-actions { bottom: 10px; right: 8px; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 180px; }
   .city-actions button { min-width: 50px; min-height: 50px; }
   .city-speed { bottom: 130px; width: 84px; height: 84px; }
   .city-speed b { font-size: 32px; }
-  .city-prompt, .city-hint { bottom: 228px; font-size: 14px; max-width: 92vw; white-space: normal; }
+  .city-prompt, .city-hint { font-size: 14px; max-width: 92vw; white-space: normal; }
+  .city-root:not(.city-touch) .city-prompt, .city-root:not(.city-touch) .city-hint { bottom: 228px; }
   .city-race-pick { grid-template-columns: 1fr; }
+  .city-race { gap: 10px; font-size: 14px; padding: 6px 10px; }
+}
+/* phones on their side: actions along the top, prompts between the thumbs */
+@media (max-height: 500px) {
+  .city-root { --map: 116px; }
+  .city-touch .city-top { right: calc(var(--map) + 330px); }
+  .city-touch .city-actions { top: 12px; right: calc(var(--map) + 22px); flex-direction: row; }
+  .city-touch .city-actions button { min-width: 50px; min-height: 50px; }
+  .city-touch .city-prompt, .city-touch .city-hint { bottom: calc(14px + var(--safe-b)); max-width: calc(100vw - 2 * min(44vw, 240px) - 40px); font-size: 14px; }
+  .city-touch .city-speed { bottom: calc(166px + var(--safe-b)); width: 70px; height: 70px; }
+  .city-touch .city-speed b { font-size: 28px; }
+  .city-touch .city-race { top: 70px; }
+  .city-touch .city-notice { top: 72px; }
+  .city-touch .city-stick { width: 124px; height: 124px; }
 }

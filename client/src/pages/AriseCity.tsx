@@ -1,19 +1,18 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Car, Flag, Heart, Megaphone, MessageCircle, PawPrint, Timer, Trophy, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Car, Check, Flag, Heart, Megaphone, MessageCircle, PawPrint, Star, Timer, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { openPetCare, PET_PERSONALITIES } from "@/lib/pets";
-import MobileJoystick from "@/components/MobileJoystick";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
-import { CityGame, type CityHome, type CityHud, type CityPlayer, type CitySelf } from "@/game/city/game";
+import { CityGame, type CityHome, type CityHud, type CityPlayer, type CitySelf, type StarFound } from "@/game/city/game";
 import { CARS, SHOP_CARS, carFor, type CarId } from "@shared/city/drive";
 import { formatTime } from "@shared/city/race";
-import { CINEMA, LOTS } from "@shared/city/layout";
+import { CINEMA, LOTS, STARS } from "@shared/city/layout";
 import { hashParam } from "@/lib/worldAvatar";
 import "./ariseCity.css";
 
-type Overlay = "dealer" | "petshop" | "race" | "phrases" | "help" | null;
+type Overlay = "dealer" | "petshop" | "race" | "phrases" | "help" | "stars" | null;
 type World = { economy: { wallet: number }; state: { purchased: string[]; equipped: { car?: string; pet?: string }; lostPets?: string[] } };
 
 const PETS: { id: string; name: string; price: number }[] = [
@@ -24,6 +23,18 @@ const PETS: { id: string; name: string; price: number }[] = [
 ];
 
 const HELP_KEY = "city_help_seen";
+
+/** Phones and tablets get on-screen controls; a touch on a laptop screen switches them on too. */
+function useTouchControls() {
+  const [touch, setTouch] = useState(() => typeof window !== "undefined" && (window.matchMedia?.("(pointer: coarse)").matches || (navigator.maxTouchPoints > 0 && window.innerWidth < 1100)));
+  useEffect(() => {
+    if (touch) return;
+    const on = (e: PointerEvent) => { if (e.pointerType === "touch") setTouch(true); };
+    window.addEventListener("pointerdown", on);
+    return () => window.removeEventListener("pointerdown", on);
+  }, [touch]);
+  return touch;
+}
 
 export default function AriseCity() {
   const { token } = useAuth();
@@ -44,6 +55,8 @@ export default function AriseCity() {
   const [muted, setMuted] = useState(() => { try { return localStorage.getItem("city_muted") === "1"; } catch { return false; } });
   const [travel, setTravel] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [found, setFound] = useState<string[]>([]);
+  const touch = useTouchControls();
 
   const headers = useCallback(() => ({ Authorization: "Bearer " + token, "Content-Type": "application/json" }), [token]);
   const flash = useCallback((text: string) => { setNotice(text); window.setTimeout(() => setNotice((n) => (n === text ? "" : n)), 3500); }, []);
@@ -65,8 +78,16 @@ export default function AriseCity() {
         if (!alive || !hostRef.current) return;
         selfRef.current = d.self;
         setPhrases(d.safePhrases || []);
-        const game = new CityGame(hostRef.current, d.self, { onHud: setHud });
+        const game = new CityGame(hostRef.current, d.self, {
+          onHud: setHud,
+          onStar: (s: StarFound) => {
+            setFound(gameRef.current?.foundStars ?? []);
+            const hint = STARS.find((x) => x.id === s.id)?.hint;
+            flash(s.found === s.total ? `You found every star in Haven City!` : `Star found${hint ? ` ${hint}` : ""}! ${s.found} of ${s.total}`);
+          },
+        });
         gameRef.current = game;
+        setFound(game.foundStars);
         game.setMuted(muted);
         game.attachMinimap(mapRef.current);
         const list: CityHome[] = (h.homes || []).map((x: any) => ({ ownerId: x.ownerId, displayName: x.displayName, homeId: x.homeId, unlocked: !!x.unlocked, lot: Number(x.lot) }));
@@ -172,10 +193,11 @@ export default function AriseCity() {
   })();
 
   const race = hud?.race;
-  const joy = (key: "w" | "a" | "s" | "d", on: boolean) => gameRef.current?.press(key, on);
+  const press = (key: string) => (on: boolean) => gameRef.current?.press(key, on);
+  const showControls = ready && touch && !overlay && !(race?.phase === "finished");
 
   return (
-    <main className="club-world-root city-root">
+    <main className={"club-world-root city-root" + (touch ? " city-touch" : "")}>
       <div ref={hostRef} className="city-canvas" />
 
       {/* top bar */}
@@ -185,6 +207,7 @@ export default function AriseCity() {
           <b>{hud?.area ?? "Haven City"}</b>
           <span>{players} {players === 1 ? "reader" : "readers"} here · {hud?.driving ? hud.carName : "on foot"}</span>
         </div>
+        {ready && <button type="button" className="city-chip city-stars" onClick={() => setOverlay("stars")} aria-label={`Hidden stars: ${found.length} of ${STARS.length} found`}><Star /> <b>{found.length}/{STARS.length}</b></button>}
       </header>
       <canvas ref={mapRef} className="city-map" width={170} height={170} aria-label="City map" />
 
@@ -217,9 +240,11 @@ export default function AriseCity() {
 
       {/* prompt */}
       {ready && !race && spotLabel && !overlay && (
-        <button type="button" className="city-prompt" onClick={interact}><kbd>F</kbd> {spotLabel}</button>
+        <button type="button" className="city-prompt" onClick={interact}>{!touch && <kbd>F</kbd>} {spotLabel}</button>
       )}
-      {ready && !race && !spotLabel && !overlay && !hud?.driving && hud?.nearCar && <div className="city-hint"><kbd>E</kbd> Get in your {hud.carName}</div>}
+      {ready && !race && !spotLabel && !overlay && !hud?.driving && hud?.nearCar && (touch
+        ? <button type="button" className="city-prompt" onClick={() => gameRef.current?.toggleCar()}><Car /> Get in your {hud.carName}</button>
+        : <div className="city-hint"><kbd>E</kbd> Get in your {hud.carName}</div>)}
       {notice && <div className="city-notice" role="status">{notice}</div>}
 
       {/* speedometer */}
@@ -230,13 +255,24 @@ export default function AriseCity() {
         <div className="city-actions">
           <button type="button" onClick={() => gameRef.current?.toggleCar()} aria-label={hud?.driving ? "Get out of the car" : "Get in your car"}><Car /><span>{hud?.driving ? "Get out" : "Drive"}</span></button>
           {hud?.driving && <button type="button" onClick={() => gameRef.current?.horn()} aria-label="Honk the horn"><Megaphone /><span>Horn</span></button>}
-          {hud?.driving && <button type="button" className="city-hold" onPointerDown={() => gameRef.current?.press(" ", true)} onPointerUp={() => gameRef.current?.press(" ", false)} onPointerLeave={() => gameRef.current?.press(" ", false)} aria-label="Handbrake"><span>Drift</span></button>}
           <button type="button" onClick={() => setOverlay("phrases")} aria-label="Say something"><MessageCircle /><span>Say</span></button>
           <button type="button" onClick={() => openPetCare()} aria-label="Pet care"><Heart /><span>Pet</span></button>
           <button type="button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}>{muted ? <VolumeX /> : <Volume2 />}</button>
         </div>
       )}
-      {ready && <MobileJoystick onMove={joy} className="bottom-24 left-3 city-joy" label="Move or steer" />}
+
+      {/* touch controls: a stick for walking; steering, gas, brake and drift for driving */}
+      {showControls && !hud?.driving && <WalkStick game={gameRef} />}
+      {showControls && hud?.driving && (
+        <>
+          <SteerPad game={gameRef} />
+          <div className="city-pedals">
+            <HoldButton className="city-pedal drift" label="Drift (handbrake)" onHold={press(" ")}>Drift</HoldButton>
+            <HoldButton className="city-pedal brake" label="Brake and reverse" onHold={press("s")}>Brake</HoldButton>
+            <HoldButton className="city-pedal gas" label="Gas" onHold={press("w")}>Gas</HoldButton>
+          </div>
+        </>
+      )}
 
       {/* overlays */}
       {overlay === "phrases" && (
@@ -246,12 +282,35 @@ export default function AriseCity() {
       )}
       {overlay === "help" && (
         <Sheet title="Welcome to Haven City" onClose={() => { setOverlay(null); try { localStorage.setItem(HELP_KEY, "1"); } catch { /* ignore */ } }}>
-          <ul className="city-help">
-            <li><kbd>W A S D</kbd> or arrows to walk and drive (drag the screen to look around)</li>
-            <li><kbd>E</kbd> get in or out of your car. Everyone gets a free City Cruiser</li>
-            <li><kbd>F</kbd> go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals</li>
-            <li><kbd>Space</kbd> drift, <kbd>H</kbd> horn, <kbd>Shift</kbd> run, <kbd>T</kbd> say something</li>
-            <li>Drive south to Haven Speedway to race the computer or beat your best lap</li>
+          {touch ? (
+            <ul className="city-help">
+              <li>Use the stick to walk. Push it all the way to run. Drag anywhere else to look around</li>
+              <li>Tap <b>Drive</b> to get in your car. Everyone gets a free City Cruiser</li>
+              <li>In the car, slide your left thumb to steer and hold <b>Gas</b> or <b>Brake</b> on the right. Hold Brake when stopped to reverse</li>
+              <li>Tap the yellow button to go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals</li>
+              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, south to Haven Speedway</li>
+              <li>Find all {STARS.length} hidden stars. Some are only reachable with a big jump</li>
+            </ul>
+          ) : (
+            <ul className="city-help">
+              <li><kbd>W A S D</kbd> or arrows to walk and drive (drag the screen to look around)</li>
+              <li><kbd>E</kbd> get in or out of your car. Everyone gets a free City Cruiser</li>
+              <li><kbd>F</kbd> go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals</li>
+              <li><kbd>Space</kbd> drift, <kbd>H</kbd> horn, <kbd>Shift</kbd> run, <kbd>T</kbd> say something</li>
+              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, south to Haven Speedway</li>
+              <li>Find all {STARS.length} hidden stars. Some are only reachable with a big jump</li>
+            </ul>
+          )}
+        </Sheet>
+      )}
+      {overlay === "stars" && (
+        <Sheet title={`Hidden stars: ${found.length} of ${STARS.length}`} onClose={() => setOverlay(null)}>
+          <p className="city-small">Stars glow with a beam of light. Walk or drive through one to collect it.</p>
+          <ul className="city-starlist">
+            {STARS.map((s) => {
+              const got = found.includes(s.id);
+              return <li key={s.id} className={got ? "got" : ""}>{got ? <Check /> : <Star />}<span>{got ? `Found ${s.hint}` : `Somewhere ${s.hint}`}</span></li>;
+            })}
           </ul>
         </Sheet>
       )}
@@ -369,5 +428,88 @@ function PetShop({ headers, onClose, onChanged }: { headers: () => Record<string
       {msg && <p className="city-msg" role="status">{msg}</p>}
       <p className="city-small"><PawPrint className="inline h-4 w-4" /> Pets that are left unhappy for too long run away, so check in on yours.</p>
     </Sheet>
+  );
+}
+
+type GameRef = { current: CityGame | null };
+
+/** A button that stays pressed while a finger is on it, even if the finger slides a little. */
+function HoldButton({ onHold, className, label, children }: { onHold: (on: boolean) => void; className: string; label: string; children: ReactNode }) {
+  const [down, setDown] = useState(false);
+  const downRef = useRef(false);
+  const set = (on: boolean) => { if (downRef.current === on) return; downRef.current = on; setDown(on); onHold(on); };
+  // let go if the button disappears mid-press
+  useEffect(() => () => { if (downRef.current) onHold(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <button
+      type="button" aria-label={label} className={className + (down ? " down" : "")}
+      onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); set(true); }}
+      onPointerUp={() => set(false)} onPointerCancel={() => set(false)} onLostPointerCapture={() => set(false)}
+      onContextMenu={(e) => e.preventDefault()}
+    >{children}</button>
+  );
+}
+
+/** Analog walking stick: the further you push, the more you lean in; all the way out runs. */
+function WalkStick({ game }: { game: GameRef }) {
+  const [knob, setKnob] = useState<{ x: number; y: number } | null>(null);
+  const id = useRef<number | null>(null);
+  useEffect(() => () => game.current?.setStick(null), [game]);
+  const move = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect(), radius = r.width * 0.36;
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const len = Math.hypot(dx, dy);
+    if (len > radius) { dx *= radius / len; dy *= radius / len; }
+    setKnob({ x: dx, y: dy });
+    game.current?.setStick({ x: dx / radius, y: -dy / radius });
+  };
+  const end = () => { id.current = null; setKnob(null); game.current?.setStick(null); };
+  return (
+    <div
+      className={"city-stick" + (knob ? " down" : "")} role="application" aria-label="Walk: push the stick the way you want to go"
+      onPointerDown={(e) => { if (id.current !== null) return; id.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
+      onPointerMove={(e) => { if (e.pointerId === id.current) move(e); }}
+      onPointerUp={(e) => { if (e.pointerId === id.current) end(); }} onPointerCancel={end} onLostPointerCapture={end}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <span className="city-stick-knob" style={{ transform: `translate(${knob?.x ?? 0}px, ${knob?.y ?? 0}px)` }} />
+    </div>
+  );
+}
+
+/** Steering: slide a thumb left or right along the pad. The further from the middle, the harder the turn. */
+function SteerPad({ game }: { game: GameRef }) {
+  const [pos, setPos] = useState<number | null>(null);
+  const id = useRef<number | null>(null);
+  const origin = useRef(0);
+  useEffect(() => () => game.current?.setSteer(null), [game]);
+  const move = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    // steer from where the thumb landed, so a tap anywhere starts straight; the pad edges give full lock
+    const half = r.width * 0.32;
+    const v = Math.max(-1, Math.min(1, (e.clientX - origin.current) / half));
+    setPos(v); game.current?.setSteer(Math.abs(v) < 0.08 ? 0 : v);
+  };
+  const end = () => { id.current = null; setPos(null); game.current?.setSteer(null); };
+  return (
+    <div
+      className={"city-steer" + (pos !== null ? " down" : "")} role="application" aria-label="Steer: slide left or right"
+      onPointerDown={(e) => {
+        if (id.current !== null) return;
+        id.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId);
+        const r = e.currentTarget.getBoundingClientRect(), mid = r.left + r.width / 2;
+        // a tap on the left or right third steers that way straight away
+        const third = r.width / 3;
+        origin.current = e.clientX < r.left + third ? e.clientX + r.width * 0.32 : e.clientX > r.right - third ? e.clientX - r.width * 0.32 : mid;
+        move(e);
+      }}
+      onPointerMove={(e) => { if (e.pointerId === id.current) move(e); }}
+      onPointerUp={(e) => { if (e.pointerId === id.current) end(); }} onPointerCancel={end} onLostPointerCapture={end}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <span className="city-steer-arrow left" aria-hidden="true">◀</span>
+      <span className="city-steer-knob" style={{ transform: `translateX(calc(-50% + ${(pos ?? 0) * 46}px))` }} />
+      <span className="city-steer-arrow right" aria-hidden="true">▶</span>
+    </div>
   );
 }
