@@ -82,6 +82,8 @@ const WORLDS: World[] = [
 ];
 const BY_ID = Object.fromEntries(WORLDS.map((w) => [w.id, w])) as Record<WorldId, World>;
 
+const TOP_GAMES: WorldId[] = ["laser", "racetrack", "space", "board", "theater"];
+
 const SHELVES: { id: string; title: string; note: string; worlds: WorldId[] }[] = [
   { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["board", "chess", "neighborhood", "theater"] },
   { id: "action", title: "Action and adventure", note: "Race, battle and explore", worlds: ["laser", "racetrack", "space", "halloread"] },
@@ -218,6 +220,17 @@ export default function Games() {
             </div>
           )}
         </section>
+
+        <Shelf id="top-games" title="TOP Games" note="Featured favorites">
+          {TOP_GAMES.map((id) => {
+            const w = BY_ID[id];
+            return (
+              <span key={id} className="worlds-cover" onPointerEnter={() => warm(id)} onFocus={() => warm(id)}>
+                <CoverTile id={id} title={w.title} name={w.name} look={w.look} art={<Art id={id} />} onOpen={() => open(w)} testId={`top-game-${id}`} />
+              </span>
+            );
+          })}
+        </Shelf>
 
         {SHELVES.map((s) => (
           <Shelf key={s.id} id={s.id} title={s.title} note={s.note}>
