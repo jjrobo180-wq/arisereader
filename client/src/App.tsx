@@ -66,9 +66,8 @@ function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
   });
 }
 const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
-const ClubArise = lazyPage(() => import("./pages/ClubArise"));
 const ClubTheater = lazyPage(() => import("./pages/ClubTheater"));
-const Worlds = lazyPage(() => import("./pages/Worlds"));
+const Games = lazyPage(() => import("./pages/Games"));
 const Neighborhood = lazyPage(() => import("./pages/Neighborhood"));
 const HomeInterior = lazyPage(() => import("./pages/HomeInterior"));
 const BoardGameWorld = lazyPage(() => import("./pages/BoardGameWorld"));
@@ -370,12 +369,12 @@ function AppRoutes() {
       </Route>
       <Route path="/club-arise">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><Redirect to="/worlds" replace /></ProtectedRoute>
+          ? <ProtectedRoute><Redirect to="/games" replace /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/arise-arcade">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><ClubArise /></ProtectedRoute>
+          ? <ProtectedRoute><Redirect to="/games" replace /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/club-arise/theater">
@@ -383,9 +382,14 @@ function AppRoutes() {
           ? <ProtectedRoute><ClubTheater /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
+      <Route path="/games">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><Games /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
       <Route path="/worlds">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><Worlds /></ProtectedRoute>
+          ? <ProtectedRoute><Redirect to="/games" replace /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/neighborhood">
@@ -425,7 +429,7 @@ function AppRoutes() {
       </Route>
       <Route path="/laser-royale">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><Redirect to="/worlds" replace /></ProtectedRoute>
+          ? <ProtectedRoute><Redirect to="/games" replace /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/course/:id">
@@ -539,7 +543,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/paintball-arena", "/aurora-rally", "/skybound-sprint"];
+const FULLSCREEN_GAME_ROUTES = ["/games", "/paintball-arena", "/aurora-rally", "/skybound-sprint"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);
