@@ -23,18 +23,36 @@ type Props = {
   onCoverChange?: (covered: boolean) => void;
 };
 
+/** The last games this student started, newest first (for "Jump back in"). */
+function readRecent(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem("arcade_recent") || "[]");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 12) : [];
+  } catch {
+    return [];
+  }
+}
+function rememberGame(gameId: string) {
+  try {
+    localStorage.setItem("arcade_recent", JSON.stringify([gameId, ...readRecent().filter((x) => x !== gameId)].slice(0, 12)));
+  } catch { /* storage off */ }
+}
+
 export default function Arcade({ token, open, onOpen, onClose, category = "all", readers, challenge, onClearChallenge, locked, onOpenChess, onCoverChange }: Props) {
   const game = useArcadeMatch(token);
   const { match } = game;
   const { lobby, refresh } = useArcadeLobby(token, !match, open ? 4000 : 6000);
   const lastStart = useRef<{ gameId: string; opts: StartOptions } | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [recent, setRecent] = useState<string[]>(readRecent);
   const covered = open || !!match;
   useEffect(() => { onCoverChange?.(covered); }, [covered, onCoverChange]);
 
   const start = useCallback(async (gameId: string, opts: StartOptions) => {
     sfx("tap");
     lastStart.current = { gameId, opts };
+    rememberGame(gameId);
+    setRecent(readRecent());
     const m = await game.start(gameId, opts);
     if (m) onClearChallenge?.();
     else void refresh();
@@ -95,7 +113,8 @@ export default function Arcade({ token, open, onOpen, onClose, category = "all",
           onClose={onClose}
           onStart={(id, opts) => void start(id, opts)}
           onDeclineInvite={(t) => void decline(t)}
-          onOpenChess={onOpenChess}
+          onOpenChess={onOpenChess ? () => { rememberGame("chess"); setRecent(readRecent()); onOpenChess(); } : undefined}
+          recent={recent}
           lobby={{ tables: lobby.tables, invites: lobby.invites.filter((t) => !dismissed.has(t.matchId)) }}
           readers={readers}
           busy={game.busy}
@@ -109,7 +128,7 @@ export default function Arcade({ token, open, onOpen, onClose, category = "all",
       {invite && (
         <div className="ax-vars">
           <div className="ax-invite-pop" role="alertdialog" aria-label="Game challenge">
-            <p>{GAME_INFO[invite.gameId]?.emoji} {invite.hostName} challenged you to {invite.gameName}!</p>
+            <p>{invite.hostName} challenged you to {GAME_INFO[invite.gameId]?.title || invite.gameName}{GAME_INFO[invite.gameId] ? ` (${GAME_INFO[invite.gameId].name})` : ""}!</p>
             <div className="ax-row">
               <button type="button" className="ax-btn ax-btn-ghost" style={{ flex: 1 }} onClick={() => void decline(invite)}>No thanks</button>
               <button type="button" className="ax-btn ax-btn-gold" style={{ flex: 1 }} disabled={!!locked || game.busy} onClick={() => { onOpen(); void start(invite.gameId, { matchId: invite.matchId }); }}>Accept</button>

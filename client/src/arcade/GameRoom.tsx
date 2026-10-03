@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CATEGORIES, GAMES, GAME_INFO, type CategoryId, type GameInfo } from "@shared/arcade/catalog";
 import type { Lobby, LobbyTable, StartOptions } from "./api";
-import { IconBack, IconBot, IconClose, IconSearch, IconUsers } from "./icons";
+import { IconBack, IconBot, IconSearch, IconUsers } from "./icons";
+import GameArt from "./covers/Art";
+import { CoverTile, TitleLogo } from "./covers/Cover";
+import { logoFor } from "./covers/styles";
+import "./library.css";
 
 export type Reader = { userId: number; name: string };
 type Props = {
@@ -17,168 +21,347 @@ type Props = {
   initialCategory?: CategoryId | "all";
   challenge?: Reader | null; // set when the student picked "Challenge" on a reader
   onClearChallenge?: () => void;
+  /** Games this student played most recently, newest first. */
+  recent?: string[];
 };
 
+type Entry = GameInfo & { chess?: boolean };
+
+const CHESS: Entry = {
+  id: "chess", name: "Chess", title: "Ultimate Chess", tagline: "The arena of kings.", emoji: "♛", category: "board",
+  color: "#d9b44a", minutes: 15, blurb: "Real chess against readers or the computer.", chess: true,
+  how: ["Play real chess against a reader or the computer.", "Choose a clock and how strong the computer plays.", "Win by checkmate, or when your opponent's clock runs out."],
+};
+
+const SHELVES: { id: CategoryId; title: string; note: string }[] = [
+  { id: "board", title: "Strategy classics", note: "Timeless games of planning and position" },
+  { id: "brain", title: "Mind games", note: "Outthink your opponent" },
+  { id: "quick", title: "Quick matches", note: "Done in a few minutes" },
+  { id: "cards", title: "Cards and dice", note: "Luck meets good choices" },
+  { id: "words", title: "Word arena", note: "Spelling, meaning and grammar duels" },
+  { id: "learn", title: "Math, science and the world", note: "Fast facts and numbers" },
+];
+const shelfTitle = (c: CategoryId) => SHELVES.find((s) => s.id === c)?.title || CATEGORIES.find((x) => x.id === c)?.name || "";
+
+/** Spotlight games, rotated daily. */
+const FEATURED = ["chess", "seabattle", "four", "ultimate", "sentence_fix", "gofish", "reversi", "tictactoe", "fifteen", "geography", "spelling", "codebreaker"];
 const LEVELS = [{ id: 1, name: "Easy" }, { id: 2, name: "Medium" }, { id: 3, name: "Hard" }];
 
-export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChess, lobby, readers, busy, error, locked, initialCategory = "all", challenge, onClearChallenge }: Props) {
-  const [cat, setCat] = useState<CategoryId | "all">(initialCategory);
-  const [query, setQuery] = useState("");
-  const [picked, setPicked] = useState<GameInfo | null>(null);
+function useSavedLevel() {
   const [level, setLevel] = useState<number>(() => { try { return Number(localStorage.getItem("arcade_level")) || 2; } catch { return 2; } });
-  useEffect(() => setCat(initialCategory), [initialCategory]);
   useEffect(() => { try { localStorage.setItem("arcade_level", String(level)); } catch { /* ignore */ } }, [level]);
+  return [level, setLevel] as const;
+}
+
+export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChess, lobby, readers, busy, error, locked, initialCategory = "all", challenge, onClearChallenge, recent = [] }: Props) {
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<Entry | null>(null);
+  const [level, setLevel] = useSavedLevel();
+  const [scrolled, setScrolled] = useState(false);
+  const shelfRefs = useRef<Partial<Record<CategoryId, HTMLElement | null>>>({});
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const withChess = !!onOpenChess && !challenge;
+  const byId = (id: string): Entry | undefined => (id === "chess" ? (withChess ? CHESS : undefined) : GAME_INFO[id]);
+  const all: Entry[] = withChess ? [CHESS, ...GAMES] : GAMES;
+
+  const featured = useMemo(() => {
+    const day = Math.floor(Date.now() / 86_400_000);
+    const pool = FEATURED.filter((id) => byId(id));
+    return Array.from({ length: 5 }, (_, i) => byId(pool[(day + i * 2) % pool.length])!).filter((e, i, a) => a.findIndex((x) => x.id === e.id) === i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withChess]);
+  const [spot, setSpot] = useState(0);
+  const hero = featured[Math.min(spot, featured.length - 1)];
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (picked) setPicked(null); else onClose(); } };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (picked) setPicked(null);
+      else if (query) setQuery("");
+      else onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [picked, onClose]);
+  }, [picked, query, onClose]);
 
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return GAMES.filter((g) => (cat === "all" || g.category === cat) && (!q || g.name.toLowerCase().includes(q) || g.blurb.toLowerCase().includes(q)));
-  }, [cat, query]);
-  const tablesFor = (id: string) => lobby.tables.filter((t) => t.gameId === id);
-  const live = [...lobby.invites.map((t) => ({ ...t, invite: true })), ...lobby.tables.map((t) => ({ ...t, invite: false }))];
-  const color = (id: string) => GAME_INFO[id]?.color || "#3ee6ff";
+  // Opened from a category button in the lounge: go straight to that shelf.
+  useEffect(() => {
+    if (initialCategory === "all") return;
+    const t = window.setTimeout(() => shelfRefs.current[initialCategory]?.scrollIntoView({ block: "start", behavior: "smooth" }), 120);
+    return () => window.clearTimeout(t);
+  }, [initialCategory]);
+
+  const waitingFor = (id: string) => lobby.tables.filter((t) => t.gameId === id).length;
+  const q = query.trim().toLowerCase();
+  const results = q ? all.filter((g) => `${g.title} ${g.name} ${g.blurb} ${shelfTitle(g.category)}`.toLowerCase().includes(q)) : [];
+  const recentGames = recent.map(byId).filter((e): e is Entry => !!e).slice(0, 10);
+  const live = challenge ? [] : [...lobby.invites.map((t) => ({ ...t, invite: true })), ...lobby.tables.map((t) => ({ ...t, invite: false }))];
+  const open = (e: Entry) => setPicked(e);
+  const tile = (e: Entry) => <CoverTile key={e.id} id={e.id} title={e.title} name={e.name} waiting={waitingFor(e.id)} onOpen={() => open(e)} />;
 
   return (
-    <section className="ax-root" aria-label="Game room">
-      <header className="ax-room-head">
-        <button type="button" className="ax-icon-btn" onClick={onClose} aria-label="Back to the arcade lounge"><IconBack /></button>
-        <div className="ax-marquee">
-          <h1>Game Room</h1>
-          <p>{challenge ? `Pick a game to challenge ${challenge.name}.` : `${GAMES.length} games to play with readers or the computer.`}</p>
+    <section className="ax-root axl" aria-label="Game room">
+      <header className={"axl-top" + (scrolled ? " solid" : "")}>
+        <button type="button" className="axl-icon" onClick={onClose} aria-label="Back to the arcade lounge"><IconBack /></button>
+        <div className="axl-brand">
+          <b>Game Room</b>
+          <span>{challenge ? `Pick a game to challenge ${challenge.name}` : `${all.length} games · play readers or the computer`}</span>
         </div>
-        {challenge && <button type="button" className="ax-btn ax-btn-ghost ax-btn-small" onClick={onClearChallenge}>Cancel challenge</button>}
+        {challenge && <button type="button" className="axl-btn axl-btn-ghost axl-btn-sm" onClick={onClearChallenge}>Cancel challenge</button>}
+        <label className="axl-search">
+          <IconSearch />
+          <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games" aria-label="Search games" />
+        </label>
       </header>
 
-      <div className="ax-tools">
-        <label className="ax-search">
-          <IconSearch />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games" aria-label="Search games" />
-        </label>
-      </div>
-      <nav className="ax-cats" aria-label="Game categories">
-        <button type="button" className="ax-cat" aria-pressed={cat === "all"} onClick={() => setCat("all")} style={{ ["--cat" as any]: "#f6f4ff" }}><span>🎮</span><span>All games</span></button>
-        {CATEGORIES.map((c) => (
-          <button key={c.id} type="button" className="ax-cat" aria-pressed={cat === c.id} onClick={() => setCat(c.id)} style={{ ["--cat" as any]: c.color }}>
-            <span aria-hidden="true">{c.emoji}</span><span>{c.name}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="ax-room-body">
-        {locked && <div className="ax-alert" role="status">{locked}</div>}
-        {error && <div className="ax-alert bad" role="alert">{error}</div>}
-
-        {live.length > 0 && !challenge && (
+      <div className="axl-scroll" onScroll={(e) => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 24)}>
+        {q ? (
+          <div className="axl-results">
+            <h2 className="axl-h2">{results.length ? `Results for “${query.trim()}”` : `No games match “${query.trim()}”`}</h2>
+            {results.length ? <div className="axl-grid">{results.map(tile)}</div> : <p className="axl-empty">Try a game's name, like Checkers or Spelling.</p>}
+          </div>
+        ) : (
           <>
-            <h2 className="ax-section-title"><span><span className="ax-pulse" />Readers waiting to play</span><small>Join a table to start right away</small></h2>
-            <div className="ax-live">
-              {live.map((t) => (
-                <div key={t.matchId} className={"ax-live-card" + (t.invite ? " invite" : "")}>
-                  <span className="em" aria-hidden="true">{GAME_INFO[t.gameId]?.emoji}</span>
-                  <span className="who">
-                    <b>{t.invite ? `${t.hostName} challenged you!` : t.hostName}</b>
-                    <span>{t.gameName}</span>
-                  </span>
-                  {t.invite && <button type="button" className="ax-btn ax-btn-ghost ax-btn-small" onClick={() => onDeclineInvite(t)}>No thanks</button>}
-                  <button type="button" className={"ax-btn ax-btn-small " + (t.invite ? "ax-btn-gold" : "ax-btn-live")} disabled={busy || !!locked} onClick={() => onStart(t.gameId, { matchId: t.matchId })}>
-                    {t.invite ? "Accept" : "Join"}
-                  </button>
-                </div>
-              ))}
+            {hero && (
+              <Spotlight
+                entry={hero}
+                items={featured}
+                index={spot}
+                onPick={setSpot}
+                onOpen={() => open(hero)}
+                onQuickPlay={hero.chess ? onOpenChess : () => onStart(hero.id, { computer: true, level })}
+                quickLabel={hero.chess ? "Enter the arena" : `Quick play vs computer`}
+                disabled={busy || !!locked}
+                challenge={challenge}
+              />
+            )}
+
+            <div className="axl-notes">
+              {locked && <div className="axl-alert" role="status">{locked}</div>}
+              {error && <div className="axl-alert bad" role="alert">{error}</div>}
             </div>
+
+            {live.length > 0 && (
+              <Shelf id="live" title="Readers waiting to play" note="Join a table to start right away">
+                {live.map((t) => {
+                  const g = GAME_INFO[t.gameId];
+                  return (
+                    <div key={t.matchId} className={"axl-table" + (t.invite ? " invite" : "")} style={{ "--accent": logoFor(t.gameId).accent } as CSSProperties}>
+                      <span className="axl-table-art"><GameArt gameId={t.gameId} /></span>
+                      <span className="axl-table-text">
+                        <b>{t.invite ? `${t.hostName} challenged you` : `${t.hostName} is waiting`}</b>
+                        <span>{g ? `${g.title} · ${g.name}` : t.gameName}</span>
+                      </span>
+                      <span className="axl-table-actions">
+                        {t.invite && <button type="button" className="axl-btn axl-btn-ghost axl-btn-sm" onClick={() => onDeclineInvite(t)}>No thanks</button>}
+                        <button type="button" className="axl-btn axl-btn-play axl-btn-sm" disabled={busy || !!locked} onClick={() => onStart(t.gameId, { matchId: t.matchId })}>{t.invite ? "Accept" : "Join"}</button>
+                      </span>
+                    </div>
+                  );
+                })}
+              </Shelf>
+            )}
+
+            {recentGames.length > 0 && <Shelf id="recent" title="Jump back in">{recentGames.map(tile)}</Shelf>}
+
+            {SHELVES.map((s) => {
+              const list = all.filter((g) => g.category === s.id);
+              return (
+                <Shelf key={s.id} id={s.id} title={s.title} note={s.note} refCb={(el) => { shelfRefs.current[s.id] = el; }}>
+                  {list.map(tile)}
+                </Shelf>
+              );
+            })}
+            <p className="axl-foot">Every game works against the computer or another reader. Wins earn arcade rewards.</p>
           </>
         )}
-
-        <h2 className="ax-section-title">
-          {cat === "all" ? "All games" : CATEGORIES.find((c) => c.id === cat)?.name}
-          <small>{cat === "all" ? "Tap a game to see how to play" : CATEGORIES.find((c) => c.id === cat)?.blurb}</small>
-        </h2>
-        {shown.length ? (
-          <div className="ax-grid">
-            {shown.map((g) => (
-              <button key={g.id} type="button" className="ax-cart" aria-pressed={picked?.id === g.id} onClick={() => setPicked(g)} style={{ ["--game" as any]: g.color }}>
-                <span className="ax-cart-art" aria-hidden="true"><span>{g.emoji}</span></span>
-                {g.isNew && <span className="ax-sticker">New!</span>}
-                <span className="ax-cart-text">
-                  <b>{g.name}</b>
-                  <span>{g.blurb}</span>
-                  {tablesFor(g.id).length > 0 && <span style={{ color: "var(--ax-green)", fontWeight: 800 }}><span className="ax-pulse" />{tablesFor(g.id).length} waiting</span>}
-                </span>
-              </button>
-            ))}
-            {onOpenChess && (cat === "all" || cat === "board") && !query && !challenge && (
-              <button type="button" className="ax-cart" onClick={onOpenChess} style={{ ["--game" as any]: "#d9b44a" }}>
-                <span className="ax-cart-art" aria-hidden="true"><span>♛</span></span>
-                <span className="ax-cart-text"><b>Ultimate Chess</b><span>Opens the chess arena.</span></span>
-              </button>
-            )}
-          </div>
-        ) : <p className="ax-empty">No games match "{query}". Try another word.</p>}
       </div>
 
       {picked && (
-        <>
-          <div className="ax-detail-scrim" onClick={() => setPicked(null)} />
-          <aside className="ax-detail" style={{ ["--game" as any]: picked.color }} aria-label={picked.name}>
-            <div className="ax-detail-top">
-              <div className="em" aria-hidden="true">{picked.emoji}</div>
-              <h2>{picked.name}</h2>
-              <p>{picked.blurb} About {picked.minutes} min.</p>
-              <button type="button" className="ax-icon-btn" onClick={() => setPicked(null)} aria-label="Close"><IconClose /></button>
-            </div>
-            <div className="ax-detail-body">
-              <ul className="ax-how">{picked.how.map((h) => <li key={h}>{h}</li>)}</ul>
-
-              {challenge ? (
-                <div className="ax-block">
-                  <h3>Challenge {challenge.name}</h3>
-                  <p className="ax-note" style={{ marginTop: 0 }}>{challenge.name} gets an invite and the game starts when they accept.</p>
-                  <button type="button" className="ax-btn ax-btn-live ax-wide" disabled={busy || !!locked} onClick={() => onStart(picked.id, { inviteUserId: challenge.userId })}>Send challenge</button>
-                </div>
-              ) : (
-                <>
-                  <div className="ax-block">
-                    <h3>Play the computer</h3>
-                    <div className="ax-levels" role="group" aria-label="Computer level">
-                      {LEVELS.map((l) => <button key={l.id} type="button" aria-pressed={level === l.id} onClick={() => setLevel(l.id)}>{l.name}</button>)}
-                    </div>
-                    <button type="button" className="ax-btn ax-btn-primary ax-wide" disabled={busy || !!locked} onClick={() => onStart(picked.id, { computer: true, level })}>
-                      <IconBot /> Play the computer
-                    </button>
-                  </div>
-                  <div className="ax-block">
-                    <h3>Play a reader</h3>
-                    {tablesFor(picked.id).map((t) => (
-                      <div key={t.matchId} className="ax-reader" style={{ marginBottom: 8 }}>
-                        <b><span className="ax-pulse" />{t.hostName} is waiting</b>
-                        <button type="button" className="ax-btn ax-btn-live ax-btn-small" disabled={busy || !!locked} onClick={() => onStart(picked.id, { matchId: t.matchId })}>Join</button>
-                      </div>
-                    ))}
-                    <button type="button" className="ax-btn ax-btn-live ax-wide" disabled={busy || !!locked} onClick={() => onStart(picked.id, {})}>
-                      <IconUsers /> {tablesFor(picked.id).length ? "Join the next open table" : "Find a reader"}
-                    </button>
-                    {readers.length > 0 ? (
-                      <div className="ax-readers">
-                        <p className="ax-note" style={{ margin: "4px 0 0" }}>Or challenge someone in the arcade:</p>
-                        {readers.slice(0, 8).map((r) => (
-                          <div key={r.userId} className="ax-reader">
-                            <b>{r.name}</b>
-                            <button type="button" className="ax-btn ax-btn-ghost ax-btn-small" disabled={busy || !!locked} onClick={() => onStart(picked.id, { inviteUserId: r.userId })}>Challenge</button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : <p className="ax-note">Your table shows up for everyone in the Game Room. You can play the computer while you wait.</p>}
-                  </div>
-                </>
-              )}
-            </div>
-          </aside>
-        </>
+        <GamePage
+          entry={picked}
+          onClose={() => setPicked(null)}
+          onStart={onStart}
+          onOpenChess={onOpenChess}
+          tables={lobby.tables.filter((t) => t.gameId === picked.id)}
+          readers={readers}
+          busy={busy}
+          locked={locked}
+          level={level}
+          setLevel={setLevel}
+          challenge={challenge}
+        />
       )}
     </section>
+  );
+}
+
+function Meta({ entry }: { entry: Entry }) {
+  return (
+    <ul className="axl-meta">
+      <li>{shelfTitle(entry.category)}</li>
+      <li>2 players</li>
+      <li>About {entry.minutes} min</li>
+      <li>{entry.chess ? "Readers or the computer" : "Computer or a reader"}</li>
+    </ul>
+  );
+}
+
+/** Painted backdrop: a blurred wash of the art plus the full scene on the right. */
+function Backdrop({ id }: { id: string }) {
+  return (
+    <div className="axl-backdrop" key={id} aria-hidden="true">
+      <GameArt gameId={id} className="axl-backdrop-wash" />
+      <GameArt gameId={id} fit="wide" className="axl-backdrop-scene" />
+      <span className="axl-backdrop-shade" />
+    </div>
+  );
+}
+
+function Spotlight({ entry, items, index, onPick, onOpen, onQuickPlay, quickLabel, disabled, challenge }: {
+  entry: Entry; items: Entry[]; index: number; onPick: (i: number) => void; onOpen: () => void;
+  onQuickPlay?: () => void; quickLabel: string; disabled: boolean; challenge?: Reader | null;
+}) {
+  return (
+    <section className="axl-hero" style={{ "--accent": logoFor(entry.id).accent } as CSSProperties} aria-label={`Spotlight: ${entry.title}`}>
+      <Backdrop id={entry.id} />
+      <div className="axl-hero-copy" key={entry.id}>
+        <div className="axl-hero-logo"><TitleLogo id={entry.id} title={entry.title} classic={entry.name} max={entry.title.length > 9 ? 17 : 21} /></div>
+        <p className="axl-tagline">{entry.tagline}</p>
+        <Meta entry={entry} />
+        <div className="axl-actions">
+          <button type="button" className="axl-btn axl-btn-play" onClick={onOpen} data-testid="spotlight-play">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" fill="currentColor" /></svg> {challenge ? "Choose this game" : "Play"}
+          </button>
+          {onQuickPlay && !challenge && (
+            <button type="button" className="axl-btn axl-btn-ghost" disabled={disabled && !entry.chess} onClick={onQuickPlay}>{quickLabel}</button>
+          )}
+        </div>
+      </div>
+      {items.length > 1 && (
+        <div className="axl-picker" role="group" aria-label="Spotlight games">
+          {items.map((it, i) => (
+            <button key={it.id} type="button" className="axl-picker-item" aria-current={i === index} aria-label={`Show ${it.title}`} onClick={() => onPick(i)}>
+              <GameArt gameId={it.id} />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Shelf({ id, title, note, children, refCb }: { id: string; title: string; note?: string; children: ReactNode; refCb?: (el: HTMLElement | null) => void }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [ends, setEnds] = useState({ start: true, end: false });
+  const update = () => {
+    const el = rowRef.current;
+    if (!el) return;
+    const start = el.scrollLeft < 8;
+    const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8;
+    // Keep the same object when nothing changed so re-checking after a render is free.
+    setEnds((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+  };
+  // Re-check after each render too, since the number of covers on a shelf can change.
+  useEffect(() => { update(); });
+  useEffect(() => { window.addEventListener("resize", update); return () => window.removeEventListener("resize", update); }, []);
+  const scroll = (dir: number) => rowRef.current?.scrollBy({ left: dir * rowRef.current.clientWidth * 0.8, behavior: "smooth" });
+  const fits = ends.start && ends.end;
+  return (
+    <section className="axl-shelf" ref={refCb} aria-labelledby={`axl-shelf-${id}`}>
+      <div className="axl-shelf-head">
+        <h2 id={`axl-shelf-${id}`} className="axl-h2">{title}</h2>
+        {note && <p>{note}</p>}
+        {!fits && (
+          <div className="axl-shelf-nav">
+            <button type="button" aria-label={`Scroll ${title} back`} disabled={ends.start} onClick={() => scroll(-1)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
+            <button type="button" aria-label={`Scroll ${title} forward`} disabled={ends.end} onClick={() => scroll(1)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
+          </div>
+        )}
+      </div>
+      <div className="axl-row" ref={rowRef} onScroll={update}>{children}</div>
+    </section>
+  );
+}
+
+function GamePage({ entry, onClose, onStart, onOpenChess, tables, readers, busy, locked, level, setLevel, challenge }: {
+  entry: Entry; onClose: () => void; onStart: (id: string, opts: StartOptions) => void; onOpenChess?: () => void;
+  tables: LobbyTable[]; readers: Reader[]; busy: boolean; locked?: string | null; level: number; setLevel: (n: number) => void; challenge?: Reader | null;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { closeRef.current?.focus(); }, [entry.id]);
+  const off = busy || !!locked;
+  return (
+    <div className="axl-page" role="dialog" aria-modal="true" aria-label={`${entry.title}, ${entry.name}`} style={{ "--accent": logoFor(entry.id).accent } as CSSProperties}>
+      <div className="axl-page-scroll">
+        <header className="axl-page-hero">
+          <Backdrop id={entry.id} />
+          <button ref={closeRef} type="button" className="axl-icon axl-page-back" onClick={onClose} aria-label="Back to all games"><IconBack /></button>
+          <div className="axl-page-copy">
+            <div className="axl-hero-logo"><TitleLogo id={entry.id} title={entry.title} classic={entry.name} max={entry.title.length > 9 ? 17 : 21} /></div>
+            <p className="axl-tagline">{entry.tagline}</p>
+            <Meta entry={entry} />
+          </div>
+        </header>
+
+        <div className="axl-page-body">
+          <section className="axl-card axl-how">
+            <h3>How to play</h3>
+            <ol>{entry.how.map((h) => <li key={h}>{h}</li>)}</ol>
+            <p className="axl-small">{entry.blurb}</p>
+          </section>
+
+          <section className="axl-card axl-play" aria-label="Play">
+            {locked && <div className="axl-alert" role="status">{locked}</div>}
+            {entry.chess ? (
+              <>
+                <h3>Play</h3>
+                <p className="axl-small">Ultimate Chess has its own arena with clocks, coaching and rated games.</p>
+                <button type="button" className="axl-btn axl-btn-play axl-wide" onClick={onOpenChess}>Enter the chess arena</button>
+              </>
+            ) : challenge ? (
+              <>
+                <h3>Challenge {challenge.name}</h3>
+                <p className="axl-small">{challenge.name} gets an invite, and the game starts when they accept.</p>
+                <button type="button" className="axl-btn axl-btn-play axl-wide" disabled={off} onClick={() => onStart(entry.id, { inviteUserId: challenge.userId })} data-testid="button-send-challenge">Send challenge</button>
+              </>
+            ) : (
+              <>
+                <h3>Play the computer</h3>
+                <div className="axl-levels" role="group" aria-label="Computer level">
+                  {LEVELS.map((l) => <button key={l.id} type="button" aria-pressed={level === l.id} onClick={() => setLevel(l.id)}>{l.name}</button>)}
+                </div>
+                <button type="button" className="axl-btn axl-btn-play axl-wide" disabled={off} onClick={() => onStart(entry.id, { computer: true, level })} data-testid="button-play-computer">
+                  <IconBot /> Play the computer
+                </button>
+
+                <h3 className="axl-gap">Play a reader</h3>
+                {tables.map((t) => (
+                  <div key={t.matchId} className="axl-reader">
+                    <b><i className="axl-dot" />{t.hostName} is waiting</b>
+                    <button type="button" className="axl-btn axl-btn-play axl-btn-sm" disabled={off} onClick={() => onStart(entry.id, { matchId: t.matchId })}>Join</button>
+                  </div>
+                ))}
+                <button type="button" className="axl-btn axl-btn-ghost axl-wide" disabled={off} onClick={() => onStart(entry.id, {})}>
+                  <IconUsers /> {tables.length ? "Join the next open table" : "Find a reader"}
+                </button>
+                {readers.length > 0 ? (
+                  <div className="axl-readers">
+                    <p className="axl-small">Or challenge someone in the arcade:</p>
+                    {readers.slice(0, 8).map((r) => (
+                      <div key={r.userId} className="axl-reader">
+                        <b>{r.name}</b>
+                        <button type="button" className="axl-btn axl-btn-ghost axl-btn-sm" disabled={off} onClick={() => onStart(entry.id, { inviteUserId: r.userId })}>Challenge</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="axl-small">Your table shows up for everyone in the Game Room. You can play the computer while you wait.</p>}
+              </>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
   );
 }
