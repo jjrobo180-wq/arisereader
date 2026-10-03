@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ArrowRight, Award, BookOpen, ChevronDown, ChevronUp, Eye, Gamepad2,
+  ArrowRight, Award, BarChart3, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Eye, Gamepad2,
   GraduationCap, Heart, Home, LibraryBig, LogIn, Megaphone, MessageCircle,
-  PlayCircle, Search, Sparkles, Trophy, UserRound, Users, X, Zap,
+  PlayCircle, Search, ShieldCheck, Sparkles, TrendingUp, Trophy, UserRound, Users, X, Zap,
 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import DonationGoal from "@/components/DonationGoal";
@@ -98,11 +98,111 @@ export default function Login() {
     </div></aside></div>
 
     <section className="mt-5 flex flex-col gap-4 rounded-[1.7rem] border border-white/10 bg-gradient-to-r from-[#17142a] via-[#1b1530] to-[#102331] p-5 sm:flex-row sm:items-center sm:p-6"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-fuchsia-500/10"><Heart className="h-5 w-5 text-fuchsia-300"/></div><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.2em] text-fuchsia-300">The story behind A.R.I.S.E.</p><h2 className="mt-1 text-xl font-black">About A.R.I.S.E. Reader</h2><p className="mt-1 text-sm font-semibold text-slate-400">Meet Mr. J, see the classroom story behind the platform, and learn what A.R.I.S.E. stands for.</p></div><Button onClick={()=>navigate("/about")} className="rounded-full arise-gradient-button px-5 font-black">About A.R.I.S.E. <ArrowRight className="ml-2 h-4 w-4"/></Button></section>
+
+    <ResearchEvidenceSection />
     </main>
 
     {selectedFeature&&<FeatureDetails feature={FEATURES[selectedFeature]} onClose={()=>setSelectedFeature(null)} onTutorial={()=>{const path=FEATURES[selectedFeature].tutorial;setSelectedFeature(null);navigate(path);}} onSample={()=>{setSelectedFeature(null);setShowSampleChooser(true);}}/>}
     {showSampleChooser&&<div className="fixed inset-0 z-[250] flex items-end justify-center overflow-y-auto bg-[#06050d]/90 p-3 backdrop-blur-md sm:items-center sm:p-4"><div className="my-3 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#151326] shadow-2xl"><div className="border-b border-white/10 p-5 sm:p-6"><p className="text-xs font-black uppercase tracking-[.18em] text-violet-300">Sample Experience</p><h2 className="mt-1 text-2xl font-black">Choose exactly what you want to preview.</h2><p className="mt-2 text-sm font-semibold text-slate-400">The regular Student sample is strictly non-Eye-Gazer. Eye Gazer has its own separate sample.</p></div><div className="grid gap-3 p-4 sm:p-5 md:grid-cols-3"><SampleButton icon={Users} title={sampleLoading==="student"?"Opening…":"Student"} text="Regular student: books, quizzes, rewards, Club, avatars, pets, homes and worlds." onClick={()=>void loginSample("student")} disabled={!!sampleLoading}/><SampleButton icon={Eye} title={sampleLoading==="eye-gaze"?"Opening…":"Eye Gazer"} text="Accessible sample: My Talker, visual learning, games, My World and Life Skills." onClick={()=>void loginSample("eye-gaze")} disabled={!!sampleLoading}/><SampleButton icon={UserRound} title={sampleLoading==="parent"?"Opening…":"Parent"} text="Family sample: linked children, progress, certificates and controls." onClick={()=>void loginSample("parent")} disabled={!!sampleLoading}/></div><div className="border-t border-white/10 p-4 sm:p-5"><button type="button" onClick={()=>setShowSampleChooser(false)} className="rounded-xl px-4 py-2 text-sm font-black text-slate-300 hover:bg-white/10">Cancel</button></div></div></div>}
   </div>;
+}
+
+
+const RESEARCH_EVIDENCE = [
+  {
+    label: "Comprehension strategy instruction",
+    evidence: "Strong",
+    strength: 3,
+    source: "WWC · Adolescent Literacy · Grades 5–12",
+    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
+    connection: "A.R.I.S.E. gives teachers a place to pair books and comprehension checks with explicit strategy instruction.",
+  },
+  {
+    label: "Explicit vocabulary instruction",
+    evidence: "Strong",
+    strength: 3,
+    source: "WWC · Adolescent Literacy · Grades 5–12",
+    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
+    connection: "Book-based quizzes and teacher-led follow-up can reinforce vocabulary work around what students are actually reading.",
+  },
+  {
+    label: "Student motivation & engagement",
+    evidence: "Moderate",
+    strength: 2,
+    source: "WWC · Adolescent Literacy · Grades 5–12",
+    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
+    connection: "Points, recognition, rewards, games, and visible progress are designed to make reading participation worth returning to.",
+  },
+  {
+    label: "Discussion of text meaning",
+    evidence: "Moderate",
+    strength: 2,
+    source: "WWC · Adolescent Literacy · Grades 5–12",
+    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
+    connection: "Quiz results give teachers and students concrete comprehension moments to discuss after reading.",
+  },
+  {
+    label: "Daily reading of connected text",
+    evidence: "Moderate",
+    strength: 2,
+    source: "WWC · Foundational Reading · K–3",
+    url: "https://ies.ed.gov/ncee/wwc/PracticeGuide/21",
+    connection: "A.R.I.S.E. keeps real books and reading activity at the center of the experience rather than replacing reading with games.",
+  },
+] as const;
+
+function ResearchEvidenceSection(){
+  return <section id="research" className="relative mt-5 overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-[radial-gradient(circle_at_82%_12%,rgba(34,211,238,.13),transparent_28%),radial-gradient(circle_at_18%_20%,rgba(139,92,246,.18),transparent_30%),linear-gradient(145deg,#111426,#10101e_52%,#0a1820)] p-5 shadow-2xl sm:p-7 lg:p-9">
+    <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border border-cyan-300/10"/>
+    <div className="pointer-events-none absolute -right-6 -top-10 h-40 w-40 rounded-full border border-violet-300/10"/>
+    <div className="relative">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> Research-backed design</div>
+          <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">What research says matters for <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-200 bg-clip-text text-transparent">reading growth.</span></h2>
+          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">A.R.I.S.E. Reader is designed to reinforce literacy practices identified by the U.S. Department of Education’s Institute of Education Sciences and What Works Clearinghouse. The chart below shows the <b className="text-slate-200">official evidence rating</b> for each practice — not a made-up percentage.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:min-w-[310px]">
+          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><BarChart3 className="h-5 w-5 text-cyan-300"/><p className="mt-2 text-2xl font-black">2×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Strong-evidence practices shown</p></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><TrendingUp className="h-5 w-5 text-violet-300"/><p className="mt-2 text-2xl font-black">3×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Moderate-evidence practices shown</p></div>
+        </div>
+      </div>
+
+      <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(310px,.8fr)]">
+        <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4 sm:p-5">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Evidence strength</p><h3 className="mt-1 text-lg font-black">IES / What Works Clearinghouse</h3></div>
+            <div className="hidden items-center gap-3 text-[10px] font-bold text-slate-500 sm:flex"><span>Lower</span><span className="h-px w-16 bg-white/15"/><span>Stronger</span></div>
+          </div>
+          <div className="space-y-5">
+            {RESEARCH_EVIDENCE.map(item=><div key={item.label}>
+              <div className="mb-2 flex flex-wrap items-end justify-between gap-2"><div><p className="text-sm font-black text-slate-100">{item.label}</p><a href={item.url} target="_blank" rel="noreferrer" className="mt-0.5 block text-[10px] font-bold text-slate-500 underline decoration-white/10 underline-offset-2 hover:text-cyan-300">{item.source}</a></div><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${item.evidence==="Strong"?"border-emerald-300/25 bg-emerald-400/10 text-emerald-200":"border-cyan-300/20 bg-cyan-400/10 text-cyan-200"}`}>{item.evidence} evidence</span></div>
+              <div className="grid grid-cols-3 gap-1.5" aria-label={`${item.evidence} evidence rating`}>
+                {[1,2,3].map(level=><span key={level} className={`h-3 rounded-full ${level<=item.strength?(item.evidence==="Strong"?"bg-gradient-to-r from-emerald-500 to-cyan-400":"bg-gradient-to-r from-violet-500 to-cyan-400"):"bg-white/[.06]"}`}/>)}
+              </div>
+            </div>)}
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500"><span className="rounded-full bg-white/[.05] px-2.5 py-1">3 bars = Strong</span><span className="rounded-full bg-white/[.05] px-2.5 py-1">2 bars = Moderate</span><span className="rounded-full bg-white/[.05] px-2.5 py-1">WWC ratings, not effect sizes</span></div>
+        </div>
+
+        <div className="rounded-[1.6rem] border border-violet-300/15 bg-gradient-to-b from-violet-500/[.08] to-cyan-400/[.04] p-4 sm:p-5">
+          <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300">How A.R.I.S.E. connects</p>
+          <h3 className="mt-1 text-xl font-black">Turn evidence into a student experience.</h3>
+          <div className="mt-4 space-y-3">{RESEARCH_EVIDENCE.slice(0,4).map(item=><div key={item.label} className="flex gap-3 rounded-2xl border border-white/10 bg-black/15 p-3"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300"/><div><p className="text-xs font-black text-slate-200">{item.label}</p><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-400">{item.connection}</p></div></div>)}</div>
+          <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-300/[.06] p-4"><p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-200">Important distinction</p><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-400">These studies support the literacy practices shown above. They are <b className="text-slate-200">not studies of A.R.I.S.E. Reader itself</b>, and this section does not claim a specific percentage of student growth. A.R.I.S.E. outcomes should be measured with real implementation and student data.</p></div>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-white/[.035] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><p className="text-xs font-black text-slate-200">Primary research sources</p><p className="mt-1 text-[11px] font-semibold text-slate-500">U.S. Department of Education · Institute of Education Sciences · What Works Clearinghouse</p></div>
+        <div className="flex flex-wrap gap-2">
+          <a href="https://ies.ed.gov/ncee/WWC/PracticeGuide/8" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Adolescent Literacy</a>
+          <a href="https://ies.ed.gov/ncee/wwc/PracticeGuide/21" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Foundational Reading</a>
+          <a href="https://ies.ed.gov/ncee/wwc/PracticeGuide/14/i" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Reading Comprehension</a>
+        </div>
+      </div>
+    </div>
+  </section>;
 }
 
 function FeatureDetails({feature,onClose,onTutorial,onSample}:{feature:Feature;onClose:()=>void;onTutorial:()=>void;onSample:()=>void}){const Icon=feature.icon;return <div className="fixed inset-0 z-[260] flex items-end justify-center bg-[#06050d]/88 p-0 backdrop-blur-md sm:items-center sm:p-4" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><div className="max-h-[88dvh] w-full overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#151326] shadow-2xl sm:max-w-2xl sm:rounded-[2rem]"><div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#151326]/95 px-5 py-4 backdrop-blur-xl"><div className="flex min-w-0 items-center gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400"><Icon className="h-5 w-5"/></div><div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-[.17em] text-cyan-300">{feature.category}</p><p className="truncate font-black">{feature.label}</p></div></div><button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[.07] text-slate-300"><X className="h-5 w-5"/></button></div><div className="p-5 sm:p-7"><p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-300">{feature.kicker}</p><h2 className="mt-2 text-3xl font-black leading-tight tracking-[-.04em]">{feature.title}</h2><p className="mt-4 text-sm font-semibold leading-6 text-slate-400">{feature.description}</p><div className="mt-6 grid gap-2 sm:grid-cols-3">{feature.bullets.map(b=><div key={b} className="rounded-2xl border border-white/10 bg-white/[.045] p-3 text-sm font-bold text-slate-200">{b}</div>)}</div><div className="mt-7 flex flex-col gap-2 sm:flex-row"><Button onClick={onTutorial} className="min-h-12 rounded-full arise-gradient-button px-5 font-black">See tutorial <ArrowRight className="ml-2 h-4 w-4"/></Button>{feature.sample&&<Button variant="outline" onClick={onSample} className="min-h-12 rounded-full border-white/10 bg-white/5 px-5 font-black text-white">Try this experience</Button>}</div></div></div></div>;}
