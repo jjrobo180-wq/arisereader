@@ -15,7 +15,7 @@ import { logoFor } from "@/arcade/covers/styles";
 import "@/arcade/library.css";
 import "./worlds.css";
 
-type WorldId = "theater" | "neighborhood" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack";
+type WorldId = "city" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack";
 type World = {
   id: WorldId;
   /** The cover title. */
@@ -38,16 +38,10 @@ const WORLDS: World[] = [
     look: { family: "legend", metal: ["#fff6d8", "#ffcf55", "#9a5a06"], glow: "rgba(255,200,110,.5)", accent: "#ffd27a" },
   },
   {
-    id: "neighborhood", title: "Haven Heights", name: "The Block", tag: "Explore", tagline: "Your street. Your house. Your crew.",
-    highlights: ["Walk your neighborhood", "Find your house", "See other readers around the block"],
-    facts: ["Explore", "See other readers", "Your own house"], path: "/neighborhood",
-    look: { family: "legend", metal: ["#fffbea", "#ffd9a3", "#e08a4a"], glow: "rgba(255,170,100,.5)", accent: "#ffc48a" },
-  },
-  {
-    id: "theater", title: "Starlight Cinema", name: "A.R.I.S.E. Cinema", tag: "Movies", tagline: "Grab some popcorn. The show never stops.",
-    highlights: ["Sit with friends", "Grab popcorn", "Watch the always-on Club movie channel"],
-    facts: ["Movies", "Watch with friends", "Always on"], path: "/club-arise/theater",
-    look: { family: "legend", metal: ["#fff6dc", "#ffd27a", "#d9461f"], glow: "rgba(255,150,80,.55)", accent: "#ffcf6e" },
+    id: "city", title: "Haven City", name: "The Block + Cinema", tag: "Open world", tagline: "Drive, hang out and race with your crew.",
+    highlights: ["Drive around the city in your own car (everyone gets a free one)", "Walk your pet and visit your house", "Watch movies together at Starlight Cinema", "Race at Haven Speedway", "Shop for cars and pets with Reader Coins"],
+    facts: ["Open world", "Play with readers", "Free starter car"], path: "/city",
+    look: { family: "strike", metal: ["#ffffff", "#bff8ff", "#3ee6ff"], glow: "rgba(62,230,255,.55)", accent: "#7ff0ff" },
   },
   {
     id: "board", title: "Board Quest", name: "Team board game", tag: "Team game", tagline: "Roll the dice. Answer bold. Win together.",
@@ -82,17 +76,16 @@ const WORLDS: World[] = [
 ];
 const BY_ID = Object.fromEntries(WORLDS.map((w) => [w.id, w])) as Record<WorldId, World>;
 
-const TOP_GAMES: WorldId[] = ["laser", "racetrack", "space", "board", "theater"];
+const TOP_GAMES: WorldId[] = ["city", "laser", "racetrack", "space", "board"];
 
 const SHELVES: { id: string; title: string; note: string; worlds: WorldId[] }[] = [
-  { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["board", "chess", "neighborhood", "theater"] },
+  { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["city", "board", "chess"] },
   { id: "action", title: "Action and adventure", note: "Race, battle and explore", worlds: ["laser", "racetrack", "space", "halloread"] },
 ];
 
 /** Starts downloading a world while the student is looking at it. */
 const WARM: Record<WorldId, () => Promise<unknown>> = {
-  theater: () => import("./ClubTheater"),
-  neighborhood: () => import("./Neighborhood"),
+  city: () => import("./AriseCity"),
   board: () => import("./BoardGameWorld"),
   halloread: () => import("./MidnightMystery"),
   chess: () => import("./UltimateChess"),
@@ -113,7 +106,7 @@ const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
 ];
 
 const SAVED_KEY = "games_selected";
-const ROTATION: WorldId[] = ["space", "laser", "racetrack", "board", "chess", "neighborhood", "theater", "halloread"];
+const ROTATION: WorldId[] = ["city", "space", "laser", "racetrack", "board", "chess", "halloread"];
 // Halloread is the October special (same dates as the Halloread events elsewhere).
 const halloween = (() => { const d = new Date(); return d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() <= 2); })();
 

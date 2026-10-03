@@ -826,7 +826,80 @@ function auroraRacers(k: Ids) {
   );
 }
 
+
+// ─── HAVEN CITY ──────────────────────────────────────────────────────────────
+function havenCity(k: Ids) {
+  const horizon = 214;
+  const P = perspective(240, horizon, 46);
+  const r = rng(2201);
+  const towers: ReactNode[] = [];
+  // towers line both sides of the avenue, far ones first
+  for (const s of [-1, 1]) {
+    let z = 0.3;
+    const list: ReactNode[] = [];
+    for (let i = 0; i < 9; i++) {
+      const grow = Math.pow(1.42, i);
+      const z0 = z, z1 = z + 0.28 * grow; z = z1 + 0.06 * grow;
+      const side = 78 * s, h = 120 + r() * 160;
+      const at = (u: number, up: number) => P(side, up, lerp(z0, z1, u));
+      const face = pts([at(0, 0), at(1, 0), at(1, h), at(0, h)]);
+      const wins: ReactNode[] = [];
+      for (let row = 0; row < 9; row++) for (let col = 0; col < 3; col++) {
+        if (r() < 0.45) continue;
+        const u0 = 0.12 + col * 0.28, v0 = 14 + row * (h - 24) / 9;
+        wins.push(<polygon key={`${row}-${col}`} points={pts([at(u0, v0 + 9), at(u0 + 0.16, v0 + 9), at(u0 + 0.16, v0), at(u0, v0)])} fill={r() < 0.25 ? "#9fdcff" : "#ffd27a"} opacity={0.85} />);
+      }
+      list.push(<g key={`${s}-${i}`}><polygon points={face} fill={i % 2 ? "#2a2550" : "#332a5e"} />{wins}</g>);
+    }
+    towers.push(...list.reverse());
+  }
+  // the cinema marquee on the right, near the viewer
+  const m = [P(76, 64, 1.05), P(76, 64, 1.7), P(76, 40, 1.7), P(76, 40, 1.05)];
+  const bulbs: ReactNode[] = [];
+  for (let i = 0; i <= 10; i++) { const [x, y] = P(76, 66, lerp(1.05, 1.7, i / 10)); bulbs.push(<circle key={i} cx={x} cy={y} r={2.2} fill="#ffe7a0" />); }
+  const dashes: ReactNode[] = [];
+  for (const z of [0.42, 0.62, 0.9, 1.3, 1.9, 2.8, 4.1, 6]) dashes.push(<polygon key={z} points={pts([P(-1.6, 0, z), P(1.6, 0, z), P(1.6, 0, z * 1.2), P(-1.6, 0, z * 1.2)])} fill="#ffd56b" opacity={0.8} />);
+  const trail = (off: number, color: string, key: string) => {
+    const a = P(off, 4, 0.36), b = P(off, 4, 6);
+    return <g key={key}><line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={color} strokeWidth={9} opacity={0.25} strokeLinecap="round" /><line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#fff" strokeWidth={2} opacity={0.75} strokeLinecap="round" /></g>;
+  };
+  return (
+    <>
+      <Sky k={k} stops={[[0, "#0a0c2e"], [0.3, "#2a2468"], [0.47, "#8a3f86"], [0.53, "#ff8a6b"], [0.535, "#1b1530"], [1, "#0e0b1a"]]} />
+      <Stars seed={2202} n={40} y1={150} />
+      <Glow k={k} name="sun" cx={240} cy={214} r={150} color="#ff7ab0" opacity={0.6} />
+      <rect x={0} y={horizon} width={W} height={H - horizon} fill="#15121f" />
+      <polygon points={pts([P(-56, 0, 0.2), P(56, 0, 0.2), P(56, 0, 60), P(-56, 0, 60)])} fill="#24212f" />
+      <polygon points={pts([P(-78, 0, 0.2), P(-56, 0, 0.2), P(-56, 0, 60), P(-78, 0, 60)])} fill="#3a3448" />
+      <polygon points={pts([P(56, 0, 0.2), P(78, 0, 0.2), P(78, 0, 60), P(56, 0, 60)])} fill="#3a3448" />
+      {dashes}
+      {towers}
+      {trail(-22, "#3ee6ff", "t1")}
+      {trail(24, "#ff4f8b", "t2")}
+      <polygon points={pts(m)} fill="#1a0610" stroke="#ffd36b" strokeWidth={2} />
+      {bulbs}
+      <Glow k={k} name="marquee" cx={(m[0][0] + m[2][0]) / 2} cy={(m[0][1] + m[2][1]) / 2} r={70} color="#ffb347" opacity={0.35} />
+      {/* a car rolling toward us with its headlights on */}
+      <g transform="translate(240 236)">
+        <ellipse cx={0} cy={30} rx={70} ry={10} fill="#000" opacity={0.5} />
+        <path d="M-58,24 L-54,-2 Q-50,-14 -36,-16 L-26,-40 Q-22,-48 -12,-48 L12,-48 Q22,-48 26,-40 L36,-16 Q50,-14 54,-2 L58,24 Z" fill="#2fd1c0" />
+        <path d="M-22,-40 L22,-40 L30,-18 L-30,-18 Z" fill="#163a4a" />
+        <rect x={-58} y={10} width={116} height={14} rx={5} fill="#1b2230" />
+        <rect x={-56} y={24} width={18} height={14} rx={4} fill="#0b0e14" />
+        <rect x={38} y={24} width={18} height={14} rx={4} fill="#0b0e14" />
+        <circle cx={-40} cy={2} r={7} fill="#fff8d6" />
+        <circle cx={40} cy={2} r={7} fill="#fff8d6" />
+      </g>
+      <Glow k={k} name="hlL" cx={200} cy={238} r={40} color="#fff2c4" opacity={0.75} core={0.1} />
+      <Glow k={k} name="hlR" cx={280} cy={238} r={40} color="#fff2c4" opacity={0.75} core={0.1} />
+      <Motes seed={2203} n={30} y0={60} y1={300} color="#ffd8f0" size={1.1} opacity={0.6} />
+      <Vignette k={k} strength={0.6} />
+    </>
+  );
+}
+
 export const WORLD_SCENES: Record<string, Painter> = {
+  city: havenCity,
   club: neonArcade,
   chess: chessScene,
   neighborhood: havenHeights,

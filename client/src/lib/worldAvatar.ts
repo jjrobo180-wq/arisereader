@@ -22,7 +22,8 @@ export class AvatarRig {
   private disposed = false;
   loaded = false;
 
-  constructor(characterId: string, height = 2.5) {
+  /** noWeapons hides prop weapons some models carry (Haven City has none). */
+  constructor(characterId: string, height = 2.5, opts: { noWeapons?: boolean } = {}) {
     loadGltfCached(getAvatarCharacter(characterId).modelPath).then(gltf => {
       if (this.disposed) return;
       const model = cloneSkinned(gltf.scene) as THREE.Group;
@@ -32,6 +33,7 @@ export class AvatarRig {
       const b2 = new THREE.Box3().setFromObject(model);
       model.position.y = -b2.min.y;
       model.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
+      if (opts.noWeapons) model.traverse(o => { if ((o as THREE.Mesh).isMesh && /^(sword|pistol|gun|knife|dagger|axe|bow|crossbow)/i.test(o.name)) o.visible = false; });
       this.root.add(model);
       if (gltf.animations.length) {
         this.mixer = new THREE.AnimationMixer(model);

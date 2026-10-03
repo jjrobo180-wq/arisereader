@@ -105,7 +105,7 @@ export default function HomeInterior() {
       setNotice(d.home.unlocked ? "Front door unlocked. Friends can visit!" : "Front door locked. Only you can come in.");
     } catch (error: any) { setNotice(error.message || "Could not change the door."); } finally { setBusy(""); }
   };
-  const goOutside = () => navigate("/neighborhood?from=" + (payload?.home.ownerId || ownerId));
+  const goOutside = () => navigate("/city?from=" + (payload?.home.ownerId || ownerId));
 
   const applyCamera = (preset: "follow" | "wide" | "top") => {
     setCameraPreset(preset); presetRef.current = preset;
@@ -167,7 +167,7 @@ export default function HomeInterior() {
     const doorFrame = new THREE.Group(); doorFrame.position.set(0, 0, 11); scene.add(doorFrame);
     box([0.35, 3.2, 0.4], [-2.6, 1.6, 0], trimMat, doorFrame); box([0.35, 3.2, 0.4], [2.6, 1.6, 0], trimMat, doorFrame); box([5.6, 0.35, 0.4], [0, 3.2, 0], trimMat, doorFrame);
     const doormat = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.3), m(0x92400e, 1)); doormat.rotation.x = -Math.PI / 2; doormat.position.set(0, 0.02, 10.1); scene.add(doormat);
-    hotspots.push({ id: "door", label: "Go outside to The Block", emoji: "🚪", x: 0, z: 10.45, r: 1.0 });
+    hotspots.push({ id: "door", label: "Go outside to Haven City", emoji: "🚪", x: 0, z: 10.45, r: 1.0 });
 
     // Windows on the back and side walls (city skyline in the loft).
     const windowTex = (night: boolean) => texture(256, (c, s) => {
@@ -480,14 +480,14 @@ export default function HomeInterior() {
   const ownedHomes: CatalogItem[] = [{ id: "home-basic", type: "home", name: "Starter Cottage", price: 0, rarity: "starter" }, ...(payload?.catalog || []).filter(x => x.type === "home" && payload?.state.purchased.includes(x.id))];
   const allFurniture = (payload?.catalog || []).filter(x => x.type === "furniture");
 
-  if (!payload) return <main className="relative grid h-[100dvh] place-items-center bg-slate-950 p-5 text-center text-white"><div><Home className="mx-auto h-12 w-12 text-cyan-300" /><h1 className="mt-3 text-2xl font-black">{notice}</h1><div className="mt-5 flex flex-wrap justify-center gap-2"><button onClick={() => navigate("/neighborhood")} className="rounded-xl bg-white/10 px-5 py-3 font-black">Back to The Block</button>{notice.toLowerCase().includes("buy") && <button onClick={() => navigate("/avatar-world")} className="flex items-center gap-2 rounded-xl bg-amber-300 px-5 py-3 font-black text-slate-950"><ShoppingBag className="h-4 w-4" /> Buy a home</button>}</div></div></main>;
+  if (!payload) return <main className="relative grid h-[100dvh] place-items-center bg-slate-950 p-5 text-center text-white"><div><Home className="mx-auto h-12 w-12 text-cyan-300" /><h1 className="mt-3 text-2xl font-black">{notice}</h1><div className="mt-5 flex flex-wrap justify-center gap-2"><button onClick={() => navigate("/city")} className="rounded-xl bg-white/10 px-5 py-3 font-black">Back to Haven City</button>{notice.toLowerCase().includes("buy") && <button onClick={() => navigate("/avatar-world")} className="flex items-center gap-2 rounded-xl bg-amber-300 px-5 py-3 font-black text-slate-950"><ShoppingBag className="h-4 w-4" /> Buy a home</button>}</div></div></main>;
 
   const info = homeInfo(homeId);
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0 touch-none" />
     {napping && <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-slate-950/85 text-6xl font-black transition-opacity">😴 Zzz…</div>}
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-slate-950/95 via-slate-950/70 to-transparent p-2.5 sm:p-4">
-      <button onClick={goOutside} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/88 px-3 font-black shadow-xl"><ArrowLeft className="h-4 w-4" /><span className="hidden sm:inline">The Block</span></button>
+      <button onClick={goOutside} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/88 px-3 font-black shadow-xl"><ArrowLeft className="h-4 w-4" /><span className="hidden sm:inline">Haven City</span></button>
       <div className="min-w-0 flex-1"><p className="truncate text-[9px] font-black uppercase tracking-[.22em] text-cyan-300">{payload.isOwner ? "My " + info.name : payload.home.displayName + "'s " + info.name}</p><h1 className="truncate text-base font-black sm:text-xl">{room}</h1></div>
       {payload.isOwner && <button onClick={() => void toggleDoor()} disabled={!!busy} className={"pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl px-3 text-xs font-black shadow-xl " + (payload.home.unlocked ? "bg-emerald-400 text-slate-950" : "bg-amber-300 text-slate-950")}>{payload.home.unlocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}<span className="hidden sm:inline">{payload.home.unlocked ? "Door open" : "Door locked"}</span></button>}
       {payload.isOwner && <button onClick={() => setDecorate(true)} className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-2xl bg-fuchsia-600/90 px-3 text-xs font-black shadow-xl"><Paintbrush className="h-4 w-4" /><span className="hidden sm:inline">Decorate</span></button>}

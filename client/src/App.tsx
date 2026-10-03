@@ -66,9 +66,8 @@ function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
   });
 }
 const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
-const ClubTheater = lazyPage(() => import("./pages/ClubTheater"));
 const Games = lazyPage(() => import("./pages/Games"));
-const Neighborhood = lazyPage(() => import("./pages/Neighborhood"));
+const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const HomeInterior = lazyPage(() => import("./pages/HomeInterior"));
 const BoardGameWorld = lazyPage(() => import("./pages/BoardGameWorld"));
 const MidnightMystery = lazyPage(() => import("./pages/MidnightMystery"));
@@ -377,9 +376,15 @@ function AppRoutes() {
           ? <ProtectedRoute><Redirect to="/games" replace /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
+      {/* The Cinema and The Block are now part of Haven City. */}
       <Route path="/club-arise/theater">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><ClubTheater /></ProtectedRoute>
+          ? <ProtectedRoute><Redirect to="/city" replace /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/city">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><AriseCity /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/games">
@@ -394,7 +399,7 @@ function AppRoutes() {
       </Route>
       <Route path="/neighborhood">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
-          ? <ProtectedRoute><Neighborhood /></ProtectedRoute>
+          ? <ProtectedRoute><Redirect to="/city" replace /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/board-game-world">
