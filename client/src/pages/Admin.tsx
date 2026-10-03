@@ -20,11 +20,12 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
 import NoProctorReview from "@/components/NoProctorReview";
+import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
-  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, ChevronRight, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck, Clock3
+  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, ChevronRight, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck, Clock3, Archive
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -1359,21 +1360,10 @@ export default function Admin() {
   };
 
   const handleDeleteParent = async (parentId: number, parentName: string) => {
-    if (!confirm(`Are you sure? This deletes ${parentName}'s account permanently.`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${parentId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
-      });
-      if (res.ok) {
-        alert("Parent account deleted.");
-        fetchAllParents();
-        fetchPendingParents();
-      } else {
-        alert("Failed to delete parent.");
-      }
-    } catch {
-      alert("Network error. Please try again.");
+    if (!confirm(`Delete ${parentName}'s account for good? This can't be undone.\n\nTo hide the account without deleting anything, use Archive instead.`)) return;
+    if (await handleDeleteUser(parentId, parentName)) {
+      fetchAllParents();
+      fetchPendingParents();
     }
   };
 
@@ -1551,6 +1541,7 @@ export default function Admin() {
 
   // Teacher management
   const [pendingTeachers, setPendingTeachers] = useState<any[]>([]);
+  const [archiveRefresh, setArchiveRefresh] = useState(0);
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
   const [showTeacherForm, setShowTeacherForm] = useState(false);
   const [teacherForm, setTeacherForm] = useState({ displayName: "", username: "", password: "", email: "" });
@@ -1599,27 +1590,65 @@ export default function Admin() {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
+  /** Takes a profile out of every list on this page (after it's deleted or archived). */
+  const dropFromLists = (userId: number) => {
+    setPendingTeachers(prev => prev.filter((t) => t.id !== userId));
+    setAllTeachers(prev => prev.filter((t) => t.id !== userId));
+    setStudents(prev => prev.filter((s) => s.id !== userId));
+    setAllParents(prev => prev.filter((p: any) => p.id !== userId));
+  };
+
+  /** Deletes a profile for good (the caller asks first). Returns true when it's gone. */
+  const handleDeleteUser = async (userId: number, name = "This profile"): Promise<boolean> => {
     const authToken = token || getTokenFromCookie();
-    if (!authToken) return;
+    if (!authToken) return false;
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${authToken}` } });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setPendingTeachers(prev => prev.filter((t) => t.id !== userId));
-        setAllTeachers(prev => prev.filter((t) => t.id !== userId));
-        setStudents(prev => prev.filter((s) => s.id !== userId));
-      } else {
-        alert(data.message || "Failed to delete user. Please refresh and try again.");
+        dropFromLists(userId);
+        return true;
       }
+      if (res.status === 409) {
+        // Something still points at the profile: offer to archive it instead.
+        if (window.confirm(`${data.message || `${name} can't be deleted yet.`}\n\nArchive ${name} now?`)) await handleArchiveUser(userId, name, true);
+        return false;
+      }
+      alert(data.message || "Failed to delete user. Please refresh and try again.");
+    } catch {
+      alert("Network error. Please refresh and try again.");
+    }
+    return false;
+  };
+
+  /** Archives a profile: signed out and hidden everywhere, nothing deleted, can be restored. */
+  const handleArchiveUser = async (userId: number, name: string, skipConfirm = false) => {
+    if (!skipConfirm && !window.confirm(`Archive ${name}?\n\nThey'll be signed out and hidden from lists, rosters and leaderboards. Nothing is deleted, and you can restore them anytime from Archived profiles.`)) return;
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/archive`, { method: "POST", headers: { Authorization: `Bearer ${authToken}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Could not archive this profile. Please refresh and try again.");
+        return;
+      }
+      dropFromLists(userId);
+      setArchiveRefresh((n) => n + 1);
     } catch {
       alert("Network error. Please refresh and try again.");
     }
   };
 
+  const handleDeleteTeacher = async (t: { id: number; display_name?: string; displayName?: string; username?: string }) => {
+    const name = t.display_name || t.displayName || t.username || "this teacher";
+    if (!window.confirm(`Delete ${name}'s account for good? This can't be undone. Their students stay, without a teacher.\n\nTo hide the account without deleting anything, use Archive instead.`)) return;
+    await handleDeleteUser(t.id, name);
+  };
+
   const handleDeleteStudent = async (student: Student) => {
-    if (!window.confirm(`Are you sure you want to delete this student?\n\n${student.displayName} (@${student.username}) will be permanently deleted.`)) return;
-    await handleDeleteUser(student.id);
+    if (!window.confirm(`Delete ${student.displayName} (@${student.username}) for good?\n\nTheir quizzes and points are removed and this can't be undone. To hide the account without deleting anything, use Archive instead.`)) return;
+    await handleDeleteUser(student.id, student.displayName);
   };
 
   const handleApproveStudent = async (studentId: number, studentName: string) => {
@@ -3099,7 +3128,7 @@ Generate exactly 10 questions.`;
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <button onClick={() => handleApproveTeacher(t.id)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-primary text-white hover:opacity-90">Approve</button>
-                        <button onClick={() => handleDeleteUser(t.id)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-red-600 text-white hover:opacity-90">Delete</button>
+                        <button onClick={() => void handleDeleteTeacher(t)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-red-600 text-white hover:opacity-90">Delete</button>
                       </div>
                     </div>
                   ))}
@@ -3176,7 +3205,8 @@ Generate exactly 10 questions.`;
                         ))}
                       </select>
                       <button onClick={() => handleResetTeacherPassword(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-blue-600/80 text-white hover:opacity-90">Reset</button>
-                      <button onClick={() => handleDeleteUser(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-red-600/80 text-white hover:opacity-90">Delete</button>
+                      <button onClick={() => void handleArchiveUser(t.id, t.display_name || t.username || "this teacher")} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded bg-white/10 text-white hover:bg-white/15" data-testid={`button-archive-teacher-${t.id}`}><Archive className="w-3.5 h-3.5" />Archive</button>
+                      <button onClick={() => void handleDeleteTeacher(t)} className="px-3 py-1.5 text-sm font-semibold rounded bg-red-600/80 text-white hover:opacity-90">Delete</button>
                     </div>
                   </div>
                 ))}
@@ -3295,6 +3325,10 @@ Generate exactly 10 questions.`;
                     <Button size="sm" variant="outline" onClick={() => handleResetParentPassword(p.id, p.display_name || p.displayName || "this parent")} className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10">
                       <KeyRound className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline ml-1">Reset</span>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => void handleArchiveUser(p.id, p.display_name || p.displayName || "this parent")} title="Archive" data-testid={`button-archive-parent-${p.id}`}>
+                      <Archive className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Archive</span>
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => handleDeleteParent(p.id, p.display_name || p.displayName || "this parent")} className="text-red-500 border-red-500/30 hover:bg-red-500/10">
                       <Trash2 className="w-3.5 h-3.5" />
@@ -3693,7 +3727,11 @@ Generate exactly 10 questions.`;
                         </DialogContent>
                       </Dialog>
 
-                      {/* Delete user */}
+                      {/* Archive or delete the student */}
+                      <Button variant="ghost" size="sm" onClick={() => void handleArchiveUser(s.id, s.displayName)} title="Archive" data-testid={`button-archive-student-${s.id}`}>
+                        <Archive className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline ml-1">Archive</span>
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteStudent(s)} className="text-red-500 hover:text-red-400">
                         <Trash2 className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline ml-1">Delete</span>
@@ -3707,6 +3745,9 @@ Generate exactly 10 questions.`;
             })()}
           </CardContent>
         </Card>
+
+        {/* Archived students, teachers and parents */}
+        <ArchivedProfilesCard refreshKey={archiveRefresh} onRestored={() => { void fetchStudents(); void fetchTeachers(); void fetchAllParents(); }} />
 
         {/* Book cover management */}
         <Card className="shadow-md">

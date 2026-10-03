@@ -321,7 +321,7 @@ export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandl
   app.get("/api/teacher/club-arise/controls", authMiddleware, async(req:any,res)=>{
     try{
       if(req.user.role!=="teacher"&&!req.user.isAdmin) return res.status(403).json({message:"Teacher access required."});
-      let query=db().from("users").select("id,display_name,username,teacher_id").eq("role","student").eq("is_eye_gaze_user",false);
+      let query=db().from("users").select("id,display_name,username,teacher_id").eq("role","student").eq("is_eye_gaze_user",false).is("archived_at",null);
       if(!req.user.isAdmin)query=query.eq("teacher_id",req.user.id);
       const {data:students,error}=await query.order("display_name");
       if(error)throw error;
