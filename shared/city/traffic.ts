@@ -1,6 +1,7 @@
 // Friendly city traffic: computer cars loop around the road grid in their lane
 // and wait politely when something is in front of them.
-import { PARK, SEASIDE } from "./layout";
+import { NORTH, PARK, SEASIDE, SOUTH_ROAD } from "./layout";
+import { lightAhead } from "./lights";
 
 type P = [number, number];
 export type TrafficCar = { id: number; loop: number; s: number; speed: number; color: number; x: number; z: number; heading: number };
@@ -12,12 +13,19 @@ export const LOOPS: P[][] = [
   [[-37, -37], [37, -37], [37, 37], [-37, 37]],
   [[-43, 43], [43, 43], [43, -43], [-43, -43]],
   // the coast road: south in the west lane, a U-turn at each end, north in the east lane
-  [[SEASIDE.road - 3, -150], [SEASIDE.road - 3, 150], [SEASIDE.road + 3, 150], [SEASIDE.road + 3, -150]],
+  [[SEASIDE.road - 3, NORTH.roadsZ[3] + 10], [SEASIDE.road - 3, 320], [SEASIDE.road + 3, 320], [SEASIDE.road + 3, NORTH.roadsZ[3] + 10]],
   // round the lake (angle increasing, so the inner lane is on the right)
   Array.from({ length: 28 }, (_, i): P => {
     const a = (i / 28) * Math.PI * 2, r = PARK.loop.r - 3;
     return [PARK.loop.x + Math.cos(a) * r, PARK.loop.z + Math.sin(a) * r];
   }),
+  // North Haven blocks (clockwise, inner lanes)
+  [[-117, -437], [117, -437], [117, -203], [-117, -203]],
+  [[-37, -357], [37, -357], [37, -283], [-37, -283]],
+  [[123, -437], [277, -437], [277, -203], [123, -203]],
+  [[-197, -437], [-123, -437], [-123, -203], [-197, -203]],
+  // the south road, out and back
+  [[-190, SOUTH_ROAD + 3], [190, SOUTH_ROAD + 3], [190, SOUTH_ROAD - 3], [-190, SOUTH_ROAD - 3]],
 ];
 
 const loopLength = (loop: P[]) => loop.reduce((n, p, i) => { const q = loop[(i + 1) % loop.length]; return n + Math.hypot(q[0] - p[0], q[1] - p[1]); }, 0);
@@ -59,7 +67,7 @@ const CRUISE = 10;
  * ahead of it (other traffic or a reader); at very close range the lower id
  * goes first so two cars meeting at a crossing never both wait forever.
  */
-export function stepTraffic(cars: TrafficCar[], obstacles: { x: number; z: number }[], dt: number): TrafficCar[] {
+export function stepTraffic(cars: TrafficCar[], obstacles: { x: number; z: number }[], dt: number, clock?: number): TrafficCar[] {
   return cars.map((c) => {
     const fx = Math.sin(c.heading), fz = Math.cos(c.heading);
     let blocked = false;
@@ -74,8 +82,14 @@ export function stepTraffic(cars: TrafficCar[], obstacles: { x: number; z: numbe
     };
     for (const o of cars) if (o.id !== c.id) check(o.x, o.z, o.id);
     for (const o of obstacles) check(o.x, o.z);
-    const target = blocked ? 0 : CRUISE;
-    const speed = c.speed + (target - c.speed) * Math.min(1, dt * (blocked ? 6 : 1.2));
+    // red and yellow lights: ease to a stop at the line (a car already at the line on yellow keeps going)
+    let limit = CRUISE;
+    if (clock !== undefined) {
+      const stop = lightAhead(c.x, c.z, c.heading, clock);
+      if (stop && !(stop.light === "yellow" && stop.distance < 3)) limit = Math.max(0, Math.min(CRUISE, stop.distance * 1.1));
+    }
+    const target = blocked ? 0 : limit;
+    const speed = c.speed + (target - c.speed) * Math.min(1, dt * (blocked || target < c.speed ? 6 : 1.2));
     const s = c.s + speed * dt;
     return { ...c, s, speed, ...loopPoint(c.loop, s) };
   });

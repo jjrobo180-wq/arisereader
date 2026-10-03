@@ -4,9 +4,11 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
-  BLOCK_HALF, CINEMA, CITY, CONNECTOR, DEALER, FOUNTAIN, PETSHOP, ROAD_HALF, ROAD_LINES, STAGE, TOWERS, TRACK, TREES, BOUNDS, SOUTH_FIELD_HALF_X, SEASIDE, rng,
+  BLOCK_HALF, CINEMA, DEALER, FOUNTAIN, PETSHOP, STAGE, TOWERS, TRACK, TREES, BOUNDS, SEASIDE, rng,
 } from "@shared/city/layout";
 import { buildDistricts } from "./districts";
+import { buildNorth } from "./north";
+import { buildRoads } from "./roads";
 import { LAP_LENGTH, START_S, trackPoint } from "@shared/city/race";
 import { checkerTexture, doorTexture, posterTexture, signTexture, skyTexture, windowTextures } from "./textures";
 
@@ -77,32 +79,8 @@ export function buildCity(scene: THREE.Scene): CityScene {
   add(mergeGeometries(lawns)!, grass);
   add(flat(PETSHOP.park.maxX - PETSHOP.park.minX, PETSHOP.park.maxZ - PETSHOP.park.minZ, 0, (PETSHOP.park.minZ + PETSHOP.park.maxZ) / 2, 0.03), grass);
 
-  // roads, sidewalks and lane paint
-  const roads: THREE.BufferGeometry[] = [], walks: THREE.BufferGeometry[] = [], dashes: THREE.BufferGeometry[] = [], edges: THREE.BufferGeometry[] = [];
-  const span = CITY * 2;
-  for (const r of ROAD_LINES) {
-    roads.push(flat(ROAD_HALF * 2, span, r, 0, 0.04), flat(span, ROAD_HALF * 2, 0, r, 0.04));
-    for (const s of [-1, 1]) { walks.push(flat(1.6, span, r + s * (ROAD_HALF + 0.8), 0, 0.03), flat(span, 1.6, 0, r + s * (ROAD_HALF + 0.8), 0.03)); }
-    for (let p = -CITY + 3; p < CITY; p += 6) {
-      if (ROAD_LINES.some((q) => Math.abs(p - q) < ROAD_HALF + 2)) continue;
-      dashes.push(flat(0.25, 2.6, r, p, 0.06), flat(2.6, 0.25, p, r, 0.06));
-    }
-    for (const s of [-1, 1]) { edges.push(flat(0.18, span, r + s * (ROAD_HALF - 0.4), 0, 0.055), flat(span, 0.18, 0, r + s * (ROAD_HALF - 0.4), 0.055)); }
-  }
-  roads.push(flat(ROAD_HALF * 2, CONNECTOR.toZ - 120 + 4, CONNECTOR.x, (120 + CONNECTOR.toZ) / 2 + 2, 0.04));
-  for (let p = 126; p < CONNECTOR.toZ; p += 6) dashes.push(flat(0.25, 2.6, CONNECTOR.x, p, 0.06));
-  add(mergeGeometries(roads)!, roadMat);
-  add(mergeGeometries(walks)!, sidewalk);
-  add(mergeGeometries(dashes)!, keep(new THREE.MeshBasicMaterial({ color: 0xffd76a })));
-  add(mergeGeometries(edges)!, keep(new THREE.MeshBasicMaterial({ color: 0xe8e8f0 })));
-
-  // crosswalks at every crossing
-  const zebra: THREE.BufferGeometry[] = [];
-  for (const a of ROAD_LINES) for (const b of ROAD_LINES) for (const s of [-1, 1]) for (let k = -2; k <= 2; k++) {
-    zebra.push(flat(0.9, 2.2, a + k * 2.2, b + s * (ROAD_HALF + 1.3), 0.058));
-    zebra.push(flat(2.2, 0.9, a + s * (ROAD_HALF + 1.3), b + k * 2.2, 0.058));
-  }
-  add(mergeGeometries(zebra)!, keep(new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })));
+  // roads, sidewalks, lane paint, crosswalks, lamps and traffic lights
+  const network = buildRoads(scene, keep);
 
   // ── Downtown towers ──
   const win = windowTextures(11);
@@ -228,23 +206,6 @@ export function buildCity(scene: THREE.Scene): CityScene {
     scene.add(tm, cm);
   }
 
-  // ── Street lights ──
-  const lampSpots: [number, number][] = [];
-  for (const r of ROAD_LINES) for (let p = -CITY + 10; p < CITY; p += 28) {
-    if (ROAD_LINES.some((q) => Math.abs(p - q) < 12)) continue;
-    lampSpots.push([r + ROAD_HALF + 1.6, p], [p, r - ROAD_HALF - 1.6]);
-  }
-  for (let p = 130; p < CONNECTOR.toZ; p += 20) lampSpots.push([CONNECTOR.x + ROAD_HALF + 1.6, p]);
-  {
-    const pole = keep(new THREE.CylinderGeometry(0.1, 0.14, 6, 6)); pole.translate(0, 3, 0);
-    const head = keep(new THREE.SphereGeometry(0.4, 10, 8)); head.translate(0, 6.1, 0);
-    const pm = new THREE.InstancedMesh(pole, keep(std(0x2a2d38)), lampSpots.length);
-    const hm = new THREE.InstancedMesh(head, keep(new THREE.MeshBasicMaterial({ color: 0xffe2a0 })), lampSpots.length);
-    const m4 = new THREE.Matrix4();
-    lampSpots.forEach(([x, z], i) => { m4.makeTranslation(x, 0, z); pm.setMatrixAt(i, m4); hm.setMatrixAt(i, m4); });
-    scene.add(pm, hm);
-  }
-
   // ── Haven Speedway ──
   {
     const { cx, cz, half, radius, width } = TRACK;
@@ -307,17 +268,15 @@ export function buildCity(scene: THREE.Scene): CityScene {
 
   // ── The beach, the pier, Lakeside Park and the Stunt Park ──
   const districts = buildDistricts(scene, keep);
+  const north = buildNorth(scene, keep);
 
   // ── Outer edge: a low hedge round everything except the ocean ──
   {
     const hedge: THREE.BufferGeometry[] = [];
-    const west = SEASIDE.ocean, east = BOUNDS.maxX;
-    hedge.push(boxAt(east - west, 1.2, 1.4, (west + east) / 2, 0, -CITY - 0.7)); // north
-    hedge.push(boxAt(1.4, 1.2, CITY * 2, east + 0.7, 0, 0)); // east
-    hedge.push(boxAt(-SOUTH_FIELD_HALF_X - west, 1.2, 1.4, (west - SOUTH_FIELD_HALF_X) / 2, 0, CITY + 0.7)); // south, west of the speedway fields
-    hedge.push(boxAt(east - SOUTH_FIELD_HALF_X, 1.2, 1.4, (east + SOUTH_FIELD_HALF_X) / 2, 0, CITY + 0.7)); // south, east of them
-    for (const s of [-1, 1]) hedge.push(boxAt(1.4, 1.2, BOUNDS.maxZ - CITY, s * (SOUTH_FIELD_HALF_X + 0.7), 0, (CITY + BOUNDS.maxZ) / 2));
-    hedge.push(boxAt(SOUTH_FIELD_HALF_X * 2, 1.2, 1.4, 0, 0, BOUNDS.maxZ + 0.7));
+    const west = SEASIDE.ocean, east = BOUNDS.maxX, north = BOUNDS.minZ, south = BOUNDS.maxZ;
+    hedge.push(boxAt(east - west, 1.2, 1.4, (west + east) / 2, 0, north - 0.7));
+    hedge.push(boxAt(east - west, 1.2, 1.4, (west + east) / 2, 0, south + 0.7));
+    hedge.push(boxAt(1.4, 1.2, south - north, east + 0.7, 0, (north + south) / 2));
     add(mergeGeometries(hedge)!, keep(std(0x2f6b35)), { cast: true });
   }
 
@@ -327,6 +286,8 @@ export function buildCity(scene: THREE.Scene): CityScene {
       water.position.y = 0.86 + Math.sin(t * 2) * 0.02;
       (neonPink as THREE.MeshBasicMaterial).color.setHSL(0.88 + Math.sin(t * 1.5) * 0.04, 1, 0.65);
       districts.update(t);
+      north.update(t);
+      network.update();
     },
     dispose() { disposables.forEach((d) => d.dispose()); },
   };

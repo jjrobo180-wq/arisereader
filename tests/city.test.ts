@@ -33,11 +33,9 @@ test("roads are road, the speedway is track", () => {
   assert.equal(surfaceAt(p.x, p.z), "track");
 });
 
-test("bounds hold, including the corners south of the city", () => {
-  const [x, z] = clampToBounds(200, 400);
-  assert.ok(x <= CITY && z <= BOUNDS.maxZ);
-  const [x2, z2] = clampToBounds(150, 165, 1);
-  assert.ok(!(z2 > CITY - 1 && Math.abs(x2) > 129));
+test("bounds hold on every side", () => {
+  assert.deepEqual(clampToBounds(200, 400), [200, BOUNDS.maxZ]);
+  assert.deepEqual(clampToBounds(0, -600), [0, BOUNDS.minZ]);
 });
 
 test("track progress inverts track points", () => {
@@ -84,7 +82,7 @@ test("traffic stays on the roads and keeps moving", () => {
   let cars = makeTraffic(3);
   assert.equal(cars.length, LOOPS.length * 3);
   const start = cars.map((c) => c.s);
-  for (let i = 0; i < 60 * 60; i++) cars = stepTraffic(cars, [], 1 / 60);
+  for (let i = 0; i < 60 * 60; i++) cars = stepTraffic(cars, [], 1 / 60, i / 60);
   cars.forEach((c, i) => {
     assert.equal(surfaceAt(c.x, c.z), "road");
     assert.ok(c.s - start[i] > 100, `car ${c.id} stalled`);
@@ -116,7 +114,7 @@ test("the ocean and the far edges stop you", () => {
   assert.deepEqual(clampToBounds(-320, 50), [-292, 50]);
   assert.deepEqual(clampToBounds(-400, 0), [BOUNDS.minX, 0]);
   assert.deepEqual(clampToBounds(400, 0), [BOUNDS.maxX, 0]);
-  assert.deepEqual(clampToBounds(-200, 200), [-200, CITY]);
+  assert.deepEqual(clampToBounds(-320, 300), [-292, 300]);
 });
 
 test("you can't drive into the lake", () => {
@@ -134,7 +132,7 @@ test("every hidden star can be reached", () => {
 
 test("ramps sit on open road", () => {
   for (const r of RAMPS) {
-    assert.equal(surfaceAt(r.x, r.z), "road");
+    assert.ok(["road", "paved", "dirt"].includes(surfaceAt(r.x, r.z)), `ramp at ${r.x},${r.z}`);
     assert.ok(!inside(r.x, r.z, r.length / 2 + 2));
     assert.ok(Math.abs(groundAt(r.x, r.z) - r.height / 2) < 0.01);
     assert.equal(rampAt(r.x + Math.sin(r.heading) * (r.length / 2 + 0.5), r.z + Math.cos(r.heading) * (r.length / 2 + 0.5)), null);
@@ -178,4 +176,62 @@ test("sand is slower than road, the SUV handles it best", () => {
   };
   assert.ok(run("car-starter", -250) < run("car-starter", -200) * 0.5);
   assert.ok(run("car-suv", -250) > run("car-starter", -250));
+});
+
+// ─── North Haven, lights and people ───────────────────────────────────────
+import { JUNCTIONS, ROADS, onRoad, NORTH_BLOCKS, LIBRARY, HOUSES } from "../shared/city/layout";
+import { lightAt, lightAhead, CYCLE } from "../shared/city/lights";
+import { ROUTES, ROUTE_LENGTHS, routePoint, makeWalkers, stepWalkers } from "../shared/city/people";
+
+test("the road network is connected and every junction has lights on 3 or 4 arms", () => {
+  assert.ok(ROADS.length >= 16);
+  assert.ok(JUNCTIONS.length >= 40, `only ${JUNCTIONS.length} junctions`);
+  for (const j of JUNCTIONS) assert.ok(onRoad(j.x, j.z));
+  // North Haven, the south road and the coast road are all road
+  for (const [x, z] of [[0, -200], [-120, -300], [280, -360], [200, -170], [-200, -400], [-200, 300], [100, 186], [0, 200]]) assert.equal(surfaceAt(x, z), "road", `${x},${z}`);
+});
+
+test("lights alternate: one direction is always red while the other goes", () => {
+  for (const j of JUNCTIONS.slice(0, 10)) for (let t = 0; t < CYCLE; t += 0.5) {
+    const a = lightAt(j, "x", t), b = lightAt(j, "z", t);
+    assert.ok(a === "red" || b === "red", `both moving at ${j.x},${j.z} t=${t}`);
+  }
+});
+
+test("a car sees the red light ahead of it", () => {
+  const j = JUNCTIONS.find((k) => k.x === 40 && k.z === -40)!;
+  let t = 0; while (lightAt(j, "z", t) !== "red") t += 0.5;
+  const stop = lightAhead(43, -40 + 15, Math.PI, t); // northbound in the east lane
+  assert.ok(stop && stop.junction === j && stop.distance > 0);
+  assert.equal(lightAhead(43, -40 + 15, Math.PI, t + CYCLE / 2)?.junction === j ? "stopped" : "go", "go");
+});
+
+test("North Haven has houses, the library and blocks of every kind", () => {
+  assert.equal(NORTH_BLOCKS.length, 18);
+  assert.ok(HOUSES.length >= 70);
+  assert.equal(nearestSpot(LIBRARY.door.x, LIBRARY.door.z + 2)?.kind, "library");
+  for (const h of HOUSES) assert.ok(!onRoad(h.x, h.z, 6), "house on a road");
+  assert.equal(areaName(0, -240), "A.R.I.S.E. Library");
+  assert.equal(areaName(-80, -400), "Maple Grove");
+  assert.equal(areaName(-170, 280), "Haven Farm");
+  assert.equal(areaName(232, 238), "Off-Road Trail");
+  assert.equal(surfaceAt(232, 238), "dirt");
+});
+
+test("walkers stay on their sidewalks: never on a road, never inside anything", () => {
+  ROUTES.forEach((_, r) => {
+    for (let s = 0; s < ROUTE_LENGTHS[r]; s += 1.5) {
+      const p = routePoint(r, s);
+      assert.ok(!onRoad(p.x, p.z), `route ${r} crosses a road at ${p.x.toFixed(1)},${p.z.toFixed(1)}`);
+      assert.ok(!inside(p.x, p.z, 0.25) && !inRound(p.x, p.z, 0.25), `route ${r} walks through something at ${p.x.toFixed(1)},${p.z.toFixed(1)}`);
+    }
+  });
+  let w = makeWalkers(40);
+  const start = w.map((x) => x.s);
+  for (let i = 0; i < 600; i++) w = stepWalkers(w, [], 1 / 30);
+  w.forEach((x, i) => assert.ok(Math.abs(x.s - start[i]) > 15));
+  // someone standing right in front makes a walker wait
+  const one = makeWalkers(40)[12], p = routePoint(one.route, one.s), h = p.heading + (one.dir < 0 ? Math.PI : 0);
+  const blocked = stepWalkers([one], [{ x: p.x + Math.sin(h) * 1.5, z: p.z + Math.cos(h) * 1.5 }], 0.5)[0];
+  assert.equal(blocked.s, one.s);
 });

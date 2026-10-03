@@ -147,6 +147,7 @@ export default function AriseCity() {
     const spot = hud?.spot; const game = gameRef.current;
     if (!spot || !game) return;
     if (spot.kind === "cinema") { if (hud?.driving) { flash("Get out of your car (E) to go into the cinema."); return; } setTravel("/club-arise/theater"); }
+    else if (spot.kind === "library") { if (hud?.driving) { flash("Get out of your car to go into the library."); return; } setTravel("/library"); }
     else if (spot.kind === "dealer") setOverlay("dealer");
     else if (spot.kind === "petshop") setOverlay("petshop");
     else if (spot.kind === "speedway") { if (hud?.driving) setOverlay("race"); else flash("Get in your car (E) to race."); }
@@ -188,6 +189,7 @@ export default function AriseCity() {
       if (!home) return "Open lot";
       return home.ownerId === selfRef.current?.userId ? "Go inside your home" : home.unlocked ? `Visit ${home.displayName}'s home` : `${home.displayName}'s home (locked)`;
     }
+    if (s.kind === "library") return "Find a book at the A.R.I.S.E. Library";
     if (s.kind === "speedway") return hud?.driving ? "Race at Haven Speedway" : "Haven Speedway: get in your car to race";
     return `Enter ${s.label}`;
   })();
@@ -287,17 +289,17 @@ export default function AriseCity() {
               <li>Use the stick to walk. Push it all the way to run. Drag anywhere else to look around</li>
               <li>Tap <b>Drive</b> to get in your car. Everyone gets a free City Cruiser</li>
               <li>In the car, slide your left thumb to steer and hold <b>Gas</b> or <b>Brake</b> on the right. Hold Brake when stopped to reverse</li>
-              <li>Tap the yellow button to go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals</li>
-              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, south to Haven Speedway</li>
+              <li>Tap the yellow button to go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals, the library</li>
+              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, north to the library, mall and skate park, south to the speedway, the farm and the off-road trail</li>
               <li>Find all {STARS.length} hidden stars. Some are only reachable with a big jump</li>
             </ul>
           ) : (
             <ul className="city-help">
               <li><kbd>W A S D</kbd> or arrows to walk and drive (drag the screen to look around)</li>
               <li><kbd>E</kbd> get in or out of your car. Everyone gets a free City Cruiser</li>
-              <li><kbd>F</kbd> go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals</li>
+              <li><kbd>F</kbd> go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals, the library</li>
               <li><kbd>Space</kbd> drift, <kbd>H</kbd> horn, <kbd>Shift</kbd> run, <kbd>T</kbd> say something</li>
-              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, south to Haven Speedway</li>
+              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, north to the library, mall and skate park, south to the speedway, the farm and the off-road trail</li>
               <li>Find all {STARS.length} hidden stars. Some are only reachable with a big jump</li>
             </ul>
           )}
@@ -333,7 +335,7 @@ export default function AriseCity() {
           <div className="city-row"><button type="button" className="city-btn" onClick={() => setRetry((n) => n + 1)}>Try again</button><button type="button" className="city-btn ghost" onClick={() => navigate("/worlds")}>Back to Worlds</button></div>
         </div></div>
       )}
-      {travel && <WorldLoadingOverlay tone="block" label={travel.startsWith("/my-home") ? "Heading inside…" : travel.startsWith("/club-arise/theater") ? "Finding a seat at Starlight Cinema…" : "Leaving Haven City…"} />}
+      {travel && <WorldLoadingOverlay tone="block" label={travel.startsWith("/my-home") ? "Heading inside…" : travel.startsWith("/club-arise/theater") ? "Finding a seat at Starlight Cinema…" : travel === "/library" ? "Opening the library…" : "Leaving Haven City…"} />}
     </main>
   );
 }

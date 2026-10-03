@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
-  BEACH_SHOPS, CITY, EXTENDED_ROADS, FERRIS, LIFEGUARD, LOOKOUT, PALMS, PARK, PARK_TREES, PICNIC, RAMPS, ROAD_HALF, SEASIDE, STUNT_ROAD, loopEntryX, rng,
+  BEACH_SHOPS, BOUNDS, CITY, FERRIS, LIFEGUARD, LOOKOUT, PALMS, PARK, PARK_TREES, PICNIC, RAMPS, ROAD_HALF, SEASIDE, STUNT_ROAD, rng,
 } from "@shared/city/layout";
 import { chevronTexture, doorTexture, plankTexture, sandTexture, signTexture } from "./textures";
 
@@ -60,33 +60,24 @@ export function buildDistricts(scene: THREE.Scene, keep: <T extends { dispose: (
   const paved = keep(std(0x9a96a2));
   const wood = keep(std(0x8a5a3c));
   const darkWood = keep(std(0x5e3d28));
-  const roads: THREE.BufferGeometry[] = [], dashes: THREE.BufferGeometry[] = [], lines: THREE.BufferGeometry[] = [];
+  const dashes: THREE.BufferGeometry[] = [], lines: THREE.BufferGeometry[] = [];
   const lamps: [number, number][] = [];
 
   // ═══ Seaside Boardwalk ═══════════════════════════════════════════════════
   const bw = SEASIDE.boardwalk;
   // paved promenade between the city and the boardwalk, then planks, then sand
-  add(flat(-CITY - bw.maxX + 0.5, CITY * 2, (bw.maxX - CITY) / 2, 0, 0.01), paved);
+  const Z0 = BOUNDS.minZ, Z1 = BOUNDS.maxZ, ZL = Z1 - Z0, ZC = (Z0 + Z1) / 2;
+  add(flat(SEASIDE.road - bw.maxX + 0.5, ZL, (bw.maxX + SEASIDE.road) / 2, ZC, 0.01), paved);
+  add(flat(-CITY - SEASIDE.road, CITY * 2, (SEASIDE.road - CITY) / 2, 0, 0.01), paved);
   const planks = keep(plankTexture());
-  add(flat(bw.maxX - bw.minX, CITY * 2, (bw.minX + bw.maxX) / 2, 0, 0.03, 4), keep(std(0xffffff, { map: planks, roughness: 0.9 })));
+  add(flat(bw.maxX - bw.minX, ZL, (bw.minX + bw.maxX) / 2, ZC, 0.03, 4), keep(std(0xffffff, { map: planks, roughness: 0.9 })));
   const sand = keep(sandTexture());
-  add(flat(bw.minX - (SEASIDE.ocean - 6), CITY * 2, (bw.minX + SEASIDE.ocean - 6) / 2, 0, 0.012, 6), keep(std(0xffffff, { map: sand, roughness: 1 })));
+  add(flat(bw.minX - (SEASIDE.ocean - 6), ZL, (bw.minX + SEASIDE.ocean - 6) / 2, ZC, 0.012, 6), keep(std(0xffffff, { map: sand, roughness: 1 })));
   // ocean and a line of surf
   const oceanMat = keep(new THREE.MeshStandardMaterial({ color: 0x1f86c9, emissive: 0x0b3d66, emissiveIntensity: 0.5, roughness: 0.25, metalness: 0.15 }));
   add(flat(900, 1400, SEASIDE.ocean - 450, 100, 0.03), oceanMat, { receive: false });
   const foamMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
-  const foam = add(flat(3, CITY * 2 + 40, SEASIDE.ocean + 0.5, 0, 0.04), foamMat, { receive: false });
-
-  // coast road and the two avenues that lead to it
-  roads.push(flat(ROAD_HALF * 2, CITY * 2, SEASIDE.road, 0, 0.04));
-  for (let z = -CITY + 3; z < CITY; z += 6) if (!EXTENDED_ROADS.some((r) => Math.abs(z - r) < ROAD_HALF + 2)) dashes.push(flat(0.25, 2.6, SEASIDE.road, z, 0.06));
-  for (const s of [-1, 1]) lines.push(flat(0.18, CITY * 2, SEASIDE.road + s * (ROAD_HALF - 0.4), 0, 0.055));
-  for (const r of EXTENDED_ROADS) {
-    const x0 = SEASIDE.road + ROAD_HALF, x1 = -CITY;
-    roads.push(flat(x1 - x0 + 1, ROAD_HALF * 2, (x0 + x1) / 2, r, 0.045));
-    for (let x = x0 + 3; x < x1; x += 6) dashes.push(flat(2.6, 0.25, x, r, 0.06));
-  }
-  for (let z = -CITY + 12; z < CITY; z += 26) if (!EXTENDED_ROADS.some((r) => Math.abs(z - r) < 10)) lamps.push([SEASIDE.road + ROAD_HALF + 1.6, z], [SEASIDE.road - ROAD_HALF - 1.6, z]);
+  const foam = add(flat(3, ZL + 40, SEASIDE.ocean + 0.5, ZC, 0.04), foamMat, { receive: false });
 
   // beach shops facing the coast road
   for (const shop of BEACH_SHOPS) {
@@ -132,8 +123,8 @@ export function buildDistricts(scene: THREE.Scene, keep: <T extends { dispose: (
   {
     const r = rng(2024);
     const spots: { x: number; z: number }[] = [];
-    for (let i = 0; i < 60 && spots.length < 26; i++) {
-      const x = SEASIDE.ocean + 8 + r() * (bw.minX - SEASIDE.ocean - 14), z = -CITY + 8 + r() * (CITY * 2 - 16);
+    for (let i = 0; i < 140 && spots.length < 56; i++) {
+      const x = SEASIDE.ocean + 8 + r() * (bw.minX - SEASIDE.ocean - 14), z = Z0 + 8 + r() * (ZL - 16);
       if (Math.abs(z) < 12 || Math.hypot(x - LIFEGUARD.x, z - LIFEGUARD.z) < 8 || spots.some((s) => Math.hypot(s.x - x, s.z - z) < 9)) continue;
       spots.push({ x, z });
     }
@@ -227,14 +218,6 @@ export function buildDistricts(scene: THREE.Scene, keep: <T extends { dispose: (
 
   // ═══ Lakeside Park ═══════════════════════════════════════════════════════
   const { lake, loop, stunt } = PARK;
-  // the avenues out to the loop road, and the road up to the stunt park
-  for (const r of EXTENDED_ROADS) {
-    const x0 = CITY, x1 = loopEntryX(r) + 2;
-    roads.push(flat(x1 - x0 + 1, ROAD_HALF * 2, (x0 + x1) / 2, r, 0.045));
-    for (let x = x0 + 3; x < x1 - 3; x += 6) if (Math.abs(x - STUNT_ROAD.x) > ROAD_HALF + 1) dashes.push(flat(2.6, 0.25, x, r, 0.06));
-    for (let x = x0 + 14; x < x1 - 6; x += 26) lamps.push([x, r - ROAD_HALF - 1.6]);
-  }
-  roads.push(flat(ROAD_HALF * 2, STUNT_ROAD.toZ - STUNT_ROAD.fromZ + 2, STUNT_ROAD.x, (STUNT_ROAD.fromZ + STUNT_ROAD.toZ) / 2, 0.047));
   // loop road round the lake
   const ring = keep(new THREE.RingGeometry(loop.r - ROAD_HALF, loop.r + ROAD_HALF, 120, 1)); ring.rotateX(-Math.PI / 2); ring.translate(loop.x, 0.046, loop.z);
   add(ring, roadMat);
@@ -327,7 +310,7 @@ export function buildDistricts(scene: THREE.Scene, keep: <T extends { dispose: (
     for (const s of [-1, 1]) { lines.push(flat(w - 2, 0.3, cx, cz + s * (d / 2 - 1), 0.06)); lines.push(flat(0.3, d - 2, cx + s * (w / 2 - 1), cz, 0.06)); }
     // tyre stacks round the edge (soft barriers, purely for show)
     const r = rng(4), tyres: THREE.BufferGeometry[] = [];
-    for (let x = stunt.minX + 3; x < stunt.maxX; x += 7) for (const z of [stunt.minZ + 0.2, ...(Math.abs(x - STUNT_ROAD.x) > ROAD_HALF + 2 ? [stunt.maxZ - 0.2] : [])]) {
+    for (let x = stunt.minX + 3; x < stunt.maxX; x += 7) for (const z of Math.abs(x - STUNT_ROAD.x) > ROAD_HALF + 2 ? [stunt.minZ + 0.2, stunt.maxZ - 0.2] : []) {
       const h = 1 + Math.floor(r() * 3);
       for (let k = 0; k < h; k++) { const g = new THREE.TorusGeometry(0.55, 0.22, 6, 12); g.rotateX(Math.PI / 2); g.translate(x, 0.22 + k * 0.42, z); tyres.push(g); }
     }
@@ -358,7 +341,6 @@ export function buildDistricts(scene: THREE.Scene, keep: <T extends { dispose: (
   }
 
   // ═══ Shared paint, lamps and the outer hedge ═════════════════════════════
-  merged(roads, roadMat);
   merged(dashes, paint);
   merged(lines, white);
   {

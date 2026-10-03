@@ -11,6 +11,7 @@ import { LOTS, STARS, areaName, nearestSpot, rampAt, resolveCircle, type Spot, D
 import { CARS, CAR_RADIUS, GROUNDED, carFor, dashSpeed, groundAt, stepCar, stepLift, stepWalker, wrapAngle, type CarId, type CarState, type Lift } from "@shared/city/drive";
 import { GRID_PLAYER, LAP_LENGTH, lapsDone, makeRivals, startTracker, stepRival, trackPoint, updateTracker, type LapTracker, type Rival } from "@shared/city/race";
 import { makeTraffic, stepTraffic, type TrafficCar } from "@shared/city/traffic";
+import { makeWalkers, routePoint, stepWalkers, type Walker } from "@shared/city/people";
 import { buildCity, type CityScene } from "./scene";
 import { makeCar, type CarRig } from "./models";
 import { CityAudio } from "./audio";
@@ -75,6 +76,9 @@ export class CityGame {
   private remotes = new Map<number, Remote>();
   private homeRoots: THREE.Object3D[] = [];
   private showcase: CarRig[] = [];
+  // people out walking: rigs are made the first time someone comes near
+  private walkers: Walker[] = makeWalkers(40);
+  private walkerViews: ({ rig: AvatarRig; pet: THREE.Object3D | null; bubble: THREE.Sprite | null; bubbleUntil: number; hop: number } | null)[] = [];
   private stars: { id: string; root: THREE.Object3D; x: number; y: number; z: number }[] = [];
   private starsFound = new Set<string>();
   private onStar?: (s: StarFound) => void;
@@ -368,6 +372,45 @@ export class CityGame {
     };
   }
 
+  // ── People out walking ────────────────────────────────────────────────────
+  private stepPeople(dt: number, t: number, now: number) {
+    const me = this.driving ? { x: this.car.x, z: this.car.z } : { x: this.walker.x, z: this.walker.z };
+    const blockers = [me, ...(this.driving ? [] : [{ x: this.car.x, z: this.car.z }])];
+    this.walkers = stepWalkers(this.walkers, blockers, dt);
+    const range = this.lowQuality ? 75 : 120;
+    this.walkers.forEach((w, i) => {
+      const p = routePoint(w.route, w.s);
+      const near = Math.hypot(p.x - me.x, p.z - me.z) < range;
+      let view = this.walkerViews[i];
+      if (!near) { if (view) { view.rig.root.visible = false; if (view.pet) view.pet.visible = false; } return; }
+      if (!view) {
+        const rig = new AvatarRig(w.character, 1.75 * w.scale, { noWeapons: true });
+        rig.root.position.set(p.x, 0, p.z); this.scene.add(rig.root);
+        const pet = w.pet ? createPet(w.pet, this.loader, 0.7) : null;
+        if (pet) { pet.position.set(p.x, 0, p.z); this.scene.add(pet); }
+        view = this.walkerViews[i] = { rig, pet, bubble: null, bubbleUntil: 0, hop: 0 };
+      }
+      const prev = view.rig.root.position.clone();
+      view.hop = Math.max(0, view.hop - dt * 2.5);
+      view.rig.root.visible = true;
+      view.rig.root.position.set(p.x, Math.sin(view.hop * Math.PI) * 0.6, p.z);
+      const facing = p.heading + (w.dir < 0 ? Math.PI : 0);
+      view.rig.root.rotation.y += wrapAngle(facing - view.rig.root.rotation.y) * Math.min(1, dt * 8);
+      const speed = Math.hypot(p.x - prev.x, p.z - prev.z) / Math.max(dt, 1e-4);
+      view.rig.update(dt, speed > 8 ? 0 : speed); // a jump after spawning isn't a sprint
+      if (view.pet) { view.pet.visible = true; followOwner(view.pet, view.rig.root, dt, t, 1.2); }
+      if (view.bubble && now > view.bubbleUntil) { view.rig.root.remove(view.bubble); view.bubble = null; }
+    });
+  }
+
+  private walkerSay(i: number, text: string) {
+    const view = this.walkerViews[i]; if (!view) return;
+    if (view.bubble) view.rig.root.remove(view.bubble);
+    view.bubble = nameTag(text, "#0f766e"); view.bubble.position.y = 2.9; view.bubble.scale.multiplyScalar(0.5);
+    view.rig.root.add(view.bubble);
+    view.bubbleUntil = performance.now() + 1800;
+  }
+
   // ── Hidden stars ──────────────────────────────────────────────────────────
   private starKey() { return `city_stars_${this.self.userId}`; }
 
@@ -449,6 +492,17 @@ export class CityGame {
         if (lifted.landed > 4) this.audio.bump();
         this.lift = lifted.lift;
       }
+      // people on the pavement: the car stops short and they hop out of the way
+      this.walkers.forEach((w, i) => {
+        const view = this.walkerViews[i]; if (!view?.rig.root.visible) return;
+        const p = view.rig.root.position, dx = this.car.x - p.x, dz = this.car.z - p.z, d = Math.hypot(dx, dz);
+        if (d < CAR_RADIUS + 0.8 && d > 0.01) {
+          this.car.x = p.x + (dx / d) * (CAR_RADIUS + 0.8); this.car.z = p.z + (dz / d) * (CAR_RADIUS + 0.8);
+          this.car.speed *= 0.15;
+          if (now > view.bubbleUntil) { this.walkerSay(i, ["Whoa!", "Careful!", "Beep beep!", "Hey there!"][i % 4]); this.audio.horn(); }
+          view.hop = 1;
+        }
+      });
       // bump into traffic and race rivals (nobody is hurt; cars just nudge apart)
       const others: { x: number; z: number }[] = [...this.traffic, ...(this.race?.rivals.map((r) => trackPoint(r.s, r.offset)) ?? [])];
       for (const o of others) {
@@ -501,7 +555,7 @@ export class CityGame {
     // traffic
     const obstacles = [{ x: this.car.x, z: this.car.z }, ...(this.driving ? [] : [{ x: this.walker.x, z: this.walker.z }])];
     for (const r of this.remotes.values()) obstacles.push({ x: r.rig.root.position.x, z: r.rig.root.position.z });
-    this.traffic = stepTraffic(this.traffic, obstacles, dt);
+    this.traffic = stepTraffic(this.traffic, obstacles, dt, Date.now() / 1000);
     this.traffic.forEach((c, i) => { const rig = this.trafficRigs[i]; rig.root.position.set(c.x, 0, c.z); rig.root.rotation.y = c.heading; rig.setMotion(c.speed, 0, dt); });
 
     // rivals
@@ -519,6 +573,7 @@ export class CityGame {
       if (r.pet && !r.data.driving) followOwner(r.pet, r.rig.root, dt, t, 1.4);
     }
     this.showcase.forEach((s) => { s.root.rotation.y += dt * 0.3; });
+    this.stepPeople(dt, t, now);
     this.stepStars(t);
 
     this.updateCamera(dt);
@@ -657,6 +712,7 @@ export class CityGame {
     this.trafficRigs.forEach((r) => r.dispose());
     this.showcase.forEach((r) => r.dispose());
     for (const r of this.remotes.values()) { r.rig.dispose(); r.car?.dispose(); }
+    this.walkerViews.forEach((v) => v?.rig.dispose());
     this.audio.dispose();
     this.city.dispose();
     this.scene.traverse((o) => {
