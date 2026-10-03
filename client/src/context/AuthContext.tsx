@@ -112,7 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!rawUrl.includes("/api/")) return originalFetch(input, init);
       const headers = new Headers(input instanceof Request ? input.headers : undefined);
       new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-      if (user.isAdmin) {
+      // The preview header goes on every call except "who am I", which must keep
+      // answering with the admin account (the preview is layered on top here).
+      if (user.isAdmin && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) {
         const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
         if (previewMode === "regular" || previewMode === "eye-gaze") headers.set("X-ARISE-Admin-Preview", previewMode);
       }

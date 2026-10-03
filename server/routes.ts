@@ -1492,19 +1492,24 @@ export async function registerRoutes(
   });
 
   app.get("/api/me", authMiddleware, async (req: any, res) => {
+    // Always the signed-in account. During an admin's student preview the app keeps
+    // the admin account and layers the preview on top; answering with the preview
+    // student here made the app forget it was an admin (Club Arise then refused it).
+    const me = req.adminPreview && req.realUser ? req.realUser : req.user;
+    res.set("Cache-Control", "no-store");
     res.json({
-      id: req.user.id,
-      username: req.user.username,
-      displayName: req.user.displayName,
-      isAdmin: req.user.isAdmin,
-      role: req.user.role || 'student',
-      teacherId: req.user.teacherId || null,
-      approvedByTeacher: req.user.approvedByTeacher,
-      accountApproved: req.user.accountApproved,
-      is_eye_gaze_user: req.user.is_eye_gaze_user || false,
-      email: req.user.email || null,
-      schoolId: req.user.school_id || null,
-      totalPoints: req.user.totalPoints || 0,
+      id: me.id,
+      username: me.username,
+      displayName: me.displayName,
+      isAdmin: me.isAdmin,
+      role: me.role || 'student',
+      teacherId: me.teacherId || null,
+      approvedByTeacher: me.approvedByTeacher,
+      accountApproved: me.accountApproved,
+      is_eye_gaze_user: me.is_eye_gaze_user || false,
+      email: me.email || null,
+      schoolId: me.school_id || null,
+      totalPoints: me.totalPoints || 0,
     });
   });
 
