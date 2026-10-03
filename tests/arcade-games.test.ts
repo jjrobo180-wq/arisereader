@@ -34,8 +34,8 @@ function playOut(id: string, levels: [Level, Level], maxMoves = 2000): Result {
   return { outcome: engine.outcome(s), moves, slowestMs };
 }
 
-test("catalog and registry list the same 27 games", () => {
-  assert.equal(GAME_IDS.length, 27);
+test("catalog and registry list the same 47 games", () => {
+  assert.equal(GAME_IDS.length, 47);
   assert.deepEqual([...GAME_IDS].sort(), GAMES.map((g) => g.id).sort());
   for (const id of GAME_IDS) assert.ok(GAME_INFO[id].how.length >= 2, id + " needs how-to-play text");
 });
