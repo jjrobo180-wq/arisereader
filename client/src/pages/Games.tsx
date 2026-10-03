@@ -108,11 +108,11 @@ const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
   { id: "brain", title: "Mind games", note: "Outthink your opponent" },
   { id: "quick", title: "Quick matches", note: "Done in a few minutes" },
   { id: "cards", title: "Cards and dice", note: "Luck meets good choices" },
-  { id: "words", title: "Word arena", note: "Spelling, meaning and grammar duels" },
-  { id: "learn", title: "Math, science and the world", note: "Fast facts and numbers" },
+  { id: "words", title: "Word arena", note: "Word-building, reading, spelling, vocabulary and grammar" },
+  { id: "learn", title: "Math, science and social studies", note: "Skills practice that still feels like a game" },
 ];
 
-const SAVED_KEY = "games_selected";
+const NEW_LEARNING = ["letter_forge", "reading_detective", "context_clues", "figurative_language", "fraction_frenzy", "multiplication_mayhem", "decimal_dash", "geometry_grid", "money_math", "science_lab", "states_capitals", "history_hustle"];\n\nconst SAVED_KEY = "games_selected";
 const ROTATION: WorldId[] = ["city", "space", "laser", "racetrack", "board", "chess", "theater", "halloread"];
 
 function readSaved(): WorldId | null {
@@ -242,6 +242,17 @@ export default function Games() {
             })}
           </Shelf>
         ))}
+        <Shelf id="new-learning" title="NEW Learning Games" note="Fresh games for reading, words, math, science and social studies">
+          {NEW_LEARNING.map((id) => {
+            const g = GAMES.find((game) => game.id === id);
+            return g ? (
+              <span key={g.id} className="worlds-cover">
+                <CoverTile id={g.id} title={g.title} name={g.name} look={logoFor(g.id)} art={<GameArt gameId={g.id} />} onOpen={() => playGame(g.id)} testId={`new-game-${g.id}`} />
+              </span>
+            ) : null;
+          })}
+        </Shelf>
+
         {GAME_SHELVES.map((s) => (
           <Shelf key={s.id} id={`games-${s.id}`} title={s.title} note={s.note}>
             {GAMES.filter((g) => g.category === s.id).map((g) => (
