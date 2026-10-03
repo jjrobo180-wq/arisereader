@@ -150,7 +150,7 @@ export default function MidnightMystery({halloread=false}:{halloread?:boolean}){
 
  async function act(data:any){if(requestLock.current||!view)return;requestLock.current=true;setBusy(true);setError("");try{await request("/"+view.code+"/action",data)}catch(e){setError((e as Error).message)}finally{requestLock.current=false;setBusy(false)}}
  async function enter(kind:"create"|"practice"|"join"|"queue",selected=code){if(requestLock.current)return;requestLock.current=true;setBusy(true);setError("");try{await request(kind==="queue"?"/lobby/queue":kind==="join"?"/"+selected+"/join":"",kind==="join"?{}:{level,practice:kind==="practice",publicLobby:kind==="create"},kind==="queue"?"":"rooms")}catch(e){setError((e as Error).message)}finally{requestLock.current=false;setBusy(false)}}
- function leave(){if(view)void fetch(`${API_BASE}/api/board-quest/rooms/${view.code}/leave`,{method:"POST",headers:{Authorization:`Bearer ${token}`},keepalive:true}).catch(()=>{});sessionStorage.removeItem(sessionKey);navigate("/worlds")}
+ function leave(){if(view)void fetch(`${API_BASE}/api/board-quest/rooms/${view.code}/leave`,{method:"POST",headers:{Authorization:`Bearer ${token}`},keepalive:true}).catch(()=>{});sessionStorage.removeItem(sessionKey);navigate("/games")}
 
  useEffect(()=>{
    if(!sound||!view)return;
@@ -170,7 +170,7 @@ export default function MidnightMystery({halloread=false}:{halloread?:boolean}){
  const canOpening=view?.phase==="opening-roll"&&!openingResolved&&!openingChosen;
 
  if(!view)return <main className={`min-h-screen px-4 py-8 text-white ${halloread?"bg-[radial-gradient(circle_at_20%_0%,rgba(249,115,22,.25),transparent_28%),radial-gradient(circle_at_85%_5%,rgba(124,58,237,.32),transparent_32%),#050308]":"bg-[radial-gradient(circle_at_50%_-10%,#273351_0%,#090d17_42%,#03050a_100%)]"}`}>
-   <button onClick={()=>navigate("/worlds")} className="mb-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="mr-2 inline h-5 w-5"/> Worlds</button>
+   <button onClick={()=>navigate("/games")} className="mb-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="mr-2 inline h-5 w-5"/> Games</button>
    <section className="mx-auto max-w-5xl overflow-hidden rounded-[2.4rem] border border-cyan-300/20 bg-[#080c14]/95 shadow-[0_30px_90px_rgba(0,0,0,.6)]">
      <div className="relative min-h-[330px] overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_80%_25%,rgba(239,68,68,.16),transparent_24%),radial-gradient(circle_at_25%_20%,rgba(34,211,238,.17),transparent_28%),#070b12] p-7 sm:p-10">
        <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] [background-size:34px_34px]"/>
@@ -198,7 +198,7 @@ export default function MidnightMystery({halloread=false}:{halloread?:boolean}){
  </main>;
 
  if(view.phase==="lobby")return <main className="min-h-screen bg-[#050810] p-4 text-white">
-   <button onClick={leave} className="rounded-xl bg-white/5 px-4 py-3 font-black"><ArrowLeft className="mr-2 inline h-4 w-4"/> Worlds</button>
+   <button onClick={leave} className="rounded-xl bg-white/5 px-4 py-3 font-black"><ArrowLeft className="mr-2 inline h-4 w-4"/> Games</button>
    <section className="mx-auto mt-4 max-w-5xl rounded-[2rem] border border-cyan-300/20 bg-[#0b111c] p-5 shadow-2xl sm:p-8">
      <p className="text-xs font-black uppercase tracking-[.25em] text-cyan-300">Midnight Mystery Lobby · {view.players.length}/6 investigators</p><h1 className="mt-2 text-4xl font-black">Assemble the night crew</h1>
      <p className="mt-2 font-semibold text-slate-400">Split into investigation teams. The first team to crack the case wins.</p>
@@ -213,7 +213,7 @@ export default function MidnightMystery({halloread=false}:{halloread?:boolean}){
 
  return <main className={`min-h-screen text-white ${halloread?"bg-[#050208]":"bg-[#03050a]"}`}>
    {halloread&&<div className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" aria-hidden="true"><div className="absolute left-[-28px] top-[-28px] text-[120px] opacity-45">🕸️</div><div className="absolute right-[-28px] top-[-28px] text-[120px] opacity-45">🕸️</div><div className="absolute left-[6%] top-20 text-3xl opacity-60">🦇</div><div className="absolute right-[8%] top-32 text-3xl opacity-60">🦇</div><div className="halloread-mm-fog absolute inset-x-[-15%] bottom-[-6%] h-[30vh] rounded-[50%] bg-violet-100/20 blur-[45px]"/></div>}
-   <header className="flex min-h-16 items-center gap-3 border-b border-white/10 bg-[#080d15]/95 px-3 sm:px-5"><button onClick={leave} className="rounded-xl bg-white/5 px-3 py-2 font-black"><ArrowLeft className="mr-1 inline h-4 w-4"/> Worlds</button><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Midnight Mystery · Room {view.code}</p><h1 className="truncate text-lg font-black">Night Shift Investigation</h1></div><button onClick={()=>setSound(v=>!v)} className="grid h-11 w-11 place-items-center rounded-xl bg-white/5">{sound?<Volume2/>:<VolumeX/>}</button></header>
+   <header className="flex min-h-16 items-center gap-3 border-b border-white/10 bg-[#080d15]/95 px-3 sm:px-5"><button onClick={leave} className="rounded-xl bg-white/5 px-3 py-2 font-black"><ArrowLeft className="mr-1 inline h-4 w-4"/> Games</button><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Midnight Mystery · Room {view.code}</p><h1 className="truncate text-lg font-black">Night Shift Investigation</h1></div><button onClick={()=>setSound(v=>!v)} className="grid h-11 w-11 place-items-center rounded-xl bg-white/5">{sound?<Volume2/>:<VolumeX/>}</button></header>
    <div className="mx-auto grid max-w-[1500px] gap-3 p-3 lg:grid-cols-[1fr_360px]">
      <section className="relative min-h-[520px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#080c13] p-2 shadow-2xl">
        <MysteryScene room={activeRoom} revision={view.revision} alert={view.phase==="rps"||stage==="duel-result"} halloread={halloread}/>
