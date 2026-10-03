@@ -1,0 +1,805 @@
+/* No-proctor quizzes: the choice screen, the camera setup, the camera bubble
+   during the quiz, the leave warning and the result note.
+   Colors come from the app theme; the cyan viewfinder corners mark the camera. */
+
+.np-gate,
+.np-bubble,
+.np-strip,
+.np-modal-backdrop,
+.np-note {
+  --np-bg: hsl(var(--background, 248 38% 7%));
+  --np-card: hsl(var(--card, 249 31% 12%));
+  --np-fg: hsl(var(--foreground, 220 33% 98%));
+  --np-muted: hsl(var(--muted, 249 24% 16%));
+  --np-muted-fg: hsl(var(--muted-foreground, 237 16% 69%));
+  --np-border: hsl(var(--border, 249 20% 23%));
+  --np-input: hsl(var(--input, 249 25% 17%));
+  --np-primary: hsl(var(--primary, 267 84% 61%));
+  --np-violet-soft: hsl(267 90% 80%);
+  --np-cyan: hsl(var(--ring, 190 95% 48%));
+  --np-rec: #ff4d5e;
+  --np-amber: #f5b544;
+  --np-amber-ink: #ffdca0;
+  font-family: var(--font-sans, "Barlow", system-ui, sans-serif);
+}
+
+/* ── Choice screen ─────────────────────────────────────────────────────────── */
+.np-gate {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 5vh, 48px) 16px;
+  background: var(--np-bg);
+  color: var(--np-fg);
+}
+
+.np-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(20px, 4vw, 36px);
+  background: var(--np-card);
+  border: 1px solid var(--np-border);
+  border-radius: 24px;
+  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.7);
+}
+
+.np-card h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 1.15rem + 1.2vw, 1.9rem);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.np-book {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--np-border);
+}
+
+.np-cover {
+  flex: none;
+  width: 52px;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--np-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.3rem;
+  box-shadow: 0 8px 16px -8px rgb(0 0 0 / 0.7);
+}
+
+.np-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.np-book-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.np-book-text b {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.np-book-text span,
+.np-book-text em {
+  color: var(--np-muted-fg);
+  font-size: 0.9rem;
+  font-style: normal;
+}
+
+.np-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.np-option {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 18px;
+  border: 1px solid var(--np-border);
+  border-radius: 18px;
+  background: var(--np-muted);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.np-option:hover {
+  border-color: var(--np-primary);
+  background: hsl(249 26% 19%);
+}
+
+.np-option b {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.np-option > span:last-child {
+  color: var(--np-muted-fg);
+  font-size: 0.93rem;
+  line-height: 1.4;
+}
+
+.np-option-icon {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: hsl(267 84% 61% / 0.18);
+  color: var(--np-violet-soft);
+}
+
+.np-option-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* The camera option carries the viewfinder corners. */
+.np-option-camera .np-option-icon {
+  position: relative;
+  background: hsl(190 95% 48% / 0.12);
+  color: var(--np-cyan);
+}
+
+.np-option-camera .np-option-icon::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  --c: var(--np-cyan);
+  --l: 9px;
+  --w: 2px;
+  background:
+    linear-gradient(var(--c) 0 0) top left / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) top left / var(--w) var(--l),
+    linear-gradient(var(--c) 0 0) top right / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) top right / var(--w) var(--l),
+    linear-gradient(var(--c) 0 0) bottom left / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) bottom left / var(--w) var(--l),
+    linear-gradient(var(--c) 0 0) bottom right / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) bottom right / var(--w) var(--l);
+  background-repeat: no-repeat;
+}
+
+.np-option-camera:hover {
+  border-color: var(--np-cyan);
+}
+
+.np-lead {
+  margin: 0;
+  color: var(--np-muted-fg);
+  line-height: 1.5;
+}
+
+.np-error,
+.np-warn-line {
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 0.93rem;
+  line-height: 1.45;
+}
+
+.np-error {
+  background: hsl(0 75% 50% / 0.12);
+  border: 1px solid hsl(0 75% 62% / 0.4);
+  color: #ffbcbc;
+}
+
+.np-warn-line {
+  background: rgb(245 181 68 / 0.1);
+  border: 1px solid rgb(245 181 68 / 0.4);
+  color: var(--np-amber-ink);
+}
+
+.np-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--np-border);
+  border-radius: 12px;
+  background: var(--np-input);
+  color: var(--np-fg);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.np-input:focus {
+  outline: none;
+  border-color: var(--np-cyan);
+  box-shadow: 0 0 0 3px hsl(190 95% 48% / 0.25);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.np-btn {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 1.02rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.np-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.np-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.np-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.np-btn-primary {
+  background: var(--np-primary);
+  color: #fff;
+}
+
+.np-btn-amber {
+  background: var(--np-amber);
+  color: #2a1d04;
+}
+
+.np-btn-primary:hover:not(:disabled),
+.np-btn-amber:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.np-link,
+.np-back {
+  appearance: none;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.np-link {
+  align-self: center;
+  color: var(--np-violet-soft);
+  font-weight: 600;
+}
+
+.np-link:hover {
+  color: #fff;
+}
+
+.np-back {
+  align-self: flex-start;
+  color: var(--np-muted-fg);
+}
+
+.np-back:hover {
+  color: var(--np-fg);
+}
+
+.np-link svg,
+.np-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+:where(.np-option, .np-btn, .np-link, .np-back, .np-check, .np-bubble button):focus-visible {
+  outline: 2px solid var(--np-cyan);
+  outline-offset: 2px;
+}
+
+/* ── Camera setup ──────────────────────────────────────────────────────────── */
+.np-setup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.np-preview {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #07060d;
+  isolation: isolate;
+}
+
+.np-preview video,
+.np-bubble-view video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mirrored like a mirror; the saved pictures are not. */
+  transform: scaleX(-1);
+}
+
+.np-preview::before,
+.np-bubble-view::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  --c: var(--np-cyan);
+  background:
+    linear-gradient(var(--c) 0 0) top left / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) top left / var(--w) var(--l),
+    linear-gradient(var(--c) 0 0) top right / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) top right / var(--w) var(--l),
+    linear-gradient(var(--c) 0 0) bottom left / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) bottom left / var(--w) var(--l),
+    linear-gradient(var(--c) 0 0) bottom right / var(--l) var(--w),
+    linear-gradient(var(--c) 0 0) bottom right / var(--w) var(--l);
+  background-repeat: no-repeat;
+}
+
+.np-preview::before {
+  inset: 12px;
+  --l: 24px;
+  --w: 3px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.np-preview.live::before {
+  opacity: 1;
+}
+
+.np-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--np-muted-fg);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.np-preview-empty svg {
+  width: 30px;
+  height: 30px;
+  opacity: 0.7;
+}
+
+.np-rec {
+  position: absolute;
+  z-index: 2;
+  left: 24px;
+  top: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  background: rgb(7 6 13 / 0.7);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.np-rec i,
+.np-bubble-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--np-rec);
+  animation: np-live 1.8s ease-out infinite;
+}
+
+@keyframes np-live {
+  0% { box-shadow: 0 0 0 0 rgb(255 77 94 / 0.65); }
+  70%, 100% { box-shadow: 0 0 0 7px rgb(255 77 94 / 0); }
+}
+
+.np-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.np-rules li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.np-rules svg {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--np-cyan);
+}
+
+.np-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  background: var(--np-muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.np-check input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: hsl(267 84% 61%);
+}
+
+/* ── During the quiz ───────────────────────────────────────────────────────── */
+.np-strip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid hsl(190 95% 48% / 0.3);
+  background: hsl(190 95% 48% / 0.07);
+  color: var(--np-fg);
+  font-size: 0.93rem;
+  line-height: 1.45;
+}
+
+.np-strip svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--np-cyan);
+}
+
+.np-strip.warned {
+  border-color: rgb(245 181 68 / 0.45);
+  background: rgb(245 181 68 / 0.09);
+  color: var(--np-amber-ink);
+}
+
+.np-strip.warned svg {
+  color: var(--np-amber);
+}
+
+.np-noselect,
+.np-noselect * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.np-bubble {
+  position: fixed;
+  z-index: 60;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  width: 156px;
+  padding: 6px;
+  border: 1px solid var(--np-border);
+  border-radius: 18px;
+  background: var(--np-card);
+  color: var(--np-fg);
+  box-shadow: 0 20px 44px -18px rgb(0 0 0 / 0.8);
+}
+
+.np-bubble-view {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 13px;
+  overflow: hidden;
+  background: #07060d;
+}
+
+.np-bubble-view::before {
+  inset: 6px;
+  --l: 12px;
+  --w: 2px;
+}
+
+.np-bubble-size {
+  appearance: none;
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  right: 5px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgb(7 6 13 / 0.7);
+  color: #fff;
+  cursor: pointer;
+}
+
+.np-bubble-size svg {
+  width: 14px;
+  height: 14px;
+}
+
+.np-bubble-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 5px 3px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Smaller: just the picture in a circle. */
+.np-bubble.small {
+  width: 76px;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.np-bubble.small .np-bubble-view {
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.np-bubble.small .np-bubble-view::before {
+  display: none;
+}
+
+.np-bubble.small .np-bubble-size {
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.np-bubble.small .np-bubble-size svg {
+  display: none;
+}
+
+.np-bubble.small::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--np-card);
+  background: var(--np-rec);
+}
+
+.np-bubble.off {
+  border-color: rgb(255 77 94 / 0.6);
+}
+
+.np-bubble.off .np-bubble-status {
+  color: #ffb3bb;
+}
+
+.np-bubble-status svg {
+  width: 14px;
+  height: 14px;
+}
+
+.np-bubble-offview {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  background: #07060d;
+  color: var(--np-rec);
+}
+
+.np-bubble-offview svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* ── Warning, stop and turn-in dialogs ─────────────────────────────────────── */
+.np-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(5 4 12 / 0.76);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--np-fg);
+}
+
+.np-modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 24px 22px;
+  border: 1px solid var(--np-border);
+  border-radius: 22px;
+  background: var(--np-card);
+  text-align: center;
+  box-shadow: 0 30px 70px -20px rgb(0 0 0 / 0.85);
+  animation: np-modal-in 0.22s ease-out both;
+}
+
+.np-modal.warn {
+  border-color: rgb(245 181 68 / 0.5);
+}
+
+.np-modal h2 {
+  margin: 4px 0 0;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.np-modal p {
+  margin: 0;
+  color: var(--np-muted-fg);
+  line-height: 1.5;
+}
+
+.np-modal p b {
+  color: var(--np-fg);
+}
+
+.np-modal .np-btn {
+  margin-top: 8px;
+}
+
+.np-modal .np-link {
+  margin-top: -2px;
+}
+
+.np-modal-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: hsl(267 84% 61% / 0.16);
+  color: var(--np-violet-soft);
+}
+
+.np-modal.warn .np-modal-icon {
+  background: rgb(245 181 68 / 0.16);
+  color: var(--np-amber);
+}
+
+.np-modal-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.np-spin {
+  animation: np-spin 0.9s linear infinite;
+}
+
+@keyframes np-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes np-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Result screen note ────────────────────────────────────────────────────── */
+.np-note {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgb(245 181 68 / 0.4);
+  background: rgb(245 181 68 / 0.1);
+  color: var(--np-amber-ink);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.np-note svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--np-amber);
+}
+
+/* ── Small screens ─────────────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .np-options,
+  .np-setup {
+    grid-template-columns: 1fr;
+  }
+
+  .np-bubble {
+    width: 118px;
+  }
+
+  .np-bubble.small {
+    width: 64px;
+  }
+}
+
+/* The questions are not printable during a no-proctor quiz. */
+@media print {
+  .np-noselect {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-rec i,
+  .np-bubble-dot,
+  .np-modal,
+  .np-spin {
+    animation: none;
+  }
+}

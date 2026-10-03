@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
+import NoProctorReview from "@/components/NoProctorReview";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -583,6 +584,9 @@ export default function ParentDashboard() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Quizzes this child took on their own with the camera on (hidden until there are some) */}
+            <NoProctorReview studentId={data.student.id} hideWhenEmpty title={`Camera quizzes · ${data.student.displayName}`} />
 
             {growthCheck && (
               <Card className="shadow-md">
