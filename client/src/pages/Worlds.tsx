@@ -7,7 +7,9 @@ import { CoverTile, TitleLogo } from "@/arcade/covers/Cover";
 import type { LogoStyle } from "@/arcade/covers/styles";
 import { Shelf } from "@/arcade/LibraryShelf";
 import { IconBack } from "@/arcade/icons";
-import { GAMES } from "@shared/arcade/catalog";
+import { GAMES, type CategoryId } from "@shared/arcade/catalog";
+import GameArt from "@/arcade/covers/Art";
+import { logoFor } from "@/arcade/covers/styles";
 import "@/arcade/library.css";
 import "./worlds.css";
 
@@ -103,6 +105,16 @@ const WARM: Record<WorldId, () => Promise<unknown>> = {
 };
 const warm = (id: WorldId) => { void WARM[id]().catch(() => {}); };
 
+/** Arcade games, shelved the same way as in the Game Room. Picking one opens the arcade straight to that game. */
+const ARCADE_SHELVES: { id: CategoryId; title: string; note: string }[] = [
+  { id: "board", title: "Arcade: strategy classics", note: "Timeless games of planning and position" },
+  { id: "brain", title: "Arcade: mind games", note: "Outthink your opponent" },
+  { id: "quick", title: "Arcade: quick matches", note: "Done in a few minutes" },
+  { id: "cards", title: "Arcade: cards and dice", note: "Luck meets good choices" },
+  { id: "words", title: "Arcade: word arena", note: "Spelling, meaning and grammar duels" },
+  { id: "learn", title: "Arcade: math, science and the world", note: "Fast facts and numbers" },
+];
+
 const SAVED_KEY = "worlds_selected";
 const ROTATION: WorldId[] = ["space", "laser", "club", "racetrack", "board", "chess", "neighborhood", "theater", "halloread"];
 // Halloread is the October special (same dates as the Halloread events elsewhere).
@@ -159,6 +171,10 @@ export default function Worlds() {
     setTravel({ path: w.path, label: `Entering ${w.title}…` });
   };
   const open = (w: World) => { warm(w.id); setPicked(w); };
+  const playArcade = (gameId: string, title: string) => {
+    try { sessionStorage.setItem("arcade_launch", gameId); localStorage.setItem(SAVED_KEY, "club"); } catch { /* private mode */ }
+    setTravel({ path: "/arise-arcade", label: `Opening ${title}…` });
+  };
 
   useEffect(() => { warm(hero.id); }, [hero.id]);
   useEffect(() => {
@@ -178,7 +194,7 @@ export default function Worlds() {
         <button type="button" className="axl-icon" onClick={() => setTravel({ path: "/library", label: "Returning to the library…" })} aria-label="Back to the library"><IconBack /></button>
         <div className="axl-brand">
           <b>Worlds</b>
-          <span>{WORLDS.length} worlds · explore, race, battle and watch with readers</span>
+          <span>{WORLDS.length} worlds and {GAMES.length} arcade games</span>
         </div>
       </header>
 
@@ -217,7 +233,16 @@ export default function Worlds() {
             })}
           </Shelf>
         ))}
-        <p className="axl-foot">Pick a world to see what you can do there, then step inside.</p>
+        {ARCADE_SHELVES.map((s) => (
+          <Shelf key={s.id} id={`arcade-${s.id}`} title={s.title} note={s.note}>
+            {GAMES.filter((g) => g.category === s.id).map((g) => (
+              <span key={g.id} className="worlds-cover" onPointerEnter={() => warm("club")} onFocus={() => warm("club")}>
+                <CoverTile id={g.id} title={g.title} name={g.name} look={logoFor(g.id)} art={<GameArt gameId={g.id} />} onOpen={() => playArcade(g.id, g.title)} testId={`arcade-${g.id}`} />
+              </span>
+            ))}
+          </Shelf>
+        ))}
+        <p className="axl-foot">Pick a world to see what you can do there, or pick an arcade game to jump straight to it.</p>
       </div>
 
       {picked && <WorldPage world={picked} onClose={() => setPicked(null)} onEnter={() => enter(picked)} />}
