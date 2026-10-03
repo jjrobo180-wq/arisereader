@@ -1453,6 +1453,10 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid username or password" });
       }
 
+      if (user.archivedAt) {
+        return res.status(403).json({ message: "This account is archived. Ask your teacher or the site admin to restore it." });
+      }
+
       // Teachers and parents must be approved by admin
       if ((user.role === 'teacher' || user.role === 'parent') && !user.accountApproved) {
         return res.status(403).json({ message: `Your ${user.role} account is pending approval. The administrator will review it shortly.` });
@@ -9018,6 +9022,7 @@ Important:
         .select("id, display_name, username, email, created_at, school_id")
         .eq("role", "parent")
         .eq("account_approved", false)
+        .is("archived_at", null)
         .order("created_at", { ascending: false });
 
       const parentLinks = await readParentStudentLinks();
@@ -9043,6 +9048,7 @@ Important:
         .from("users")
         .select("id, display_name, username, email, created_at, school_id, account_approved, role")
         .eq("role", "parent")
+        .is("archived_at", null)
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
 
@@ -9121,7 +9127,7 @@ Important:
       if (req.user.role !== 'parent') return res.status(403).json({ message: "Only parents can access this endpoint" });
       const ids = await getParentStudentIds(req.user.id);
       const students = (await Promise.all(ids.map(id => storage.getUser(id))))
-        .filter((student: any) => student?.role === 'student')
+        .filter((student: any) => student?.role === 'student' && !student.archivedAt)
         .map((student: any) => ({
           id: student.id,
           displayName: student.displayName,
@@ -9485,6 +9491,7 @@ Important:
         .from("users")
         .select("id, username, display_name, role, account_approved, email, created_at")
         .eq("role", 'teacher')
+        .is("archived_at", null)
         .order("display_name", { ascending: true });
       if (error) throw new Error(error.message);
       const pending = (data || []).filter((t: any) => !t.account_approved);
@@ -9505,19 +9512,19 @@ Important:
       const target = await storage.getUser(userId);
       if (!target) return res.status(404).json({ message: "User not found." });
 
-      // Delete related rows using the service-role client so RLS cannot block admin cleanup.
-      // manual_point_awards does not cascade, so it must be removed before deleting a student.
+      // Most rows that belong to the person are removed by the database when the user is
+      // deleted (on delete cascade). These are cleared first anyway, in an order that
+      // keeps one row from blocking another (review requests point at attempts).
       const tables = [
-        { table: "manual_point_awards", column: "student_id" },
-        { table: "manual_point_awards", column: "awarded_by" },
-        { table: "attempts", column: "user_id" },
         { table: "quiz_review_requests", column: "user_id" },
-        { table: "messages", column: "sender_id" },
-        { table: "messages", column: "recipient_id" },
+        { table: "manual_point_awards", column: "student_id" },
+        { table: "attempts", column: "user_id" },
+        { table: "live_players", column: "user_id" },
+        { table: "reading_retake_requests", column: "user_id" },
         { table: "notifications", column: "user_id" },
         { table: "quiz_requests", column: "user_id" },
-        { table: "custom_quizzes", column: "creator_id" },
         { table: "easter_egg_claims", column: "user_id" },
+        { table: "custom_quizzes", column: "creator_id" },
         { table: "eye_gaze_quizzes", column: "creator_id" },
       ];
 
@@ -9527,6 +9534,21 @@ Important:
         if (error && !/does not exist|column .* does not exist/i.test(error.message || "")) {
           console.warn(`[admin-delete] Cleanup ${table}.${column}:`, error.message);
         }
+      }
+      // Points a teacher gave their students stay with the students.
+      {
+        const { error } = await adminDb.from("manual_point_awards").update({ awarded_by: null }).eq("awarded_by", userId);
+        if (error && !/does not exist/i.test(error.message || "")) console.warn("[admin-delete] Keep awarded points:", error.message);
+      }
+      // A teacher's live quiz rooms go with them (players' rows go with each room),
+      // and growth checks they assigned stay with the students.
+      for (const table of ["live_sessions", "live_quizzes"]) {
+        const { error } = await adminDb.from(table).delete().eq("teacher_id", userId);
+        if (error && !/does not exist/i.test(error.message || "")) console.warn(`[admin-delete] Cleanup ${table}.teacher_id:`, error.message);
+      }
+      {
+        const { error } = await adminDb.from("growth_check_assignments").update({ teacher_id: null }).eq("teacher_id", userId);
+        if (error && !/does not exist/i.test(error.message || "")) console.warn("[admin-delete] Keep growth checks:", error.message);
       }
 
       // Parent invite rows cascade from users, but deleting explicitly is harmless and keeps cleanup obvious.
@@ -9575,7 +9597,14 @@ Important:
       }
 
       const { error } = await adminDb.from("users").delete().eq("id", userId);
-      if (error) throw new Error(error.message);
+      if (error) {
+        const blocked = /foreign key constraint .*on table "([^"]+)"/i.exec(error.message || "");
+        if (blocked) {
+          console.error("[admin-delete] Blocked by", blocked[1]);
+          return res.status(409).json({ message: `This profile still has ${blocked[1].replace(/_/g, " ")} linked to it, so it can't be deleted yet. Archive it instead to hide it right away.` });
+        }
+        throw new Error(error.message);
+      }
 
       // Invalidate all user/ranking caches immediately so deleted accounts disappear at once.
       clearCache('allUsers');
@@ -9589,6 +9618,71 @@ Important:
     } catch (error: any) {
       console.error("[admin-delete] Failed:", error?.message);
       res.status(500).json({ message: error?.message || "Failed to delete user." });
+    }
+  });
+
+  // Admin: archive a profile (signed out and hidden from lists, rosters and
+  // leaderboards, nothing deleted) or restore it.
+  const setArchived = (archive: boolean) => async (req: any, res: any) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
+      if (userId === req.user.id) return res.status(400).json({ message: "You can't archive your own account." });
+      const adminDb = getAdminSupabase();
+      const { data: target, error: findError } = await adminDb.from("users").select("id, role, is_admin, archived_at").eq("id", userId).maybeSingle();
+      if (findError) throw new Error(findError.message);
+      if (!target) return res.status(404).json({ message: "User not found." });
+      if (target.is_admin) return res.status(400).json({ message: "Admin accounts can't be archived." });
+      const patch = archive ? { archived_at: new Date().toISOString(), archived_by: req.user.id } : { archived_at: null, archived_by: null };
+      const { error } = await adminDb.from("users").update(patch).eq("id", userId);
+      if (error) throw new Error(error.message);
+      // Sign the person out everywhere.
+      if (archive) await adminDb.from("sessions").delete().eq("user_id", userId);
+      clearCache('session_');
+      clearCache('allUsers');
+      clearCache('teachers');
+      clearCache('leaderboard');
+      clearCache('monthlyLeaderboard_');
+      clearCache('eye_gaze_leaderboard');
+      clearCache('advisoryLeaderboard');
+      res.json({ success: true, archived: archive });
+    } catch (error: any) {
+      console.error("[admin-archive] Failed:", error?.message);
+      res.status(500).json({ message: error?.message || "Could not change the profile." });
+    }
+  };
+  app.post("/api/admin/users/:userId/archive", authMiddleware, adminMiddleware, setArchived(true));
+  app.post("/api/admin/users/:userId/restore", authMiddleware, adminMiddleware, setArchived(false));
+
+  app.get("/api/admin/archived-users", authMiddleware, adminMiddleware, async (_req, res) => {
+    try {
+      const adminDb = getAdminSupabase();
+      const { data, error } = await adminDb.from("users")
+        .select("id, username, display_name, role, email, total_points, teacher_id, is_eye_gaze_user, created_at, archived_at, archived_by")
+        .not("archived_at", "is", null)
+        .order("archived_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      const rows = data || [];
+      const peopleIds = [...new Set<number>(rows.flatMap((r: any) => [r.teacher_id, r.archived_by]).filter((v: any) => Number.isSafeInteger(v)))];
+      const { data: people } = peopleIds.length
+        ? await adminDb.from("users").select("id, display_name, username").in("id", peopleIds)
+        : { data: [] as any[] };
+      const nameOf = new Map<number, string>((people || []).map((p: any) => [Number(p.id), String(p.display_name || p.username)]));
+      res.set("Cache-Control", "no-store");
+      res.json(rows.map((r: any) => ({
+        id: r.id,
+        username: r.username,
+        displayName: r.display_name || r.username,
+        role: r.is_eye_gaze_user && (!r.role || r.role === "student") ? "eye-gaze student" : (r.role || "student"),
+        email: r.email || null,
+        totalPoints: Number(r.total_points || 0),
+        teacherName: r.teacher_id ? nameOf.get(Number(r.teacher_id)) || null : null,
+        createdAt: r.created_at,
+        archivedAt: r.archived_at,
+        archivedBy: r.archived_by ? nameOf.get(Number(r.archived_by)) || null : null,
+      })));
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not load archived profiles." });
     }
   });
 

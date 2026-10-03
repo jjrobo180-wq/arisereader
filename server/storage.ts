@@ -110,6 +110,7 @@ function mapUser(row: any) {
     accountApproved: row.account_approved !== false,
     email: row.email || null,
     school_id: row.school_id || null,
+    archivedAt: row.archived_at || null,
   };
 }
 
@@ -365,7 +366,8 @@ export class DatabaseStorage implements IStorage {
   async getAllUsers() {
     return cached('allUsers', 300000, async () => {
       const data = await fetchList(supabase.from("users").select("*").eq("is_admin", false));
-      return data.map(mapUser);
+      // Archived profiles are hidden everywhere except the admin's archive list.
+      return data.filter((row: any) => !row.archived_at).map(mapUser);
     });
   }
 
@@ -388,7 +390,8 @@ export class DatabaseStorage implements IStorage {
       const user = await fetchSingle(
         supabase.from("users").select("*").eq("id", session.user_id).single()
       );
-      if (!user) return null;
+      // An archived profile is signed out everywhere.
+      if (!user || user.archived_at) return null;
       return { user: mapUser(user) };
     });
   }
@@ -624,7 +627,7 @@ export class DatabaseStorage implements IStorage {
           "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total), " +
           "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status), " +
           "manual_point_awards:manual_point_awards!manual_point_awards_student_id_fkey(points)"
-        ).eq("is_admin", false).not("username", "like", "sample%")
+        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%")
       );
       const leaderboardUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (leaderboardUsers.length === 0) return [];
@@ -677,6 +680,7 @@ export class DatabaseStorage implements IStorage {
           )
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
+          .is("archived_at", null)
           .not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
@@ -710,6 +714,7 @@ export class DatabaseStorage implements IStorage {
           )
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
+          .is("archived_at", null)
           .not("username", "like", "sample%")
       );
       if (allUsers.length === 0) return [];
@@ -1144,7 +1149,7 @@ export class DatabaseStorage implements IStorage {
           "attempts:attempts!attempts_user_id_fkey(points_earned, completed_at, book_id), " +
           "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at), " +
           "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status, completed_at)"
-        ).eq("is_admin", false).not("username", "like", "sample%")
+        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%")
       );
       const monthlyUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (monthlyUsers.length === 0) return [];
@@ -1208,7 +1213,7 @@ export class DatabaseStorage implements IStorage {
   async getAdvisoryLeaderboard() {
     return cached('advisoryLeaderboard', 300000, async () => {
       const teachers = await fetchList(
-        supabase.from("users").select("id, display_name, username").eq("role", "teacher")
+        supabase.from("users").select("id, display_name, username").eq("role", "teacher").is("archived_at", null)
       );
       if (teachers.length === 0) return [];
 
@@ -1222,6 +1227,7 @@ export class DatabaseStorage implements IStorage {
             "manual_point_awards:manual_point_awards!manual_point_awards_student_id_fkey(points)"
           )
           .eq("is_admin", false)
+          .is("archived_at", null)
           .not("username", "like", "sample%")
       );
       const allStudents = allStudentAccounts.filter((user: any) => !user.role || user.role === "student");
@@ -1825,6 +1831,7 @@ export class DatabaseStorage implements IStorage {
       .select("id, display_name, username, role, email, school_id")
       .or("role.eq.teacher,is_admin.eq.true")
       .eq("account_approved", true)
+      .is("archived_at", null)
       .order("display_name", { ascending: true });
     if (error) throw new Error(error.message);
     return data || [];
@@ -1836,6 +1843,7 @@ export class DatabaseStorage implements IStorage {
       .select("*")
       .eq("teacher_id", teacherId)
       .eq("approved_by_teacher", true)
+      .is("archived_at", null)
       .order("display_name", { ascending: true });
     if (error) throw new Error(error.message);
     return data.map(mapUser);
@@ -1847,6 +1855,7 @@ export class DatabaseStorage implements IStorage {
       .select("*")
       .eq("teacher_id", teacherId)
       .eq("approved_by_teacher", false)
+      .is("archived_at", null)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data.map(mapUser);
