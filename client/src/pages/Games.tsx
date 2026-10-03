@@ -112,7 +112,9 @@ const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
   { id: "learn", title: "Math, science and social studies", note: "Skills practice that still feels like a game" },
 ];
 
-const NEW_LEARNING = ["letter_forge", "reading_detective", "context_clues", "figurative_language", "fraction_frenzy", "multiplication_mayhem", "decimal_dash", "geometry_grid", "money_math", "science_lab", "states_capitals", "history_hustle"];\n\nconst SAVED_KEY = "games_selected";
+const NEW_LEARNING = ["letter_forge", "reading_detective", "context_clues", "figurative_language", "fraction_frenzy", "multiplication_mayhem", "decimal_dash", "geometry_grid", "money_math", "science_lab", "states_capitals", "history_hustle"];
+
+const SAVED_KEY = "games_selected";
 const ROTATION: WorldId[] = ["city", "space", "laser", "racetrack", "board", "chess", "theater", "halloread"];
 
 function readSaved(): WorldId | null {
