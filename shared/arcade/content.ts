@@ -1,5 +1,6 @@
 // Question banks for the arcade learning games. Every match gets fresh, shuffled rounds.
 import { rand, shuffle } from "./core";
+import { EXTRA_QUESTION_MAKERS } from "./contentExtra";
 
 export type ChoiceQuestion = { q: string; options: string[]; correct: string };
 
@@ -230,6 +231,7 @@ export const QUESTION_MAKERS: Record<string, () => ChoiceQuestion> = {
   word_tiles: tileQuestion,
   spelling: spellingQuestion,
   geography: geographyQuestion,
+  ...EXTRA_QUESTION_MAKERS,
 };
 
 export function makeQuestions(kind: string, n: number): ChoiceQuestion[] {
