@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import Arcade from "@/arcade/Arcade";
+import GameHub from "@/arcade/GameHub";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 import SceneArt from "@/arcade/covers/Scene";
 import { WORLD_SCENES } from "@/arcade/covers/scenesWorlds";
@@ -244,7 +244,7 @@ export default function Games() {
       </div>
 
       {picked && <WorldPage world={picked} onClose={() => setPicked(null)} onEnter={() => enter(picked)} />}
-      <Arcade
+      <GameHub
         token={token}
         open={gameRoomOpen}
         onOpen={() => setGameRoomOpen(true)}
