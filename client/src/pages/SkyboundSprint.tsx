@@ -76,7 +76,7 @@ export default function SkyboundSprint() {
   return (
     <main className="sk-font fixed inset-0 overflow-hidden bg-sky-500 text-white select-none">
       <style>{CSS}</style>
-      {view === "title" && <TitleScreen onPlay={() => { audioRef.current?.ensure(); audioRef.current?.play("select"); setView("map"); }} onHow={() => setShowHow(true)} onSettings={() => setShowSettings(true)} onBack={() => navigate("/worlds")} shards={save ? totalShards(save) : 0} />}
+      {view === "title" && <TitleScreen onPlay={() => { audioRef.current?.ensure(); audioRef.current?.play("select"); setView("map"); }} onHow={() => setShowHow(true)} onSettings={() => setShowSettings(true)} onBack={() => navigate("/games")} shards={save ? totalShards(save) : 0} />}
       {view === "map" && <WorldMap levels={levels} progress={progress} onPlay={play} onBack={() => setView("title")} onSettings={() => setShowSettings(true)} onHow={() => setShowHow(true)} />}
       {view === "play" && <PlayView key={levelIdx + ":" + (clear ? 1 : 0)} level={levels[levelIdx]} settings={settings} audio={audioRef.current!} onWin={onWin} onQuit={() => setView("map")} onSettings={setSettings} />}
       {view === "results" && clear && <Results clear={clear} level={levels[levelIdx]} hasNext={levelIdx + 1 < levels.length} onNext={() => play(levelIdx + 1)} onReplay={() => play(levelIdx)} onMap={() => setView("map")} />}
@@ -105,7 +105,7 @@ function TitleScreen({ onPlay, onHow, onSettings, onBack, shards }: { onPlay: ()
   return (
     <Sky>
       <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10 text-center">
-        <button onClick={onBack} className="sk-btn absolute left-4 top-4 flex items-center gap-2 rounded-2xl bg-black/25 px-4 py-2.5 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" />Worlds</button>
+        <button onClick={onBack} className="sk-btn absolute left-4 top-4 flex items-center gap-2 rounded-2xl bg-black/25 px-4 py-2.5 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" />Games</button>
         <button onClick={onSettings} className="sk-btn absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-2xl bg-black/25 backdrop-blur" aria-label="Settings"><Settings className="h-5 w-5" /></button>
         <div className="sk-bob text-7xl sm:text-8xl">🪂</div>
         <h1 className="sk-title mt-2 text-6xl font-black italic leading-[.9] tracking-tight sm:text-8xl"><span className="text-yellow-300">SKYBOUND</span><br /><span className="text-white">SPRINT</span></h1>
