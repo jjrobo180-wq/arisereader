@@ -1,6 +1,6 @@
 export const DAILY_PLAY_MS = 10 * 60 * 1000;
 export const PLAY_LEASE_MS = 20_000;
-export const CLUB_WORLD_PATHS = ['/games', '/club-arise/theater', '/neighborhood', '/my-home', '/board-game-world', '/halloread-mystery', '/ultimate-chess', '/paintball-arena', '/skybound-sprint', '/aurora-rally'];
+export const CLUB_WORLD_PATHS = ['/games', '/city', '/club-arise/theater', '/neighborhood', '/my-home', '/board-game-world', '/halloread-mystery', '/ultimate-chess', '/paintball-arena', '/skybound-sprint', '/aurora-rally'];
 
 export function clubDay(now: number) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);

@@ -3,6 +3,7 @@ import { getAdminSupabase } from "./supabase";
 import { storage } from "./storage";
 import { clubDay } from "../shared/clubPlay";
 import { registerArcadeMatchRoutes, matchGameId } from "./arcadeMatches";
+import { clampToBounds, SPAWN } from "../shared/city/layout";
 
 const SAFE_PHRASES = new Set([
   "Hi!","Want to play?","Good game!","Nice job!","Your turn!",
@@ -105,7 +106,60 @@ async function getClubAccess(userId:number, unrestricted=false){
   };
 }
 
+
+// ─── Haven City (the open-world hangout) ─────────────────────────────────────
+type CityVisitor={userId:number;displayName:string;characterId:string;petId:string;carId:string;x:number;z:number;facing:number;driving:boolean;speed:number;phrase:string|null;phraseAt:number;updatedAt:number};
+const cityVisitors=new Map<number,CityVisitor>();
+const CITY_CAPACITY=40;
+function activeCityVisitors(){
+  const now=Date.now();
+  cityVisitors.forEach((v,id)=>{if(now-v.updatedAt>20000)cityVisitors.delete(id);});
+  return Array.from(cityVisitors.values()).map(v=>({...v,phrase:v.phrase&&now-v.phraseAt<6000?v.phrase:null}));
+}
+
 export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandler){
+  app.get("/api/city/bootstrap",authMiddleware,async(req:any,res)=>{
+    try{
+      if(!isStudent(req.user))return res.status(403).json({message:"Haven City is for student accounts."});
+      const raw=await storage.getSetting("avatar_world_"+req.user.id);
+      let state:any={};if(raw){try{state=await initializeLegacyPetCare(req.user.id,JSON.parse(raw));}catch{}}
+      const existing=cityVisitors.get(req.user.id);
+      if(!existing&&activeCityVisitors().length>=CITY_CAPACITY)return res.status(503).json({message:"Haven City is full right now. Try again in a minute."});
+      const displayName=await readerIdentity(req.user.id,req.user);
+      const owned=Array.isArray(state.purchased)?state.purchased:[];
+      const equippedCar=String(state.equipped?.car||"");
+      const self:CityVisitor={userId:req.user.id,displayName,
+        characterId:String(state.selectedCharacter||"robin-hood"),petId:activeWorldPet(state),
+        carId:CAR_IDS.has(equippedCar)&&owned.includes(equippedCar)?equippedCar:"car-starter",
+        x:existing?.x??SPAWN.x+(Math.random()-.5)*6,z:existing?.z??SPAWN.z+(Math.random()-.5)*3,facing:existing?.facing??SPAWN.facing,
+        driving:existing?.driving??false,speed:0,phrase:null,phraseAt:0,updatedAt:Date.now()};
+      cityVisitors.set(req.user.id,self);
+      res.set("Cache-Control","no-store");
+      res.json({self,players:activeCityVisitors(),safePhrases:Array.from(SAFE_PHRASES)});
+    }catch(error:any){console.error("[city] bootstrap",error?.message);res.status(500).json({message:"Could not enter Haven City."});}
+  });
+
+  app.post("/api/city/presence",authMiddleware,(req:any,res)=>{
+    if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
+    const current=cityVisitors.get(req.user.id);
+    if(!current)return res.status(409).json({message:"Enter Haven City again to reconnect."});
+    const x=Number(req.body?.x),z=Number(req.body?.z),facing=Number(req.body?.facing),speed=Number(req.body?.speed);
+    const [cx,cz]=clampToBounds(Number.isFinite(x)?x:current.x,Number.isFinite(z)?z:current.z);
+    const phrase=String(req.body?.phrase||"").trim();
+    if(phrase&&!SAFE_PHRASES.has(phrase))return res.status(400).json({message:"That phrase is not available."});
+    const now=Date.now();
+    const canSay=phrase&&now-current.phraseAt>2500;
+    cityVisitors.set(req.user.id,{...current,x:cx,z:cz,
+      facing:Number.isFinite(facing)?Math.max(-Math.PI*2,Math.min(Math.PI*2,facing)):current.facing,
+      driving:!!req.body?.driving,speed:Number.isFinite(speed)?Math.max(-10,Math.min(40,speed)):0,
+      phrase:canSay?phrase:current.phrase,phraseAt:canSay?now:current.phraseAt,updatedAt:now});
+    res.set("Cache-Control","no-store");res.json({players:activeCityVisitors()});
+  });
+
+  app.post("/api/city/leave",authMiddleware,(req:any,res)=>{
+    cityVisitors.delete(req.user.id);res.json({ok:true});
+  });
+
   const db=()=>getAdminSupabase();
 
   // Arcade games: matchmaking, moves, computer opponents, open tables and challenges.
