@@ -121,7 +121,7 @@ export default function PaintballArena() {
     const c = roomRef.current;
     if (c && token) void fetch(API_BASE + "/api/paintball/rooms/" + c + "/leave", { method: "POST", headers: { Authorization: "Bearer " + token }, keepalive: true }).catch(() => {});
     setSnap(null); setMeta(null); setView("menu");
-    if (toWorlds) navigate("/worlds");
+    if (toWorlds) navigate("/games");
   }, [token, navigate]);
 
   // leave the room if the tab is closed
@@ -210,7 +210,7 @@ export default function PaintballArena() {
         <Menu
           busy={busy} error={error} lobbies={lobbies} code={code} setCode={setCode} botLevel={botLevel} setBotLevel={setBotLevel}
           onQuick={() => enter("queue")} onPractice={() => enter("practice")} onCreate={(pub) => enter(pub ? "create" : "private")}
-          onJoin={(c) => { setCode(c); void enter("join", c); }} onBack={() => navigate("/worlds")} onSettings={() => setShowSettings(true)}
+          onJoin={(c) => { setCode(c); void enter("join", c); }} onBack={() => navigate("/games")} onSettings={() => setShowSettings(true)}
         />
       )}
       {view === "lobby" && meta && (
@@ -248,7 +248,7 @@ function Menu(props: {
   return (
     <main className="pb-bg min-h-[100dvh] overflow-x-hidden px-4 pb-10 pt-4 text-white sm:px-8">
       <div className="mx-auto flex max-w-6xl items-center justify-between">
-        <button onClick={props.onBack} className="pb-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" /> Worlds</button>
+        <button onClick={props.onBack} className="pb-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" /> Games</button>
         <button onClick={props.onSettings} className="pb-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black backdrop-blur"><Settings className="h-5 w-5" /> Settings</button>
       </div>
       <section className="pb-splat-dots relative mx-auto mt-6 max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-[0_40px_120px_rgba(0,0,0,.55)] backdrop-blur-xl sm:p-10">
