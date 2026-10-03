@@ -133,8 +133,8 @@ export default function GameScreen({ match, busy, thinking, error, onAct, onLeav
         <div className="ax-game-title">
           <span className="em" aria-hidden="true">{info?.emoji}</span>
           <div style={{ minWidth: 0 }}>
-            <h2>{info?.name || "Arcade"}</h2>
-            <small>{subtitle}</small>
+            <h2>{info?.title || info?.name || "Arcade"}</h2>
+            <small>{info ? `${info.name} · ${subtitle}` : subtitle}</small>
           </div>
         </div>
         <button type="button" className="ax-icon-btn" onClick={() => { const next = !muted; setMuted(next); setMutedState(next); }} aria-label={muted ? "Turn sound on" : "Turn sound off"}><IconSound off={muted} /></button>
