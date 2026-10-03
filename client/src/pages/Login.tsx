@@ -155,7 +155,7 @@ function ResearchEvidenceSection(){
       <div className="max-w-3xl">
         <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> Real research behind the idea</div>
         <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">3 reasons this approach makes sense.</h2>
-        <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">No research jargon. The big label tells you the kind of positive growth the study found. The research number is there only for people who want the technical detail.</p>
+        <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">What the research found — and how A.R.I.S.E. puts it into practice.</p>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
