@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight } from "lucide-react";
+import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
 import { printParentInvites } from "@/lib/parentInvites";
+import NoProctorReview from "@/components/NoProctorReview";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -30,7 +31,7 @@ type BookRequest = { id: number; bookTitle: string; studentName: string; message
 type ParentConnection = { id: number; displayName: string; username: string; code: string; signupUrl: string; parents: Array<{ id: number; displayName: string; username: string; email?: string | null; accountApproved: boolean }> };
 type ClubClosingSchedule = { enabled: boolean; start: string; end: string; days: number[]; timeZone?: string; closedNow?: boolean; adminOverrideClosedNow?: boolean; adminSchedule?: { enabled: boolean; start: string; end: string; days: number[] } };
 
-type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "grade-changes" | "growth-check" | "club-controls";
+type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "camera-quizzes" | "grade-changes" | "growth-check" | "club-controls";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -39,7 +40,7 @@ export default function TeacherDashboard() {
     // Other pages can open a specific tab by setting this key before navigating here.
     let requested: string | null = null;
     try { requested = sessionStorage.getItem("teacher_dashboard_tab"); sessionStorage.removeItem("teacher_dashboard_tab"); } catch {}
-    const valid: Tab[] = ["students", "all-students", "pending", "book-requests", "parents", "proctor", "grade-changes", "growth-check", "club-controls"];
+    const valid: Tab[] = ["students", "all-students", "pending", "book-requests", "parents", "proctor", "camera-quizzes", "grade-changes", "growth-check", "club-controls"];
     return valid.includes(requested as Tab) ? (requested as Tab) : "students";
   });
   const [students, setStudents] = useState<Student[]>([]);
@@ -415,6 +416,7 @@ export default function TeacherDashboard() {
         <TabButton active={tab === "book-requests"} onClick={() => setTab("book-requests")} icon={<BookOpen size={19} />}>Book Requests{bookRequests.length ? ` (${bookRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "parents"} onClick={() => setTab("parents")} icon={<Users size={19} />}>Parents</TabButton>
         <TabButton active={tab === "proctor"} onClick={() => setTab("proctor")} icon={<KeyRound size={19} />}>Proctor</TabButton>
+        <TabButton active={tab === "camera-quizzes"} onClick={() => setTab("camera-quizzes")} icon={<Camera size={19} />}>Camera Quizzes</TabButton>
         <TabButton active={tab === "grade-changes"} onClick={() => setTab("grade-changes")} icon={<GraduationCap size={19} />}>Grade Changes{gradeChangeRequests.length ? ` (${gradeChangeRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "growth-check"} onClick={() => setTab("growth-check")} icon={<Brain size={19} />}>Growth Check</TabButton>
         <TabButton active={tab === "club-controls"} onClick={() => setTab("club-controls")} icon={<Gamepad2 size={19} />}>Club Controls</TabButton>
@@ -655,6 +657,7 @@ export default function TeacherDashboard() {
       {tab === "grade-changes" && <div style={styles.pendingList}>{gradeChangeRequests.length ? gradeChangeRequests.map((req) => <div key={req.id} style={styles.pendingCard}><div><h2 style={styles.studentName}>{req.studentName}</h2><p style={styles.username}>Current: Grade {req.currentGrade} → Requested: Grade {req.requestedGrade}</p></div><div style={{ display: "flex", gap: 8 }}><button onClick={() => void handleGradeChange(req.id, "approve")} style={styles.approveButton}><Check size={16} /> Approve</button><button onClick={() => void handleGradeChange(req.id, "deny")} style={styles.rejectBtn}><X size={16} /> Deny</button></div></div>) : <div style={styles.empty}>No grade change requests</div>}</div>}
 
       {/* === CLUB A.R.I.S.E. CONTROLS === */}
+      {tab === "camera-quizzes" && <div style={{ maxWidth: 1000, margin: "0 auto" }}><NoProctorReview title="Camera quizzes from your students" /></div>}
       {tab === "club-controls" && (
         <div>
           <div style={{ ...styles.proctorCard, marginBottom: 18 }}>

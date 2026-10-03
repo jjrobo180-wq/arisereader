@@ -17,6 +17,7 @@ import { theaterMediaKey, type TheaterMovie } from "../shared/clubTheater";
 import { registerClubPlayRoutes } from "./clubPlay";
 import { registerClubAriseRoutes } from "./clubArise";
 import { registerChessArenaRoutes } from "./chessArena";
+import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
@@ -1104,6 +1105,17 @@ export async function registerRoutes(
       name: String(data.proctor_name || (data.proctor_type === "parent" ? "Parent / Guardian" : "Teacher / School Staff")),
     };
   };
+
+  // No-proctor quizzes: the student picks this instead of a proctor code; the camera
+  // takes snapshots and teachers, parents and the admin review the record later.
+  const noProctor = registerQuizIntegrityRoutes(app, authMiddleware, {
+    db: getAdminSupabase,
+    isDemoStudent,
+    hasAttempt: async (userId, _quizKind, quizId) => !!(await storage.getAttempt(userId, quizId)),
+    getTeacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((student: any) => Number(student.id)),
+    getParentStudentIds,
+    setAttemptPoints: (attemptId, points) => storage.setAttemptPoints(attemptId, points),
+  });
   // Seed data on startup
   await seedData();
   await storage.seedEyeGazeQuizzes();
@@ -1906,22 +1918,32 @@ export async function registerRoutes(
     const book = await storage.getBook(bookId);
     const effectivePoints = Number(book?.pointsValue ?? 0);
 
-    const { answers, proctorSessionToken } = req.body; // { questionId: "A"|"B"|"C"|"D" }
+    const { answers, proctorSessionToken, integritySessionToken } = req.body; // { questionId: "A"|"B"|"C"|"D" }
     if (!answers || typeof answers !== "object") {
       return res.status(400).json({ message: "Answers are required" });
     }
 
-    let verifiedProctor: ProctorIdentity | null = null;
+    let verifiedProctor: ProctorIdentity | { type: "camera"; userId: null; name: string } | null = null;
+    let integritySession: Awaited<ReturnType<typeof noProctor.checkForSubmit>> = null;
     if (!req.adminPreview && !sampleAccount) {
-      verifiedProctor = await validateProctorSession(
-        String(proctorSessionToken || ""),
-        req.user.id,
-        "book",
-        bookId,
-        true
-      );
-      if (!verifiedProctor) {
-        return res.status(403).json({ message: "Your proctor session expired or is not valid. Ask your parent/guardian or teacher to enter the proctor code again." });
+      if (integritySessionToken) {
+        // No-proctor quiz: the camera session stands in for the proctor.
+        integritySession = await noProctor.checkForSubmit(String(integritySessionToken), req.user.id, "book", bookId);
+        if (!integritySession) {
+          return res.status(403).json({ message: "This no-proctor quiz session ended. Go back to the library and start the quiz again." });
+        }
+        verifiedProctor = { type: "camera", userId: null, name: "No proctor (camera)" };
+      } else {
+        verifiedProctor = await validateProctorSession(
+          String(proctorSessionToken || ""),
+          req.user.id,
+          "book",
+          bookId,
+          true
+        );
+        if (!verifiedProctor) {
+          return res.status(403).json({ message: "Your proctor session expired or is not valid. Ask your parent/guardian or teacher to enter the proctor code again." });
+        }
       }
     }
 
@@ -1962,15 +1984,40 @@ export async function registerRoutes(
       });
     }
 
-    const attempt = await storage.createAttempt(
-      req.user.id,
-      bookId,
-      score,
-      allQuestions.length,
-      normalizedAnswers,
-      effectivePoints,
-      verifiedProctor
-    );
+    let attempt: any;
+    try {
+      attempt = await storage.createAttempt(
+        req.user.id,
+        bookId,
+        score,
+        allQuestions.length,
+        normalizedAnswers,
+        effectivePoints,
+        verifiedProctor
+      );
+    } catch (error) {
+      if (integritySession) await noProctor.release(integritySession).catch(() => {});
+      throw error;
+    }
+    let integrity: { flag: string; autoSubmitted: boolean } | undefined;
+    if (integritySession) {
+      try {
+        const done = await noProctor.finishAfterSubmit(integritySession, {
+          attemptId: attempt.id ?? null,
+          score,
+          total: allQuestions.length,
+          points: Number(attempt.pointsEarned || 0),
+          questionCount: allQuestions.length,
+          answerTimes: req.body.answerTimes,
+          autoSubmitted: !!req.body.autoSubmitted,
+          events: req.body.integrityEvents,
+        });
+        integrity = { flag: done.flag, autoSubmitted: done.autoSubmitted };
+      } catch (error: any) {
+        // The quiz itself is saved; only the review record failed.
+        console.error("[no-proctor] finish", error?.message);
+      }
+    }
     res.json({
       score,
       total: allQuestions.length,
@@ -1981,6 +2028,7 @@ export async function registerRoutes(
       bookTitle: book?.title,
       studentName: req.user.displayName,
       attemptId: attempt.id,
+      integrity,
     });
   });
 

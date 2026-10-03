@@ -19,6 +19,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
+import NoProctorReview from "@/components/NoProctorReview";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
@@ -3188,6 +3189,9 @@ Generate exactly 10 questions.`;
         {/* Students whose school/teacher wasn't listed at signup */}
         <UnlistedSignupsCard />
 
+        {/* Quizzes students took on their own with the camera on */}
+        <NoProctorReview />
+
         {/* Pending Student Approvals */}
         {students.filter(s => s.approvedByTeacher === false).length > 0 && (
           <Card className="shadow-md border-yellow-500/30">
@@ -4671,9 +4675,9 @@ Generate exactly 10 questions.`;
                           <p className="text-sm font-medium truncate">{q.title}</p>
                           <p className="text-xs text-muted-foreground">{q.pointsValue || 10} pts</p>
                           {q.proctorType && (
-                            <p className={`mt-1 text-[11px] font-bold ${q.proctorType === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
-                              {q.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
-                              {q.proctorName ? ` · ${q.proctorName}` : ""}
+                            <p className={`mt-1 text-[11px] font-bold ${q.proctorType === "camera" ? "text-amber-300" : q.proctorType === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
+                              {q.proctorType === "camera" ? "On their own · camera on" : q.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
+                              {q.proctorName && q.proctorType !== "camera" ? ` · ${q.proctorName}` : ""}
                             </p>
                           )}
                         </div>

@@ -187,9 +187,9 @@ export default function StudentProfileView() {
                       <p className="font-medium text-sm truncate">{r.title}</p>
                       <p className="text-xs text-muted-foreground">{r.author}</p>
                       {r.proctorType && (
-                        <p className={`mt-1 text-[11px] font-bold ${r.proctorType === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
-                          {r.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
-                          {r.proctorName ? ` · ${r.proctorName}` : ""}
+                        <p className={`mt-1 text-[11px] font-bold ${r.proctorType === "camera" ? "text-amber-300" : r.proctorType === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
+                          {r.proctorType === "camera" ? "On their own · camera on" : r.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
+                          {r.proctorName && r.proctorType !== "camera" ? ` · ${r.proctorName}` : ""}
                         </p>
                       )}
                     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation, useParams } from "wouter";
@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, Lock, KeyRound, FileSearch, Sparkles, Volume2, Square } from "lucide-react";
+import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, FileSearch, Sparkles, Volume2, Square } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import BookAccessLinks from "@/components/BookAccessLinks";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { speakCharacterAI, stopSpeaking as stopAiSpeaking } from "@/lib/tts";
+import NoProctorGate, { type CameraSession } from "@/components/NoProctorGate";
+import { AutoTurnInNote, CameraBubble, CameraOffDialog, LeaveWarning, OnYourOwnStrip, StopDialog, TurningIn } from "@/components/NoProctorParts";
+import { CAMERA_CONSTRAINTS, NoProctorMonitor, cameraErrorMessage, canUseCamera, type MonitorEvent } from "@/lib/noProctorMonitor";
 
 interface SafeQuestion {
   id: number;
@@ -34,6 +37,34 @@ interface Book {
   pointsValue?: number;
 }
 
+/** Per question: when it was first answered (ms after the start) and how many times the answer changed. */
+type AnswerTimes = Record<string, { first: number; changes: number }>;
+/** A no-proctor try saved on this device, so a reload or an accidental close can pick it up again. */
+type SavedTry = { token: string; userId: number; answers: Record<string, string>; answerTimes: AnswerTimes; leaves: number };
+type ResumeInfo = { token: string; leaves: number; startedAt: number; snapshotEveryMs: number; leavesBeforeTurnIn: number; answers: Record<string, string>; answerTimes: AnswerTimes };
+
+function readSavedTry(key: string, userId: number | undefined): SavedTry | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || "null");
+    if (!saved || typeof saved.token !== "string" || !userId || saved.userId !== userId) return null;
+    return {
+      token: saved.token,
+      userId,
+      answers: saved.answers && typeof saved.answers === "object" ? saved.answers : {},
+      answerTimes: saved.answerTimes && typeof saved.answerTimes === "object" ? saved.answerTimes : {},
+      leaves: Number(saved.leaves) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+function writeSavedTry(key: string, value: SavedTry) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage off: no resume */ }
+}
+function clearSavedTry(key: string) {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
+}
+
 export default function Quiz() {
   const { id } = useParams();
   const { token, user, logout } = useAuth();
@@ -47,7 +78,6 @@ export default function Quiz() {
   const [error, setError] = useState("");
   const [alreadyTaken, setAlreadyTaken] = useState<{ score: number; total: number; points?: number } | null>(null);
   const [proctorVerified, setProctorVerified] = useState(false);
-  const [proctorPassword, setProctorPassword] = useState("");
   const [proctorError, setProctorError] = useState("");
   const [proctorLoading, setProctorLoading] = useState(false);
   const [proctorSessionToken, setProctorSessionToken] = useState("");
@@ -57,6 +87,29 @@ export default function Quiz() {
   const [speakingQId, setSpeakingQId] = useState<number | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
+  // No-proctor (camera) quizzes
+  const [camera, setCamera] = useState<CameraSession | null>(null);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [leaves, setLeaves] = useState(0);
+  const [leaveWarning, setLeaveWarning] = useState<{ awayMs: number } | null>(null);
+  const [confirmStop, setConfirmStop] = useState(false);
+  const [resume, setResume] = useState<ResumeInfo | null>(null);
+  const [resumeChecked, setResumeChecked] = useState(false);
+  const [autoTurnIn, setAutoTurnIn] = useState<null | "sending" | "failed">(null);
+  const [turnedInAuto, setTurnedInAuto] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const monitorRef = useRef<NoProctorMonitor | null>(null);
+  const answersRef = useRef<Record<string, string>>({});
+  const answerTimesRef = useRef<AnswerTimes>({});
+  const clockStartRef = useRef(0);
+  const submittedRef = useRef(false);
+  const pendingTurnInRef = useRef<{ body: string; auto: boolean; events: MonitorEvent[] } | null>(null);
+  const savedKey = `noproctor:book:${id}`;
+  const savedKeyRef = useRef(savedKey);
+  savedKeyRef.current = savedKey;
+  const userIdRef = useRef<number | undefined>(user?.id);
+  userIdRef.current = user?.id;
 
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.isAdmin;
   const isSampleStudent = !!user?.username?.startsWith('sample') || user?.username === 'tutorial-eye';
@@ -148,19 +201,290 @@ export default function Quiz() {
     return () => stopAiSpeaking();
   }, []);
 
-  const handleAnswer = (questionId: number, answer: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: answer }));
+  // A no-proctor try saved on this device (after a reload or an accidental close)
+  // is picked up again if the server says it's still going.
+  useEffect(() => {
+    if (!token || !id || !user?.id) return;
+    const saved = readSavedTry(savedKey, user.id);
+    if (!saved) { setResumeChecked(true); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/integrity/live/${saved.token}`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = res.ok ? await res.json() : null;
+        if (cancelled) return;
+        if (data?.status === "active" && Number(data.quizId) === Number(id)) {
+          const offset = data.serverNow ? Date.now() - Date.parse(data.serverNow) : 0;
+          setResume({
+            token: saved.token,
+            leaves: Math.max(Number(data.leaves) || 0, saved.leaves),
+            startedAt: (Date.parse(data.startedAt) || Date.now()) + (Number.isFinite(offset) ? offset : 0),
+            snapshotEveryMs: Number(data.snapshotEveryMs) || 30_000,
+            leavesBeforeTurnIn: Number(data.leavesBeforeTurnIn) || 2,
+            answers: saved.answers,
+            answerTimes: saved.answerTimes,
+          });
+        } else if (data || res.status === 404) {
+          clearSavedTry(savedKey);
+        }
+      } catch {
+        // Offline: start normally.
+      } finally {
+        if (!cancelled) setResumeChecked(true);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, id, user?.id]);
+
+  const saveTry = (patch: Partial<SavedTry> = {}) => {
+    if (!camera || !user?.id || submittedRef.current || monitorRef.current?.preview) return;
+    writeSavedTry(savedKey, {
+      token: camera.token,
+      userId: user.id,
+      answers: answersRef.current,
+      answerTimes: answerTimesRef.current,
+      leaves: monitorRef.current?.leaves ?? 0,
+      ...patch,
+    });
   };
 
-  const handleProctorVerify = async () => {
-    if (!token || !proctorPassword) return;
+  const handleAnswer = (questionId: number, answer: string) => {
+    const key = String(questionId);
+    if (camera) {
+      const timing = answerTimesRef.current[key];
+      if (!timing) answerTimesRef.current[key] = { first: Math.max(0, Date.now() - clockStartRef.current), changes: 0 };
+      else if (answersRef.current[key] !== answer) timing.changes += 1;
+    }
+    answersRef.current = { ...answersRef.current, [key]: answer };
+    setAnswers(prev => ({ ...prev, [key]: answer }));
+  };
+
+  useEffect(() => {
+    answersRef.current = answers;
+    saveTry();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers]);
+
+  // What happens when the student leaves the quiz and comes back. Kept in refs so
+  // the monitor (created once) always calls the current version.
+  const onLeaveRef = useRef<(leaves: number) => void>(() => {});
+  const onReturnRef = useRef<(leaves: number, awayMs: number) => void>(() => {});
+  onLeaveRef.current = (n) => {
+    setLeaves(n);
+    saveTry({ leaves: n });
+    if (camera && n >= camera.leavesBeforeTurnIn) void turnIn(true);
+  };
+  onReturnRef.current = (n, awayMs) => {
+    if (!camera || submittedRef.current) return;
+    if (n >= 1 && n < camera.leavesBeforeTurnIn) setLeaveWarning({ awayMs });
+  };
+
+  const startCameraQuiz = (session: CameraSession) => {
+    const restored = session.resumed && resume?.token === session.token ? resume : null;
+    const startAnswers = restored?.answers ?? {};
+    answersRef.current = startAnswers;
+    answerTimesRef.current = restored?.answerTimes ?? {};
+    clockStartRef.current = session.startedAt;
+    submittedRef.current = false;
+    const monitor = new NoProctorMonitor({
+      apiBase: API_BASE,
+      token: session.token,
+      startedAt: session.startedAt,
+      leaves: session.leaves,
+      snapshotEveryMs: session.snapshotEveryMs,
+      onLeave: (n) => onLeaveRef.current(n),
+      onReturn: (n, ms) => onReturnRef.current(n, ms),
+      onCamera: (on) => setCameraOn(on),
+    });
+    monitorRef.current = monitor;
+    monitor.setStream(session.stream);
+    monitor.start(session.resumed ? "resumed" : "start");
+    if (session.resumed) monitor.note("resumed");
+    setAnswers(startAnswers);
+    setLeaves(session.leaves);
+    setCamera(session);
+    if (user?.id && !monitor.preview) {
+      writeSavedTry(savedKey, { token: session.token, userId: user.id, answers: startAnswers, answerTimes: answerTimesRef.current, leaves: session.leaves });
+    }
+  };
+
+  const restartCamera = async () => {
+    if (!canUseCamera()) throw new Error("This browser can't use a camera here.");
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS);
+    } catch (e) {
+      throw new Error(cameraErrorMessage(e));
+    }
+    if (monitorRef.current) monitorRef.current.setStream(stream);
+    else stream.getTracks().forEach((t) => t.stop());
+  };
+
+  /** Sends a no-proctor quiz to be graded. Retries keep the same answers and log. */
+  const deliverTurnIn = async () => {
+    const pending = pendingTurnInRef.current;
+    if (!pending || !token || !id) return;
+    setSubmitError("");
+    if (pending.auto) setAutoTurnIn("sending"); else setSubmitting(true);
+    const post = (keepalive: boolean) => fetch(`${API_BASE}/api/books/${id}/quiz`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: pending.body,
+      keepalive,
+    });
+    let res: Response | null = null;
+    try {
+      // keepalive lets an automatic turn-in finish even while the page is closing.
+      res = await post(pending.auto && pending.body.length < 60_000);
+    } catch {
+      try { res = await post(false); } catch { res = null; }
+    }
+    if (!res) {
+      if (pending.auto) {
+        setAutoTurnIn("failed");
+      } else {
+        // Let the student keep going and try again.
+        pendingTurnInRef.current = null;
+        submittedRef.current = false;
+        monitorRef.current?.requeue(pending.events);
+        monitorRef.current?.unpause();
+        setSubmitting(false);
+        setSubmitError("Your quiz didn't go through. Check your internet connection and try again.");
+      }
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    pendingTurnInRef.current = null;
+    monitorRef.current?.stop();
+    clearSavedTry(savedKey);
+    setSubmitting(false);
+    setAutoTurnIn(null);
+    setLeaveWarning(null);
+    if (!res.ok) {
+      // The same try may already have been turned in (for example from the page that
+      // closed): show that result instead of an error.
+      if (res.status === 403) {
+        try {
+          const check = await fetch(`${API_BASE}/api/books/${id}/quiz`, { headers: { Authorization: `Bearer ${token}` } });
+          const taken = await check.json().catch(() => ({}));
+          if (check.status === 403 && taken.score !== undefined) {
+            setAlreadyTaken({ score: taken.score, total: taken.total, points: taken.points });
+            return;
+          }
+        } catch { /* show the error below */ }
+      }
+      setError(data.message || "Failed to submit quiz");
+      return;
+    }
+    if (pending.auto) setTurnedInAuto(true);
+    setResult(data);
+  };
+
+  /**
+   * Turns in a no-proctor quiz: by the student (auto = false), or automatically
+   * after the second leave. `from` is a saved try being turned in after a reload.
+   */
+  const turnIn = (auto: boolean, from?: { token: string; answers: Record<string, string>; answerTimes: AnswerTimes }) => {
+    const sessionToken = from?.token ?? camera?.token;
+    if (submittedRef.current || !sessionToken) return;
+    submittedRef.current = true;
+    const monitor = monitorRef.current;
+    monitor?.pause();
+    if (!auto) monitor?.snap("end");
+    // Built right away (this can run while the page is closing); the queued log goes along.
+    const events = monitor?.drain() ?? [];
+    pendingTurnInRef.current = {
+      auto,
+      events,
+      body: JSON.stringify({
+        answers: from?.answers ?? answersRef.current,
+        integritySessionToken: sessionToken,
+        autoSubmitted: auto,
+        answerTimes: from?.answerTimes ?? answerTimesRef.current,
+        integrityEvents: events,
+      }),
+    };
+    return deliverTurnIn();
+  };
+
+  // A saved try that already used up its leaves (the page was closed a second time) is turned in.
+  useEffect(() => {
+    if (resume && resume.leaves >= resume.leavesBeforeTurnIn && !result && !alreadyTaken) {
+      void turnIn(true, { token: resume.token, answers: resume.answers, answerTimes: resume.answerTimes });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resume]);
+
+  const stopCameraQuiz = () => {
+    const monitor = monitorRef.current;
+    monitorRef.current = null;
+    monitor?.leaveForGood("stopped");
+    clearSavedTry(savedKey);
+    setConfirmStop(false);
+    navigate("/library");
+  };
+
+  // During a no-proctor quiz: no copy, paste, right-click menu, dragging or printing,
+  // a prompt before reloading, and no pull-to-refresh on phones.
+  useEffect(() => {
+    if (!camera || result) return;
+    const blockAndLog = (e: Event) => { e.preventDefault(); monitorRef.current?.copyAttempt(); };
+    const block = (e: Event) => e.preventDefault();
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "c" || k === "x" || k === "v") { e.preventDefault(); monitorRef.current?.copyAttempt(); }
+      else if (k === "a" || k === "p" || k === "s" || k === "u") e.preventDefault();
+    };
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (submittedRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    document.addEventListener("copy", blockAndLog);
+    document.addEventListener("cut", blockAndLog);
+    document.addEventListener("paste", blockAndLog);
+    document.addEventListener("contextmenu", block);
+    document.addEventListener("dragstart", block);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("beforeunload", beforeUnload);
+    const root = document.documentElement;
+    const overscroll = root.style.overscrollBehaviorY;
+    root.style.overscrollBehaviorY = "contain";
+    return () => {
+      document.removeEventListener("copy", blockAndLog);
+      document.removeEventListener("cut", blockAndLog);
+      document.removeEventListener("paste", blockAndLog);
+      document.removeEventListener("contextmenu", block);
+      document.removeEventListener("dragstart", block);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("beforeunload", beforeUnload);
+      root.style.overscrollBehaviorY = overscroll;
+    };
+  }, [camera, result]);
+
+  // Leaving the quiz page inside the app counts as leaving the quiz; the saved
+  // try keeps that count so it carries over if the student comes back.
+  useEffect(() => () => {
+    const monitor = monitorRef.current;
+    monitorRef.current = null;
+    if (!monitor) return;
+    if (submittedRef.current || monitor.preview) { monitor.stop(); return; }
+    const n = monitor.leaveForGood("page");
+    const saved = readSavedTry(savedKeyRef.current, userIdRef.current);
+    if (saved) writeSavedTry(savedKeyRef.current, { ...saved, leaves: Math.max(saved.leaves, n) });
+  }, []);
+
+  const handleProctorVerify = async (code: string) => {
+    if (!token || !code) return;
     setProctorLoading(true);
     setProctorError("");
     try {
       const res = await fetch(`${API_BASE}/api/verify-proctor`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ password: proctorPassword, quizKind: "book", quizId: Number(id) }),
+        body: JSON.stringify({ password: code, quizKind: "book", quizId: Number(id) }),
       });
       const data = await res.json();
       if (res.ok && data.verified) {
@@ -169,6 +493,9 @@ export default function Quiz() {
           type: data.proctorType === "parent" ? "parent" : "teacher",
           name: String(data.proctorName || (data.proctorType === "parent" ? "Parent / Guardian" : "Teacher / School Staff")),
         });
+        // A proctor takes over: an unfinished camera try on this device is dropped.
+        clearSavedTry(savedKey);
+        setResume(null);
         setProctorVerified(true);
       } else {
         setProctorError(data.message || "Incorrect password");
@@ -333,6 +660,7 @@ export default function Quiz() {
             </div>
             <h2 className="text-2xl font-bold mb-2">{passed ? "Passed!" : "Not Passed"}</h2>
             <p className="text-muted-foreground mb-6">{book?.title}</p>
+            {(turnedInAuto || result.integrity?.autoSubmitted) && <AutoTurnInNote />}
             <div className={`rounded-2xl p-6 mb-6 ${
               passed ? "bg-primary text-white" : "bg-muted text-muted-foreground"
             }`}>
@@ -439,50 +767,35 @@ export default function Quiz() {
     );
   }
 
-  if (!proctorVerified && !isSampleStudent && !user?.isAdmin && !result && !alreadyTaken && book) {
+  if (!proctorVerified && !camera && !isSampleStudent && !user?.isAdmin && !result && !alreadyTaken && !error && book) {
+    if (autoTurnIn || (resume && resume.leaves >= resume.leavesBeforeTurnIn)) {
+      // A saved try that was already used up is being turned in.
+      return (
+        <div className="min-h-screen bg-background">
+          <TurningIn failed={autoTurnIn === "failed"} onRetry={() => void deliverTurnIn()} />
+        </div>
+      );
+    }
+    if (!resumeChecked) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="max-w-md w-full shadow-xl">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-primary" />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Proctor Required</h2>
-            <p className="text-sm text-muted-foreground mb-6">
-              Ask your linked parent/guardian or a teacher to enter their private proctor code to start the quiz.
-            </p>
-            {proctorError && (
-              <p className="text-sm text-red-400 mb-3">{proctorError}</p>
-            )}
-            <input
-              type="password"
-              placeholder="Parent or teacher proctor code"
-              value={proctorPassword}
-              onChange={(e) => { setProctorPassword(e.target.value); setProctorError(""); }}
-              onKeyDown={(e) => { if (e.key === "Enter" && proctorPassword) handleProctorVerify(); }}
-              className="w-full px-4 py-3 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary mb-3"
-              data-testid="input-proctor-password"
-            />
-            <Button
-              onClick={handleProctorVerify}
-              disabled={!proctorPassword || proctorLoading}
-              className="w-full"
-              data-testid="button-verify-proctor"
-            >
-              {proctorLoading ? "Verifying..." : "Unlock Quiz"}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-3"
-              onClick={() => navigate("/library")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Library
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <NoProctorGate
+        book={book}
+        questionCount={questions.length}
+        quizId={Number(id)}
+        authToken={token}
+        resume={resume && resume.leaves < resume.leavesBeforeTurnIn ? resume : null}
+        proctorError={proctorError}
+        proctorLoading={proctorLoading}
+        onVerifyCode={(code) => void handleProctorVerify(code)}
+        onCameraReady={startCameraQuiz}
+        onBack={() => navigate("/library")}
+      />
     );
   }
 
@@ -500,11 +813,11 @@ export default function Quiz() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={"min-h-screen bg-background" + (camera ? " np-noselect" : "")}>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-3xl mx-auto px-4 flex items-center gap-3 h-16">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/library")}>
+          <Button variant="ghost" size="sm" onClick={() => (camera ? setConfirmStop(true) : navigate("/library"))}>
             <ArrowLeft className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">Back</span>
           </Button>
@@ -516,6 +829,7 @@ export default function Quiz() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
+        {camera && <OnYourOwnStrip warningUsed={leaves >= 1} />}
         {isSampleStudent && (
           <div className="mb-6 rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 text-center">
             <p className="text-sm font-bold text-amber-400">🎯 Sample Account Mode</p>
@@ -545,7 +859,8 @@ export default function Quiz() {
               <BookOpen className="w-3 h-3" />
               {questions.length} questions
             </div>
-            <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} />
+            {/* Opening the book now would mean leaving a no-proctor quiz. */}
+            {!camera && <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} />}
           </div>
         </div>
 
@@ -599,10 +914,11 @@ export default function Quiz() {
           ))}
         </div>
 
-        {/* Submit */}
-        <div className="mt-6 pb-12">
+        {/* Submit (extra room at the bottom so the camera picture doesn't cover it) */}
+        <div className={camera ? "mt-6 pb-48" : "mt-6 pb-12"}>
+          {submitError && <p className="text-sm text-red-400 mb-3 text-center" role="alert">{submitError}</p>}
           <Button
-            onClick={handleSubmit}
+            onClick={camera ? () => void turnIn(false) : handleSubmit}
             disabled={!allAnswered || submitting}
             className="w-full"
             size="lg"
@@ -612,6 +928,16 @@ export default function Quiz() {
           </Button>
         </div>
       </main>
+
+      {camera && monitorRef.current && <CameraBubble monitor={monitorRef.current} cameraOn={cameraOn} />}
+      {camera && !cameraOn && !autoTurnIn && !submitting && (
+        <CameraOffDialog onRestart={restartCamera} onTurnIn={() => void turnIn(false)} />
+      )}
+      {leaveWarning && !autoTurnIn && (
+        <LeaveWarning awayMs={leaveWarning.awayMs} onClose={() => { monitorRef.current?.warned(); setLeaveWarning(null); }} />
+      )}
+      {confirmStop && !autoTurnIn && <StopDialog onKeepGoing={() => setConfirmStop(false)} onStop={stopCameraQuiz} />}
+      {autoTurnIn && <TurningIn failed={autoTurnIn === "failed"} onRetry={() => void deliverTurnIn()} />}
     </div>
   );
 }

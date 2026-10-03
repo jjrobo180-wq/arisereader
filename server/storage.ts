@@ -280,8 +280,9 @@ export interface IStorage {
   getBook(id: number): Promise<any>;
   getQuestionsByBook(bookId: number): Promise<any[]>;
   getAttempt(userId: number, bookId: number): Promise<any>;
-  createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number, proctor?: { type: "parent" | "teacher"; userId?: number | null; name: string } | null): Promise<any>;
+  createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number, proctor?: { type: "parent" | "teacher" | "camera"; userId?: number | null; name: string } | null): Promise<any>;
   getUserAttempts(userId: number): Promise<any[]>;
+  setAttemptPoints(attemptId: number, points: number): Promise<{ before: number; after: number } | null>;
   getUserMessages(userId: number): Promise<any[]>;
   createMessage(userId: number, senderType: string, text: string, linkUrl?: string): Promise<any>;
   markMessageRead(id: number): Promise<void>;
@@ -440,7 +441,7 @@ export class DatabaseStorage implements IStorage {
     total: number,
     answers?: Record<string, string>,
     effectivePoints?: number,
-    proctor?: { type: "parent" | "teacher"; userId?: number | null; name: string } | null
+    proctor?: { type: "parent" | "teacher" | "camera"; userId?: number | null; name: string } | null
   ) {
     // Get the book's points value (use override if provided)
     let bookPoints: number;
@@ -479,6 +480,27 @@ export class DatabaseStorage implements IStorage {
     clearCache("eye_gaze_leaderboard");
     clearCache("session_");
     return { ...mapAttempt(data), passed, passingScore, bookPoints };
+  }
+
+  /** Sets one attempt's points (for example when a reviewer removes them) and moves the student's total by the difference. */
+  async setAttemptPoints(attemptId: number, points: number) {
+    const row = await fetchSingle(supabase.from("attempts").select("user_id, points_earned").eq("id", attemptId).single());
+    if (!row) return null;
+    const before = Number(row.points_earned || 0);
+    const after = Math.max(0, Number(points) || 0);
+    const delta = after - before;
+    if (delta !== 0) {
+      const { error } = await supabase.from("attempts").update({ points_earned: after }).eq("id", attemptId);
+      if (error) throw new Error(error.message);
+      const { data: userData } = await supabase.from("users").select("total_points").eq("id", row.user_id).single();
+      const total = Math.max(0, Math.round((Number(userData?.total_points || 0) + delta) * 10) / 10);
+      await supabase.from("users").update({ total_points: total }).eq("id", row.user_id);
+      clearCache("leaderboard");
+      clearCache("allUsers");
+      clearCache("monthlyLeaderboard_");
+      clearCache("session_");
+    }
+    return { before, after };
   }
 
   async getUserAttempts(userId: number) {

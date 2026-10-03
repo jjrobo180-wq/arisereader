@@ -22,6 +22,11 @@ app.use("/api/eye-gaze/my-world/upload", express.raw({
   limit: "20mb",
 }));
 
+// No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
+// its last events with sendBeacon (plain text) while it is closing.
+app.use("/api/integrity/live", express.raw({ type: "image/jpeg", limit: "220kb" }));
+app.use("/api/integrity/live", express.text({ type: "text/plain", limit: "32kb" }));
+
 app.use(
   express.json({
     verify: (req, _res, buf) => {
