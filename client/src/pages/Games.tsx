@@ -107,8 +107,6 @@ const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
 
 const SAVED_KEY = "games_selected";
 const ROTATION: WorldId[] = ["city", "space", "laser", "racetrack", "board", "chess", "halloread"];
-// Halloread is the October special (same dates as the Halloread events elsewhere).
-const halloween = (() => { const d = new Date(); return d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() <= 2); })();
 
 function readSaved(): WorldId | null {
   try {
@@ -149,11 +147,11 @@ export default function Games() {
   const [gameRoomOpen, setGameRoomOpen] = useState(false);
   const [launchGame, setLaunchGame] = useState<string | null>(null);
 
-  // Spotlight: the world the student was last in, then the day's picks.
+  // Spotlight: Haven City first, then the world the student was last in and the day's picks.
   const featured = useMemo(() => {
     const day = Math.floor(Date.now() / 86_400_000);
     const rotated = ROTATION.map((_, i) => ROTATION[(day + i) % ROTATION.length]);
-    const order = [readSaved(), halloween ? "halloread" : null, ...rotated].filter((id): id is WorldId => !!id);
+    const order = ["city" as WorldId, readSaved(), ...rotated].filter((id): id is WorldId => !!id);
     return [...new Set(order)].slice(0, 5).map((id) => BY_ID[id]);
   }, []);
   const [spot, setSpot] = useState(0);
