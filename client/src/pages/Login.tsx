@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ArrowRight, Award, BarChart3, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Eye, Gamepad2,
+  ArrowRight, Award, BookOpen, ChevronDown, ChevronUp, Eye, Gamepad2,
   GraduationCap, Heart, Home, LibraryBig, LogIn, Megaphone, MessageCircle,
-  PlayCircle, Search, ShieldCheck, Sparkles, TrendingUp, Trophy, UserRound, Users, X, Zap,
+  PlayCircle, Search, ShieldCheck, Sparkles, Trophy, UserRound, Users, X, Zap,
 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import DonationGoal from "@/components/DonationGoal";
@@ -108,79 +108,46 @@ export default function Login() {
 }
 
 
-const RESEARCH_EVIDENCE = [
+const SIMPLE_RESEARCH = [
   {
-    label: "Comprehension-building practices",
-    evidence: "Strong",
-    strength: 3,
-    source: "WWC · Reading Interventions · Grades 4–9",
-    url: "https://ies.ed.gov/ncee/wwc/PracticeGuide/29",
-    connection: "A.R.I.S.E. can support question-and-answer routines, gist checks, and comprehension monitoring around books students actually read.",
-  },
-  {
-    label: "Explicit comprehension strategy instruction",
-    evidence: "Strong",
-    strength: 3,
-    source: "WWC · Adolescent Literacy · Grades 5–12",
-    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-    connection: "Teachers can pair A.R.I.S.E. books and quiz results with explicit strategy instruction before, during, and after reading.",
-  },
-  {
-    label: "Explicit vocabulary instruction",
-    evidence: "Strong",
-    strength: 3,
-    source: "WWC · Adolescent Literacy · Grades 5–12",
-    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-    connection: "Book-based quizzes and teacher follow-up can reinforce vocabulary work around the texts students are already reading.",
-  },
-  {
-    label: "Student motivation & engagement",
-    evidence: "Moderate",
-    strength: 2,
-    source: "WWC · Adolescent Literacy · Grades 5–12",
-    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-    connection: "Points, recognition, rewards, games, and visible progress are designed to make reading participation worth returning to.",
-  },
-  {
-    label: "Discussion of text meaning",
-    evidence: "Moderate",
-    strength: 2,
-    source: "WWC · Adolescent Literacy · Grades 5–12",
-    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-    connection: "Quiz results give teachers and students concrete comprehension moments to revisit and discuss after reading.",
-  },
-] as const;
-
-const RELATED_EFFECTS = [
-  {
-    label: "Practice testing vs. restudying",
-    value: 0.51,
-    display: "+0.51",
-    detail: "Meta-analysis of practice testing; positive standardized effect on later learning compared with restudy.",
-    source: "Adesope, Trevisan & Sundararajan (2017)",
+    title: "Questions after reading help learning stick",
+    finding: "Research shows that answering questions about what you just learned can help you remember and understand it better than simply reviewing it again.",
+    arise: "A.R.I.S.E. gives students book quizzes so they can practice remembering, thinking about, and explaining what they read.",
+    source: "Practice Testing Meta-analysis · Adesope, Trevisan & Sundararajan (2017)",
     url: "https://doi.org/10.3102/0034654316689306",
   },
   {
-    label: "Gamification · cognitive outcomes",
-    value: 0.49,
-    display: "+0.49",
-    detail: "Meta-analysis found a positive effect on cognitive learning outcomes across gamified learning studies.",
-    source: "Sailer & Homner (2020)",
+    title: "Good readers use strategies while they read",
+    finding: "Students understand text better when they are taught simple habits like asking questions, summarizing, and checking whether the story makes sense.",
+    arise: "A.R.I.S.E. quizzes give teachers clear moments to talk through what happened in a book and help students practice those habits.",
+    source: "U.S. Department of Education · What Works Clearinghouse",
+    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
+  },
+  {
+    title: "Knowing more words helps students understand books",
+    finding: "Teaching important vocabulary directly can make it easier for students to understand what they are reading.",
+    arise: "Teachers can use A.R.I.S.E. books and quiz results to spot words students may need explained or practiced.",
+    source: "U.S. Department of Education · What Works Clearinghouse",
+    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
+  },
+  {
+    title: "Motivation matters",
+    finding: "Students are more likely to keep reading when reading feels meaningful, achievable, and worth coming back to.",
+    arise: "A.R.I.S.E. uses points, certificates, leaderboards, rewards, and earned game time to give students more reasons to keep participating.",
+    source: "U.S. Department of Education · What Works Clearinghouse",
+    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
+  },
+  {
+    title: "Game-like learning can help",
+    finding: "Across many studies, adding game elements to learning was linked with better learning results and stronger motivation on average.",
+    arise: "A.R.I.S.E. connects reading to games, coins, avatars, pets, challenges, and other rewards instead of treating reading as a separate chore.",
+    source: "Gamification Meta-analysis · Sailer & Homner (2020)",
     url: "https://link.springer.com/article/10.1007/s10648-019-09498-w",
   },
   {
-    label: "Gamification · motivation",
-    value: 0.36,
-    display: "+0.36",
-    detail: "The same meta-analysis found a positive effect on motivational learning outcomes.",
-    source: "Sailer & Homner (2020)",
-    url: "https://link.springer.com/article/10.1007/s10648-019-09498-w",
-  },
-  {
-    label: "Reading-motivation interventions · comprehension",
-    value: 0.27,
-    display: "+0.27",
-    detail: "A 2023 meta-analysis of 39 school-based effect studies found positive effects on reading comprehension.",
+    title: "Helping students want to read can support comprehension",
+    finding: "A large review of school-based studies found that programs designed to improve reading motivation were also linked with better reading comprehension on average.",
+    arise: "A.R.I.S.E. is built around making students want to return to reading through choice, progress, recognition, and rewards.",
     source: "Reading Motivation Meta-analysis (2023)",
     url: "https://link.springer.com/article/10.1007/s10648-023-09719-3",
   },
@@ -189,68 +156,33 @@ const RELATED_EFFECTS = [
 function ResearchEvidenceSection(){
   return <section id="research" className="relative mt-5 overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-[radial-gradient(circle_at_82%_12%,rgba(34,211,238,.13),transparent_28%),radial-gradient(circle_at_18%_20%,rgba(139,92,246,.18),transparent_30%),linear-gradient(145deg,#111426,#10101e_52%,#0a1820)] p-5 shadow-2xl sm:p-7 lg:p-9">
     <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border border-cyan-300/10"/>
-    <div className="pointer-events-none absolute -right-6 -top-10 h-40 w-40 rounded-full border border-violet-300/10"/>
     <div className="relative">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> Research-backed design</div>
-          <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">What research says matters for <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-200 bg-clip-text text-transparent">reading growth.</span></h2>
-          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">A.R.I.S.E. Reader is designed around practices that overlap with evidence-based literacy recommendations from the U.S. Department of Education’s Institute of Education Sciences and What Works Clearinghouse — especially the middle-grade and adolescent reading guidance most relevant to the students A.R.I.S.E. serves.</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:min-w-[310px]">
-          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><BarChart3 className="h-5 w-5 text-cyan-300"/><p className="mt-2 text-2xl font-black">3×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Strong-evidence practices shown</p></div>
-          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><TrendingUp className="h-5 w-5 text-violet-300"/><p className="mt-2 text-2xl font-black">2×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Moderate-evidence practices shown</p></div>
-        </div>
+      <div className="max-w-4xl">
+        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> The research — in plain English</div>
+        <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">Why A.R.I.S.E. is built this way.</h2>
+        <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-300">You should not need a research degree to understand the idea. Here is the simple version of what studies say can help students learn and understand what they read — and how A.R.I.S.E. uses those ideas.</p>
       </div>
 
-      <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(310px,.8fr)]">
-        <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4 sm:p-5">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Official evidence ratings</p><h3 className="mt-1 text-lg font-black">IES / What Works Clearinghouse</h3></div>
-            <div className="hidden items-center gap-3 text-[10px] font-bold text-slate-500 sm:flex"><span>Lower</span><span className="h-px w-16 bg-white/15"/><span>Stronger</span></div>
-          </div>
-          <div className="space-y-5">
-            {RESEARCH_EVIDENCE.map(item=><div key={item.label}>
-              <div className="mb-2 flex flex-wrap items-end justify-between gap-2"><div><p className="text-sm font-black text-slate-100">{item.label}</p><a href={item.url} target="_blank" rel="noreferrer" className="mt-0.5 block text-[10px] font-bold text-slate-500 underline decoration-white/10 underline-offset-2 hover:text-cyan-300">{item.source}</a></div><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${item.evidence==="Strong"?"border-emerald-300/25 bg-emerald-400/10 text-emerald-200":"border-cyan-300/20 bg-cyan-400/10 text-cyan-200"}`}>{item.evidence} evidence</span></div>
-              <div className="grid grid-cols-3 gap-1.5" aria-label={`${item.evidence} evidence rating`}>
-                {[1,2,3].map(level=><span key={level} className={`h-3 rounded-full ${level<=item.strength?(item.evidence==="Strong"?"bg-gradient-to-r from-emerald-500 to-cyan-400":"bg-gradient-to-r from-violet-500 to-cyan-400"):"bg-white/[.06]"}`}/>)}
-              </div>
-            </div>)}
-          </div>
-          <div className="mt-6 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500"><span className="rounded-full bg-white/[.05] px-2.5 py-1">3 bars = Strong</span><span className="rounded-full bg-white/[.05] px-2.5 py-1">2 bars = Moderate</span><span className="rounded-full bg-white/[.05] px-2.5 py-1">WWC ratings, not effect sizes</span></div>
-        </div>
-
-        <div className="rounded-[1.6rem] border border-violet-300/15 bg-gradient-to-b from-violet-500/[.08] to-cyan-400/[.04] p-4 sm:p-5">
-          <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300">How A.R.I.S.E. connects</p>
-          <h3 className="mt-1 text-xl font-black">Turn evidence into a student experience.</h3>
-          <div className="mt-4 space-y-3">{RESEARCH_EVIDENCE.slice(0,4).map(item=><div key={item.label} className="flex gap-3 rounded-2xl border border-white/10 bg-black/15 p-3"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300"/><div><p className="text-xs font-black text-slate-200">{item.label}</p><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-400">{item.connection}</p></div></div>)}</div>
-        </div>
-      </div>
-
-      <div className="mt-5 rounded-[1.6rem] border border-fuchsia-300/15 bg-black/20 p-4 sm:p-5 lg:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-fuchsia-300">Independent research · related mechanisms</p><h3 className="mt-1 text-xl font-black">Positive learning effects found in related studies.</h3><p className="mt-2 max-w-2xl text-xs font-semibold leading-5 text-slate-500">Standardized effect sizes from separate meta-analyses. These are <b className="text-slate-300">not percentages</b> and should not be read as A.R.I.S.E. outcome estimates; the studies used different populations, interventions, and measures.</p></div>
-          <div className="rounded-full border border-white/10 bg-white/[.05] px-3 py-1.5 text-[10px] font-black text-slate-400">0.00 → 0.60 standardized effect scale</div>
-        </div>
-        <div className="mt-6 space-y-5">
-          {RELATED_EFFECTS.map(item=><div key={item.label} className="grid gap-2 sm:grid-cols-[minmax(190px,.65fr)_minmax(0,1.35fr)_70px] sm:items-center">
-            <div><p className="text-xs font-black text-slate-200">{item.label}</p><a href={item.url} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-slate-500 underline decoration-white/10 underline-offset-2 hover:text-cyan-300">{item.source}</a></div>
-            <div className="relative h-8 overflow-hidden rounded-full border border-white/10 bg-white/[.05]">
-              <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400" style={{width:`${Math.min(100,(item.value/.6)*100)}%`}}/>
-              <div className="absolute inset-0 flex items-center px-3"><span className="truncate text-[10px] font-black text-white drop-shadow">{item.detail}</span></div>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {SIMPLE_RESEARCH.map((item,index)=><article key={item.title} className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4 sm:p-5">
+          <div className="flex gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-cyan-400/20 text-cyan-200 ring-1 ring-white/10"><span className="text-sm font-black">{index+1}</span></div>
+            <div>
+              <h3 className="text-base font-black leading-tight text-white">{item.title}</h3>
+              <p className="mt-2 text-xs font-semibold leading-5 text-slate-300"><span className="font-black text-cyan-200">What researchers found: </span>{item.finding}</p>
             </div>
-            <div className="text-right text-xl font-black tabular-nums text-cyan-200">{item.display}</div>
-          </div>)}
-        </div>
+          </div>
+          <div className="mt-4 rounded-2xl border border-violet-300/10 bg-violet-400/[.06] p-3">
+            <p className="text-[10px] font-black uppercase tracking-[.15em] text-violet-300">What that means for A.R.I.S.E.</p>
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">{item.arise}</p>
+          </div>
+          <a href={item.url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-[10px] font-bold text-slate-500 underline decoration-white/10 underline-offset-2 hover:text-cyan-300">See the research: {item.source}</a>
+        </article>)}
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[.06] p-4"><p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-200">Evidence, without overclaiming</p><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-400">These sources support literacy practices and related learning mechanisms that A.R.I.S.E. is designed to use. They are <b className="text-slate-200">not evaluations of A.R.I.S.E. Reader itself</b>. Program-specific impact should be established from A.R.I.S.E. implementation data, comparison groups where feasible, and validated reading measures.</p></div>
-        <div className="flex flex-wrap gap-2 lg:max-w-[430px] lg:justify-end">
-          <a href="https://ies.ed.gov/ncee/wwc/PracticeGuide/29" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">WWC Grades 4–9</a>
-          <a href="https://ies.ed.gov/ncee/WWC/PracticeGuide/8" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">WWC Adolescent Literacy</a>
-          <a href="https://link.springer.com/article/10.1007/s10648-023-09719-3" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Reading Motivation Meta-analysis</a>
-        </div>
+      <div className="mt-5 rounded-[1.5rem] border border-amber-300/15 bg-amber-300/[.06] p-4 sm:p-5">
+        <p className="text-sm font-black text-amber-100">One important note</p>
+        <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">These studies did <b className="text-white">not</b> test A.R.I.S.E. Reader itself. They support the ideas A.R.I.S.E. is built around. As more students use A.R.I.S.E., its own reading-growth data can be measured separately.</p>
       </div>
     </div>
   </section>;
