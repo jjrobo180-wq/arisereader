@@ -247,7 +247,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
 
     {tab==="shop"&&<section className="max-w-7xl mx-auto p-3 sm:p-5">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-        <div className="flex-1"><p className="text-xs font-black tracking-widest text-amber-300">EARNED — NEVER BOUGHT WITH REAL MONEY</p><h2 className="text-3xl font-black">World Shop</h2><p className="text-white/60 font-bold mt-1">Spend Reader Coins on characters, pets, cars, homes, and world items. Pets follow you into A.R.I.S.E Arcade.</p></div>
+        <div className="flex-1"><p className="text-xs font-black tracking-widest text-amber-300">EARNED — NEVER BOUGHT WITH REAL MONEY</p><h2 className="text-3xl font-black">World Shop</h2><p className="text-white/60 font-bold mt-1">Spend Reader Coins on characters, pets, cars, homes, and world items. Pets follow you into A.R.I.S.E game worlds.</p></div>
         <div className="rounded-2xl bg-amber-400 text-slate-950 px-4 py-3 font-black flex items-center gap-2"><Coins className="w-5 h-5"/>{payload.economy.wallet.toLocaleString()} coins</div>
       </div>
       <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","character","pet","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
