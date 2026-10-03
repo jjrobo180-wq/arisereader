@@ -113,6 +113,7 @@ const RESEARCH_PROOF = [
     title: "Quizzing helps learning stick",
     value: 0.51,
     display: "+0.51",
+    strengthLabel: "Moderate positive effect",
     plain: "Students who practiced recalling what they learned did better than students who simply reread the material.",
     proof: "118 articles · 272 results · 15,427 participants",
     source: "Adesope, Trevisan & Sundararajan (2017)",
@@ -123,6 +124,7 @@ const RESEARCH_PROOF = [
     title: "Game-style learning can improve results",
     value: 0.49,
     display: "+0.49",
+    strengthLabel: "Small positive effect",
     plain: "A large review found that gamified learning had a positive effect on learning outcomes.",
     proof: "19 studies · 1,686 participants",
     source: "Sailer & Homner (2020)",
@@ -133,6 +135,7 @@ const RESEARCH_PROOF = [
     title: "Motivation can support comprehension",
     value: 0.27,
     display: "+0.27",
+    strengthLabel: "Small positive effect",
     plain: "Across school-based studies, programs designed to increase reading motivation also improved reading comprehension on average.",
     proof: "39 school-based effect studies",
     source: "van der Sande et al. (2023)",
@@ -152,14 +155,14 @@ function ResearchEvidenceSection(){
       <div className="max-w-3xl">
         <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> Real research behind the idea</div>
         <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">3 reasons this approach makes sense.</h2>
-        <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">No research jargon. Bigger bars mean a stronger average difference in the studies.</p>
+        <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">No research jargon. The big label tells you whether the study found a small or moderate positive effect. The research number is there only for people who want the technical detail.</p>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         {RESEARCH_PROOF.map((item,index)=><article key={item.title} className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.15em] text-violet-300">Proof point {index+1}</p><h3 className="mt-1 text-lg font-black leading-tight text-white">{item.title}</h3></div>
-            <div className="shrink-0 text-2xl font-black tabular-nums text-cyan-200">{item.display}</div>
+            <div className="shrink-0 text-right"><div className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-cyan-200">{item.strengthLabel}</div><div className="mt-1 text-[10px] font-bold text-slate-500">Research number: <span className="tabular-nums">{item.display}</span></div></div>
           </div>
 
           <div className="mt-4">
@@ -182,7 +185,7 @@ function ResearchEvidenceSection(){
         </article>)}
       </div>
 
-      <p className="mt-4 text-[10px] font-semibold leading-5 text-slate-500"><b className="text-slate-300">Quick note:</b> +0.51, +0.49, and +0.27 are standardized research effect sizes, not percentages. These studies support the ideas used by A.R.I.S.E.; they did not directly test A.R.I.S.E. Reader itself.</p>
+      <p className="mt-4 text-[10px] font-semibold leading-5 text-slate-500"><b className="text-slate-300">Quick note:</b> The small/moderate labels are simple guides to make the research easier to understand. The +0.51, +0.49, and +0.27 values are research effect sizes, not percentages. The gamification study itself describes its +0.49 result as a small positive effect. These studies support ideas used by A.R.I.S.E.; they did not directly test A.R.I.S.E. Reader itself.</p>
     </div>
   </section>;
 }
