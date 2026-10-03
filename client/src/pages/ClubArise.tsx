@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+/** ARCHIVED LEGACY EXPERIENCE\n * The 3D A.R.I.S.E Arcade is no longer routed in the live app.\n * Games now launch from /games. Keep this file only for rollback/reference.\n */\nimport { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
