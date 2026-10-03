@@ -313,8 +313,8 @@ export default function HomeInterior() {
     };
     if (has("furniture-arcade")) {
       arcadeCab(-6, -2.3, 0, 0x22d3ee);
-      actionsRef.current.arcade = () => { setNotice("🕹️ Heading to A.R.I.S.E Arcade…"); window.setTimeout(() => navigate("/arise-arcade"), 500); };
-      hotspots.push({ id: "arcade", label: "Play in the Arcade", emoji: "🕹️", x: -6, z: -0.9, r: 1.3 });
+      actionsRef.current.arcade = () => { setNotice("🎮 Heading to Games…"); window.setTimeout(() => navigate("/games"), 500); };
+      hotspots.push({ id: "arcade", label: "Open Games", emoji: "🎮", x: -6, z: -0.9, r: 1.3 });
     }
     if (loft || rank >= 2) { // neon arcade wall + DJ booth
       [0xf472b6, 0x22d3ee, 0xa3e635].forEach((c, i) => arcadeCab(-14.9 + i * 1.3, -2.35, 0, c));
