@@ -110,12 +110,20 @@ export default function Login() {
 
 const RESEARCH_EVIDENCE = [
   {
-    label: "Comprehension strategy instruction",
+    label: "Comprehension-building practices",
+    evidence: "Strong",
+    strength: 3,
+    source: "WWC · Reading Interventions · Grades 4–9",
+    url: "https://ies.ed.gov/ncee/wwc/PracticeGuide/29",
+    connection: "A.R.I.S.E. can support question-and-answer routines, gist checks, and comprehension monitoring around books students actually read.",
+  },
+  {
+    label: "Explicit comprehension strategy instruction",
     evidence: "Strong",
     strength: 3,
     source: "WWC · Adolescent Literacy · Grades 5–12",
     url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-    connection: "A.R.I.S.E. gives teachers a place to pair books and comprehension checks with explicit strategy instruction.",
+    connection: "Teachers can pair A.R.I.S.E. books and quiz results with explicit strategy instruction before, during, and after reading.",
   },
   {
     label: "Explicit vocabulary instruction",
@@ -123,7 +131,7 @@ const RESEARCH_EVIDENCE = [
     strength: 3,
     source: "WWC · Adolescent Literacy · Grades 5–12",
     url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-    connection: "Book-based quizzes and teacher-led follow-up can reinforce vocabulary work around what students are actually reading.",
+    connection: "Book-based quizzes and teacher follow-up can reinforce vocabulary work around the texts students are already reading.",
   },
   {
     label: "Student motivation & engagement",
@@ -139,15 +147,42 @@ const RESEARCH_EVIDENCE = [
     strength: 2,
     source: "WWC · Adolescent Literacy · Grades 5–12",
     url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-    connection: "Quiz results give teachers and students concrete comprehension moments to discuss after reading.",
+    connection: "Quiz results give teachers and students concrete comprehension moments to revisit and discuss after reading.",
+  },
+] as const;
+
+const RELATED_EFFECTS = [
+  {
+    label: "Practice testing vs. restudying",
+    value: 0.51,
+    display: "+0.51",
+    detail: "Meta-analysis of practice testing; positive standardized effect on later learning compared with restudy.",
+    source: "Adesope, Trevisan & Sundararajan (2017)",
+    url: "https://doi.org/10.3102/0034654316689306",
   },
   {
-    label: "Daily reading of connected text",
-    evidence: "Moderate",
-    strength: 2,
-    source: "WWC · Foundational Reading · K–3",
-    url: "https://ies.ed.gov/ncee/wwc/PracticeGuide/21",
-    connection: "A.R.I.S.E. keeps real books and reading activity at the center of the experience rather than replacing reading with games.",
+    label: "Gamification · cognitive outcomes",
+    value: 0.49,
+    display: "+0.49",
+    detail: "Meta-analysis found a positive effect on cognitive learning outcomes across gamified learning studies.",
+    source: "Sailer & Homner (2020)",
+    url: "https://link.springer.com/article/10.1007/s10648-019-09498-w",
+  },
+  {
+    label: "Gamification · motivation",
+    value: 0.36,
+    display: "+0.36",
+    detail: "The same meta-analysis found a positive effect on motivational learning outcomes.",
+    source: "Sailer & Homner (2020)",
+    url: "https://link.springer.com/article/10.1007/s10648-019-09498-w",
+  },
+  {
+    label: "Reading-motivation interventions · comprehension",
+    value: 0.27,
+    display: "+0.27",
+    detail: "A 2023 meta-analysis of 39 school-based effect studies found positive effects on reading comprehension.",
+    source: "Reading Motivation Meta-analysis (2023)",
+    url: "https://link.springer.com/article/10.1007/s10648-023-09719-3",
   },
 ] as const;
 
@@ -160,18 +195,18 @@ function ResearchEvidenceSection(){
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> Research-backed design</div>
           <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">What research says matters for <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-200 bg-clip-text text-transparent">reading growth.</span></h2>
-          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">A.R.I.S.E. Reader is designed to reinforce literacy practices identified by the U.S. Department of Education’s Institute of Education Sciences and What Works Clearinghouse. The chart below shows the <b className="text-slate-200">official evidence rating</b> for each practice — not a made-up percentage.</p>
+          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-400">A.R.I.S.E. Reader is designed around practices that overlap with evidence-based literacy recommendations from the U.S. Department of Education’s Institute of Education Sciences and What Works Clearinghouse — especially the middle-grade and adolescent reading guidance most relevant to the students A.R.I.S.E. serves.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:min-w-[310px]">
-          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><BarChart3 className="h-5 w-5 text-cyan-300"/><p className="mt-2 text-2xl font-black">2×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Strong-evidence practices shown</p></div>
-          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><TrendingUp className="h-5 w-5 text-violet-300"/><p className="mt-2 text-2xl font-black">3×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Moderate-evidence practices shown</p></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><BarChart3 className="h-5 w-5 text-cyan-300"/><p className="mt-2 text-2xl font-black">3×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Strong-evidence practices shown</p></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[.045] p-4"><TrendingUp className="h-5 w-5 text-violet-300"/><p className="mt-2 text-2xl font-black">2×</p><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Moderate-evidence practices shown</p></div>
         </div>
       </div>
 
       <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(310px,.8fr)]">
         <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4 sm:p-5">
           <div className="mb-5 flex items-center justify-between gap-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Evidence strength</p><h3 className="mt-1 text-lg font-black">IES / What Works Clearinghouse</h3></div>
+            <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Official evidence ratings</p><h3 className="mt-1 text-lg font-black">IES / What Works Clearinghouse</h3></div>
             <div className="hidden items-center gap-3 text-[10px] font-bold text-slate-500 sm:flex"><span>Lower</span><span className="h-px w-16 bg-white/15"/><span>Stronger</span></div>
           </div>
           <div className="space-y-5">
@@ -189,16 +224,32 @@ function ResearchEvidenceSection(){
           <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300">How A.R.I.S.E. connects</p>
           <h3 className="mt-1 text-xl font-black">Turn evidence into a student experience.</h3>
           <div className="mt-4 space-y-3">{RESEARCH_EVIDENCE.slice(0,4).map(item=><div key={item.label} className="flex gap-3 rounded-2xl border border-white/10 bg-black/15 p-3"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300"/><div><p className="text-xs font-black text-slate-200">{item.label}</p><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-400">{item.connection}</p></div></div>)}</div>
-          <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-300/[.06] p-4"><p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-200">Important distinction</p><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-400">These studies support the literacy practices shown above. They are <b className="text-slate-200">not studies of A.R.I.S.E. Reader itself</b>, and this section does not claim a specific percentage of student growth. A.R.I.S.E. outcomes should be measured with real implementation and student data.</p></div>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-white/[.035] p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><p className="text-xs font-black text-slate-200">Primary research sources</p><p className="mt-1 text-[11px] font-semibold text-slate-500">U.S. Department of Education · Institute of Education Sciences · What Works Clearinghouse</p></div>
-        <div className="flex flex-wrap gap-2">
-          <a href="https://ies.ed.gov/ncee/WWC/PracticeGuide/8" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Adolescent Literacy</a>
-          <a href="https://ies.ed.gov/ncee/wwc/PracticeGuide/21" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Foundational Reading</a>
-          <a href="https://ies.ed.gov/ncee/wwc/PracticeGuide/14/i" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Reading Comprehension</a>
+      <div className="mt-5 rounded-[1.6rem] border border-fuchsia-300/15 bg-black/20 p-4 sm:p-5 lg:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-fuchsia-300">Independent research · related mechanisms</p><h3 className="mt-1 text-xl font-black">Positive learning effects found in related studies.</h3><p className="mt-2 max-w-2xl text-xs font-semibold leading-5 text-slate-500">Standardized effect sizes from separate meta-analyses. These are <b className="text-slate-300">not percentages</b> and should not be read as A.R.I.S.E. outcome estimates; the studies used different populations, interventions, and measures.</p></div>
+          <div className="rounded-full border border-white/10 bg-white/[.05] px-3 py-1.5 text-[10px] font-black text-slate-400">0.00 → 0.60 standardized effect scale</div>
+        </div>
+        <div className="mt-6 space-y-5">
+          {RELATED_EFFECTS.map(item=><div key={item.label} className="grid gap-2 sm:grid-cols-[minmax(190px,.65fr)_minmax(0,1.35fr)_70px] sm:items-center">
+            <div><p className="text-xs font-black text-slate-200">{item.label}</p><a href={item.url} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-slate-500 underline decoration-white/10 underline-offset-2 hover:text-cyan-300">{item.source}</a></div>
+            <div className="relative h-8 overflow-hidden rounded-full border border-white/10 bg-white/[.05]">
+              <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400" style={{width:`${Math.min(100,(item.value/.6)*100)}%`}}/>
+              <div className="absolute inset-0 flex items-center px-3"><span className="truncate text-[10px] font-black text-white drop-shadow">{item.detail}</span></div>
+            </div>
+            <div className="text-right text-xl font-black tabular-nums text-cyan-200">{item.display}</div>
+          </div>)}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[.06] p-4"><p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-200">Evidence, without overclaiming</p><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-400">These sources support literacy practices and related learning mechanisms that A.R.I.S.E. is designed to use. They are <b className="text-slate-200">not evaluations of A.R.I.S.E. Reader itself</b>. Program-specific impact should be established from A.R.I.S.E. implementation data, comparison groups where feasible, and validated reading measures.</p></div>
+        <div className="flex flex-wrap gap-2 lg:max-w-[430px] lg:justify-end">
+          <a href="https://ies.ed.gov/ncee/wwc/PracticeGuide/29" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">WWC Grades 4–9</a>
+          <a href="https://ies.ed.gov/ncee/WWC/PracticeGuide/8" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">WWC Adolescent Literacy</a>
+          <a href="https://link.springer.com/article/10.1007/s10648-023-09719-3" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-[10px] font-black text-slate-300 hover:border-cyan-300/25 hover:text-cyan-200">Reading Motivation Meta-analysis</a>
         </div>
       </div>
     </div>
