@@ -165,7 +165,7 @@ export default function AuroraRally() {
     <div className="ar-font">
       <style>{CSS}</style>
       {view === "menu" && (
-        <Menu save={save} cc={cc} setCc={setCc} onBack={() => navigate("/worlds")} onSettings={() => setShowSettings(true)} storage={profile ? profile.mode : "loading"}
+        <Menu save={save} cc={cc} setCc={setCc} onBack={() => navigate("/games")} onSettings={() => setShowSettings(true)} storage={profile ? profile.mode : "loading"}
           onGp={startGp} onRace={() => { setMode("race"); setView("tracks"); }} onTt={() => { setMode("tt"); setView("tracks"); }} onGarage={() => setView("garage")} onOnline={() => setView("online")} />
       )}
       {view === "garage" && <Garage save={save} act={act} notice={notice} onBack={() => { setNotice(""); setView("menu"); }} />}
@@ -201,7 +201,7 @@ function Menu({ save, cc, setCc, onBack, onSettings, onGp, onRace, onTt, onGarag
   return (
     <main className="ar-bg min-h-[100dvh] px-4 pb-10 pt-4 text-white sm:px-8">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2">
-        <button onClick={onBack} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" /> Worlds</button>
+        <button onClick={onBack} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" /> Games</button>
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-2 rounded-2xl border border-yellow-300/30 bg-yellow-400/15 px-4 py-3 font-black text-yellow-200"><Coins className="h-5 w-5" /> {save.coins}</span>
           <button onClick={onSettings} className="ar-btn rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur"><Settings className="h-5 w-5" /></button>
