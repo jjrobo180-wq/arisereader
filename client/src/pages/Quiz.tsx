@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { BookOpen, ArrowLeft, CheckCircle2, XCircle, Award, FileSearch, Sparkles, Volume2, Square } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import BookAccessLinks from "@/components/BookAccessLinks";
+import { NEWS_AUTHOR, newsByTitle } from "@shared/ariseNews";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { speakCharacterAI, stopSpeaking as stopAiSpeaking } from "@/lib/tts";
@@ -861,6 +862,11 @@ export default function Quiz() {
             </div>
             {/* Opening the book now would mean leaving a no-proctor quiz. */}
             {!camera && <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} />}
+            {!camera && newsByTitle(book?.title) && book?.author === NEWS_AUTHOR && (
+              <button type="button" onClick={() => navigate(`/news/${newsByTitle(book?.title)!.slug}`)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#17143b] hover:bg-violet-100">
+                <BookOpen className="w-3.5 h-3.5" /> Read the Arise News story
+              </button>
+            )}
           </div>
         </div>
 
