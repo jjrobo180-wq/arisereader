@@ -1319,8 +1319,8 @@ export default function Library() {
                           </button>
                         )}
                         {!user?.is_eye_gaze_user && (
-                          <button onClick={() => { navigate("/club-arise"); setShowMobileMenu(false); }} className="club-entry-glow rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <Gamepad2 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Club Arise<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
+                          <button onClick={() => { navigate("/games"); setShowMobileMenu(false); }} className="club-entry-glow rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <Gamepad2 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Games<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
@@ -1490,17 +1490,17 @@ export default function Library() {
         {user?.role === "student" && !user?.is_eye_gaze_user && (
           <button
             type="button"
-            onClick={() => navigate("/club-arise")}
+            onClick={() => navigate("/games")}
             className="club-entry-glow mb-4 flex w-full items-center justify-between rounded-2xl border border-indigo-300/30 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-4 py-3 text-left text-white shadow-lg transition hover:brightness-110"
           >
             <span className="flex items-center gap-3">
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><Gamepad2 className="h-6 w-6" /></span>
               <span>
-                <span className="flex items-center gap-2 text-base font-black">Club Arise<span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950 shadow-[0_0_16px_rgba(253,224,71,.45)]">NEW</span></span>
-                <span className="block text-xs font-bold text-white/75">Choose your world · 10 minutes daily · Pass quizzes for more time</span>
+                <span className="flex items-center gap-2 text-base font-black">Games<span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950 shadow-[0_0_16px_rgba(253,224,71,.45)]">NEW</span></span>
+                <span className="block text-xs font-bold text-white/75">All game worlds + multiplayer games · 10 minutes daily · Pass quizzes for more time</span>
               </span>
             </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">ENTER CLUB</span>
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">PLAY GAMES</span>
           </button>
         )}
         <EngagementHub
