@@ -218,7 +218,7 @@ export default function Neighborhood() {
       const curb = boxMesh([PARK_X * 2 - 6, 0.16, 0.18], [-3, 0.08, Math.sign(z) * ROAD_HALF], mat(0xeef0f3), false); scene.add(curb);
     }
 
-    // Entrance arch on the west end (and the way back to Worlds).
+    // Entrance arch on the west end (and the way back to Games).
     const arch = new THREE.Group(); arch.position.set(-40, 0, 0);
     const brick = mat(0xb45309, 0.8);
     arch.add(boxMesh([0.7, 6.2, 0.7], [0, 3.1, -5.2], brick)); arch.add(boxMesh([0.7, 6.2, 0.7], [0, 3.1, 5.2], brick)); arch.add(boxMesh([0.6, 0.6, 11.2], [0, 6.5, 0], brick));
@@ -479,7 +479,7 @@ export default function Neighborhood() {
     };
     void sync(); const interval = window.setInterval(sync, 900); return () => window.clearInterval(interval);
   }, [ready, self?.userId, token, headers]);
-  useEffect(() => { if (!leavingWorld) return; const timer = window.setTimeout(() => navigate("/worlds"), 700); return () => window.clearTimeout(timer); }, [leavingWorld, navigate]);
+  useEffect(() => { if (!leavingWorld) return; const timer = window.setTimeout(() => navigate("/games"), 700); return () => window.clearTimeout(timer); }, [leavingWorld, navigate]);
 
   const neighbors = players.filter(p => p.userId !== self?.userId);
   const move = (key: "w" | "a" | "s" | "d", pressed: boolean) => { if (pressed) keysRef.current.add(key); else keysRef.current.delete(key); };
