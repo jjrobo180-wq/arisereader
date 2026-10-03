@@ -124,7 +124,7 @@ const RESEARCH_PROOF = [
     title: "Game-style learning can improve results",
     value: 0.49,
     display: "+0.49",
-    strengthLabel: "Small positive effect",
+    strengthLabel: "Positive learning effect",
     plain: "A large review found that gamified learning had a positive effect on learning outcomes.",
     proof: "19 studies · 1,686 participants",
     source: "Sailer & Homner (2020)",
@@ -135,7 +135,7 @@ const RESEARCH_PROOF = [
     title: "Motivation can support comprehension",
     value: 0.27,
     display: "+0.27",
-    strengthLabel: "Small positive effect",
+    strengthLabel: "Positive reading growth effect",
     plain: "Across school-based studies, programs designed to increase reading motivation also improved reading comprehension on average.",
     proof: "39 school-based effect studies",
     source: "van der Sande et al. (2023)",
@@ -185,7 +185,7 @@ function ResearchEvidenceSection(){
         </article>)}
       </div>
 
-      <p className="mt-4 text-[10px] font-semibold leading-5 text-slate-500"><b className="text-slate-300">Quick note:</b> The small/moderate labels are simple guides to make the research easier to understand. The +0.51, +0.49, and +0.27 values are research effect sizes, not percentages. The gamification study itself describes its +0.49 result as a small positive effect. These studies support ideas used by A.R.I.S.E.; they did not directly test A.R.I.S.E. Reader itself.</p>
+      <p className="mt-4 text-[10px] font-semibold leading-5 text-slate-500"><b className="text-slate-300">Quick note:</b> The plain-English labels focus on the direction of the research finding so the section is easy to understand. The +0.51, +0.49, and +0.27 values are research effect sizes, not percentages. The gamification study itself describes its +0.49 result as a small positive effect. These studies support ideas used by A.R.I.S.E.; they did not directly test A.R.I.S.E. Reader itself.</p>
     </div>
   </section>;
 }
