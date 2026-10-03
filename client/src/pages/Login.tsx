@@ -108,82 +108,81 @@ export default function Login() {
 }
 
 
-const SIMPLE_RESEARCH = [
+const RESEARCH_PROOF = [
   {
-    title: "Questions after reading help learning stick",
-    finding: "Research shows that answering questions about what you just learned can help you remember and understand it better than simply reviewing it again.",
-    arise: "A.R.I.S.E. gives students book quizzes so they can practice remembering, thinking about, and explaining what they read.",
-    source: "Practice Testing Meta-analysis · Adesope, Trevisan & Sundararajan (2017)",
+    title: "Quizzing helps learning stick",
+    value: 0.51,
+    display: "+0.51",
+    plain: "Students who practiced recalling what they learned did better than students who simply reread the material.",
+    proof: "118 articles · 272 results · 15,427 participants",
+    source: "Adesope, Trevisan & Sundararajan (2017)",
     url: "https://doi.org/10.3102/0034654316689306",
+    arise: "A.R.I.S.E. uses book quizzes to make students pull information back from memory instead of only rereading.",
   },
   {
-    title: "Good readers use strategies while they read",
-    finding: "Students understand text better when they are taught simple habits like asking questions, summarizing, and checking whether the story makes sense.",
-    arise: "A.R.I.S.E. quizzes give teachers clear moments to talk through what happened in a book and help students practice those habits.",
-    source: "U.S. Department of Education · What Works Clearinghouse",
-    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-  },
-  {
-    title: "Knowing more words helps students understand books",
-    finding: "Teaching important vocabulary directly can make it easier for students to understand what they are reading.",
-    arise: "Teachers can use A.R.I.S.E. books and quiz results to spot words students may need explained or practiced.",
-    source: "U.S. Department of Education · What Works Clearinghouse",
-    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-  },
-  {
-    title: "Motivation matters",
-    finding: "Students are more likely to keep reading when reading feels meaningful, achievable, and worth coming back to.",
-    arise: "A.R.I.S.E. uses points, certificates, leaderboards, rewards, and earned game time to give students more reasons to keep participating.",
-    source: "U.S. Department of Education · What Works Clearinghouse",
-    url: "https://ies.ed.gov/ncee/WWC/PracticeGuide/8",
-  },
-  {
-    title: "Game-like learning can help",
-    finding: "Across many studies, adding game elements to learning was linked with better learning results and stronger motivation on average.",
-    arise: "A.R.I.S.E. connects reading to games, coins, avatars, pets, challenges, and other rewards instead of treating reading as a separate chore.",
-    source: "Gamification Meta-analysis · Sailer & Homner (2020)",
+    title: "Game-style learning can improve results",
+    value: 0.49,
+    display: "+0.49",
+    plain: "A large review found that gamified learning had a positive effect on learning outcomes.",
+    proof: "19 studies · 1,686 participants",
+    source: "Sailer & Homner (2020)",
     url: "https://link.springer.com/article/10.1007/s10648-019-09498-w",
+    arise: "A.R.I.S.E. connects reading to points, rewards, games, avatars, pets, and progress students can actually see.",
   },
   {
-    title: "Helping students want to read can support comprehension",
-    finding: "A large review of school-based studies found that programs designed to improve reading motivation were also linked with better reading comprehension on average.",
-    arise: "A.R.I.S.E. is built around making students want to return to reading through choice, progress, recognition, and rewards.",
-    source: "Reading Motivation Meta-analysis (2023)",
+    title: "Motivation can support comprehension",
+    value: 0.27,
+    display: "+0.27",
+    plain: "Across school-based studies, programs designed to increase reading motivation also improved reading comprehension on average.",
+    proof: "39 school-based effect studies",
+    source: "van der Sande et al. (2023)",
     url: "https://link.springer.com/article/10.1007/s10648-023-09719-3",
+    arise: "A.R.I.S.E. is built to give students reasons to come back to reading through choice, recognition, progress, and rewards.",
   },
 ] as const;
 
 function ResearchEvidenceSection(){
   return <section id="research" className="relative mt-5 overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-[radial-gradient(circle_at_82%_12%,rgba(34,211,238,.13),transparent_28%),radial-gradient(circle_at_18%_20%,rgba(139,92,246,.18),transparent_30%),linear-gradient(145deg,#111426,#10101e_52%,#0a1820)] p-5 shadow-2xl sm:p-7 lg:p-9">
-    <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border border-cyan-300/10"/>
+    <style>{`
+      @keyframes ariseResearchGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+      .arise-research-bar { transform-origin: left center; animation: ariseResearchGrow 1.1s cubic-bezier(.2,.8,.2,1) both; }
+      @media (prefers-reduced-motion: reduce) { .arise-research-bar { animation: none; } }
+    `}</style>
     <div className="relative">
-      <div className="max-w-4xl">
-        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> The research — in plain English</div>
-        <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">Why A.R.I.S.E. is built this way.</h2>
-        <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-300">You should not need a research degree to understand the idea. Here is the simple version of what studies say can help students learn and understand what they read — and how A.R.I.S.E. uses those ideas.</p>
+      <div className="max-w-3xl">
+        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-cyan-200"><ShieldCheck className="h-3.5 w-3.5"/> Real research behind the idea</div>
+        <h2 className="mt-4 text-3xl font-black tracking-[-.04em] sm:text-4xl">3 reasons this approach makes sense.</h2>
+        <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">No research jargon. Bigger bars mean a stronger average difference in the studies.</p>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {SIMPLE_RESEARCH.map((item,index)=><article key={item.title} className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4 sm:p-5">
-          <div className="flex gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-cyan-400/20 text-cyan-200 ring-1 ring-white/10"><span className="text-sm font-black">{index+1}</span></div>
-            <div>
-              <h3 className="text-base font-black leading-tight text-white">{item.title}</h3>
-              <p className="mt-2 text-xs font-semibold leading-5 text-slate-300"><span className="font-black text-cyan-200">What researchers found: </span>{item.finding}</p>
-            </div>
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        {RESEARCH_PROOF.map((item,index)=><article key={item.title} className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.15em] text-violet-300">Proof point {index+1}</p><h3 className="mt-1 text-lg font-black leading-tight text-white">{item.title}</h3></div>
+            <div className="shrink-0 text-2xl font-black tabular-nums text-cyan-200">{item.display}</div>
           </div>
-          <div className="mt-4 rounded-2xl border border-violet-300/10 bg-violet-400/[.06] p-3">
-            <p className="text-[10px] font-black uppercase tracking-[.15em] text-violet-300">What that means for A.R.I.S.E.</p>
+
+          <div className="mt-4">
+            <div className="h-4 overflow-hidden rounded-full border border-white/10 bg-white/[.05]">
+              <div className="arise-research-bar h-full rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400" style={{width:`${Math.min(100,(item.value/.6)*100)}%`,animationDelay:`${index*180}ms`}}/>
+            </div>
+            <div className="mt-1 flex justify-between text-[9px] font-bold text-slate-600"><span>0</span><span>0.60 research-effect scale</span></div>
+          </div>
+
+          <p className="mt-4 text-sm font-bold leading-6 text-slate-200">{item.plain}</p>
+          <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-400/[.05] p-3">
+            <p className="text-[9px] font-black uppercase tracking-[.15em] text-cyan-300">The proof</p>
+            <p className="mt-1 text-xs font-black text-white">{item.proof}</p>
+          </div>
+          <div className="mt-3 rounded-2xl border border-violet-300/10 bg-violet-400/[.05] p-3">
+            <p className="text-[9px] font-black uppercase tracking-[.15em] text-violet-300">How A.R.I.S.E. connects</p>
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">{item.arise}</p>
           </div>
-          <a href={item.url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-[10px] font-bold text-slate-500 underline decoration-white/10 underline-offset-2 hover:text-cyan-300">See the research: {item.source}</a>
+          <a href={item.url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center text-[10px] font-black text-slate-500 underline decoration-white/10 underline-offset-2 hover:text-cyan-300">View the study · {item.source}</a>
         </article>)}
       </div>
 
-      <div className="mt-5 rounded-[1.5rem] border border-amber-300/15 bg-amber-300/[.06] p-4 sm:p-5">
-        <p className="text-sm font-black text-amber-100">One important note</p>
-        <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">These studies did <b className="text-white">not</b> test A.R.I.S.E. Reader itself. They support the ideas A.R.I.S.E. is built around. As more students use A.R.I.S.E., its own reading-growth data can be measured separately.</p>
-      </div>
+      <p className="mt-4 text-[10px] font-semibold leading-5 text-slate-500"><b className="text-slate-300">Quick note:</b> +0.51, +0.49, and +0.27 are standardized research effect sizes, not percentages. These studies support the ideas used by A.R.I.S.E.; they did not directly test A.R.I.S.E. Reader itself.</p>
     </div>
   </section>;
 }
