@@ -42,5 +42,7 @@ export const BOARDS: Record<string, BoardMeta> = {
   codebreaker: { Board: CodeBreakerBoard, scroll: true },
   fifteen: { Board: FifteenBoard, scroll: true },
   word_rescue: { Board: WordRescueBoard, scroll: true },
-  word_tiles: quiz, math_duel: quiz, synonym_sprint: quiz, pattern_power: quiz, sentence_fix: quiz, fact_dash: quiz, spelling: quiz, geography: quiz,\n  letter_forge: quiz, context_clues: quiz, roots_affixes: quiz, syllable_smash: quiz, parts_speech: quiz, figurative_language: quiz, reading_detective: quiz, sequence_story: quiz, analogy_arena: quiz, homophone_hunt: quiz,\n  multiplication_mayhem: quiz, fraction_frenzy: quiz, decimal_dash: quiz, geometry_grid: quiz, money_math: quiz, time_trial: quiz, estimation_station: quiz, science_lab: quiz, states_capitals: quiz, history_hustle: quiz,
+  word_tiles: quiz, math_duel: quiz, synonym_sprint: quiz, pattern_power: quiz, sentence_fix: quiz, fact_dash: quiz, spelling: quiz, geography: quiz,
+  letter_forge: quiz, context_clues: quiz, roots_affixes: quiz, syllable_smash: quiz, parts_speech: quiz, figurative_language: quiz, reading_detective: quiz, sequence_story: quiz, analogy_arena: quiz, homophone_hunt: quiz,
+  multiplication_mayhem: quiz, fraction_frenzy: quiz, decimal_dash: quiz, geometry_grid: quiz, money_math: quiz, time_trial: quiz, estimation_station: quiz, science_lab: quiz, states_capitals: quiz, history_hustle: quiz,
 };
