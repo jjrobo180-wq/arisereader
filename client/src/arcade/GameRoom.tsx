@@ -88,7 +88,7 @@ export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChes
     return () => window.removeEventListener("keydown", onKey);
   }, [picked, query, onClose]);
 
-  // Picked on the Worlds page: open that game's page right away.
+  // Picked on the Games page: open that game's page right away.
   useEffect(() => {
     const e = initialGame ? GAME_INFO[initialGame] : undefined;
     if (e) setPicked(e);
@@ -110,11 +110,11 @@ export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChes
   const tile = (e: Entry) => <CoverTile key={e.id} id={e.id} title={e.title} name={e.name} art={<GameArt gameId={e.id} />} waiting={waitingFor(e.id)} onOpen={() => open(e)} />;
 
   return (
-    <section className="ax-root axl" aria-label="Game room">
+    <section className="ax-root axl" aria-label="Games">
       <header className={"axl-top" + (scrolled ? " solid" : "")}>
-        <button type="button" className="axl-icon" onClick={onClose} aria-label="Back to the arcade lounge"><IconBack /></button>
+        <button type="button" className="axl-icon" onClick={onClose} aria-label="Back to the Games page"><IconBack /></button>
         <div className="axl-brand">
-          <b>Game Room</b>
+          <b>Games</b>
           <span>{challenge ? `Pick a game to challenge ${challenge.name}` : `${all.length} games · play readers or the computer`}</span>
         </div>
         {challenge && <button type="button" className="axl-btn axl-btn-ghost axl-btn-sm" onClick={onClearChallenge}>Cancel challenge</button>}
@@ -182,7 +182,7 @@ export default function GameRoom({ onClose, onStart, onDeclineInvite, onOpenChes
                 </Shelf>
               );
             })}
-            <p className="axl-foot">Every game works against the computer or another reader. Wins earn arcade rewards.</p>
+            <p className="axl-foot">Every game works against the computer or another reader. Wins earn game rewards.</p>
           </>
         )}
       </div>
@@ -324,7 +324,7 @@ function GamePage({ entry, onClose, onStart, onOpenChess, tables, readers, busy,
                 </button>
                 {readers.length > 0 ? (
                   <div className="axl-readers">
-                    <p className="axl-small">Or challenge someone in the arcade:</p>
+                    <p className="axl-small">Or challenge someone online:</p>
                     {readers.slice(0, 8).map((r) => (
                       <div key={r.userId} className="axl-reader">
                         <b>{r.name}</b>
