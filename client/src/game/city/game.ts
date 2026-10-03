@@ -7,10 +7,11 @@ import { AvatarRig, followOwner, nameTag } from "@/lib/worldAvatar";
 import { createPet } from "@/lib/pets";
 import { HOME_MODELS } from "@/lib/worldModels";
 import { loadGltfCached } from "@/lib/worldAvatar";
-import { LOTS, areaName, nearestSpot, resolveCircle, type Spot, DEALER } from "@shared/city/layout";
-import { CARS, CAR_RADIUS, carFor, dashSpeed, stepCar, stepWalker, wrapAngle, type CarId, type CarState } from "@shared/city/drive";
+import { LOTS, STARS, areaName, nearestSpot, rampAt, resolveCircle, type Spot, DEALER } from "@shared/city/layout";
+import { CARS, CAR_RADIUS, GROUNDED, carFor, dashSpeed, groundAt, stepCar, stepLift, stepWalker, wrapAngle, type CarId, type CarState, type Lift } from "@shared/city/drive";
 import { GRID_PLAYER, LAP_LENGTH, lapsDone, makeRivals, startTracker, stepRival, trackPoint, updateTracker, type LapTracker, type Rival } from "@shared/city/race";
 import { makeTraffic, stepTraffic, type TrafficCar } from "@shared/city/traffic";
+import { makeWalkers, routePoint, stepWalkers, type Walker } from "@shared/city/people";
 import { buildCity, type CityScene } from "./scene";
 import { makeCar, type CarRig } from "./models";
 import { CityAudio } from "./audio";
@@ -22,7 +23,8 @@ export type CityHome = { ownerId: number; displayName: string; homeId: string; u
 
 export type RacePhase = "countdown" | "racing" | "finished";
 export type RaceHud = { mode: "race" | "trial"; phase: RacePhase; countdown: number; lap: number; laps: number; position: number; racers: number; timeMs: number; results: { name: string; you: boolean; timeMs: number | null }[] | null; best: number | null };
-export type CityHud = { driving: boolean; speed: number; area: string; spot: Spot | null; nearCar: boolean; race: RaceHud | null; carName: string };
+export type CityHud = { driving: boolean; speed: number; area: string; spot: Spot | null; nearCar: boolean; race: RaceHud | null; carName: string; airborne: boolean; stars: number; starsTotal: number };
+export type StarFound = { id: string; found: number; total: number };
 
 type Remote = { data: CityPlayer; rig: AvatarRig; car: CarRig | null; carId: string; pet: THREE.Object3D | null; tag: THREE.Sprite; bubble: THREE.Sprite | null; bubbleText: string | null; target: THREE.Vector3; facing: number; seen: number };
 
@@ -39,6 +41,8 @@ export class CityGame {
   private clock = new THREE.Clock();
   private raf = 0;
   private keys = new Set<string>();
+  private stick: { x: number; y: number } | null = null;
+  private steerAxis: number | null = null;
   private paused = false;
   private disposed = false;
   readonly audio = new CityAudio();
@@ -53,6 +57,9 @@ export class CityGame {
   private carId: CarId;
   private carRig: CarRig;
   private car: CarState;
+  private lift: Lift = GROUNDED;
+  private carPitch = 0;
+  private walkerY = 0;
   private driving = false;
   private pet: THREE.Object3D | null = null;
   private loader = new GLTFLoader();
@@ -69,6 +76,12 @@ export class CityGame {
   private remotes = new Map<number, Remote>();
   private homeRoots: THREE.Object3D[] = [];
   private showcase: CarRig[] = [];
+  // people out walking: rigs are made the first time someone comes near
+  private walkers: Walker[] = makeWalkers(40);
+  private walkerViews: ({ rig: AvatarRig; pet: THREE.Object3D | null; bubble: THREE.Sprite | null; bubbleUntil: number; hop: number } | null)[] = [];
+  private stars: { id: string; root: THREE.Object3D; x: number; y: number; z: number }[] = [];
+  private starsFound = new Set<string>();
+  private onStar?: (s: StarFound) => void;
 
   // racing
   private race: { mode: "race" | "trial"; phase: RacePhase; startAt: number; tracker: LapTracker; laps: number; rivals: Rival[]; rivalRigs: CarRig[]; finishedAt: number | null; results: RaceHud["results"] } | null = null;
@@ -77,10 +90,11 @@ export class CityGame {
   private onHud: (h: CityHud) => void;
   private onBump?: () => void;
 
-  constructor(private container: HTMLElement, self: CitySelf, opts: { onHud: (h: CityHud) => void; onBump?: () => void }) {
+  constructor(private container: HTMLElement, self: CitySelf, opts: { onHud: (h: CityHud) => void; onBump?: () => void; onStar?: (s: StarFound) => void }) {
     this.self = self;
     this.onHud = opts.onHud;
     this.onBump = opts.onBump;
+    this.onStar = opts.onStar;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -106,6 +120,7 @@ export class CityGame {
     this.scene.add(this.rig.root);
     this.carId = carFor(self.carId);
     this.carRig = makeCar(this.carId);
+    this.carRig.root.rotation.order = "YXZ"; // heading first, then nose up/down on ramps
     // park my car beside the plaza
     // my car waits at the edge of the plaza, pointing at the road
     const park = resolveCircle(self.x + 9, self.z + 7, CAR_RADIUS);
@@ -126,6 +141,8 @@ export class CityGame {
       this.scene.add(rig.root); this.showcase.push(rig);
     });
 
+    this.buildStars();
+
     CityGame.current = this;
     this.bindInput();
     this.resize();
@@ -135,7 +152,13 @@ export class CityGame {
 
   // ── Public API ────────────────────────────────────────────────────────────
   attachMinimap(canvas: HTMLCanvasElement | null) { this.mapCtx = canvas?.getContext("2d") ?? null; }
-  setPaused(p: boolean) { this.paused = p; if (p) this.keys.clear(); }
+  setPaused(p: boolean) { this.paused = p; if (p) { this.keys.clear(); this.stick = null; this.steerAxis = null; } }
+  /** Touch walking stick: x right, y forward, both -1…1 (null when released). */
+  setStick(v: { x: number; y: number } | null) { this.stick = v; if (v) this.audio.start(); }
+  /** Touch steering: -1 full left … 1 full right (null when released). */
+  setSteer(v: number | null) { this.steerAxis = v; }
+  /** Stars found so far (ids). */
+  get foundStars() { return [...this.starsFound]; }
   press(key: string, down: boolean) { if (down) this.keys.add(key); else this.keys.delete(key); if (down) this.audio.start(); }
 
   getPose() {
@@ -152,6 +175,7 @@ export class CityGame {
     this.carId = next;
     const old = this.carRig;
     this.carRig = makeCar(next);
+    this.carRig.root.rotation.order = "YXZ";
     this.carRig.root.position.copy(old.root.position); this.carRig.root.rotation.copy(old.root.rotation);
     this.scene.remove(old.root); old.dispose();
     this.scene.add(this.carRig.root);
@@ -165,7 +189,7 @@ export class CityGame {
 
   /** Gets in (bringing the car over if it's far away) or gets out. */
   toggleCar() {
-    if (this.race) return;
+    if (this.race || this.lift.air) return;
     this.audio.start();
     if (this.driving) {
       if (Math.abs(this.car.speed) > 4) { this.car.speed *= 0.3; }
@@ -173,6 +197,7 @@ export class CityGame {
       const side = new THREE.Vector3(Math.cos(this.car.heading), 0, -Math.sin(this.car.heading)).multiplyScalar(2.4);
       const out = resolveCircle(this.car.x + side.x, this.car.z + side.z, 0.5);
       this.walker.set(out.x, 0, out.z);
+      this.walkerY = groundAt(out.x, out.z);
       this.facing = this.car.heading;
       this.car.speed = 0;
       this.rig.root.visible = true;
@@ -184,6 +209,7 @@ export class CityGame {
         const side = new THREE.Vector3(Math.cos(this.facing), 0, -Math.sin(this.facing)).multiplyScalar(2.6);
         const spot = resolveCircle(this.walker.x + side.x, this.walker.z + side.z, CAR_RADIUS);
         this.car = { x: spot.x, z: spot.z, heading: this.facing, speed: 0, drift: 0 };
+        this.lift = { y: groundAt(spot.x, spot.z), vy: 0, air: false };
       }
       this.driving = true;
       this.rig.root.visible = false;
@@ -283,6 +309,7 @@ export class CityGame {
     this.endRace();
     if (!this.driving) this.toggleCar();
     this.car = { x: GRID_PLAYER.x, z: GRID_PLAYER.z, heading: GRID_PLAYER.heading, speed: 0, drift: 0 };
+    this.lift = GROUNDED;
     this.camYaw = GRID_PLAYER.heading + Math.PI;
     const rivals = mode === "race" ? makeRivals() : [];
     const rivalRigs = rivals.map((r) => { const rig = makeCar("car-super", { tint: r.color, length: 4.4 }); this.scene.add(rig.root); return rig; });
@@ -345,6 +372,94 @@ export class CityGame {
     };
   }
 
+  // ── People out walking ────────────────────────────────────────────────────
+  private stepPeople(dt: number, t: number, now: number) {
+    const me = this.driving ? { x: this.car.x, z: this.car.z } : { x: this.walker.x, z: this.walker.z };
+    const blockers = [me, ...(this.driving ? [] : [{ x: this.car.x, z: this.car.z }])];
+    this.walkers = stepWalkers(this.walkers, blockers, dt);
+    const range = this.lowQuality ? 75 : 120;
+    this.walkers.forEach((w, i) => {
+      const p = routePoint(w.route, w.s);
+      const near = Math.hypot(p.x - me.x, p.z - me.z) < range;
+      let view = this.walkerViews[i];
+      if (!near) { if (view) { view.rig.root.visible = false; if (view.pet) view.pet.visible = false; } return; }
+      if (!view) {
+        const rig = new AvatarRig(w.character, 1.75 * w.scale, { noWeapons: true });
+        rig.root.position.set(p.x, 0, p.z); this.scene.add(rig.root);
+        const pet = w.pet ? createPet(w.pet, this.loader, 0.7) : null;
+        if (pet) { pet.position.set(p.x, 0, p.z); this.scene.add(pet); }
+        view = this.walkerViews[i] = { rig, pet, bubble: null, bubbleUntil: 0, hop: 0 };
+      }
+      const prev = view.rig.root.position.clone();
+      view.hop = Math.max(0, view.hop - dt * 2.5);
+      view.rig.root.visible = true;
+      view.rig.root.position.set(p.x, Math.sin(view.hop * Math.PI) * 0.6, p.z);
+      const facing = p.heading + (w.dir < 0 ? Math.PI : 0);
+      view.rig.root.rotation.y += wrapAngle(facing - view.rig.root.rotation.y) * Math.min(1, dt * 8);
+      const speed = Math.hypot(p.x - prev.x, p.z - prev.z) / Math.max(dt, 1e-4);
+      view.rig.update(dt, speed > 8 ? 0 : speed); // a jump after spawning isn't a sprint
+      if (view.pet) { view.pet.visible = true; followOwner(view.pet, view.rig.root, dt, t, 1.2); }
+      if (view.bubble && now > view.bubbleUntil) { view.rig.root.remove(view.bubble); view.bubble = null; }
+    });
+  }
+
+  private walkerSay(i: number, text: string) {
+    const view = this.walkerViews[i]; if (!view) return;
+    if (view.bubble) view.rig.root.remove(view.bubble);
+    view.bubble = nameTag(text, "#0f766e"); view.bubble.position.y = 2.9; view.bubble.scale.multiplyScalar(0.5);
+    view.rig.root.add(view.bubble);
+    view.bubbleUntil = performance.now() + 1800;
+  }
+
+  // ── Hidden stars ──────────────────────────────────────────────────────────
+  private starKey() { return `city_stars_${this.self.userId}`; }
+
+  private buildStars() {
+    try { const saved = JSON.parse(localStorage.getItem(this.starKey()) || "[]"); if (Array.isArray(saved)) saved.forEach((id) => this.starsFound.add(String(id))); } catch { /* none yet */ }
+    const shape = new THREE.Shape();
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 0.36 : 0.85;
+      if (i) shape.lineTo(Math.cos(a) * r, -Math.sin(a) * r); else shape.moveTo(Math.cos(a) * r, -Math.sin(a) * r);
+    }
+    const starGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.22, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 1 });
+    starGeo.center();
+    const starMat = new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffb300, emissiveIntensity: 0.9, metalness: 0.4, roughness: 0.3 });
+    const beamGeo = new THREE.CylinderGeometry(0.35, 0.6, 26, 10, 1, true); beamGeo.translate(0, 13, 0);
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    for (const s of STARS) {
+      if (this.starsFound.has(s.id)) continue;
+      const root = new THREE.Group();
+      const y = s.y ?? 1.3;
+      root.position.set(s.x, y, s.z);
+      const star = new THREE.Mesh(starGeo, starMat); root.add(star);
+      const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.y = -y; root.add(beam);
+      this.scene.add(root);
+      this.stars.push({ id: s.id, root, x: s.x, y, z: s.z });
+    }
+  }
+
+  private stepStars(t: number) {
+    if (!this.stars.length) return;
+    const px = this.driving ? this.car.x : this.walker.x, pz = this.driving ? this.car.z : this.walker.z;
+    const py = (this.driving ? this.lift.y : this.walkerY) + 1;
+    for (const s of this.stars) {
+      s.root.children[0].rotation.y = t * 2;
+      s.root.children[0].position.y = Math.sin(t * 2 + s.x) * 0.15;
+      if (Math.hypot(px - s.x, pz - s.z) < (this.driving ? 3.2 : 2.2) && Math.abs(py - s.y) < 2.6) this.collectStar(s.id);
+    }
+  }
+
+  private collectStar(id: string) {
+    const i = this.stars.findIndex((s) => s.id === id);
+    if (i < 0) return;
+    this.scene.remove(this.stars[i].root);
+    this.stars.splice(i, 1);
+    this.starsFound.add(id);
+    try { localStorage.setItem(this.starKey(), JSON.stringify([...this.starsFound])); } catch { /* still counts this visit */ }
+    this.audio.chime();
+    this.onStar?.({ id, found: this.starsFound.size, total: STARS.length });
+  }
+
   // ── Loop ──────────────────────────────────────────────────────────────────
   private loop = () => {
     if (this.disposed) return;
@@ -360,13 +475,34 @@ export class CityGame {
     if (this.race) this.stepRace(now, dt);
 
     if (this.driving) {
-      const input = racingLocked ? { throttle: 0, brake: 1, steer: 0, handbrake: false } : {
-        throttle: k.has("w") ? 1 : 0, brake: k.has("s") ? 1 : 0,
-        steer: (k.has("a") ? 1 : 0) - (k.has("d") ? 1 : 0), handbrake: k.has(" "),
-      };
+      const steer = this.steerAxis !== null && !this.paused ? -this.steerAxis : (k.has("a") ? 1 : 0) - (k.has("d") ? 1 : 0);
+      const input = racingLocked ? { throttle: 0, brake: 1, steer: 0, handbrake: false }
+        : this.lift.air ? { throttle: 0, brake: 0, steer: steer * 0.3, handbrake: false } // a little air control, no grip
+          : { throttle: k.has("w") ? 1 : 0, brake: k.has("s") ? 1 : 0, steer, handbrake: k.has(" ") };
       const before = this.car;
       const res = stepCar(this.car, input, CARS[this.carId], dt);
       this.car = res.car;
+      // ramps: follow the slope, fly off the lip, bounce off the tall end
+      const lifted = stepLift(this.lift, this.car.x, this.car.z, dt);
+      if (lifted.blocked) {
+        this.car = { ...before, speed: -before.speed * 0.25, drift: 0 };
+        if (Math.abs(before.speed) > 3) { this.audio.bump(); this.onBump?.(); }
+      } else {
+        if (!this.lift.air && lifted.lift.air) this.audio.whoosh();
+        if (lifted.landed > 4) this.audio.bump();
+        this.lift = lifted.lift;
+      }
+      // people on the pavement: the car stops short and they hop out of the way
+      this.walkers.forEach((w, i) => {
+        const view = this.walkerViews[i]; if (!view?.rig.root.visible) return;
+        const p = view.rig.root.position, dx = this.car.x - p.x, dz = this.car.z - p.z, d = Math.hypot(dx, dz);
+        if (d < CAR_RADIUS + 0.8 && d > 0.01) {
+          this.car.x = p.x + (dx / d) * (CAR_RADIUS + 0.8); this.car.z = p.z + (dz / d) * (CAR_RADIUS + 0.8);
+          this.car.speed *= 0.15;
+          if (now > view.bubbleUntil) { this.walkerSay(i, ["Whoa!", "Careful!", "Beep beep!", "Hey there!"][i % 4]); this.audio.horn(); }
+          view.hop = 1;
+        }
+      });
       // bump into traffic and race rivals (nobody is hurt; cars just nudge apart)
       const others: { x: number; z: number }[] = [...this.traffic, ...(this.race?.rivals.map((r) => trackPoint(r.s, r.offset)) ?? [])];
       for (const o of others) {
@@ -379,25 +515,38 @@ export class CityGame {
       }
       if (res.bumped) { this.audio.bump(); this.onBump?.(); }
       void before;
-      this.carRig.root.position.set(this.car.x, 0, this.car.z);
+      this.carRig.root.position.set(this.car.x, this.lift.y, this.car.z);
       this.carRig.root.rotation.y = this.car.heading + this.car.drift * 0.35;
-      this.carRig.setMotion(this.car.speed, (k.has("a") ? 1 : 0) - (k.has("d") ? 1 : 0), dt);
+      // nose up the ramp, then level out (and dip a little) in the air
+      const on = rampAt(this.car.x, this.car.z);
+      const pitchTarget = this.lift.air ? -Math.atan2(this.lift.vy, Math.max(6, Math.abs(this.car.speed))) * 0.7
+        : on ? -Math.atan(on.ramp.height / on.ramp.length) * Math.cos(this.car.heading - on.ramp.heading) : 0;
+      this.carPitch += (pitchTarget - this.carPitch) * Math.min(1, dt * (this.lift.air ? 3 : 12));
+      this.carRig.root.rotation.x = this.carPitch;
+      this.carRig.setMotion(this.car.speed, steer, dt);
       this.walker.set(this.car.x, 0, this.car.z);
       this.audio.engine(true, Math.min(1, Math.abs(this.car.speed) / CARS[this.carId].top));
     } else {
       // walk relative to the camera
-      const fwd = (k.has("w") ? 1 : 0) - (k.has("s") ? 1 : 0), side = (k.has("d") ? 1 : 0) - (k.has("a") ? 1 : 0);
+      const stick = this.paused ? null : this.stick;
+      const stickLen = stick ? Math.hypot(stick.x, stick.y) : 0;
+      const fwd = stick ? (stickLen > 0.2 ? stick.y : 0) : (k.has("w") ? 1 : 0) - (k.has("s") ? 1 : 0);
+      const side = stick ? (stickLen > 0.2 ? stick.x : 0) : (k.has("d") ? 1 : 0) - (k.has("a") ? 1 : 0);
+      const run = k.has("shift") || stickLen > 0.92;
       const yaw = this.camYaw + Math.PI; // direction the camera looks
       const dx = Math.sin(yaw) * fwd - Math.cos(yaw) * side, dz = Math.cos(yaw) * fwd + Math.sin(yaw) * side;
-      const w = stepWalker(this.walker.x, this.walker.z, dx, dz, k.has("shift"), dt);
+      let w = stepWalker(this.walker.x, this.walker.z, dx, dz, run, dt);
+      const g = groundAt(w.x, w.z);
+      if (g - this.walkerY > 0.7) w = { ...w, x: this.walker.x, z: this.walker.z }; // too tall to step up
+      else this.walkerY = g;
       const moved = Math.hypot(w.x - this.walker.x, w.z - this.walker.z) / Math.max(dt, 1e-4);
       this.walker.set(w.x, 0, w.z);
       if (w.facing !== null) this.facing = wrapAngle(this.facing + wrapAngle(w.facing - this.facing) * Math.min(1, dt * 12));
-      this.rig.root.position.copy(this.walker);
+      this.rig.root.position.set(this.walker.x, this.walkerY, this.walker.z);
       this.rig.root.rotation.y = this.facing;
       this.rig.update(dt, moved);
       if (this.pet) followOwner(this.pet, this.rig.root, dt, t, 1.4);
-      this.carRig.root.position.set(this.car.x, 0, this.car.z);
+      this.carRig.root.position.set(this.car.x, this.lift.y, this.car.z);
       this.carRig.root.rotation.y = this.car.heading;
       this.audio.engine(false, 0);
     }
@@ -406,7 +555,7 @@ export class CityGame {
     // traffic
     const obstacles = [{ x: this.car.x, z: this.car.z }, ...(this.driving ? [] : [{ x: this.walker.x, z: this.walker.z }])];
     for (const r of this.remotes.values()) obstacles.push({ x: r.rig.root.position.x, z: r.rig.root.position.z });
-    this.traffic = stepTraffic(this.traffic, obstacles, dt);
+    this.traffic = stepTraffic(this.traffic, obstacles, dt, Date.now() / 1000);
     this.traffic.forEach((c, i) => { const rig = this.trafficRigs[i]; rig.root.position.set(c.x, 0, c.z); rig.root.rotation.y = c.heading; rig.setMotion(c.speed, 0, dt); });
 
     // rivals
@@ -424,6 +573,8 @@ export class CityGame {
       if (r.pet && !r.data.driving) followOwner(r.pet, r.rig.root, dt, t, 1.4);
     }
     this.showcase.forEach((s) => { s.root.rotation.y += dt * 0.3; });
+    this.stepPeople(dt, t, now);
+    this.stepStars(t);
 
     this.updateCamera(dt);
     this.sun.position.set(this.walker.x - 40, 70, this.walker.z - 30);
@@ -439,6 +590,7 @@ export class CityGame {
         driving: this.driving, speed: this.driving ? dashSpeed(this.car.speed) : 0, area: areaName(pose.x, pose.z), spot,
         nearCar: !this.driving && Math.hypot(this.car.x - this.walker.x, this.car.z - this.walker.z) < 7,
         race: this.raceHud(now), carName: CARS[this.carId].name,
+        airborne: this.lift.air, stars: this.starsFound.size, starsTotal: STARS.length,
       });
       if (this.mapCtx) {
         const dots: MapDot[] = [];
@@ -451,7 +603,7 @@ export class CityGame {
   };
 
   private updateCamera(dt: number) {
-    const target = this.driving ? new THREE.Vector3(this.car.x, 0, this.car.z) : this.walker.clone();
+    const target = this.driving ? new THREE.Vector3(this.car.x, this.lift.y * 0.8, this.car.z) : new THREE.Vector3(this.walker.x, this.walkerY, this.walker.z);
     if (this.driving && performance.now() - this.lastDrag > 1200) {
       // ease back behind the car
       const behind = this.car.heading + Math.PI + (this.car.speed < -1 ? Math.PI : 0);
@@ -462,9 +614,9 @@ export class CityGame {
     const pitch = this.camPitch;
     const cx = target.x + Math.sin(this.camYaw) * dist * Math.cos(pitch);
     const cz = target.z + Math.cos(this.camYaw) * dist * Math.cos(pitch);
-    const desired = new THREE.Vector3(cx, height + Math.sin(pitch) * dist * 0.5, cz);
+    const desired = new THREE.Vector3(cx, target.y + height + Math.sin(pitch) * dist * 0.5, cz);
     this.camera.position.lerp(desired, Math.min(1, dt * (this.driving ? 6 : 9)));
-    this.camera.lookAt(target.x, this.driving ? 1.4 : 1.6, target.z);
+    this.camera.lookAt(target.x, target.y + (this.driving ? 1.4 : 1.6), target.z);
     void this.dragYaw;
   }
 
@@ -480,17 +632,24 @@ export class CityGame {
     const key = keyMap[e.key.toLowerCase()] ?? e.key.toLowerCase();
     this.keys.delete(key);
   };
-  private dragging: { x: number; y: number } | null = null;
-  private onPointerDown = (e: PointerEvent) => { this.dragging = { x: e.clientX, y: e.clientY }; this.audio.start(); };
+  // Only one finger (or the mouse) turns the camera: the one that pressed the
+  // view first. Fingers on the joystick or pedals never move the camera.
+  private dragging: { id: number; x: number; y: number } | null = null;
+  private onPointerDown = (e: PointerEvent) => {
+    this.audio.start();
+    if (this.dragging) return;
+    this.dragging = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  };
   private onPointerMove = (e: PointerEvent) => {
-    if (!this.dragging) return;
+    if (!this.dragging || e.pointerId !== this.dragging.id) return;
     const dx = e.clientX - this.dragging.x, dy = e.clientY - this.dragging.y;
-    this.dragging = { x: e.clientX, y: e.clientY };
-    this.camYaw -= dx * 0.006;
-    this.camPitch = Math.max(0.08, Math.min(0.9, this.camPitch + dy * 0.004));
+    this.dragging.x = e.clientX; this.dragging.y = e.clientY;
+    const touch = e.pointerType === "touch" ? 1.5 : 1;
+    this.camYaw -= dx * 0.006 * touch;
+    this.camPitch = Math.max(0.08, Math.min(0.9, this.camPitch + dy * 0.004 * touch));
     this.lastDrag = performance.now();
   };
-  private onPointerUp = () => { this.dragging = null; };
+  private onPointerUp = (e: PointerEvent) => { if (this.dragging?.id === e.pointerId) this.dragging = null; };
   private onBlur = () => this.keys.clear();
 
   private bindInput() {
@@ -502,6 +661,8 @@ export class CityGame {
     el.addEventListener("pointerdown", this.onPointerDown);
     window.addEventListener("pointermove", this.onPointerMove);
     window.addEventListener("pointerup", this.onPointerUp);
+    window.addEventListener("pointercancel", this.onPointerUp);
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
   private resize = () => {
@@ -513,8 +674,8 @@ export class CityGame {
 
   /** Moves the reader (on foot or in the car) to a spot. */
   teleport(x: number, z: number, facing: number) {
-    if (this.driving) { this.car = { x, z, heading: facing, speed: 0, drift: 0 }; this.camYaw = facing + Math.PI; }
-    else { this.walker.set(x, 0, z); this.facing = facing; this.camYaw = facing + Math.PI; }
+    if (this.driving) { this.car = { x, z, heading: facing, speed: 0, drift: 0 }; this.lift = { y: groundAt(x, z), vy: 0, air: false }; this.camYaw = facing + Math.PI; }
+    else { this.walker.set(x, 0, z); this.walkerY = groundAt(x, z); this.facing = facing; this.camYaw = facing + Math.PI; }
     this.camera.position.set(x - Math.sin(facing) * 9, 5, z - Math.cos(facing) * 9);
   }
 
@@ -544,12 +705,14 @@ export class CityGame {
     window.removeEventListener("blur", this.onBlur);
     window.removeEventListener("pointermove", this.onPointerMove);
     window.removeEventListener("pointerup", this.onPointerUp);
+    window.removeEventListener("pointercancel", this.onPointerUp);
     this.endRace();
     this.rig.dispose();
     this.carRig.dispose();
     this.trafficRigs.forEach((r) => r.dispose());
     this.showcase.forEach((r) => r.dispose());
     for (const r of this.remotes.values()) { r.rig.dispose(); r.car?.dispose(); }
+    this.walkerViews.forEach((v) => v?.rig.dispose());
     this.audio.dispose();
     this.city.dispose();
     this.scene.traverse((o) => {
