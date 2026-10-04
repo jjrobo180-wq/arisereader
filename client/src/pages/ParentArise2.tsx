@@ -98,6 +98,7 @@ export default function ParentArise2() {
             </button>
           ) : (
             <div className="flex items-center gap-2">
+              <button onClick={() => navigate("/pricing")} className="inline-flex min-h-10 items-center rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">Pricing</button>
               <button onClick={() => navigate("/")} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">
                 <LogIn className="h-4 w-4" /> Log in
               </button>
