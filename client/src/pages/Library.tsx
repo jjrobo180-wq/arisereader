@@ -20,6 +20,9 @@ import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
 import { HALLOREAD_ACTIVE } from "@/lib/halloread";
 import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, SECTION_COLORS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
 import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
+import { loadReadsKeyIds } from "./reads/useReads";
+/** True when this library book can be read in Read on Arise. */
+const canReadHere = (book: { id: number; title: string }) => { const r = readableBook(book.id); return !!r && (r.key !== null || r.title === book.title); };
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -160,6 +163,9 @@ export default function Library() {
   const [studentBanner, setStudentBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>(libraryCache.studentBanner);
   const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>();
   const [iAriseBookIds, setIAriseBookIds] = useState<number[]>([]);
+  // library ids for the newer Read on Arise books, so their Read buttons open the reader
+  const [, setReadsIdsReady] = useState(0);
+  useEffect(() => { loadReadsKeyIds()?.then(() => setReadsIdsReady((n) => n + 1)); }, []);
   const [iAriseEstTimes, setIAriseEstTimes] = useState<Record<string, string>>({});
 
   const [showRequest, setShowRequest] = useState(false);
@@ -2035,7 +2041,7 @@ export default function Library() {
                                   className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);
+                                    navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
                                   }}
                                 >
                                   <BookOpen className="mr-1 h-3 w-3" />
@@ -2128,7 +2134,7 @@ export default function Library() {
                         </div>
                         {result&&<p className="mt-1 text-xs font-bold text-emerald-300">{result.score}/{result.total} correct</p>}
                         <div className="mt-2 flex gap-1.5">
-                          {book.readUrl&&<Button size="sm" variant="outline" className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={(e)=>{e.stopPropagation();navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);}}><BookOpen className="mr-1 h-3 w-3"/>Read</Button>}
+                          {book.readUrl&&<Button size="sm" variant="outline" className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={(e)=>{e.stopPropagation();navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);}}><BookOpen className="mr-1 h-3 w-3"/>Read</Button>}
                           {!(user?.role==="teacher"||user?.isAdmin)&&<Button size="sm" className="h-7 flex-1 bg-orange-500 text-xs font-black text-white hover:bg-orange-400" onClick={(e)=>{e.stopPropagation();navigate(`/quiz/${book.id}`);}}>Quiz</Button>}
                         </div>
                         <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id}/>
@@ -2807,7 +2813,7 @@ export default function Library() {
                               className="h-7 text-xs flex-1"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);
+                                navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
                               }}
                               data-testid={`button-read-${book.id}`}
                             >
@@ -2911,7 +2917,7 @@ export default function Library() {
                             className="h-7 text-xs flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);
+                              navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
                             }}
                           >
                             <BookOpen className="w-3 h-3 mr-1" />

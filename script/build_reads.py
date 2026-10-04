@@ -48,6 +48,19 @@ BOOKS = [
     (30, "Pollyanna", "Eleanor H. Porter", SE, "standardebooks/eleanor-h-porter_pollyanna", {}),
     (31, "The Swiss Family Robinson", "Johann David Wyss", TXT, "GITenberg/Swiss-Family-Robinson_3836", {"file": "3836.txt", "heading": r"^Chapter (\d+)$"}),
     (32, "The Story of the Treasure Seekers", "E. Nesbit", SE, "standardebooks/e-nesbit_the-story-of-the-treasure-seekers", {}),
+    (116, "The Princess and the Goblin", "George MacDonald", SE, "standardebooks/george-macdonald_the-princess-and-the-goblin", {}),
+    (291, "Pinocchio", "Carlo Collodi", SE, "standardebooks/carlo-collodi_the-adventures-of-pinocchio", {}),
+    (293, "At the Back of the North Wind", "George MacDonald", SE, "standardebooks/george-macdonald_at-the-back-of-the-north-wind", {}),
+    (284, "My Father's Dragon", "Ruth Stiles Gannett", HTMLSRC, "GITenberg/My-Father-s-Dragon_30017", {"file": "30017-h/30017-h.htm", "images": True,
+        "split": r"<h2><i>(Chapter [A-Za-z]+)</i></h2>\s*<h2>([^<]+)</h2>", "drop_after": r"<h3>THE END</h3>"}),
+    # Books with a string key get their library quiz from server/readsSync.ts (the key maps to a book id at runtime).
+    ("sleepy-hollow", "The Legend of Sleepy Hollow", "Washington Irving", HTMLSRC, "GITenberg/The-Legend-of-Sleepy-Hollow_41", {"file": "41-h/41-h.htm",
+        "drop_before": r"(?s)^.*?OF THE LATE DIEDRICH KNICKERBOCKER\.\s*</h2>", "parts": 4}),
+    ("canterville-ghost", "The Canterville Ghost", "Oscar Wilde", HTMLSRC, "GITenberg/The-Canterville-Ghost_14522", {"file": "14522-h/14522-h.htm", "images": True,
+        "drop_before": r"(?s)^.*?(?=<h2>I</h2>)", "split": r"<h2>([IVX]+)</h2>()"}),
+    ("velveteen-rabbit", "The Velveteen Rabbit", "Margery Williams", HTMLSRC, "GITenberg/The-Velveteen-Rabbit_11757", {"file": "11757-h/11757-h.htm",
+        "drop_before": r"(?s)^.*?List of Illustrations</i></h3>\s*<p>.*?</p>\s*<hr/>"}),
+    ("hound-baskervilles", "The Hound of the Baskervilles", "Arthur Conan Doyle", SE, "standardebooks/arthur-conan-doyle_the-hound-of-the-baskervilles", {}),
 ]
 
 VOID = {"br", "img", "hr", "meta", "link", "input", "col", "area", "base", "wbr", "source"}
@@ -241,13 +254,38 @@ def build_html(bid, d, opts, images):
     raw = raw[m.end(): e.start() if e else len(raw)]
     raw = re.sub(r"(?is)^.*?</p>", "", raw, count=1) if raw.lstrip().startswith("</p>") else raw
     raw = re.sub(r"(?is)<h3>\s*E-text prepared.*?</h3>", "", raw)
-    raw = re.sub(r"(?s)^\s*Produced by.*?\)\.?", "", raw)
+    raw = re.sub(r"(?s)^\s*Produced by.{0,400}?\)\.?", "", raw)
     imgdir = os.path.join(os.path.dirname(path))
     root = parse(raw)
     content = render(root, {"id": bid, "images": True, "image": lambda src: images(os.path.join(imgdir, src))})
     content = re.sub(r"(?s)<h6>.*?</h6>", "", content)
     content = re.sub(r"\n\s*\n+", "\n", content)
     content = re.sub(r"<h2>\s*BEATRIX POTTER\s*</h2>|<h3>[^<]*(FREDERICK WARNE|BY|With drawings by)[^<]*</h3>", "", content)
+    if opts.get("drop_before"): content = re.sub(opts["drop_before"], "", content, count=1)
+    if opts.get("drop_after"):
+        m = re.search(opts["drop_after"], content)
+        if m: content = content[:m.start()]
+    content = re.sub(r"(?s)<h3>[^<]*(This eBook is courtesy|E-text prepared)[^<]*</h3>", "", content)
+    if opts.get("split"):
+        ms = list(re.finditer(opts["split"], content))
+        out = []
+        for i, m in enumerate(ms):
+            end = ms[i + 1].start() if i + 1 < len(ms) else len(content)
+            label = m.group(1).strip()
+            sub = (m.group(2) or "").strip().title() if m.lastindex and m.lastindex >= 2 else ""
+            sub = re.sub(r"(?<=\s)(The|A|An|Of|And|Some|To|In|On)(?=\s)", lambda w: w.group(1).lower(), sub)
+            title = (f"Chapter {label}" if re.fullmatch(r"[IVX]+", label) else label.title()) + (f": {sub}" if sub else "")
+            out.append([title, f"<h2>{html.escape(title)}</h2>" + content[m.end():end]])
+        return out
+    if opts.get("parts"):
+        paras = re.split(r"(?=<p>)", content)
+        n = opts["parts"]; total = sum(words_of(p) for p in paras); out = []; cur = ""; acc = 0
+        for p in paras:
+            cur += p; acc += words_of(p)
+            if acc >= total * (len(out) + 1) / n and len(out) < n - 1:
+                out.append(cur); cur = ""
+        out.append(cur)
+        return [[f"Part {i + 1}", c] for i, c in enumerate(out) if words_of(c) > 0]
     return [[TITLES[bid], content]]
 
 
@@ -270,13 +308,14 @@ def convert_image(src, dest_dir, done):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--src", required=True); ap.add_argument("--only", type=int)
+    ap = argparse.ArgumentParser(); ap.add_argument("--src", required=True); ap.add_argument("--only")
     a = ap.parse_args()
     catalog = []
     for bid, title, author, kind, repo, opts in BOOKS:
-        if a.only and a.only != bid: continue
+        if a.only and a.only != str(bid): continue
         d = git(repo, a.src)
         outdir = os.path.join(OUT, str(bid))
+        key = bid if isinstance(bid, str) else None
         if os.path.isdir(outdir):
             for f in os.listdir(outdir):
                 p = os.path.join(outdir, f)
@@ -293,14 +332,20 @@ def main():
             toc.append({"title": t, "words": words_of(c)})
         total = sum(c["words"] for c in toc)
         json.dump({"id": bid, "title": title, "author": author, "chapters": toc, "words": total, "pictures": len(done)}, open(os.path.join(outdir, "index.json"), "w"), ensure_ascii=False)
-        catalog.append({"bookId": bid, "title": title, "author": author, "chapters": len(toc), "words": total, "pictures": len(done)})
-        print(f"{bid:>3} {title[:40]:40} {len(toc):>3} ch {total:>7} words {len(done)} pics", flush=True)
+        catalog.append({"bookId": 0 if key else bid, "key": key, "title": title, "author": author, "chapters": len(toc), "words": total, "pictures": len(done)})
+        print(f"{str(bid):>3} {title[:40]:40} {len(toc):>3} ch {total:>7} words {len(done)} pics", flush=True)
     if not a.only:
         ts = "// Generated by script/build_reads.py. Do not edit by hand.\n"
-        ts += "// Public-domain books that can be read right on Arise (files in client/public/reads/<bookId>/).\n\n"
-        ts += "export type ReadableBook = { bookId: number; title: string; author: string; chapters: number; words: number; pictures: number };\n\n"
+        ts += "// Public-domain books that can be read right on Arise (files in client/public/reads/<bookId or key>/).\n"
+        ts += "// Books with a key get their library book id at runtime (server/readsSync.ts) through setReadsKeyIds().\n\n"
+        ts += "export type ReadableBook = { bookId: number; key: string | null; title: string; author: string; chapters: number; words: number; pictures: number };\n\n"
         ts += "export const READABLE_BOOKS: ReadableBook[] = " + json.dumps(catalog, ensure_ascii=False, indent=2) + ";\n\n"
-        ts += "export const readableBook = (bookId: number | null | undefined) => READABLE_BOOKS.find((b) => b.bookId === Number(bookId)) ?? null;\n"
+        ts += "let keyIds: Record<string, number> = {};\n"
+        ts += "/** Fills in library book ids for keyed books (from /api/reads/books). */\n"
+        ts += "export function setReadsKeyIds(map: Record<string, number>) { keyIds = { ...map }; for (const b of READABLE_BOOKS) if (b.key && map[b.key]) b.bookId = Number(map[b.key]); }\n"
+        ts += "/** Where a book's files live: its key, or its book id. */\n"
+        ts += "export const readsDir = (b: ReadableBook) => b.key ?? String(b.bookId);\n"
+        ts += "export const readableBook = (bookId: number | string | null | undefined) => READABLE_BOOKS.find((b) => (b.bookId > 0 && b.bookId === Number(bookId)) || (b.key !== null && b.key === bookId) || (b.key !== null && keyIds[b.key] === Number(bookId))) ?? null;\n"
         ts += "/** Minutes to read at about 200 words a minute. */\nexport const readMinutes = (words: number) => Math.max(1, Math.round(words / 200));\n"
         open(os.path.join(ROOT, "shared/readsCatalog.ts"), "w").write(ts)
 

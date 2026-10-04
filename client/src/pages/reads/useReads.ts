@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { setReadsKeyIds, type ReadableBook } from "@shared/readsCatalog";
+
+/** Progress is saved per book: by its key for the newer books, by book id for the rest. */
+export const progressKey = (b: ReadableBook) => b.key ?? String(b.bookId);
+
+let keyIdsLoad: Promise<void> | null = null;
+/** Loads library ids for the keyed books once per visit (they're made on the server the first time). */
+export function loadReadsKeyIds() {
+  if (!keyIdsLoad) keyIdsLoad = fetch(`${API_BASE}/api/reads/books`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.books) setReadsKeyIds(d.books); }).catch(() => { keyIdsLoad = null; });
+  return keyIdsLoad;
+}
 
 export type LibBook = { id: number; title: string; author: string; ageGroup: string; coverUrl: string | null; pointsValue: number };
 export type QuizResult = { bookId: number; score: number; total: number; passed?: boolean; pointsEarned?: number };
@@ -10,7 +21,7 @@ const key = (userId: number | undefined) => `reads_progress_${userId ?? "me"}`;
 export function readProgress(userId: number | undefined): Progress {
   try { return JSON.parse(localStorage.getItem(key(userId)) || "{}") || {}; } catch { return {}; }
 }
-export function saveProgress(userId: number | undefined, bookId: number, p: Progress[string]) {
+export function saveProgress(userId: number | undefined, bookId: number | string, p: Progress[string]) {
   try { const all = readProgress(userId); all[bookId] = p; localStorage.setItem(key(userId), JSON.stringify(all)); } catch { /* fine */ }
 }
 
@@ -19,6 +30,8 @@ export function useLibrary() {
   const { token, user } = useAuth();
   const [books, setBooks] = useState<LibBook[] | null>(null);
   const [results, setResults] = useState<QuizResult[]>([]);
+  const [, setIdsReady] = useState(0);
+  useEffect(() => { loadReadsKeyIds()?.then(() => setIdsReady((n) => n + 1)); }, []);
   useEffect(() => {
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };

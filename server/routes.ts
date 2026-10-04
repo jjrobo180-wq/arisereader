@@ -17,6 +17,7 @@ import { theaterMediaKey, type TheaterMovie } from "../shared/clubTheater";
 import { registerClubPlayRoutes } from "./clubPlay";
 import { registerClubAriseRoutes } from "./clubArise";
 import { registerAriseNewsRoutes } from "./ariseNews";
+import { registerReadsRoutes } from "./readsSync";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
@@ -957,6 +958,7 @@ export async function registerRoutes(
   registerLiveQuizRoutes(app, authMiddleware);
   registerClubAriseRoutes(app, authMiddleware);
   registerAriseNewsRoutes(app, authMiddleware);
+  registerReadsRoutes(app);
   registerChessArenaRoutes(app, authMiddleware);
   registerBoardQuestRoutes(app, authMiddleware);
   registerPaintballArenaRoutes(app, authMiddleware, {
