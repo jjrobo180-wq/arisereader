@@ -70,6 +70,8 @@ const Games = lazyPage(() => import("./pages/Games"));
 const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const AriseNews = lazyPage(() => import("./pages/news/AriseNews"));
 const NewsArticle = lazyPage(() => import("./pages/news/NewsArticle"));
+const ReadHub = lazyPage(() => import("./pages/reads/ReadHub"));
+const BookReader = lazyPage(() => import("./pages/reads/BookReader"));
 const ClubTheater = lazyPage(() => import("./pages/ClubTheater"));
 const HomeInterior = lazyPage(() => import("./pages/HomeInterior"));
 const BoardGameWorld = lazyPage(() => import("./pages/BoardGameWorld"));
@@ -444,6 +446,12 @@ function AppRoutes() {
       </Route>
       <Route path="/quiz/:id">
         <ProtectedRoute><Quiz /></ProtectedRoute>
+      </Route>
+      <Route path="/reads">
+        <ProtectedRoute><ReadHub /></ProtectedRoute>
+      </Route>
+      <Route path="/reads/book/:id">
+        <ProtectedRoute><BookReader /></ProtectedRoute>
       </Route>
       <Route path="/news">
         <ProtectedRoute><AriseNews /></ProtectedRoute>

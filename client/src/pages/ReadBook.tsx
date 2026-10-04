@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NEWS_AUTHOR, newsByTitle } from "@shared/ariseNews";
+import { readableBook } from "@shared/readsCatalog";
 import { useLocation, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -138,6 +139,11 @@ export default function ReadBook() {
 
         {/* Action buttons */}
         <div className="mt-6 space-y-4">
+          {book && readableBook(book.id)?.title === book.title && (
+            <Button onClick={() => navigate(`/reads/book/${book.id}`)} className="w-full bg-[#7048e8] hover:bg-[#5f3bd6]" size="lg">
+              <BookOpen className="w-5 h-5 mr-2" /> Read it here on Arise
+            </Button>
+          )}
           {book?.readUrl ? (
             <div>
               <Button
