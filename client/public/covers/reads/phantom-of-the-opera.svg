@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0b0b"/><stop offset="1" stop-color="#4a1414"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M200 230 v40" stroke="#ffd43b" stroke-width="3"/><circle cx="150" cy="286" r="6" fill="#ffd43b"/><circle cx="175" cy="294" r="6" fill="#ffd43b"/><circle cx="200" cy="298" r="6" fill="#ffd43b"/><circle cx="225" cy="294" r="6" fill="#ffd43b"/><circle cx="250" cy="286" r="6" fill="#ffd43b"/><path d="M140 280 q60 20 120 0" stroke="#ffd43b" stroke-width="4" fill="none"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0b0505"/><path d="M150 370 q50 -40 100 0 q-6 60 -50 70 q-44 -10 -50 -70z" fill="#f8f9fa"/><path d="M170 380 q12 -10 24 0 q-12 8 -24 0z M206 380 q12 -10 24 0 q-12 8 -24 0z" fill="#212529"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Phantom</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">of the Opera</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">GASTON LEROUX</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b0f0f"/><stop offset="1" stop-color="#8b2c1c"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="300" cy="250" r="30" fill="#ff6b6b" opacity=".8"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#140606"/><ellipse cx="200" cy="320" rx="56" ry="26" fill="#adb5bd"/><path d="M170 340 L120 470 M200 346 L210 470 M230 340 L290 470" stroke="#adb5bd" stroke-width="7"/><path d="M250 320 L330 360" stroke="#ffd43b" stroke-width="5"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The War of</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">the Worlds</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">H. G. WELLS</text>
+</svg>

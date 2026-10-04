@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14213d"/><stop offset="1" stop-color="#3c5a80"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="70" cy="230" r="2.6" fill="#fff" opacity=".85"/><circle cx="120" cy="280" r="2.6" fill="#fff" opacity=".85"/><circle cx="330" cy="330" r="2.6" fill="#fff" opacity=".85"/><circle cx="90" cy="360" r="2.6" fill="#fff" opacity=".85"/><circle cx="260" cy="220" r="2.6" fill="#fff" opacity=".85"/><circle cx="350" cy="410" r="2.6" fill="#fff" opacity=".85"/><path d="M0 470 Q200 440 400 470 V600 H0Z" fill="#dbe9f5"/><path d="M110 450 q90-80 180 0z" fill="#0b1426"/><path d="M170 420 v-30 l30-22 l30 22 v30z" fill="#e7f5ff"/><rect x="192" y="398" width="16" height="22" fill="#fca311"/><path d="M60 520 l40-30 v34z" fill="#fca311"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Mystery</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">of Cabin</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Island</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#14213d" fill-opacity=".85" text-anchor="middle">FRANKLIN W. DIXON</text>
+</svg>

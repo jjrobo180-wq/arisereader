@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d3047"/><stop offset="1" stop-color="#93b7be"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="70" cy="230" r="2.6" fill="#fff" opacity=".85"/><circle cx="120" cy="280" r="2.6" fill="#fff" opacity=".85"/><circle cx="330" cy="330" r="2.6" fill="#fff" opacity=".85"/><circle cx="90" cy="360" r="2.6" fill="#fff" opacity=".85"/><circle cx="260" cy="220" r="2.6" fill="#fff" opacity=".85"/><circle cx="350" cy="410" r="2.6" fill="#fff" opacity=".85"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#16182a"/><path d="M150 260 q50 60 100 0" stroke="#ffd43b" stroke-width="3" fill="none"/><circle cx="200" cy="350" r="40" fill="#ffd43b"/><path d="M200 330 l6 14 l15 1 l-12 10 l4 15 l-13 -8 l-13 8 l4 -15 l-12 -10 l15 -1z" fill="#e64980"/><path d="M110 470 q-6 -40 8 -56 q12 20 6 56z M290 470 q-6 -40 8 -56 q12 20 6 56z" fill="#16182a"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Sylvie and</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Bruno</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">LEWIS CARROLL</text>
+</svg>

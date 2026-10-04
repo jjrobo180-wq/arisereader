@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f2a1c"/><stop offset="1" stop-color="#4b5a3a"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="305" cy="240" r="36" fill="#fff4c2"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0f150e"/><path d="M90 470 V350 h20 v-14 h14 v14 h14 v-14 h14 v14 h20 V400 h56 V330 h20 v-14 h14 v14 h14 v-14 h14 v14 h20 V470z" fill="#0f150e"/><path d="M182 470 v-34 q18-24 36 0 v34z" fill="#e63946" opacity=".55"/><rect x="246" y="360" width="12" height="18" fill="#e63946"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Black</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Arrow</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">ROBERT LOUIS STEVENSON</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d2d2a"/><stop offset="1" stop-color="#3d5a52"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 260 h150 v340 h-150z M250 260 h150 v340 h-150z" fill="#0e1715"/><path d="M150 260 h100 v240 h-100z" fill="#a5d8ff" opacity=".6"/><path d="M170 270 v220 M200 270 v220 M230 270 v220" stroke="#fff" stroke-width="3" opacity=".7"/><ellipse cx="200" cy="500" rx="70" ry="16" fill="#fff" opacity=".35"/><path d="M0 510 h400 v90 h-400z" fill="#0e1715"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Memoirs</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">of Sherlock</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Holmes</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">ARTHUR CONAN DOYLE</text>
+</svg>

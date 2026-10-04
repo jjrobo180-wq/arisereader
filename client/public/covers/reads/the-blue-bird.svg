@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b263b"/><stop offset="1" stop-color="#415a77"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="70" cy="230" r="2.6" fill="#fff" opacity=".85"/><circle cx="120" cy="280" r="2.6" fill="#fff" opacity=".85"/><circle cx="330" cy="330" r="2.6" fill="#fff" opacity=".85"/><circle cx="90" cy="360" r="2.6" fill="#fff" opacity=".85"/><circle cx="260" cy="220" r="2.6" fill="#fff" opacity=".85"/><circle cx="350" cy="410" r="2.6" fill="#fff" opacity=".85"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0d1321"/><path d="M140 340 q40-50 100-20 q30 -30 60 -20 q-20 10 -26 30 q10 40 -40 60 q-70 20 -94 -50z" fill="#4dabf7"/><circle cx="268" cy="322" r="5" fill="#fff"/><path d="M296 316 l20 4 l-20 6z" fill="#ffd43b"/><path d="M170 350 q30 30 70 10" stroke="#fff" stroke-opacity=".5" stroke-width="4" fill="none"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Blue Bird</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">MAURICE MAETERLINCK</text>
+</svg>
