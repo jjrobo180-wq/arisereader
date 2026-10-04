@@ -1,7 +1,8 @@
 /* Read on Arise: hub and book reader (builds on the Arise News paper styles). */
 .rd-jump { display: flex; justify-content: center; gap: 8px; padding: 0 0 20px; }
-.rd-jump a { padding: 8px 16px; border-radius: 99px; border: 1px solid rgba(255,255,255,.22); font-weight: 700; text-decoration: none; color: #fff; }
-.rd-jump a:hover { background: rgba(255,255,255,.1); }
+.rd-jump a, .rd-jump button { padding: 8px 16px; border-radius: 99px; border: 1px solid rgba(255,255,255,.22); font: inherit; font-weight: 700; text-decoration: none; color: #fff; background: transparent; cursor: pointer; }
+.rd-jump a:hover, .rd-jump button:hover { background: rgba(255,255,255,.1); }
+.rd-jump button:focus-visible { outline: 3px solid rgba(255,255,255,.55); outline-offset: 2px; }
 .rd-more { margin-left: auto; font-weight: 800; color: #7048e8 !important; }
 .rd-books { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 28px 20px; padding: 18px 0 30px; }
 .rd-book { display: flex; flex-direction: column; gap: 6px; text-decoration: none; }
