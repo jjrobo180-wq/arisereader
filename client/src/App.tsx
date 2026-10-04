@@ -80,7 +80,7 @@ const UltimateChess = lazyPage(() => import("./pages/UltimateChess"));
 const PaintballArena = lazyPage(() => import("./pages/PaintballArena"));
 const SkyboundSprint = lazyPage(() => import("./pages/SkyboundSprint"));
 const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
-const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
+const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));\nconst TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const Library = lazyPage(() => import("./pages/Library"));
 const Quiz = lazyPage(() => import("./pages/Quiz"));
 const ReadBook = lazyPage(() => import("./pages/ReadBook"));
@@ -312,6 +312,11 @@ function AppRoutes() {
       </Route>
       <Route path="/teacher-dashboard">
         <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
+      </Route>
+      <Route path="/teacher-scenes">
+        {user && (user.role === "teacher" || user.isAdmin)
+          ? <ProtectedRoute><TeacherScenes /></ProtectedRoute>
+          : <Redirect to="/" replace />}
       </Route>
       {/* Public: shareable with teachers who don't have an account yet. */}
       <Route path="/teacher-arise-2">
