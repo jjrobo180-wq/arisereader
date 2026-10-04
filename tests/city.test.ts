@@ -300,3 +300,27 @@ test("rush hour: a busier downtown still flows", () => {
   for (let i = 0; i < 60 * 60; i++) cars = stepTraffic(cars, [], 1 / 60, i / 60);
   cars.forEach((c, i) => assert.ok(c.s - start[i] > 80, `car ${c.id} stalled`));
 });
+
+// ─── Directions ─────────────────────────────────────────────────────────────
+import { findRoute, routeProgress, routeLength } from "../shared/city/navigate";
+import { DESTINATIONS, SMASH, BUILD } from "../shared/city/layout";
+
+test("directions follow the streets to every place", () => {
+  for (const d of DESTINATIONS) {
+    const r = findRoute(0, 16, d.x, d.z);
+    assert.ok(r.length >= 2, d.id);
+    const [lx, lz] = r[r.length - 1];
+    assert.ok(Math.hypot(lx - d.x, lz - d.z) < 0.01, `${d.id} ends at the place`);
+    // never wildly longer than walking straight there
+    assert.ok(routeLength(r) < Math.hypot(d.x, d.z - 16) * 2.6 + 60, `${d.id} route is too long`);
+    // the middle of the route stays on roads
+    for (const [x, z] of r.slice(1, -1)) assert.ok(onRoad(x, z, 0.5), `${d.id} leaves the road at ${x},${z}`);
+  }
+  // nearby places go straight
+  assert.equal(findRoute(0, 16, 10, 20).length, 2);
+  // turn directions: heading north on the x=40 avenue, then east on z=-120 is a right turn
+  const p = routeProgress([[40, 0], [40, -120], [120, -120]], 40, -10);
+  assert.equal(p.turn, "right");
+  assert.ok(Math.abs(p.left - 190) < 0.5);
+  assert.ok(!inside(SMASH.door.x, SMASH.door.z + 2, 0.4) && !inside(BUILD.door.x, BUILD.door.z + 2, 0.4));
+});
