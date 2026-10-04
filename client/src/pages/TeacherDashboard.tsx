@@ -6,6 +6,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
 import { printParentInvites } from "@/lib/parentInvites";
 import NoProctorReview from "@/components/NoProctorReview";
+import PlayTimeManager from "@/components/PlayTimeManager";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -414,6 +415,7 @@ export default function TeacherDashboard() {
           <BookOpen size={18} /> Scenes
         </button>
       </div>
+      <div style={{ marginBottom: 18 }}><PlayTimeManager /></div>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">
         <TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton>
         <TabButton active={tab === "all-students"} onClick={() => setTab("all-students")} icon={<Users size={19} />}>All Students</TabButton>
