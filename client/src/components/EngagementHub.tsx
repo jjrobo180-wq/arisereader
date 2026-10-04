@@ -3,7 +3,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, Flame, Gamepad2, Gift, MonitorPlay, Sparkles, Target, Trophy, Zap } from "lucide-react";
+import { CheckCircle2, Flame, Gamepad2, Gift, GraduationCap, MonitorPlay, Sparkles, Target, Trophy, Zap } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -173,6 +173,9 @@ export function EngagementHub({ onCreateQuiz, onReadingLevelUp }: { onCreateQuiz
                 </Button>
                 <Button size="sm" onClick={() => window.location.hash = "/scene-live"} className="h-9 shrink-0 rounded-lg bg-gradient-to-r from-cyan-600 to-violet-600 px-3 text-xs font-black text-white hover:brightness-110">
                   <MonitorPlay className="mr-1.5 h-4 w-4" /> Join Teacher Scene
+                </Button>
+                <Button size="sm" onClick={() => window.location.hash = "/study"} data-testid="button-hub-study-squad" className="h-9 shrink-0 rounded-lg bg-[#173b33] px-3 text-xs font-black text-[#f4f1e6] hover:bg-[#173b33] hover:brightness-125">
+                  <GraduationCap className="mr-1.5 h-4 w-4 text-amber-300" /> Study Squad
                 </Button>
               </>
             )}
