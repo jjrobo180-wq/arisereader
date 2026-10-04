@@ -7,7 +7,45 @@
 .worlds-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; }
 .worlds-list li { position: relative; padding-left: 22px; font-size: 16px; line-height: 1.45; font-weight: 600; color: #e7eaf3; }
 .worlds-list li::before { content: ""; position: absolute; left: 2px; top: 0.5em; width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: var(--accent); }
+
+/* Avatar World button in the top bar. The rest of the bar is quiet near-black, so
+   this is the one lit thing in it: a glowing pill with a slow sheen. */
+.worlds-avatar {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 10px;
+  min-height: 46px; padding: 4px 18px 4px 5px; border-radius: 999px; overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, 0.65);
+  background: linear-gradient(120deg, #141a3f, #2c1a59);
+  color: #fff !important; text-align: left; line-height: 1.1;
+  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.14), 0 6px 22px rgba(80, 200, 255, 0.32);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.worlds-avatar:hover { border-color: #a5f3fc; box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.26), 0 8px 28px rgba(80, 200, 255, 0.5); }
+.worlds-avatar:active { transform: translateY(1px); }
+.worlds-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.worlds-avatar-face { position: relative; display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: #67e8f9; color: #10163a; }
+.worlds-avatar-face svg { width: 26px; height: 26px; margin-top: 5px; }
+.worlds-avatar-text { position: relative; }
+.worlds-avatar-text b { display: block; font-size: 15px; font-weight: 800; letter-spacing: 0.01em; white-space: nowrap; }
+.worlds-avatar-sub { display: block; margin-top: 3px; font-size: 12.5px; font-weight: 700; color: #ffd166; white-space: nowrap; }
+.worlds-avatar::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 34%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: translateX(-140%); animation: worlds-avatar-sheen 5.5s ease-in-out 1.2s infinite;
+}
+@keyframes worlds-avatar-sheen { 0%, 72% { transform: translateX(-140%); } 100% { transform: translateX(420%); } }
+
 @media (max-width: 760px) {
   .worlds-body { grid-template-columns: 1fr; }
   .worlds-list { grid-template-columns: 1fr; }
+  .worlds-avatar { min-height: 44px; padding-right: 14px; gap: 8px; }
+  .worlds-avatar-face { width: 34px; height: 34px; }
+  .worlds-avatar-text b { font-size: 14px; }
+  .worlds-avatar-sub { font-size: 12px; }
+  .worlds-avatar-more { display: none; }
+  /* never let the page title slide under the button on a narrow phone */
+  .worlds-root .axl-brand b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .worlds-avatar::after { animation: none; }
+  .worlds-avatar { transition: none; }
 }
