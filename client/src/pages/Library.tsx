@@ -19,6 +19,7 @@ import { Arise2UpdateButton } from "@/components/Arise2Update";
 import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
 import { HALLOREAD_ACTIVE } from "@/lib/halloread";
 import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, SECTION_COLORS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
+import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -1318,6 +1319,9 @@ export default function Library() {
                         <button data-tour="fyp" onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Sparkles className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Discover</span>
                         </button>
+                        <button onClick={() => { navigate("/reads"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <BookOpen className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Read on Arise</span>
+                        </button>
                         <button onClick={() => { window.location.hash = '/saved'; setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Bookmark className="mb-1.5 h-4 w-4 text-primary" /><span className="block text-xs font-black">My Books</span>
                         </button>
@@ -1499,6 +1503,24 @@ export default function Library() {
           </div>
         )}
 
+        {/* Read on Arise: books and articles readable right on the site */}
+        {!(user?.role === "student" && user?.is_eye_gaze_user) && (
+          <button
+            type="button"
+            onClick={() => navigate("/reads")}
+            className="group mb-4 flex w-full items-center gap-4 overflow-hidden rounded-2xl bg-white px-4 py-3 text-left text-[#17143b] shadow-lg ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <span className="relative hidden h-16 w-28 shrink-0 sm:block" aria-hidden="true">
+              {READABLE_BOOKS.filter(b=>[21,7,24].includes(b.bookId)).map((b,i)=><img key={b.bookId} src={`${API_BASE}/api/book-cover/${b.bookId}`} alt="" className="absolute top-0 h-16 w-11 rounded-md object-cover shadow-md ring-2 ring-white" style={{left:i*30,transform:`rotate(${(i-1)*6}deg)`}}/>)}
+            </span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#17143b] text-white sm:hidden"><BookOpen className="h-6 w-6" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 text-lg font-black leading-tight">Read on Arise<span className="rounded-full bg-[#7048e8] px-2 py-0.5 text-[10px] font-black text-white">NEW</span></span>
+              <span className="block text-xs font-bold text-[#5d5a7a] sm:text-sm">{READABLE_BOOKS.length} full books + {NEWS_ARTICLES.length} articles you can read right here · then take the quiz</span>
+            </span>
+            <span className="hidden rounded-full bg-[#17143b] px-4 py-2 text-xs font-black text-white sm:inline">START READING</span>
+          </button>
+        )}
         {user?.role === "student" && !user?.is_eye_gaze_user && (
           <button
             type="button"
@@ -2013,7 +2035,7 @@ export default function Library() {
                                   className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/read/${book.id}`);
+                                    navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);
                                   }}
                                 >
                                   <BookOpen className="mr-1 h-3 w-3" />
@@ -2106,7 +2128,7 @@ export default function Library() {
                         </div>
                         {result&&<p className="mt-1 text-xs font-bold text-emerald-300">{result.score}/{result.total} correct</p>}
                         <div className="mt-2 flex gap-1.5">
-                          {book.readUrl&&<Button size="sm" variant="outline" className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={(e)=>{e.stopPropagation();navigate(`/read/${book.id}`);}}><BookOpen className="mr-1 h-3 w-3"/>Read</Button>}
+                          {book.readUrl&&<Button size="sm" variant="outline" className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={(e)=>{e.stopPropagation();navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);}}><BookOpen className="mr-1 h-3 w-3"/>Read</Button>}
                           {!(user?.role==="teacher"||user?.isAdmin)&&<Button size="sm" className="h-7 flex-1 bg-orange-500 text-xs font-black text-white hover:bg-orange-400" onClick={(e)=>{e.stopPropagation();navigate(`/quiz/${book.id}`);}}>Quiz</Button>}
                         </div>
                         <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id}/>
@@ -2785,7 +2807,7 @@ export default function Library() {
                               className="h-7 text-xs flex-1"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/read/${book.id}`);
+                                navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);
                               }}
                               data-testid={`button-read-${book.id}`}
                             >
@@ -2889,7 +2911,7 @@ export default function Library() {
                             className="h-7 text-xs flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/read/${book.id}`);
+                              navigate(readableBook(book.id)?.title===book.title?`/reads/book/${book.id}`:`/read/${book.id}`);
                             }}
                           >
                             <BookOpen className="w-3 h-3 mr-1" />
