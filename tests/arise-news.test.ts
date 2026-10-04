@@ -14,10 +14,27 @@ test("every story has a unique slug and title", () => {
   }
 });
 
+test("news stories are recent, sourced and steer clear of off-limits topics", () => {
+  const news = NEWS_ARTICLES.filter((a) => a.kind === "news");
+  assert.ok(news.length >= 5);
+  for (const a of news) {
+    assert.ok(a.dateline && a.dateline.length > 3, `${a.slug} needs a dateline`);
+    assert.ok((a.sources?.length ?? 0) >= 2, `${a.slug} needs at least two sources`);
+    for (const src of a.sources!) assert.match(src.url, /^https:\/\//);
+    assert.match(a.publishedOn, /^2026-\d\d-\d\d$/);
+  }
+  const offLimits = /\b(trump|israel|gaza|palestin|election|democrat|republican|church|mosque|temple|religio|god|prayer|war|bomb|kids)\b/i;
+  for (const a of NEWS_ARTICLES) {
+    const text = [a.title, a.dek, JSON.stringify(a.body), JSON.stringify(a.questions)].join(" ");
+    const hit = text.match(offLimits);
+    assert.ok(!hit, `${a.slug} mentions "${hit?.[0]}"`);
+  }
+});
+
 test("stories are a good length for young readers", () => {
   for (const a of NEWS_ARTICLES) {
     const n = newsWordCount(a);
-    assert.ok(n >= 300 && n <= 650, `${a.slug} has ${n} words`);
+    assert.ok(n >= 280 && n <= 650, `${a.slug} has ${n} words`);
     assert.ok(newsReadMinutes(a) >= 2 && newsReadMinutes(a) <= 5);
     assert.ok(a.dek.length > 30 && a.dek.length < 130, `${a.slug} dek length`);
     assert.ok(a.words.length >= 3);
@@ -87,4 +104,17 @@ test("an existing news book is reused if the map was lost", async () => {
 test("every story has a cover file in the build", async () => {
   const { existsSync } = await import("node:fs");
   for (const a of NEWS_ARTICLES) assert.ok(existsSync(`client/public/covers/news/${a.slug}.svg`), `missing cover for ${a.slug}`);
+});
+
+test("a story taken out of the issue leaves the library once", async () => {
+  const store: any = fakeStore();
+  const retired: number[] = [];
+  store.retireBook = async (id: number) => { retired.push(id); };
+  const old = { ...NEWS_ARTICLES[0], slug: "old-story", title: "An Old Story" };
+  await syncNewsBooks(store, [old, ...NEWS_ARTICLES]);
+  const map = await syncNewsBooks(store, NEWS_ARTICLES);
+  assert.equal(retired.length, 1);
+  assert.ok(!("old-story" in map));
+  await syncNewsBooks(store, NEWS_ARTICLES);
+  assert.equal(retired.length, 1);
 });

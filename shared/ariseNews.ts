@@ -1,10 +1,15 @@
-// Arise News: kid-friendly feature stories. Each story becomes a 5-point quiz
+// Arise News: articles readers can read right on the site. Each story becomes a 5-point quiz
 // in the library (see server/ariseNews.ts), so readers earn points the same way
 // they do for books: read, then pass the quiz (70% or better).
 //
-// Stories are evergreen (science, nature, history, the arts, the world) so they
-// stay true long after they're published. Keep paragraphs short, define harder
-// words in `words`, and write five questions that can be answered from the text.
+// Two kinds of story:
+// - features are timeless (science, nature, history, the arts)
+// - news reports something that really happened recently, checked against at
+//   least two reliable sources, which are listed with the story
+// House rules: stick to facts and neutral wording; never mock or put down any
+// person or group; leave out religion, elections, political figures and wars.
+// Keep paragraphs short, define harder words in `words`, and write five
+// questions that can be answered from the text.
 
 export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Arts" | "Reading";
 
@@ -17,8 +22,15 @@ export type NewsBlock =
 
 export type NewsQuestion = { question: string; options: [string, string, string, string]; correct: "A" | "B" | "C" | "D" };
 
+export type NewsSource = { name: string; url: string };
+
 export type NewsArticle = {
   slug: string;
+  /** "news" stories report recent events and list their sources; "feature" stories are timeless. */
+  kind?: "news" | "feature";
+  /** Where the news happened, shown at the start of the story (e.g. "BERLIN, Germany"). */
+  dateline?: string;
+  sources?: NewsSource[];
   section: NewsSection;
   title: string;
   /** The one-line summary under the headline (also the library description). */
@@ -32,7 +44,7 @@ export type NewsArticle = {
 
 export const NEWS_AUTHOR = "Arise News";
 export const NEWS_POINTS = 5;
-export const NEWS_ISSUE = { number: 1, name: "Fall 2026", publishedOn: "2026-10-05" };
+export const NEWS_ISSUE = { number: 2, name: "October 2026", publishedOn: "2026-10-04" };
 
 export const SECTION_COLORS: Record<NewsSection, { ink: string; tint: string; deep: string }> = {
   Science: { ink: "#0f9f9a", tint: "#d8f5f2", deep: "#06504d" },
@@ -55,23 +67,218 @@ const list = (title: string, items: string[]): NewsBlock => ({ kind: "list", tit
 
 export const NEWS_ARTICLES: NewsArticle[] = [
   {
+    slug: "crew-13-record-trip",
+    kind: "news",
+    section: "Space",
+    title: "Four Astronauts Reach the Space Station in Record Time",
+    dek: "NASA's Crew-13 made the fastest trip ever by an American spacecraft to the International Space Station.",
+    grades: "Grades 4–8",
+    publishedOn: "2026-10-02",
+    dateline: "CAPE CANAVERAL, Florida",
+    body: [
+      p("Four astronauts are settling into their new home in orbit after a trip that broke a speed record. On October 1, 2026, a SpaceX Falcon 9 rocket launched from Cape Canaveral, Florida, carrying a Dragon capsule named Grace toward the International Space Station."),
+      p("Just 7 hours and 55 minutes later, the capsule docked with the station. NASA said it was the fastest trip to the station ever made by an American spacecraft. Earlier Dragon flights often took about a full day to catch up with the station."),
+      h("Meet the crew"),
+      list("Crew-13", ["Jessica Watkins, NASA, commander", "Luke Delaney, NASA, pilot", "Joshua Kutryk, Canadian Space Agency, mission specialist", "Sergey Teteryatnikov, Roscosmos (Russia's space agency), mission specialist"]),
+      p("Kutryk is the first Canadian astronaut to fly on one of NASA's commercial crew missions, which use spacecraft built by private companies. When he floated aboard, he said it felt really good to have the Canadian Space Agency back on the station."),
+      fact("A lab that circles Earth", "The International Space Station orbits about 400 kilometers (250 miles) above Earth. It travels so fast that it goes all the way around the planet about every 90 minutes, so the crew sees roughly 16 sunrises a day."),
+      h("Six months of science"),
+      p("The crew will spend about six months on the station. One big job is studying how weightlessness changes the human body, from muscles and bones to the heart and eyes. Kutryk's research could also help doctors check on patients who live far from a hospital."),
+      p("Their arrival lets the four astronauts of Crew-12 head home to Earth in another Dragon capsule, named Freedom."),
+      h("A big year in space"),
+      p("Crew-13 is part of a busy year for human spaceflight. In April 2026, the four astronauts of NASA's Artemis II mission flew around the Moon. They traveled 406,771 kilometers (252,756 miles) from Earth, farther than any humans before them. One of them, Canadian astronaut Jeremy Hansen, became the first person from outside the United States to travel around the Moon."),
+    ],
+    words: [
+      { word: "docked", meaning: "joined up with another spacecraft in space" },
+      { word: "orbits", meaning: "travels around a planet or star in a curved path" },
+      { word: "weightlessness", meaning: "the floating feeling astronauts have in orbit" },
+    ],
+    questions: [
+      { question: "What record did Crew-13 set?", options: ["The longest stay ever in space", "The fastest trip to the space station by an American spacecraft", "The first trip to Mars", "The largest crew ever launched"], correct: "B" },
+      { question: "About how long did the trip to the space station take?", options: ["Three days", "One week", "About 8 hours", "About 30 minutes"], correct: "C" },
+      { question: "Which space agency does Joshua Kutryk work for?", options: ["The Canadian Space Agency", "NASA", "Roscosmos", "The European Space Agency"], correct: "A" },
+      { question: "What is one thing the crew will study during their six months on the station?", options: ["How to grow trees on the Moon", "How to build rockets", "How weather forms on Mars", "How weightlessness changes the human body"], correct: "D" },
+      { question: "What did the Artemis II astronauts do in April 2026?", options: ["They landed on Mars", "They flew around the Moon", "They fixed a satellite", "They walked on an asteroid"], correct: "B" },
+    ],
+    sources: [
+      { name: "NASA: Crew-13 launches to the International Space Station", url: "https://www.nasa.gov/news-release/nasas-spacex-crew-13-launches-to-international-space-station/" },
+      { name: "SpaceQ: Crew-13 docking", url: "https://spaceq.ca/crew-13-docking-kutryk-station/" },
+      { name: "Spaceflight Now: Crew-13 launch coverage", url: "https://spaceflightnow.com/2026/10/01/live-coverage-nasa-spacex-to-launch-next-crewed-mission-to-the-international-space-station/" },
+      { name: "Artemis II mission summary", url: "https://en.wikipedia.org/wiki/Artemis_II" },
+    ],
+  },
+  {
+    slug: "new-wild-cat-tilcayo",
+    kind: "news",
+    section: "Animals",
+    title: "Scientists Name a New Wild Cat, the First in 100 Years",
+    dek: "Meet the tilcayo, a tiny spotted cat from the cloud forests of Bolivia.",
+    grades: "Grades 3–7",
+    publishedOn: "2026-09-18",
+    dateline: "LA PAZ, Bolivia",
+    body: [
+      p("It has been more than a century since scientists last described a brand-new kind of cat. That changed in September 2026, when researchers announced a new species of small wild cat from Bolivia, in South America. Its scientific name is Leopardus tilcayo. People in the region call it the tilcayo."),
+      h("Smaller than a house cat"),
+      p("The tilcayo is about 46 centimeters (18 inches) long and weighs around 1.4 kilograms (3 pounds), smaller than a typical pet cat. It has light brown fur covered in large, irregular spots called rosettes."),
+      p("It lives in the Yungas, a band of steep, misty cloud forests on the eastern slopes of the Andes mountains."),
+      fact("What is a cloud forest?", "A cloud forest is a mountain forest that is wrapped in clouds and fog much of the time. The trees are often covered in moss, ferns and orchids that soak up water straight from the misty air."),
+      h("Solved with DNA"),
+      p("For years, scientists grouped several small spotted cats in South America together as \"tiger cats.\" But the cats looked a little different from place to place. To find out why, a team co-led by National Geographic Explorer Paola Nogales-Ascarrunz and Jonas Lescroart of the University of Antwerp studied DNA from 38 tiger cats, including eight museum specimens."),
+      p("The DNA showed that tiger cats are really five separate species, and one of them had never been named. The team published its findings in the journal Current Biology on September 18, 2026."),
+      h("Only one known tilcayo in care"),
+      p("Right now, scientists know of just one tilcayo living in human care. He is a 10-year-old male who lives at Senda Verde, a wildlife sanctuary in the Yungas, after once being kept in a family's home. Researchers are now setting up camera traps, cameras that snap a photo when an animal walks by, to learn how many tilcayos live in the wild and how to protect their forest home."),
+    ],
+    words: [
+      { word: "species", meaning: "a group of living things that are alike and can have young together" },
+      { word: "specimens", meaning: "samples kept by scientists for study, like bones or skins" },
+      { word: "sanctuary", meaning: "a safe place where animals are cared for and protected" },
+    ],
+    questions: [
+      { question: "Why is the tilcayo's discovery a big deal?", options: ["It is the biggest cat ever found", "It is the first new cat species described in more than 100 years", "It can fly short distances", "It lives at the North Pole"], correct: "B" },
+      { question: "Where does the tilcayo live?", options: ["In the deserts of Africa", "In the cloud forests of Bolivia", "On islands in the Pacific", "In the forests of Canada"], correct: "B" },
+      { question: "How did scientists prove the tilcayo was a separate species?", options: ["By studying its DNA", "By counting its whiskers", "By listening to its meow", "By measuring its tail"], correct: "A" },
+      { question: "How big is the tilcayo?", options: ["Bigger than a lion", "About the size of a horse", "About the size of a large dog", "Smaller than a typical pet cat"], correct: "D" },
+      { question: "Why are researchers setting up camera traps?", options: ["To film a movie", "To catch the cats and sell them", "To learn how many tilcayos live in the wild", "To watch the weather"], correct: "C" },
+    ],
+    sources: [
+      { name: "National Geographic Society: New wild cat species discovered in Bolivia", url: "https://news.nationalgeographic.org/photos-new-wild-cat-species/" },
+      { name: "KTVU: New tiny wild cat species discovered in Bolivia's cloud forests", url: "https://www.ktvu.com/news/new-wild-cat-species-leopardus-tilcayo-bolivia" },
+      { name: "CP24: New cat species identified in Bolivia", url: "https://www.cp24.com/news/world/2026/09/17/new-cat-species-identified-in-bolivia-first-in-over-a-century" },
+    ],
+  },
+  {
+    slug: "new-sea-spiders",
+    kind: "news",
+    section: "Science",
+    title: "Two New Sea Spiders Found off Canada's Coast",
+    dek: "They breathe through their skin and eat with a straw-like mouth, and they had been hiding in plain sight.",
+    grades: "Grades 4–8",
+    publishedOn: "2026-09-25",
+    dateline: "VANCOUVER, Canada",
+    body: [
+      p("Scientists in Canada have described two kinds of sea spider that no one had ever named before. They are the first new sea spider species found in the Salish Sea in nearly 100 years."),
+      p("The Salish Sea is the network of waterways between Vancouver Island and the mainland of British Columbia and Washington State. Researchers from the University of British Columbia collected the animals between 2023 and 2024 near Quadra Island, Vancouver, Bamfield and Victoria, in water up to 18 meters (59 feet) deep."),
+      h("Not really spiders"),
+      p("Despite their name, sea spiders are not true spiders. They belong to their own ancient group of sea creatures. Most are tiny, with skinny bodies and long legs. Sea spiders breathe directly through their skin, and they feed using a proboscis, a long, straw-like mouth they use to suck up food."),
+      fact("Two new names", "Callipallene pilosuspedes has long, curved spines on its lower legs, red eyes and a triangle-shaped mouth with three lips. Only one was found. Tanystylum kiixin has short legs for carrying eggs, which makes it hard to clean itself, so it is often covered in dirt, bits of debris and tiny hitchhikers."),
+      h("How they were identified"),
+      p("The team used two tools. They took detailed pictures of each animal's body, and they read its DNA. Comparing the DNA with other sea spiders showed that these two were new. The study also produced DNA records for several other sea spiders that had never been sequenced before."),
+      p("The research was published on September 25, 2026, in the journal Organisms Diversity & Evolution. Lead researcher Cormac Toler-Scott said more undiscovered species probably live in the region, waiting for someone to look closely."),
+      p("Sea spiders live in oceans all over the world, from shallow tide pools to the deep sea, and scientists have described more than 1,000 kinds so far. This discovery shows that even in waters close to big cities, there is still a lot left to find."),
+    ],
+    words: [
+      { word: "proboscis", meaning: "a long, tube-shaped mouthpart used for feeding" },
+      { word: "debris", meaning: "small broken bits of material" },
+      { word: "sequenced", meaning: "having had its DNA code read by scientists" },
+    ],
+    questions: [
+      { question: "Where were the new sea spiders found?", options: ["In the Salish Sea near British Columbia", "In the Gulf of Mexico", "Near Antarctica", "In a lake in Florida"], correct: "A" },
+      { question: "How do sea spiders breathe?", options: ["Through gills", "With lungs", "Directly through their skin", "Through their eyes"], correct: "C" },
+      { question: "What is a proboscis?", options: ["A kind of shell", "A long, straw-like mouth used for feeding", "A spiny leg", "A type of egg"], correct: "B" },
+      { question: "Why is Tanystylum kiixin often covered in dirt?", options: ["It rolls in the mud on purpose", "It lives on land", "It hides from predators", "Its short egg-carrying legs make it hard to clean itself"], correct: "D" },
+      { question: "Which statement is true about sea spiders?", options: ["They are a kind of true spider", "They are not true spiders", "They spin webs underwater", "They only live in rivers"], correct: "B" },
+    ],
+    sources: [
+      { name: "ScienceDaily: Two new sea spider species discovered in the Salish Sea", url: "https://www.sciencedaily.com/releases/2026/09/260925005412.htm" },
+      { name: "NPR: Scientists discover two new species of sea spiders along Canadian coastline", url: "https://www.npr.org/2026/09/27/nx-s1-5982026/new-sea-spider-species" },
+    ],
+  },
+  {
+    slug: "berlin-marathon-2026",
+    kind: "news",
+    section: "Sports",
+    title: "Fast Feet in Berlin: A New Course Record",
+    dek: "Ethiopian runners won both races, and Tigst Assefa ran one of the fastest marathons in history.",
+    grades: "Grades 3–7",
+    publishedOn: "2026-09-28",
+    dateline: "BERLIN, Germany",
+    body: [
+      p("On September 27, 2026, tens of thousands of runners from more than 160 countries crowded the streets of Berlin, Germany, for one of the world's most famous races: the Berlin Marathon."),
+      p("A marathon is 42.195 kilometers long, or about 26.2 miles. Berlin's course is flat with smooth roads and few sharp turns, which helps runners go fast. Many marathon world records have been set there."),
+      h("The winners"),
+      p("Tigst Assefa of Ethiopia won the women's race in 2 hours, 11 minutes and 4 seconds. It was a new women's course record in Berlin and the third-fastest women's marathon ever run. Even more impressive, she kept going strong despite an injury that made her limp during the last two kilometers."),
+      p("Guye Adola, also from Ethiopia, won the men's race in 2 hours, 2 minutes and 50 seconds. It was his best time ever and his second Berlin Marathon title."),
+      fact("How fast is that?", "To finish in 2 hours and 2 minutes, a runner has to average less than 3 minutes for every kilometer, for more than 42 kilometers in a row. That is faster than most people can sprint for a single minute."),
+      h("Wheelchair racers"),
+      p("The wheelchair races were won by two athletes from Switzerland. Marcel Hug finished the men's race in 1 hour, 23 minutes and 28 seconds, and Catherine Debrunner won the women's race in 1 hour, 35 minutes and 1 second."),
+      list("Berlin by the numbers", ["Distance: 42.195 km (26.2 miles)", "Women's winner: Tigst Assefa, 2:11:04 (course record)", "Men's winner: Guye Adola, 2:02:50", "Wheelchair winners: Marcel Hug, 1:23:28 and Catherine Debrunner, 1:35:01"]),
+      p("Most of the runners on the course were not chasing records at all. They were everyday people who trained for months to finish the distance, cheered on by crowds lining the streets."),
+    ],
+    words: [
+      { word: "marathon", meaning: "a running race that is 42.195 kilometers (26.2 miles) long" },
+      { word: "record", meaning: "the best result ever achieved" },
+      { word: "average", meaning: "the usual amount, found by sharing a total out evenly" },
+    ],
+    questions: [
+      { question: "How long is a marathon?", options: ["10 kilometers", "About 26.2 miles (42.195 km)", "100 miles", "5 kilometers"], correct: "B" },
+      { question: "Why is the Berlin course good for fast times?", options: ["It is downhill the whole way", "It is very short", "It is flat with smooth roads and few sharp turns", "Runners use bikes for part of it"], correct: "C" },
+      { question: "What did Tigst Assefa achieve?", options: ["She set a new women's course record", "She finished last", "She won the wheelchair race", "She ran half the race"], correct: "A" },
+      { question: "Which country were both wheelchair winners from?", options: ["Ethiopia", "Germany", "Kenya", "Switzerland"], correct: "D" },
+      { question: "In this article, a \"record\" is…", options: ["a song on the radio", "a list of runners", "the best result ever achieved", "a type of running shoe"], correct: "C" },
+    ],
+    sources: [
+      { name: "2026 Berlin Marathon results", url: "https://en.wikipedia.org/wiki/2026_Berlin_Marathon" },
+      { name: "The Running Channel: Berlin Marathon 2026 results", url: "https://therunningchannel.com/berlin-marathon-2026-results/" },
+      { name: "World-Track: Guye Adola wins the 2026 Berlin Marathon", url: "https://world-track.org/2026/09/2026-bmw-berlin-marathon-mens-results-guye-adola-wins/" },
+    ],
+  },
+  {
+    slug: "spain-wins-world-cup",
+    kind: "news",
+    section: "Sports",
+    title: "Spain Wins the Biggest World Cup Ever",
+    dek: "A goal in extra time gave Spain its second title at the first 48-team World Cup.",
+    grades: "Grades 3–7",
+    publishedOn: "2026-07-20",
+    dateline: "EAST RUTHERFORD, New Jersey",
+    body: [
+      p("After five weeks and more than 100 matches, the 2026 FIFA World Cup came down to one game. On July 19, 2026, Spain played Argentina in the final at MetLife Stadium in New Jersey, in front of 80,663 fans."),
+      h("Biggest tournament yet"),
+      p("This World Cup was the largest ever. For the first time, 48 national teams took part instead of 32, and three countries shared the job of hosting: Canada, Mexico and the United States."),
+      p("The 48 teams were split into 12 groups of four. The best teams from each group moved on to the knockout rounds, where a single loss sends a team home. In all, 104 matches were played in 16 host cities across the three countries."),
+      h("One goal decides it"),
+      p("The final stayed tied 0–0 through 90 minutes, so the teams played extra time. In the 106th minute, Spain's Nico Williams headed the ball to teammate Ferran Torres, who scored. Spain held on to win 1–0."),
+      p("Argentina's goalkeeper, Emiliano Martínez, made 11 saves, a record for the most saves by a goalkeeper in a World Cup final. Argentina's Lionel Messi became only the second player in history to play in three World Cup finals."),
+      fact("Two trophies at once", "Spain's women's team won the Women's World Cup in 2023. With this win, Spain became the first country to hold the men's and women's World Cup titles at the same time."),
+      h("Awards"),
+      list("Tournament awards", ["Golden Ball (best player): Rodri, Spain", "Golden Glove (best goalkeeper): Unai Simón, Spain", "Best Young Player: Pau Cubarsí, Spain", "Player of the final: Ferran Torres, Spain"]),
+      p("It was Spain's second men's World Cup title. Its first came in 2010 in South Africa. The next men's World Cup will be held in 2030."),
+    ],
+    words: [
+      { word: "national", meaning: "belonging to a whole country" },
+      { word: "extra time", meaning: "added playing time when a game is tied at the end" },
+      { word: "tournament", meaning: "a contest with many teams playing a series of games" },
+    ],
+    questions: [
+      { question: "Which two teams played in the 2026 World Cup final?", options: ["Brazil and France", "Spain and Argentina", "Mexico and Canada", "England and Germany"], correct: "B" },
+      { question: "What made this World Cup the biggest ever?", options: ["It lasted a whole year", "It had 48 teams and three host countries", "Every game went to extra time", "It was played on three continents"], correct: "B" },
+      { question: "Who scored the winning goal?", options: ["Lionel Messi", "Rodri", "Ferran Torres", "Emiliano Martínez"], correct: "C" },
+      { question: "What record did goalkeeper Emiliano Martínez set?", options: ["Most saves in a World Cup final", "Most goals by a goalkeeper", "Fastest goal ever", "Most World Cups played"], correct: "A" },
+      { question: "What does \"extra time\" mean in this article?", options: ["A break at halftime", "The time before a game starts", "Time spent celebrating", "Added playing time when a game is tied at the end"], correct: "D" },
+    ],
+    sources: [
+      { name: "2026 FIFA World Cup final", url: "https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_final" },
+      { name: "ABC News via KNEB: Spain defeats Argentina 1-0 to win 2026 World Cup", url: "https://ruralradio.com/kneb-fm/abc-category/sports/page/5/" },
+    ],
+  },
+  {
     slug: "libraries-on-the-move",
     section: "Reading",
     title: "Libraries on the Move",
-    dek: "Camels, donkeys and boats are carrying books to kids who live far from a library.",
+    dek: "Camels, donkeys and boats are carrying books to readers who live far from a library.",
     grades: "Grades 3–6",
     publishedOn: "2026-10-05",
     body: [
-      p("Imagine waiting all week for the library to arrive. Not a building, but a camel with boxes of books strapped to its back. For some kids in northeastern Kenya, that is how the library comes to town."),
+      p("Imagine waiting all week for the library to arrive. Not a building, but a camel with boxes of books strapped to its back. For some families in northeastern Kenya, that is how the library comes to town."),
       p("Many families there are nomads. They move from place to place to find water and grass for their animals. A library building would be left behind, so Kenya's national library service sends the books instead. Since 1996, camel caravans have carried books to villages near the town of Garissa."),
       fact("Why camels?", "Camels can walk across hot, sandy land where there are few roads. They can go many days without drinking water, and a single camel can carry hundreds of books."),
       h("A donkey named Alfa"),
       p("Far away in Colombia, a teacher named Luis Soriano had a similar idea. Many children in the countryside near his home had no books at all. So he loaded two donkeys, Alfa and Beto, and set off on dusty trails to bring stories to them."),
-      p("His project became known as the Biblioburro, which means \"donkey library\" in Spanish. Luis reads aloud, helps kids with homework and lends books until his next visit. Over the years, people around the world have donated thousands of books to keep it going."),
+      p("His project became known as the Biblioburro, which means \"donkey library\" in Spanish. Luis reads aloud, helps students with homework and lends books until his next visit. Over the years, people around the world have donated thousands of books to keep it going."),
       h("Floating libraries"),
       p("In Bangladesh, heavy rains flood rivers for months every year. Roads wash away, and so do trips to school. A group there built boats that work as floating classrooms and libraries. The boats stop along the river to pick up students, and solar panels on the roof power lights and computers."),
       list("Other libraries on the move", ["Bookmobiles: buses and vans full of books that visit neighborhoods", "Little Free Libraries: small boxes in front yards where anyone can take or leave a book", "Bike libraries: bicycles with book carts that roll into parks"]),
-      p("All of these libraries share one big idea: every kid deserves a chance to read, no matter how far away they live. If the kids cannot get to the books, the books will find a way to get to the kids."),
+      p("All of these libraries share one big idea: everyone deserves a chance to read, no matter how far away they live. If readers cannot get to the books, the books will find a way to get to the readers."),
     ],
     words: [
       { word: "nomads", meaning: "people who move from place to place instead of living in one spot" },
@@ -81,9 +288,9 @@ export const NEWS_ARTICLES: NewsArticle[] = [
     questions: [
       { question: "Why does the library in northeastern Kenya travel by camel?", options: ["Camels are faster than trucks on highways", "Many families move around, and camels can cross hot, sandy land with few roads", "The library building burned down", "Camels can read the books to children"], correct: "B" },
       { question: "What does the word \"Biblioburro\" mean?", options: ["Book bus", "Floating school", "Donkey library", "Reading camel"], correct: "C" },
-      { question: "Why did people in Bangladesh build floating libraries?", options: ["Floods wash away roads for months every year", "Boats are cheaper than books", "Kids there prefer to read on the water", "There are no trees for building libraries"], correct: "A" },
+      { question: "Why did people in Bangladesh build floating libraries?", options: ["Floods wash away roads for months every year", "Boats are cheaper than books", "People there prefer to read on the water", "There are no trees for building libraries"], correct: "A" },
       { question: "In this story, the word \"nomads\" means people who…", options: ["live in big cities", "write books", "work in libraries", "move from place to place"], correct: "D" },
-      { question: "What big idea do all of the traveling libraries share?", options: ["Animals make the best librarians", "Every kid deserves a chance to read, no matter where they live", "Books should only be read outside", "Libraries should be closed on weekends"], correct: "B" },
+      { question: "What big idea do all of the traveling libraries share?", options: ["Animals make the best librarians", "Everyone deserves a chance to read, no matter where they live", "Books should only be read outside", "Libraries should be closed on weekends"], correct: "B" },
     ],
   },
   {
@@ -117,40 +324,6 @@ export const NEWS_ARTICLES: NewsArticle[] = [
       { question: "Where are most of an octopus's neurons?", options: ["In its beak", "In its hearts", "In its head only", "In its arms"], correct: "D" },
       { question: "How does the coconut octopus use coconut shells?", options: ["It eats them for food", "It carries them and hides inside them", "It throws them at sharks", "It uses them to store water"], correct: "B" },
       { question: "What is the main idea of this article?", options: ["Octopuses are dangerous to people", "Octopuses are clever animals with amazing bodies", "Aquariums should not keep octopuses", "Octopuses live longer than most sea animals"], correct: "B" },
-    ],
-  },
-  {
-    slug: "festivals-of-light",
-    section: "World",
-    title: "Festivals of Light Around the World",
-    dek: "From glowing lamps to floating lanterns, people everywhere celebrate by lighting up the dark.",
-    grades: "Grades 3–6",
-    publishedOn: "2026-10-05",
-    body: [
-      p("When the days grow short and the nights grow long, people all over the world find ways to fill the darkness with light. Here are four festivals that shine."),
-      h("Diwali"),
-      p("Diwali is celebrated by Hindus, Sikhs and Jains in India and around the world. It usually falls in October or November and lasts about five days. Families clean their homes, light rows of small clay lamps called diyas and make colorful patterns on the floor called rangoli. Diwali celebrates light winning over darkness and good winning over evil."),
-      h("Hanukkah"),
-      p("Hanukkah is a Jewish holiday that lasts eight nights, usually in December. It remembers a time long ago when, as the story goes, a small amount of oil kept a temple lamp burning for eight days. Each night, families light one more candle on a menorah. A special menorah for Hanukkah holds nine candles: one for each night, plus a helper candle used to light the others."),
-      fact("Treats that shine too", "During Hanukkah, many families eat foods fried in oil, like potato pancakes called latkes and jelly doughnuts. During Diwali, families share sweets with neighbors and friends."),
-      h("Loy Krathong"),
-      p("In Thailand, people celebrate Loy Krathong on the night of a full moon, usually in November. They make small floating baskets called krathongs, often from banana leaves, and decorate them with flowers and a candle. Then they set them afloat on rivers and lakes. Thousands of tiny lights drift across the water at once."),
-      h("The Lantern Festival"),
-      p("In China, the Lantern Festival marks the end of the Lunar New Year celebrations. It takes place on the fifteenth day of the new year, when the moon is full. Streets glow with red lanterns, some shaped like animals. Many lanterns have riddles written on them, and people try to guess the answers."),
-      list("Light up your own celebration", ["Make a paper lantern from colored paper and a string of battery lights", "Draw a rangoli pattern with sidewalk chalk", "Ask a family member about a holiday your family celebrates with light"]),
-      p("These festivals come from different places and beliefs, but they share a hopeful message: even on the darkest night, a little light can make a big difference."),
-    ],
-    words: [
-      { word: "diyas", meaning: "small clay lamps filled with oil, lit during Diwali" },
-      { word: "menorah", meaning: "a candleholder with branches, used in Jewish celebrations" },
-      { word: "riddles", meaning: "puzzling questions that need clever thinking to answer" },
-    ],
-    questions: [
-      { question: "What are the small clay lamps lit during Diwali called?", options: ["Krathongs", "Diyas", "Latkes", "Lanterns"], correct: "B" },
-      { question: "How many candles does a special Hanukkah menorah hold?", options: ["Nine", "Five", "Seven", "Twelve"], correct: "A" },
-      { question: "What do people do during Loy Krathong?", options: ["Fly kites shaped like dragons", "Light candles on a cake", "Float small decorated baskets with candles on the water", "Hang stockings by the fire"], correct: "C" },
-      { question: "What is often written on lanterns during the Lantern Festival?", options: ["Shopping lists", "Riddles", "Birthday wishes", "Phone numbers"], correct: "B" },
-      { question: "What message do all of these festivals share?", options: ["Winter is the best season", "Only one holiday matters", "Celebrations should be quiet", "Even a little light can make a big difference in the dark"], correct: "D" },
     ],
   },
   {
@@ -266,7 +439,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
       h("Sorting the day"),
       p("All day long, your brain collects information: a new spelling word, a soccer move, the name of a new friend. At night, it sorts through it all. It keeps what is important and strengthens it, a bit like saving a file on a computer. That is one reason students who sleep well often remember more of what they learned."),
       p("Sleep also helps your body grow and repair itself. Your body releases growth hormone during deep sleep, and your muscles recover from all the running and jumping you did that day."),
-      fact("How much sleep do kids need?", "Sleep experts say children ages 6 to 12 need about 9 to 12 hours of sleep each night. Teenagers need about 8 to 10 hours. Many kids get less than that."),
+      fact("How much sleep do you need?", "Sleep experts say children ages 6 to 12 need about 9 to 12 hours of sleep each night. Teenagers need about 8 to 10 hours. Many people get less than that."),
       h("The stages of sleep"),
       p("Sleep happens in cycles that repeat several times each night. In light sleep, you can wake up easily. In deep sleep, your breathing slows and your body does most of its repair work. Then comes REM sleep, short for rapid eye movement. Your eyes dart around under your eyelids, and this is when most dreaming happens."),
       h("When you don't get enough"),
@@ -284,7 +457,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
       { question: "How much sleep do children ages 6 to 12 need each night?", options: ["About 5 to 6 hours", "About 7 hours", "About 9 to 12 hours", "About 14 to 16 hours"], correct: "C" },
       { question: "During which stage of sleep does most dreaming happen?", options: ["REM sleep", "Light sleep", "Deep sleep", "Waking up"], correct: "A" },
       { question: "Why should you turn off screens before bed?", options: ["Screens use too much electricity", "Their light can trick your brain into thinking it is daytime", "They make your room too cold", "Screens are too heavy to hold in bed"], correct: "B" },
-      { question: "What is the author's main point?", options: ["Dreams can predict the future", "Kids should stay up as late as they want", "Naps are better than night sleep", "Sleep is important work for your brain and body"], correct: "D" },
+      { question: "What is the author's main point?", options: ["Dreams can predict the future", "Everyone should stay up as late as they want", "Naps are better than night sleep", "Sleep is important work for your brain and body"], correct: "D" },
     ],
   },
   {
@@ -338,14 +511,14 @@ export const NEWS_ARTICLES: NewsArticle[] = [
       fact("The Snail", "One of his most famous cut-outs, The Snail, was finished in 1953. It is made of colorful rectangles arranged in a spiral, like a snail's shell. It is almost three meters (about ten feet) tall."),
       quote("An artist must never be a prisoner of himself.", "Henri Matisse"),
       h("Big, bold and happy"),
-      p("Matisse made some of his biggest works with scissors. He even designed the colorful stained-glass windows of a small chapel in Vence, France, using cut paper shapes as his plans. Many people say these late works are the happiest he ever made."),
+      p("Matisse made some of his biggest works with scissors. He planned huge murals and colorful stained-glass windows the same way, pinning paper shapes to the wall until the design looked right. Many people say these late works are the happiest he ever made."),
       list("Make your own cut-out", ["Paint or color a few sheets of paper in bright colors and let them dry", "Cut out shapes without drawing them first. Try leaves, stars or waves", "Arrange them on a big sheet of paper, move them around, then glue them down"]),
       p("Matisse showed that a challenge does not have to be the end of something. Sometimes it is the start of something new."),
     ],
     words: [
       { word: "easel", meaning: "a stand that holds a painting while an artist works on it" },
       { word: "gouache", meaning: "a thick kind of watercolor paint with strong colors" },
-      { word: "chapel", meaning: "a small church or room for prayer" },
+      { word: "studio", meaning: "a room where an artist works" },
     ],
     questions: [
       { question: "What was Matisse known for in his paintings?", options: ["Tiny, careful details", "Only black and white", "Wild, bright colors that showed feelings", "Paintings of machines"], correct: "C" },
@@ -440,7 +613,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
       h("Always the same face"),
       p("Here is something curious: we always see the same side of the Moon. The Moon spins around exactly once each time it travels around Earth, so the same face is always pointed toward us. The side we never see from Earth is often called the far side."),
       h("A long, long history"),
-      p("People have watched the Moon's phases for thousands of years. Many calendars, including the Islamic and Chinese calendars, are based on the Moon. The word \"month\" even comes from the word \"moon.\""),
+      p("People have watched the Moon's phases for thousands of years. Many calendars around the world, like the traditional Chinese calendar, are based on the Moon. The word \"month\" even comes from the word \"moon.\""),
       list("Try it yourself", ["In a dark room, shine a flashlight on a ball held at arm's length", "Turn slowly in a circle while holding the ball, and watch the lit part change", "Keep a Moon journal: draw the Moon each night for a month"]),
       p("So tonight, look up. Whatever shape you see, you are watching sunlight, a spinning Earth and a traveling Moon all working together."),
     ],
@@ -458,6 +631,11 @@ export const NEWS_ARTICLES: NewsArticle[] = [
     ],
   },
 ];
+
+/** Recent news, newest first. */
+export const WORLD_NEWS = NEWS_ARTICLES.filter((a) => a.kind === "news").sort((a, b) => b.publishedOn.localeCompare(a.publishedOn));
+/** Timeless feature stories, in issue order. */
+export const FEATURES = NEWS_ARTICLES.filter((a) => a.kind !== "news");
 
 export const newsBySlug = (slug: string) => NEWS_ARTICLES.find((a) => a.slug === slug) ?? null;
 export const newsByTitle = (title: string | null | undefined) => (title ? NEWS_ARTICLES.find((a) => a.title === title) ?? null : null);

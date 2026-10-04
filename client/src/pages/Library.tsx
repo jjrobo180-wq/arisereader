@@ -18,8 +18,7 @@ import { EngagementHub } from "@/components/EngagementHub";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
 import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
 import { HALLOREAD_ACTIVE } from "@/lib/halloread";
-import { NEWS_ARTICLES, NEWS_ISSUE, NEWS_POINTS, SECTION_COLORS } from "@shared/ariseNews";
-import { newsHeroSvg } from "@shared/newsArt";
+import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, SECTION_COLORS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
 
 // Book IDs that appear in the school curriculum section
 const CURRICULUM_BOOK_IDS = [303, 38]; // Shadow Shaper, The Outsiders
@@ -2045,26 +2044,27 @@ export default function Library() {
               </section>
             )}
 
-            {/* Arise News — kid-friendly stories, each a 5-point quiz */}
+            {/* Arise News — articles to read right here, each a 5-point quiz */}
             {(!showEyeGaze || isSampleStudent || user?.isAdmin) && (
               <section className="relative mb-10 overflow-hidden rounded-[1.75rem] bg-white p-4 text-[#17143b] shadow-xl sm:p-5" aria-labelledby="arise-news-shelf">
-                <div className="flex flex-wrap items-end gap-x-4 gap-y-2 border-b-2 border-[#17143b] pb-3">
+                <div className="flex flex-wrap items-end gap-x-4 gap-y-2 border-b-[3px] border-[#17143b] pb-3">
                   <h2 id="arise-news-shelf" className="text-3xl font-black leading-none tracking-tight sm:text-4xl">Arise <span className="text-[#7048e8]">News</span></h2>
-                  <p className="text-sm font-semibold text-[#5d5a7a]">Issue {NEWS_ISSUE.number} · {NEWS_ARTICLES.length} real stories for curious kids · {NEWS_POINTS} points each</p>
-                  <button type="button" onClick={()=>navigate("/news")} className="ml-auto inline-flex min-h-[40px] items-center rounded-xl bg-[#17143b] px-4 text-sm font-black text-white hover:bg-[#2a2560]">Open the paper</button>
+                  <p className="text-sm font-semibold text-[#5d5a7a]">World news and feature articles you can read right here · {NEWS_POINTS} points each</p>
+                  <button type="button" onClick={()=>navigate("/news")} className="ml-auto inline-flex min-h-[40px] items-center rounded-xl bg-[#17143b] px-4 text-sm font-black text-white hover:bg-[#2a2560]">See all {NEWS_ARTICLES.length} articles</button>
                 </div>
                 <div className="mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{scrollSnapType:"x mandatory"}}>
-                  {NEWS_ARTICLES.map((a)=>{
-                    const c=SECTION_COLORS[a.section];
+                  {[...WORLD_NEWS, ...FEATURES].map((a)=>{
                     const bookId=newsBookIds[a.slug];
                     const result=bookId?results.find(r=>r.bookId===bookId):undefined;
-                    return <button key={a.slug} type="button" onClick={()=>navigate(`/news/${a.slug}`)} className="group w-[230px] flex-shrink-0 text-left sm:w-[260px]" style={{scrollSnapAlign:"start"}} aria-label={`${a.title}. ${a.dek}`}>
-                      <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-100 transition-transform duration-200 group-hover:-translate-y-1" dangerouslySetInnerHTML={{__html:newsHeroSvg(a)}}/>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="rounded-full px-2.5 py-0.5 text-xs font-bold" style={{background:c.tint,color:c.deep}}>{a.section}</span>
-                        {result?<span className="text-xs font-black text-emerald-700">✓ {result.score}/{result.total}</span>:<span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">+{NEWS_POINTS} pts</span>}
+                    return <button key={a.slug} type="button" onClick={()=>navigate(`/news/${a.slug}`)} className="group w-[150px] flex-shrink-0 text-left sm:w-[170px]" style={{scrollSnapAlign:"start"}} aria-label={`${a.title}. ${a.dek}`}>
+                      <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-slate-100 shadow-md transition-transform duration-200 group-hover:-translate-y-1 group-hover:shadow-xl">
+                        <img src={`/covers/news/${a.slug}.svg`} alt="" className="h-full w-full object-cover" loading="lazy"/>
+                        {result&&<span className="absolute right-2 top-14 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-black text-white shadow">✓ {result.score}/{result.total}</span>}
                       </div>
-                      <h3 className="mt-1.5 text-lg font-black leading-tight tracking-tight">{a.title}</h3>
+                      <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-[#5d5a7a]">
+                        {a.kind==="news"?<span className="rounded-full bg-[#17143b] px-2 py-0.5 text-[10px] font-black text-white">News</span>:<span className="rounded-full px-2 py-0.5 text-[10px] font-black" style={{background:SECTION_COLORS[a.section].tint,color:SECTION_COLORS[a.section].deep}}>{a.section}</span>}
+                        <span>{newsReadMinutes(a)} min read</span>
+                      </div>
                     </button>;
                   })}
                 </div>

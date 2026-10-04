@@ -864,7 +864,7 @@ export default function Quiz() {
             {!camera && <BookAccessLinks bookTitle={book?.title || ""} author={book?.author} readUrl={book?.readUrl} />}
             {!camera && newsByTitle(book?.title) && book?.author === NEWS_AUTHOR && (
               <button type="button" onClick={() => navigate(`/news/${newsByTitle(book?.title)!.slug}`)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#17143b] hover:bg-violet-100">
-                <BookOpen className="w-3.5 h-3.5" /> Read the Arise News story
+                <BookOpen className="w-3.5 h-3.5" /> Read the article
               </button>
             )}
           </div>

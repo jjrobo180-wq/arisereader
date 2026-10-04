@@ -48,6 +48,113 @@ const SCENES: Record<string, Scene> = {
     return s;
   },
 
+  "crew-13-record-trip": (c) => {
+    let s = rect(0, 0, W, H, "#070b24") + stars(61, 220, "#fff", H * 0.75);
+    s += `<defs><radialGradient id="earth" cx=".5" cy=".1" r=".9"><stop offset="0" stop-color="#5ab0ff"/><stop offset=".55" stop-color="#1c5fd1"/><stop offset="1" stop-color="#0a2a6e"/></radialGradient></defs>`;
+    s += circle(800, 2150, 1500, "#7cc4ff", 'opacity=".25"') + circle(800, 2160, 1480, "url(#earth)");
+    const r = rand(8);
+    for (let i = 0; i < 9; i++) s += `<ellipse cx="${f(150 + r() * 1300)}" cy="${f(720 + r() * 120)}" rx="${f(80 + r() * 140)}" ry="${f(10 + r() * 14)}" fill="#fff" opacity=".55"/>`;
+    // the station: a long truss, solar wings and modules
+    s += `<g transform="translate(860 330) rotate(-6)">`;
+    s += rect(-380, -8, 760, 16, "#c9ced8");
+    for (const x of [-360, -270, 190, 280]) for (const y of [-150, 20]) { s += rect(x, y, 80, 130, "#c58a16") ; for (let k = 1; k < 4; k++) s += rect(x, y + k * 32, 80, 3, "#7a520a"); s += rect(x + 38, y, 3, 130, "#7a520a"); }
+    for (const x of [-320, -230, 230, 320]) s += rect(x - 2, -150, 4, 300, "#9aa3b5");
+    s += rect(-120, -30, 240, 60, "#e9ecf2", 'rx="26"') + rect(-30, -90, 60, 180, "#dfe3ea", 'rx="26"') + rect(-200, -22, 90, 44, "#d3d8e2", 'rx="20"') + rect(110, -22, 90, 44, "#d3d8e2", 'rx="20"');
+    s += circle(0, 0, 18, "#9aa3b5") + `</g>`;
+    // the capsule on approach
+    s += `<g transform="translate(420 470) rotate(18)">${path("M0 -70L60 -20V60H-60V-20Z", "#f4f6fa")}${rect(-60, 60, 120, 70, "#2b2f3a", 'rx="6"')}${rect(-36, -10, 72, 22, "#1b2030", 'rx="8"')}${circle(-24, 1, 6, "#7cc4ff")}${circle(0, 1, 6, "#7cc4ff")}${circle(24, 1, 6, "#7cc4ff")}${path("M-30 130Q0 230 30 130Z", "#ffb347", 'opacity=".75"')}</g>`;
+    s += path("M500 420Q640 330 780 320", "none", 'stroke="#fff" stroke-width="5" stroke-dasharray="3 16" stroke-linecap="round" opacity=".7"');
+    return s;
+  },
+
+  "new-wild-cat-tilcayo": (c) => {
+    let s = `<defs><linearGradient id="mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8efe4"/><stop offset="1" stop-color="#8fc7a8"/></linearGradient></defs>` + rect(0, 0, W, H, "url(#mist)");
+    s += poly([[0, 520], [220, 300], [430, 470], [700, 250], [980, 460], [1220, 280], [1600, 480], [1600, 900], [0, 900]], "#6aa886", 'opacity=".55"');
+    s += `<rect x="0" y="420" width="1600" height="90" fill="#fff" opacity=".45"/>`;
+    s += poly([[0, 700], [260, 520], [520, 660], [820, 500], [1120, 660], [1400, 540], [1600, 640], [1600, 900], [0, 900]], "#3f8a5f");
+    s += `<rect x="0" y="640" width="1600" height="70" fill="#fff" opacity=".35"/>`;
+    // ferns
+    const fern = (x: number, y: number, sc: number, flip: number) => { let g = `<g transform="translate(${x} ${y}) scale(${sc * flip} ${sc})">` + path("M0 0Q40 -120 140 -200", "none", 'stroke="#2f7a4a" stroke-width="8"'); for (let i = 1; i < 9; i++) { const t = i / 9, px = 140 * t * t + 40 * 2 * t * (1 - t), py = -200 * t * t - 120 * 2 * t * (1 - t); g += `<ellipse cx="${f(px)}" cy="${f(py)}" rx="34" ry="10" transform="rotate(${f(-40 + t * 20)} ${f(px)} ${f(py)})" fill="#3d9a5c"/>`; } return g + "</g>"; };
+    s += fern(80, 900, 1.6, 1) + fern(1520, 900, 1.6, -1) + fern(260, 900, 1.1, 1);
+    // mossy branch
+    s += path("M180 640Q800 560 1440 600L1440 640Q800 610 180 690Z", "#6b4a2b") + path("M260 650Q800 575 1380 605", "none", 'stroke="#7fbf5f" stroke-width="16" stroke-linecap="round" opacity=".9"');
+    // the cat sitting on the branch
+    const fur = "#c99a63", dark = "#5a3a1c";
+    s += `<g transform="translate(800 470)">`;
+    s += path("M70 120Q170 170 150 300Q146 330 128 320Q132 220 60 150Z", fur);
+    for (let i = 0; i < 4; i++) s += path(`M${118 + i * 8} ${190 + i * 34}q16 -4 26 4`, "none", `stroke="${dark}" stroke-width="9" stroke-linecap="round"`);
+    s += `<ellipse cx="0" cy="80" rx="110" ry="90" fill="${fur}"/>`;
+    for (const [x, y, rr] of [[-50, 60, 16], [10, 40, 18], [60, 80, 15], [-20, 110, 17], [40, 130, 13], [-70, 110, 12]] as const) s += circle(x, y, rr, "none", `stroke="${dark}" stroke-width="7"`) + circle(x, y, rr * 0.45, "#a87a46");
+    s += poly([[-70, -110], [-40, -175], [-10, -110]], fur) + poly([[10, -110], [40, -175], [70, -110]], fur) + poly([[-56, -118], [-40, -152], [-24, -118]], "#e7b48a") + poly([[24, -118], [40, -152], [56, -118]], "#e7b48a");
+    s += circle(0, -60, 82, fur) + `<ellipse cx="0" cy="-30" rx="44" ry="30" fill="#f2dcc0"/>`;
+    s += circle(-30, -70, 20, "#f6e7a6") + circle(30, -70, 20, "#f6e7a6") + `<ellipse cx="-30" cy="-70" rx="6" ry="15" fill="#1c1208"/><ellipse cx="30" cy="-70" rx="6" ry="15" fill="#1c1208"/>`;
+    s += poly([[-9, -42], [9, -42], [0, -32]], "#d27a6a") + path("M-60 -36H-110M-60 -28H-108M60 -36H110M60 -28H108", "none", 'stroke="#fff" stroke-width="3" opacity=".8"');
+    s += path("M-36 -118q10 -16 0 -30M0 -126q0 -18 0 -30M36 -118q-10 -16 0 -30", "none", `stroke="${dark}" stroke-width="6" stroke-linecap="round"`);
+    s += `</g>`;
+    return s;
+  },
+
+  "new-sea-spiders": (c) => {
+    let s = `<defs><linearGradient id="deep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b7f86"/><stop offset="1" stop-color="#062f3d"/></linearGradient></defs>` + rect(0, 0, W, H, "url(#deep)");
+    const r = rand(12);
+    for (let i = 0; i < 30; i++) s += circle(r() * W, r() * H, 3 + r() * 10, "none", `stroke="#bff3f0" stroke-width="2.5" opacity="${f(0.2 + r() * 0.5)}"`);
+    for (const x of [120, 230, 1380, 1500]) s += path(`M${x} ${H}C${x - 50} 720 ${x + 70} 600 ${x - 10} 470C${x + 40} 600 ${x - 10} 740 ${x + 40} ${H}Z`, "#2c8a5a", 'opacity=".85"');
+    s += path("M0 820Q300 760 620 800T1200 790T1600 810V900H0Z", "#0b3b44") + `<ellipse cx="560" cy="815" rx="190" ry="40" fill="#165561"/><ellipse cx="1120" cy="800" rx="150" ry="34" fill="#165561"/>`;
+    const spider = (x: number, y: number, sc: number, col: string, spines: boolean) => {
+      let g = `<g transform="translate(${x} ${y}) scale(${sc})">`;
+      const legs: [number, number, number, number][] = [[-1, -60, -230, -150], [-1, -20, -260, -30], [-1, 20, -250, 110], [-1, 60, -200, 220], [1, -60, 230, -150], [1, -20, 260, -30], [1, 20, 250, 110], [1, 60, 200, 220]];
+      for (const [side, y0, x2, y2] of legs) {
+        const kx = side * 110, ky = y0 - 90;
+        g += path(`M${side * 14} ${y0 / 2}L${kx} ${ky}L${x2} ${y2}`, "none", `stroke="${col}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"`);
+        g += circle(kx, ky, 9, col);
+        if (spines) for (let t = 0.45; t < 1; t += 0.12) { const px = kx + (x2 - kx) * t, py = ky + (y2 - ky) * t; g += path(`M${f(px)} ${f(py)}l${side * 14} -16`, "none", `stroke="${col}" stroke-width="4" stroke-linecap="round"`); }
+      }
+      g += `<ellipse cx="0" cy="0" rx="20" ry="70" fill="${col}"/>` + path("M-10 -70L0 -120L10 -70Z", col) + circle(-8, -54, 6, "#e03131") + circle(8, -54, 6, "#e03131");
+      return g + "</g>";
+    };
+    s += spider(800, 420, 1.2, "#f1c7a6", true) + spider(1240, 300, 0.55, "#d9b48f", false);
+    return s;
+  },
+
+  "berlin-marathon-2026": (c) => {
+    let s = `<defs><linearGradient id="dawn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd6a5"/><stop offset="1" stop-color="#fff1e0"/></linearGradient></defs>` + rect(0, 0, W, H, "url(#dawn)") + circle(1260, 170, 80, "#ffe8a3");
+    // a city gate with columns in the distance
+    const gate = "#c9a77c";
+    s += rect(500, 210, 600, 50, gate) + rect(470, 260, 660, 26, gate);
+    for (let i = 0; i < 6; i++) s += rect(500 + i * 112, 286, 38, 250, gate);
+    s += rect(470, 536, 660, 22, gate) + rect(700, 170, 200, 40, gate);
+    // the road and crowd barriers
+    s += poly([[0, 900], [640, 560], [960, 560], [1600, 900]], "#4a4e5c") + poly([[780, 560], [820, 560], [860, 900], [740, 900]], "#fff", 'opacity=".75"');
+    for (const side of [-1, 1]) for (let i = 0; i < 6; i++) { const t = i / 6, x = 800 + side * (170 + t * 640), y = 560 + t * 340; s += rect(x - 30 * (1 + t), y - 26 * (1 + t), 60 * (1 + t), 26 * (1 + t), i % 2 ? "#2d6cdf" : "#ffffff"); }
+    // runners
+    const runner = (x: number, y: number, sc: number, shirt: string, flip = 1) => `<g transform="translate(${x} ${y}) scale(${sc * flip} ${sc})" stroke-linecap="round" stroke-linejoin="round">${path("M0 -40L-30 30L-10 90", "none", 'stroke="#3a2a1e" stroke-width="18"')}${path("M0 -40L30 20L70 50", "none", 'stroke="#3a2a1e" stroke-width="18"')}${path("M0 -120L0 -40", "none", `stroke="${shirt}" stroke-width="44"`)}${path("M0 -110L-40 -70L-20 -40", "none", 'stroke="#3a2a1e" stroke-width="14"')}${path("M0 -110L40 -90L60 -120", "none", 'stroke="#3a2a1e" stroke-width="14"')}${circle(0, -150, 22, "#3a2a1e")}</g>`;
+    s += runner(640, 760, 1.4, "#e03131") + runner(880, 720, 1.2, "#2f9e44", -1) + runner(1040, 800, 1.6, "#f59f00") + runner(500, 680, 0.9, "#7048e8", -1) + runner(1180, 690, 0.9, "#0c7fd6");
+    return s;
+  },
+
+  "spain-wins-world-cup": (c) => {
+    let s = rect(0, 0, W, H, "#0b1430");
+    // floodlights and stands
+    for (const x of [140, 1460]) { s += rect(x - 6, 40, 12, 260, "#4a5268") + rect(x - 60, 20, 120, 50, "#e9ecf2", 'rx="6"') + circle(x, 45, 160, "#fff6c9", 'opacity=".12"'); }
+    s += path("M0 420Q800 250 1600 420V520H0Z", "#1d2850") + path("M0 470Q800 320 1600 470V540H0Z", "#273466");
+    const r = rand(19);
+    for (let i = 0; i < 420; i++) { const x = r() * W, t = x / W, top = 420 - Math.sin(t * Math.PI) * 160; s += circle(x, top + 10 + r() * 100, 3, ["#ffd43b", "#e03131", "#ffffff", "#74c0fc"][i % 4], 'opacity=".75"'); }
+    // pitch
+    s += poly([[0, 900], [0, 560], [1600, 560], [1600, 900]], "#2f9e44");
+    for (let i = 0; i < 7; i++) s += poly([[i * 240 - 120, 900], [i * 240, 900], [500 + i * 100, 560], [460 + i * 100, 560]], "#37b24d");
+    s += path("M200 900L560 560H1040L1400 900", "none", 'stroke="#fff" stroke-width="6" opacity=".8"');
+    // goal and net with the ball inside
+    s += `<g transform="translate(800 600)">`;
+    s += rect(-260, -170, 520, 170, "#fff", 'opacity=".08"');
+    for (let x = -250; x <= 250; x += 25) s += path(`M${x} -170L${x * 0.9} 0`, "none", 'stroke="#fff" stroke-width="2" opacity=".5"');
+    for (let y = -150; y <= 0; y += 25) s += path(`M-260 ${y}H260`, "none", 'stroke="#fff" stroke-width="2" opacity=".5"');
+    s += path("M-270 10V-180H270V10", "none", 'stroke="#fff" stroke-width="16"');
+    s += circle(110, -60, 42, "#fff") + poly([[110, -78], [127, -66], [121, -46], [99, -46], [93, -66]], "#14181f") + `</g>`;
+    // confetti in red and gold
+    for (let i = 0; i < 70; i++) { const x = r() * W, y = r() * 520; s += rect(x, y, 10 + r() * 10, 5 + r() * 6, i % 2 ? "#e03131" : "#ffd43b", `transform="rotate(${f(r() * 180)} ${f(x)} ${f(y)})"`); }
+    return s;
+  },
+
   "octopus-genius": (c) => {
     let s = `<defs><linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#0b4f6c"/></linearGradient></defs>` + rect(0, 0, W, H, "url(#sea)");
     for (let i = 0; i < 6; i++) s += path(`M${i * 300 - 100} 0L${i * 300 + 40} 0L${i * 300 + 260} ${H}L${i * 300 + 60} ${H}Z`, "#fff", 'opacity=".06"');
@@ -73,30 +180,6 @@ const SCENES: Record<string, Scene> = {
     s += path("M690 240C720 200 760 190 790 195C740 230 715 290 712 360C690 330 678 290 690 240Z", "#ff9b75");
     for (const [x, y, rr] of [[700, 300, 18], [910, 330, 14], [860, 250, 10]] as const) s += circle(x, y, rr, dark);
     for (const x of [740, 860]) s += circle(x, 470, 46, "#fff") + circle(x + 8, 476, 22, "#14213d") + circle(x + 16, 466, 7, "#fff");
-    return s;
-  },
-
-  "festivals-of-light": (c) => {
-    let s = `<defs><radialGradient id="glow"><stop offset="0" stop-color="#ffe9a3"/><stop offset=".45" stop-color="#ffb84d" stop-opacity=".7"/><stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/></radialGradient><linearGradient id="night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1446"/><stop offset="1" stop-color="#4a1d6b"/></linearGradient></defs>`;
-    s += rect(0, 0, W, H, "url(#night)") + stars(3, 90) + circle(1300, 150, 70, "#fff6d6") + circle(1300, 150, 120, "#fff6d6", 'opacity=".12"');
-    s += rect(0, 640, W, 260, "#241a5c") + path(`M0 640H1600`, "none", 'stroke="#6a5acd" stroke-width="3" opacity=".6"');
-    const r = rand(7);
-    // sky lanterns
-    for (let i = 0; i < 9; i++) {
-      const x = 160 + i * 160 + r() * 60, y = 120 + r() * 360, sc = 0.6 + r() * 0.7;
-      s += circle(x, y, 90 * sc, "url(#glow)") + `<g transform="translate(${f(x)} ${f(y)}) scale(${f(sc)})">${path("M-34 -48Q0 -60 34 -48L42 30Q0 44 -42 30Z", i % 3 ? "#ff6b3d" : "#e63946")}${rect(-30, 30, 60, 10, "#ffd166", 'rx="4"')}${path("M-20 -40Q0 -46 20 -40L24 20Q0 28 -24 20Z", "#ffb38a", 'opacity=".6"')}</g>`;
-    }
-    // floating baskets and reflections
-    for (let i = 0; i < 7; i++) {
-      const x = 140 + i * 220 + r() * 40, y = 700 + r() * 120;
-      s += rect(x - 3, y + 14, 6, 60, "#ffcc66", 'opacity=".35"') + circle(x, y - 22, 40, "url(#glow)");
-      s += path(`M${x - 40} ${y}Q${x} ${y + 26} ${x + 40} ${y}L${x + 30} ${y - 8}H${x - 30}Z`, "#3fa34d") + circle(x - 16, y - 12, 8, "#ff7eb6") + circle(x + 16, y - 12, 8, "#ffd6e8") + rect(x - 4, y - 34, 8, 22, "#fff3d6") + path(`M${x} ${y - 48}q8 10 0 16q-8 -6 0 -16z`, "#ffd166");
-    }
-    // a row of diyas
-    for (let i = 0; i < 5; i++) {
-      const x = 560 + i * 120, y = 600;
-      s += circle(x, y - 40, 50, "url(#glow)") + path(`M${x - 34} ${y - 14}Q${x} ${y + 22} ${x + 34} ${y - 14}Z`, "#c2410c") + path(`M${x} ${y - 52}q12 16 0 28q-12 -12 0 -28z`, "#ffd166");
-    }
     return s;
   },
 
