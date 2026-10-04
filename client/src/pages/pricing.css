@@ -1,0 +1,119 @@
+/* Plans and pricing page. Same dark look as the For Teachers and For Parents
+   pages: near-black ground, two soft glows, heavy Barlow, white pill buttons.
+   The one lit thing is the ring around the Premium card. */
+
+.pr {
+  position: relative; overflow: hidden; min-height: 100vh;
+  background: #070912; color: #f8f9fc;
+  font-family: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 17px; line-height: 1.55; font-weight: 500; -webkit-font-smoothing: antialiased;
+}
+:where(.pr) *, :where(.pr) *::before, :where(.pr) *::after { box-sizing: border-box; }
+:where(.pr) h1, :where(.pr) h2, :where(.pr) h3, :where(.pr) p, :where(.pr) ul { margin: 0; padding: 0; }
+:where(.pr) button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+
+.pr-glow { position: absolute; border-radius: 50%; pointer-events: none; }
+.pr-glow-a { left: 50%; top: -220px; width: 480px; height: 480px; transform: translateX(-50%); background: rgba(124, 58, 237, 0.3); filter: blur(120px); }
+.pr-glow-b { right: -96px; top: 160px; width: 288px; height: 288px; background: rgba(34, 211, 238, 0.12); filter: blur(100px); }
+
+/* Top bar */
+.pr-top { position: relative; max-width: 1120px; margin: 0 auto; padding: 20px clamp(20px, 5vw, 40px) 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.pr-top nav { display: flex; align-items: center; gap: 8px; }
+.pr-mark { font-size: 16px; font-weight: 900; letter-spacing: 0.025em; color: #fff; }
+.pr-mark span { color: #67e8f9; }
+.pr-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 999px; font-size: 15px; font-weight: 700; color: #cbd5e1; }
+.pr-link:hover { color: #fff; }
+
+/* Buttons */
+.pr-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 30px; border-radius: 999px; background: #fff; color: #020617; font-size: 16px; font-weight: 900; text-align: center; transition: transform 0.15s ease, background 0.15s ease; }
+.pr-pill:hover { transform: scale(1.03); }
+.pr-pill-sm { min-height: 44px; padding: 0 20px; font-size: 15px; }
+.pr-pill-ghost { border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.05); color: #fff; }
+.pr-pill-ghost:hover { background: rgba(255, 255, 255, 0.1); transform: none; }
+.pr-wide { display: flex; width: 100%; padding: 0 24px; }
+.pr button:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+
+/* Hero */
+.pr-hero { position: relative; max-width: 940px; margin: 0 auto; padding: clamp(44px, 7vw, 76px) clamp(20px, 5vw, 40px) clamp(40px, 6vw, 64px); display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
+.pr-tag { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.1); font-size: 14px; font-weight: 800; letter-spacing: 0.04em; color: #67e8f9; }
+.pr-hero h1 { font-size: clamp(38px, 6vw, 72px); font-weight: 900; line-height: 1.04; letter-spacing: -0.04em; text-wrap: balance; }
+.pr-lede { max-width: 700px; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.6; font-weight: 600; color: #cbd5e1; text-wrap: pretty; }
+.pr-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
+
+/* Plan cards */
+/* Each card has the same seven parts (name, prices, summary, button, two lists,
+   note). Subgrid lines those parts up across the two cards, so the buttons and
+   the list headings sit level whatever the text length. */
+.pr-plans { position: relative; max-width: 1120px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) clamp(56px, 8vw, 96px); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 20px; }
+.pr-plans > .pr-card, .pr-ring, .pr-ring > .pr-card { display: grid; grid-template-rows: subgrid; row-gap: 24px; }
+.pr-plans > .pr-card, .pr-ring { grid-row: span 7; }
+.pr-ring > .pr-card { grid-row: 1 / -1; }
+.pr-card { align-content: start; padding: clamp(24px, 3.2vw, 36px); border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1); background: #0e0d1a; }
+.pr-ring { padding: 2px; border-radius: 30px; background: linear-gradient(135deg, #7c3aed 0%, #c026d3 52%, #06b6d4 100%); box-shadow: 0 44px 96px -44px rgba(147, 72, 239, 0.75); }
+.pr-card-premium { border: 0; background: #100e20; }
+.pr-name { display: flex; flex-direction: column; gap: 4px; }
+.pr-name h2 { font-size: 30px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; }
+.pr-name p { font-size: 15px; font-weight: 700; color: #67e8f9; }
+.pr-name.premium p { color: #c4b5fd; }
+.pr-prices { display: grid; grid-auto-rows: 1fr; gap: 10px; }
+.pr-price { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.3); }
+.pr-price.premium { border-color: rgba(196, 181, 253, 0.3); }
+.pr-price > div:first-child { display: flex; flex-direction: column; gap: 4px; }
+.pr-price > div:first-child b { font-size: 16px; font-weight: 800; }
+.pr-price > div:first-child span { font-size: 14px; line-height: 1.45; color: #cbd5e1; }
+.pr-price-amount { flex: none; text-align: right; }
+.pr-price-amount b { display: block; font-size: 30px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; }
+.pr-price-amount span { font-size: 13px; font-weight: 700; color: #94a3b8; }
+.pr-about { font-size: 17px; font-weight: 600; color: #cbd5e1; }
+.pr-group { display: flex; flex-direction: column; gap: 14px; align-self: start; }
+.pr-group h3 { font-size: 15px; font-weight: 800; color: #67e8f9; }
+.pr-group.premium h3 { color: #c4b5fd; }
+.pr-list { list-style: none; display: flex; flex-direction: column; gap: 13px; font-size: 16px; line-height: 1.45; color: #e2e8f0; }
+.pr-list li { display: flex; gap: 12px; align-items: flex-start; }
+.pr-list small { display: block; margin-top: 2px; font-size: 14px; color: #94a3b8; }
+.pr-tick { flex: none; width: 20px; height: 20px; margin-top: 2px; fill: none; stroke: #6ee7b7; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.pr-note { align-self: end; padding: 16px 18px; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; gap: 4px; }
+.pr-note.premium { border-color: rgba(196, 181, 253, 0.3); }
+.pr-note b { font-size: 16px; font-weight: 800; }
+.pr-note span { font-size: 15px; line-height: 1.5; color: #cbd5e1; }
+
+/* Bands below the cards */
+.pr-band { position: relative; border-top: 1px solid rgba(255, 255, 255, 0.1); padding: clamp(48px, 7vw, 80px) clamp(20px, 5vw, 40px); scroll-margin-top: 8px; }
+.pr-band-tint { background: rgba(255, 255, 255, 0.025); }
+.pr-inner { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.pr-head { display: flex; flex-direction: column; gap: 8px; }
+.pr-head h2, .pr-h2 { font-size: clamp(28px, 3.4vw, 42px); font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; }
+.pr-head p { max-width: 660px; font-size: 17px; font-weight: 600; color: #cbd5e1; }
+
+/* Comparison table. On a phone it scrolls sideways inside its own box. */
+.pr-table { overflow-x: auto; border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); }
+.pr-table table { width: 100%; min-width: 660px; border-collapse: collapse; font-size: 16px; line-height: 1.4; }
+.pr-col-what { width: 44%; }
+.pr-col-plan { width: 28%; }
+.pr-col-plan.premium { background: rgba(124, 58, 237, 0.12); }
+.pr-table th, .pr-table td { padding: 17px 22px; text-align: left; vertical-align: middle; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.pr-table thead th { border-top: 0; }
+.pr-table th[scope="row"] { font-weight: 600; color: #e2e8f0; }
+.pr-table td { font-size: 15px; font-weight: 600; color: #e2e8f0; }
+.pr-th-what { font-size: 14px; font-weight: 800; color: #94a3b8; }
+.pr-th-plan { font-size: 18px; font-weight: 900; color: #fff; }
+.pr-table .pr-th-group { padding-top: 22px; padding-bottom: 10px; font-size: 14px; font-weight: 800; letter-spacing: 0.04em; color: #67e8f9; }
+.pr-yes, .pr-no { display: block; width: 22px; height: 22px; fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.pr-yes { stroke: #6ee7b7; }
+.pr-no { stroke: #64748b; }
+
+/* Questions */
+.pr-faq { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; }
+.pr-faq > div { display: flex; flex-direction: column; gap: 8px; padding: 24px; border-radius: 22px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); }
+.pr-faq h3 { font-size: 19px; font-weight: 800; line-height: 1.3; }
+.pr-faq p { font-size: 16px; color: #cbd5e1; }
+
+/* Closing */
+.pr-close { display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; padding-top: clamp(56px, 8vw, 96px); padding-bottom: clamp(56px, 8vw, 96px); }
+.pr-close h2 { max-width: 760px; font-size: clamp(30px, 4.4vw, 54px); font-weight: 900; letter-spacing: -0.035em; line-height: 1.08; text-wrap: balance; }
+.pr-foot { position: relative; border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 28px clamp(20px, 5vw, 40px) 40px; text-align: center; font-size: 15px; font-weight: 600; color: #94a3b8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-pill { transition: none; }
+  .pr-pill:hover { transform: none; }
+}
