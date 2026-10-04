@@ -55,4 +55,5 @@ export function NewsArt({ article, className = "nw-art", children }: { article: 
   return <div className={className} style={sectionStyle(article)}><div style={{ width: "100%", height: "100%" }} dangerouslySetInnerHTML={{ __html: svg }} />{children}</div>;
 }
 
+export const shortDate = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 export const formatNewsDate = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });

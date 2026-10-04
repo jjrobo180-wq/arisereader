@@ -20,8 +20,8 @@ function withTerms(text: string, words: Article["words"], used: Set<string>): Re
   return <>{text.slice(0, m.index)}<dfn title={w.meaning}>{m[1]}</dfn>{withTerms(text.slice(m.index + m[1].length), words, used)}</>;
 }
 
-function Block({ b, words, used }: { b: NewsBlock; words: Article["words"]; used: Set<string> }) {
-  if (b.kind === "p") return <p>{withTerms(b.text, words, used)}</p>;
+function Block({ b, words, used, dateline }: { b: NewsBlock; words: Article["words"]; used: Set<string>; dateline?: string }) {
+  if (b.kind === "p") return <p>{dateline && <span className="nw-dateline">{dateline} — </span>}{withTerms(b.text, words, used)}</p>;
   if (b.kind === "h") return <h2>{b.text}</h2>;
   if (b.kind === "fact") return <aside className="nw-fact"><h3>{b.title}</h3><p>{withTerms(b.text, words, used)}</p></aside>;
   if (b.kind === "quote") return <blockquote className="nw-quote"><p>“{b.text}”</p>{b.by && <cite>{b.by}</cite>}</blockquote>;
@@ -51,7 +51,7 @@ export default function NewsArticle() {
   }, [article]);
 
   if (!article) {
-    return <main className="nw"><div className="nw-wrap nw-missing"><p>We couldn't find that story.</p><Link href="/news" className="nw-cta">See all stories</Link></div></main>;
+    return <main className="nw"><div className="nw-wrap nw-missing"><p>We couldn't find that article.</p><Link href="/news" className="nw-cta">See all articles</Link></div></main>;
   }
 
   const used = new Set<string>();
@@ -64,7 +64,7 @@ export default function NewsArticle() {
       <div className="nw-bar" style={{ width: `${read * 100}%` }} aria-hidden="true" />
       <header className="nw-mast">
         <div className="nw-wrap nw-mast-row">
-          <Link href="/news" className="nw-back"><Back /><span>All stories</span></Link>
+          <Link href="/news" className="nw-back"><Back /><span>All articles</span></Link>
           <span className="nw-logo" style={{ fontSize: 26 }}>Arise <span>News</span></span>
           <div className="nw-tools" role="group" aria-label="Text size">
             <button type="button" onClick={() => setSize(SIZES[step - 1])} disabled={step <= 0} aria-label="Smaller text">A−</button>
@@ -76,15 +76,21 @@ export default function NewsArticle() {
       <article className="nw-wrap">
         <div className="nw-hero"><NewsArt article={article} /></div>
         <div className="nw-head">
-          <span className="nw-section">{article.section}</span>
+          <span className="nw-kicker">{article.kind === "news" && <span className="nw-section">World News</span>}<span className="nw-section">{article.section}</span></span>
           <h1>{article.title}</h1>
           <p className="nw-dek">{article.dek}</p>
-          <div className="nw-byline"><span>By <b>the Arise News team</b></span><span>{formatNewsDate(article.publishedOn)}</span><span>{newsReadMinutes(article)} min read</span><span>{article.grades}</span></div>
+          <div className="nw-byline"><span>By <b>Arise News</b></span><span>{article.kind === "news" ? "Published " : ""}{formatNewsDate(article.publishedOn)}</span><span>{newsReadMinutes(article)} min read</span><span>{article.grades}</span></div>
         </div>
 
         <div className="nw-layout">
-          <div className="nw-body" style={{ ["--fs" as string]: `${size}px` }}>
-            {article.body.map((b, i) => <Fragment key={i}><Block b={b} words={article.words} used={used} /></Fragment>)}
+          <div className={"nw-body" + (article.kind === "news" ? " news" : "")} style={{ ["--fs" as string]: `${size}px` }}>
+            {article.body.map((b, i) => <Fragment key={i}><Block b={b} words={article.words} used={used} dateline={i === 0 && article.kind === "news" ? article.dateline : undefined} /></Fragment>)}
+            {article.sources?.length ? (
+              <section className="nw-sources" aria-labelledby="sources">
+                <h2 id="sources">Sources</h2>
+                <ol>{article.sources.map((src) => <li key={src.url}><a href={src.url} target="_blank" rel="noopener noreferrer">{src.name}</a></li>)}</ol>
+              </section>
+            ) : null}
           </div>
           <div className="nw-rail">
             <section className="nw-words" aria-labelledby="words-to-know">
@@ -99,8 +105,8 @@ export default function NewsArticle() {
           <div>
             <h2 id="quiz-title">{result ? "You took this quiz" : "Ready for the quiz?"}</h2>
             <p>{result
-              ? `You got ${result.score} of ${result.total} right${result.passed ? ` and earned ${result.pointsEarned ?? NEWS_POINTS} points.` : ". Keep reading more stories to earn points."}`
-              : `${article.questions.length} questions about this story. Get ${Math.ceil(article.questions.length * 0.7)} right to earn ${NEWS_POINTS} points.`}</p>
+              ? `You got ${result.score} of ${result.total} right${result.passed ? ` and earned ${result.pointsEarned ?? NEWS_POINTS} points.` : ". Read another article to earn more points."}`
+              : `${article.questions.length} questions about this article. Get ${Math.ceil(article.questions.length * 0.7)} right to earn ${NEWS_POINTS} points.`}</p>
           </div>
           {result ? <span className="nw-result">{result.passed ? "Points earned" : "Quiz done"}</span>
             : canTakeQuiz ? <button type="button" className="nw-cta" disabled={!bookId} onClick={() => bookId && navigate(`/quiz/${bookId}`)}>{bookId ? "Take the quiz" : books ? "Quiz coming soon" : "Loading…"}</button>
@@ -108,7 +114,7 @@ export default function NewsArticle() {
         </section>
 
         <section className="nw-more" aria-labelledby="more-stories">
-          <h2 id="more-stories">More stories</h2>
+          <h2 id="more-stories">Keep reading</h2>
           <div className="nw-grid">
             {more.map((a) => (
               <Link key={a.slug} href={`/news/${a.slug}`} className="nw-card" style={sectionStyle(a)}>
