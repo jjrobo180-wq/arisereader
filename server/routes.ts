@@ -8493,8 +8493,8 @@ Important:
       const index = scenes.findIndex(scene => scene.id === id);
       if (index < 0) return res.status(404).json({ message: "Scene not found." });
       const scene = scenes[index];
-      const apiKey = process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || process.env.PERPLEXITY_API_KEY || "";
-      if (!apiKey) return res.status(503).json({ message: "Interactive question generation is not configured yet." });
+      const apiKey = process.env.OPENAI_API_KEY || "";
+      if (!apiKey) return res.status(503).json({ message: "Interactive question generation is temporarily unavailable." });
 
       const prompt = [
         "Create exactly " + count + " multiple-choice comprehension question" + (count === 1 ? "" : "s") + " for a teacher using a visual scene while reading a book aloud.",
@@ -8506,25 +8506,28 @@ Important:
         "Use exactly four choices and correct must be A, B, C, or D."
       ].join("\n");
 
-      const ai = await fetch("https://api.perplexity.ai/chat/completions", {
+      const ai = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "sonar",
+          model: "gpt-4.1-mini",
+          temperature: 0.35,
+          response_format: { type: "json_object" },
           messages: [
-            { role: "system", content: "You create concise, safe K-12 reading-comprehension questions and return only valid JSON." },
+            { role: "system", content: "You create concise, safe K-12 reading-comprehension questions. Return valid JSON only." },
             { role: "user", content: prompt },
           ],
-          temperature: 0.45,
         }),
         signal: AbortSignal.timeout(60000),
       });
-      if (!ai.ok) throw new Error("Question AI request failed (" + ai.status + ").");
+      if (!ai.ok) {
+        const detail = await ai.text().catch(() => "");
+        console.error("[teacher-scenes] OpenAI question generation failed:", ai.status, detail.slice(0, 500));
+        throw new Error("Question AI request failed (" + ai.status + ").");
+      }
       const payload: any = await ai.json();
-      const raw = String(payload?.choices?.[0]?.message?.content || "");
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("Question AI returned no JSON.");
-      const parsed = JSON.parse(match[0]);
+      const raw = String(payload?.choices?.[0]?.message?.content || "{}");
+      const parsed = JSON.parse(raw);
       const letters = ["A", "B", "C", "D"] as const;
       const questions: TeacherSceneQuestion[] = (Array.isArray(parsed?.questions) ? parsed.questions : []).slice(0, count).map((q: any) => {
         const options = (Array.isArray(q?.options) ? q.options : []).slice(0, 4).map((v: any) => String(v || "").trim().slice(0, 180));
