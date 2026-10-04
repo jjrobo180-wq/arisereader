@@ -1550,24 +1550,6 @@ export default function Library() {
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">PLAY GAMES</span>
           </button>
         )}
-        {/* Study Squad: study games with friends (students) and class study sets (teachers) */}
-        {user && user.role !== "parent" && !user.is_eye_gaze_user && (
-          <button
-            type="button"
-            onClick={() => navigate("/study")}
-            data-testid="button-study-squad"
-            className="mb-4 flex w-full items-center justify-between rounded-2xl border border-amber-300/40 bg-[#173b33] px-4 py-3 text-left text-[#f4f1e6] shadow-lg transition hover:brightness-110"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-amber-300 text-[#11231f]"><GraduationCap className="h-6 w-6" /></span>
-              <span>
-                <span className="flex items-center gap-2 text-base font-black">Study Squad<span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950">NEW</span></span>
-                <span className="block text-xs font-bold text-white/75">{user.role === "teacher" || user.isAdmin ? "Add study sets for your class and see what students make" : "Study with friends: quiz games, flashcards, and sets you make yourself"}</span>
-              </span>
-            </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">{user.role === "teacher" || user.isAdmin ? "OPEN" : "STUDY"}</span>
-          </button>
-        )}
                 <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
           onReadingLevelUp={() => navigate("/reading-level-up")}
