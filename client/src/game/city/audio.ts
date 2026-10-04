@@ -59,5 +59,28 @@ export class CityAudio {
     o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + 0.32);
   }
 
+  /** A rising whoosh when the car leaves a ramp. */
+  whoosh() {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(660, t + 0.35);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + 0.5);
+  }
+
+  /** A bright three-note chime for finding a star. */
+  chime() {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime;
+    [784, 988, 1319].forEach((f, i) => {
+      const o = this.ctx!.createOscillator(), g = this.ctx!.createGain();
+      o.type = "triangle"; o.frequency.value = f;
+      const s = t + i * 0.09;
+      g.gain.setValueAtTime(0.0001, s); g.gain.exponentialRampToValueAtTime(0.07, s + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, s + 0.5);
+      o.connect(g).connect(this.ctx!.destination); o.start(s); o.stop(s + 0.55);
+    });
+  }
+
   dispose() { try { this.osc?.stop(); void this.ctx?.close(); } catch { /* ignore */ } this.ctx = null; }
 }

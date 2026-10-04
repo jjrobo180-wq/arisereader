@@ -108,3 +108,34 @@ export function posterTexture(title: string, a: string, b: string) {
   g.strokeStyle = "#ffd36b"; g.lineWidth = 10; g.strokeRect(5, 5, 290, 430);
   return toTexture(c, false);
 }
+
+/** Boardwalk and pier boards: warm planks running across the walk. */
+export function plankTexture() {
+  const [c, g] = canvas(128, 128);
+  const r = rng(808);
+  for (let i = 0; i < 8; i++) {
+    const l = 46 + r() * 10;
+    g.fillStyle = `hsl(28, 45%, ${l}%)`; g.fillRect(0, i * 16, 128, 15);
+    g.fillStyle = "rgba(60, 35, 15, 0.55)"; g.fillRect(0, i * 16 + 15, 128, 1);
+    g.fillStyle = "rgba(60, 35, 15, 0.35)"; g.fillRect(Math.floor(r() * 120), i * 16, 2, 15);
+  }
+  return toTexture(c);
+}
+
+/** Speckled sand. */
+export function sandTexture() {
+  const [c, g] = canvas(128, 128);
+  const r = rng(909);
+  g.fillStyle = "#e9d3a0"; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 900; i++) { g.fillStyle = r() < 0.5 ? "rgba(180,150,100,.35)" : "rgba(255,245,220,.45)"; g.fillRect(r() * 128, r() * 128, 1.5, 1.5); }
+  return toTexture(c);
+}
+
+/** Yellow and black chevrons for stunt ramps. */
+export function chevronTexture() {
+  const [c, g] = canvas(128, 64);
+  g.fillStyle = "#ffcf33"; g.fillRect(0, 0, 128, 64);
+  g.fillStyle = "#1a1a22";
+  for (let x = -64; x < 160; x += 32) { g.beginPath(); g.moveTo(x, 64); g.lineTo(x + 16, 64); g.lineTo(x + 48, 0); g.lineTo(x + 32, 0); g.closePath(); g.fill(); }
+  return toTexture(c);
+}
