@@ -8232,6 +8232,9 @@ Important:
   let teacherScenesBucketReady = false;
   const teacherScenesDailyUsage = new Map<string, number>();
 
+  type TeacherSceneLabel = { name: string; x: number; y: number };
+  type TeacherSceneQuestion = { id: string; prompt: string; options: string[]; correct: "A" | "B" | "C" | "D" };
+
   type TeacherScene = {
     id: string;
     teacherId: number;
@@ -8243,6 +8246,8 @@ Important:
     sceneNotes: string;
     style: string;
     labelCharacters: boolean;
+    characterLabels?: TeacherSceneLabel[];
+    questions?: TeacherSceneQuestion[];
     imagePath: string;
     fingerprint: string;
     createdAt: string;
@@ -8362,9 +8367,7 @@ Important:
       const characterInstruction = characters.length
         ? "Keep these named characters visually consistent across every panel: " + characters.join(", ") + "."
         : "Keep recurring characters visually consistent across every panel.";
-      const labelInstruction = labelCharacters && characters.length
-        ? "Add clean, readable name callouts with short arrows anchored directly to the correct named characters. Use ONLY these character names as text: " + characters.join(", ") + "."
-        : "Do not add character-name text to the artwork.";
+      const labelInstruction = "Do not draw character-name text into the image. A.R.I.S.E. will add crisp interactive character labels as a separate website layer.";
 
       const prompt = [
         "Create one extra-wide classroom visualization panorama for a teacher helping students visualize a novel while it is read aloud.",
@@ -8440,6 +8443,8 @@ Important:
         sceneNotes,
         style,
         labelCharacters,
+        characterLabels: [],
+        questions: [],
         imagePath,
         fingerprint,
         createdAt: new Date().toISOString(),
@@ -8455,6 +8460,88 @@ Important:
   });
 
 
+
+  app.post("/api/teacher/scenes/:id/labels", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const id = String(req.params.id || "").trim();
+      const scenes = await readTeacherScenes(req.user.id);
+      const index = scenes.findIndex(scene => scene.id === id);
+      if (index < 0) return res.status(404).json({ message: "Scene not found." });
+      const allowedNames = new Set((scenes[index].characters || []).map(name => String(name)));
+      const labels: TeacherSceneLabel[] = (Array.isArray(req.body?.labels) ? req.body.labels : [])
+        .map((label: any) => ({
+          name: String(label?.name || "").trim().slice(0, 60),
+          x: Math.max(0, Math.min(100, Number(label?.x) || 0)),
+          y: Math.max(0, Math.min(100, Number(label?.y) || 0)),
+        }))
+        .filter(label => label.name && allowedNames.has(label.name))
+        .slice(0, 20);
+      scenes[index] = { ...scenes[index], characterLabels: labels, labelCharacters: labels.length > 0 || scenes[index].labelCharacters };
+      await saveTeacherScenes(req.user.id, scenes);
+      res.json({ scene: await signTeacherScene(scenes[index]) });
+    } catch (error: any) {
+      console.error("[teacher-scenes] label save failed:", error?.message);
+      res.status(500).json({ message: "Could not save character labels." });
+    }
+  });
+
+  app.post("/api/teacher/scenes/:id/questions/generate", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const id = String(req.params.id || "").trim();
+      const count = Math.max(1, Math.min(5, Math.round(Number(req.body?.count) || 1)));
+      const scenes = await readTeacherScenes(req.user.id);
+      const index = scenes.findIndex(scene => scene.id === id);
+      if (index < 0) return res.status(404).json({ message: "Scene not found." });
+      const scene = scenes[index];
+      const apiKey = process.env.CUSTOM_CRED_API_PERPLEXITY_AI_TOKEN || process.env.PERPLEXITY_API_KEY || "";
+      if (!apiKey) return res.status(503).json({ message: "Interactive question generation is not configured yet." });
+
+      const prompt = [
+        "Create exactly " + count + " multiple-choice comprehension question" + (count === 1 ? "" : "s") + " for a teacher using a visual scene while reading a book aloud.",
+        "Book: " + scene.bookTitle + (scene.author ? " by " + scene.author : ""),
+        "Chapters: " + scene.chapterStart + (scene.chapterEnd !== scene.chapterStart ? "-" + scene.chapterEnd : ""),
+        "Teacher scene notes: " + scene.sceneNotes,
+        "Make each question answerable from the teacher-provided scene notes and appropriate for students. Do not introduce spoilers or facts outside the notes.",
+        'Return ONLY JSON: {"questions":[{"prompt":"...","options":["...","...","...","..."],"correct":"A"}]}',
+        "Use exactly four choices and correct must be A, B, C, or D."
+      ].join("\n");
+
+      const ai = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [
+            { role: "system", content: "You create concise, safe K-12 reading-comprehension questions and return only valid JSON." },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.45,
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!ai.ok) throw new Error("Question AI request failed (" + ai.status + ").");
+      const payload: any = await ai.json();
+      const raw = String(payload?.choices?.[0]?.message?.content || "");
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Question AI returned no JSON.");
+      const parsed = JSON.parse(match[0]);
+      const letters = ["A", "B", "C", "D"] as const;
+      const questions: TeacherSceneQuestion[] = (Array.isArray(parsed?.questions) ? parsed.questions : []).slice(0, count).map((q: any) => {
+        const options = (Array.isArray(q?.options) ? q.options : []).slice(0, 4).map((v: any) => String(v || "").trim().slice(0, 180));
+        const correct = letters.includes(String(q?.correct || "").toUpperCase() as any) ? String(q.correct).toUpperCase() as "A" | "B" | "C" | "D" : "A";
+        return { id: randomBytes(6).toString("hex"), prompt: String(q?.prompt || "").trim().slice(0, 300), options, correct };
+      }).filter((q: TeacherSceneQuestion) => q.prompt && q.options.length === 4);
+      if (!questions.length) throw new Error("Question AI returned no usable questions.");
+
+      scenes[index] = { ...scene, questions };
+      await saveTeacherScenes(req.user.id, scenes);
+      res.json({ scene: await signTeacherScene(scenes[index]), questions });
+    } catch (error: any) {
+      console.error("[teacher-scenes] question generation failed:", error?.message);
+      res.status(503).json({ message: "Could not generate questions for this Scene right now." });
+    }
+  });
+
   type TeacherSceneLiveSession = {
     id: string;
     code: string;
@@ -8465,6 +8552,8 @@ Important:
     createdAt: string;
     updatedAt: string;
     viewers: number[];
+    currentQuestionId?: string | null;
+    answers?: Record<string, Record<string, { studentId: number; studentName: string; choice: string; submittedAt: string }>>;
   };
 
   const TEACHER_SCENE_LIVE_KEY = "teacher_scene_live_sessions_v1";
@@ -8505,9 +8594,17 @@ Important:
     return randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
   };
 
-  const publicSceneLivePayload = async (session: TeacherSceneLiveSession) => {
+  const publicSceneLivePayload = async (session: TeacherSceneLiveSession, userId?: number, isHost = false) => {
     const teacherScenes = await readTeacherScenes(session.teacherId);
     const scene = teacherScenes.find(item => item.id === session.sceneId);
+    const signedScene: any = scene ? await signTeacherScene(scene) : null;
+    const question = scene?.questions?.find(item => item.id === session.currentQuestionId) || null;
+    const answerMap = question ? (session.answers?.[question.id] || {}) : {};
+    const ownAnswer = userId && question ? answerMap[String(userId)] || null : null;
+    const safeScene = signedScene ? {
+      ...signedScene,
+      questions: isHost ? (signedScene.questions || []) : undefined,
+    } : null;
     return {
       id: session.id,
       code: session.code,
@@ -8516,7 +8613,14 @@ Important:
       status: session.status,
       updatedAt: session.updatedAt,
       viewerCount: Array.isArray(session.viewers) ? session.viewers.length : 0,
-      scene: scene ? await signTeacherScene(scene) : null,
+      scene: safeScene,
+      currentQuestion: question ? {
+        id: question.id,
+        prompt: question.prompt,
+        options: question.options,
+        ...(isHost ? { correct: question.correct } : {}),
+      } : null,
+      ...(isHost ? { responses: Object.values(answerMap) } : { myAnswer: ownAnswer ? { choice: ownAnswer.choice, submittedAt: ownAnswer.submittedAt } : null }),
     };
   };
 
@@ -8546,10 +8650,12 @@ Important:
         createdAt: now,
         updatedAt: now,
         viewers: [],
+        currentQuestionId: null,
+        answers: {},
       };
       sessions[code] = session;
       await saveSceneLiveSessions(sessions);
-      res.status(201).json(await publicSceneLivePayload(session));
+      res.status(201).json(await publicSceneLivePayload(session, req.user.id, (req.user.role === "teacher" || req.user.isAdmin) && session.teacherId === req.user.id));
     } catch (error: any) {
       console.error("[teacher-scenes-live] start failed:", error?.message);
       res.status(500).json({ message: "Could not start the live Scene." });
@@ -8566,9 +8672,10 @@ Important:
       const teacherScenes = await readTeacherScenes(req.user.id);
       if (!teacherScenes.some(item => item.id === sceneId)) return res.status(404).json({ message: "Scene not found." });
       session.sceneId = sceneId;
+      session.currentQuestionId = null;
       session.updatedAt = new Date().toISOString();
       await saveSceneLiveSessions(sessions);
-      res.json(await publicSceneLivePayload(session));
+      res.json(await publicSceneLivePayload(session, req.user.id, (req.user.role === "teacher" || req.user.isAdmin) && session.teacherId === req.user.id));
     } catch (error: any) {
       console.error("[teacher-scenes-live] select failed:", error?.message);
       res.status(500).json({ message: "Could not change the live Scene." });
@@ -8632,10 +8739,61 @@ Important:
       if (!session.viewers.includes(req.user.id)) session.viewers.push(req.user.id);
       session.updatedAt = new Date().toISOString();
       await saveSceneLiveSessions(sessions);
-      res.json(await publicSceneLivePayload(session));
+      res.json(await publicSceneLivePayload(session, req.user.id, (req.user.role === "teacher" || req.user.isAdmin) && session.teacherId === req.user.id));
     } catch (error: any) {
       console.error("[teacher-scenes-live] join failed:", error?.message);
       res.status(500).json({ message: "Could not join the live Scene." });
+    }
+  });
+
+
+  app.post("/api/teacher/scenes/live/:code/question", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const code = String(req.params.code || "").trim().toUpperCase();
+      const questionId = req.body?.questionId == null ? null : String(req.body.questionId).trim();
+      const sessions = await readSceneLiveSessions();
+      const session = sessions[code];
+      if (!session || session.status !== "live" || session.teacherId !== req.user.id) return res.status(404).json({ message: "Live Scene not found." });
+      const scenes = await readTeacherScenes(req.user.id);
+      const scene = scenes.find(item => item.id === session.sceneId);
+      if (questionId && !scene?.questions?.some(q => q.id === questionId)) return res.status(404).json({ message: "Question not found for this Scene." });
+      session.currentQuestionId = questionId;
+      session.updatedAt = new Date().toISOString();
+      await saveSceneLiveSessions(sessions);
+      res.json(await publicSceneLivePayload(session, req.user.id, true));
+    } catch (error: any) {
+      res.status(500).json({ message: "Could not launch that question." });
+    }
+  });
+
+  app.post("/api/scenes/live/:code/answer", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      const code = String(req.params.code || "").trim().toUpperCase();
+      const choice = String(req.body?.choice || "").trim().toUpperCase();
+      if (!["A", "B", "C", "D"].includes(choice)) return res.status(400).json({ message: "Choose A, B, C, or D." });
+      const sessions = await readSceneLiveSessions();
+      const session = sessions[code];
+      if (!session || session.status !== "live") return res.status(404).json({ message: "Live Scene not found." });
+      if (!session.viewers?.includes(req.user.id)) return res.status(403).json({ message: "Join the live Scene first." });
+      if (!session.currentQuestionId) return res.status(400).json({ message: "Your teacher has not launched a question yet." });
+      const questionId = session.currentQuestionId;
+      if (!session.answers) session.answers = {};
+      if (!session.answers[questionId]) session.answers[questionId] = {};
+      const key = String(req.user.id);
+      if (!session.answers[questionId][key]) {
+        session.answers[questionId][key] = {
+          studentId: req.user.id,
+          studentName: String(req.user.displayName || req.user.username || "Student").slice(0, 80),
+          choice,
+          submittedAt: new Date().toISOString(),
+        };
+      }
+      session.updatedAt = new Date().toISOString();
+      await saveSceneLiveSessions(sessions);
+      res.json({ saved: true, choice: session.answers[questionId][key].choice });
+    } catch (error: any) {
+      res.status(500).json({ message: "Could not save your answer." });
     }
   });
 
@@ -8649,7 +8807,7 @@ Important:
       const isJoinedStudent = req.user.role === "student" && Array.isArray(session.viewers) && session.viewers.includes(req.user.id);
       if (!isHost && !isJoinedStudent) return res.status(403).json({ message: "Join this Scene with its code first." });
       res.set("Cache-Control", "no-store");
-      res.json(await publicSceneLivePayload(session));
+      res.json(await publicSceneLivePayload(session, req.user.id, (req.user.role === "teacher" || req.user.isAdmin) && session.teacherId === req.user.id));
     } catch (error: any) {
       res.status(500).json({ message: "Could not load the live Scene." });
     }
