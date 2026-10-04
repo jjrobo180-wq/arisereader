@@ -28,6 +28,8 @@ export type PrizeWinner = {
   studentId: number | null;
   name: string;
   at: string;
+  /** The site's day it was given (YYYY-MM-DD). */
+  day?: string;
 };
 
 export type Prize = {
@@ -79,7 +81,9 @@ export type PrizeView = {
 export class PrizeError extends Error {}
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+// Characters that take up no space on screen. Left in, "s\u200Bhit" would get past the word check and still read as the word.
+const INVISIBLE = /[\u0000-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0]/g;
+const clean = (v: unknown, max: number) => String(v ?? "").replace(/[\t\n\r]/g, " ").replace(INVISIBLE, "").replace(/\s+/g, " ").trim().slice(0, max);
 
 /** A real calendar day written as YYYY-MM-DD. */
 export function validDay(day: unknown): day is string {
@@ -141,14 +145,20 @@ export function normalizePrizeDraft(input: unknown, who: "parent" | "teacher", t
   return { scope, title, how, quizGoal: goal, endsOn, studentIds };
 }
 
+/** The day a prize was given, or "" when the record doesn't say. */
+export function givenDay(won: PrizeWinner): string {
+  const day = won.day || String(won.at || "").slice(0, 10);
+  return validDay(day) ? day : "";
+}
+
 /** Has the last day passed? */
 export const prizeEnded = (prize: Pick<Prize, "endsOn">, today: string) => !!prize.endsOn && today > prize.endsOn;
 
 /** Should a reader still see this prize? It drops off a while after it ends or is given. */
 export function prizeShown(prize: Pick<Prize, "endsOn" | "won">, today: string): boolean {
   if (prize.won) {
-    const wonDay = String(prize.won.at || "").slice(0, 10);
-    return !validDay(wonDay) || today <= addDays(wonDay, PRIZE_LIMITS.showDaysAfter);
+    const wonDay = givenDay(prize.won);
+    return !wonDay || today <= addDays(wonDay, PRIZE_LIMITS.showDaysAfter);
   }
   return !prize.endsOn || today <= addDays(prize.endsOn, PRIZE_LIMITS.showDaysAfter);
 }

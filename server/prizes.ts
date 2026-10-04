@@ -7,7 +7,7 @@ import type { Express, RequestHandler } from "express";
 import { randomBytes } from "node:crypto";
 import { clubDay } from "../shared/clubPlay";
 import {
-  PRIZE_LIMITS, PrizeError, addDays, normalizePrizeDraft, parsePrizeId, prizeCovers, prizeEnded, prizeId, prizeShown,
+  PRIZE_LIMITS, PrizeError, addDays, givenDay, normalizePrizeDraft, parsePrizeId, prizeCovers, prizeEnded, prizeId, prizeShown,
   quizzesToward, validDay, viewPrize,
   type Prize, type PrizeScope, type PrizeView,
 } from "../shared/prizes";
@@ -22,6 +22,12 @@ export type PrizePerson = { id: number; name: string };
 export type PrizeDeps = {
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
+  /**
+   * The same read, but it throws when the database can't be reached. Used before every save:
+   * a failed read must never look like an empty list, or the save would wipe the real one.
+   * Left out, getSetting is used.
+   */
+  readSetting?(key: string): Promise<string>;
   /** The children linked to a parent. */
   parentStudentIds(parentId: number): Promise<number[]>;
   /** The parents linked to a student. */
@@ -78,22 +84,55 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
   const today = () => clubDay(now());
 
   // ─── Storage ───────────────────────────────────────────────────────────────
+  const parse = (raw: string): Prize[] => {
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter(looksLikePrize) : [];
+  };
+  /** For showing prizes. Anything that goes wrong reads as "no prizes". */
   async function readList(scope: PrizeScope, ownerId: number): Promise<Prize[]> {
-    try {
-      const raw = await deps.getSetting(KEY[scope](ownerId));
-      const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list.filter(looksLikePrize) : [];
-    } catch { return []; }
+    try { return parse(await deps.getSetting(KEY[scope](ownerId))); } catch { return []; }
   }
-  /** Drops prizes that finished long ago, then saves. */
-  async function writeList(scope: PrizeScope, ownerId: number, list: Prize[]) {
-    const day = today();
-    const kept = list.filter((p) => {
-      const done = p.won ? String(p.won.at || "").slice(0, 10) : p.endsOn;
-      return !done || !validDay(done) || day <= addDays(done, KEEP_DAYS);
-    });
+  /** For changing prizes. A database error stops the change instead of reading as an empty list. */
+  async function readForSave(scope: PrizeScope, ownerId: number): Promise<Prize[]> {
+    const raw = await (deps.readSetting ?? deps.getSetting)(KEY[scope](ownerId));
+    try { return parse(raw); } catch { return []; }
+  }
+  const capFor = (scope: PrizeScope) => (scope === "family" ? PRIZE_LIMITS.perFamily : scope === "class" ? PRIZE_LIMITS.perClass : PRIZE_LIMITS.perSchool);
+  /**
+   * Saves a list. With `tidy`, prizes that finished long ago are cleared out first
+   * (only when a prize is added, so taking a prize back can never make it vanish).
+   */
+  async function writeList(scope: PrizeScope, ownerId: number, list: Prize[], tidy = false) {
+    let kept = list;
+    if (tidy) {
+      const day = today();
+      kept = list.filter((p) => {
+        const done = p.won ? givenDay(p.won) : p.endsOn;
+        return !done || !validDay(done) || day <= addDays(done, KEEP_DAYS);
+      });
+      // a hard ceiling on what is stored: everything readers still see, then the newest of the rest
+      const most = capFor(scope) * 3;
+      if (kept.length > most) {
+        const shown = kept.filter((p) => prizeShown(p, day));
+        const rest = kept.filter((p) => !prizeShown(p, day)).slice(0, Math.max(0, most - shown.length));
+        kept = kept.filter((p) => shown.includes(p) || rest.includes(p));
+      }
+    }
     await deps.upsertSetting(KEY[scope](ownerId), JSON.stringify(kept));
     return kept;
+  }
+  /**
+   * A prize holds a place until it leaves the readers' page (two weeks after it ends or is given),
+   * so the cap is also the most tickets a reader can be shown from one family, class or school.
+   */
+  function checkRoom(scope: PrizeScope, list: Prize[], u: AnyUser) {
+    const day = today();
+    const up = list.filter((p) => prizeShown(p, day));
+    const cap = capFor(scope);
+    if (up.length >= cap) throw new Refused(`That's the most prizes that can be up at once (${cap}). Remove one first.`, 409);
+    if (scope === "school" && !u.isAdmin && up.filter((p) => p.byId === u.id).length >= PRIZE_LIMITS.perTeacherAtSchool) {
+      throw new Refused(`You have ${PRIZE_LIMITS.perTeacherAtSchool} school prizes up already. Remove one first.`, 409);
+    }
   }
   // one change at a time per list, so two saves can't overwrite each other
   const locks = new Map<string, Promise<unknown>>();
@@ -141,7 +180,8 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
   }
 
   // ─── What a reader can win ─────────────────────────────────────────────────
-  async function prizesFor(student: AnyUser): Promise<PrizeView[]> {
+  /** `onlyParentId`: a parent looking at their child sees their own family prizes, not another parent's. */
+  async function prizesFor(student: AnyUser, onlyParentId?: number): Promise<PrizeView[]> {
     const day = today();
     const inClass = posInt(student.teacherId) > 0 && student.approvedByTeacher !== false;
     // School prizes come through the teacher who approved the student, the same way Premium does.
@@ -153,7 +193,8 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
     const schoolId = teacher && teacher.accountApproved !== false ? schoolOf(teacher) : null;
 
     const [family, klass, school, schoolName] = await Promise.all([
-      Promise.all(parentIds.map((id) => readList("family", id))).then((lists) => lists.flat().filter((p) => prizeCovers(p, student.id))),
+      Promise.all(parentIds.filter((id) => !onlyParentId || id === onlyParentId).map((id) => readList("family", id)))
+        .then((lists) => lists.flat().filter((p) => prizeCovers(p, student.id))),
       inClass ? readList("class", posInt(student.teacherId)) : Promise.resolve([] as Prize[]),
       schoolId ? readList("school", schoolId) : Promise.resolve([] as Prize[]),
       schoolId ? deps.schoolName(schoolId).catch(() => "") : Promise.resolve(""),
@@ -177,7 +218,7 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
       const childId = posInt(req.query?.studentId);
       if (u.accountApproved === false || !childId || !(await deps.parentStudentIds(u.id)).includes(childId)) return void res.json({ prizes: [] });
       const child = await deps.getUser(childId);
-      return void res.json({ prizes: child ? await prizesFor(child) : [] });
+      return void res.json({ prizes: child ? await prizesFor(child, u.id) : [] });
     }
     res.json({ prizes: isStudent(u) ? await prizesFor(u) : [] });
   }));
@@ -241,14 +282,8 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
 
     const key = KEY[draft.scope](ownerId);
     const prize = await withLock(key, async () => {
-      const list = await readList(draft.scope, ownerId);
-      const day = today();
-      const live = list.filter((p) => !p.won && !prizeEnded(p, day));
-      const cap = draft.scope === "family" ? PRIZE_LIMITS.perFamily : draft.scope === "class" ? PRIZE_LIMITS.perClass : PRIZE_LIMITS.perSchool;
-      if (live.length >= cap) throw new Refused(`That's the most prizes that can be up at once (${cap}). Give one out or remove one first.`, 409);
-      if (draft.scope === "school" && !u.isAdmin && live.filter((p) => p.byId === u.id).length >= PRIZE_LIMITS.perTeacherAtSchool) {
-        throw new Refused(`You have ${PRIZE_LIMITS.perTeacherAtSchool} school prizes up already. Give one out or remove one first.`, 409);
-      }
+      const list = await readForSave(draft.scope, ownerId);
+      checkRoom(draft.scope, list, u);
       const made: Prize = {
         id: prizeId(draft.scope, ownerId, `${now().toString(36)}${randomBytes(4).toString("hex")}`),
         scope: draft.scope, ownerId, byId: u.id, byName: nameOf(u) || (isParent(u) ? "Your parent" : "Your teacher"),
@@ -256,7 +291,7 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
         studentIds: draft.scope === "family" ? draft.studentIds : null,
         createdAt: new Date(now()).toISOString(), won: null,
       };
-      await writeList(draft.scope, ownerId, [made, ...list]);
+      await writeList(draft.scope, ownerId, [made, ...list], true);
       return made;
     });
     // A family is a handful of children, so each one is told. A class or a school hears it from the teacher.
@@ -275,7 +310,7 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
     const where = parsePrizeId(req.params.id);
     if (!where) throw new Refused("That prize wasn't found.", 404);
     await withLock(KEY[where.scope](where.ownerId), async () => {
-      const list = await readList(where.scope, where.ownerId);
+      const list = await readForSave(where.scope, where.ownerId);
       const prize = list.find((p) => p.id === req.params.id);
       // the same answer whether it's missing or someone else's, so ids can't be probed
       if (!prize || !mayManage(u, prize)) throw new Refused("That prize wasn't found.", 404);
@@ -309,20 +344,25 @@ export function registerPrizeRoutes(app: Express, auth: RequestHandler, deps: Pr
   app.post("/api/prizes/:id/give", auth, wrap(async (req, res) => {
     const body = req.body || {};
     const toTell: Array<{ id: number; text: string }> = [];
-    await change(req, async (prize) => {
-      if (body.undo) { prize.won = null; return; }
-      const at = new Date(now()).toISOString();
+    await change(req, async (prize, list) => {
+      if (body.undo) {
+        // a prize given long ago has left the readers' page; putting it back up needs a free place
+        if (prize.won && !prizeShown(prize, today())) checkRoom(prize.scope, list, req.user);
+        prize.won = null;
+        return;
+      }
+      const at = new Date(now()).toISOString(), day = today();
       const people = await peopleFor(prize);
       const text = `You won a prize: “${prize.title}”, from ${prize.byName}. Ask them how to collect it.`;
       if (body.everyone) {
-        prize.won = { studentId: null, name: prize.scope === "family" ? listNames(people.map((p) => p.name)) || "Everyone" : prize.scope === "class" ? "The whole class" : "The whole school", at };
+        prize.won = { studentId: null, name: prize.scope === "family" ? listNames(people.map((p) => p.name)) || "Everyone" : prize.scope === "class" ? "The whole class" : "The whole school", at, day };
         // a family is a handful of children; a class or a school is told by the teacher
         if (prize.scope === "family") people.forEach((p) => toTell.push({ id: p.id, text }));
         return;
       }
       const winner = people.find((p) => p.id === posInt(body.studentId));
       if (!winner) throw new Refused(prize.scope === "family" ? "Pick one of your children." : prize.scope === "class" ? "Pick a student from your class." : "Pick a student from your school.", 400);
-      prize.won = { studentId: winner.id, name: winner.name, at };
+      prize.won = { studentId: winner.id, name: winner.name, at, day };
       toTell.push({ id: winner.id, text });
     });
     // telling the winner is a courtesy: the prize is saved either way

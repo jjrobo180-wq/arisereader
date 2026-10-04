@@ -37,6 +37,10 @@ test("a prize needs a name and a way to win it", () => {
 test("children read the prize, so rude words are refused", () => {
   assert.throws(() => normalizePrizeDraft({ title: "Pizza night", how: "don't be a shit" }, "parent", TODAY), /different words/);
   assert.throws(() => normalizePrizeDraft({ title: "sh1t prize", how: "read" }, "teacher", TODAY), /different words/);
+  // invisible characters can't be used to split a word up, and they are not kept in what children read
+  assert.throws(() => normalizePrizeDraft({ title: "s\u200Bhit prize", how: "read" }, "teacher", TODAY), /different words/);
+  assert.throws(() => normalizePrizeDraft({ title: "Prize", how: "s\u00ADh\uFEFFit" }, "parent", TODAY), /different words/);
+  assert.equal(normalizePrizeDraft({ title: "Piz\u200Bza\u2060 night\n\tat home", how: "Read" }, "parent", TODAY).title, "Pizza night at home");
 });
 
 test("the last day has to be a real day, today or later, within about a year", () => {
@@ -128,8 +132,11 @@ const USERS: Record<number, any> = {
   81: { id: 81, displayName: "Omar", role: "parent" },
   82: { id: 82, displayName: "Pat", role: "parent", accountApproved: false },
   83: { id: 83, displayName: "Quinn", role: "parent" },
+  84: { id: 84, displayName: "Rae", role: "parent" },
+  17: { id: 17, displayName: "Hal", role: "student" },
 };
-const LINKS: Record<number, number[]> = { 80: [10, 13], 81: [11], 82: [12], 83: [] };
+// Ben (11) has two parents; Rae also has Hal
+const LINKS: Record<number, number[]> = { 80: [10, 13], 81: [11], 82: [12], 83: [], 84: [11, 17] };
 
 async function setup(t: any, opts: { plans?: boolean } = {}) {
   const clock = { now: NOW };
@@ -137,6 +144,7 @@ async function setup(t: any, opts: { plans?: boolean } = {}) {
   const passed = new Map<number, number[]>();
   const told: Array<{ id: number; text: string }> = [];
   const reads: number[] = [];
+  const db = { down: false };
   const app = express();
   app.use(express.json());
   const auth = (req: any, res: any, next: any) => {
@@ -156,8 +164,10 @@ async function setup(t: any, opts: { plans?: boolean } = {}) {
   }
   const inClass = (teacherId: number) => Object.values(USERS).filter((u) => u.role === "student" && !u.isAdmin && u.teacherId === teacherId && u.approvedByTeacher !== false);
   registerPrizeRoutes(app, auth, {
-    getSetting: async (k) => settings.get(k) ?? "",
+    // like the site's own storage: a failed read comes back as ""
+    getSetting: async (k) => (db.down ? "" : settings.get(k) ?? ""),
     upsertSetting: async (k, v) => { settings.set(k, v); },
+    readSetting: async (k) => { if (db.down) throw new Error("database unreachable"); return settings.get(k) ?? ""; },
     parentStudentIds: async (id) => LINKS[id] ?? [],
     studentParentIds: async (id) => Object.entries(LINKS).filter(([, kids]) => kids.includes(id)).map(([p]) => Number(p)),
     getUser: async (id) => USERS[id] ?? null,
@@ -186,7 +196,7 @@ async function setup(t: any, opts: { plans?: boolean } = {}) {
     return res.body.prize as Prize;
   };
   const sees = async (user: number, query = "") => ((await call(user, "GET", `/api/prizes${query}`)).body.prizes as any[]).map((p) => p.title);
-  return { call, add, sees, settings, passed, told, reads, clock };
+  return { call, add, sees, settings, passed, told, reads, clock, db };
 }
 
 test("a parent adds a prize and only their own child sees it", async (t) => {
@@ -387,7 +397,7 @@ test("only the person who added a prize can remove it", async (t) => {
 });
 
 test("there is a cap on how many prizes are up at once", async (t) => {
-  const { call, add } = await setup(t);
+  const { call, add, sees, clock } = await setup(t);
   for (let i = 0; i < PRIZE_LIMITS.perFamily; i++) await add(80, { title: `Prize ${i + 1}`, how: "Read" });
   const over = await call(80, "POST", "/api/prizes", { title: "One more", how: "Read" });
   assert.equal(over.status, 409);
@@ -397,10 +407,84 @@ test("there is a cap on how many prizes are up at once", async (t) => {
   assert.equal((await call(50, "POST", "/api/prizes", { scope: "school", title: "One more", how: "Read" })).status, 409);
   // another teacher at the school still has room
   await add(51, { scope: "school", title: "From room 12", how: "Read" });
-  // giving one out frees a place
+
+  // giving a prize out doesn't free its place: the reader still sees it for two weeks.
+  // Otherwise one person could fill everyone's page by adding and giving in a loop.
   const first = (await call(80, "GET", "/api/prizes/mine")).body.prizes[0];
   await call(80, "POST", `/api/prizes/${first.id}/give`, { everyone: true });
+  assert.equal((await call(80, "POST", "/api/prizes", { title: "One more", how: "Read" })).status, 409);
+  assert.equal((await sees(13)).length, PRIZE_LIMITS.perFamily);
+  // removing one does
+  await call(80, "DELETE", `/api/prizes/${first.id}`);
   await add(80, { title: "One more", how: "Read" });
+  // and so does time: two weeks after it was given, a prize is off the page and its place is free
+  const second = (await call(80, "GET", "/api/prizes/mine")).body.prizes[1];
+  await call(80, "POST", `/api/prizes/${second.id}/give`, { everyone: true });
+  clock.now = NOW + 20 * DAY;
+  await add(80, { title: "Later", how: "Read" });
+  // now the page is full again, so that old prize can't be taken back and put up a thirteenth time
+  const back = await call(80, "POST", `/api/prizes/${second.id}/give`, { undo: true });
+  assert.equal(back.status, 409);
+  assert.equal((await sees(13)).length, PRIZE_LIMITS.perFamily);
+});
+
+test("a database hiccup never wipes a list of prizes", async (t) => {
+  const { call, add, settings, db } = await setup(t);
+  for (const title of ["One", "Two", "Three"]) await add(50, { scope: "school", title, how: "Read" });
+  const p = (await call(50, "GET", "/api/prizes/mine")).body.prizes[0];
+  db.down = true;
+  // nothing can be saved while the list can't be read...
+  assert.equal((await call(51, "POST", "/api/prizes", { scope: "school", title: "Four", how: "Read" })).status, 500);
+  assert.equal((await call(50, "POST", `/api/prizes/${p.id}/give`, { everyone: true })).status, 500);
+  assert.equal((await call(50, "DELETE", `/api/prizes/${p.id}`)).status, 500);
+  // ...readers just see nothing for a moment...
+  assert.deepEqual((await call(10, "GET", "/api/prizes")).body, { prizes: [] });
+  db.down = false;
+  // ...and all three are still there afterwards
+  assert.equal(JSON.parse(settings.get("prizes_school_3")!).length, 3);
+  await add(51, { scope: "school", title: "Four", how: "Read" });
+  assert.equal(JSON.parse(settings.get("prizes_school_3")!).length, 4);
+});
+
+test("taking a prize back never makes it disappear, however old it is", async (t) => {
+  const { call, add, clock } = await setup(t);
+  const p = await add(80, { title: "Pizza night", how: "Read", endsOn: "2026-11-20" });
+  clock.now = Date.parse("2027-03-25T18:00:00Z");
+  await call(80, "POST", `/api/prizes/${p.id}/give`, { studentId: 10 });
+  const back = await call(80, "POST", `/api/prizes/${p.id}/give`, { undo: true });
+  assert.deepEqual(back.body.prizes.map((x: any) => [x.title, x.state, x.won]), [["Pizza night", "ended", null]]);
+});
+
+test("the day a prize was given is the site's day, not the day in London", async (t) => {
+  const { call, add, sees, settings, clock } = await setup(t);
+  const p = await add(80, { title: "Pizza night", how: "Read" });
+  // 9pm on Nov 20 in Denver is already Nov 21 in UTC
+  clock.now = Date.parse("2026-11-21T04:00:00Z");
+  await call(80, "POST", `/api/prizes/${p.id}/give`, { studentId: 10 });
+  assert.equal(JSON.parse(settings.get("prizes_parent_80")!)[0].won.day, "2026-11-20");
+  clock.now = Date.parse("2026-12-04T20:00:00Z"); // Dec 4: the fourteenth day after
+  assert.deepEqual(await sees(10), ["Pizza night"]);
+  clock.now = Date.parse("2026-12-05T20:00:00Z");
+  assert.deepEqual(await sees(10), []);
+});
+
+test("a class prize can only go to a student, and each parent sees only their own family prizes", async (t) => {
+  const { call, add, sees } = await setup(t);
+  // a parent account carries its child's teacher, but the roster the routes are handed is students only
+  const klass = await add(50, { title: "Homework pass", how: "Read" });
+  const names = (await call(50, "GET", `/api/prizes/${klass.id}/people`)).body.people.map((x: any) => x.name);
+  assert.deepEqual(names, ["Ada", "Ben"]);
+  assert.equal((await call(50, "POST", `/api/prizes/${klass.id}/give`, { studentId: 81 })).status, 400);
+
+  // Ben has two parents. Rae puts up a prize for both her children and gives it to Hal.
+  const rae = await add(84, { title: "Arcade trip", how: "Read" });
+  await call(84, "POST", `/api/prizes/${rae.id}/give`, { studentId: 17 });
+  // Ben sees his own family's prize...
+  assert.deepEqual((await sees(11)).sort(), ["Arcade trip", "Homework pass"]);
+  // ...but Ben's other parent is shown the school side only, not Rae's prizes or her other child's name
+  const omar = (await call(81, "GET", "/api/prizes?studentId=11")).body.prizes;
+  assert.deepEqual(omar.map((x: any) => x.title), ["Homework pass"]);
+  assert.ok(!JSON.stringify(omar).includes("Hal"));
 });
 
 test("prizes leave the reader's page two weeks after they end, and the list is cleaned up later", async (t) => {

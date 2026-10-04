@@ -34,8 +34,12 @@ export function PrizeManager({ token, role }: { token: string | null | undefined
       headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.message || "That didn't work. Try again.");
+    // every answer here is a JSON object; anything else is a broken reply, not an empty list
+    if (!data || typeof data !== "object") throw new Error("That didn't work. Try again.");
+    if ("prizes" in data && !Array.isArray(data.prizes)) data.prizes = [];
+    if ("prizes" in data && !Array.isArray(data.children)) data.children = [];
     return data;
   }, [token]);
 

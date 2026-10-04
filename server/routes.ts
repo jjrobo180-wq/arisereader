@@ -1054,10 +1054,17 @@ export async function registerRoutes(
   registerPrizeRoutes(app, authMiddleware, {
     getSetting: (key) => storage.getSetting(key),
     upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    // storage.getSetting turns a database error into "", which a save would then write back as an empty list
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
     parentStudentIds: getParentStudentIds,
     studentParentIds: getStudentParentIds,
     getUser: (id) => storage.getUser(id),
-    teacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(prizePerson),
+    // a parent account carries its child's teacher too, so the roster is filtered down to students
+    teacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").map(prizePerson),
     // a school's students are the ones its teachers have approved into a class
     schoolStudents: async (schoolId) => {
       const users = await storage.getAllUsers();
