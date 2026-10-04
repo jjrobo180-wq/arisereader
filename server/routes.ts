@@ -19,6 +19,7 @@ import { registerClubAriseRoutes } from "./clubArise";
 import { registerAriseNewsRoutes } from "./ariseNews";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
+import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import bcrypt from "bcryptjs";
@@ -1477,6 +1478,7 @@ export async function registerRoutes(
         loginCount = counts[String(user.id)];
         await storage.upsertSetting('login_counts', JSON.stringify(counts));
         clearCache('setting_login_counts');
+        void recordLogin(user.id, req.get("user-agent"));
       }
 
       res.json({
@@ -3164,6 +3166,7 @@ export async function registerRoutes(
   });
 
   // Admin routes
+  registerStudentActivityRoutes(app, authMiddleware, adminMiddleware);
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);
     const points = req.body?.points;

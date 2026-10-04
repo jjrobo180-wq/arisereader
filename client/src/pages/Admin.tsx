@@ -22,6 +22,7 @@ import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
 import NoProctorReview from "@/components/NoProctorReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import PlayTimeManager from "@/components/PlayTimeManager";
+import StudentActivity from "@/components/StudentActivity";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
@@ -141,6 +142,14 @@ export default function Admin() {
   const [manualPoints, setManualPoints] = useState("");
   const [manualReason, setManualReason] = useState("");
   const [manualDate, setManualDate] = useState(() => new Date().toLocaleDateString("en-CA"));
+  // award dialog: a paper book quiz (counts like an online quiz) or other points
+  const [awardMode, setAwardMode] = useState<"quiz" | "points">("quiz");
+  const [quizBookSearch, setQuizBookSearch] = useState("");
+  const [quizBookId, setQuizBookId] = useState<number | null>(null);
+  const [quizScore, setQuizScore] = useState("");
+  const [quizTotal, setQuizTotal] = useState("");
+  const [awardNotice, setAwardNotice] = useState("");
+  const [activityKey, setActivityKey] = useState(0);
   const [manualHistory, setManualHistory] = useState<any[]>([]);
   const [manualSaving, setManualSaving] = useState(false);
   const [manualError, setManualError] = useState("");
@@ -1481,6 +1490,9 @@ export default function Admin() {
     setManualPoints("");
     setManualReason("");
     setManualError("");
+    setAwardMode("quiz"); setQuizBookSearch(""); setQuizBookId(null); setQuizScore(""); setQuizTotal(""); setAwardNotice("");
+    setManualDate(new Date().toLocaleDateString("en-CA"));
+    if (!books.length) fetchBooks();
     setManualHistory([]);
     const authToken = token || getTokenFromCookie();
     if (!authToken) return;
@@ -1516,9 +1528,49 @@ export default function Admin() {
       setManualHistory(prev => [data, ...prev]);
       setManualPoints("");
       setManualReason("");
+      setActivityKey(k => k + 1);
+      refreshOpenDetail();
       await fetchStudents();
       fetchAdminLeaderboard();
     } catch (error: any) { setManualError(error.message || "Could not award points."); }
+    finally { setManualSaving(false); }
+  };
+
+  // keeps the open student's totals and quiz list current after adding points
+  const refreshOpenDetail = async () => {
+    if (!detailStudent) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${detailStudent.id}`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
+      if (res.ok) setStudentDetail(await res.json());
+    } catch { /* keep what's shown */ }
+  };
+
+  const creditBookQuiz = async () => {
+    if (!pointsStudent || manualSaving) return;
+    const score = Number(quizScore), total = Number(quizTotal);
+    const book = books.find(b => b.id === quizBookId);
+    if (!book) { setManualError("Choose the book the quiz was for."); return; }
+    if (!Number.isSafeInteger(total) || total < 1 || !Number.isSafeInteger(score) || score < 0 || score > total) { setManualError("Enter how many they got right and how many questions there were."); return; }
+    if (!manualDate) { setManualError("Enter the date the quiz was taken."); return; }
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    if (!window.confirm(`Save ${score}/${total} on the ${book.title} quiz for ${pointsStudent.displayName}?`)) return;
+    setManualSaving(true); setManualError(""); setAwardNotice("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${pointsStudent.id}/book-quiz-credit`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId: book.id, score, total, takenOn: manualDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not save the quiz.");
+      setAwardNotice(data.message);
+      refreshOpenDetail();
+      setQuizBookId(null); setQuizBookSearch(""); setQuizScore(""); setQuizTotal("");
+      setActivityKey(k => k + 1);
+      await fetchStudents();
+      fetchAdminLeaderboard();
+    } catch (error: any) { setManualError(error.message || "Could not save the quiz."); }
     finally { setManualSaving(false); }
   };
 
@@ -4559,15 +4611,64 @@ Generate exactly 10 questions.`;
       {/* Student detail dialog */}
       <Dialog open={!!pointsStudent} onOpenChange={(open) => { if (!open && !manualSaving) setPointsStudent(null); }}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader><DialogTitle>Award points to {pointsStudent?.displayName}</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">For a paper quiz or earlier work. This adds points to the student's total and the month of the date earned; it does not count as an online quiz.</p>
-          <div className="space-y-3">
-            <div><Label htmlFor="manual-points">Points</Label><Input id="manual-points" type="number" min="1" max="1000" step="1" value={manualPoints} onChange={e => setManualPoints(e.target.value)} /></div>
-            <div><Label htmlFor="manual-reason">Reason or book title</Label><Input id="manual-reason" maxLength={200} placeholder="Paper quiz: book title" value={manualReason} onChange={e => setManualReason(e.target.value)} /></div>
-            <div><Label htmlFor="manual-date">Date earned</Label><Input id="manual-date" type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} /></div>
-            {manualError && <p role="alert" className="text-sm text-destructive">{manualError}</p>}
-            <Button disabled={manualSaving} onClick={awardManualPoints} className="w-full">{manualSaving ? "Saving..." : "Award points"}</Button>
+          <DialogHeader><DialogTitle>Add points for {pointsStudent?.displayName}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-muted/40" role="tablist" aria-label="What are you adding?">
+            <button type="button" role="tab" aria-selected={awardMode === "quiz"} onClick={() => { setAwardMode("quiz"); setManualError(""); }} className={`py-2 rounded-md text-sm font-semibold ${awardMode === "quiz" ? "bg-background shadow" : "text-muted-foreground"}`}>Book quiz</button>
+            <button type="button" role="tab" aria-selected={awardMode === "points"} onClick={() => { setAwardMode("points"); setManualError(""); }} className={`py-2 rounded-md text-sm font-semibold ${awardMode === "points" ? "bg-background shadow" : "text-muted-foreground"}`}>Other points</button>
           </div>
+          {awardMode === "quiz" ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">For a book quiz taken on paper. It's saved as a real quiz result: the student gets the book's points at 70% or higher, it shows in their quiz list, and it unlocks games just like a quiz taken on the computer.</p>
+              <div>
+                <Label htmlFor="quiz-book">Book</Label>
+                {quizBookId ? (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-border">
+                    <span className="text-sm font-medium truncate">{books.find(b => b.id === quizBookId)?.title} <span className="text-muted-foreground font-normal">· {books.find(b => b.id === quizBookId)?.pointsValue ?? 0} pts</span></span>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setQuizBookId(null)}>Change</Button>
+                  </div>
+                ) : (
+                  <>
+                    <Input id="quiz-book" placeholder="Search by title or author" value={quizBookSearch} onChange={e => setQuizBookSearch(e.target.value)} autoComplete="off" />
+                    {quizBookSearch.trim().length >= 2 && (
+                      <ul className="mt-1 max-h-48 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                        {books.filter(b => `${b.title} ${b.author}`.toLowerCase().includes(quizBookSearch.trim().toLowerCase())).slice(0, 30).map(b => (
+                          <li key={b.id}><button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-muted/40" onClick={() => setQuizBookId(b.id)}>
+                            <span className="font-medium">{b.title}</span> <span className="text-muted-foreground">· {b.author} · {b.pointsValue ?? 0} pts</span>
+                          </button></li>
+                        ))}
+                        {!books.some(b => `${b.title} ${b.author}`.toLowerCase().includes(quizBookSearch.trim().toLowerCase())) && <li className="px-3 py-2 text-sm text-muted-foreground">{books.length ? "No book matches that." : "Loading books…"}</li>}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label htmlFor="quiz-score">Number correct</Label><Input id="quiz-score" type="number" min="0" step="1" value={quizScore} onChange={e => setQuizScore(e.target.value)} /></div>
+                <div><Label htmlFor="quiz-total">Out of</Label><Input id="quiz-total" type="number" min="1" step="1" placeholder="10" value={quizTotal} onChange={e => setQuizTotal(e.target.value)} /></div>
+              </div>
+              {quizScore !== "" && quizTotal !== "" && Number(quizTotal) > 0 && (
+                <p className={`text-sm ${Number(quizScore) >= Math.ceil(Number(quizTotal) * 0.7) ? "text-emerald-400" : "text-amber-400"}`}>
+                  {Math.round((Number(quizScore) / Number(quizTotal)) * 100)}%: {Number(quizScore) >= Math.ceil(Number(quizTotal) * 0.7) ? `passes, earns ${books.find(b => b.id === quizBookId)?.pointsValue ?? "the book's"} points and counts toward unlocking games` : "under 70%, saved with no points"}
+                </p>
+              )}
+              <div><Label htmlFor="quiz-date">Date taken</Label><Input id="quiz-date" type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} /></div>
+              <p className="text-xs text-muted-foreground">Games unlock for the week the quiz is dated, so use today's date for a quiz they just finished.</p>
+              {manualError && <p role="alert" className="text-sm text-destructive">{manualError}</p>}
+              {awardNotice && <p role="status" className="text-sm text-emerald-400">{awardNotice}</p>}
+              <Button disabled={manualSaving} onClick={creditBookQuiz} className="w-full">{manualSaving ? "Saving..." : "Save quiz result"}</Button>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">For anything that isn't a book quiz. This adds points to the student's total and the month of the date earned, but doesn't count as a quiz or unlock games.</p>
+              <div className="space-y-3">
+                <div><Label htmlFor="manual-points">Points</Label><Input id="manual-points" type="number" min="1" max="1000" step="1" value={manualPoints} onChange={e => setManualPoints(e.target.value)} /></div>
+                <div><Label htmlFor="manual-reason">Reason</Label><Input id="manual-reason" maxLength={200} placeholder="Reading log, class reward…" value={manualReason} onChange={e => setManualReason(e.target.value)} /></div>
+                <div><Label htmlFor="manual-date">Date earned</Label><Input id="manual-date" type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} /></div>
+                {manualError && <p role="alert" className="text-sm text-destructive">{manualError}</p>}
+                <Button disabled={manualSaving} onClick={awardManualPoints} className="w-full">{manualSaving ? "Saving..." : "Award points"}</Button>
+              </div>
+            </>
+          )}
           <div className="max-h-40 overflow-y-auto text-sm space-y-1">
             <p className="font-medium">Recent manual awards</p>
             {manualHistory.length === 0 ? <p className="text-muted-foreground">No manual awards recorded.</p> : manualHistory.map(a => (
@@ -4632,6 +4733,15 @@ Generate exactly 10 questions.`;
                   <div className="text-xl font-bold text-green-400">{(studentDetail.totalBooks || 0) - (studentDetail.quizzesTaken || 0)}</div>
                   <div className="text-xs text-muted-foreground">Remaining</div>
                 </div>
+              </div>
+
+              {/* Everything the student has done */}
+              <div className="p-3 rounded-xl border border-border">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h4 className="font-semibold text-sm">Activity</h4>
+                  <Button size="sm" variant="outline" onClick={() => detailStudent && openManualPoints(detailStudent)}>Add points or a paper quiz</Button>
+                </div>
+                {detailStudent && <StudentActivity studentId={detailStudent.id} token={token || getTokenFromCookie() || ""} refreshKey={activityKey} />}
               </div>
 
               {/* Assign School */}
@@ -4720,8 +4830,8 @@ Generate exactly 10 questions.`;
                           <p className="text-xs text-muted-foreground">{q.pointsValue || 10} pts</p>
                           {q.proctorType && (
                             <p className={`mt-1 text-[11px] font-bold ${q.proctorType === "camera" ? "text-amber-300" : q.proctorType === "parent" ? "text-cyan-300" : "text-violet-300"}`}>
-                              {q.proctorType === "camera" ? "On their own · camera on" : q.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
-                              {q.proctorName && q.proctorType !== "camera" ? ` · ${q.proctorName}` : ""}
+                              {q.proctorType === "paper" ? "Paper quiz · entered by staff" : q.proctorType === "camera" ? "On their own · camera on" : q.proctorType === "parent" ? "Parent proctored" : "Teacher / staff proctored"}
+                              {q.proctorName && q.proctorType !== "camera" && q.proctorType !== "paper" ? ` · ${q.proctorName}` : ""}
                             </p>
                           )}
                         </div>
