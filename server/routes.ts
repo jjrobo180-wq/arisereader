@@ -970,7 +970,8 @@ export async function registerRoutes(
     },
     userForToken: async (token) => (await storage.getSession(token))?.user ?? null,
     getUser: (id) => storage.getUser(id),
-    countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).length,
+    // students only: a parent account carries its child's teacher too, and must not use up a place
+    countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     appUrl: APP_URL,
