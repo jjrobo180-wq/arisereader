@@ -258,7 +258,7 @@ export default function Polls() {
                     id="poll-question"
                     value={pollQuestion}
                     onChange={(e) => setPollQuestion(e.target.value)}
-                    placeholder="e.g., What should this month's prize be for the winner?"
+                    placeholder="e.g., Which book should the reading club read next?"
                     rows={2}
                   />
                 </div>

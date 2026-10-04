@@ -5,6 +5,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Award, CheckCircle2, Flame, Gift, Lock, Medal, Trophy, Zap } from "lucide-react";
+import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -233,6 +234,11 @@ export default function StudentProgress() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Prizes from the reader's family, teacher and school sit with both the rewards and the rankings. */}
+        {(tab === "rewards" || tab === "leaderboard") && (
+          <PrizeBoard token={authToken} />
         )}
 
         {tab === "rewards" && (

@@ -11,6 +11,8 @@ import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
 import NoProctorReview from "@/components/NoProctorReview";
 import PlayTimeManager from "@/components/PlayTimeManager";
+import { PrizeManager } from "@/components/prizes/PrizeManager";
+import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -540,6 +542,20 @@ export default function ParentDashboard() {
                   </div>
                 )}
                 {controlMessage && <p className="mt-4 rounded-xl bg-muted/30 p-3 text-sm font-bold">{controlMessage}</p>}
+              </CardContent>
+            </Card>
+
+            {/* Prizes: the parent's own, then what the child's teacher and school have put up. */}
+            <Card className="shadow-md">
+              <CardContent className="p-5 flex flex-col gap-6">
+                <PrizeManager token={authToken} role="parent" />
+                <PrizeBoard
+                  token={authToken}
+                  studentId={data.student.id}
+                  childName={data.student.displayName}
+                  heading={`Also up for ${data.student.displayName} at school`}
+                  scopes={["class", "school"]}
+                />
               </CardContent>
             </Card>
 

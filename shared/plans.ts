@@ -68,6 +68,8 @@ export type PlanGrant = {
   stripeSubscriptionId?: string;
   stripeItemId?: string;
   note?: string;
+  /** A school that is always Premium at no charge: no student limit, no end date, nothing to pay. */
+  free?: boolean;
 };
 
 /** Is this plan in force right now? */
@@ -99,6 +101,28 @@ export function grandfathered(createdAt: unknown, now = Date.now()): boolean {
 const DEMO_ACCOUNTS = new Set(["sample", "sample-parent", "tutorial-eye"]);
 export function isDemoAccount(username: unknown): boolean {
   return DEMO_ACCOUNTS.has(String(username || "").toLowerCase());
+}
+
+/**
+ * Schools that are always Premium and never charged: every teacher there, now
+ * or later, and the students in their classes. CGMS is the school A.R.I.S.E.
+ * started at. The admin can add or remove schools in Admin, under Plans and billing.
+ */
+export const FREE_SCHOOL_CODES = ["CGMS"] as const;
+
+/**
+ * Is this the name of an always-free school? A school is found by its short
+ * name ("CGMS", "CGMS Tigers") or by the first letters of its full name
+ * ("C… G… Middle School", with or without the word "School").
+ */
+export function isFreeSchoolName(name: unknown): boolean {
+  const words = String(name || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  if (!words.length) return false;
+  const initials = words.map((w) => w[0]).join("");
+  return FREE_SCHOOL_CODES.some((code) =>
+    words.includes(code)
+    || initials === code
+    || (code.endsWith("MS") && initials === code.slice(0, -1) && words[words.length - 1] === "MIDDLE"));
 }
 
 export type PlanPerson = {
@@ -149,7 +173,7 @@ export type PlanFacts = {
 
 const NONE: Entitlement = { premium: false, via: null, seats: null, endsAt: null };
 const yes = (via: PlanVia, grant?: PlanGrant | null, endsAt?: string | null): Entitlement => ({
-  premium: true, via, seats: grant ? grant.seats : null, endsAt: grant ? grant.endsAt : endsAt ?? null,
+  premium: true, via, seats: grant && !grant.free ? grant.seats : null, endsAt: grant ? grant.endsAt : endsAt ?? null,
 });
 
 function teacherEntitlement(teacher: PlanPerson, own: PlanGrant | null | undefined, school: PlanGrant | null | undefined, now: number): Entitlement {

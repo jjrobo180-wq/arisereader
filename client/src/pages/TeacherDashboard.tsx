@@ -7,6 +7,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { printParentInvites } from "@/lib/parentInvites";
 import NoProctorReview from "@/components/NoProctorReview";
 import PlayTimeManager from "@/components/PlayTimeManager";
+import { PrizeManager } from "@/components/prizes/PrizeManager";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -32,7 +33,7 @@ type BookRequest = { id: number; bookTitle: string; studentName: string; message
 type ParentConnection = { id: number; displayName: string; username: string; code: string; signupUrl: string; parents: Array<{ id: number; displayName: string; username: string; email?: string | null; accountApproved: boolean }> };
 type ClubClosingSchedule = { enabled: boolean; start: string; end: string; days: number[]; timeZone?: string; closedNow?: boolean; adminOverrideClosedNow?: boolean; adminSchedule?: { enabled: boolean; start: string; end: string; days: number[] } };
 
-type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "camera-quizzes" | "grade-changes" | "growth-check" | "club-controls";
+type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "camera-quizzes" | "grade-changes" | "growth-check" | "club-controls" | "prizes";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -433,6 +434,7 @@ export default function TeacherDashboard() {
         <TabButton active={tab === "grade-changes"} onClick={() => setTab("grade-changes")} icon={<GraduationCap size={19} />}>Grade Changes{gradeChangeRequests.length ? ` (${gradeChangeRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "growth-check"} onClick={() => setTab("growth-check")} icon={<Brain size={19} />}>Growth Check</TabButton>
         <TabButton active={tab === "club-controls"} onClick={() => setTab("club-controls")} icon={<Gamepad2 size={19} />}>Club Controls</TabButton>
+        <TabButton active={tab === "prizes"} onClick={() => setTab("prizes")} icon={<Gift size={19} />}>Prizes</TabButton>
       </div>
 
       {actionSuccess && <div style={styles.successBanner}><CheckCircle2 size={18} /> {actionSuccess}</div>}
@@ -762,6 +764,8 @@ export default function TeacherDashboard() {
       )}
 
       {/* === GROWTH CHECK TAB === */}
+      {/* Prizes the teacher puts up for their class or school, and hands out themself. */}
+      {tab === "prizes" && <div style={{ maxWidth: 900, margin: "0 auto" }}><PrizeManager token={getTokenFromCookie()} role="teacher" /></div>}
       {tab === "growth-check" && <div style={{ maxWidth: 900, margin: "0 auto" }}>{growthCheckData.length ? growthCheckData.map((attempt: any) => <div key={attempt.id} style={styles.pendingCard}><div><h2 style={styles.studentName}>{attempt.studentName || "Student"}</h2><p style={styles.username}>Score: {attempt.score}/{attempt.totalQuestions} | WCPM: {attempt.wcpm || "N/A"}</p></div></div>) : <div style={styles.empty}>No growth check data yet.</div>}</div>}
     </section>}
   </main>;

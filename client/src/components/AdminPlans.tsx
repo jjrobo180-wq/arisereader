@@ -12,9 +12,11 @@ import { Label } from "@/components/ui/label";
 import { PLANS, usd } from "@shared/plans";
 
 type PlanRow = { kind: "teacher" | "school"; ownerId: number; name: string; students: number; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; note: string };
+type FreeSchool = { id: number; name: string; free: boolean; byName: boolean };
 type AdminPlansData = {
   enforced: boolean;
   plans: PlanRow[];
+  freeSchools?: FreeSchool[];
   stripe: { keySet: boolean; keyPreview: string; keyFromHosting: boolean; webhookSet: boolean; webhookPreview: string; webhookFromHosting: boolean };
 };
 
@@ -73,9 +75,10 @@ export default function AdminPlans() {
   const toggleRules = async () => {
     if (!data) return;
     const turnOn = !data.enforced;
+    const freeNames = (data.freeSchools || []).filter((f) => f.free).map((f) => f.name).join(", ");
     const noPayment = turnOn && !data.stripe.keySet ? "Online payment is not set up yet, so a new teacher would have no way to pay. Set the Stripe key first, or switch Premium on by hand for each teacher.\n\n" : "";
     const question = turnOn
-      ? noPayment + "Turn plan rules ON?\n\nTeachers who signed up on or after October 1, 2026 will need Premium to use their account. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 5 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
+      ? noPayment + "Turn plan rules ON?\n\n" + (freeNames ? `Teachers at ${freeNames} always have Premium at no charge.\n\n` : "") + "Other teachers who signed up on or after October 1, 2026 will need Premium to use their account. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 5 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
       : "Turn plan rules OFF?\n\nEverything opens up for everyone again. Paid plans keep running and keep being charged.";
     if (!window.confirm(question)) return;
     await post("rules", "/api/admin/plans/enforce", { enforced: turnOn }, turnOn ? "Plan rules are on." : "Plan rules are off.");
@@ -88,6 +91,10 @@ export default function AdminPlans() {
   const revoke = async (row: PlanRow) => {
     if (!window.confirm(`Switch Premium off for ${row.name}?`)) return;
     await post(`revoke-${row.kind}-${row.ownerId}`, "/api/admin/plans/revoke", { kind: row.kind, ownerId: row.ownerId }, "Premium is off for them.");
+  };
+  const setFree = async (school: FreeSchool, free: boolean) => {
+    if (!free && !window.confirm(`Stop ${school.name} being free?\n\nIts teachers will need a paid plan once plan rules are on, unless they signed up before October 1, 2026.`)) return;
+    await post(`free-${school.id}`, "/api/admin/plans/free-school", { schoolId: school.id, free }, free ? `${school.name} is always free now.` : `${school.name} is no longer free.`);
   };
   const saveKeys = async () => {
     const ok = await post("keys", "/api/admin/plans/stripe", { secretKey: secretKey.trim() || undefined, webhookSecret: webhookSecret.trim() || undefined }, "Saved.");
@@ -120,9 +127,33 @@ export default function AdminPlans() {
               </div>
               <p className="text-sm text-muted-foreground">
                 {data.enforced
-                  ? "Teacher accounts need Premium, unless they signed up before October 1, 2026 (free until July 1, 2027). Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
+                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
                   : "Nothing is locked for anyone. Turn the rules on when you are ready for the Free and Premium plans to apply."}
               </p>
+            </div>
+
+            {/* Schools that are always free */}
+            <div className="space-y-2 pt-4 border-t border-border" data-testid="admin-free-schools">
+              <Label className="text-sm font-medium">Schools that are always free</Label>
+              <p className="text-sm text-muted-foreground">
+                Every teacher at these schools has Premium at no charge, now and when they sign up later, and so do the students in their classes. CGMS is picked out by its name. A teacher still needs your approval before their account works.
+              </p>
+              {(data.freeSchools || []).length === 0 ? <p className="text-sm text-muted-foreground">No schools have been added to the site yet.</p> : (
+                <div className="space-y-2">
+                  {(data.freeSchools || []).map((f) => (
+                    <div key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm">
+                      <div className="flex min-w-0 items-center gap-2 font-semibold">
+                        {f.free && <BadgeCheck className="w-4 h-4 shrink-0 text-green-400" />}
+                        <span className="truncate">{f.name}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${f.free ? "bg-green-500/15 text-green-400" : "bg-muted text-muted-foreground"}`}>{f.free ? "Always free" : "Pays for Premium"}</span>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => setFree(f, !f.free)} disabled={busy === `free-${f.id}`} data-testid={`admin-free-school-${f.id}`}>
+                        {busy === `free-${f.id}` ? "Saving…" : f.free ? "Stop being free" : "Make always free"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Who has Premium */}

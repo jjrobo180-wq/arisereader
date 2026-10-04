@@ -4,8 +4,9 @@ import { safeBack } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
-import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Gift, Users, Star, Heart, Calendar, Pizza } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users, Star, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 
 interface LeaderboardEntry {
   rank: number;
@@ -16,31 +17,13 @@ interface LeaderboardEntry {
 }
 
 interface CompetitionSettings {
-  monthlyPrize: string;
-  monthlyDesc: string;
   monthlyCountdownDate: string;
-  yearly1stPrize: string;
-  yearly1stAmount: string;
   yearlyCountdownDate: string;
-  yearly2ndPrize: string;
-  yearly2ndAmount: string;
-  yearly3rdPrize: string;
-  yearly3rdAmount: string;
-  donationNote: string;
 }
 
 const DEFAULT_SETTINGS: CompetitionSettings = {
-  monthlyPrize: "Free Lunch",
-  monthlyDesc: "The #1 reader from each band every month wins a free lunch!",
   monthlyCountdownDate: "",
-  yearly1stPrize: "Ultimate Prize",
-  yearly1stAmount: "$300",
   yearlyCountdownDate: "",
-  yearly2ndPrize: "Prize TBD",
-  yearly2ndAmount: "$100",
-  yearly3rdPrize: "Prize TBD",
-  yearly3rdAmount: "$50",
-  donationNote: "100% of all donations go directly to student prizes. Prize amounts are goals based on donations received.",
 };
 
 const BANDS = ["K-2", "3-5", "6-8", "9-12"];
@@ -130,7 +113,7 @@ function getRecentMonths(count: number): string[] {
 
 export default function Competition() {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [tab, setTab] = useState<"monthly" | "yearly">("monthly");
   const [monthlyBandLeaders, setMonthlyBandLeaders] = useState<Record<string, LeaderboardEntry[]>>({});
   const [yearlyBandLeaders, setYearlyBandLeaders] = useState<Record<string, LeaderboardEntry[]>>({});
@@ -241,8 +224,13 @@ export default function Competition() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Reading Competition</h1>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Read books, take quizzes, and earn points to win prizes every month and at the end of the year!
+            Read books, pass quizzes, and earn points to climb the monthly and yearly leaderboards.
           </p>
+        </div>
+
+        {/* Prizes this reader's own family, teacher and school have put up. Nothing shows when there are none. */}
+        <div className="mb-6 empty:hidden">
+          <PrizeBoard token={token} />
         </div>
 
         {/* Tab Switcher */}
@@ -279,28 +267,18 @@ export default function Competition() {
           <>
             {/* Monthly Competition */}
             <div className="space-y-6">
-              {/* Monthly Prize Card */}
-              <Card className="shadow-lg overflow-hidden border-2 border-yellow-500/30">
-                <div className="bg-gradient-to-r from-yellow-500/20 to-orange-600/10 p-4 sm:p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-5 h-5 text-yellow-400" />
-                    <h2 className="text-lg font-bold text-white">Monthly Prize</h2>
-                  </div>
-                  <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 p-4 text-center">
-                    <Crown className="w-10 h-10 text-yellow-400 mx-auto mb-2" />
-                    <p className="font-bold text-base text-yellow-400">{settings.monthlyPrize}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {settings.monthlyDesc}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-2">
-                      2nd and 3rd place prizes will be announced soon.
-                    </p>
-                  </div>
-                  {settings.monthlyCountdownDate && (
+              {/* Countdown to the end of this month's competition, when the admin has set one */}
+              {settings.monthlyCountdownDate && (
+                <Card className="shadow-lg overflow-hidden border-2 border-yellow-500/30">
+                  <div className="bg-gradient-to-r from-yellow-500/20 to-orange-600/10 p-4 sm:p-6">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-yellow-400" />
+                      <h2 className="text-lg font-bold text-white">This month's competition</h2>
+                    </div>
                     <CountdownTimer targetDate={settings.monthlyCountdownDate} />
-                  )}
-                </div>
-              </Card>
+                  </div>
+                </Card>
+              )}
 
               {/* Month Selector */}
               <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -429,45 +407,16 @@ export default function Competition() {
           <>
             {/* Yearly Competition — Reader of the Year */}
             <div className="space-y-6">
-              {/* Yearly Prize Card */}
+              {/* Reader of the Year */}
               <Card className="shadow-lg overflow-hidden border-2 border-primary/30">
                 <div className="bg-gradient-to-r from-primary/20 to-primary/5 p-4 sm:p-6">
                   <div className="flex items-center gap-2 mb-3">
                     <Star className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-bold text-white">Reader of the Year Prizes</h2>
+                    <h2 className="text-lg font-bold text-white">Reader of the Year</h2>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    The readers with the most points all year win these ultimate prizes! Competition is ongoing — nothing is final yet.
+                  <p className="text-sm text-muted-foreground">
+                    The readers with the most points all year earn the title. The competition is still going, so nothing is final yet.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* 1st Place */}
-                    <div className="rounded-xl bg-gradient-to-br from-yellow-500/20 to-yellow-600/5 border border-yellow-500/30 p-4 text-center">
-                      <Crown className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-                      <p className="font-bold text-sm text-yellow-400">1st Place</p>
-                      <p className="text-xs text-foreground/80 mt-1">{settings.yearly1stPrize}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Goal: {settings.yearly1stAmount}</p>
-                    </div>
-                    {/* 2nd Place */}
-                    <div className="rounded-xl bg-gradient-to-br from-gray-400/20 to-gray-500/5 border border-gray-400/30 p-4 text-center">
-                      <Medal className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                      <p className="font-bold text-sm text-gray-300">2nd Place</p>
-                      <p className="text-xs text-foreground/80 mt-1">{settings.yearly2ndPrize}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Goal: {settings.yearly2ndAmount}</p>
-                    </div>
-                    {/* 3rd Place */}
-                    <div className="rounded-xl bg-gradient-to-br from-orange-600/20 to-orange-700/5 border border-orange-600/30 p-4 text-center">
-                      <Award className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                      <p className="font-bold text-sm text-orange-500">3rd Place</p>
-                      <p className="text-xs text-foreground/80 mt-1">{settings.yearly3rdPrize}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Goal: {settings.yearly3rdAmount}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 rounded-lg bg-card/50 p-3 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      <Heart className="w-3 h-3 inline mr-1 text-red-400" />
-                      {settings.donationNote}
-                    </p>
-                  </div>
                   {settings.yearlyCountdownDate && (
                     <CountdownTimer targetDate={settings.yearlyCountdownDate} />
                   )}
@@ -579,17 +528,17 @@ export default function Competition() {
           </>
         )}
 
-        {/* Advisory Challenge — Pizza Party */}
+        {/* Advisory Challenge */}
         <div className="mt-8">
           <div className="rounded-2xl overflow-hidden border-2 border-orange-500/30 shadow-lg">
             {/* Header banner */}
             <div className="bg-gradient-to-r from-orange-600 to-red-500 px-5 py-4 flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <Pizza className="w-7 h-7 text-white" />
+                <Users className="w-7 h-7 text-white" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Advisory Challenge</h2>
-                <p className="text-sm text-white/90">The advisory with the most points wins a PIZZA PARTY!</p>
+                <p className="text-sm text-white/90">Which advisory class has read its way to the most points?</p>
               </div>
             </div>
 
@@ -642,7 +591,7 @@ export default function Competition() {
               )}
 
               <p className="text-xs text-muted-foreground mt-4 text-center">
-                Points are earned by every student in each advisory class through reading quizzes. The advisory with the highest total at the end of the competition wins a pizza party!
+                Points are earned by every student in each advisory class through reading quizzes. The advisory with the highest total at the end of the competition wins the challenge.
               </p>
             </div>
           </div>
@@ -685,19 +634,6 @@ export default function Competition() {
           </div>
         </Card>
 
-        {/* Donation Note */}
-        <div className="rounded-xl bg-card border border-border p-4 text-center mt-6">
-          <Heart className="w-6 h-6 text-red-400 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">
-            {settings.donationNote}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Yearly prize goals: 1st place {settings.yearly1stAmount} | 2nd place {settings.yearly2ndAmount} | 3rd place {settings.yearly3rdAmount}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            Prize amounts depend on donations received. Monthly 2nd and 3rd place prizes will be announced soon.
-          </p>
-        </div>
       </main>
     </div>
   );

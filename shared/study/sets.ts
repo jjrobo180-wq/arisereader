@@ -82,7 +82,8 @@ const LEET: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "
 
 /** Returns the first word that isn't allowed, or null when the text is fine. */
 export function blockedWord(text: string): string | null {
-  const raw = String(text || "").toLowerCase();
+  // zero-width and other invisible characters can't be used to split a word up
+  const raw = String(text || "").replace(/[\u00AD\u034F\u061C\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF]/g, "").toLowerCase();
   // check the text as written, then again with number-for-letter swaps undone ("sh1t")
   for (const plain of [raw, raw.replace(/[013457@$!]/g, (c) => LEET[c] ?? c)]) {
     for (const w of plain.split(/[^a-z]+/)) {
