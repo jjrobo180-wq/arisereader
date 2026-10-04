@@ -16,6 +16,8 @@ declare module "http" {
 }
 
 app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
+// Build Zone worlds can be a few hundred kilobytes once they're full of builds.
+app.use("/api/city/build", express.json({ limit: "600kb" }));
 
 app.use("/api/eye-gaze/my-world/upload", express.raw({
   type: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"],

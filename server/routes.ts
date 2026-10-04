@@ -18,6 +18,7 @@ import { registerClubPlayRoutes } from "./clubPlay";
 import { registerClubAriseRoutes } from "./clubArise";
 import { registerAriseNewsRoutes } from "./ariseNews";
 import { registerReadsRoutes } from "./readsSync";
+import { registerBuildWorldRoutes } from "./buildWorld";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
@@ -959,6 +960,7 @@ export async function registerRoutes(
   registerClubAriseRoutes(app, authMiddleware);
   registerAriseNewsRoutes(app, authMiddleware);
   registerReadsRoutes(app);
+  registerBuildWorldRoutes(app, authMiddleware);
   registerChessArenaRoutes(app, authMiddleware);
   registerBoardQuestRoutes(app, authMiddleware);
   registerPaintballArenaRoutes(app, authMiddleware, {

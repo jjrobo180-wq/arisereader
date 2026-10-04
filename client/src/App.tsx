@@ -68,6 +68,8 @@ function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
 const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
 const AriseCity = lazyPage(() => import("./pages/AriseCity"));
+const SmashRoom = lazyPage(() => import("./pages/play/SmashRoom"));
+const BuildZone = lazyPage(() => import("./pages/play/BuildZone"));
 const AriseNews = lazyPage(() => import("./pages/news/AriseNews"));
 const NewsArticle = lazyPage(() => import("./pages/news/NewsArticle"));
 const ReadHub = lazyPage(() => import("./pages/reads/ReadHub"));
@@ -396,6 +398,16 @@ function AppRoutes() {
       <Route path="/club-arise/theater">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><ClubTheater /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/city/smash">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><SmashRoom /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/city/build">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><BuildZone /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       <Route path="/city">

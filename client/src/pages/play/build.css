@@ -1,0 +1,35 @@
+/* Build Zone HUD */
+.build-root .play-chip { font-family: "Silkscreen", "Barlow", system-ui, sans-serif; }
+.build-cross { position: absolute; left: 50%; top: 50%; z-index: 15; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; }
+.build-cross::before, .build-cross::after { content: ""; position: absolute; background: rgba(255, 255, 255, 0.9); box-shadow: 0 0 2px #000; }
+.build-cross::before { left: 10px; top: 0; width: 2px; height: 22px; }
+.build-cross::after { top: 10px; left: 0; width: 22px; height: 2px; }
+.build-save svg, .play-chip svg { width: 16px; height: 16px; }
+.build-target { margin-left: auto; }
+.build-hotbar { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 20; display: flex; gap: 4px; padding: 5px; border-radius: 8px; background: rgba(20, 20, 24, 0.75); border: 2px solid rgba(255, 255, 255, 0.25); }
+.build-hotbar button { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); border: 2px solid transparent; }
+.build-hotbar button[aria-pressed="true"] { border-color: #fff; background: rgba(255, 255, 255, 0.18); }
+.build-hotbar kbd { position: absolute; top: 1px; left: 3px; font: 700 10px/1 system-ui; color: rgba(255, 255, 255, 0.7); }
+.build-hotbar .build-more svg { width: 22px; height: 22px; color: #fff; }
+.build-swatch { display: block; width: 28px; height: 28px; border-radius: 3px; box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.22), inset 4px 4px 0 rgba(255, 255, 255, 0.18); image-rendering: pixelated; }
+.build-swatch.clear { opacity: 0.6; outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: -2px; }
+.build-stick { position: absolute; left: 14px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); z-index: 20; }
+.build-buttons { position: absolute; right: 14px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: grid; grid-template-columns: auto auto; gap: 10px; align-items: center; justify-items: center; }
+.build-buttons > :nth-child(1) { grid-column: 2; grid-row: 1; }
+.build-buttons > :nth-child(3) { grid-column: 1; grid-row: 2; }
+.build-buttons > :nth-child(4) { grid-column: 1; grid-row: 1; }
+.build-buttons > :nth-child(5) { grid-column: 1; grid-row: 3; }
+.build-buttons .build-place { grid-column: 2; grid-row: 2 / span 2; background: radial-gradient(circle at 35% 30%, #b2f2bb, #2f9e44); box-shadow: 0 8px 0 #1b6b2c, 0 18px 30px rgba(0, 0, 0, 0.45); color: #04210c; }
+.build-newbtn { position: absolute; right: 12px; top: 64px; z-index: 20; }
+.build-keys { display: grid; gap: 6px; text-align: left; font-size: 14px; }
+.build-keys kbd { padding: 1px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.14); font: 800 12px system-ui; }
+.build-go { background: #40c057; color: #04210c; }
+.build-picker { width: min(640px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.build-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; text-align: left; }
+.build-grid button { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; font-weight: 700; font-size: 13px; }
+.build-grid button:hover, .build-grid button:focus-visible { border-color: #8ce99a; }
+.build-templates { display: grid; gap: 8px; margin-bottom: 14px; }
+.build-templates button { display: grid; gap: 2px; justify-items: start; padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff; text-align: left; }
+.build-templates button:hover { border-color: #8ce99a; }
+.build-templates span { font-size: 13px; color: rgba(255, 255, 255, 0.7); }
+@media (max-width: 560px) { .build-hotbar button { width: 34px; height: 38px; } .build-swatch { width: 22px; height: 22px; } .build-hotbar { gap: 2px; padding: 3px; bottom: 10px; } }

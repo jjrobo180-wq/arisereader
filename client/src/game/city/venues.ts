@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
-  ARCADE, BEACH_SHOPS, BIG_TOP, BOOTHS, BUMPER, CABINETS, COUNTER, FAIR, FOOD_STANDS, INTERIORS, RESTAURANTS, RIDES, ROADS, ROAD_HALF, TABLES, TOWERS, TRAIN, TRAIN_PILLARS,
+  ARCADE, BEACH_SHOPS, BIG_TOP, BOOTHS, BUILD, SMASH, BUMPER, CABINETS, COUNTER, FAIR, FOOD_STANDS, INTERIORS, RESTAURANTS, RIDES, ROADS, ROAD_HALF, TABLES, TOWERS, TRAIN, TRAIN_PILLARS,
   cabinetPos, isNS, rng,
 } from "@shared/city/layout";
 import { signTexture } from "./textures";
@@ -55,6 +55,10 @@ export type Venues = {
   /** World position (and look direction) of the seat on a ride, for the ride camera. */
   rideSeat: (id: "wheel" | "carousel" | "drop") => { pos: THREE.Vector3; look: THREE.Vector3 };
   trainCars: () => THREE.Object3D[];
+  /** Restarts the Sky Drop's climb (when you board it). */
+  startDrop: (t: number) => void;
+  /** The bumper cars: your car and the others (with a way to shove one). */
+  bumper: () => { player: THREE.Group; cars: THREE.Group[]; push: (i: number, dx: number, dz: number) => void };
   /** Shows one indoor room (or none when you're outside). */
   showRoom: (id: string | null) => void;
 };
@@ -200,6 +204,45 @@ export function buildVenues(scene: THREE.Scene, keep: <T extends { dispose: () =
     updaters.push((t) => { (tube.material as THREE.MeshBasicMaterial).color.setHSL((t * 0.1) % 1, 1, 0.6); });
   }
 
+  // ═══ The Play Block: Smash Room and Build Zone ═══
+  {
+    // Smash Room: a dark corrugated warehouse with a roll-up door and a neon sign
+    const sb = SMASH.building, sw = sb.maxX - sb.minX, sd = sb.maxZ - sb.minZ, sx = (sb.minX + sb.maxX) / 2, sz = (sb.minZ + sb.maxZ) / 2;
+    const corr = keep(canvasTex(128, 128, (g) => { for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? "#2b2f36" : "#3a3f48"; g.fillRect(i * 8, 0, 8, 128); } }));
+    corr.repeat.set(sw / 3, 3);
+    add(boxAt(sw, SMASH.height, sd, sx, 0, sz), keep(std(0xffffff, { map: corr, metalness: 0.5, roughness: 0.55 })), { cast: true });
+    add(boxAt(sw + 0.6, 0.5, sd + 0.6, sx, SMASH.height, sz), dark);
+    const stripes = keep(canvasTex(128, 32, (g) => { for (let i = -2; i < 12; i++) { g.fillStyle = "#fcc419"; g.beginPath(); g.moveTo(i * 16, 32); g.lineTo(i * 16 + 8, 32); g.lineTo(i * 16 + 24, 0); g.lineTo(i * 16 + 16, 0); g.fill(); } }));
+    stripes.repeat.set(3, 1);
+    const door = new THREE.Mesh(keep(new THREE.PlaneGeometry(8, 5.2)), keep(std(0x6c757d, { metalness: 0.6, roughness: 0.4, map: keep(canvasTex(64, 128, (g) => { for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? "#868e96" : "#5c636a"; g.fillRect(0, i * 8, 64, 8); } }, false)) })));
+    door.position.set(SMASH.door.x, 2.6, sb.maxZ + 0.04); parent.add(door);
+    const frame = new THREE.Mesh(keep(new THREE.PlaneGeometry(9.2, 0.7)), keep(new THREE.MeshBasicMaterial({ map: stripes, color: 0xffffff }))); frame.position.set(SMASH.door.x, 5.6, sb.maxZ + 0.05); parent.add(frame);
+    const sTex = keep(signTexture([{ text: "SMASH ROOM", size: 140, color: "#ff6b3d" }, { text: "BREAK STUFF · ON PURPOSE", size: 48, color: "#ffd8a8" }], { w: 1024, h: 300, bg: "#140707", border: "#ff6b3d" }));
+    sign(sTex, 16, 4.7, sx, SMASH.height - 3.1, sb.maxZ + 0.06, 0);
+    const glow = new THREE.Mesh(keep(new THREE.BoxGeometry(16.6, 0.14, 0.14)), keep(neon(0xff6b3d))); glow.position.set(sx, SMASH.height - 0.5, sb.maxZ + 0.1); parent.add(glow);
+    updaters.push((t) => { (glow.material as THREE.MeshBasicMaterial).color.setHSL(0.04, 1, 0.5 + Math.sin(t * 7) * 0.08 * (Math.sin(t * 1.3) > 0.85 ? 3 : 1)); });
+    // junk waiting outside: crates and an old TV
+    merged([boxAt(1.4, 1.4, 1.4, sb.minX + 2.5, 0, sb.maxZ + 2.4), boxAt(1.2, 1.2, 1.2, sb.minX + 2.6, 1.4, sb.maxZ + 2.3, 0.4), boxAt(1.4, 1.4, 1.4, sb.minX + 4.2, 0, sb.maxZ + 2.8, 0.2)], wood, true);
+    add(boxAt(1.3, 1, 1.1, sb.maxX - 3, 0, sb.maxZ + 2.4), keep(std(0x343a40)), { cast: true });
+    const scr = new THREE.Mesh(keep(new THREE.PlaneGeometry(0.9, 0.65)), keep(std(0x1b4332, { emissive: 0x2b8a3e, emissiveIntensity: 0.3 }))); scr.position.set(sb.maxX - 3, 0.5, sb.maxZ + 2.96); parent.add(scr);
+
+    // Build Zone: a building made of blocks, with a pixel sign and block sculptures out front
+    const bb = BUILD.building, bw = bb.maxX - bb.minX, bd2 = bb.maxZ - bb.minZ, bx = (bb.minX + bb.maxX) / 2, bz = (bb.minZ + bb.maxZ) / 2;
+    const blocks = keep(canvasTex(128, 128, (g) => {
+      const cols = ["#5c940d", "#8d6e4f", "#868e96", "#b08968", "#4dabf7", "#f59f00", "#e64980", "#20c997"], r = rng(4);
+      for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = cols[Math.floor(r() * cols.length)]; g.fillRect(i * 16, j * 16, 16, 16); g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(i * 16, j * 16 + 14, 16, 2); g.fillRect(i * 16 + 14, j * 16, 2, 16); }
+    }));
+    blocks.magFilter = THREE.NearestFilter; blocks.repeat.set(bw / 8, BUILD.height / 8);
+    add(boxAt(bw, BUILD.height, bd2, bx, 0, bz), keep(std(0xffffff, { map: blocks, roughness: 0.9 })), { cast: true });
+    const bTex = keep(signTexture([{ text: "BUILD ZONE", size: 140, color: "#8ce99a" }, { text: "BLOCKS · BUILD ANYTHING", size: 48, color: "#ffffff" }], { w: 1024, h: 300, bg: "#0b1d12", border: "#8ce99a" }));
+    sign(bTex, 16, 4.7, bx, BUILD.height - 3.2, bb.maxZ + 0.06, 0);
+    add(boxAt(6, 4.6, 0.2, BUILD.door.x, 0, bb.maxZ + 0.05), keep(std(0x1b4332, { emissive: 0x2f9e44, emissiveIntensity: 0.35 })));
+    const cube = (c: number) => keep(std(c, { roughness: 0.85 }));
+    const sculpt: [number, number, number, number][] = [[-1, 0, 0, 0x5c940d], [0, 0, 0, 0x8d6e4f], [1, 0, 0, 0x868e96], [0, 1, 0, 0x5c940d], [-1, 1, 0, 0x8d6e4f], [0, 2, 0, 0xf59f00]];
+    for (const [ix, iy, iz, c] of sculpt) add(boxAt(1.4, 1.4, 1.4, bb.minX + 4 + ix * 1.42, iy * 1.42, bb.maxZ + 4 + iz * 1.42), cube(c), { cast: true });
+    for (const [ix, iy, c] of [[0, 0, 0x4dabf7], [0, 1, 0x4dabf7], [1, 0, 0xe64980]] as [number, number, number][]) add(boxAt(1.4, 1.4, 1.4, bb.maxX - 4 + ix * 1.42, iy * 1.42, bb.maxZ + 4), cube(c), { cast: true });
+  }
+
   // ═══ Indoor rooms ═══
   for (const room of INTERIORS) {
     const roomGroup = new THREE.Group(); roomGroup.visible = false; scene.add(roomGroup); rooms.set(room.id, roomGroup); parent = roomGroup;
@@ -319,6 +362,10 @@ export function buildVenues(scene: THREE.Scene, keep: <T extends { dispose: () =
 
   // ═══ Haven Fairgrounds ═══
   const seats: Record<string, THREE.Object3D> = {};
+  let dropStart = 0;
+  let playerBumper: THREE.Group | null = null;
+  let bumperMinis: THREE.Group[] = [];
+  let bumpMini: (i: number, dx: number, dz: number) => void = () => {};
   {
     const { minX, maxX, minZ, maxZ } = FAIR, cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
     // trampled grass with wide sawdust midways
@@ -385,7 +432,7 @@ export function buildVenues(scene: THREE.Scene, keep: <T extends { dispose: () =
     const ringMesh = new THREE.Mesh(keep(new THREE.TorusGeometry(3.2, 0.6, 8, 24)), keep(std(0xf59f00, { roughness: 0.4 }))); ringMesh.rotation.x = Math.PI / 2; ring.add(ringMesh);
     const seatMark = new THREE.Object3D(); seatMark.position.set(0, 0.8, 3.6); ring.add(seatMark); seats.drop = seatMark;
     updaters.push((t) => {
-      const c = (t % 14) / 14; // slow climb, pause, fast drop, rest
+      const c = ((((t - dropStart) % 14) + 14) % 14) / 14; // slow climb, pause, fast drop, rest
       const y = c < 0.55 ? (c / 0.55) * 36 : c < 0.65 ? 36 : c < 0.72 ? 36 * (1 - ((c - 0.65) / 0.07) ** 2) : 0;
       ring.position.y = 1 + Math.max(0, y);
       ring.rotation.y = t * 0.2;
@@ -395,9 +442,32 @@ export function buildVenues(scene: THREE.Scene, keep: <T extends { dispose: () =
     const bump = keep(std(0x343a40, { metalness: 0.6, roughness: 0.3 }));
     add(flat(BUMPER.w, BUMPER.d, BUMPER.x, BUMPER.z, 0.03), bump);
     merged([boxAt(BUMPER.w, 1, 0.5, BUMPER.x, 0, BUMPER.z - BUMPER.d / 2), boxAt(BUMPER.w, 1, 0.5, BUMPER.x, 0, BUMPER.z + BUMPER.d / 2), boxAt(0.5, 1, BUMPER.d, BUMPER.x - BUMPER.w / 2, 0, BUMPER.z), boxAt(0.5, 1, BUMPER.d, BUMPER.x + BUMPER.w / 2, 0, BUMPER.z)], keep(std(0xfcc419)));
-    const minis: THREE.Mesh[] = [];
-    for (let i = 0; i < 8; i++) { const m = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.9, 1, 0.8, 14)), keep(std([0xe03131, 0x1c7ed6, 0x2f9e44, 0xae3ec9][i % 4], { roughness: 0.3 }))); m.position.y = 0.4; m.castShadow = true; parent.add(m); minis.push(m); }
-    updaters.push((t) => minis.forEach((m, i) => { m.position.x = BUMPER.x + Math.sin(t * (0.5 + i * 0.07) + i * 2) * (BUMPER.w / 2 - 2); m.position.z = BUMPER.z + Math.cos(t * (0.6 + i * 0.05) + i) * (BUMPER.d / 2 - 2); m.rotation.y = t * (i % 2 ? 1 : -1); }));
+    // a sparking ceiling grid on poles, like a real bumper car floor
+    merged([[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => cyl(0.18, 0.18, 6, BUMPER.x + sx * (BUMPER.w / 2 - 0.3), 0, BUMPER.z + sz * (BUMPER.d / 2 - 0.3), 8)), dark);
+    const net = new THREE.Mesh(keep(new THREE.PlaneGeometry(BUMPER.w, BUMPER.d, 12, 8)), keep(new THREE.MeshBasicMaterial({ color: 0x868e96, wireframe: true })));
+    net.rotation.x = -Math.PI / 2; net.position.set(BUMPER.x, 6, BUMPER.z); parent.add(net);
+    const bumperCar = (color: number) => {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.95, 1.05, 0.6, 18)), keep(std(color, { roughness: 0.25, metalness: 0.3 }))); body.position.y = 0.45; body.castShadow = true; g.add(body);
+      const rub = new THREE.Mesh(keep(new THREE.TorusGeometry(1.05, 0.16, 8, 24)), dark); rub.rotation.x = Math.PI / 2; rub.position.y = 0.3; g.add(rub);
+      const seat = new THREE.Mesh(keep(new THREE.BoxGeometry(0.9, 0.6, 0.25)), keep(std(0x212529))); seat.position.set(0, 0.95, -0.45); g.add(seat);
+      const pole = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.04, 0.04, 4.6, 6)), metal); pole.position.set(0, 3, -0.7); g.add(pole);
+      const spark = new THREE.Mesh(keep(new THREE.SphereGeometry(0.12, 8, 6)), keep(neon(0x74c0fc))); spark.position.set(0, 5.35, -0.7); g.add(spark);
+      return g;
+    };
+    const minis: THREE.Group[] = [];
+    const pushes = Array.from({ length: 8 }, () => new THREE.Vector2());
+    for (let i = 0; i < 8; i++) { const m = bumperCar([0xe03131, 0x1c7ed6, 0x2f9e44, 0xae3ec9][i % 4]); parent.add(m); minis.push(m); }
+    playerBumper = bumperCar(0xfcc419); playerBumper.visible = false; parent.add(playerBumper);
+    bumperMinis = minis;
+    bumpMini = (i, dx, dz) => { pushes[i].x += dx; pushes[i].y += dz; };
+    updaters.push((t, dt) => minis.forEach((m, i) => {
+      pushes[i].multiplyScalar(Math.max(0, 1 - dt * 1.8));
+      const x = BUMPER.x + Math.sin(t * (0.5 + i * 0.07) + i * 2) * (BUMPER.w / 2 - 2) + pushes[i].x;
+      const z = BUMPER.z + Math.cos(t * (0.6 + i * 0.05) + i) * (BUMPER.d / 2 - 2) + pushes[i].y;
+      m.position.set(Math.max(BUMPER.x - BUMPER.w / 2 + 1.3, Math.min(BUMPER.x + BUMPER.w / 2 - 1.3, x)), 0, Math.max(BUMPER.z - BUMPER.d / 2 + 1.3, Math.min(BUMPER.z + BUMPER.d / 2 - 1.3, z)));
+      m.rotation.y = t * (i % 2 ? 0.8 : -0.8) + i;
+    }));
 
     // game booths and food stands
     for (const b of BOOTHS) {
@@ -516,6 +586,8 @@ export function buildVenues(scene: THREE.Scene, keep: <T extends { dispose: () =
 
   return {
     update(t, dt) { for (const u of updaters) u(t, dt); },
+    startDrop(t) { dropStart = t; },
+    bumper: () => ({ player: playerBumper!, cars: bumperMinis, push: bumpMini }),
     showRoom(id) {
       for (const [rid, g] of rooms) g.visible = rid === id;
       const room = INTERIORS.find((r) => r.id === id);

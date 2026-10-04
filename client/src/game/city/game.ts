@@ -10,7 +10,7 @@ import { HOME_MODELS } from "@/lib/worldModels";
 import { loadGltfCached } from "@/lib/worldAvatar";
 import {
   LOTS, STARS, areaName, nearestSpot, rampAt, resolveCircle, type Spot, DEALER,
-  ARCADE, COUNTER, INTERIORS, RESTAURANTS, RIDES, TABLES, cabinetPos, interiorAt, interiorEntry, type Interior, type RideId,
+  ARCADE, BUMPER, COUNTER, INTERIORS, RESTAURANTS, RIDES, TABLES, cabinetPos, interiorAt, interiorEntry, type Interior, type RideId,
 } from "@shared/city/layout";
 import { CARS, CAR_RADIUS, GROUNDED, carFor, dashSpeed, groundAt, stepCar, stepLift, stepWalker, wrapAngle, type CarId, type CarState, type Lift } from "@shared/city/drive";
 import { GRID_PLAYER, LAP_LENGTH, lapsDone, makeRivals, startTracker, stepRival, trackPoint, updateTracker, type LapTracker, type Rival } from "@shared/city/race";
@@ -21,6 +21,8 @@ import { makeCar, type CarRig } from "./models";
 import { CityAudio } from "./audio";
 import { Minimap, type MapDot } from "./minimap";
 import { CHATTER, GREETINGS, Voices, speechBubble } from "./voices";
+import { NavRoute } from "./nav";
+import { findRoute, routeProgress } from "@shared/city/navigate";
 
 export type CitySelf = { userId: number; displayName: string; characterId: string; petId: string; carId: string; x: number; z: number; facing: number };
 export type CityPlayer = { userId: number; displayName: string; characterId: string; petId: string; carId: string; x: number; z: number; facing: number; driving: boolean; speed: number; phrase: string | null };
@@ -39,6 +41,9 @@ export type CityHud = {
   /** Seconds of energy left after a meal (you walk and drive a little faster). */
   energy: number;
   ride: { id: RideId; name: string; left: number } | null;
+  /** Directions you're following: where to, how far, and the next turn (arrow: degrees, 0 = straight ahead). */
+  nav: { name: string; left: number; turn: "left" | "right" | "straight" | "arrive"; toCorner: number; arrow: number } | null;
+  bumper: { left: number; bumps: number } | null;
 };
 export type StarFound = { id: string; found: number; total: number };
 
@@ -149,6 +154,11 @@ export class CityGame {
   private eating: { start: number; seatX: number; seatZ: number; food: THREE.Object3D; nextBite: number } | null = null;
   private energyUntil = 0;
   private riding: { id: RideId; until: number } | null = null;
+  private bumperRun: { until: number; x: number; z: number; h: number; vx: number; vz: number; bumps: number; lastBump: number } | null = null;
+  private navDest: { name: string; x: number; z: number } | null = null;
+  private navPath: [number, number][] | null = null;
+  private navCheck = 0;
+  private navLine!: NavRoute;
   private npcs: Npc[] = [];
   readonly voices = new Voices();
   private nextChatter = 0;
@@ -182,6 +192,7 @@ export class CityGame {
     this.scene.environment = this.envMap;
     this.scene.environmentIntensity = 0.55;
     this.city = buildCity(this.scene);
+    this.navLine = new NavRoute(this.scene);
     this.sun = new THREE.DirectionalLight(0xffd2a8, 2.1);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -273,7 +284,7 @@ export class CityGame {
   /** Gets in (bringing the car over if it's far away) or gets out. */
   toggleCar() {
     if (this.race || this.lift.air) return;
-    if (this.room || this.riding || this.eating) { if (!this.driving) this.onNote?.(this.riding ? "Wait for the ride to finish, or tap Get off." : this.eating ? "Finish your food first." : "Step outside to get in your car."); return; }
+    if (this.room || this.riding || this.eating || this.bumperRun) { if (!this.driving) this.onNote?.(this.riding ? "Wait for the ride to finish, or tap Get off." : this.eating ? "Finish your food first." : "Step outside to get in your car."); return; }
     this.wake();
     if (this.driving) {
       if (Math.abs(this.car.speed) > 4) { this.car.speed *= 0.3; }
@@ -383,6 +394,7 @@ export class CityGame {
     if (this.driving || this.riding || this.race) return false;
     this.wake();
     this.riding = { id, until: performance.now() + RIDE_TIME[id] * 1000 };
+    if (id === "drop") this.city.venues.startDrop(this.clock.elapsedTime);
     this.rig.root.visible = false;
     if (this.pet) this.pet.visible = false;
     this.audio.beep(true);
@@ -398,6 +410,100 @@ export class CityGame {
     if (this.pet) { this.pet.visible = true; this.pet.position.set(ride.spot.x + 1, 0, ride.spot.z); }
     this.camera.position.set(ride.spot.x, 5, ride.spot.z + 8);
     this.camYaw = 0;
+  }
+
+  // ── Directions ────────────────────────────────────────────────────────────
+  /** Shows the way to a place (or clears directions with null). */
+  navigateTo(dest: { name: string; x: number; z: number } | null) {
+    this.navDest = dest;
+    this.navPath = null;
+    if (dest) this.reroute();
+    else this.navLine.set(null);
+  }
+  get navigating() { return this.navDest; }
+  private reroute() {
+    if (!this.navDest) return;
+    const p = this.getPose();
+    this.navPath = findRoute(p.x, p.z, this.navDest.x, this.navDest.z);
+    this.navLine.set(this.navPath);
+  }
+  private navHud(): CityHud["nav"] {
+    const d = this.navDest; if (!d || !this.navPath) return null;
+    const p = this.getPose();
+    if (this.room) return { name: d.name, left: 0, turn: "straight", toCorner: 0, arrow: 180 };
+    if (Math.hypot(p.x - d.x, p.z - d.z) < 9) {
+      const name = d.name;
+      this.navigateTo(null); this.audio.chime(); this.onNote?.(`You've arrived at ${name}!`);
+      return null;
+    }
+    const prog = routeProgress(this.navPath, p.x, p.z);
+    const now = performance.now();
+    if (prog.offRoute > 16 && now - this.navCheck > 1500) { this.navCheck = now; this.reroute(); }
+    const h = Math.atan2(prog.next[0] - p.x, prog.next[1] - p.z), cam = this.camYaw + Math.PI;
+    return { name: d.name, left: Math.round(prog.left), turn: prog.turn, toCorner: Math.round(prog.toCorner), arrow: Math.round((-wrapAngle(h - cam) * 180) / Math.PI) };
+  }
+
+  // ── Bumper cars and fair treats ───────────────────────────────────────────
+  startBumper() {
+    if (this.driving || this.riding || this.bumperRun || this.race) return false;
+    this.wake();
+    const car = this.city.venues.bumper().player;
+    car.visible = true;
+    this.bumperRun = { until: performance.now() + 75_000, x: BUMPER.x, z: BUMPER.z + BUMPER.d / 2 - 2.5, h: Math.PI, vx: 0, vz: 0, bumps: 0, lastBump: 0 };
+    this.rig.sit(true); if (this.pet) this.pet.visible = false;
+    this.camYaw = 0;
+    this.audio.beep(true);
+    return true;
+  }
+  stopBumper() {
+    const b = this.bumperRun; if (!b) return;
+    this.bumperRun = null;
+    this.city.venues.bumper().player.visible = false;
+    this.walker.set(BUMPER.x, 0, BUMPER.z + BUMPER.d / 2 + 2.2);
+    this.rig.sit(false); if (this.pet) { this.pet.visible = true; this.pet.position.set(this.walker.x + 1, 0, this.walker.z); }
+    this.onNote?.(b.bumps ? `Bumper cars done: ${b.bumps} bumps!` : "Bumper cars done!");
+  }
+  private stepBumper(dt: number, k: Set<string>, now: number) {
+    const b = this.bumperRun!;
+    const stick = this.paused ? null : this.stick;
+    const gas = stick ? stick.y : (k.has("w") ? 1 : 0) - (k.has("s") ? 1 : 0);
+    const turn = stick ? -stick.x : (k.has("a") ? 1 : 0) - (k.has("d") ? 1 : 0);
+    b.h += turn * dt * 2.6;
+    b.vx += Math.sin(b.h) * gas * 14 * dt; b.vz += Math.cos(b.h) * gas * 14 * dt;
+    const damp = Math.max(0, 1 - dt * 1.6); b.vx *= damp; b.vz *= damp;
+    const sp = Math.hypot(b.vx, b.vz); if (sp > 8) { b.vx *= 8 / sp; b.vz *= 8 / sp; }
+    b.x += b.vx * dt; b.z += b.vz * dt;
+    const bump = (strength: number) => { if (now - b.lastBump > 350) { b.lastBump = now; b.bumps++; this.audio.bump(); if (strength > 4) this.onBump?.(); } };
+    const minX = BUMPER.x - BUMPER.w / 2 + 1.3, maxX = BUMPER.x + BUMPER.w / 2 - 1.3, minZ = BUMPER.z - BUMPER.d / 2 + 1.3, maxZ = BUMPER.z + BUMPER.d / 2 - 1.3;
+    if (b.x < minX || b.x > maxX) { b.x = Math.max(minX, Math.min(maxX, b.x)); b.vx *= -0.7; bump(Math.abs(b.vx)); }
+    if (b.z < minZ || b.z > maxZ) { b.z = Math.max(minZ, Math.min(maxZ, b.z)); b.vz *= -0.7; bump(Math.abs(b.vz)); }
+    const { player, cars, push } = this.city.venues.bumper();
+    cars.forEach((c, i) => {
+      const dx = b.x - c.position.x, dz = b.z - c.position.z, d = Math.hypot(dx, dz);
+      if (d < 2.2 && d > 0.01) {
+        const nx = dx / d, nz = dz / d, rel = b.vx * nx + b.vz * nz;
+        b.x = c.position.x + nx * 2.2; b.z = c.position.z + nz * 2.2;
+        b.vx += nx * (Math.max(0, -rel) * 1.4 + 3); b.vz += nz * (Math.max(0, -rel) * 1.4 + 3);
+        push(i, -nx * 2.5, -nz * 2.5);
+        bump(Math.abs(rel) + 3);
+      }
+    });
+    player.position.set(b.x, 0, b.z); player.rotation.y = b.h;
+    // you, sitting in it
+    this.rig.root.position.set(b.x - Math.sin(b.h) * 0.12, 0.32, b.z - Math.cos(b.h) * 0.12); this.rig.root.rotation.y = b.h; this.facing = b.h;
+    this.rig.update(dt, 0);
+    this.walker.set(b.x, 0, b.z);
+    this.audio.engine(true, Math.min(1, Math.hypot(b.vx, b.vz) / 8) * 0.5);
+    if (now > b.until) this.stopBumper();
+  }
+
+  /** A quick fair treat: a little energy boost. */
+  eatTreat(name: string) {
+    this.wake();
+    this.energyUntil = Math.max(this.energyUntil, performance.now() + 60_000);
+    this.rig.gesture("interact");
+    this.audio.bite();
+    this.onNote?.(`Mmm, ${name.toLowerCase()}! A little energy boost for a minute.`);
   }
 
   /** Staff and customers inside a room, made the first time you walk in. */
@@ -740,7 +846,10 @@ export class CityGame {
     if (this.riding && now > this.riding.until) { this.stopRide(); this.onNote?.("What a ride!"); }
     const energized = now < this.energyUntil;
 
-    if (this.riding) {
+    if (this.bumperRun) {
+      this.stepBumper(dt, k, now);
+      this.carRig.root.position.set(this.car.x, this.lift.y, this.car.z);
+    } else if (this.riding) {
       this.rig.update(dt, 0);
       this.carRig.root.position.set(this.car.x, this.lift.y, this.car.z);
       this.audio.engine(false, 0);
@@ -871,12 +980,13 @@ export class CityGame {
     this.sun.position.set(this.walker.x - 40, 70, this.walker.z - 30);
     this.sun.target.position.set(this.walker.x, 0, this.walker.z);
     this.city.update(t, dt);
+    this.navLine.update(t);
     this.renderer.render(this.scene, this.camera);
 
     if (now - this.hudAt > 120) {
       this.hudAt = now;
       const pose = this.getPose();
-      const spot = this.riding || this.eating ? null : nearestSpot(pose.x, pose.z);
+      const spot = this.riding || this.eating || this.bumperRun ? null : nearestSpot(pose.x, pose.z);
       this.onHud({
         driving: this.driving, speed: this.driving ? dashSpeed(this.car.speed) : 0, area: areaName(pose.x, pose.z), spot,
         nearCar: !this.driving && Math.hypot(this.car.x - this.walker.x, this.car.z - this.walker.z) < 7,
@@ -887,22 +997,35 @@ export class CityGame {
         eating: this.eating ? Math.min(1, (now - this.eating.start) / (EAT_TIME * 1000)) : null,
         energy: Math.max(0, Math.ceil((this.energyUntil - now) / 1000)),
         ride: this.riding ? { id: this.riding.id, name: RIDES.find((r) => r.id === this.riding!.id)!.name, left: Math.max(0, Math.ceil((this.riding.until - now) / 1000)) } : null,
+        nav: this.navHud(),
+        bumper: this.bumperRun ? { left: Math.max(0, Math.ceil((this.bumperRun.until - now) / 1000)), bumps: this.bumperRun.bumps } : null,
       });
       if (this.mapCtx && !this.room) {
         const dots: MapDot[] = [];
         for (const r of this.remotes.values()) dots.push({ x: r.target.x, z: r.target.z, color: "#a78bfa", size: 3 });
         for (const c of this.traffic) dots.push({ x: c.x, z: c.z, color: "rgba(255,255,255,.45)", size: 1.6 });
         if (!this.driving) dots.push({ x: this.car.x, z: this.car.z, color: "#5eead4", size: 3 });
-        this.minimap.draw(this.mapCtx, { x: pose.x, z: pose.z, heading: pose.facing }, dots);
+        this.minimap.draw(this.mapCtx, { x: pose.x, z: pose.z, heading: pose.facing }, dots, this.navPath);
       }
     }
   };
 
   private updateCamera(dt: number) {
+    if (this.bumperRun) {
+      const b = this.bumperRun, yaw = b.h + Math.PI;
+      this.camYaw = this.camYaw + wrapAngle(yaw - this.camYaw) * Math.min(1, dt * 4);
+      const desired = new THREE.Vector3(b.x + Math.sin(this.camYaw) * 4.6, 4.4, b.z + Math.cos(this.camYaw) * 4.6);
+      this.camera.position.lerp(desired, Math.min(1, dt * 6));
+      // look a little past your car so you can see who you're about to bump
+      this.camera.lookAt(b.x - Math.sin(this.camYaw) * 3, 0.6, b.z - Math.cos(this.camYaw) * 3);
+      return;
+    }
     if (this.riding) {
       const seat = this.city.venues.rideSeat(this.riding.id);
       const eye = seat.pos.clone();
       eye.y += this.riding.id === "wheel" ? -1.2 : this.riding.id === "carousel" ? 1.35 : 1.1;
+      // on the wheel, sit at the front edge of the cabin so the rim isn't in your face
+      if (this.riding.id === "wheel") eye.x -= 2.1;
       this.camera.position.copy(eye);
       this.camera.lookAt(seat.look);
       return;
@@ -1015,6 +1138,8 @@ export class CityGame {
 
   /** Moves the reader (on foot or in the car) to a spot. */
   teleport(x: number, z: number, facing: number) {
+    if (this.bumperRun) this.stopBumper();
+    if (this.riding) this.stopRide();
     if (this.driving) { this.car = { x, z, heading: facing, speed: 0, drift: 0 }; this.lift = { y: groundAt(x, z), vy: 0, air: false }; this.camYaw = facing + Math.PI; }
     else { this.walker.set(x, 0, z); this.walkerY = groundAt(x, z); this.facing = facing; this.camYaw = facing + Math.PI; }
     this.camera.position.set(x - Math.sin(facing) * 9, 5, z - Math.cos(facing) * 9);
@@ -1056,6 +1181,7 @@ export class CityGame {
     this.walkerViews.forEach((v) => v?.rig.dispose());
     this.npcs.forEach((n) => n.rig.dispose());
     this.voices.stop();
+    this.navLine.dispose();
     this.audio.dispose();
     this.city.dispose();
     this.scene.traverse((o) => {

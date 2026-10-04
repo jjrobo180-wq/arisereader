@@ -7,8 +7,8 @@
 
 export type Box = { minX: number; maxX: number; minZ: number; maxZ: number };
 export type Surface = "road" | "paved" | "grass" | "track" | "sand" | "dirt";
-export type SpotKind = "home" | "cinema" | "dealer" | "petshop" | "speedway" | "plaza" | "library" | "venue" | "exit" | "order" | "seat" | "cabinet" | "ride";
-export type Spot = { id: string; kind: SpotKind; x: number; z: number; radius: number; label: string; lot?: number; venue?: string; game?: string; ride?: RideId };
+export type SpotKind = "home" | "cinema" | "dealer" | "petshop" | "speedway" | "plaza" | "library" | "venue" | "exit" | "order" | "seat" | "cabinet" | "ride" | "bumper" | "booth" | "treat" | "smash" | "build";
+export type Spot = { id: string; kind: SpotKind; x: number; z: number; radius: number; label: string; lot?: number; venue?: string; game?: string; ride?: RideId; booth?: number };
 export type Lot = { index: number; x: number; z: number; facing: number; doorX: number; doorZ: number };
 export type Tower = Box & { height: number; color: number; seed: number };
 
@@ -157,10 +157,10 @@ export const LOTS: Lot[] = (() => {
 })();
 
 /** The 18 blocks of North Haven (between its streets) and what's on each. */
-export type NorthKind = "mall" | "towers" | "library" | "skate" | "houses" | "field" | "garden" | "watertower";
+export type NorthKind = "mall" | "towers" | "library" | "skate" | "houses" | "field" | "garden" | "watertower" | "play";
 export const NORTH_BLOCKS: { x: number; z: number; kind: NorthKind }[] = (() => {
   const rows: NorthKind[][] = [
-    ["mall", "towers", "library", "towers", "towers", "skate"],
+    ["mall", "towers", "library", "play", "towers", "skate"],
     ["houses", "field", "garden", "houses", "houses", "houses"],
     ["houses", "houses", "watertower", "houses", "houses", "houses"],
   ];
@@ -168,6 +168,9 @@ export const NORTH_BLOCKS: { x: number; z: number; kind: NorthKind }[] = (() => 
 })();
 export const LIBRARY = { building: box(0, -238, 40, 28), door: { x: 0, z: -221 }, height: 13 };
 export const MALL = { building: box(-160, -246, 52, 34), height: 11 };
+/** The Play Block in North Haven: the Smash Room and the Build Zone, doors facing the z = -200 street. */
+export const SMASH = { building: box(62, -245, 28, 26), door: { x: 62, z: -231 }, height: 11 };
+export const BUILD = { building: box(98, -245, 28, 26), door: { x: 98, z: -231 }, height: 13 };
 export const SKATE = { x: 240, z: -240 };
 export const FIELD = { x: -80, z: -320, w: 58, d: 38 };
 export const GARDEN = { x: 0, z: -320, pond: 10 };
@@ -357,7 +360,7 @@ export const COLLIDERS: Box[] = [
   ...PALMS.map((t) => box(t.x, t.z, 1, 1)),
   ...BEACH_SHOPS.map((b) => b.box),
   box(LIFEGUARD.x, LIFEGUARD.z, 3, 3),
-  LIBRARY.building, MALL.building, BARN,
+  LIBRARY.building, MALL.building, BARN, SMASH.building, BUILD.building,
   ...HOUSES.map((h) => box(h.x, h.z, NORTH_HOUSE, NORTH_HOUSE)),
   box(FIELD.x - FIELD.w / 2, FIELD.z, 1.2, 7.4), box(FIELD.x + FIELD.w / 2, FIELD.z, 1.2, 7.4), // goals
   box(FIELD.x, FIELD.z - 27, 40, 5), // bleachers
@@ -460,6 +463,11 @@ export const SPOTS: Spot[] = [
     return { id: `cab-${c.game}`, kind: "cabinet", venue: r.id, game: c.game, x: p.x + Math.sin(p.facing) * 1.8, z: p.z, radius: 1.6, label: `Play ${c.title}` };
   })),
   ...RIDES.map((r): Spot => ({ id: `ride-${r.id}`, kind: "ride", ride: r.id, x: r.spot.x, z: r.spot.z, radius: 3.2, label: `Ride ${r.name}` })),
+  { id: "bumper", kind: "bumper", x: BUMPER.x, z: BUMPER.z + BUMPER.d / 2 + 2.2, radius: 3.4, label: "Drive a bumper car" },
+  ...BOOTHS.map((b, i): Spot => ({ id: `booth-${i}`, kind: "booth", booth: i, x: b.x, z: b.z + 4.6, radius: 3, label: `Play ${b.name}` })),
+  ...FOOD_STANDS.map((f, i): Spot => ({ id: `treat-${i}`, kind: "treat", x: f.x + 4.4, z: f.z, radius: 2.8, label: `Get ${f.name}` })),
+  { id: "smash", kind: "smash", x: SMASH.door.x, z: SMASH.door.z + 1.5, radius: 4, label: "Smash Room" },
+  { id: "build", kind: "build", x: BUILD.door.x, z: BUILD.door.z + 1.5, radius: 4, label: "Build Zone" },
 ];
 export const interiorAt = (x: number, z: number) => INTERIORS.find((r) => Math.abs(x - r.x) < r.w / 2 + 1 && Math.abs(z - r.z) < r.d / 2 + 1) ?? null;
 
@@ -575,7 +583,7 @@ export function areaName(x: number, z: number) {
   if (x < SEASIDE.road + ROAD_HALF || x < -CITY && z > -CITY && z < CITY) return x >= SEASIDE.boardwalk.minX ? "Seaside Boardwalk" : z >= SEASIDE.pier.minZ && z <= SEASIDE.pier.maxZ ? "Haven Pier" : "Seaside Beach";
   if (z < -CITY - 34) {
     const b = northBlockAt(x, z);
-    const names: Record<NorthKind, string> = { mall: "Haven Mall", towers: "Uptown", library: "A.R.I.S.E. Library", skate: "Skate Park", houses: "Maple Grove", field: "Sports Field", garden: "Reading Garden", watertower: "Maple Grove" };
+    const names: Record<NorthKind, string> = { mall: "Haven Mall", towers: "Uptown", library: "A.R.I.S.E. Library", skate: "Skate Park", houses: "Maple Grove", field: "Sports Field", garden: "Reading Garden", watertower: "Maple Grove", play: "Smash & Build" };
     return b ? names[b.kind] : z < -280 ? "Maple Grove" : "North Haven";
   }
   if (z > CITY && x < FARM.maxX + 4) return "Haven Farm";
@@ -590,3 +598,31 @@ export function areaName(x: number, z: number) {
   if (z <= -40) return "Downtown";
   return "Haven City";
 }
+
+// ─── Places you can get directions to ───────────────────────────────────────
+export type Destination = { id: string; name: string; group: "Food & fun" | "Fair" | "Shops & places" | "Outdoors"; x: number; z: number };
+export const DESTINATIONS: Destination[] = [
+  ...RESTAURANTS.map((r): Destination => ({ id: `food-${r.id}`, name: r.name, group: "Food & fun", x: r.door.x, z: r.door.z })),
+  { id: "arcade", name: "Neon Arcade", group: "Food & fun", x: ARCADE.door.x - 2, z: ARCADE.door.z },
+  { id: "smash", name: "Smash Room", group: "Food & fun", x: SMASH.door.x, z: SMASH.door.z + 2 },
+  { id: "build", name: "Build Zone", group: "Food & fun", x: BUILD.door.x, z: BUILD.door.z + 2 },
+  { id: "cinema", name: "Starlight Cinema", group: "Food & fun", x: CINEMA.door.x - 3, z: CINEMA.door.z },
+  { id: "fair", name: "Haven Fair (gate)", group: "Fair", x: FAIR.gate.x + 8, z: FAIR.gate.z },
+  ...RIDES.map((r): Destination => ({ id: `ride-${r.id}`, name: r.name.replace(/^the /, "The "), group: "Fair", x: r.spot.x, z: r.spot.z })),
+  { id: "bumper", name: "Bumper Cars", group: "Fair", x: BUMPER.x, z: BUMPER.z + BUMPER.d / 2 + 2.5 },
+  { id: "booths", name: "Game Booths", group: "Fair", x: BOOTHS[2].x, z: BOOTHS[2].z + 5 },
+  { id: "library", name: "A.R.I.S.E. Library", group: "Shops & places", x: LIBRARY.door.x, z: LIBRARY.door.z + 2 },
+  { id: "dealer", name: "Velocity Motors", group: "Shops & places", x: DEALER.door.x + 3, z: DEALER.door.z },
+  { id: "petshop", name: "Paws & Pals Pet Shop", group: "Shops & places", x: PETSHOP.door.x, z: PETSHOP.door.z + 3 },
+  { id: "mall", name: "Haven Mall", group: "Shops & places", x: -160, z: -226 },
+  { id: "plaza", name: "Central Plaza", group: "Shops & places", x: 0, z: 18 },
+  { id: "speedway", name: "Haven Speedway", group: "Shops & places", x: CONNECTOR.x, z: CONNECTOR.toZ - 6 },
+  { id: "beach", name: "The Beach & Boardwalk", group: "Outdoors", x: -222, z: 20 },
+  { id: "pier", name: "Haven Pier", group: "Outdoors", x: -300, z: 0 },
+  { id: "lake", name: "Lakeside Park", group: "Outdoors", x: PARK.lake.x - PARK.lake.r - 8, z: PARK.lake.z },
+  { id: "stunt", name: "Stunt Park", group: "Outdoors", x: 230, z: -100 },
+  { id: "skate", name: "Skate Park", group: "Outdoors", x: SKATE.x, z: SKATE.z + 30 },
+  { id: "garden", name: "Reading Garden", group: "Outdoors", x: GARDEN.x, z: GARDEN.z + 24 },
+  { id: "farm", name: "Haven Farm", group: "Outdoors", x: (FARM.minX + FARM.maxX) / 2, z: FARM.minZ + 4 },
+  { id: "trail", name: "Off-Road Trail", group: "Outdoors", x: TRAIL.entryX + 6, z: SOUTH_ROAD + 10 },
+];

@@ -1,0 +1,39 @@
+/* Smash Room and Build Zone screens */
+.play-root { position: fixed; inset: 0; overflow: hidden; background: #0d0e12; color: #fff; font-family: "Barlow", system-ui, sans-serif; user-select: none; -webkit-user-select: none; }
+.play-canvas { position: absolute; inset: 0; }
+.play-canvas canvas { display: block; }
+.play-top { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 20; display: flex; align-items: flex-start; gap: 10px; pointer-events: none; }
+.play-top > * { pointer-events: auto; }
+.play-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 14px; background: rgba(15, 15, 20, 0.72); border: 1px solid rgba(255, 255, 255, 0.16); font-weight: 800; backdrop-filter: blur(8px); color: #fff; }
+.play-chip svg { width: 18px; height: 18px; }
+.play-score { margin-left: auto; text-align: right; padding: 8px 14px; border-radius: 14px; background: rgba(15, 15, 20, 0.72); border: 1px solid rgba(255, 255, 255, 0.16); }
+.play-score b { display: block; font: 800 30px/1 "Teko", "Barlow", sans-serif; letter-spacing: 0.02em; color: #ffb07a; font-variant-numeric: tabular-nums; }
+.play-score span { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.75); }
+.play-combo { position: absolute; top: 90px; right: 16px; z-index: 20; font: 900 44px/1 "Teko", "Barlow", sans-serif; color: #ffd43b; text-shadow: 0 4px 18px rgba(255, 140, 0, 0.7); pointer-events: none; }
+.play-toast { position: absolute; left: 50%; top: 72px; transform: translateX(-50%); z-index: 20; padding: 8px 14px; border-radius: 12px; background: rgba(15, 15, 20, 0.8); font-weight: 700; pointer-events: none; white-space: nowrap; }
+.play-bottom { position: absolute; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; pointer-events: none; }
+.play-bottom > * { pointer-events: auto; }
+.play-tools { display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: rgba(15, 15, 20, 0.72); border: 1px solid rgba(255, 255, 255, 0.14); }
+.play-tools button { min-width: 64px; min-height: 48px; padding: 0 10px; border-radius: 12px; font-weight: 800; color: rgba(255, 255, 255, 0.8); background: transparent; border: 0; }
+.play-tools button[aria-pressed="true"] { background: #ff6b3d; color: #1a0802; }
+.play-tools kbd { display: block; font-size: 10px; opacity: 0.7; }
+.play-actions { display: flex; gap: 10px; align-items: flex-end; }
+.play-big { width: 92px; height: 92px; border-radius: 50%; border: 0; font: 900 18px/1 "Barlow", system-ui; color: #1a0802; background: radial-gradient(circle at 35% 30%, #ffc49b, #ff6b3d); box-shadow: 0 8px 0 #b33d12, 0 18px 30px rgba(0, 0, 0, 0.45); touch-action: none; }
+.play-big:active { transform: translateY(4px); box-shadow: 0 4px 0 #b33d12; }
+.play-mid { width: 68px; height: 68px; border-radius: 50%; border: 0; font: 800 14px/1 "Barlow", system-ui; color: #fff; background: rgba(255, 255, 255, 0.16); border: 2px solid rgba(255, 255, 255, 0.35); touch-action: none; }
+.play-side { display: flex; flex-direction: column; gap: 8px; }
+.play-side button { min-height: 44px; padding: 0 14px; border-radius: 12px; background: rgba(15, 15, 20, 0.72); border: 1px solid rgba(255, 255, 255, 0.16); color: #fff; font-weight: 800; }
+.play-modal { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.55); }
+.play-card { width: min(420px, 100%); padding: 22px; border-radius: 20px; background: #16171d; border: 1px solid rgba(255, 255, 255, 0.14); text-align: center; }
+.play-card h2 { margin: 0 0 8px; font-size: 26px; font-weight: 900; }
+.play-card p { margin: 0 0 14px; color: rgba(255, 255, 255, 0.75); font-weight: 600; }
+.play-card .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.play-btn { min-height: 46px; padding: 0 18px; border-radius: 12px; border: 0; font-weight: 800; background: #ff6b3d; color: #1a0802; }
+.play-btn.ghost { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.play-help { position: absolute; left: 12px; top: 64px; z-index: 19; max-width: 300px; padding: 10px 12px; border-radius: 12px; background: rgba(15, 15, 20, 0.7); font-size: 13px; font-weight: 600; line-height: 1.5; color: rgba(255, 255, 255, 0.85); }
+.play-help kbd, .play-tools kbd { font-family: inherit; }
+.play-help kbd { padding: 1px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.14); font-size: 12px; font-weight: 800; }
+.touch-stick { position: relative; width: 140px; height: 140px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.25); touch-action: none; }
+.touch-stick-knob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: rgba(255, 255, 255, 0.75); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.play-loading { position: absolute; inset: 0; z-index: 50; display: grid; place-items: center; background: #0d0e12; font-weight: 800; font-size: 18px; }
+@media (max-width: 560px) { .play-big { width: 80px; height: 80px; } .play-tools button { min-width: 54px; padding: 0 6px; font-size: 13px; } .play-help { display: none; } }

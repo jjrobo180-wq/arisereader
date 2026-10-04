@@ -25,6 +25,7 @@ export class AvatarRig {
   private sitDrop = 0;
   private legs: { upper: THREE.Object3D; lower: THREE.Object3D; foot: THREE.Object3D; side: number }[] = [];
   private sitting = false;
+  private pendingAttach: [THREE.Object3D, RegExp][] = [];
   loaded = false;
 
   /** noWeapons hides prop weapons some models carry (Haven City has none). */
@@ -51,6 +52,8 @@ export class AvatarRig {
         this.sitDrop = Math.max(0, hip - knee - 0.05);
       }
       if (this.sitting) this.sit(true);
+      for (const [obj, re] of this.pendingAttach) this.attach(obj, re);
+      this.pendingAttach = [];
       model.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
       // weapon props can be a group of meshes named after their parts, so hide the whole named node
       if (opts.noWeapons) model.traverse(o => { if (!(o as THREE.Bone).isBone && /^(sword|pistol|gun|knife|dagger|axe|bow|crossbow|shield)/i.test(o.name)) o.visible = false; });
@@ -61,9 +64,10 @@ export class AvatarRig {
         const map: Record<string, THREE.AnimationClip | undefined> = {
           idle: find(/^idle$/i) || find(/idle/i) || gltf.animations[0], walk: find(/^walk$/i) || find(/walk/i), run: find(/^run$/i),
           wave: find(/wave/i), interact: find(/interact/i), roll: find(/roll/i),
+          slash: find(/sword_slash/i) || find(/punch_right/i) || find(/interact/i), punch: find(/punch_right/i), kick: find(/kick_right/i),
         };
         for (const k of Object.keys(map)) { const clip = map[k]; if (clip) this.actions[k] = this.mixer.clipAction(clip); }
-        for (const k of ["wave", "interact", "roll"]) { const a = this.actions[k]; if (a) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } }
+        for (const k of ["wave", "interact", "roll", "slash", "punch", "kick"]) { const a = this.actions[k]; if (a) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } }
         this.play("idle", 0);
       }
       this.loaded = true;
@@ -79,10 +83,26 @@ export class AvatarRig {
     this.current = name;
   }
 
-  gesture(name: "wave" | "interact" | "roll") {
+  /** Puts an object in the character's hand (or another bone), at its real size. Waits for the model to load. */
+  attach(obj: THREE.Object3D, boneRe = /^(Wrist|Hand)[._]?R$/i) {
+    if (!this.model) { this.pendingAttach.push([obj, boneRe]); return; }
+    let bone: THREE.Object3D | null = null;
+    this.model.traverse((o) => { if (!bone && boneRe.test(o.name) && !(o as THREE.Mesh).isMesh) bone = o; });
+    const target = (bone ?? this.root) as THREE.Object3D;
+    target.updateWorldMatrix(true, false);
+    const s = new THREE.Vector3(); target.getWorldScale(s);
+    obj.scale.divideScalar(s.x || 1);
+    target.add(obj);
+  }
+
+  /** How long a one-shot animation lasts, in seconds (0 if the model doesn't have it). */
+  clipLength(name: string) { return this.actions[name]?.getClip().duration ?? 0; }
+
+  gesture(name: "wave" | "interact" | "roll" | "slash" | "punch" | "kick", speed = 1) {
+    const act = this.actions[name]; if (act) act.timeScale = speed;
     const a = this.actions[name]; if (!a) return;
-    this.play(name, 0.15);
-    this.gestureUntil = performance.now() + a.getClip().duration * 1000 - 150;
+    if (this.current === name) a.reset().play(); else this.play(name, 0.15);
+    this.gestureUntil = performance.now() + (a.getClip().duration * 1000) / Math.max(0.1, speed) - 150;
   }
 
   /** Sits down on a chair (or stands back up). The rig's root stays on the floor. */

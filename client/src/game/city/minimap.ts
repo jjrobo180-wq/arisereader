@@ -1,5 +1,5 @@
 // The corner minimap: roads, places, your position and other readers.
-import { BARN, BEACH_SHOPS, BIG_TOP, BOOTHS, BOUNDS, BUMPER, CINEMA, CITY, DEALER, FAIR, FARM, FERRIS, FIELD, FOOD_STANDS, GARDEN, HOUSES, LIBRARY, LOTS, MALL, NORTH_BLOCKS, PARK, PETSHOP, RAMPS, RESTAURANTS, RIDES, ROADS, ROAD_HALF, SEASIDE, SKATE, TRACK, TRAIL, TOWERS, TRAIN, WATER_TOWER } from "@shared/city/layout";
+import { BARN, BEACH_SHOPS, BIG_TOP, BOOTHS, BOUNDS, BUILD, SMASH, BUMPER, CINEMA, CITY, DEALER, FAIR, FARM, FERRIS, FIELD, FOOD_STANDS, GARDEN, HOUSES, LIBRARY, LOTS, MALL, NORTH_BLOCKS, PARK, PETSHOP, RAMPS, RESTAURANTS, RIDES, ROADS, ROAD_HALF, SEASIDE, SKATE, TRACK, TRAIL, TOWERS, TRAIN, WATER_TOWER } from "@shared/city/layout";
 
 /** The full map is drawn once at B pixels per minimap pixel, then zoomed in. */
 const B = 4;
@@ -56,6 +56,7 @@ export class Minimap {
     const b = (box: { minX: number; maxX: number; minZ: number; maxZ: number }, color: string) => rect(box.minX, box.minZ, box.maxX, box.maxZ, color);
     for (const r of ROADS) rect(r.x1 - ROAD_HALF, r.z1 - ROAD_HALF, r.x2 + ROAD_HALF, r.z2 + ROAD_HALF, "#c9ccd6");
     b(LIBRARY.building, "#f4d58d"); b(MALL.building, "#a974ff"); b(BARN, "#b8322e");
+    b(SMASH.building, "#ff6b3d"); b(BUILD.building, "#8ce99a");
     b(CINEMA.building, "#e04a6a"); b(DEALER.building, "#3ee6ff"); b(PETSHOP.building, "#ff9a3d"); b(PETSHOP.park, "#4f9a4a");
     rect(-12, -12, 12, 12, "#8a7fb0");
     const hex = (c: number) => "#" + c.toString(16).padStart(6, "0");
@@ -106,7 +107,7 @@ export class Minimap {
   }
 
   /** Draws a zoomed, north-up view centred on the reader. */
-  draw(ctx: CanvasRenderingContext2D, me: { x: number; z: number; heading: number }, dots: MapDot[]) {
+  draw(ctx: CanvasRenderingContext2D, me: { x: number; z: number; heading: number }, dots: MapDot[], route?: [number, number][] | null) {
     const s = this.size;
     const [mx, mz, scale] = this.worldToMap(me.x, me.z);
     // the map always shows about 260 metres across, however big the world is
@@ -117,6 +118,15 @@ export class Minimap {
     ctx.fillStyle = "#16261d"; ctx.fillRect(0, 0, s, s);
     ctx.translate(s / 2, s / 2); ctx.scale(zoom / B, zoom / B); ctx.translate(-mx, -mz);
     ctx.drawImage(this.base, 0, 0);
+    if (route && route.length > 1) {
+      // the directions you're following
+      ctx.strokeStyle = "#3ee6ff"; ctx.lineWidth = 5 * (B / zoom) * 2 * (s / 170); ctx.lineJoin = "round"; ctx.lineCap = "round";
+      ctx.beginPath();
+      route.forEach(([x, z], i) => { const [px, pz] = this.worldToMap(x, z); if (i) ctx.lineTo(px, pz); else ctx.moveTo(px, pz); });
+      ctx.stroke();
+      const [ex, ez] = this.worldToMap(route[route.length - 1][0], route[route.length - 1][1]);
+      ctx.fillStyle = "#3ee6ff"; ctx.beginPath(); ctx.arc(ex, ez, 6 * (B / zoom) * 2 * (s / 170), 0, Math.PI * 2); ctx.fill();
+    }
     for (const d of dots) {
       const [x, z] = this.worldToMap(d.x, d.z);
       ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(x, z, (d.size ?? 3) * (B / zoom) * 2 * (s / 170), 0, Math.PI * 2); ctx.fill();
