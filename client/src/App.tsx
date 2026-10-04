@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { lastKnownLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
@@ -135,6 +136,7 @@ const ReadingClub = lazyPage(() => import("./pages/ReadingClub"));
 const TeacherArise2 = lazyPage(() => import("./pages/TeacherArise2"));
 const ParentArise2 = lazyPage(() => import("./pages/ParentArise2"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
+const Billing = lazyPage(() => import("./pages/Billing"));
 
 // Gate that shows profile setup overlay after student registration
 function StudentSetupGate({ children }: { children: React.ReactNode }) {
@@ -212,9 +214,15 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, token } = useAuth();
   const [location] = useLocation();
-  if (isLoading) {
+  // A teacher account is part of Premium. Once the admin turns plan rules on, a
+  // teacher without it is sent to the plan page, the one place they can still use.
+  const isPlanTeacher = !!user && user.role === "teacher" && !user.isAdmin;
+  const { plan, loading: planLoading } = usePlan(isPlanTeacher ? token : null);
+  // The page shows straight away and the plan arrives behind it. Only a teacher who
+  // was locked last time waits, so they don't see a dashboard flash before the plan page.
+  if (isLoading || (isPlanTeacher && planLoading && lastKnownLocked())) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -222,6 +230,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <Redirect to="/" replace />;
+  if (isPlanTeacher && teacherLocked(plan) && location.split("?")[0] !== "/billing") return <Redirect to="/billing" replace />;
   // A linked parent can also open their child's talker and family tools.
   if (user.role === 'parent' && !user.isAdmin && !['/parent-dashboard', '/eye-gaze-parent', '/eye-gaze-parent-controls', '/eye-gaze-talker', '/my-world', '/eye-gaze-flashcards', '/eye-gaze-life-skills', '/eye-gaze-potty'].includes(location)) {
     return <Redirect to="/parent-dashboard" replace />;
@@ -344,6 +353,10 @@ function AppRoutes() {
       {/* Public: plans and pricing. */}
       <Route path="/pricing">
         <Pricing />
+      </Route>
+      {/* A teacher's plan: what they have, and paying for Premium. */}
+      <Route path="/billing">
+        {user && (user.role === "teacher" || user.isAdmin) ? <ProtectedRoute><Billing /></ProtectedRoute> : <Redirect to="/" replace />}
       </Route>
       <Route path="/tutorial">
         <Tutorial />

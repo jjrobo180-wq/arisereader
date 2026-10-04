@@ -1077,6 +1077,8 @@ export default function Library() {
         }
       } else {
         setShowGenerating(false);
+        // Lessons from a student's own topics are a Premium extra.
+        if (res.status === 402) window.alert(data.message || "This is part of A.R.I.S.E. Premium.");
       }
     } catch {
       setShowGenerating(false);

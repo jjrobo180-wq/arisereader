@@ -91,10 +91,14 @@ export function grandfathered(createdAt: unknown, now = Date.now()): boolean {
   return t < Date.parse(PLANS.grandfatherBefore);
 }
 
-/** The sample accounts behind "Try a sample" on the front page. They always see everything. */
+/**
+ * The sample accounts behind "Try a sample" on the front page. They always see
+ * everything. Exact names only: a prefix match would hand Premium to anyone who
+ * picked a username like "samplesmith".
+ */
+const DEMO_ACCOUNTS = new Set(["sample", "sample-parent", "tutorial-eye"]);
 export function isDemoAccount(username: unknown): boolean {
-  const name = String(username || "").toLowerCase();
-  return name.startsWith("sample") || name === "tutorial-eye";
+  return DEMO_ACCOUNTS.has(String(username || "").toLowerCase());
 }
 
 export type PlanPerson = {
@@ -105,7 +109,10 @@ export type PlanPerson = {
   createdAt?: unknown;
   teacherId?: number | null;
   schoolId?: number | null;
+  /** Teachers and parents: approved by the admin. */
   accountApproved?: boolean;
+  /** Students: approved by the teacher they chose. */
+  approvedByTeacher?: boolean;
 };
 
 export type PlanVia =
@@ -113,7 +120,7 @@ export type PlanVia =
   | "admin"
   | "demo"
   | "teacher-plan"   // this teacher's own plan
-  | "school-plan"    // their school's plan
+  | "school-plan"    // a teacher whose school has a plan
   | "class"          // a student whose teacher has Premium
   | "grandfathered"; // signed up before October 1, 2026
 
@@ -132,7 +139,7 @@ export type PlanFacts = {
   now?: number;
   /** For a teacher: their own plan. */
   teacherGrant?: PlanGrant | null;
-  /** The plan of the person's own school. */
+  /** For a teacher: their school's plan. */
   schoolGrant?: PlanGrant | null;
   /** For a student: their teacher, and what that teacher has. */
   classTeacher?: PlanPerson | null;
@@ -164,13 +171,16 @@ export function entitlementFor(person: PlanPerson | null | undefined, facts: Pla
 
   if (person.role === "parent") return NONE;
 
-  // A student gets Premium through their teacher, their school, or their own early sign-up at a school.
+  // A student gets the Premium extras through the teacher who approved them into
+  // a class: that teacher's plan, or the plan of that teacher's school. Picking a
+  // school or a teacher at sign-up is not enough on its own, or anyone could
+  // claim a paying school.
   const teacher = facts.classTeacher;
-  if (teacher && teacher.accountApproved !== false) {
+  if (teacher && teacher.accountApproved !== false && person.approvedByTeacher !== false) {
     const t = teacherEntitlement(teacher, facts.classTeacherGrant, facts.classTeacherSchoolGrant, now);
     if (t.premium) return { premium: true, via: "class", seats: null, endsAt: t.endsAt };
   }
-  if (grantLive(facts.schoolGrant, now)) return yes("school-plan", facts.schoolGrant);
+  // A school student who signed up before the cutoff keeps what they had.
   const atSchool = !!(person.teacherId || person.schoolId);
   if (atSchool && grandfathered(person.createdAt, now)) return yes("grandfathered", null, PLANS.grandfatherUntil);
   return NONE;

@@ -28,6 +28,8 @@ export default function IAriseShelf({ books, results }: { books: LibBook[] | nul
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  // why a lesson couldn't be made, shown under "My lessons"
+  const [makeNote, setMakeNote] = useState("");
   const [making, setMaking] = useState<{ topic: string; bookId: number | null; review: string | null } | null>(null);
   const isStudent = !(user as any)?.isAdmin && user?.role !== "teacher" && user?.role !== "parent";
 
@@ -71,7 +73,8 @@ export default function IAriseShelf({ books, results }: { books: LibBook[] | nul
     try {
       const r = await fetch(`${API_BASE}/api/student/iarise-quiz`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ topic }) });
       const d = await r.json();
-      if (!r.ok) { setMaking(null); return; }
+      if (!r.ok) { setMaking(null); setMakeNote(r.status === 402 ? "Lessons from your own topics are part of A.R.I.S.E. Premium, which comes through your teacher." : d.message || "That lesson couldn't be made. Try again."); return; }
+      setMakeNote("");
       setMaking({ topic, bookId: d.pendingReview ? null : d.bookId ?? null, review: d.pendingReview ? d.message : null });
     } catch { setMaking(null); }
   };
@@ -118,6 +121,7 @@ export default function IAriseShelf({ books, results }: { books: LibBook[] | nul
           </div>
         </>
       )}
+      {makeNote && <p className="ia-empty" role="status">{makeNote}</p>}
       {!lessons.length && !topics.length && <p className="ia-empty">Pick a few topics you care about and we'll make lessons for you.</p>}
 
       {editing && (

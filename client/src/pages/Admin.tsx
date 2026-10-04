@@ -21,6 +21,7 @@ import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
 import NoProctorReview from "@/components/NoProctorReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
+import AdminPlans from "@/components/AdminPlans";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import { printParentInvites } from "@/lib/parentInvites";
@@ -2907,6 +2908,9 @@ Generate exactly 10 questions.`;
             )}
           </div>
         </div>
+
+        {/* Plans and billing */}
+        <AdminPlans />
 
         {/* Competition Settings */}
         <Card className="shadow-md border-yellow-500/30">

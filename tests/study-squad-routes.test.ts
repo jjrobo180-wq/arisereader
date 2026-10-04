@@ -17,7 +17,7 @@ const USERS: Record<number, any> = {
   90: { id: 90, displayName: "Admin", role: "student", isAdmin: true },
 };
 
-async function setup(t: any, opts: { aiKey?: string; fetch?: typeof fetch } = {}) {
+async function setup(t: any, opts: { aiKey?: string; fetch?: typeof fetch; premium?: (user: any) => Promise<boolean> } = {}) {
   const clock = { now: 1_700_000_000_000 };
   t.mock.method(Date, "now", () => clock.now);
   const settings = new Map<string, string>([["avatar_world_10", JSON.stringify({ selectedCharacter: "alice" })]]);
@@ -32,6 +32,7 @@ async function setup(t: any, opts: { aiKey?: string; fetch?: typeof fetch } = {}
     upsertSetting: async (k, v) => { settings.set(k, v); },
     aiKey: async () => opts.aiKey ?? "",
     fetch: opts.fetch,
+    premium: opts.premium,
     random: () => 0.42,
   });
   const server = app.listen(0, "127.0.0.1");
@@ -260,4 +261,21 @@ test("the hall opens another floor when one fills up", async (t) => {
   assert.equal((await call(1030, "POST", "/sync", { floor: 1 })).data.lounge.floor, 2, "a full floor can't be squeezed into");
   assert.equal((await call(1000, "POST", "/sync", { floor: 3 })).data.lounge.floor, 3);
   for (let id = 1000; id < 1031; id++) delete USERS[id];
+});
+
+test("AI study sets are a Premium extra for students; teachers keep them", async (t) => {
+  let asked = 0;
+  const { call } = await setup(t, {
+    aiKey: "pplx-test", premium: async (u) => u.id !== 10,
+    fetch: (async () => { asked++; return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }), { status: 200 }); }) as typeof fetch,
+  });
+  const boot = (await call(10, "GET", "/bootstrap")).data;
+  assert.deepEqual([boot.ai.available, boot.ai.locked], [false, true]);
+  const refused = await call(10, "POST", "/generate", { topic: "The water cycle" });
+  assert.equal(refused.status, 402);
+  assert.match(refused.data.message, /Premium/);
+  assert.equal(asked, 0, "the AI is never called for a Free student");
+  // a student without the lock, and a teacher, are not marked locked
+  assert.equal((await call(20, "GET", "/bootstrap")).data.ai.locked, false);
+  assert.equal((await call(50, "GET", "/bootstrap")).data.ai.locked, false);
 });
