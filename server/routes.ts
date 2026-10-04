@@ -8,6 +8,7 @@ import { seedData } from "./storage";
 import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
+import { registerStudyRoutes } from "./study";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
 import { registerRacingRoutes, supabaseSaveStore } from "./racing";
@@ -957,6 +958,12 @@ export async function registerRoutes(
 ): Promise<Server> {
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
+  // Study Squad: the study hall, its tables and study sets (kept in the settings table).
+  registerStudyRoutes(app, authMiddleware, {
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    aiKey: () => getPerplexityApiKey(),
+  });
   registerClubAriseRoutes(app, authMiddleware);
   registerAriseNewsRoutes(app, authMiddleware);
   registerReadsRoutes(app);

@@ -4,7 +4,8 @@ import { API_BASE } from "@/lib/queryClient";
 import { READABLE_BOOKS, type ReadableBook } from "@shared/readsCatalog";
 import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
 import { NewsArt, sectionStyle } from "../news/useNews";
-import { progressKey, readProgress, timeLabel, useLibrary, useReadsFonts } from "./useReads";
+import { POEMS, POEM_BANDS, poemLineCount, type PoemBand } from "@shared/poems";
+import { poemsRead, progressKey, readProgress, timeLabel, useLibrary, useReadsFonts } from "./useReads";
 import IAriseShelf from "./IAriseShelf";
 import "../news/news.css";
 import "./reads.css";
@@ -21,6 +22,10 @@ export default function ReadHub() {
   useReadsFonts();
   const { books, results, user } = useLibrary();
   const [filter, setFilter] = useState<Filter>("All");
+  const [band, setBand] = useState<PoemBand | "All">("All");
+  const readPoems = useMemo(() => new Set(poemsRead(user?.id)), [user?.id]);
+  const poems = POEMS.filter((p) => band === "All" || p.band === band);
+  const jumpTo = (id: string) => (e: { preventDefault(): void }) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const progress = useMemo(() => readProgress(user?.id), [user?.id]);
   // only books this reader can see in their library (grade bands), matched by id and title
   // keyed books are matched by id alone (their library title can differ a little)
@@ -53,11 +58,11 @@ export default function ReadHub() {
         <div className="nw-wrap">
           <div className="nw-topline"><Link href="/library" className="nw-back"><Back /><span>Library</span></Link></div>
           <h1 className="nw-wordmark">Read <span>on Arise</span></h1>
-          <p className="nw-tagline">{available.length} books, iARISE lessons and {NEWS_ARTICLES.length} articles you can read right here. Finish one, pass the quiz, earn points.</p>
+          <p className="nw-tagline">{available.length} books, {POEMS.length} poems, iARISE lessons and {NEWS_ARTICLES.length} articles you can read right here. Finish a book or article, pass the quiz, earn points.</p>
           <nav className="rd-jump" aria-label="Jump to">
             {reading.length > 0 && <a href="#continue">Continue reading</a>}
             {spooky.length > 0 && <a href="#spooky">Spooky stories</a>}
-            <a href="#books">Books</a><a href="#iarise">iARISE</a><a href="#articles">Articles</a>
+            <a href="#books">Books</a><a href="#poetry" onClick={jumpTo("poetry")}>Poetry</a><a href="#iarise">iARISE</a><a href="#articles">Articles</a>
           </nav>
         </div>
       </header>
@@ -100,6 +105,24 @@ export default function ReadHub() {
           <div className="rd-books">{shown.map((b) => bookCard(b))}</div>
         </section>
 
+        <section className="nw-block" id="poetry" aria-labelledby="poetry-h">
+          <div className="nw-block-head"><h2 id="poetry-h">Poetry</h2><p>{POEMS.length} classic poems, each short enough to read twice. Words to know and questions come with every one.</p></div>
+          <nav className="nw-filter" aria-label="Poems by grade">
+            <button type="button" className="nw-chip" aria-pressed={band === "All"} onClick={() => setBand("All")}>All poems</button>
+            {POEM_BANDS.map((b) => <button key={b.band} type="button" className="nw-chip" aria-pressed={band === b.band} onClick={() => setBand(b.band)}>{b.label}</button>)}
+          </nav>
+          <div className="rd-poems">
+            {poems.map((p) => (
+              <Link key={p.slug} href={`/reads/poem/${p.slug}`} className="rd-poem" data-band={p.band}>
+                <h3>{p.title}</h3>
+                <p>{p.poet}</p>
+                <q>{p.hook}</q>
+                <div className="nw-meta"><span>{poemLineCount(p)} lines</span><span>Grades {p.band}</span>{readPoems.has(p.slug) && <span className="rd-flag done">✓ Read</span>}</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         <IAriseShelf books={books} results={results} />
 
         <section className="nw-block" id="articles" aria-labelledby="articles-h">
@@ -118,7 +141,7 @@ export default function ReadHub() {
           </div>
         </section>
       </div>
-      <footer className="nw-foot"><div className="nw-wrap">Every book here is in the public domain. Quizzes and points work the same as the rest of the library.</div></footer>
+      <footer className="nw-foot"><div className="nw-wrap">Every book and poem here is in the public domain. Quizzes and points work the same as the rest of the library.</div></footer>
     </main>
   );
 }

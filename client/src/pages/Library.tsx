@@ -20,6 +20,7 @@ import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
 import { HALLOREAD_ACTIVE } from "@/lib/halloread";
 import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, SECTION_COLORS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
 import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
+import { POEMS } from "@shared/poems";
 import { loadReadsKeyIds } from "./reads/useReads";
 /** True when this library book can be read in Read on Arise. */
 const canReadHere = (book: { id: number; title: string }) => { const r = readableBook(book.id); return !!r && (r.key !== null || r.title === book.title); };
@@ -1345,6 +1346,11 @@ export default function Library() {
                             <Gamepad2 className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Games<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
+                        {!user?.is_eye_gaze_user && (
+                          <button onClick={() => { navigate("/study"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <GraduationCap className="mb-1.5 h-4 w-4 text-amber-500" /><span className="flex items-center gap-1.5 text-xs font-black">Study Squad<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
+                          </button>
+                        )}
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Brain className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Growth Check</span>
                         </button>
@@ -1523,7 +1529,7 @@ export default function Library() {
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#17143b] text-white sm:hidden"><BookOpen className="h-6 w-6" /></span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 text-lg font-black leading-tight">Read on Arise<span className="rounded-full bg-[#7048e8] px-2 py-0.5 text-[10px] font-black text-white">NEW</span></span>
-              <span className="block text-xs font-bold text-[#5d5a7a] sm:text-sm">{READABLE_BOOKS.length} full books, iARISE lessons + {NEWS_ARTICLES.length} articles you can read right here · then take the quiz</span>
+              <span className="block text-xs font-bold text-[#5d5a7a] sm:text-sm">{READABLE_BOOKS.length} full books, {POEMS.length} poems, iARISE lessons + {NEWS_ARTICLES.length} articles you can read right here · then take the quiz</span>
             </span>
             <span className="hidden rounded-full bg-[#17143b] px-4 py-2 text-xs font-black text-white sm:inline">START READING</span>
           </button>
@@ -1542,6 +1548,24 @@ export default function Library() {
               </span>
             </span>
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">PLAY GAMES</span>
+          </button>
+        )}
+        {/* Study Squad: study games with friends (students) and class study sets (teachers) */}
+        {user && user.role !== "parent" && !user.is_eye_gaze_user && (
+          <button
+            type="button"
+            onClick={() => navigate("/study")}
+            data-testid="button-study-squad"
+            className="mb-4 flex w-full items-center justify-between rounded-2xl border border-amber-300/40 bg-[#173b33] px-4 py-3 text-left text-[#f4f1e6] shadow-lg transition hover:brightness-110"
+          >
+            <span className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-amber-300 text-[#11231f]"><GraduationCap className="h-6 w-6" /></span>
+              <span>
+                <span className="flex items-center gap-2 text-base font-black">Study Squad<span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950">NEW</span></span>
+                <span className="block text-xs font-bold text-white/75">{user.role === "teacher" || user.isAdmin ? "Add study sets for your class and see what students make" : "Study with friends: quiz games, flashcards, and sets you make yourself"}</span>
+              </span>
+            </span>
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">{user.role === "teacher" || user.isAdmin ? "OPEN" : "STUDY"}</span>
           </button>
         )}
                 <EngagementHub

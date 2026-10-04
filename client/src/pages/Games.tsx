@@ -10,12 +10,13 @@ import type { LogoStyle } from "@/arcade/covers/styles";
 import { Shelf } from "@/arcade/LibraryShelf";
 import { IconBack } from "@/arcade/icons";
 import { GAMES, type CategoryId } from "@shared/arcade/catalog";
+import { STUDY_WORLD_PATH, STUDY_WORLD_TITLE } from "@shared/study/sets";
 import GameArt from "@/arcade/covers/Art";
 import { logoFor } from "@/arcade/covers/styles";
 import "@/arcade/library.css";
 import "./worlds.css";
 
-type WorldId = "city" | "theater" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack";
+type WorldId = "city" | "study" | "theater" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack";
 type World = {
   id: WorldId;
   /** The cover title. */
@@ -31,6 +32,12 @@ type World = {
 };
 
 const WORLDS: World[] = [
+  {
+    id: "study", title: STUDY_WORLD_TITLE, name: "Study hall", tag: "Study games", tagline: "Sit down with friends. Quiz off. Know it cold.",
+    highlights: ["Walk into the study hall and sit at a table with friends", "Four games on any study set: Lightning Round, Last One Standing, Tug of War and Summit Race", "Make your own sets, ask AI to write one, or play the ones your teacher shares", "Flip through any set as flashcards", "Earn Reader Coins and climb the weekly board"],
+    facts: ["Study games", "Play with readers", "Make your own sets"], path: STUDY_WORLD_PATH,
+    look: { family: "strike", metal: ["#fffdf2", "#ffe08a", "#ffc53d"], glow: "rgba(255,197,61,.5)", accent: "#ffc53d" },
+  },
   {
     id: "chess", title: "Ultimate Chess", name: "Chess arena", tag: "Strategy", tagline: "The arena of kings.",
     highlights: ["A cinematic chess arena", "Challenge the computer", "Battle another reader live"],
@@ -82,16 +89,17 @@ const WORLDS: World[] = [
 ];
 const BY_ID = Object.fromEntries(WORLDS.map((w) => [w.id, w])) as Record<WorldId, World>;
 
-const TOP_GAMES: WorldId[] = ["city", "laser", "racetrack", "space", "board"];
+const TOP_GAMES: WorldId[] = ["city", "study", "laser", "racetrack", "space", "board"];
 
 const SHELVES: { id: string; title: string; note: string; worlds: WorldId[] }[] = [
-  { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["city", "board", "chess", "theater"] },
+  { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["city", "study", "board", "chess", "theater"] },
   { id: "action", title: "Action and adventure", note: "Race, battle and explore", worlds: ["laser", "racetrack", "space", "halloread"] },
 ];
 
 /** Starts downloading a world while the student is looking at it. */
 const WARM: Record<WorldId, () => Promise<unknown>> = {
   city: () => import("./AriseCity"),
+  study: () => import("./study/StudySquad"),
   theater: () => import("./ClubTheater"),
   board: () => import("./BoardGameWorld"),
   halloread: () => import("./MidnightMystery"),
@@ -115,7 +123,7 @@ const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
 const NEW_LEARNING = ["letter_forge", "reading_detective", "context_clues", "figurative_language", "fraction_frenzy", "multiplication_mayhem", "decimal_dash", "geometry_grid", "money_math", "science_lab", "states_capitals", "history_hustle"];
 
 const SAVED_KEY = "games_selected";
-const ROTATION: WorldId[] = ["city", "space", "laser", "racetrack", "board", "chess", "theater", "halloread"];
+const ROTATION: WorldId[] = ["city", "study", "space", "laser", "racetrack", "board", "chess", "theater", "halloread"];
 
 function readSaved(): WorldId | null {
   try {
@@ -168,7 +176,7 @@ export default function Games() {
   const featured = useMemo(() => {
     const day = Math.floor(Date.now() / 86_400_000);
     const rotated = ROTATION.map((_, i) => ROTATION[(day + i) % ROTATION.length]);
-    const order = ["city" as WorldId, readSaved(), ...rotated].filter((id): id is WorldId => !!id);
+    const order = ["city" as WorldId, "study" as WorldId, readSaved(), ...rotated].filter((id): id is WorldId => !!id);
     return [...new Set(order)].slice(0, 5).map((id) => BY_ID[id]);
   }, []);
   const [spot, setSpot] = useState(0);
