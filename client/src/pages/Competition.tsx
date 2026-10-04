@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
 import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Gift, Users, Star, Heart, Calendar, Pizza } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 
 interface LeaderboardEntry {
   rank: number;
@@ -130,7 +131,7 @@ function getRecentMonths(count: number): string[] {
 
 export default function Competition() {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [tab, setTab] = useState<"monthly" | "yearly">("monthly");
   const [monthlyBandLeaders, setMonthlyBandLeaders] = useState<Record<string, LeaderboardEntry[]>>({});
   const [yearlyBandLeaders, setYearlyBandLeaders] = useState<Record<string, LeaderboardEntry[]>>({});
@@ -243,6 +244,11 @@ export default function Competition() {
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             Read books, take quizzes, and earn points to win prizes every month and at the end of the year!
           </p>
+        </div>
+
+        {/* Prizes this reader's own family, teacher and school have put up. Nothing shows when there are none. */}
+        <div className="mb-6 empty:hidden">
+          <PrizeBoard token={token} />
         </div>
 
         {/* Tab Switcher */}

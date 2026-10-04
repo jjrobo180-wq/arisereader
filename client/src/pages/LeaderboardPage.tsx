@@ -6,6 +6,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users, Pizza } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import { useAuth } from "@/context/AuthContext";
+import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 
 interface LeaderboardEntry {
   rank: number;
@@ -136,6 +137,11 @@ export default function LeaderboardPage() {
               You are competing only with students in your grade band.
             </p>
           )}
+        </div>
+
+        {/* Prizes this reader's own family, teacher and school have put up. Nothing shows when there are none. */}
+        <div className="mb-6 empty:hidden">
+          <PrizeBoard token={token} />
         </div>
 
         {/* View Tabs */}

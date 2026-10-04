@@ -10,6 +10,7 @@ import { supabase, getAdminSupabase } from "./supabase";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
+import { registerPrizeRoutes } from "./prizes";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
 import { registerRacingRoutes, supabaseSaveStore } from "./racing";
@@ -1046,6 +1047,32 @@ export async function registerRoutes(
     }
     return Array.from(new Set(parentIds));
   };
+
+  // Prizes that parents, teachers and schools put up for their own readers (kept in the settings table).
+  // A teacher's requests pass the plan check above first, so class and school prizes are a Premium tool.
+  const prizePerson = (u: any) => ({ id: Number(u.id), name: String(u.displayName || u.username || "Reader") });
+  registerPrizeRoutes(app, authMiddleware, {
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    parentStudentIds: getParentStudentIds,
+    studentParentIds: getStudentParentIds,
+    getUser: (id) => storage.getUser(id),
+    teacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(prizePerson),
+    // a school's students are the ones its teachers have approved into a class
+    schoolStudents: async (schoolId) => {
+      const users = await storage.getAllUsers();
+      const teachers = new Set(users.filter((u: any) => u.role === "teacher" && u.accountApproved !== false && Number(u.school_id) === schoolId).map((u: any) => Number(u.id)));
+      return users
+        .filter((u: any) => (u.role || "student") === "student" && teachers.has(Number(u.teacherId)) && u.approvedByTeacher !== false)
+        .map(prizePerson)
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+    },
+    schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
+    passedQuizTimes: async (studentId) => (await storage.getUserAttempts(studentId))
+      .filter((a: any) => a && a.score >= arPassingScore(a.totalQuestions || 10))
+      .map((a: any) => Date.parse(a.completedAt)),
+    notify: async (studentId, text) => { await storage.createMessage(studentId, "system", text); },
+  });
 
   const isDemoStudent = (user: any) => {
     const username = String(user?.username || "").toLowerCase();
