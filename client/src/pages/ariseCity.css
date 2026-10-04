@@ -161,3 +161,25 @@
   .city-touch .city-notice { top: 72px; }
   .city-touch .city-stick { width: 124px; height: 124px; }
 }
+
+/* restaurants, the arcade and the fair */
+.city-map.hidden { display: none; }
+.city-prompt svg { width: 20px; height: 20px; flex: none; }
+.city-energy { gap: 6px; color: #8ce99a; border-color: rgba(140, 233, 154, 0.45); }
+.city-energy b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.city-ride, .city-eat { position: absolute; left: 50%; bottom: calc(28px + var(--safe-b, 0px)); z-index: 30; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 10px 12px 10px 18px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); font-weight: 700; font-size: 16px; backdrop-filter: blur(8px); white-space: nowrap; }
+.city-ride b { color: var(--gold); }
+.city-ride-time { font: 700 26px/1 "Teko", "Barlow", sans-serif; color: var(--neon); font-variant-numeric: tabular-nums; min-width: 2.2em; text-align: right; }
+.city-ride button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 12px; background: rgba(255, 211, 107, 0.95); color: #1a1030; font-weight: 800; }
+.city-ride button svg { width: 18px; height: 18px; }
+.city-eat { padding-right: 18px; }
+.city-eat svg { width: 20px; height: 20px; color: var(--gold); }
+.city-eat i { display: block; width: 140px; height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.city-eat i b { display: block; height: 100%; background: linear-gradient(90deg, #ffd36b, #8ce99a); transition: width 0.12s linear; }
+.city-menu { display: grid; gap: 8px; margin-top: 10px; }
+.city-menu button { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); }
+.city-menu button:hover, .city-menu button:focus-visible { border-color: var(--gold); background: rgba(255, 211, 107, 0.1); }
+.city-menu b { font-size: 17px; }
+.city-menu span { font-size: 13px; color: var(--dim); font-weight: 600; }
+@media (max-width: 520px) { .city-ride, .city-eat { font-size: 14px; gap: 10px; } .city-eat i { width: 90px; } }
+@media (max-width: 520px) { .city-energy { position: absolute; top: calc(66px + env(safe-area-inset-top, 0px)); left: 12px; min-height: 36px; padding: 0 10px; } }

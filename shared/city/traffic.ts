@@ -48,11 +48,13 @@ export function loopPoint(loopIndex: number, s: number): { x: number; z: number;
 
 const COLORS = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e, 0xf97316, 0xa855f7, 0xe5e7eb, 0x14b8a6];
 
-export function makeTraffic(perLoop = 3): TrafficCar[] {
+/** perLoop cars on each loop; the four downtown loops get `downtown` cars for a busier rush hour. */
+export function makeTraffic(perLoop = 3, downtown = perLoop): TrafficCar[] {
   const out: TrafficCar[] = [];
   LOOPS.forEach((_, li) => {
-    for (let i = 0; i < perLoop; i++) {
-      const s = (LOOP_LENGTHS[li] / perLoop) * i + li * 17;
+    const n = li < 4 ? downtown : perLoop;
+    for (let i = 0; i < n; i++) {
+      const s = (LOOP_LENGTHS[li] / n) * i + li * 17;
       const p = loopPoint(li, s);
       out.push({ id: out.length, loop: li, s, speed: 9, color: COLORS[out.length % COLORS.length], ...p });
     }

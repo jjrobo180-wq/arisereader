@@ -1,5 +1,5 @@
 // The corner minimap: roads, places, your position and other readers.
-import { BARN, BEACH_SHOPS, BOUNDS, CINEMA, CITY, DEALER, FARM, FERRIS, FIELD, GARDEN, HOUSES, LIBRARY, LOTS, MALL, NORTH_BLOCKS, PARK, PETSHOP, RAMPS, ROADS, ROAD_HALF, SEASIDE, SKATE, TRACK, TRAIL, TOWERS, WATER_TOWER } from "@shared/city/layout";
+import { BARN, BEACH_SHOPS, BIG_TOP, BOOTHS, BOUNDS, BUMPER, CINEMA, CITY, DEALER, FAIR, FARM, FERRIS, FIELD, FOOD_STANDS, GARDEN, HOUSES, LIBRARY, LOTS, MALL, NORTH_BLOCKS, PARK, PETSHOP, RAMPS, RESTAURANTS, RIDES, ROADS, ROAD_HALF, SEASIDE, SKATE, TRACK, TRAIL, TOWERS, TRAIN, WATER_TOWER } from "@shared/city/layout";
 
 /** The full map is drawn once at B pixels per minimap pixel, then zoomed in. */
 const B = 4;
@@ -58,6 +58,14 @@ export class Minimap {
     b(LIBRARY.building, "#f4d58d"); b(MALL.building, "#a974ff"); b(BARN, "#b8322e");
     b(CINEMA.building, "#e04a6a"); b(DEALER.building, "#3ee6ff"); b(PETSHOP.building, "#ff9a3d"); b(PETSHOP.park, "#4f9a4a");
     rect(-12, -12, 12, 12, "#8a7fb0");
+    const hex = (c: number) => "#" + c.toString(16).padStart(6, "0");
+    for (const r of RESTAURANTS) b(r.box, hex(r.color));
+    // Haven Fairgrounds
+    rect(FAIR.minX, FAIR.minZ, FAIR.maxX, FAIR.maxZ, "#5d7d3a");
+    rect(FAIR.minX + 6, -264, FAIR.maxX - 6, -246, "#c8a874"); rect(FAIR.minX + 6, -159, FAIR.maxX - 6, -141, "#c8a874"); rect(422, FAIR.minZ + 8, 438, FAIR.maxZ - 8, "#c8a874");
+    rect(BUMPER.x - BUMPER.w / 2, BUMPER.z - BUMPER.d / 2, BUMPER.x + BUMPER.w / 2, BUMPER.z + BUMPER.d / 2, "#fcc419");
+    for (const bo of BOOTHS) rect(bo.x - 6, bo.z - 2.5, bo.x + 6, bo.z + 2.5, hex(bo.color));
+    for (const f of FOOD_STANDS) rect(f.x - 2.5, f.z - 2.5, f.x + 2.5, f.z + 2.5, hex(f.color));
     // lake and loop road
     const circle = (x: number, z: number, r: number, color: string, line = 0) => {
       const [px, pz, sc] = this.worldToMap(x, z);
@@ -69,6 +77,14 @@ export class Minimap {
     circle(FERRIS.x, FERRIS.z, 5, "#ff5fd8");
     circle(GARDEN.x, GARDEN.z, GARDEN.pond, "#3a9bd8");
     circle(WATER_TOWER.x, WATER_TOWER.z, 5, "#8fd3ff");
+    for (const r of RIDES) circle(r.x, r.z, r.id === "wheel" ? 7 : r.r, r.id === "wheel" ? "#ffd43b" : r.id === "carousel" ? "#e03131" : "#ff5fd8");
+    circle(BIG_TOP.x, BIG_TOP.z, BIG_TOP.r, "#c92a2a");
+    {
+      // the Haven Loop's elevated track
+      g.strokeStyle = "#a0714a"; g.lineWidth = 3 * this.worldToMap(0, 0)[2]; g.setLineDash([6 * B, 3 * B]); g.beginPath();
+      TRAIN.loop.forEach(([x, z], i) => { const [px, pz] = this.worldToMap(x, z); if (i) g.lineTo(px, pz); else g.moveTo(px, pz); });
+      g.closePath(); g.stroke(); g.setLineDash([]);
+    }
     {
       const [tx, tz, ts] = this.worldToMap(TRAIL.cx, TRAIL.cz);
       g.strokeStyle = "#a07a4a"; g.lineWidth = TRAIL.width * 2 * ts; g.beginPath();

@@ -20,6 +20,11 @@ export class AvatarRig {
   private current = "";
   private gestureUntil = 0;
   private disposed = false;
+  private model: THREE.Object3D | null = null;
+  private baseY = 0;
+  private sitDrop = 0;
+  private legs: { upper: THREE.Object3D; lower: THREE.Object3D; foot: THREE.Object3D; side: number }[] = [];
+  private sitting = false;
   loaded = false;
 
   /** noWeapons hides prop weapons some models carry (Haven City has none). */
@@ -32,8 +37,23 @@ export class AvatarRig {
       model.updateMatrixWorld(true);
       const b2 = new THREE.Box3().setFromObject(model);
       model.position.y = -b2.min.y;
+      this.model = model; this.baseY = model.position.y;
+      // legs for the seated pose: thighs forward, shins down (works on any rig with these bones)
+      const bone = (re: RegExp) => { let hit: THREE.Object3D | null = null; model.traverse(o => { if (!hit && re.test(o.name) && !(o as THREE.Mesh).isMesh) hit = o; }); return hit as THREE.Object3D | null; };
+      for (const [side, s] of [[1, "L"], [-1, "R"]] as const) {
+        const upper = bone(new RegExp(`^(UpperLeg|Thigh|LeftUpLeg|RightUpLeg)[._]?${s}?$`, "i")) ?? bone(new RegExp(`UpperLeg[._]?${s}$`, "i"));
+        const lower = bone(new RegExp(`LowerLeg[._]?${s}$`, "i")), foot = bone(new RegExp(`^Foot[._]?${s}$`, "i"));
+        if (upper && lower && foot) this.legs.push({ upper, lower, foot, side });
+      }
+      if (this.legs.length) {
+        model.updateMatrixWorld(true);
+        const hip = this.legs[0].upper.getWorldPosition(new THREE.Vector3()).y, knee = this.legs[0].lower.getWorldPosition(new THREE.Vector3()).y;
+        this.sitDrop = Math.max(0, hip - knee - 0.05);
+      }
+      if (this.sitting) this.sit(true);
       model.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
-      if (opts.noWeapons) model.traverse(o => { if ((o as THREE.Mesh).isMesh && /^(sword|pistol|gun|knife|dagger|axe|bow|crossbow)/i.test(o.name)) o.visible = false; });
+      // weapon props can be a group of meshes named after their parts, so hide the whole named node
+      if (opts.noWeapons) model.traverse(o => { if (!(o as THREE.Bone).isBone && /^(sword|pistol|gun|knife|dagger|axe|bow|crossbow|shield)/i.test(o.name)) o.visible = false; });
       this.root.add(model);
       if (gltf.animations.length) {
         this.mixer = new THREE.AnimationMixer(model);
@@ -65,6 +85,13 @@ export class AvatarRig {
     this.gestureUntil = performance.now() + a.getClip().duration * 1000 - 150;
   }
 
+  /** Sits down on a chair (or stands back up). The rig's root stays on the floor. */
+  sit(on: boolean) {
+    this.sitting = on;
+    if (this.model) this.model.position.y = this.baseY - (on ? this.sitDrop : 0);
+  }
+  get isSitting() { return this.sitting; }
+
   /** speed in world units/s decides idle, walk or run. */
   update(dt: number, speed: number) {
     if (!this.mixer) return;
@@ -74,9 +101,32 @@ export class AvatarRig {
       if (w && this.current === "walk") w.timeScale = THREE.MathUtils.clamp(speed / 3.2, 0.7, 1.6);
     }
     this.mixer.update(dt);
+    if (this.sitting && this.legs.length) this.poseSeated();
+  }
+
+  /** Bends the legs after the animation has run: thighs point forward, shins straight down. */
+  private poseSeated() {
+    const yaw = this.root.getWorldQuaternion(_q1);
+    for (const leg of this.legs) {
+      this.root.updateMatrixWorld(true);
+      const fwd = _v1.set(leg.side * 0.12, -0.05, 1).normalize().applyQuaternion(yaw);
+      aimBone(leg.upper, leg.lower, fwd);
+      leg.upper.updateMatrixWorld(true);
+      aimBone(leg.lower, leg.foot, _v2.set(0, -1, 0.08).normalize().applyQuaternion(yaw));
+    }
   }
 
   dispose() { this.disposed = true; this.mixer?.stopAllAction(); }
+}
+
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3();
+/** Turns `bone` so the direction to `child` points along `dirWorld`. */
+function aimBone(bone: THREE.Object3D, child: THREE.Object3D, dirWorld: THREE.Vector3) {
+  if (!bone.parent) return;
+  const cur = _v3.copy(child.position).applyQuaternion(bone.quaternion).normalize();
+  const parentQ = bone.parent.getWorldQuaternion(_q2).invert();
+  const want = _v4.copy(dirWorld).applyQuaternion(parentQ).normalize();
+  bone.quaternion.premultiply(new THREE.Quaternion().setFromUnitVectors(cur, want));
 }
 
 /** Pets trot behind their owner with a little hop. */

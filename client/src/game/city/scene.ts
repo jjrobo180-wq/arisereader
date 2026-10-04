@@ -4,11 +4,12 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
-  BLOCK_HALF, CINEMA, DEALER, FOUNTAIN, PETSHOP, STAGE, TOWERS, TRACK, TREES, BOUNDS, SEASIDE, rng,
+  BLOCK_HALF, CINEMA, DEALER, FAIR, FOUNTAIN, PARK, PETSHOP, STAGE, TOWERS, TRACK, TREES, BOUNDS, SEASIDE, rng,
 } from "@shared/city/layout";
 import { buildDistricts } from "./districts";
 import { buildNorth } from "./north";
 import { buildRoads } from "./roads";
+import { buildVenues, type Venues } from "./venues";
 import { LAP_LENGTH, START_S, trackPoint } from "@shared/city/race";
 import { checkerTexture, doorTexture, posterTexture, signTexture, skyTexture, windowTextures } from "./textures";
 
@@ -44,7 +45,7 @@ function towerGeometry(w: number, h: number, d: number, x: number, z: number) {
   return g;
 }
 
-export type CityScene = { update: (t: number) => void; dispose: () => void };
+export type CityScene = { update: (t: number, dt: number) => void; dispose: () => void; venues: Venues };
 
 export function buildCity(scene: THREE.Scene): CityScene {
   const disposables: { dispose: () => void }[] = [];
@@ -269,25 +270,34 @@ export function buildCity(scene: THREE.Scene): CityScene {
   // ── The beach, the pier, Lakeside Park and the Stunt Park ──
   const districts = buildDistricts(scene, keep);
   const north = buildNorth(scene, keep);
+  const venues = buildVenues(scene, keep);
 
-  // ── Outer edge: a low hedge round everything except the ocean ──
+  // ── Outer edge: a low hedge round everything except the ocean, open where the fairgrounds join ──
   {
     const hedge: THREE.BufferGeometry[] = [];
-    const west = SEASIDE.ocean, east = BOUNDS.maxX, north = BOUNDS.minZ, south = BOUNDS.maxZ;
+    const west = SEASIDE.ocean, east = PARK.maxX, north = BOUNDS.minZ, south = BOUNDS.maxZ;
     hedge.push(boxAt(east - west, 1.2, 1.4, (west + east) / 2, 0, north - 0.7));
     hedge.push(boxAt(east - west, 1.2, 1.4, (west + east) / 2, 0, south + 0.7));
-    hedge.push(boxAt(1.4, 1.2, south - north, east + 0.7, 0, (north + south) / 2));
+    hedge.push(boxAt(1.4, 1.2, FAIR.minZ - north, east + 0.7, 0, (north + FAIR.minZ) / 2));
+    hedge.push(boxAt(1.4, 1.2, south - FAIR.maxZ, east + 0.7, 0, (FAIR.maxZ + south) / 2));
+    // round the fairgrounds
+    const fw = FAIR.maxX - east, fx = (east + FAIR.maxX) / 2;
+    hedge.push(boxAt(fw, 1.2, 1.4, fx, 0, FAIR.minZ - 0.7));
+    hedge.push(boxAt(fw, 1.2, 1.4, fx, 0, FAIR.maxZ + 0.7));
+    hedge.push(boxAt(1.4, 1.2, FAIR.maxZ - FAIR.minZ, FAIR.maxX + 0.7, 0, (FAIR.minZ + FAIR.maxZ) / 2));
     add(mergeGeometries(hedge)!, keep(std(0x2f6b35)), { cast: true });
   }
 
   return {
-    update(t: number) {
+    venues,
+    update(t: number, dt: number) {
       jet.scale.y = 1 + Math.sin(t * 3) * 0.12;
       water.position.y = 0.86 + Math.sin(t * 2) * 0.02;
       (neonPink as THREE.MeshBasicMaterial).color.setHSL(0.88 + Math.sin(t * 1.5) * 0.04, 1, 0.65);
       districts.update(t);
       north.update(t);
       network.update();
+      venues.update(t, dt);
     },
     dispose() { disposables.forEach((d) => d.dispose()); },
   };

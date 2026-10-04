@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Car, Check, Flag, Heart, Megaphone, MessageCircle, PawPrint, Star, Timer, Trophy, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Car, Check, DoorOpen, Flag, Gamepad2, Heart, LogOut, Megaphone, MessageCircle, PawPrint, Star, Timer, Trophy, Utensils, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { openPetCare, PET_PERSONALITIES } from "@/lib/pets";
@@ -8,11 +8,11 @@ import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 import { CityGame, type CityHome, type CityHud, type CityPlayer, type CitySelf, type StarFound } from "@/game/city/game";
 import { CARS, SHOP_CARS, carFor, type CarId } from "@shared/city/drive";
 import { formatTime } from "@shared/city/race";
-import { CINEMA, LOTS, STARS } from "@shared/city/layout";
+import { CINEMA, LOTS, RESTAURANTS, STARS } from "@shared/city/layout";
 import { hashParam } from "@/lib/worldAvatar";
 import "./ariseCity.css";
 
-type Overlay = "dealer" | "petshop" | "race" | "phrases" | "help" | "stars" | null;
+type Overlay = "dealer" | "petshop" | "race" | "phrases" | "help" | "stars" | "menu" | null;
 type World = { economy: { wallet: number }; state: { purchased: string[]; equipped: { car?: string; pet?: string }; lostPets?: string[] } };
 
 const PETS: { id: string; name: string; price: number }[] = [
@@ -23,6 +23,14 @@ const PETS: { id: string; name: string; price: number }[] = [
 ];
 
 const HELP_KEY = "city_help_seen";
+/** Set when a reader leaves for an arcade game, so they come back to the Neon Arcade. */
+const RETURN_KEY = "city_return";
+const MENU_NOTES: Record<string, string> = {
+  "Cheese Slice": "Classic New York style, folded in half", "Pepperoni Slice": "Crispy cups of pepperoni", "Veggie Slice": "Peppers, onions and olives", "Garlic Knots": "Warm, buttery, four to a basket",
+  "Ramen Bowl": "Rich broth, noodles and a soft egg", "Dumplings": "Six pan-fried dumplings", "Fried Rice": "Wok-tossed with veggies", "Spring Rolls": "Crunchy, with sweet chili sauce",
+  "Street Tacos": "Three tacos with lime and cilantro", "Burrito": "Rice, beans and salsa, wrapped tight", "Nachos": "Loaded with cheese and pico", "Churros": "Cinnamon sugar and chocolate dip",
+  "Pancake Stack": "Three fluffy pancakes and syrup", "Burger & Fries": "The diner classic", "Grilled Cheese": "Golden and melty", "Milkshake": "Vanilla, thick enough for a spoon",
+};
 
 /** Phones and tablets get on-screen controls; a touch on a laptop screen switches them on too. */
 function useTouchControls() {
@@ -80,6 +88,7 @@ export default function AriseCity() {
         setPhrases(d.safePhrases || []);
         const game = new CityGame(hostRef.current, d.self, {
           onHud: setHud,
+          onNote: flash,
           onStar: (s: StarFound) => {
             setFound(gameRef.current?.foundStars ?? []);
             const hint = STARS.find((x) => x.id === s.id)?.hint;
@@ -100,6 +109,12 @@ export default function AriseCity() {
         if (l) game.teleport(l.doorX, l.doorZ + (l.facing === 0 ? 2 : -2), l.facing);
         // coming out of the cinema: stand on the red carpet, facing the street
         if (hashParam("from") === "cinema") game.teleport(CINEMA.door.x - 5, CINEMA.door.z, -Math.PI / 2);
+        // back from an arcade game: you're still standing in the Neon Arcade
+        try {
+          const back = JSON.parse(sessionStorage.getItem(RETURN_KEY) || "null");
+          sessionStorage.removeItem(RETURN_KEY);
+          if (back?.venue && Date.now() - back.at < 3 * 3600_000) game.enterVenue(back.venue);
+        } catch { /* start outside */ }
         game.setPlayers(d.players || []);
         setPlayers((d.players || []).length);
         setReady(true);
@@ -146,7 +161,16 @@ export default function AriseCity() {
   const interact = useCallback(() => {
     const spot = hud?.spot; const game = gameRef.current;
     if (!spot || !game) return;
-    if (spot.kind === "cinema") { if (hud?.driving) { flash("Get out of your car (E) to go into the cinema."); return; } setTravel("/club-arise/theater"); }
+    if (spot.kind === "venue") { if (hud?.driving) { flash(`Get out of your car (E) to go into ${spot.label}.`); return; } game.enterVenue(spot.venue!); }
+    else if (spot.kind === "exit") game.leaveVenue();
+    else if (spot.kind === "order") setOverlay("menu");
+    else if (spot.kind === "seat") { if (!hud?.meal) flash("Order something at the counter first."); else game.sit(spot.id); }
+    else if (spot.kind === "cabinet") {
+      try { sessionStorage.setItem(RETURN_KEY, JSON.stringify({ venue: "arcade", at: Date.now() })); } catch { /* ignore */ }
+      setTravel(`/games?game=${spot.game}&from=arcade`);
+    }
+    else if (spot.kind === "ride") { if (hud?.driving) flash("Get out of your car (E) to go on the ride."); else game.ride(spot.ride!); }
+    else if (spot.kind === "cinema") { if (hud?.driving) { flash("Get out of your car (E) to go into the cinema."); return; } setTravel("/club-arise/theater"); }
     else if (spot.kind === "library") { if (hud?.driving) { flash("Get out of your car to go into the library."); return; } setTravel("/library"); }
     else if (spot.kind === "dealer") setOverlay("dealer");
     else if (spot.kind === "petshop") setOverlay("petshop");
@@ -164,14 +188,14 @@ export default function AriseCity() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest?.("input, textarea, select")) return;
-      if (e.key === "Escape") { setOverlay(null); return; }
+      if (e.key === "Escape") { if (gameRef.current && hud?.ride) gameRef.current.stopRide(); setOverlay(null); return; }
       if (overlay) return;
       if (e.key.toLowerCase() === "f" && !e.repeat) interact();
       if (e.key.toLowerCase() === "t" && !e.repeat) setOverlay("phrases");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [interact, overlay]);
+  }, [interact, overlay, hud?.ride]);
 
   const say = (text: string) => { phraseRef.current = text; gameRef.current?.say(text); setOverlay(null); };
   const refreshSelf = async () => {
@@ -191,12 +215,19 @@ export default function AriseCity() {
     }
     if (s.kind === "library") return "Find a book at the A.R.I.S.E. Library";
     if (s.kind === "speedway") return hud?.driving ? "Race at Haven Speedway" : "Haven Speedway: get in your car to race";
+    if (s.kind === "venue") return `Go into ${s.label}`;
+    if (s.kind === "exit") return "Head back outside";
+    if (s.kind === "order") return hud?.meal ? `Order again (you have a ${hud.meal})` : "Order food";
+    if (s.kind === "seat") return hud?.meal ? `Sit down and eat your ${hud.meal}` : "Grab a table (order first)";
+    if (s.kind === "cabinet" || s.kind === "ride") return s.label;
     return `Enter ${s.label}`;
   })();
 
   const race = hud?.race;
+  const restaurant = hud?.room?.kind === "restaurant" ? RESTAURANTS.find((r) => r.id === hud.room!.id) ?? null : null;
+  const busy = !!hud?.ride || hud?.eating != null;
   const press = (key: string) => (on: boolean) => gameRef.current?.press(key, on);
-  const showControls = ready && touch && !overlay && !(race?.phase === "finished");
+  const showControls = ready && touch && !overlay && !(race?.phase === "finished") && !busy;
 
   return (
     <main className={"club-world-root city-root" + (touch ? " city-touch" : "")}>
@@ -209,9 +240,26 @@ export default function AriseCity() {
           <b>{hud?.area ?? "Haven City"}</b>
           <span>{players} {players === 1 ? "reader" : "readers"} here · {hud?.driving ? hud.carName : "on foot"}</span>
         </div>
+        {ready && !!hud?.energy && <span className="city-chip city-energy" role="status" aria-label={`Energy: ${hud.energy} seconds left`}><Zap /> <b>{Math.floor(hud.energy / 60)}:{String(hud.energy % 60).padStart(2, "0")}</b></span>}
         {ready && <button type="button" className="city-chip city-stars" onClick={() => setOverlay("stars")} aria-label={`Hidden stars: ${found.length} of ${STARS.length} found`}><Star /> <b>{found.length}/{STARS.length}</b></button>}
       </header>
-      <canvas ref={mapRef} className="city-map" width={170} height={170} aria-label="City map" />
+      <canvas ref={mapRef} className={"city-map" + (hud?.room || hud?.ride ? " hidden" : "")} width={170} height={170} aria-label="City map" />
+
+      {/* on a ride */}
+      {hud?.ride && (
+        <div className="city-ride" role="status">
+          <span>Riding <b>{hud.ride.name}</b></span>
+          <span className="city-ride-time">{hud.ride.left}s</span>
+          <button type="button" onClick={() => gameRef.current?.stopRide()}><LogOut /> Get off</button>
+        </div>
+      )}
+      {/* eating */}
+      {hud?.eating != null && (
+        <div className="city-eat" role="status" aria-label="Eating">
+          <Utensils /><span>Eating your {hud.meal}…</span>
+          <i><b style={{ width: `${Math.round(hud.eating * 100)}%` }} /></i>
+        </div>
+      )}
 
       {/* race HUD */}
       {race && race.phase !== "finished" && (
@@ -241,10 +289,14 @@ export default function AriseCity() {
       )}
 
       {/* prompt */}
-      {ready && !race && spotLabel && !overlay && (
-        <button type="button" className="city-prompt" onClick={interact}>{!touch && <kbd>F</kbd>} {spotLabel}</button>
+      {ready && !race && spotLabel && !overlay && !busy && (
+        <button type="button" className="city-prompt" onClick={interact}>
+          {!touch && <kbd>F</kbd>}
+          {hud?.spot?.kind === "venue" || hud?.spot?.kind === "exit" ? <DoorOpen /> : hud?.spot?.kind === "order" || hud?.spot?.kind === "seat" ? <Utensils /> : hud?.spot?.kind === "cabinet" ? <Gamepad2 /> : null}
+          {spotLabel}
+        </button>
       )}
-      {ready && !race && !spotLabel && !overlay && !hud?.driving && hud?.nearCar && (touch
+      {ready && !race && !spotLabel && !overlay && !busy && !hud?.room && !hud?.driving && hud?.nearCar && (touch
         ? <button type="button" className="city-prompt" onClick={() => gameRef.current?.toggleCar()}><Car /> Get in your {hud.carName}</button>
         : <div className="city-hint"><kbd>E</kbd> Get in your {hud.carName}</div>)}
       {notice && <div className="city-notice" role="status">{notice}</div>}
@@ -253,9 +305,11 @@ export default function AriseCity() {
       {hud?.driving && <div className="city-speed" aria-label={`${hud.speed} miles per hour`}><b>{hud.speed}</b><span>mph</span></div>}
 
       {/* action buttons */}
-      {ready && (
+      {ready && !busy && (
         <div className="city-actions">
-          <button type="button" onClick={() => gameRef.current?.toggleCar()} aria-label={hud?.driving ? "Get out of the car" : "Get in your car"}><Car /><span>{hud?.driving ? "Get out" : "Drive"}</span></button>
+          {hud?.room
+            ? <button type="button" onClick={() => gameRef.current?.leaveVenue()} aria-label="Head back outside"><DoorOpen /><span>Leave</span></button>
+            : <button type="button" onClick={() => gameRef.current?.toggleCar()} aria-label={hud?.driving ? "Get out of the car" : "Get in your car"}><Car /><span>{hud?.driving ? "Get out" : "Drive"}</span></button>}
           {hud?.driving && <button type="button" onClick={() => gameRef.current?.horn()} aria-label="Honk the horn"><Megaphone /><span>Horn</span></button>}
           <button type="button" onClick={() => setOverlay("phrases")} aria-label="Say something"><MessageCircle /><span>Say</span></button>
           <button type="button" onClick={() => openPetCare()} aria-label="Pet care"><Heart /><span>Pet</span></button>
@@ -277,6 +331,18 @@ export default function AriseCity() {
       )}
 
       {/* overlays */}
+      {overlay === "menu" && restaurant && (
+        <Sheet title={restaurant.name} onClose={() => setOverlay(null)}>
+          <p className="city-small">Pick something, then sit at any table to eat it. A good meal gives you energy: you'll walk and drive faster for 2 minutes.</p>
+          <div className="city-menu">
+            {restaurant.menu.map((item) => (
+              <button key={item} type="button" onClick={() => { gameRef.current?.order(item); setOverlay(null); flash(`${item} ordered. Find a table to eat.`); }}>
+                <b>{item}</b><span>{MENU_NOTES[item] ?? ""}</span>
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
       {overlay === "phrases" && (
         <Sheet title="Say something" onClose={() => setOverlay(null)}>
           <div className="city-phrases">{phrases.map((p) => <button key={p} type="button" onClick={() => say(p)}>{p}</button>)}</div>
@@ -289,17 +355,19 @@ export default function AriseCity() {
               <li>Use the stick to walk. Push it all the way to run. Drag anywhere else to look around</li>
               <li>Tap <b>Drive</b> to get in your car. Everyone gets a free City Cruiser</li>
               <li>In the car, slide your left thumb to steer and hold <b>Gas</b> or <b>Brake</b> on the right. Hold Brake when stopped to reverse</li>
-              <li>Tap the yellow button to go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals, the library</li>
-              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, north to the library, mall and skate park, south to the speedway, the farm and the off-road trail</li>
+              <li>Tap the yellow button to go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals, the library, the plaza restaurants and the Neon Arcade on the boardwalk</li>
+              <li>Order food in a restaurant and sit down to eat it for a burst of energy</li>
+              <li>Head west to the beach and pier, east past Lakeside Park to Haven Fair for the Big Wheel, the carousel and the Sky Drop, north to the library, mall and skate park, south to the speedway, the farm and the off-road trail</li>
               <li>Find all {STARS.length} hidden stars. Some are only reachable with a big jump</li>
             </ul>
           ) : (
             <ul className="city-help">
               <li><kbd>W A S D</kbd> or arrows to walk and drive (drag the screen to look around)</li>
               <li><kbd>E</kbd> get in or out of your car. Everyone gets a free City Cruiser</li>
-              <li><kbd>F</kbd> go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals, the library</li>
+              <li><kbd>F</kbd> go into places: your home, Starlight Cinema, Velocity Motors, Paws &amp; Pals, the library, the plaza restaurants and the Neon Arcade on the boardwalk</li>
+              <li>Order food in a restaurant and sit down to eat it for a burst of energy</li>
               <li><kbd>Space</kbd> drift, <kbd>H</kbd> horn, <kbd>Shift</kbd> run, <kbd>T</kbd> say something</li>
-              <li>Head west to the beach and pier, east to Lakeside Park and the Stunt Park, north to the library, mall and skate park, south to the speedway, the farm and the off-road trail</li>
+              <li>Head west to the beach and pier, east past Lakeside Park to Haven Fair for the Big Wheel, the carousel and the Sky Drop, north to the library, mall and skate park, south to the speedway, the farm and the off-road trail</li>
               <li>Find all {STARS.length} hidden stars. Some are only reachable with a big jump</li>
             </ul>
           )}
@@ -335,7 +403,7 @@ export default function AriseCity() {
           <div className="city-row"><button type="button" className="city-btn" onClick={() => setRetry((n) => n + 1)}>Try again</button><button type="button" className="city-btn ghost" onClick={() => navigate("/worlds")}>Back to Worlds</button></div>
         </div></div>
       )}
-      {travel && <WorldLoadingOverlay tone="block" label={travel.startsWith("/my-home") ? "Heading inside…" : travel.startsWith("/club-arise/theater") ? "Finding a seat at Starlight Cinema…" : travel === "/library" ? "Opening the library…" : "Leaving Haven City…"} />}
+      {travel && <WorldLoadingOverlay tone="block" label={travel.startsWith("/my-home") ? "Heading inside…" : travel.startsWith("/club-arise/theater") ? "Finding a seat at Starlight Cinema…" : travel === "/library" ? "Opening the library…" : travel.startsWith("/games") ? "Starting the machine…" : "Leaving Haven City…"} />}
     </main>
   );
 }

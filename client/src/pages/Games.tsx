@@ -144,6 +144,12 @@ function Facts({ world }: { world: World }) {
   return <ul className="axl-meta">{world.facts.map((f) => <li key={f}>{f}</li>)}</ul>;
 }
 
+/** Reads ?name= from the hash route (or the page URL). */
+function hashParam(name: string) {
+  const h = window.location.hash, i = h.indexOf("?");
+  return (i >= 0 ? new URLSearchParams(h.slice(i + 1)).get(name) : null) ?? new URLSearchParams(window.location.search).get(name);
+}
+
 const logoMax = (w: World) => (w.title.length > 9 ? 17 : 21);
 const PlayIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" fill="currentColor" /></svg>;
 
@@ -155,6 +161,8 @@ export default function Games() {
   const [scrolled, setScrolled] = useState(false);
   const [gameRoomOpen, setGameRoomOpen] = useState(false);
   const [launchGame, setLaunchGame] = useState<string | null>(null);
+  // opened from a machine in Haven City's Neon Arcade: start that game, and head back when it closes
+  const [fromArcade] = useState(() => hashParam("from") === "arcade");
 
   // Spotlight: Haven City first, then the world the student was last in and the day's picks.
   const featured = useMemo(() => {
@@ -177,6 +185,10 @@ export default function Games() {
   };
 
   useEffect(() => { warm(hero.id); }, [hero.id]);
+  useEffect(() => {
+    const g = hashParam("game");
+    if (g && GAMES.some((x) => x.id === g)) playGame(g);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!travel) return;
     const timer = window.setTimeout(() => navigate(travel.path), 450);
@@ -272,7 +284,7 @@ export default function Games() {
         token={token}
         open={gameRoomOpen}
         onOpen={() => setGameRoomOpen(true)}
-        onClose={() => { setGameRoomOpen(false); setLaunchGame(null); }}
+        onClose={() => { setGameRoomOpen(false); setLaunchGame(null); if (fromArcade) setTravel({ path: "/city", label: "Back to the Neon Arcade…" }); }}
         initialGame={launchGame}
         readers={[]}
         locked={null}
