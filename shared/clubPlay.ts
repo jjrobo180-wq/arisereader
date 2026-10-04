@@ -28,6 +28,9 @@ export type PlayAccess = {
   day: string;
   week: string;
   dailyMinutes: number;
+  baseDailyMinutes?: number;
+  bonusMinutes?: number;
+  timeRequestStatus?: "pending" | "approved" | "denied" | null;
   weeklyUnlimitedOnPass: boolean;
   passedThisWeek: number;
   closedByAdmin?: boolean;
