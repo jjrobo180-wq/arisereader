@@ -82,6 +82,7 @@ const SkyboundSprint = lazyPage(() => import("./pages/SkyboundSprint"));
 const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
+const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
 const Quiz = lazyPage(() => import("./pages/Quiz"));
 const ReadBook = lazyPage(() => import("./pages/ReadBook"));
@@ -317,6 +318,11 @@ function AppRoutes() {
       <Route path="/teacher-scenes">
         {user && (user.role === "teacher" || user.isAdmin)
           ? <ProtectedRoute><TeacherScenes /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/scene-live">
+        {user && user.role === "student" && !user.isAdmin
+          ? <ProtectedRoute><StudentSceneLive /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
       {/* Public: shareable with teachers who don't have an account yet. */}
