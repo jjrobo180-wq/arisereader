@@ -12,7 +12,7 @@ export type Boot = {
   room: string | null;
   sets: StudySetSummary[];
   rules: { studentSets: boolean; studentAi: boolean };
-  ai: { available: boolean; left: number; perDay: number };
+  ai: { available: boolean; locked?: boolean; left: number; perDay: number };
   stats: { games: number; wins: number; correct: number; answered: number; coinsToday: number };
   rewards: { finish: number; sharp: number; win: number; dailyCap: number };
   board: BoardRow[];

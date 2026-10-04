@@ -417,6 +417,9 @@ export default function TeacherDashboard() {
         <button onClick={() => navigate("/teacher-scenes")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" }} data-testid="button-teacher-scenes">
           <BookOpen size={18} /> Scenes
         </button>
+        {!user.isAdmin && <button onClick={() => navigate("/billing")} style={{ ...styles.subtleButton, width: "100%", justifyContent: "center" }} data-testid="button-teacher-plan">
+          Your plan
+        </button>}
       </div>
       <div style={{ marginBottom: 18 }}><PlayTimeManager /></div>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">

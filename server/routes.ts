@@ -9,6 +9,7 @@ import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
+import { registerPlanRoutes } from "./plans";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
 import { registerRacingRoutes, supabaseSaveStore } from "./racing";
@@ -956,6 +957,20 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Plans and billing. Registered first: its teacher check has to run before every other route.
+  // It locks nothing until the admin turns plan rules on, and takes no payment until a Stripe key is set.
+  const plans = registerPlanRoutes(app, authMiddleware, adminMiddleware, {
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    userForToken: async (token) => (await storage.getSession(token))?.user ?? null,
+    getUser: (id) => storage.getUser(id),
+    countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).length,
+    countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
+    schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
+    appUrl: APP_URL,
+    envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
+    envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
+  });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   // Study Squad: the study hall, its tables and study sets (kept in the settings table).
@@ -963,6 +978,7 @@ export async function registerRoutes(
     getSetting: (key) => storage.getSetting(key),
     upsertSetting: (key, value) => storage.upsertSetting(key, value),
     aiKey: () => getPerplexityApiKey(),
+    premium: (user) => plans.isPremium(user),
   });
   registerClubAriseRoutes(app, authMiddleware);
   registerAriseNewsRoutes(app, authMiddleware);
@@ -4911,6 +4927,8 @@ export async function registerRoutes(
       if (req.user.role === 'teacher' || req.user.role === 'parent' || req.user.isAdmin) {
         return res.status(403).json({ message: "Only students can create favorite quizzes" });
       }
+      // On the Free plan the only AI quiz is the one for a book.
+      if (await plans.blockFreeStudent(req, res)) return;
       const { topic } = req.body;
       if (!topic || topic.trim().length < 2) {
         return res.status(400).json({ message: "Topic is required" });
@@ -5097,6 +5115,8 @@ export async function registerRoutes(
       if (req.user.role === 'teacher' || req.user.role === 'parent' || req.user.isAdmin) {
         return res.status(403).json({ message: "Only students can create iArise quizzes" });
       }
+      // Lessons built from a student's own topics are a Premium extra.
+      if (await plans.blockFreeStudent(req, res)) return;
       const { topic } = req.body;
       if (!topic || topic.trim().length < 2) {
         return res.status(400).json({ message: "Topic is required" });
@@ -9061,7 +9081,12 @@ Important:
       if (!invite) return res.status(400).json({ message: 'That parent code was not found.' });
       const links = await readParentStudentLinks();
       const ids = normalizeLinkedIds(links[String(req.user.id)]);
-      if (!ids.includes(Number(invite.student_id))) ids.push(Number(invite.student_id));
+      if (!ids.includes(Number(invite.student_id))) {
+        // One parent profile follows up to five children on the Free plan.
+        const room = await plans.parentLinkAllowed(ids, Number(invite.student_id));
+        if (!room.ok) return res.status(409).json({ message: room.message });
+        ids.push(Number(invite.student_id));
+      }
       links[String(req.user.id)] = ids;
       await storage.upsertSetting('parent_student_links', JSON.stringify(links));
       res.json({ success: true, studentIds: ids });
@@ -9156,6 +9181,8 @@ Important:
   app.post("/api/teacher-admin/students/:id/approve", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      const seat = await plans.seatCheck(req.user);
+      if (!seat.ok) return res.status(409).json({ message: seat.message });
       await supabase.from("users").update({ approved_by_teacher: true }).eq("id", studentId);
       const student = await storage.getUser(studentId);
       const teacherName = student?.teacherId ? ((await storage.getUser(student.teacherId))?.displayName || "your teacher") : "your teacher";
@@ -9433,6 +9460,9 @@ Important:
       const studentId = parseInt(req.params.studentId);
       const teacherId = req.user.isAdmin ? null : req.user.id;
       if (teacherId) {
+        // A paid plan covers a set number of students.
+        const seat = await plans.seatCheck(req.user);
+        if (!seat.ok) return res.status(409).json({ message: seat.message });
         await storage.approveStudent(studentId, teacherId);
         // Send notification message to student
         const teacher = await storage.getUser(teacherId);

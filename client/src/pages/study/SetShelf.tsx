@@ -271,7 +271,8 @@ function SetEditor({ api, boot, initial, say, onAiUsed, onCancel, onSaved }: {
 
           {way === "ai" && (
             <div className="sq-way">
-              {!boot.ai.available ? <p>AI sets aren't switched on for this site yet. You can still write your own or paste a list.</p>
+              {boot.ai.locked ? <p>AI study sets are part of A.R.I.S.E. Premium, which comes through your teacher. You can still write your own or paste a list.</p>
+                : !boot.ai.available ? <p>AI sets aren't switched on for this site yet. You can still write your own or paste a list.</p>
                 : !aiAllowed ? <p>Your teacher has turned off AI sets for your class. You can still write your own or paste a list.</p> : (
                 <>
                   <p>Tell the AI what to make questions about, or give it your notes and it will only use those. AI can get things wrong, so read every answer before you save.</p>

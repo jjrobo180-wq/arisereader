@@ -132,10 +132,10 @@ function Price({ who, detail, amount, per, premium }: { who: string; detail: Rea
 export default function Pricing() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const isTeacher = !!user && (user.role === "teacher" || user.isAdmin);
   // Signed-in readers go home; everyone else lands on the account choices.
   const startFree = () => navigate(user ? "/" : "/?tab=create");
-  const getPremium = () => navigate(isTeacher ? "/teacher-dashboard" : "/teacher-signup");
+  // A teacher goes to their plan page, where Premium is bought. Anyone else starts by making a teacher account.
+  const getPremium = () => navigate(user?.isAdmin ? "/admin" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
   const toCompare = () => document.getElementById("pr-compare")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
