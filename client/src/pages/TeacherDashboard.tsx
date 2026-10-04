@@ -408,7 +408,12 @@ export default function TeacherDashboard() {
         </span>
         <ChevronRight size={22} style={{ flexShrink: 0, opacity: 0.75 }} />
       </button>
-      <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, marginBottom: 18 }}>Host a live quiz</button>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 18 }}>
+        <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0 }}>Host a live quiz</button>
+        <button onClick={() => navigate("/teacher-scenes")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" }} data-testid="button-teacher-scenes">
+          <BookOpen size={18} /> Scenes
+        </button>
+      </div>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">
         <TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton>
         <TabButton active={tab === "all-students"} onClick={() => setTab("all-students")} icon={<Users size={19} />}>All Students</TabButton>
