@@ -475,9 +475,7 @@ function AppRoutes() {
         <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/library"><ReadBook /></EyeGazeAccessGate> : <ReadBook />}</ProtectedRoute>
       </Route>
       <Route path="/profile">
-        <ProtectedRoute>
-          {isEyeGazeStudent ? <Redirect to="/eye-gaze-account" replace /> : <Profile />}
-        </ProtectedRoute>
+        <ProtectedRoute><Profile /></ProtectedRoute>
       </Route>
       <Route path="/admin">
         <ProtectedRoute><Admin /></ProtectedRoute>
