@@ -5,6 +5,7 @@ import { READABLE_BOOKS, type ReadableBook } from "@shared/readsCatalog";
 import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
 import { NewsArt, sectionStyle } from "../news/useNews";
 import { progressKey, readProgress, timeLabel, useLibrary, useReadsFonts } from "./useReads";
+import IAriseShelf from "./IAriseShelf";
 import "../news/news.css";
 import "./reads.css";
 
@@ -52,11 +53,11 @@ export default function ReadHub() {
         <div className="nw-wrap">
           <div className="nw-topline"><Link href="/library" className="nw-back"><Back /><span>Library</span></Link></div>
           <h1 className="nw-wordmark">Read <span>on Arise</span></h1>
-          <p className="nw-tagline">{available.length} books and {NEWS_ARTICLES.length} articles you can read right here. Finish one, pass the quiz, earn points.</p>
+          <p className="nw-tagline">{available.length} books, iARISE lessons and {NEWS_ARTICLES.length} articles you can read right here. Finish one, pass the quiz, earn points.</p>
           <nav className="rd-jump" aria-label="Jump to">
             {reading.length > 0 && <a href="#continue">Continue reading</a>}
             {spooky.length > 0 && <a href="#spooky">Spooky stories</a>}
-            <a href="#books">Books</a><a href="#articles">Articles</a>
+            <a href="#books">Books</a><a href="#iarise">iARISE</a><a href="#articles">Articles</a>
           </nav>
         </div>
       </header>
@@ -98,6 +99,8 @@ export default function ReadHub() {
           </nav>
           <div className="rd-books">{shown.map((b) => bookCard(b))}</div>
         </section>
+
+        <IAriseShelf books={books} results={results} />
 
         <section className="nw-block" id="articles" aria-labelledby="articles-h">
           <div className="nw-block-head"><h2 id="articles-h">Articles</h2><p>World news and features from Arise News. {NEWS_POINTS} points each.</p><Link href="/news" className="rd-more">Open Arise News</Link></div>
