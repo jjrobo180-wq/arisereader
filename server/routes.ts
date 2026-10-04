@@ -7,6 +7,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
+import { deviceFrom, logActivity, recordTeacherQuiz, studentActivity } from "./studentActivity";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
@@ -1246,6 +1247,7 @@ export async function registerRoutes(
       }
 
       const session = await storage.createSession(user.id);
+      if (user.role === "student" || !user.role) void logActivity(user.id, "signup", "", { device: deviceFrom(req.headers["user-agent"]) });
       res.status(201).json({
         token: session.token,
         user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, schoolId: user.school_id, totalPoints: user.totalPoints || 0 },
@@ -1465,6 +1467,7 @@ export async function registerRoutes(
       }
 
       const session = await storage.createSession(user.id);
+      if (!user.isAdmin && (user.role === "student" || !user.role)) void logActivity(user.id, "login", "", { device: deviceFrom(req.headers["user-agent"]) });
       const popupShown = !!(user as any).assessment_prompt_seen_at;
 
       // Track login count for students (for leaderboard popup)
@@ -1490,6 +1493,7 @@ export async function registerRoutes(
 
   app.post("/api/logout", authMiddleware, async (req: any, res) => {
     await storage.deleteSession(req.sessionToken);
+    if (req.user && !req.user.isAdmin && (req.user.role === "student" || !req.user.role) && !req.adminPreview) void logActivity(req.user.id, "logout");
     res.json({ message: "Logged out" });
   });
 
@@ -3180,6 +3184,18 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Student not found." });
     }
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Manual points are not configured on the server." });
+    // tied to a book: record it as a real quiz so it counts toward game unlocks
+    const bookId = Number(req.body?.bookId);
+    if (req.body?.bookId != null && req.body?.bookId !== "") {
+      const total = Number(req.body?.total ?? 10), score = Number(req.body?.score ?? total);
+      if (!Number.isSafeInteger(bookId) || bookId < 1 || !Number.isSafeInteger(total) || !Number.isSafeInteger(score) || total < 1 || total > 100) {
+        return res.status(400).json({ message: "Pick a book and enter the quiz score." });
+      }
+      const r = await recordTeacherQuiz({ studentId, bookId, points, score, total, reason, earnedOn, by: { id: req.user.id, name: req.user.displayName || req.user.username || "Teacher" } });
+      if (r.status !== 201) return res.status(r.status).json({ message: r.message });
+      clearCache("allUsers"); clearCache("leaderboard"); clearCache("monthlyLeaderboard"); clearCache("advisoryLeaderboard"); clearCache("session_");
+      return res.status(201).json({ id: `quiz-${r.attemptId}`, student_id: studentId, points, reason: `Quiz: ${r.title} (${score}/${total}) — ${reason}`, earned_on: earnedOn, created_at: new Date().toISOString(), countsAsQuiz: true });
+    }
     const { data, error } = await getAdminSupabase().from("manual_point_awards").insert({
       student_id: studentId, awarded_by: req.user.id, points, reason, earned_on: earnedOn,
     }).select("id, student_id, points, reason, earned_on, created_at").single();
@@ -3192,15 +3208,31 @@ export async function registerRoutes(
     res.status(201).json(data);
   });
 
+  // Admin: everything a student did — sign-ins, quizzes, how points were earned
+  app.get("/api/admin/students/:id/activity", authMiddleware, adminMiddleware, async (req, res) => {
+    const studentId = Number(req.params.id);
+    if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message: "Invalid student." });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Activity isn't available on this server." });
+    try { res.json(await studentActivity(studentId)); }
+    catch { res.status(500).json({ message: "Could not load this student's activity." }); }
+  });
+
   app.get("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req, res) => {
     const studentId = Number(req.params.id);
     if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message: "Invalid student." });
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Manual points are not configured on the server." });
-    const { data, error } = await getAdminSupabase().from("manual_point_awards")
-      .select("id, points, reason, earned_on, created_at").eq("student_id", studentId)
-      .order("created_at", { ascending: false }).limit(50);
+    const db = getAdminSupabase();
+    const [{ data, error }, recorded] = await Promise.all([
+      db.from("manual_point_awards").select("id, points, reason, earned_on, created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(50),
+      db.from("attempts").select("id, score, total, points_earned, answers, books(title)").eq("user_id", studentId).eq("proctor_type", "teacher").limit(100),
+    ]);
     if (error) return res.status(500).json({ message: "Could not load manual point history." });
-    res.json(data || []);
+    // quizzes recorded from here appear alongside plain point awards
+    const quizzes = (recorded.data || []).filter((a: any) => a.answers?._teacherRecorded).map((a: any) => {
+      const r = a.answers._teacherRecorded;
+      return { id: `quiz-${a.id}`, points: a.points_earned, reason: `Quiz: ${a.books?.title || "book"} (${a.score}/${a.total}) — ${r.reason}`, earned_on: r.earnedOn, created_at: r.recordedAt, countsAsQuiz: true };
+    });
+    res.json([...(data || []), ...quizzes].sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at))));
   });
 
   app.get("/api/admin/students", authMiddleware, adminMiddleware, async (_req, res) => {
