@@ -452,7 +452,7 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
       const db = getAdminSupabase();
       let students:any[] = [];
       if (ids.length) {
-        const { data, error } = await db.from('users').select('id,display_name,username,teacher_id').in('id', ids).order('display_name');
+        const { data, error } = await db.from('users').select('id,display_name,username,teacher_id,is_eye_gaze_user').in('id', ids).eq('role','student').eq('is_eye_gaze_user', false).order('display_name');
         if (error) throw error;
         students = data || [];
       }
@@ -500,6 +500,9 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
       if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message:'Invalid student.' });
       if (!minutes) return res.status(400).json({ message:'Choose how many minutes to add.' });
       if (!await canManageStudent(req, studentId)) return res.status(403).json({ message:'You cannot change play time for this student.' });
+      const target = await getAdminSupabase().from('users').select('id,role,is_eye_gaze_user').eq('id', studentId).maybeSingle();
+      if (target.error) throw target.error;
+      if (!target.data || target.data.role !== 'student' || target.data.is_eye_gaze_user) return res.status(400).json({ message:'Play-time bonuses are for regular student accounts.' });
       const day = clubDay(Date.now());
       const extraMinutes = await addDailyBonus(studentId, day, minutes, req.user);
       const request = await getTimeRequest(studentId, day);
