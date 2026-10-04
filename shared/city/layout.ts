@@ -7,8 +7,8 @@
 
 export type Box = { minX: number; maxX: number; minZ: number; maxZ: number };
 export type Surface = "road" | "paved" | "grass" | "track" | "sand" | "dirt";
-export type SpotKind = "home" | "cinema" | "dealer" | "petshop" | "speedway" | "plaza" | "library";
-export type Spot = { id: string; kind: SpotKind; x: number; z: number; radius: number; label: string; lot?: number };
+export type SpotKind = "home" | "cinema" | "dealer" | "petshop" | "speedway" | "plaza" | "library" | "venue" | "exit" | "order" | "seat" | "cabinet" | "ride";
+export type Spot = { id: string; kind: SpotKind; x: number; z: number; radius: number; label: string; lot?: number; venue?: string; game?: string; ride?: RideId };
 export type Lot = { index: number; x: number; z: number; facing: number; doorX: number; doorZ: number };
 export type Tower = Box & { height: number; color: number; seed: number };
 
@@ -44,12 +44,39 @@ export const SOUTH_ROAD = 186;
 export const FARM = { minX: SEASIDE.road + ROAD_HALF + 2, maxX: -136, minZ: SOUTH_ROAD + ROAD_HALF + 2, maxZ: 345 };
 export const TRAIL = { cx: 232, cz: 276, half: 44, radius: 38, width: 6, entryX: 200 };
 
-/** Places a reader can stand: one big rectangle (the ocean is the west edge) plus the pier. */
+/** Haven Fairgrounds: rides, game booths and food stands east of the park. */
+export const FAIR = { minX: PARK.maxX, maxX: 512, minZ: -300, maxZ: -62, gate: { x: 340, z: -280 } };
+export type RideId = "wheel" | "carousel" | "drop";
+export const RIDES: { id: RideId; name: string; x: number; z: number; r: number; spot: { x: number; z: number } }[] = [
+  { id: "wheel", name: "the Big Wheel", x: 474, z: -240, r: 4.5, spot: { x: 458, z: -240 } },
+  { id: "carousel", name: "the Carousel", x: 404, z: -196, r: 9, spot: { x: 404, z: -184.5 } },
+  { id: "drop", name: "the Sky Drop", x: 474, z: -124, r: 5.5, spot: { x: 474, z: -114 } },
+];
+export const BUMPER = { x: 392, z: -112, w: 34, d: 22 };
+const BOOTH_COLORS = [0xe03131, 0x1c7ed6, 0xf59f00, 0x2f9e44, 0xae3ec9];
+/** Two rows of game booths: along the north fence, and facing the midway. */
+export const BOOTHS = [
+  ...["Ring Toss", "Hoop Shot", "Duck Pond", "Ball Throw", "Spin Art"].map((name, i) => ({ x: 366 + i * 18, z: -292, name, color: BOOTH_COLORS[i] })),
+  ...["Skee Ball", "Frog Hop", "Basket Toss", "Fishing Game", "Milk Bottles"].map((name, i) => ({ x: [362, 380, 398, 452, 470][i], z: -172, name, color: BOOTH_COLORS[(i + 2) % 5] })),
+];
+export const FOOD_STANDS = [
+  { x: 352, z: -160, name: "Cotton Candy", color: 0xf783ac }, { x: 352, z: -130, name: "Lemonade", color: 0xfcc419 }, { x: 352, z: -100, name: "Pretzels", color: 0xd9480f },
+  { x: 372, z: -232, name: "Popcorn", color: 0xe03131 }, { x: 392, z: -232, name: "Funnel Cake", color: 0xf08c00 }, { x: 452, z: -158, name: "Snow Cones", color: 0x339af0 },
+];
+/** The striped circus tent in the south-east corner. */
+export const BIG_TOP = { x: 452, z: -86, r: 13 };
+
+/** Indoor rooms (restaurants and the arcade) sit off the map; doors teleport in and out. */
+export type Interior = { id: string; kind: "restaurant" | "arcade"; name: string; x: number; z: number; w: number; d: number };
+export const INTERIOR_ORIGIN = 1200;
+
+/** Places a reader can stand: the main map, the pier, the fairgrounds and the indoor rooms. */
 export const REGIONS: Box[] = [
   { minX: SEASIDE.minX, maxX: PARK.maxX, minZ: NORTH.minZ, maxZ: TRACK.cz + TRACK.radius + 26 },
   SEASIDE.pier,
+  { minX: FAIR.minX - 1, maxX: FAIR.maxX, minZ: FAIR.minZ, maxZ: FAIR.maxZ },
 ];
-export const BOUNDS = { minX: SEASIDE.pier.minX, maxX: PARK.maxX, minZ: NORTH.minZ, maxZ: TRACK.cz + TRACK.radius + 26 };
+export const BOUNDS = { minX: SEASIDE.pier.minX, maxX: FAIR.maxX, minZ: NORTH.minZ, maxZ: TRACK.cz + TRACK.radius + 26 };
 
 // ─── Road network ───────────────────────────────────────────────────────────
 /** A straight two-lane road; either x1 === x2 (north–south) or z1 === z2 (east–west), listed min → max. */
@@ -62,7 +89,7 @@ export const ROADS: Road[] = [
   ...EXTENDED_ROADS.map((z) => H(z, SEASIDE.road, loopEntryX(z) + 2)),
   V(SEASIDE.road, NORTH.roadsZ[3], 330), // the coast road
   V(0, 120, TRACK.cz - TRACK.radius - TRACK.width), // to the speedway
-  ...NORTH.roadsZ.map((z) => H(z, SEASIDE.road, 280)),
+  ...NORTH.roadsZ.map((z) => H(z, SEASIDE.road, z === -280 ? FAIR.gate.x - 2 : 280)),
   V(200, NORTH.roadsZ[3], STUNT_ROAD.toZ), V(280, NORTH.roadsZ[3], NORTH.roadsZ[0]),
   H(SOUTH_ROAD, SEASIDE.road, TRAIL.entryX),
 ];
@@ -189,9 +216,9 @@ export const TOWERS: Tower[] = (() => {
       out.push({ ...box(x, z, w, d), height: 12 + r() * tall, color: Math.floor(r() * 6), seed: Math.floor(r() * 1e6) });
     }
   };
-  fill(-80, -80, BLOCK_HALF, BLOCK_HALF, 46);
-  fill(80, -80, BLOCK_HALF, BLOCK_HALF, 46);
-  for (const cx of [-80, 0, 80]) fill(cx, -143, BLOCK_HALF, 13, 30);
+  fill(-80, -80, BLOCK_HALF, BLOCK_HALF, 92);
+  fill(80, -80, BLOCK_HALF, BLOCK_HALF, 92);
+  for (const cx of [-80, 0, 80]) fill(cx, -143, BLOCK_HALF, 13, 64);
   for (const cz of [-80, 0]) { fill(-143, cz, 13, BLOCK_HALF, 22); fill(143, cz, 13, BLOCK_HALF, 22); }
   // North Haven: a second row of downtown towers and the uptown blocks
   for (const cx of [-80, 0, 80]) fill(cx, -180, BLOCK_HALF, 10, 24);
@@ -263,6 +290,58 @@ export const PARK_TREES: { x: number; z: number; s: number }[] = (() => {
   return out;
 })();
 
+// ─── Restaurants, the arcade and the elevated train ─────────────────────────
+/** Four restaurants line the Central Plaza; their doors open onto the square. */
+export const RESTAURANTS = [
+  { id: "pizza", name: "Slice of Haven", sign: "PIZZA", x: -27.7, z: -14, side: -1, color: 0xc92a2a, menu: ["Cheese Slice", "Pepperoni Slice", "Veggie Slice", "Garlic Knots"] },
+  { id: "noodles", name: "Noodle House", sign: "NOODLES", x: -27.7, z: 14, side: -1, color: 0x2f9e44, menu: ["Ramen Bowl", "Dumplings", "Fried Rice", "Spring Rolls"] },
+  { id: "tacos", name: "Taco Loco", sign: "TACOS", x: 27.7, z: -14, side: 1, color: 0xf08c00, menu: ["Street Tacos", "Burrito", "Nachos", "Churros"] },
+  { id: "diner", name: "Sunny Side Diner", sign: "DINER", x: 27.7, z: 14, side: 1, color: 0x1971c2, menu: ["Pancake Stack", "Burger & Fries", "Grilled Cheese", "Milkshake"] },
+].map((r) => ({ ...r, box: box(r.x, r.z, 9.4, 12), door: { x: r.x - r.side * 6.2, z: r.z } }));
+const arcadeShop = BEACH_SHOPS.find((b) => b.name === "Arcade Pier")!;
+export const ARCADE = { id: "arcade", name: "Neon Arcade", door: { x: arcadeShop.box.minX - 1.6, z: arcadeShop.z } };
+
+export const INTERIORS: Interior[] = [
+  ...RESTAURANTS.map((r, i): Interior => ({ id: r.id, kind: "restaurant", name: r.name, x: INTERIOR_ORIGIN + i * 60, z: 0, w: 22, d: 18 })),
+  { id: "arcade", kind: "arcade", name: ARCADE.name, x: INTERIOR_ORIGIN + 4 * 60, z: 0, w: 26, d: 22 },
+];
+REGIONS.push(...INTERIORS.map((r) => box(r.x, r.z, r.w - 1, r.d - 1)));
+/** Where you stand just inside the door, and the tables and machines in each room. */
+export const interiorEntry = (r: Interior) => ({ x: r.x, z: r.z + r.d / 2 - 3, facing: Math.PI });
+export const TABLES = (r: Interior) => [[-6, 1], [6, 1], [-6, 6], [6, 6]].map(([dx, dz]) => ({ x: r.x + dx, z: r.z + dz }));
+export const COUNTER = (r: Interior) => box(r.x, r.z - r.d / 2 + 2.4, 12, 1.4);
+export const CABINETS: { game: string; title: string }[] = [
+  { game: "four", title: "Fourfall" }, { game: "seabattle", title: "Iron Tide" }, { game: "math_duel", title: "Number Storm" }, { game: "memory", title: "Mindvault" },
+  { game: "word_rescue", title: "Lifeline" }, { game: "checkers", title: "Kingmaker" }, { game: "geography", title: "Atlas" }, { game: "codebreaker", title: "Cipher" },
+];
+export const cabinetPos = (r: Interior, i: number) => {
+  const side = i < 4 ? -1 : 1, k = i % 4;
+  return { x: r.x + side * (r.w / 2 - 1.6), z: r.z - r.d / 2 + 4 + k * 4.2, facing: side < 0 ? Math.PI / 2 : -Math.PI / 2 };
+};
+const interiorColliders: Box[] = INTERIORS.flatMap((r) => {
+  const walls = [box(r.x, r.z - r.d / 2, r.w, 0.6), box(r.x, r.z + r.d / 2, r.w, 0.6), box(r.x - r.w / 2, r.z, 0.6, r.d), box(r.x + r.w / 2, r.z, 0.6, r.d)];
+  if (r.kind === "restaurant") return [...walls, COUNTER(r), ...TABLES(r).map((t) => box(t.x, t.z, 2.4, 2.4)), ...[-1, 1].map((sx) => box(r.x + sx * (r.w / 2 - 1.2), r.z + r.d / 2 - 1.2, 1, 1))];
+  // cabinets round the walls, an air hockey table and two claw machines in the middle
+  return [...walls, ...CABINETS.map((_, i) => { const c = cabinetPos(r, i); return box(c.x, c.z, 1.4, 1.4); }), box(r.x, r.z + 1.5, 2.6, 4.4), box(r.x - 5, r.z - 3.5, 1.8, 1.8), box(r.x + 5, r.z - 3.5, 1.8, 1.8)];
+});
+
+/** The Haven Loop: an elevated train circling North Downtown above the streets. */
+export const TRAIN = { y: 9, loop: [[-120, -200], [120, -200], [120, -120], [-120, -120]] as [number, number][] };
+export const TRAIN_PILLARS: { x: number; z: number }[] = (() => {
+  const out: { x: number; z: number }[] = [];
+  const pts = TRAIN.loop;
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
+    const len = Math.hypot(bx - ax, bz - az);
+    for (let d = 8; d < len - 4; d += 16) {
+      const x = ax + ((bx - ax) * d) / len, z = az + ((bz - az) * d) / len;
+      if (JUNCTIONS.some((j) => Math.hypot(j.x - x, j.z - z) < 11)) continue;
+      out.push({ x, z });
+    }
+  }
+  return out;
+})();
+
 export const HOUSE_SIZE = 10;
 export const COLLIDERS: Box[] = [
   CINEMA.building,
@@ -286,6 +365,12 @@ export const COLLIDERS: Box[] = [
   ...SKATE_PIPES.map((p) => box(p.x, p.z, 40, 4)),
   ...NORTH_TREES.map((t) => box(t.x, t.z, 1.4 * t.s, 1.4 * t.s)),
   ...PICNIC.map((p) => box(p.x, p.z, 4, 2.2)),
+  ...RESTAURANTS.map((r) => r.box),
+  ...interiorColliders,
+  ...BOOTHS.map((b) => box(b.x, b.z, 12, 5)),
+  ...FOOD_STANDS.map((f) => box(f.x, f.z, 5, 5)),
+  box(BUMPER.x, BUMPER.z - BUMPER.d / 2, BUMPER.w, 0.6), box(BUMPER.x, BUMPER.z + BUMPER.d / 2, BUMPER.w, 0.6),
+  box(BUMPER.x - BUMPER.w / 2, BUMPER.z, 0.6, BUMPER.d), box(BUMPER.x + BUMPER.w / 2, BUMPER.z, 0.6, BUMPER.d),
 ];
 export const ROUND_COLLIDERS: { x: number; z: number; r: number }[] = [
   { x: PARK.lake.x, z: PARK.lake.z, r: PARK.lake.r },
@@ -294,6 +379,9 @@ export const ROUND_COLLIDERS: { x: number; z: number; r: number }[] = [
   { x: GARDEN.x, z: GARDEN.z, r: GARDEN.pond },
   { x: WATER_TOWER.x, z: WATER_TOWER.z, r: WATER_TOWER.r },
   { x: SILO.x, z: SILO.z, r: SILO.r },
+  ...RIDES.map((r) => ({ x: r.x, z: r.z, r: r.r })),
+  { x: BIG_TOP.x, z: BIG_TOP.z, r: BIG_TOP.r },
+  ...TRAIN_PILLARS.map((p) => ({ x: p.x, z: p.z, r: 0.6 })),
 ];
 
 // ─── Stunt ramps and hidden stars ───────────────────────────────────────────
@@ -348,6 +436,8 @@ export const STARS: { id: string; x: number; z: number; y?: number; hint: string
   { id: "northbeach", x: -262, z: -420, hint: "at the far north end of the beach" },
   { id: "pumpkins", x: -170, z: 280, hint: "in the pumpkin patch" },
   { id: "trail", x: TRAIL.cx, z: TRAIL.cz + TRAIL.radius, y: 3.8, hint: "in the air over the trail's back jump" },
+  { id: "fair", x: 430, z: -150, hint: "in the middle of the fairgrounds" },
+  { id: "plazafood", x: 0, z: 26, hint: "between the plaza restaurants" },
 ];
 
 // ─── Interaction spots ──────────────────────────────────────────────────────
@@ -358,7 +448,20 @@ export const SPOTS: Spot[] = [
   { id: "library", kind: "library", x: LIBRARY.door.x, z: LIBRARY.door.z + 2, radius: 6, label: "A.R.I.S.E. Library" },
   { id: "speedway", kind: "speedway", x: CONNECTOR.x, z: CONNECTOR.toZ - 6, radius: 10, label: "Haven Speedway" },
   ...LOTS.map((l): Spot => ({ id: `home-${l.index}`, kind: "home", x: l.doorX, z: l.doorZ, radius: 3.4, label: "Home", lot: l.index })),
+  ...RESTAURANTS.map((r): Spot => ({ id: `door-${r.id}`, kind: "venue", venue: r.id, x: r.door.x, z: r.door.z, radius: 3.6, label: r.name })),
+  { id: "door-arcade", kind: "venue", venue: "arcade", x: ARCADE.door.x, z: ARCADE.door.z, radius: 4, label: ARCADE.name },
+  ...INTERIORS.map((r): Spot => ({ id: `exit-${r.id}`, kind: "exit", venue: r.id, x: r.x, z: r.z + r.d / 2 - 1.6, radius: 2.2, label: `Leave ${r.name}` })),
+  ...INTERIORS.filter((r) => r.kind === "restaurant").flatMap((r): Spot[] => [
+    { id: `order-${r.id}`, kind: "order", venue: r.id, x: r.x, z: COUNTER(r).maxZ + 1.6, radius: 2.6, label: "Order food" },
+    ...TABLES(r).map((t, i): Spot => ({ id: `seat-${r.id}-${i}`, kind: "seat", venue: r.id, x: t.x, z: t.z + 2.2, radius: 1.9, label: "Sit down and eat" })),
+  ]),
+  ...INTERIORS.filter((r) => r.kind === "arcade").flatMap((r) => CABINETS.map((c, i): Spot => {
+    const p = cabinetPos(r, i);
+    return { id: `cab-${c.game}`, kind: "cabinet", venue: r.id, game: c.game, x: p.x + Math.sin(p.facing) * 1.8, z: p.z, radius: 1.6, label: `Play ${c.title}` };
+  })),
+  ...RIDES.map((r): Spot => ({ id: `ride-${r.id}`, kind: "ride", ride: r.id, x: r.spot.x, z: r.spot.z, radius: 3.2, label: `Ride ${r.name}` })),
 ];
+export const interiorAt = (x: number, z: number) => INTERIORS.find((r) => Math.abs(x - r.x) < r.w / 2 + 1 && Math.abs(z - r.z) < r.d / 2 + 1) ?? null;
 
 export function nearestSpot(x: number, z: number, kinds?: SpotKind[]): Spot | null {
   let best: Spot | null = null, bestD = Infinity;
@@ -393,6 +496,7 @@ const northBlockAt = (x: number, z: number) => NORTH_BLOCKS.find((b) => inBlock(
 
 export function surfaceAt(x: number, z: number): Surface {
   if (onRoad(x, z)) return "road";
+  if (x > PARK.maxX) return "paved"; // fairgrounds and indoor rooms
   if (x > CITY && z > -CITY && Math.abs(Math.hypot(x - PARK.loop.x, z - PARK.loop.z) - PARK.loop.r) <= ROAD_HALF) return "road";
   if (x >= PARK.stunt.minX && x <= PARK.stunt.maxX && z >= PARK.stunt.minZ && z <= PARK.stunt.maxZ) return "road";
   // the coast: pier, beach and boardwalk west of the coast road
@@ -465,6 +569,9 @@ export function resolveCircle(x: number, z: number, r: number, boxes: Box[] = CO
 
 /** Place names for the HUD. */
 export function areaName(x: number, z: number) {
+  const room = interiorAt(x, z);
+  if (room) return room.name;
+  if (x > PARK.maxX) return "Haven Fairgrounds";
   if (x < SEASIDE.road + ROAD_HALF || x < -CITY && z > -CITY && z < CITY) return x >= SEASIDE.boardwalk.minX ? "Seaside Boardwalk" : z >= SEASIDE.pier.minZ && z <= SEASIDE.pier.maxZ ? "Haven Pier" : "Seaside Beach";
   if (z < -CITY - 34) {
     const b = northBlockAt(x, z);

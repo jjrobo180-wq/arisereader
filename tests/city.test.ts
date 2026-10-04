@@ -113,7 +113,8 @@ test("the seaside, lake park and stunt park have the right ground", () => {
 test("the ocean and the far edges stop you", () => {
   assert.deepEqual(clampToBounds(-320, 50), [-292, 50]);
   assert.deepEqual(clampToBounds(-400, 0), [BOUNDS.minX, 0]);
-  assert.deepEqual(clampToBounds(400, 0), [BOUNDS.maxX, 0]);
+  assert.deepEqual(clampToBounds(360, 40), [322, 40]);
+  assert.deepEqual(clampToBounds(600, -150), [BOUNDS.maxX, -150]);
   assert.deepEqual(clampToBounds(-320, 300), [-292, 300]);
 });
 
@@ -234,4 +235,68 @@ test("walkers stay on their sidewalks: never on a road, never inside anything", 
   const one = makeWalkers(40)[12], p = routePoint(one.route, one.s), h = p.heading + (one.dir < 0 ? Math.PI : 0);
   const blocked = stepWalkers([one], [{ x: p.x + Math.sin(h) * 1.5, z: p.z + Math.cos(h) * 1.5 }], 0.5)[0];
   assert.equal(blocked.s, one.s);
+});
+
+// ─── Restaurants, the arcade, the fair and the train ────────────────────────
+import { INTERIORS, RESTAURANTS, ARCADE, RIDES, TRAIN, TRAIN_PILLARS, FAIR, interiorAt, interiorEntry, CABINETS, BOOTHS } from "../shared/city/layout";
+
+test("every restaurant and the arcade has a door outside and a room to walk into", () => {
+  assert.equal(RESTAURANTS.length, 4);
+  for (const r of [...RESTAURANTS.map((x) => ({ id: x.id, door: x.door })), { id: "arcade", door: ARCADE.door }]) {
+    const door = SPOTS.find((s) => s.id === `door-${r.id}`)!;
+    assert.ok(door && door.kind === "venue", `${r.id} has a door spot`);
+    assert.equal(nearestSpot(door.x, door.z)?.id, door.id);
+    const room = INTERIORS.find((x) => x.id === r.id)!;
+    const e = interiorEntry(room);
+    assert.equal(interiorAt(e.x, e.z)?.id, r.id);
+    // you can stand just inside without being pushed out of the room
+    const p = resolveCircle(e.x, e.z, 0.5);
+    assert.ok(Math.hypot(p.x - e.x, p.z - e.z) < 0.01, `${r.id} entry is clear`);
+    assert.equal(areaName(e.x, e.z), room.name);
+  }
+  // rooms are off the map, well away from the city and from each other
+  for (const r of INTERIORS) assert.ok(r.x > BOUNDS.maxX + 200);
+});
+
+test("inside spots: exits, counters, tables and arcade machines are all inside their room and reachable", () => {
+  const inRound = (x: number, z: number) => ROUND_COLLIDERS.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + 0.3);
+  for (const s of SPOTS.filter((x) => ["exit", "order", "seat", "cabinet"].includes(x.kind))) {
+    assert.equal(interiorAt(s.x, s.z)?.id, s.venue, `${s.id} is in its room`);
+    assert.ok(!inside(s.x, s.z, 0.4) && !inRound(s.x, s.z), `${s.id} is reachable`);
+  }
+  assert.equal(SPOTS.filter((s) => s.kind === "cabinet").length, CABINETS.length);
+  assert.equal(SPOTS.filter((s) => s.kind === "seat").length, RESTAURANTS.length * 4);
+  // arcade machines open real site games
+  for (const c of CABINETS) assert.match(c.game, /^[a-z_]+$/);
+});
+
+test("the fairgrounds: rides you can walk up to, booths inside the fence, a clear gate", () => {
+  for (const r of RIDES) {
+    const s = SPOTS.find((x) => x.id === `ride-${r.id}`)!;
+    assert.ok(s.x > FAIR.minX && s.x < FAIR.maxX && s.z > FAIR.minZ && s.z < FAIR.maxZ);
+    assert.ok(!inside(s.x, s.z, 0.4) && !ROUND_COLLIDERS.some((c) => Math.hypot(s.x - c.x, s.z - c.z) < c.r + 0.3), `${r.id} spot is reachable`);
+    assert.equal(areaName(s.x, s.z), "Haven Fairgrounds");
+  }
+  for (const b of BOOTHS) assert.ok(b.x - 6 > FAIR.minX && b.x + 6 < FAIR.maxX && b.z - 3 > FAIR.minZ && b.z + 3 < FAIR.maxZ, `${b.name} inside the fair`);
+  assert.ok(!/wheel of fortune|lucky|prize wheel/i.test(BOOTHS.map((b) => b.name).join(" ")), "no games of chance");
+  // you can walk from the park road through the gate
+  const g = resolveCircle(FAIR.gate.x + 4, FAIR.gate.z, 0.5);
+  assert.ok(Math.hypot(g.x - FAIR.gate.x - 4, g.z - FAIR.gate.z) < 0.01);
+});
+
+test("the elevated train's pillars stand in the road median, never on a lane or a sidewalk", () => {
+  assert.ok(TRAIN_PILLARS.length >= 20);
+  for (const p of TRAIN_PILLARS) {
+    assert.equal(surfaceAt(p.x, p.z), "road");
+    const onLine = TRAIN.loop.some(([x, z], i) => { const [x2, z2] = TRAIN.loop[(i + 1) % TRAIN.loop.length]; return (x === x2 && Math.abs(p.x - x) < 0.01) || (z === z2 && Math.abs(p.z - z) < 0.01); });
+    assert.ok(onLine, `pillar ${p.x},${p.z} is on the track line`);
+  }
+});
+
+test("rush hour: a busier downtown still flows", () => {
+  let cars = makeTraffic(3, 5);
+  assert.equal(cars.length, LOOPS.length * 3 + 4 * 2);
+  const start = cars.map((c) => c.s);
+  for (let i = 0; i < 60 * 60; i++) cars = stepTraffic(cars, [], 1 / 60, i / 60);
+  cars.forEach((c, i) => assert.ok(c.s - start[i] > 80, `car ${c.id} stalled`));
 });

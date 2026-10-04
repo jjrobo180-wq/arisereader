@@ -3,11 +3,15 @@
 // small API and gets HUD updates back through `onHud`.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { AvatarRig, followOwner, nameTag } from "@/lib/worldAvatar";
 import { createPet } from "@/lib/pets";
 import { HOME_MODELS } from "@/lib/worldModels";
 import { loadGltfCached } from "@/lib/worldAvatar";
-import { LOTS, STARS, areaName, nearestSpot, rampAt, resolveCircle, type Spot, DEALER } from "@shared/city/layout";
+import {
+  LOTS, STARS, areaName, nearestSpot, rampAt, resolveCircle, type Spot, DEALER,
+  ARCADE, COUNTER, INTERIORS, RESTAURANTS, RIDES, TABLES, cabinetPos, interiorAt, interiorEntry, type Interior, type RideId,
+} from "@shared/city/layout";
 import { CARS, CAR_RADIUS, GROUNDED, carFor, dashSpeed, groundAt, stepCar, stepLift, stepWalker, wrapAngle, type CarId, type CarState, type Lift } from "@shared/city/drive";
 import { GRID_PLAYER, LAP_LENGTH, lapsDone, makeRivals, startTracker, stepRival, trackPoint, updateTracker, type LapTracker, type Rival } from "@shared/city/race";
 import { makeTraffic, stepTraffic, type TrafficCar } from "@shared/city/traffic";
@@ -16,6 +20,7 @@ import { buildCity, type CityScene } from "./scene";
 import { makeCar, type CarRig } from "./models";
 import { CityAudio } from "./audio";
 import { Minimap, type MapDot } from "./minimap";
+import { CHATTER, GREETINGS, Voices, speechBubble } from "./voices";
 
 export type CitySelf = { userId: number; displayName: string; characterId: string; petId: string; carId: string; x: number; z: number; facing: number };
 export type CityPlayer = { userId: number; displayName: string; characterId: string; petId: string; carId: string; x: number; z: number; facing: number; driving: boolean; speed: number; phrase: string | null };
@@ -23,17 +28,69 @@ export type CityHome = { ownerId: number; displayName: string; homeId: string; u
 
 export type RacePhase = "countdown" | "racing" | "finished";
 export type RaceHud = { mode: "race" | "trial"; phase: RacePhase; countdown: number; lap: number; laps: number; position: number; racers: number; timeMs: number; results: { name: string; you: boolean; timeMs: number | null }[] | null; best: number | null };
-export type CityHud = { driving: boolean; speed: number; area: string; spot: Spot | null; nearCar: boolean; race: RaceHud | null; carName: string; airborne: boolean; stars: number; starsTotal: number };
+export type CityHud = {
+  driving: boolean; speed: number; area: string; spot: Spot | null; nearCar: boolean; race: RaceHud | null; carName: string; airborne: boolean; stars: number; starsTotal: number;
+  /** The restaurant or arcade you're inside, if any. */
+  room: { id: string; kind: "restaurant" | "arcade"; name: string } | null;
+  /** Food you've ordered and not eaten yet. */
+  meal: string | null;
+  /** 0…1 while you're eating. */
+  eating: number | null;
+  /** Seconds of energy left after a meal (you walk and drive a little faster). */
+  energy: number;
+  ride: { id: RideId; name: string; left: number } | null;
+};
 export type StarFound = { id: string; found: number; total: number };
 
 type Remote = { data: CityPlayer; rig: AvatarRig; car: CarRig | null; carId: string; pet: THREE.Object3D | null; tag: THREE.Sprite; bubble: THREE.Sprite | null; bubbleText: string | null; target: THREE.Vector3; facing: number; seen: number };
 
 const keyMap: Record<string, string> = { arrowup: "w", arrowdown: "s", arrowleft: "a", arrowright: "d" };
 
+const RIDE_TIME: Record<RideId, number> = { wheel: 45, carousel: 24, drop: 17 };
+const EAT_TIME = 7;
+const ENERGY_TIME = 120;
+type Npc = { room: string; role: "chef" | "diner" | "gamer" | "host"; rig: AvatarRig; home: THREE.Vector3; facing: number; seed: number; nextMove: number; bubble: THREE.Sprite | null; bubbleUntil: number };
+
+/** A plate of food for the table, by restaurant. */
+function makeFood(venue: string) {
+  const g = new THREE.Group();
+  const m = (c: number, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, ...extra });
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 0.04, 24), m(0xffffff, { roughness: 0.25 })); g.add(plate);
+  const at = (mesh: THREE.Mesh, x: number, y: number, z: number) => { mesh.position.set(x, y, z); mesh.castShadow = true; g.add(mesh); return mesh; };
+  if (venue === "pizza") {
+    const slice = at(new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.05, 16, 1, false, -0.4, 0.8), m(0xf2b134)), 0, 0.05, -0.12);
+    slice.rotation.y = Math.PI;
+    for (const [x, z] of [[0.02, 0.08], [-0.06, 0.18], [0.07, 0.2]]) at(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 10), m(0xb3261e)), x, 0.085, z - 0.12);
+    at(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 0.07), m(0xc98a3a)), 0, 0.06, 0.24);
+  } else if (venue === "noodles") {
+    const pts = [new THREE.Vector2(0.12, 0), new THREE.Vector2(0.28, 0.08), new THREE.Vector2(0.34, 0.2), new THREE.Vector2(0.33, 0.22)];
+    at(new THREE.Mesh(new THREE.LatheGeometry(pts, 20), m(0xc92a2a, { side: THREE.DoubleSide, roughness: 0.3 })), 0, 0.02, 0);
+    at(new THREE.Mesh(new THREE.CircleGeometry(0.31, 20).rotateX(-Math.PI / 2), m(0xe8c98a)), 0, 0.19, 0);
+    at(new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), m(0xffffff)), 0.1, 0.2, 0.05);
+    for (const dx of [-0.03, 0.03]) { const c = at(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.6, 5), m(0x6b4226)), 0.2 + dx, 0.24, 0); c.rotation.z = 1.35; }
+  } else if (venue === "tacos") {
+    for (const dx of [-0.14, 0.14]) {
+      const shell = at(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.34, 16, 1, true, 0, Math.PI), m(0xe9b949, { side: THREE.DoubleSide })), dx, 0.17, 0);
+      shell.rotation.z = Math.PI / 2; shell.rotation.y = Math.PI / 2;
+      at(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.3), m(0x5c940d)), dx, 0.2, 0);
+      at(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.28), m(0xc92a2a)), dx, 0.24, 0);
+    }
+  } else {
+    at(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 18), m(0xd9a35b)), -0.08, 0.05, 0);
+    at(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.06, 18), m(0x5a3220)), -0.08, 0.1, 0);
+    at(new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.185, 0.02, 18), m(0xf2c94c)), -0.08, 0.14, 0);
+    at(new THREE.Mesh(new THREE.SphereGeometry(0.17, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), m(0xd9a35b)), -0.08, 0.15, 0);
+    at(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.1), m(0xc92a2a)), 0.2, 0.1, 0);
+    for (let i = 0; i < 5; i++) at(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.14, 0.02), m(0xf4c430)), 0.16 + i * 0.02, 0.2, (i % 2) * 0.02);
+  }
+  return g;
+}
+
 export class CityGame {
   /** The running game (handy for debugging from the console). */
   static current: CityGame | null = null;
   private renderer: THREE.WebGLRenderer;
+  private envMap: THREE.Texture | null = null;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private sun: THREE.DirectionalLight;
@@ -71,7 +128,7 @@ export class CityGame {
   private lastDrag = 0;
 
   // world
-  private traffic: TrafficCar[] = makeTraffic(3);
+  private traffic: TrafficCar[] = makeTraffic(3, 5);
   private trafficRigs: CarRig[] = [];
   private remotes = new Map<number, Remote>();
   private homeRoots: THREE.Object3D[] = [];
@@ -86,23 +143,44 @@ export class CityGame {
   // racing
   private race: { mode: "race" | "trial"; phase: RacePhase; startAt: number; tracker: LapTracker; laps: number; rivals: Rival[]; rivalRigs: CarRig[]; finishedAt: number | null; results: RaceHud["results"] } | null = null;
 
+  // restaurants, the arcade and rides
+  private room: Interior | null = null;
+  private meal: { venue: string; item: string } | null = null;
+  private eating: { start: number; seatX: number; seatZ: number; food: THREE.Object3D; nextBite: number } | null = null;
+  private energyUntil = 0;
+  private riding: { id: RideId; until: number } | null = null;
+  private npcs: Npc[] = [];
+  readonly voices = new Voices();
+  private nextChatter = 0;
+  private greeted = new Map<number, number>();
+
   private hudAt = 0;
   private onHud: (h: CityHud) => void;
   private onBump?: () => void;
+  private onNote?: (text: string) => void;
 
-  constructor(private container: HTMLElement, self: CitySelf, opts: { onHud: (h: CityHud) => void; onBump?: () => void; onStar?: (s: StarFound) => void }) {
+  constructor(private container: HTMLElement, self: CitySelf, opts: { onHud: (h: CityHud) => void; onBump?: () => void; onStar?: (s: StarFound) => void; onNote?: (text: string) => void }) {
     this.self = self;
     this.onHud = opts.onHud;
+    this.onNote = opts.onNote;
     this.onBump = opts.onBump;
     this.onStar = opts.onStar;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // filmic colour and real reflections instead of flat cartoon shading
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.3, 700);
 
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    this.scene.environment = this.envMap;
+    this.scene.environmentIntensity = 0.55;
     this.city = buildCity(this.scene);
     this.sun = new THREE.DirectionalLight(0xffd2a8, 2.1);
     this.sun.castShadow = true;
@@ -130,7 +208,10 @@ export class CityGame {
 
     // traffic
     for (const t of this.traffic) {
-      const rig = makeCar(t.id % 3 === 0 ? "car-suv" : "car-starter", { tint: t.color, length: 4.3 });
+      // city traffic: plenty of yellow cabs among everyday cars in real-world colours
+      const shapes = ["taxi", "sedan", "suv", "taxi", "muscle", "sedan", "coupe"] as const;
+      const paints = [0xc9ccd1, 0x111316, 0xf2f2f2, 0x1d3557, 0x6b0f1a, 0x4a4e57, 0x2f4f3f, 0x8d99ae];
+      const rig = makeCar("car-starter", { shape: shapes[t.id % shapes.length], tint: paints[t.id % paints.length], length: 4.5, lite: true });
       rig.root.position.set(t.x, 0, t.z); this.scene.add(rig.root); this.trafficRigs.push(rig);
     }
     // showroom cars at Velocity Motors
@@ -154,12 +235,14 @@ export class CityGame {
   attachMinimap(canvas: HTMLCanvasElement | null) { this.mapCtx = canvas?.getContext("2d") ?? null; }
   setPaused(p: boolean) { this.paused = p; if (p) { this.keys.clear(); this.stick = null; this.steerAxis = null; } }
   /** Touch walking stick: x right, y forward, both -1…1 (null when released). */
-  setStick(v: { x: number; y: number } | null) { this.stick = v; if (v) this.audio.start(); }
+  setStick(v: { x: number; y: number } | null) { this.stick = v; if (v) this.wake(); }
   /** Touch steering: -1 full left … 1 full right (null when released). */
   setSteer(v: number | null) { this.steerAxis = v; }
   /** Stars found so far (ids). */
   get foundStars() { return [...this.starsFound]; }
-  press(key: string, down: boolean) { if (down) this.keys.add(key); else this.keys.delete(key); if (down) this.audio.start(); }
+  press(key: string, down: boolean) { if (down) this.keys.add(key); else this.keys.delete(key); if (down) this.wake(); }
+  /** Sound and voices can only start after the reader taps or presses a key. */
+  private wake() { this.audio.start(); this.voices.unlock(); }
 
   getPose() {
     return this.driving
@@ -190,7 +273,8 @@ export class CityGame {
   /** Gets in (bringing the car over if it's far away) or gets out. */
   toggleCar() {
     if (this.race || this.lift.air) return;
-    this.audio.start();
+    if (this.room || this.riding || this.eating) { if (!this.driving) this.onNote?.(this.riding ? "Wait for the ride to finish, or tap Get off." : this.eating ? "Finish your food first." : "Step outside to get in your car."); return; }
+    this.wake();
     if (this.driving) {
       if (Math.abs(this.car.speed) > 4) { this.car.speed *= 0.3; }
       this.driving = false;
@@ -218,8 +302,157 @@ export class CityGame {
     }
   }
 
-  horn() { this.audio.start(); this.audio.horn(); }
-  setMuted(m: boolean) { this.audio.muted = m; }
+  horn() { this.wake(); this.audio.horn(); }
+  setMuted(m: boolean) { this.audio.muted = m; this.voices.muted = m; if (m) this.voices.stop(); }
+
+  // ── Restaurants, the arcade and the fair ──────────────────────────────────
+  get inside() { return this.room; }
+
+  /** Walks through a restaurant or arcade door. Returns false when driving. */
+  enterVenue(id: string) {
+    const room = INTERIORS.find((r) => r.id === id);
+    if (!room || this.driving || this.race) return false;
+    this.wake();
+    const e = interiorEntry(room);
+    this.teleport(e.x, e.z, e.facing);
+    this.camera.position.set(e.x, 3.2, e.z + 2.2);
+    this.room = room;
+    this.city.venues.showRoom(room.id);
+    this.audio.door();
+    this.spawnNpcs(room);
+    const r = RESTAURANTS.find((x) => x.id === id);
+    window.setTimeout(() => this.npcSay(id, r ? "chef" : "host", r ? `Welcome to ${r.name}! Order at the counter and grab any table.` : "Welcome to the Neon Arcade! Pick a machine and press start."), 450);
+    return true;
+  }
+
+  /** Back out onto the street, in front of the door. */
+  leaveVenue() {
+    const room = this.room; if (!room) return;
+    this.stopEating(false);
+    const r = RESTAURANTS.find((x) => x.id === room.id);
+    const door = r ? r.door : ARCADE.door;
+    const facing = r ? (r.side < 0 ? Math.PI / 2 : -Math.PI / 2) : -Math.PI / 2;
+    this.room = null;
+    this.city.venues.showRoom(null);
+    this.teleport(door.x + Math.sin(facing) * 1.5, door.z + Math.cos(facing) * 1.5, facing);
+    this.audio.door();
+  }
+
+  /** Orders from the counter. The food is yours until you sit down and eat it. */
+  order(item: string) {
+    const room = this.room; if (!room || room.kind !== "restaurant") return;
+    this.meal = { venue: room.id, item };
+    this.audio.chime();
+    this.npcSay(room.id, "chef", `One ${item}, coming right up! Find a seat.`);
+  }
+
+  /** Sits at a table and eats what you ordered. */
+  sit(spotId: string) {
+    const room = this.room; if (!room || !this.meal || this.eating) return false;
+    const i = Number(spotId.split("-").pop());
+    const t = TABLES(room)[i]; if (!t) return false;
+    const seatX = t.x, seatZ = t.z + 1.75;
+    this.walker.set(seatX, 0, seatZ); this.walkerY = 0; this.facing = Math.PI;
+    this.rig.root.position.set(seatX, 0, seatZ); this.rig.root.rotation.y = Math.PI;
+    this.rig.sit(true);
+    const food = makeFood(this.meal.venue); food.position.set(t.x, 0.93, t.z + 0.6); this.scene.add(food);
+    this.eating = { start: performance.now(), seatX, seatZ, food, nextBite: performance.now() + 900 };
+    this.camYaw = 0.75; // over the shoulder, looking at the table
+    return true;
+  }
+
+  private stopEating(finished: boolean) {
+    const e = this.eating; if (!e) return;
+    this.scene.remove(e.food);
+    e.food.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
+    this.eating = null;
+    this.rig.sit(false);
+    this.walker.set(e.seatX, 0, e.seatZ + 0.8);
+    this.camYaw = 0;
+    if (finished) {
+      const item = this.meal?.item ?? "meal";
+      this.meal = null;
+      this.energyUntil = performance.now() + ENERGY_TIME * 1000;
+      this.audio.chime();
+      this.onNote?.(`That ${item} hit the spot! You'll walk and drive faster for 2 minutes.`);
+    }
+  }
+
+  /** Climbs aboard a ride at the fair. */
+  ride(id: RideId) {
+    if (this.driving || this.riding || this.race) return false;
+    this.wake();
+    this.riding = { id, until: performance.now() + RIDE_TIME[id] * 1000 };
+    this.rig.root.visible = false;
+    if (this.pet) this.pet.visible = false;
+    this.audio.beep(true);
+    return true;
+  }
+
+  stopRide() {
+    const r = this.riding; if (!r) return;
+    this.riding = null;
+    const ride = RIDES.find((x) => x.id === r.id)!;
+    this.walker.set(ride.spot.x, 0, ride.spot.z);
+    this.rig.root.visible = true;
+    if (this.pet) { this.pet.visible = true; this.pet.position.set(ride.spot.x + 1, 0, ride.spot.z); }
+    this.camera.position.set(ride.spot.x, 5, ride.spot.z + 8);
+    this.camYaw = 0;
+  }
+
+  /** Staff and customers inside a room, made the first time you walk in. */
+  private spawnNpcs(room: Interior) {
+    if (this.npcs.some((n) => n.room === room.id)) return;
+    const add = (role: Npc["role"], character: string, x: number, z: number, facing: number, seed: number, seated = false) => {
+      const rig = new AvatarRig(character, 1.8, { noWeapons: true });
+      rig.root.position.set(x, 0, z); rig.root.rotation.y = facing;
+      if (seated) rig.sit(true);
+      this.scene.add(rig.root);
+      this.npcs.push({ room: room.id, role, rig, home: new THREE.Vector3(x, 0, z), facing, seed, nextMove: performance.now() + 2000 + seed * 300, bubble: null, bubbleUntil: 0 });
+    };
+    const cast = ["sherlock-holmes", "alice", "sinbad", "musketeer", "odysseus", "robin-hood", "hercules", "king-arthur"];
+    const k = INTERIORS.indexOf(room);
+    if (room.kind === "restaurant") {
+      const c = COUNTER(room);
+      add("chef", cast[k % cast.length], room.x + 2.5, c.minZ - 1.1, 0, 11 + k);
+      TABLES(room).forEach((t, i) => { if (i % 2 === k % 2) add("diner", cast[(k + i + 2) % cast.length], t.x, t.z - 1.75, 0, 20 + k * 4 + i, true); });
+    } else {
+      add("host", "alice", room.x + 4, room.z + room.d / 2 - 6, Math.PI + 0.6, 40);
+      [1, 4, 6].forEach((ci, j) => {
+        const p = cabinetPos(room, ci);
+        add("gamer", cast[(j + 3) % cast.length], p.x + Math.sin(p.facing) * 1.25, p.z + Math.cos(p.facing) * 1.25, p.facing + Math.PI, 50 + j);
+      });
+    }
+  }
+
+  private npcSay(roomId: string, role: Npc["role"], text: string) {
+    const n = this.npcs.find((x) => x.room === roomId && x.role === role); if (!n) return;
+    if (n.bubble) n.rig.root.remove(n.bubble);
+    n.bubble = speechBubble(text, role === "chef" ? "#c92a2a" : "#7c3aed"); n.bubble.position.y = 2.75; n.rig.root.add(n.bubble);
+    n.bubbleUntil = performance.now() + 4200;
+    n.rig.gesture("wave");
+    this.voices.say(text, n.seed, 1, true);
+  }
+
+  private stepNpcs(dt: number, now: number) {
+    const roomId = this.room?.id;
+    for (const n of this.npcs) {
+      const here = n.room === roomId;
+      n.rig.root.visible = here;
+      if (!here) continue;
+      if (n.role === "gamer") {
+        // step aside when you walk up to their machine
+        const d = Math.hypot(this.walker.x - n.home.x, this.walker.z - n.home.z);
+        const target = d < 2.4 ? n.home.clone().add(new THREE.Vector3(Math.sign(this.room!.x - n.home.x) * 1.4, 0, 1.6)) : n.home;
+        const before = n.rig.root.position.clone();
+        n.rig.root.position.lerp(target, Math.min(1, dt * 3));
+        n.rig.update(dt, before.distanceTo(n.rig.root.position) / Math.max(dt, 1e-4));
+      } else n.rig.update(dt, 0);
+      if (now > n.nextMove) { n.nextMove = now + 2500 + ((n.seed * 977) % 3000); if (n.role !== "host") n.rig.gesture("interact"); }
+      if (n.bubble && now > n.bubbleUntil) { n.rig.root.remove(n.bubble); n.bubble = null; }
+    }
+  }
+
 
   /** Places homes on their lots. */
   setHomes(homes: CityHome[], myId: number) {
@@ -377,7 +610,7 @@ export class CityGame {
     const me = this.driving ? { x: this.car.x, z: this.car.z } : { x: this.walker.x, z: this.walker.z };
     const blockers = [me, ...(this.driving ? [] : [{ x: this.car.x, z: this.car.z }])];
     this.walkers = stepWalkers(this.walkers, blockers, dt);
-    const range = this.lowQuality ? 75 : 120;
+    const range = this.lowQuality ? 60 : 95;
     this.walkers.forEach((w, i) => {
       const p = routePoint(w.route, w.s);
       const near = Math.hypot(p.x - me.x, p.z - me.z) < range;
@@ -403,12 +636,42 @@ export class CityGame {
     });
   }
 
-  private walkerSay(i: number, text: string) {
+  private walkerSay(i: number, text: string, ms = 1800) {
     const view = this.walkerViews[i]; if (!view) return;
     if (view.bubble) view.rig.root.remove(view.bubble);
-    view.bubble = nameTag(text, "#0f766e"); view.bubble.position.y = 2.9; view.bubble.scale.multiplyScalar(0.5);
+    view.bubble = speechBubble(text); view.bubble.position.y = 2.7;
     view.rig.root.add(view.bubble);
-    view.bubbleUntil = performance.now() + 1800;
+    view.bubbleUntil = performance.now() + ms;
+  }
+
+  /** People say hello as you pass, and chat out loud around you. */
+  private stepChatter(now: number) {
+    if (this.paused || this.room || this.riding) return;
+    const me = this.driving ? { x: this.car.x, z: this.car.z } : { x: this.walker.x, z: this.walker.z };
+    let nearest = -1, nearestD = Infinity;
+    const close: { i: number; d: number }[] = [];
+    this.walkerViews.forEach((v, i) => {
+      if (!v?.rig.root.visible) return;
+      const p = v.rig.root.position, d = Math.hypot(p.x - me.x, p.z - me.z);
+      if (d < nearestD) { nearestD = d; nearest = i; }
+      if (d < 24) close.push({ i, d });
+    });
+    // a hello when you walk right past someone
+    if (!this.driving && nearest >= 0 && nearestD < 3.2 && now - (this.greeted.get(nearest) ?? -1e9) > 45000 && now > this.nextChatter - 3000) {
+      const line = GREETINGS[(nearest + Math.floor(now / 7000)) % GREETINGS.length];
+      this.greeted.set(nearest, now);
+      this.walkerSay(nearest, line, 2400);
+      this.walkerViews[nearest]?.rig.gesture("wave");
+      this.voices.say(line, this.walkers[nearest].id, 0.9);
+      this.nextChatter = Math.max(this.nextChatter, now + 2500);
+      return;
+    }
+    if (now < this.nextChatter || !close.length) return;
+    const pick = close[Math.floor(Math.random() * close.length)];
+    const line = CHATTER[Math.floor(Math.random() * CHATTER.length)];
+    this.walkerSay(pick.i, line, 3800);
+    this.voices.say(line, this.walkers[pick.i].id, this.driving ? 0 : Math.max(0, 1 - pick.d / 26));
+    this.nextChatter = now + 4500 + Math.random() * 5000;
   }
 
   // ── Hidden stars ──────────────────────────────────────────────────────────
@@ -473,14 +736,32 @@ export class CityGame {
     const racingLocked = this.race?.phase === "countdown";
 
     if (this.race) this.stepRace(now, dt);
+    if (!this.driving) { const r = interiorAt(this.walker.x, this.walker.z); if (r !== this.room) { this.room = r; this.city.venues.showRoom(r?.id ?? null); } }
+    if (this.riding && now > this.riding.until) { this.stopRide(); this.onNote?.("What a ride!"); }
+    const energized = now < this.energyUntil;
 
-    if (this.driving) {
+    if (this.riding) {
+      this.rig.update(dt, 0);
+      this.carRig.root.position.set(this.car.x, this.lift.y, this.car.z);
+      this.audio.engine(false, 0);
+    } else if (this.eating) {
+      const e = this.eating;
+      this.rig.root.position.set(e.seatX, 0, e.seatZ); this.rig.root.rotation.y = Math.PI;
+      if (now > e.nextBite) { e.nextBite = now + 1500; this.rig.gesture("interact"); this.audio.bite(); }
+      const p = (now - e.start) / (EAT_TIME * 1000);
+      e.food.scale.setScalar(Math.max(0.25, 1 - p * 0.8));
+      this.rig.update(dt, 0);
+      if (this.pet) followOwner(this.pet, this.rig.root, dt, t, 1.4);
+      if (p >= 1) this.stopEating(true);
+      this.audio.engine(false, 0);
+    } else if (this.driving) {
       const steer = this.steerAxis !== null && !this.paused ? -this.steerAxis : (k.has("a") ? 1 : 0) - (k.has("d") ? 1 : 0);
       const input = racingLocked ? { throttle: 0, brake: 1, steer: 0, handbrake: false }
         : this.lift.air ? { throttle: 0, brake: 0, steer: steer * 0.3, handbrake: false } // a little air control, no grip
           : { throttle: k.has("w") ? 1 : 0, brake: k.has("s") ? 1 : 0, steer, handbrake: k.has(" ") };
       const before = this.car;
-      const res = stepCar(this.car, input, CARS[this.carId], dt);
+      const spec = energized ? { ...CARS[this.carId], top: CARS[this.carId].top * 1.12, accel: CARS[this.carId].accel * 1.25 } : CARS[this.carId];
+      const res = stepCar(this.car, input, spec, dt);
       this.car = res.car;
       // ramps: follow the slope, fly off the lip, bounce off the tall end
       const lifted = stepLift(this.lift, this.car.x, this.car.z, dt);
@@ -535,7 +816,7 @@ export class CityGame {
       const run = k.has("shift") || stickLen > 0.92;
       const yaw = this.camYaw + Math.PI; // direction the camera looks
       const dx = Math.sin(yaw) * fwd - Math.cos(yaw) * side, dz = Math.cos(yaw) * fwd + Math.sin(yaw) * side;
-      let w = stepWalker(this.walker.x, this.walker.z, dx, dz, run, dt);
+      let w = stepWalker(this.walker.x, this.walker.z, dx, dz, run, energized ? dt * 1.35 : dt);
       const g = groundAt(w.x, w.z);
       if (g - this.walkerY > 0.7) w = { ...w, x: this.walker.x, z: this.walker.z }; // too tall to step up
       else this.walkerY = g;
@@ -556,7 +837,14 @@ export class CityGame {
     const obstacles = [{ x: this.car.x, z: this.car.z }, ...(this.driving ? [] : [{ x: this.walker.x, z: this.walker.z }])];
     for (const r of this.remotes.values()) obstacles.push({ x: r.rig.root.position.x, z: r.rig.root.position.z });
     this.traffic = stepTraffic(this.traffic, obstacles, dt, Date.now() / 1000);
-    this.traffic.forEach((c, i) => { const rig = this.trafficRigs[i]; rig.root.position.set(c.x, 0, c.z); rig.root.rotation.y = c.heading; rig.setMotion(c.speed, 0, dt); });
+    const camX = this.camera.position.x, camZ = this.camera.position.z;
+    this.traffic.forEach((c, i) => {
+      const rig = this.trafficRigs[i];
+      // cars far beyond the fog aren't drawn at all
+      rig.root.visible = !this.room && Math.hypot(c.x - camX, c.z - camZ) < 190;
+      if (!rig.root.visible) return;
+      rig.root.position.set(c.x, 0, c.z); rig.root.rotation.y = c.heading; rig.setMotion(c.speed, 0, dt);
+    });
 
     // rivals
     if (this.race) this.race.rivals.forEach((r, i) => { const p = trackPoint(r.s, r.offset); const rig = this.race!.rivalRigs[i]; rig.root.position.set(p.x, 0, p.z); rig.root.rotation.y = p.heading; rig.setMotion(r.base, 0, dt); });
@@ -574,25 +862,33 @@ export class CityGame {
     }
     this.showcase.forEach((s) => { s.root.rotation.y += dt * 0.3; });
     this.stepPeople(dt, t, now);
+    this.stepNpcs(dt, now);
+    this.stepChatter(now);
     this.stepStars(t);
+    this.audio.ambience(this.soundscape(), dt);
 
     this.updateCamera(dt);
     this.sun.position.set(this.walker.x - 40, 70, this.walker.z - 30);
     this.sun.target.position.set(this.walker.x, 0, this.walker.z);
-    this.city.update(t);
+    this.city.update(t, dt);
     this.renderer.render(this.scene, this.camera);
 
     if (now - this.hudAt > 120) {
       this.hudAt = now;
       const pose = this.getPose();
-      const spot = nearestSpot(pose.x, pose.z);
+      const spot = this.riding || this.eating ? null : nearestSpot(pose.x, pose.z);
       this.onHud({
         driving: this.driving, speed: this.driving ? dashSpeed(this.car.speed) : 0, area: areaName(pose.x, pose.z), spot,
         nearCar: !this.driving && Math.hypot(this.car.x - this.walker.x, this.car.z - this.walker.z) < 7,
         race: this.raceHud(now), carName: CARS[this.carId].name,
         airborne: this.lift.air, stars: this.starsFound.size, starsTotal: STARS.length,
+        room: this.room ? { id: this.room.id, kind: this.room.kind, name: this.room.name } : null,
+        meal: this.meal?.item ?? null,
+        eating: this.eating ? Math.min(1, (now - this.eating.start) / (EAT_TIME * 1000)) : null,
+        energy: Math.max(0, Math.ceil((this.energyUntil - now) / 1000)),
+        ride: this.riding ? { id: this.riding.id, name: RIDES.find((r) => r.id === this.riding!.id)!.name, left: Math.max(0, Math.ceil((this.riding.until - now) / 1000)) } : null,
       });
-      if (this.mapCtx) {
+      if (this.mapCtx && !this.room) {
         const dots: MapDot[] = [];
         for (const r of this.remotes.values()) dots.push({ x: r.target.x, z: r.target.z, color: "#a78bfa", size: 3 });
         for (const c of this.traffic) dots.push({ x: c.x, z: c.z, color: "rgba(255,255,255,.45)", size: 1.6 });
@@ -603,6 +899,29 @@ export class CityGame {
   };
 
   private updateCamera(dt: number) {
+    if (this.riding) {
+      const seat = this.city.venues.rideSeat(this.riding.id);
+      const eye = seat.pos.clone();
+      eye.y += this.riding.id === "wheel" ? -1.2 : this.riding.id === "carousel" ? 1.35 : 1.1;
+      this.camera.position.copy(eye);
+      this.camera.lookAt(seat.look);
+      return;
+    }
+    if (this.room) {
+      // indoors: a closer camera that never leaves the room
+      const r = this.room, tgt = new THREE.Vector3(this.walker.x, 0, this.walker.z);
+      const dist = this.eating ? 3.2 : 4.2;
+      const desired = new THREE.Vector3(tgt.x + Math.sin(this.camYaw) * dist, (this.eating ? 2.1 : 2.3) + Math.max(0, this.camPitch - 0.32) * 2.5, tgt.z + Math.cos(this.camYaw) * dist);
+      desired.x = Math.max(r.x - r.w / 2 + 0.8, Math.min(r.x + r.w / 2 - 0.8, desired.x));
+      desired.z = Math.max(r.z - r.d / 2 + 0.8, Math.min(r.z + r.d / 2 - 0.8, desired.z));
+      desired.y = Math.min(5.3, desired.y);
+      if (this.camera.position.distanceTo(desired) > 30) this.camera.position.copy(desired);
+      else this.camera.position.lerp(desired, Math.min(1, dt * 9));
+      // look a little past the reader so the room is in view, not the floor
+      const ahead = this.eating ? 0.6 : 2.2;
+      this.camera.lookAt(tgt.x - Math.sin(this.camYaw) * ahead, this.eating ? 1 : 1.45, tgt.z - Math.cos(this.camYaw) * ahead);
+      return;
+    }
     const target = this.driving ? new THREE.Vector3(this.car.x, this.lift.y * 0.8, this.car.z) : new THREE.Vector3(this.walker.x, this.walkerY, this.walker.z);
     if (this.driving && performance.now() - this.lastDrag > 1200) {
       // ease back behind the car
@@ -672,6 +991,28 @@ export class CityGame {
     this.renderer.setSize(w, h);
   };
 
+  /** What the city sounds like where you are: busy downtown, the beach, the fair, indoors. */
+  private soundscape() {
+    const x = this.driving ? this.car.x : this.walker.x, z = this.driving ? this.car.z : this.walker.z;
+    const room = this.room;
+    let near = 0;
+    for (const c of this.traffic) { const d = Math.hypot(c.x - x, c.z - z); if (d < 40) near += 1 - d / 40; }
+    let crowd = 0;
+    this.walkerViews.forEach((v) => { if (v?.rig.root.visible) { const p = v.rig.root.position, d = Math.hypot(p.x - x, p.z - z); if (d < 30) crowd += 1 - d / 30; } });
+    let train = 0;
+    for (const car of this.city.venues.trainCars()) train = Math.max(train, 1 - Math.hypot(car.position.x - x, car.position.z - z) / 70);
+    const downtown = Math.abs(x) < 160 && z < 40 && z > -210 ? 1 : 0;
+    return {
+      indoor: room ? room.kind : null,
+      traffic: room ? 0 : Math.min(1, near / 3 + downtown * 0.25),
+      crowd: room ? 0.5 : Math.min(1, crowd / 4 + downtown * 0.15),
+      beach: room ? 0 : Math.max(0, Math.min(1, (-150 - x) / 70)),
+      fair: room ? 0 : x > 322 && z > -300 && z < -62 ? 1 : Math.max(0, 1 - Math.hypot(Math.max(0, 322 - x), Math.max(0, -300 - z, z + 62)) / 60),
+      train: room ? 0 : Math.max(0, train),
+      park: room ? 0 : x > 170 && x < 322 && z > -90 ? 1 : 0,
+    };
+  }
+
   /** Moves the reader (on foot or in the car) to a spot. */
   teleport(x: number, z: number, facing: number) {
     if (this.driving) { this.car = { x, z, heading: facing, speed: 0, drift: 0 }; this.lift = { y: groundAt(x, z), vy: 0, air: false }; this.camYaw = facing + Math.PI; }
@@ -713,6 +1054,8 @@ export class CityGame {
     this.showcase.forEach((r) => r.dispose());
     for (const r of this.remotes.values()) { r.rig.dispose(); r.car?.dispose(); }
     this.walkerViews.forEach((v) => v?.rig.dispose());
+    this.npcs.forEach((n) => n.rig.dispose());
+    this.voices.stop();
     this.audio.dispose();
     this.city.dispose();
     this.scene.traverse((o) => {
@@ -721,6 +1064,7 @@ export class CityGame {
       const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
       mats.forEach((mat) => { (mat as THREE.MeshBasicMaterial).map?.dispose(); mat.dispose(); });
     });
+    this.envMap?.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
