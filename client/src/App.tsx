@@ -74,6 +74,7 @@ const AriseNews = lazyPage(() => import("./pages/news/AriseNews"));
 const NewsArticle = lazyPage(() => import("./pages/news/NewsArticle"));
 const ReadHub = lazyPage(() => import("./pages/reads/ReadHub"));
 const BookReader = lazyPage(() => import("./pages/reads/BookReader"));
+const PoemReader = lazyPage(() => import("./pages/reads/PoemReader"));
 const ClubTheater = lazyPage(() => import("./pages/ClubTheater"));
 const StudySquad = lazyPage(() => import("./pages/study/StudySquad"));
 const HomeInterior = lazyPage(() => import("./pages/HomeInterior"));
@@ -483,6 +484,9 @@ function AppRoutes() {
       </Route>
       <Route path="/reads/book/:id">
         <ProtectedRoute><BookReader /></ProtectedRoute>
+      </Route>
+      <Route path="/reads/poem/:slug">
+        <ProtectedRoute><PoemReader /></ProtectedRoute>
       </Route>
       <Route path="/news">
         <ProtectedRoute><AriseNews /></ProtectedRoute>

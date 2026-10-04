@@ -53,3 +53,12 @@ export function useReadsFonts() {
 }
 
 export const timeLabel = (words: number) => { const m = Math.round(words / 200); return m < 60 ? `${Math.max(1, m)} min` : `${Math.round(m / 60 * 10) / 10} hr`; };
+
+// Poems: which ones this reader has finished (kept on this device, like book progress).
+const poemsKey = (userId: number | undefined) => `poems_read_${userId ?? "me"}`;
+export function poemsRead(userId: number | undefined): string[] {
+  try { const v = JSON.parse(localStorage.getItem(poemsKey(userId)) || "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; } catch { return []; }
+}
+export function markPoemRead(userId: number | undefined, slug: string) {
+  try { const all = poemsRead(userId); if (!all.includes(slug)) localStorage.setItem(poemsKey(userId), JSON.stringify([...all, slug])); } catch { /* fine */ }
+}
