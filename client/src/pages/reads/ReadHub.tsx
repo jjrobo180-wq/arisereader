@@ -60,9 +60,12 @@ export default function ReadHub() {
           <h1 className="nw-wordmark">Read <span>on Arise</span></h1>
           <p className="nw-tagline">{available.length} books, {POEMS.length} poems, iARISE lessons and {NEWS_ARTICLES.length} articles you can read right here. Finish a book or article, pass the quiz, earn points.</p>
           <nav className="rd-jump" aria-label="Jump to">
-            {reading.length > 0 && <a href="#continue">Continue reading</a>}
-            {spooky.length > 0 && <a href="#spooky">Spooky stories</a>}
-            <a href="#books">Books</a><a href="#poetry" onClick={jumpTo("poetry")}>Poetry</a><a href="#iarise">iARISE</a><a href="#articles">Articles</a>
+            {reading.length > 0 && <button type="button" onClick={jumpTo("continue")}>Continue reading</button>}
+            {spooky.length > 0 && <button type="button" onClick={jumpTo("spooky")}>Spooky stories</button>}
+            <button type="button" onClick={jumpTo("books")}>Books</button>
+            <button type="button" onClick={jumpTo("poetry")}>Poetry</button>
+            <button type="button" onClick={jumpTo("iarise")}>iARISE</button>
+            <button type="button" onClick={jumpTo("articles")}>Articles</button>
           </nav>
         </div>
       </header>
