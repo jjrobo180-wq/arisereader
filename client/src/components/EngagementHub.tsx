@@ -150,7 +150,7 @@ export function EngagementHub({ onCreateQuiz, onReadingLevelUp }: { onCreateQuiz
     <>
       <section className="mb-4 border-b border-border/70 pb-3 md:pb-4" data-testid="engagement-hub">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
+          <div className="hidden min-w-0 md:block">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
               <span className="font-black">Level {summary.level.level} · {summary.level.name}</span>
               <span className="font-semibold text-foreground/80">{summary.totalPoints} pts</span>
