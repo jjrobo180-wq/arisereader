@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1340"/><stop offset="1" stop-color="#3b1d0f"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="300" cy="250" r="50" fill="#fff4c2"/>
+<path d="M0 470 Q100 420 200 450 T400 430 V600 H0Z" fill="#120b22"/>
+<path d="M60 470 l6-120 l-30 40 m30-40 l26 36 m-20-10 l-24 30" stroke="#120b22" stroke-width="7" fill="none"/>
+<path d="M150 420 q30-50 70-48 l30-28 l14 10 l-10 26 q22 10 18 40 l-20 4 l-6 26 h-12 l2-28 h-40 l-14 30 h-14 l10-32z" fill="#0b0716"/>
+<path d="M205 372 l-8-46 h18 l8 44z" fill="#0b0716"/><path d="M200 340 l-30-10" stroke="#0b0716" stroke-width="6"/>
+<circle cx="168" cy="330" r="16" fill="#f08c00"/><path d="M162 326 l4 4 l4-4 M160 336 q8 6 16 0" stroke="#3b1d0f" stroke-width="2.5" fill="none"/>
+<path d="M300 500 q10-18 22-6 q12-12 22 6 q4 22-22 24 q-26-2-22-24z" fill="#f08c00"/><path d="M322 494 v-10" stroke="#2f9e44" stroke-width="4"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Legend</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">of Sleepy</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Hollow</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">WASHINGTON IRVING</text>
+</svg>

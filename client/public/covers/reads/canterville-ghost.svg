@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2d59"/><stop offset="1" stop-color="#5b4a8a"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M70 470 V300 h30 v-30 h20 v30 h40 v-60 h30 v-30 h20 v30 h30 v60 h40 v-30 h20 v30 h30 V470z" fill="#1c1b3a"/>
+<rect x="190" y="250" width="16" height="22" fill="#ffd43b"/><rect x="110" y="330" width="14" height="20" fill="#ffd43b"/><rect x="270" y="340" width="14" height="20" fill="#ffd43b"/>
+<path d="M230 420 q0-90 60-90 q60 0 60 90 l-12 -14 l-12 14 l-12-14 l-12 14 l-12-14 l-12 14 l-12-14 l-12 14z" fill="#f1f3f5" opacity=".95"/>
+<circle cx="276" cy="372" r="7" fill="#2b2d59"/><circle cx="304" cy="372" r="7" fill="#2b2d59"/><ellipse cx="290" cy="394" rx="9" ry="6" fill="#2b2d59"/>
+<path d="M232 380 q-24 4-30 22" stroke="#adb5bd" stroke-width="4" fill="none" stroke-dasharray="6 5"/>
+<path d="M0 500 H400 V600 H0Z" fill="#141330"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Canterville</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Ghost</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">OSCAR WILDE</text>
+</svg>

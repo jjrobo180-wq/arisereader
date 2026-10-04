@@ -25,6 +25,87 @@ const leaf = (x: number, y: number, s: number, rot: number, fill: string) => `<g
 type Scene = (c: { ink: string; tint: string; deep: string }) => string;
 
 const SCENES: Record<string, Scene> = {
+  "asian-games-2026-close": (c) => {
+    let s = rect(0, 0, W, H, "#0d1b3d") + stars(31, 60, "#fff", H * 0.4);
+    // fireworks over a stadium
+    const r = rand(44);
+    for (const [x, y, col] of [[480, 200, "#ff6b6b"], [800, 140, "#ffd43b"], [1120, 210, "#63e6be"], [640, 320, "#74c0fc"], [980, 330, "#f783ac"]] as [number, number, string][]) {
+      for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2, l = 60 + r() * 50; s += path(`M${x} ${y}L${f(x + Math.cos(a) * l)} ${f(y + Math.sin(a) * l)}`, "none", `stroke="${col}" stroke-width="6" stroke-linecap="round"`); }
+      s += circle(x, y, 10, "#fff");
+    }
+    s += path("M200 900V600Q800 440 1400 600V900Z", "#1f2a52") + path("M260 900V640Q800 500 1340 640V900Z", "#2c3a6b");
+    for (let i = 0; i < 10; i++) s += rect(300 + i * 104, 620 - Math.sin((i / 9) * Math.PI) * 60, 60, 14, "#ffe8a3", 'opacity=".8"');
+    s += path("M560 900L800 700L1040 900Z", "#3f9142");
+    // a medal
+    s += path("M760 470L740 380H780L800 440L820 380H860L840 470Z", "#e03131") + circle(800, 520, 60, "#ffd43b") + circle(800, 520, 42, "#f2b705");
+    return s;
+  },
+
+  "saturn-opposition-2026": (c) => {
+    let s = rect(0, 0, W, H, "#060818") + stars(77, 260, "#fff", H);
+    s += `<defs><radialGradient id="sat" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#ffe9b8"/><stop offset=".7" stop-color="#e3b66c"/><stop offset="1" stop-color="#a87a3a"/></radialGradient></defs>`;
+    s += `<g transform="translate(800 450) rotate(-8)">`;
+    s += `<ellipse cx="0" cy="0" rx="430" ry="56" fill="none" stroke="#d9c39a" stroke-width="34" opacity=".55"/>`;
+    s += `<ellipse cx="0" cy="0" rx="360" ry="44" fill="none" stroke="#f1e2c0" stroke-width="22" opacity=".7"/>`;
+    s += circle(0, 0, 200, "url(#sat)");
+    for (let i = -3; i <= 3; i++) s += rect(-200, i * 46 - 6, 400, 12, "#c99a54", 'opacity=".35"');
+    s += path("M-430 0A430 56 0 0 0 430 0", "none", 'stroke="#f1e2c0" stroke-width="22" opacity=".8"');
+    s += `</g>`;
+    s += circle(1270, 330, 9, "#ffd8a8") + circle(330, 600, 6, "#d0ebff");
+    return s;
+  },
+
+  "artemis-iii-rocket-stacking": (c) => {
+    let s = rect(0, 0, W, H, "#dfe7f2") + rect(0, 720, W, 180, "#9aa5b4");
+    // the assembly building's open bay
+    s += rect(420, 40, 760, 700, "#c3ccd8") + rect(470, 80, 660, 660, "#e9eef5");
+    for (let y = 120; y < 720; y += 80) s += rect(470, y, 660, 6, "#b4bfcc");
+    // two boosters with nose cones
+    for (const x of [640, 960]) {
+      s += rect(x - 46, 210, 92, 510, "#f8f9fa") + path(`M${x - 46} 210L${x} 120L${x + 46} 210Z`, "#f8f9fa");
+      for (let k = 0; k < 5; k++) s += rect(x - 46, 260 + k * 92, 92, 6, "#adb5bd");
+      s += rect(x - 46, 690, 92, 30, "#495057") + path(`M${x - 40} 720L${x - 56} 760H${x + 56}L${x + 40} 720Z`, "#343a40");
+    }
+    // the platform and a person for scale
+    s += rect(500, 760, 600, 24, "#495057");
+    s += circle(1180, 680, 10, "#343a40") + rect(1174, 690, 12, 32, "#ff922b");
+    return s;
+  },
+
+  "comedy-wildlife-2026": (c) => {
+    let s = rect(0, 0, W, H, "#fff3d6") + circle(1300, 160, 90, "#ffe066");
+    s += path("M0 700Q400 620 800 690T1600 660V900H0Z", "#9bc46b");
+    // a moose mid-sneeze
+    s += `<g transform="translate(760 520)">`;
+    s += `<ellipse cx="0" cy="40" rx="190" ry="110" fill="#7a4e2d"/>`;
+    for (const x of [-120, -60, 80, 140]) s += rect(x, 120, 30, 170, "#6a4226");
+    s += path("M150 -20Q230 -60 300 -10Q330 30 300 70Q240 90 190 50Z", "#7a4e2d");
+    s += circle(290, 40, 10, "#3b2414") + circle(250, -10, 9, "#1b1b1b");
+    s += path("M190 -40Q160 -150 90 -170Q140 -120 120 -90Q80 -160 30 -150Q90 -110 160 -50Z", "#c9a46a");
+    s += path("M240 -50Q280 -160 360 -170Q310 -120 330 -90Q370 -160 420 -150Q360 -110 280 -45Z", "#c9a46a");
+    s += `</g>`;
+    // sneeze puff
+    for (const [x, y, rr] of [[1100, 540, 30], [1150, 500, 22], [1190, 560, 18], [1140, 580, 14], [1220, 520, 12]]) s += circle(x, y, rr, "#ffffff", 'opacity=".9"');
+    s += path("M1060 470l40 -40M1080 600l50 30M1240 470l30 -50", "none", 'stroke="#555" stroke-width="6" stroke-linecap="round"');
+    return s;
+  },
+
+  "new-stick-insects": (c) => {
+    let s = rect(0, 0, W, H, "#e3f2d7");
+    const r = rand(12);
+    for (let i = 0; i < 22; i++) s += leaf(100 + r() * 1400, 100 + r() * 700, 1 + r() * 1.4, r() * 360, i % 2 ? "#74b84d" : "#4f9a35");
+    s += path("M120 520Q600 480 1500 380", "none", 'stroke="#7a5a3a" stroke-width="26" stroke-linecap="round"');
+    // the stick insect along the branch
+    s += `<g transform="translate(820 440) rotate(-7)">`;
+    s += rect(-300, -9, 560, 18, "#8c6a43", 'rx="9"') + `<ellipse cx="290" cy="0" rx="34" ry="12" fill="#8c6a43"/>`;
+    for (const [x, d] of [[-160, 1], [-40, 1], [100, 1], [-160, -1], [-40, -1], [100, -1]] as [number, number][]) s += path(`M${x} 0L${x + 30} ${d * 70}L${x - 10} ${d * 140}`, "none", 'stroke="#8c6a43" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"');
+    s += path("M320 -6L430 -60M320 6L440 30", "none", 'stroke="#8c6a43" stroke-width="5" stroke-linecap="round"');
+    s += `</g>`;
+    // an egg with a tiny lid
+    s += `<ellipse cx="1260" cy="700" rx="40" ry="56" fill="#b08968"/>` + `<ellipse cx="1260" cy="652" rx="26" ry="10" fill="#7f5539"/>` + rect(1252, 634, 16, 12, "#7f5539", 'rx="4"');
+    return s;
+  },
+
   "libraries-on-the-move": (c) => {
     let s = rect(0, 0, W, H, "#ffd9a8") + circle(800, 330, 210, "#ffb347") + circle(800, 330, 150, "#ffcf6e");
     s += path(`M0 610Q400 520 800 600T1600 580V900H0Z`, "#f2b36b") + path(`M0 700Q500 610 1000 690T1600 670V900H0Z`, "#e59a4f") + path(`M0 800Q600 740 1600 790V900H0Z`, "#d4843c");
