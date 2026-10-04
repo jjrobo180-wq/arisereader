@@ -346,6 +346,582 @@ export const READABLE_BOOKS: ReadableBook[] = [
     "chapters": 15,
     "words": 59152,
     "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "tower-treasure",
+    "title": "The Tower Treasure",
+    "author": "Franklin W. Dixon",
+    "chapters": 24,
+    "words": 41176,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "secret-of-the-old-mill",
+    "title": "The Secret of the Old Mill",
+    "author": "Franklin W. Dixon",
+    "chapters": 25,
+    "words": 40714,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "missing-chums",
+    "title": "The Missing Chums",
+    "author": "Franklin W. Dixon",
+    "chapters": 23,
+    "words": 42210,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "shore-road-mystery",
+    "title": "The Shore Road Mystery",
+    "author": "Franklin W. Dixon",
+    "chapters": 23,
+    "words": 39463,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "secret-of-the-caves",
+    "title": "The Secret of the Caves",
+    "author": "Franklin W. Dixon",
+    "chapters": 25,
+    "words": 39944,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "mystery-of-cabin-island",
+    "title": "The Mystery of Cabin Island",
+    "author": "Franklin W. Dixon",
+    "chapters": 25,
+    "words": 40430,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "great-airport-mystery",
+    "title": "The Great Airport Mystery",
+    "author": "Franklin W. Dixon",
+    "chapters": 24,
+    "words": 39627,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "bungalow-mystery",
+    "title": "The Bungalow Mystery",
+    "author": "Carolyn Keene",
+    "chapters": 25,
+    "words": 37970,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "macdonald-fairy-tales",
+    "title": "The Light Princess and Other Fairy Tales",
+    "author": "George MacDonald",
+    "chapters": 20,
+    "words": 121121,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "windfairies",
+    "title": "The Windfairies",
+    "author": "Mary De Morgan",
+    "chapters": 9,
+    "words": 45213,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "princess-fiorimonde",
+    "title": "The Necklace of Princess Fiorimonde",
+    "author": "Mary De Morgan",
+    "chapters": 7,
+    "words": 34073,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "on-a-pincushion",
+    "title": "On a Pincushion",
+    "author": "Mary De Morgan",
+    "chapters": 8,
+    "words": 43757,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "swallows-and-amazons",
+    "title": "Swallows and Amazons",
+    "author": "Arthur Ransome",
+    "chapters": 31,
+    "words": 99390,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "marvelous-land-of-oz",
+    "title": "The Marvelous Land of Oz",
+    "author": "L. Frank Baum",
+    "chapters": 25,
+    "words": 41491,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "ozma-of-oz",
+    "title": "Ozma of Oz",
+    "author": "L. Frank Baum",
+    "chapters": 22,
+    "words": 38387,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "dorothy-and-the-wizard",
+    "title": "Dorothy and the Wizard in Oz",
+    "author": "L. Frank Baum",
+    "chapters": 21,
+    "words": 41865,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "road-to-oz",
+    "title": "The Road to Oz",
+    "author": "L. Frank Baum",
+    "chapters": 25,
+    "words": 39161,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "patchwork-girl-of-oz",
+    "title": "The Patchwork Girl of Oz",
+    "author": "L. Frank Baum",
+    "chapters": 28,
+    "words": 56701,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "scarecrow-of-oz",
+    "title": "The Scarecrow of Oz",
+    "author": "L. Frank Baum",
+    "chapters": 23,
+    "words": 45187,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "emerald-city-of-oz",
+    "title": "The Emerald City of Oz",
+    "author": "L. Frank Baum",
+    "chapters": 30,
+    "words": 53246,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "magic-of-oz",
+    "title": "The Magic of Oz",
+    "author": "L. Frank Baum",
+    "chapters": 23,
+    "words": 39002,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "lost-princess-of-oz",
+    "title": "The Lost Princess of Oz",
+    "author": "L. Frank Baum",
+    "chapters": 26,
+    "words": 46600,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "cornelli",
+    "title": "Cornelli",
+    "author": "Johanna Spyri",
+    "chapters": 10,
+    "words": 49588,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "emily-of-new-moon",
+    "title": "Emily of New Moon",
+    "author": "L. M. Montgomery",
+    "chapters": 31,
+    "words": 113173,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "bambi",
+    "title": "Bambi",
+    "author": "Felix Salten",
+    "chapters": 25,
+    "words": 40738,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "the-blue-bird",
+    "title": "The Blue Bird",
+    "author": "Maurice Maeterlinck",
+    "chapters": 10,
+    "words": 32769,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "old-indian-legends",
+    "title": "Old Indian Legends",
+    "author": "Zitkala-Ša",
+    "chapters": 15,
+    "words": 18365,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "smoky-the-cowhorse",
+    "title": "Smoky the Cowhorse",
+    "author": "Will James",
+    "chapters": 15,
+    "words": 80485,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "grimms-household-tales",
+    "title": "Grimms' Household Tales",
+    "author": "Jacob and Wilhelm Grimm",
+    "chapters": 199,
+    "words": 278808,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "wet-magic",
+    "title": "Wet Magic",
+    "author": "E. Nesbit",
+    "chapters": 12,
+    "words": 48995,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "story-of-the-amulet",
+    "title": "The Story of the Amulet",
+    "author": "E. Nesbit",
+    "chapters": 14,
+    "words": 68610,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "house-of-arden",
+    "title": "The House of Arden",
+    "author": "E. Nesbit",
+    "chapters": 14,
+    "words": 72161,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "indian-fairy-tales",
+    "title": "Indian Fairy Tales",
+    "author": "Joseph Jacobs",
+    "chapters": 31,
+    "words": 70884,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "wilde-childrens-stories",
+    "title": "The Happy Prince and Other Stories",
+    "author": "Oscar Wilde",
+    "chapters": 8,
+    "words": 35327,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "green-forest-stories",
+    "title": "Green Forest Stories",
+    "author": "Thornton W. Burgess",
+    "chapters": 16,
+    "words": 84363,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "green-meadow-stories",
+    "title": "Green Meadow Stories",
+    "author": "Thornton W. Burgess",
+    "chapters": 16,
+    "words": 88274,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "little-lord-fauntleroy",
+    "title": "Little Lord Fauntleroy",
+    "author": "Frances Hodgson Burnett",
+    "chapters": 15,
+    "words": 58308,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "kidnapped",
+    "title": "Kidnapped",
+    "author": "Robert Louis Stevenson",
+    "chapters": 32,
+    "words": 80518,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "through-the-looking-glass",
+    "title": "Through the Looking-Glass",
+    "author": "Lewis Carroll",
+    "chapters": 13,
+    "words": 29650,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "adventures-of-nils",
+    "title": "The Wonderful Adventures of Nils",
+    "author": "Selma Lagerlöf",
+    "chapters": 44,
+    "words": 154148,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "freckles",
+    "title": "Freckles",
+    "author": "Gene Stratton-Porter",
+    "chapters": 20,
+    "words": 81597,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "christmas-carol",
+    "title": "A Christmas Carol",
+    "author": "Charles Dickens",
+    "chapters": 5,
+    "words": 28549,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "jekyll-and-hyde",
+    "title": "The Strange Case of Dr. Jekyll and Mr. Hyde",
+    "author": "Robert Louis Stevenson",
+    "chapters": 10,
+    "words": 25605,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "frankenstein",
+    "title": "Frankenstein",
+    "author": "Mary Shelley",
+    "chapters": 30,
+    "words": 77790,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "war-of-the-worlds",
+    "title": "The War of the Worlds",
+    "author": "H. G. Wells",
+    "chapters": 27,
+    "words": 59930,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "first-men-in-the-moon",
+    "title": "The First Men in the Moon",
+    "author": "H. G. Wells",
+    "chapters": 26,
+    "words": 68327,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "adventures-of-sherlock-holmes",
+    "title": "The Adventures of Sherlock Holmes",
+    "author": "Arthur Conan Doyle",
+    "chapters": 12,
+    "words": 104690,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "memoirs-of-sherlock-holmes",
+    "title": "The Memoirs of Sherlock Holmes",
+    "author": "Arthur Conan Doyle",
+    "chapters": 12,
+    "words": 95817,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "return-of-sherlock-holmes",
+    "title": "The Return of Sherlock Holmes",
+    "author": "Arthur Conan Doyle",
+    "chapters": 13,
+    "words": 112134,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "valley-of-fear",
+    "title": "The Valley of Fear",
+    "author": "Arthur Conan Doyle",
+    "chapters": 15,
+    "words": 57532,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "prisoner-of-zenda",
+    "title": "The Prisoner of Zenda",
+    "author": "Anthony Hope",
+    "chapters": 22,
+    "words": 53598,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "black-arrow",
+    "title": "The Black Arrow",
+    "author": "Robert Louis Stevenson",
+    "chapters": 33,
+    "words": 79144,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "aesops-fables",
+    "title": "Aesop's Fables",
+    "author": "Aesop",
+    "chapters": 9,
+    "words": 39496,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "phantom-of-the-opera",
+    "title": "The Phantom of the Opera",
+    "author": "Gaston Leroux",
+    "chapters": 28,
+    "words": 83137,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "ragged-dick",
+    "title": "Ragged Dick",
+    "author": "Horatio Alger Jr.",
+    "chapters": 28,
+    "words": 48059,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "anne-of-avonlea",
+    "title": "Anne of Avonlea",
+    "author": "L. M. Montgomery",
+    "chapters": 30,
+    "words": 89564,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "anne-of-the-island",
+    "title": "Anne of the Island",
+    "author": "L. M. Montgomery",
+    "chapters": 41,
+    "words": 76451,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "secret-adversary",
+    "title": "The Secret Adversary",
+    "author": "Agatha Christie",
+    "chapters": 29,
+    "words": 75279,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "murder-on-the-links",
+    "title": "The Murder on the Links",
+    "author": "Agatha Christie",
+    "chapters": 28,
+    "words": 64774,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "red-house-mystery",
+    "title": "The Red House Mystery",
+    "author": "A. A. Milne",
+    "chapters": 23,
+    "words": 60276,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "king-of-elflands-daughter",
+    "title": "The King of Elfland's Daughter",
+    "author": "Lord Dunsany",
+    "chapters": 35,
+    "words": 69425,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "the-gold-bat",
+    "title": "The Gold Bat",
+    "author": "P. G. Wodehouse",
+    "chapters": 24,
+    "words": 42877,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "hindu-tales",
+    "title": "Hindu Tales from the Sanskrit",
+    "author": "S. M. Mitra",
+    "chapters": 10,
+    "words": 39646,
+    "pictures": 0
+  },
+  {
+    "bookId": 0,
+    "key": "sylvie-and-bruno",
+    "title": "Sylvie and Bruno",
+    "author": "Lewis Carroll",
+    "chapters": 53,
+    "words": 134810,
+    "pictures": 0
   }
 ];
 

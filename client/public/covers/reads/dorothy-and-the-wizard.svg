@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e3a5f"/><stop offset="1" stop-color="#5aa9e6"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0f1e33"/><circle cx="200" cy="300" r="62" fill="#e85d75"/><path d="M146 330 q54 60 108 0" fill="#e85d75"/><path d="M170 360 l14 46 M230 360 l-14 46" stroke="#fff" stroke-width="2"/><rect x="180" y="404" width="40" height="26" fill="#8d5524"/><path d="M150 290 q50 -20 100 0" stroke="#fff" stroke-opacity=".4" stroke-width="5" fill="none"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Dorothy and</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">the Wizard in</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Oz</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">L. FRANK BAUM</text>
+</svg>

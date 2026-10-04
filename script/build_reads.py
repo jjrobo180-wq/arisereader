@@ -61,6 +61,77 @@ BOOKS = [
     ("velveteen-rabbit", "The Velveteen Rabbit", "Margery Williams", HTMLSRC, "GITenberg/The-Velveteen-Rabbit_11757", {"file": "11757-h/11757-h.htm",
         "drop_before": r"(?s)^.*?List of Illustrations</i></h3>\s*<p>.*?</p>\s*<hr/>"}),
     ("hound-baskervilles", "The Hound of the Baskervilles", "Arthur Conan Doyle", SE, "standardebooks/arthur-conan-doyle_the-hound-of-the-baskervilles", {}),
+    # October 2026: the big shelf. Every text was screened for slurs and racial caricature; books that
+    # rely on them were left out (Tom Sawyer, White Fang, three early Nancy Drews, ...). A few otherwise
+    # gentle books keep one dated word swapped for a plain one ("replace") or one passage left out ("strip").
+    ("tower-treasure", "The Tower Treasure", "Franklin W. Dixon", SE, "standardebooks/franklin-w-dixon_the-tower-treasure", {}),
+    ("secret-of-the-old-mill", "The Secret of the Old Mill", "Franklin W. Dixon", SE, "standardebooks/franklin-w-dixon_the-secret-of-the-old-mill", {}),
+    ("missing-chums", "The Missing Chums", "Franklin W. Dixon", SE, "standardebooks/franklin-w-dixon_the-missing-chums", {}),
+    ("shore-road-mystery", "The Shore Road Mystery", "Franklin W. Dixon", SE, "standardebooks/franklin-w-dixon_the-shore-road-mystery", {}),
+    ("secret-of-the-caves", "The Secret of the Caves", "Franklin W. Dixon", SE, "standardebooks/franklin-w-dixon_the-secret-of-the-caves", {"replace": [("a Chinaman’s chance", "a ghost of a chance")]}),
+    ("mystery-of-cabin-island", "The Mystery of Cabin Island", "Franklin W. Dixon", SE, "standardebooks/franklin-w-dixon_the-mystery-of-cabin-island", {}),
+    ("great-airport-mystery", "The Great Airport Mystery", "Franklin W. Dixon", SE, "standardebooks/franklin-w-dixon_the-great-airport-mystery", {}),
+    ("bungalow-mystery", "The Bungalow Mystery", "Carolyn Keene", SE, "standardebooks/carolyn-keene_the-bungalow-mystery", {}),
+    ("macdonald-fairy-tales", "The Light Princess and Other Fairy Tales", "George MacDonald", SE, "standardebooks/george-macdonald_short-fiction",
+        {"split_big": True, "files": ["the-light-princess.xhtml", "the-giants-heart.xhtml", "the-golden-key.xhtml", "cross-purposes.xhtml", "the-shadows.xhtml", "the-carasoyn.xhtml",
+                   "the-history-of-photogen-and-nycteris.xhtml", "a-double-story.xhtml", "the-castle.xhtml"]}),
+    ("windfairies", "The Windfairies", "Mary De Morgan", SE, "standardebooks/mary-de-morgan_the-windfairies", {}),
+    ("princess-fiorimonde", "The Necklace of Princess Fiorimonde", "Mary De Morgan", SE, "standardebooks/mary-de-morgan_the-necklace-of-princess-fiorimonde", {}),
+    ("on-a-pincushion", "On a Pincushion", "Mary De Morgan", SE, "standardebooks/mary-de-morgan_on-a-pincushion", {}),
+    ("swallows-and-amazons", "Swallows and Amazons", "Arthur Ransome", SE, "standardebooks/arthur-ransome_swallows-and-amazons", {"replace": [("Honest Injun", "Honest and true")]}),
+    ("marvelous-land-of-oz", "The Marvelous Land of Oz", "L. Frank Baum", SE, "standardebooks/l-frank-baum_the-marvelous-land-of-oz", {}),
+    ("ozma-of-oz", "Ozma of Oz", "L. Frank Baum", SE, "standardebooks/l-frank-baum_ozma-of-oz", {}),
+    ("dorothy-and-the-wizard", "Dorothy and the Wizard in Oz", "L. Frank Baum", SE, "standardebooks/l-frank-baum_dorothy-and-the-wizard-in-oz", {}),
+    ("road-to-oz", "The Road to Oz", "L. Frank Baum", SE, "standardebooks/l-frank-baum_the-road-to-oz", {}),
+    ("patchwork-girl-of-oz", "The Patchwork Girl of Oz", "L. Frank Baum", TXT, "GITenberg/The-Patchwork-Girl-of-Oz_955", {"file": "955.txt", "subtitle": True, "drop_after": r"^\s*(THE END\s*$|The Wonderful Oz Books)", "heading": r"^(Chapter [A-Za-z-]+)\s*$"}),
+    ("scarecrow-of-oz", "The Scarecrow of Oz", "L. Frank Baum", TXT, "GITenberg/The-Scarecrow-of-Oz_957", {"file": "957.txt", "subtitle": True, "drop_after": r"^\s*(THE END\s*$|The Wonderful Oz Books)", "heading": r"^(Chapter [A-Za-z-]+)\s*$"}),
+    ("emerald-city-of-oz", "The Emerald City of Oz", "L. Frank Baum", TXT, "GITenberg/The-Emerald-City-of-Oz_517", {"file": "517.txt", "drop_after": r"^\s*(THE END\s*$|The Wonderful Oz Books)", "heading": r"^(\d+)\.\s+(\S.*?)\s*$"}),
+    ("magic-of-oz", "The Magic of Oz", "L. Frank Baum", TXT, "GITenberg/The-Magic-of-Oz_419", {"file": "419.txt", "drop_after": r"^\s*(THE END\s*$|The Wonderful Oz Books)", "heading": r"^(\d+)\.\s+(\S.*?)\s*$"}),
+    ("lost-princess-of-oz", "The Lost Princess of Oz", "L. Frank Baum", TXT, "GITenberg/The-Lost-Princess-of-Oz_959", {"file": "959.txt", "subtitle": True, "drop_after": r"^\s*(THE END\s*$|The Wonderful Oz Books)", "heading": r"^CHAPTER (\d+)\s*$"}),
+    ("cornelli", "Cornelli", "Johanna Spyri", SE, "standardebooks/johanna-spyri_cornelli_elisabeth-p-stork", {}),
+    ("emily-of-new-moon", "Emily of New Moon", "L. M. Montgomery", SE, "standardebooks/l-m-montgomery_emily-of-new-moon", {}),
+    ("bambi", "Bambi", "Felix Salten", SE, "standardebooks/felix-salten_bambi_whittaker-chambers", {}),
+    ("the-blue-bird", "The Blue Bird", "Maurice Maeterlinck", SE, "standardebooks/maurice-maeterlinck_georgette-leblanc_the-blue-bird_alexander-teixeira-de-mattos", {}),
+    ("old-indian-legends", "Old Indian Legends", "Zitkala-Ša", SE, "standardebooks/zitkala-sa_old-indian-legends", {}),
+    ("smoky-the-cowhorse", "Smoky the Cowhorse", "Will James", SE, "standardebooks/will-james_smoky-the-cowhorse", {"replace": [("injun fighting cowboy", "old-time cowboy")]}),
+    ("grimms-household-tales", "Grimms' Household Tales", "Jacob and Wilhelm Grimm", SE, "standardebooks/jacob-grimm_wilhelm-grimm_household-tales_margaret-hunt",
+        {"skip_files": ["the-jew-among-thorns.xhtml", "the-good-bargain.xhtml", "the-bright-sun-brings-it-to-light.xhtml"]}),
+    ("wet-magic", "Wet Magic", "E. Nesbit", SE, "standardebooks/e-nesbit_wet-magic", {}),
+    ("story-of-the-amulet", "The Story of the Amulet", "E. Nesbit", SE, "standardebooks/e-nesbit_the-story-of-the-amulet", {}),
+    ("house-of-arden", "The House of Arden", "E. Nesbit", SE, "standardebooks/e-nesbit_the-house-of-arden", {}),
+    ("indian-fairy-tales", "Indian Fairy Tales", "Joseph Jacobs", SE, "standardebooks/joseph-jacobs_indian-fairy-tales", {}),
+    ("wilde-childrens-stories", "The Happy Prince and Other Stories", "Oscar Wilde", SE, "standardebooks/oscar-wilde_childrens-stories", {"skip_files": ["the-fisherman-and-his-soul.xhtml"]}),
+    ("green-forest-stories", "Green Forest Stories", "Thornton W. Burgess", SE, "standardebooks/thornton-w-burgess_green-forest-stories", {"split_big": True}),
+    ("green-meadow-stories", "Green Meadow Stories", "Thornton W. Burgess", SE, "standardebooks/thornton-w-burgess_green-meadow-stories", {"split_big": True}),
+    ("little-lord-fauntleroy", "Little Lord Fauntleroy", "Frances Hodgson Burnett", SE, "standardebooks/frances-hodgson-burnett_little-lord-fauntleroy", {}),
+    ("kidnapped", "Kidnapped", "Robert Louis Stevenson", SE, "standardebooks/robert-louis-stevenson_kidnapped", {}),
+    ("through-the-looking-glass", "Through the Looking-Glass", "Lewis Carroll", SE, "standardebooks/lewis-carroll_through-the-looking-glass_john-tenniel", {}),
+    ("adventures-of-nils", "The Wonderful Adventures of Nils", "Selma Lagerlöf", SE, "standardebooks/selma-lagerlof_the-wonderful-adventures-of-nils_velma-swanston-howard", {}),
+    ("freckles", "Freckles", "Gene Stratton-Porter", SE, "standardebooks/gene-stratton-porter_freckles", {"replace": [("dialect and coon songs", "dialect songs"), ("Honest Injun", "Honest and true")]}),
+    ("christmas-carol", "A Christmas Carol", "Charles Dickens", SE, "standardebooks/charles-dickens_a-christmas-carol", {}),
+    ("jekyll-and-hyde", "The Strange Case of Dr. Jekyll and Mr. Hyde", "Robert Louis Stevenson", SE, "standardebooks/robert-louis-stevenson_the-strange-case-of-dr-jekyll-and-mr-hyde", {}),
+    ("frankenstein", "Frankenstein", "Mary Shelley", SE, "standardebooks/mary-shelley_frankenstein", {}),
+    ("war-of-the-worlds", "The War of the Worlds", "H. G. Wells", SE, "standardebooks/h-g-wells_the-war-of-the-worlds", {}),
+    ("first-men-in-the-moon", "The First Men in the Moon", "H. G. Wells", SE, "standardebooks/h-g-wells_the-first-men-in-the-moon", {}),
+    ("adventures-of-sherlock-holmes", "The Adventures of Sherlock Holmes", "Arthur Conan Doyle", SE, "standardebooks/arthur-conan-doyle_the-adventures-of-sherlock-holmes", {}),
+    ("memoirs-of-sherlock-holmes", "The Memoirs of Sherlock Holmes", "Arthur Conan Doyle", SE, "standardebooks/arthur-conan-doyle_the-memoirs-of-sherlock-holmes", {"replace": [("at a Jew broker’s", "at a broker’s"), ("The Negro.", "The Raven.")]}),
+    ("return-of-sherlock-holmes", "The Return of Sherlock Holmes", "Arthur Conan Doyle", SE, "standardebooks/arthur-conan-doyle_the-return-of-sherlock-holmes", {}),
+    ("valley-of-fear", "The Valley of Fear", "Arthur Conan Doyle", SE, "standardebooks/arthur-conan-doyle_the-valley-of-fear", {}),
+    ("prisoner-of-zenda", "The Prisoner of Zenda", "Anthony Hope", SE, "standardebooks/anthony-hope_the-prisoner-of-zenda", {}),
+    ("black-arrow", "The Black Arrow", "Robert Louis Stevenson", SE, "standardebooks/robert-louis-stevenson_the-black-arrow", {}),
+    ("aesops-fables", "Aesop's Fables", "Aesop", SE, "standardebooks/aesop_fables_v-s-vernon-jones",
+        {"split_big": True, "strip": [r"<h2 class=\"title\">The Blackamoor</h2>.*?(?=<h2)"]}),  # a fable built on a racist joke
+    ("phantom-of-the-opera", "The Phantom of the Opera", "Gaston Leroux", SE, "standardebooks/gaston-leroux_the-phantom-of-the-opera_alexander-teixeira-de-mattos", {}),
+    ("ragged-dick", "Ragged Dick", "Horatio Alger Jr.", SE, "standardebooks/horatio-alger-jr_ragged-dick", {}),
+    ("anne-of-avonlea", "Anne of Avonlea", "L. M. Montgomery", SE, "standardebooks/l-m-montgomery_anne-of-avonlea", {"replace": [("Everybody would want my squaw.", "Everybody would want my wife."), ("Injun headdress", "Indian headdress")]}),
+    ("anne-of-the-island", "Anne of the Island", "L. M. Montgomery", SE, "standardebooks/l-m-montgomery_anne-of-the-island", {}),
+    ("secret-adversary", "The Secret Adversary", "Agatha Christie", SE, "standardebooks/agatha-christie_the-secret-adversary", {}),
+    ("murder-on-the-links", "The Murder on the Links", "Agatha Christie", SE, "standardebooks/agatha-christie_the-murder-on-the-links", {}),
+    ("red-house-mystery", "The Red House Mystery", "A. A. Milne", SE, "standardebooks/a-a-milne_the-red-house-mystery", {}),
+    ("king-of-elflands-daughter", "The King of Elfland's Daughter", "Lord Dunsany", SE, "standardebooks/lord-dunsany_the-king-of-elflands-daughter", {}),
+    ("the-gold-bat", "The Gold Bat", "P. G. Wodehouse", SE, "standardebooks/p-g-wodehouse_the-gold-bat", {}),
+    ("hindu-tales", "Hindu Tales from the Sanskrit", "S. M. Mitra", SE, "standardebooks/s-m-mitra_hindu-tales-from-the-sanskrit", {}),
+    ("sylvie-and-bruno", "Sylvie and Bruno", "Lewis Carroll", SE, "standardebooks/lewis-carroll_sylvie-and-bruno", {}),
 ]
 
 VOID = {"br", "img", "hr", "meta", "link", "input", "col", "area", "base", "wbr", "source"}
@@ -167,6 +238,8 @@ def build_se(bid, d, opts):
     items = dict(re.findall(r'<item href="([^"]+)" id="([^"]+)"', opf))
     ids = {v: k for k, v in items.items()}
     spine = re.findall(r'<itemref idref="([^"]+)"', opf)
+    if opts.get("files"):  # an explicit list (and order) of text files to include
+        spine = [items["text/" + f] for f in opts["files"]]
     toc = open(os.path.join(epub, "toc.xhtml"), encoding="utf-8").read()
     titles = {}
     for href, label in re.findall(r'<a href="([^"#]+)(?:#[^"]*)?">(.*?)</a>', toc, re.S):
@@ -176,6 +249,7 @@ def build_se(bid, d, opts):
     for ref in spine:
         href = ids.get(ref)
         if not href or not href.endswith(".xhtml"): continue
+        if os.path.basename(href) in opts.get("skip_files", ()): continue
         root = parse(open(os.path.join(epub, href), encoding="utf-8").read())
         body = find(root, lambda n: n.tag == "body")
         sec = find(body, lambda n: n.tag in ("section", "article"))
@@ -184,7 +258,39 @@ def build_se(bid, d, opts):
         content = render(body, {"id": bid})
         title = titles.get(os.path.basename(href)) or (sec.attrs.get("id", "").replace("-", " ").title() if sec else "Section")
         chapters.append([title, content])
-    return merge_small(chapters)
+    chapters = merge_small(chapters)
+    return split_big(chapters) if opts.get("split_big") else chapters
+
+
+def split_big(chapters, limit=9000, target=5000):
+    """Collections can arrive as one huge chapter (all of Aesop on one page). Split those at their
+    own headings into pages of about `target` words, named after the headings they hold."""
+    out = []
+    for title, content in chapters:
+        if words_of(content) <= limit:
+            out.append([title, content]); continue
+        tag = "h3" if content.count("<h3") >= 3 else "h2"
+        parts = re.split(rf"(?=<{tag}[ >])", content)
+        lead, pieces = (parts[0], parts[1:]) if parts and not parts[0].startswith(f"<{tag}") else ("", parts)
+        if len(pieces) < 3:
+            out.append([title, content]); continue
+        heads = [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", re.match(rf"<{tag}[^>]*>(.*?)</{tag}>", p, re.S).group(1)))).strip() if re.match(rf"<{tag}[^>]*>(.*?)</{tag}>", p, re.S) else "" for p in pieces]
+        groups, cur, acc = [], [], words_of(lead)
+        for i, p in enumerate(pieces):
+            cur.append(i); acc += words_of(p)
+            if acc >= target: groups.append(cur); cur, acc = [], 0
+        if cur:
+            if groups and acc < target / 3: groups[-1] += cur
+            else: groups.append(cur)
+        roman = all(re.fullmatch(r"[IVXLC]+\.?", heads[i] or "") for g in groups for i in g)
+        for n, g in enumerate(groups):
+            first, last = heads[g[0]], heads[g[-1]]
+            if roman: name = f"{title}: chapters {first}–{last}" if first != last else f"{title}: chapter {first}"
+            else: name = first if len(g) == 1 else f"{first} and more"
+            body = (lead if n == 0 else "") + "".join(pieces[i] for i in g)
+            if n > 0 and tag == "h3": body = f"<h2>{html.escape(title)}</h2>" + body
+            out.append([name, body])
+    return out
 
 
 def merge_small(chapters):
@@ -236,13 +342,25 @@ def build_txt(bid, d, opts):
             end = pos[i + 1][2] if i + 1 < len(pos) else len(body)
             chapters.append([n.title().replace("'S", "'s"), txt_to_html(body[start:end])])
     else:
+        if opts.get("drop_after"):
+            m = re.search(opts["drop_after"], s, re.M)
+            if m: s = s[:m.start()]
         rx = re.compile(opts["heading"], re.M)
         ms = list(rx.finditer(s))
         for i, m in enumerate(ms):
             end = ms[i + 1].start() if i + 1 < len(ms) else len(s)
             label = m.group(1).strip()
             title = f"Chapter {label}" if label.isdigit() else label.title()
-            chapters.append([title, f"<h2>{html.escape(title)}</h2>" + txt_to_html(s[m.end():end])])
+            if m.lastindex and m.lastindex >= 2: title = f"Chapter {label}: {m.group(2).strip()}"
+            body = s[m.end():end]
+            if opts.get("subtitle"):  # the short line under "Chapter One" is the chapter's name
+                mm = re.match(r"\s*\n([^\n]{2,70})\n\s*\n", body)
+                if mm:
+                    sub = re.sub(r"\s+", " ", mm.group(1)).strip()
+                    if sub.isupper(): sub = sub.title().replace("'S", "'s")
+                    sub = re.sub(r"(?<=\s)(The|A|An|Of|And|To|In|On|For|With)(?=\s)", lambda w: w.group(1).lower(), sub)
+                    title = f"{title}: {sub}"; body = body[mm.end():]
+            chapters.append([title, f"<h2>{html.escape(title)}</h2>" + txt_to_html(body)])
     return chapters
 
 
@@ -309,13 +427,18 @@ def convert_image(src, dest_dir, done):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--src", required=True); ap.add_argument("--only")
+    ap.add_argument("--new-only", action="store_true", help="keep books already built; only build ones with no output yet")
     a = ap.parse_args()
     catalog = []
     for bid, title, author, kind, repo, opts in BOOKS:
         if a.only and a.only != str(bid): continue
-        d = git(repo, a.src)
         outdir = os.path.join(OUT, str(bid))
         key = bid if isinstance(bid, str) else None
+        if a.new_only and os.path.exists(os.path.join(outdir, "index.json")):
+            idx = json.load(open(os.path.join(outdir, "index.json"), encoding="utf-8"))
+            catalog.append({"bookId": 0 if key else bid, "key": key, "title": title, "author": author, "chapters": len(idx["chapters"]), "words": idx["words"], "pictures": idx.get("pictures", 0)})
+            continue
+        d = git(repo, a.src)
         if os.path.isdir(outdir):
             for f in os.listdir(outdir):
                 p = os.path.join(outdir, f)
@@ -325,6 +448,13 @@ def main():
         if kind == SE: chapters = build_se(bid, d, opts)
         elif kind == TXT: chapters = build_txt(bid, d, opts)
         else: chapters = build_html(bid, d, opts, lambda p: convert_image(p, os.path.join(outdir, "img"), done))
+        for pat in opts.get("strip", ()):  # passages left out on purpose (see the comment on each book)
+            hit = [bool(re.search(pat, c, re.S)) for _, c in chapters]
+            assert any(hit), (bid, "strip pattern matched nothing", pat)
+            chapters = [[t, re.sub(pat, "", c, flags=re.S)] for t, c in chapters]
+        for old, new in opts.get("replace", ()):  # a dated slur swapped for a plain word (see the comment on each book)
+            assert any(old in c for _, c in chapters), (bid, "replace text not found", old)
+            chapters = [[t.replace(old, new), c.replace(old, new)] for t, c in chapters]
         toc = []
         for i, (t, c) in enumerate(chapters, 1):
             assert "<script" not in c.lower() and "gutenberg" not in c.lower(), (bid, t)

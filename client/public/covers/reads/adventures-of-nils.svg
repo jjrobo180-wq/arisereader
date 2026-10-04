@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0077b6"/><stop offset="1" stop-color="#90e0ef"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<path d="M0 500 L80 470 L160 490 L240 460 L320 485 L400 470 V600 H0Z" fill="#023e8a"/><path d="M110 330 q60 -40 120 0 q40 -40 80 -30 q-30 10 -40 30 q-20 30 -60 30 q-60 0 -100 -30z" fill="#fff"/><path d="M140 320 q50 -60 90 -10" fill="#e9ecef"/><circle cx="182" cy="322" r="9" fill="#e64980"/><path d="M330 290 l18 6 l-18 4z" fill="#ffa94d"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">The Wonderful</text><text x="200" y="122" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Adventures of</text><text x="200" y="166" font-family="Georgia,serif" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">Nils</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">SELMA LAGERLÖF</text>
+</svg>

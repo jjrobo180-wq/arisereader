@@ -13,7 +13,10 @@ import "./reads.css";
 const Back = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>;
 type Filter = "All" | "Short reads" | "Chapter books" | "Long novels";
 /** Spooky-but-friendly picks for October. */
-const SPOOKY = new Set(["sleepy-hollow", "canterville-ghost", "hound-baskervilles"]);
+const SPOOKY = new Set([
+  "sleepy-hollow", "canterville-ghost", "hound-baskervilles", "christmas-carol", "secret-of-the-caves", "bungalow-mystery",
+  "jekyll-and-hyde", "frankenstein", "phantom-of-the-opera", "war-of-the-worlds",
+]);
 const linkFor = (b: ReadableBook) => `/reads/book/${b.key ?? b.bookId}`;
 const coverFor = (b: ReadableBook) => (b.key ? `/covers/reads/${b.key}.svg` : `${API_BASE}/api/book-cover/${b.bookId}`);
 const sizeOf = (words: number): Filter => (words < 30000 ? "Short reads" : words < 70000 ? "Chapter books" : "Long novels");
@@ -95,7 +98,7 @@ export default function ReadHub() {
 
         {spooky.length > 0 && (
           <section className="nw-block" id="spooky" aria-labelledby="spooky-h">
-            <div className="nw-block-head"><h2 id="spooky-h">Spooky stories</h2><p>Ghosts, legends and a hound on the moor. Shivery, not scary.</p></div>
+            <div className="nw-block-head"><h2 id="spooky-h">Spooky stories</h2><p>Ghosts, monsters, mysteries and a hound on the moor. Shivery, not scary.</p></div>
             <div className="rd-books">{spooky.map((b) => bookCard(b))}</div>
           </section>
         )}

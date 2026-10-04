@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1b2f"/><stop offset="1" stop-color="#3e3e5e"/></linearGradient></defs>
+<rect width="400" height="600" fill="url(#g)"/>
+
+<circle cx="310" cy="240" r="30" fill="#d0ebff"/><path d="M0 480 Q120 455 220 470 T400 462 V600 H0Z" fill="#0b0b16"/><path d="M180 280 h40 v50 l50 90 q6 20 -16 24 h-108 q-22 -4 -16 -24 l50 -90z" fill="#fff" opacity=".2"/><path d="M150 420 l30 -50 h40 l30 50 q6 20 -16 24 h-68 q-22 -4 -16 -24z" fill="#7fff8a"/><rect x="176" y="270" width="48" height="12" fill="#8d5524"/><circle cx="190" cy="400" r="6" fill="#fff" opacity=".6"/><circle cx="210" cy="385" r="4" fill="#fff" opacity=".6"/>
+
+<rect x="22" y="22" width="356" height="556" fill="none" stroke="#ffd43b" stroke-opacity=".55" stroke-width="2"/>
+<text x="200" y="78" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">The Strange</text><text x="200" y="116" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Case of Dr.</text><text x="200" y="154" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Jekyll and</text><text x="200" y="192" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Mr. Hyde</text>
+<text x="200" y="556" font-family="Georgia,serif" font-size="20" letter-spacing="2" fill="#fff" fill-opacity=".85" text-anchor="middle">ROBERT LOUIS STEVENSON</text>
+</svg>
