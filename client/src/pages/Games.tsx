@@ -186,12 +186,13 @@ function AvatarWorldButton({ token, onOpen }: { token: string | null; onOpen: ()
       </span>
       <span className="worlds-avatar-text">
         <b>Avatar World</b>
-        {/* the tail of the line is dropped on phones, where the bar is tight */}
-        <span className="worlds-avatar-sub">
-          {coins === null ? "Character" : `${coins.toLocaleString()} ${coins === 1 ? "coin" : "coins"}`}
-          <span className="worlds-avatar-more">{coins === null ? " and shop" : " to spend"}</span>
-        </span>
+        <span className="worlds-avatar-sub">Build or view your avatar</span>
       </span>
+      {coins !== null && (
+        <span className="worlds-avatar-coins" aria-label={`${coins.toLocaleString()} Reader Coins`}>
+          {coins.toLocaleString()} coins
+        </span>
+      )}
     </button>
   );
 }
