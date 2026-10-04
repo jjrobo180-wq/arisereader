@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/lib/queryClient";
 import GameHub from "@/arcade/GameHub";
 import WorldLoadingOverlay from "@/components/WorldLoadingOverlay";
 import SceneArt from "@/arcade/covers/Scene";
@@ -161,6 +162,40 @@ function hashParam(name: string) {
 const logoMax = (w: World) => (w.title.length > 9 ? 17 : 21);
 const PlayIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" fill="currentColor" /></svg>;
 
+/**
+ * Avatar World is where a reader changes their character and spends Reader Coins.
+ * It is not a game, so it stays out of the shelves and the spotlight: this button
+ * lives in the top bar instead, where it is always in reach.
+ */
+function AvatarWorldButton({ token, onOpen }: { token: string | null; onOpen: () => void }) {
+  const [coins, setCoins] = useState<number | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    let alive = true;
+    fetch(API_BASE + "/api/avatar-world", { headers: { Authorization: "Bearer " + token }, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { const wallet = d?.economy?.wallet; if (alive && typeof wallet === "number") setCoins(wallet); })
+      .catch(() => { /* the button works without the coin count */ });
+    return () => { alive = false; };
+  }, [token]);
+  const warmUp = () => { void import("./AvatarWorld").catch(() => {}); };
+  return (
+    <button type="button" className="worlds-avatar" onClick={onOpen} onPointerEnter={warmUp} onFocus={warmUp} data-testid="button-games-avatar-world">
+      <span className="worlds-avatar-face" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="4.2" fill="currentColor" /><path d="M3.8 21.5a8.2 8.2 0 0116.4 0z" fill="currentColor" /></svg>
+      </span>
+      <span className="worlds-avatar-text">
+        <b>Avatar World</b>
+        {/* the tail of the line is dropped on phones, where the bar is tight */}
+        <span className="worlds-avatar-sub">
+          {coins === null ? "Character" : `${coins.toLocaleString()} ${coins === 1 ? "coin" : "coins"}`}
+          <span className="worlds-avatar-more">{coins === null ? " and shop" : " to spend"}</span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
 export default function Games() {
   const { token } = useAuth();
   const [, navigate] = useLocation();
@@ -216,6 +251,7 @@ export default function Games() {
           <b>Games</b>
           <span>{WORLDS.length} game worlds and {GAMES.length} multiplayer games</span>
         </div>
+        <AvatarWorldButton token={token} onOpen={() => setTravel({ path: "/avatar-world", label: "Opening Avatar World…" })} />
       </header>
 
       <div className="axl-scroll" onScroll={(e) => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 24)}>
