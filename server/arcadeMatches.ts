@@ -1,3 +1,5 @@
+import { logActivity } from "./studentActivity";
+import { GAMES } from "../shared/arcade/catalog";
 import type { Express, RequestHandler } from "express";
 import { getAdminSupabase } from "./supabase";
 import { clubDay } from "../shared/clubPlay";
@@ -286,6 +288,7 @@ export function registerArcadeMatchRoutes(app: Express, authMiddleware: RequestH
       const adminPreview = req.adminPreview === "regular";
       const access = await deps.getClubAccess(userId, adminPreview);
       if (!access.allowed) return res.status(403).json({ message: accessMessage(access), access });
+      if (!adminPreview) void logActivity(userId, "game", `${GAMES.find((g) => g.id === gameId)?.title ?? gameId}${computer ? " vs the computer" : ""}`);
 
       // Joining a specific open table, or accepting a challenge.
       if (tableId) {

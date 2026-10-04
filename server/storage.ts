@@ -776,6 +776,7 @@ export class DatabaseStorage implements IStorage {
         proctorType: a.proctor_type || null,
         proctorUserId: a.proctor_user_id ?? null,
         proctorName: a.proctor_name || null,
+        recordedByStaff: !!(a.answers && typeof a.answers === "object" && a.answers._teacherRecorded),
       };
     });
 

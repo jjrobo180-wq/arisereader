@@ -1,3 +1,4 @@
+import { logActivity } from "./studentActivity";
 import type { Express, RequestHandler } from "express";
 import { getAdminSupabase } from "./supabase";
 import { storage } from "./storage";
@@ -119,6 +120,7 @@ function activeCityVisitors(){
 
 export function registerClubAriseRoutes(app:Express, authMiddleware:RequestHandler){
   app.get("/api/city/bootstrap",authMiddleware,async(req:any,res)=>{
+    if(!req.adminPreview&&(req.user?.role==="student"||!req.user?.role)&&!req.user?.isAdmin)void logActivity(req.user.id,"world","Haven City");
     try{
       if(!isStudent(req.user))return res.status(403).json({message:"Haven City is for student accounts."});
       const raw=await storage.getSetting("avatar_world_"+req.user.id);
