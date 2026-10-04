@@ -75,7 +75,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     { label: "My Talker", icon: MessageCircle, path: "/eye-gaze-talker" },
     { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
     { label: "Life Skills", icon: HeartHandshake, path: "/eye-gaze-life-skills" },
-    { label: "Profile", icon: UserRound, path: "/eye-gaze-account" },
+    { label: "Profile", icon: UserRound, path: "/profile" },
   ];
   const visibleNav = nav.filter(item =>
     item.path === "/eye-gaze-home"
@@ -110,7 +110,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
             <div className="w-12 h-12 rounded-2xl bg-slate-950 flex items-center justify-center shadow-sm flex-shrink-0 border-2 border-amber-300"><BookOpen className="w-7 h-7 text-amber-300" /></div>
             <div className="text-left leading-tight"><div className="text-base sm:text-lg font-black tracking-[0.14em] text-slate-950">A.R.I.S.E.</div><div className="text-sm sm:text-lg font-black text-amber-600">READER</div></div>
           </button>
-          <button type="button" onClick={() => navigate("/eye-gaze-account")} className="hidden sm:flex items-center gap-2 pl-3 min-w-0" aria-label="Open profile">
+          <button type="button" onClick={() => navigate("/profile")} className="hidden sm:flex items-center gap-2 pl-3 min-w-0" aria-label="Open profile">
             {profilePhoto ? <img src={profilePhoto} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-blue-200 shadow-sm" /> : <div className="w-11 h-11 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><UserRound className="w-6 h-6" /></div>}
             <div className="font-black text-blue-950 truncate max-w-[140px]">Hi, {user.displayName?.split(" ")[0] || "Learner"}!</div>
           </button>
