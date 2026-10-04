@@ -8223,6 +8223,259 @@ Important:
     next();
   }
 
+
+  // === Teacher Scenes =========================================================
+  // Teachers create one wide, saved visualization for up to three chapters.
+  // Images are generated once at low quality, stored privately, and re-used on
+  // every future view so presenting a saved Scene does not spend AI credits.
+  const TEACHER_SCENES_BUCKET = "teacher-scenes";
+  let teacherScenesBucketReady = false;
+  const teacherScenesDailyUsage = new Map<string, number>();
+
+  type TeacherScene = {
+    id: string;
+    teacherId: number;
+    bookTitle: string;
+    author: string;
+    chapterStart: number;
+    chapterEnd: number;
+    characters: string[];
+    sceneNotes: string;
+    style: string;
+    labelCharacters: boolean;
+    imagePath: string;
+    fingerprint: string;
+    createdAt: string;
+  };
+
+  const teacherSceneKey = (teacherId: number) => "teacher_scenes_" + teacherId;
+
+  const readTeacherScenes = async (teacherId: number): Promise<TeacherScene[]> => {
+    const rawScenes = await storage.getSetting(teacherSceneKey(teacherId));
+    if (!rawScenes) return [];
+    try {
+      const parsed = JSON.parse(rawScenes);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveTeacherScenes = async (teacherId: number, scenes: TeacherScene[]) => {
+    await storage.upsertSetting(teacherSceneKey(teacherId), JSON.stringify(scenes.slice(0, 120)));
+  };
+
+  const sceneFingerprint = (value: string) => {
+    let hash = 5381;
+    for (let i = 0; i < value.length; i++) hash = ((hash << 5) + hash) ^ value.charCodeAt(i);
+    return (hash >>> 0).toString(36);
+  };
+
+  const ensureTeacherScenesBucket = async () => {
+    if (teacherScenesBucketReady) return;
+    const adminDb = getAdminSupabase();
+    const existing = await adminDb.storage.getBucket(TEACHER_SCENES_BUCKET);
+    if (!existing.data) {
+      const created = await adminDb.storage.createBucket(TEACHER_SCENES_BUCKET, {
+        public: false,
+        fileSizeLimit: 10 * 1024 * 1024,
+        allowedMimeTypes: ["image/webp", "image/jpeg", "image/png"],
+      });
+      if (created.error && !/already exists/i.test(String(created.error.message || ""))) throw created.error;
+    }
+    teacherScenesBucketReady = true;
+  };
+
+  const signTeacherScene = async (scene: TeacherScene) => {
+    const signed = await getAdminSupabase().storage.from(TEACHER_SCENES_BUCKET).createSignedUrl(scene.imagePath, 60 * 60);
+    return { ...scene, imageUrl: signed.data?.signedUrl || null };
+  };
+
+  app.get("/api/teacher/scenes", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required." });
+      const scenes = (await readTeacherScenes(req.user.id)).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+      const signed = [];
+      for (const scene of scenes) signed.push(await signTeacherScene(scene));
+      res.set("Cache-Control", "no-store");
+      res.json({ scenes: signed });
+    } catch (error: any) {
+      console.error("[teacher-scenes] load failed:", error?.message);
+      res.status(503).json({ message: "Could not load your saved Scenes right now." });
+    }
+  });
+
+  app.post("/api/teacher/scenes/generate", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required." });
+
+      const bookTitle = String(req.body?.bookTitle || "").trim().slice(0, 120);
+      const author = String(req.body?.author || "").trim().slice(0, 100);
+      const chapterStart = Math.max(1, Math.floor(Number(req.body?.chapterStart) || 1));
+      const chapterEnd = Math.max(chapterStart, Math.floor(Number(req.body?.chapterEnd) || chapterStart));
+      const characters = (Array.isArray(req.body?.characters) ? req.body.characters : [])
+        .map((name: unknown) => String(name || "").trim().slice(0, 60))
+        .filter(Boolean)
+        .slice(0, 12);
+      const sceneNotes = String(req.body?.sceneNotes || "").trim().slice(0, 2200);
+      const allowedStyles = new Set(["cinematic illustrated", "graphic novel", "warm storybook", "semi-realistic classroom visual"]);
+      const requestedStyle = String(req.body?.style || "cinematic illustrated");
+      const style = allowedStyles.has(requestedStyle) ? requestedStyle : "cinematic illustrated";
+      const labelCharacters = req.body?.labelCharacters !== false;
+
+      if (!bookTitle) return res.status(400).json({ message: "Book title is required." });
+      if (chapterEnd - chapterStart > 2) return res.status(400).json({ message: "One panorama can cover up to three chapters." });
+      if (sceneNotes.length < 20) return res.status(400).json({ message: "Add a short description of what students should see." });
+
+      const fingerprintSource = JSON.stringify({
+        bookTitle: bookTitle.toLowerCase(),
+        author: author.toLowerCase(),
+        chapterStart,
+        chapterEnd,
+        characters: characters.map((name: string) => name.toLowerCase()),
+        sceneNotes: sceneNotes.toLowerCase(),
+        style,
+        labelCharacters,
+      });
+      const fingerprint = sceneFingerprint(fingerprintSource);
+      const existingScenes = await readTeacherScenes(req.user.id);
+      const existing = existingScenes.find((scene) => scene.fingerprint === fingerprint);
+      if (existing) {
+        return res.json({ scene: await signTeacherScene(existing), reused: true });
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const usageKey = String(req.user.id) + ":" + today;
+      const usedToday = teacherScenesDailyUsage.get(usageKey) || 0;
+      if (usedToday >= 25) {
+        return res.status(429).json({ message: "You reached today's Scene generation limit. Saved Scenes still work and do not use AI credits." });
+      }
+
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) return res.status(503).json({ message: "Scene generation is not configured on the server yet." });
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Scene storage is not configured on the server yet." });
+
+      const chapterCount = chapterEnd - chapterStart + 1;
+      const chapterLabel = chapterCount === 1
+        ? "Chapter " + chapterStart
+        : "Chapters " + chapterStart + " through " + chapterEnd;
+      const characterInstruction = characters.length
+        ? "Keep these named characters visually consistent across every panel: " + characters.join(", ") + "."
+        : "Keep recurring characters visually consistent across every panel.";
+      const labelInstruction = labelCharacters && characters.length
+        ? "Add clean, readable name callouts with short arrows anchored directly to the correct named characters. Use ONLY these character names as text: " + characters.join(", ") + "."
+        : "Do not add character-name text to the artwork.";
+
+      const prompt = [
+        "Create one extra-wide classroom visualization panorama for a teacher helping students visualize a novel while it is read aloud.",
+        "Book context: " + bookTitle + (author ? " by " + author : "") + ".",
+        "Coverage: " + chapterLabel + ".",
+        "The teacher supplied a brief scene summary below. Visualize ONLY those supplied details. Do not add spoilers or events from later chapters.",
+        chapterCount > 1
+          ? "Divide the panorama left-to-right into " + chapterCount + " clearly distinct but visually connected chapter scenes, one section per chapter in order."
+          : "Create one strong continuous scene for this chapter.",
+        "Use a " + style + " look: polished, expressive, student-friendly, cinematic lighting, clear faces and body language, rich environmental detail, and age-appropriate imagery.",
+        characterInstruction,
+        labelInstruction,
+        "If chapter markers are used, keep them short and readable (for example CHAPTER 4). Do not reproduce book pages, quotations, cover art, publisher logos, or copyrighted text.",
+        "The image should function as a visual support, not a replacement for reading the book.",
+        "Teacher scene notes:",
+        sceneNotes,
+      ].join("\n");
+
+      const generation = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-image-2.5-flare",
+          prompt,
+          size: "1536x768",
+          quality: "low",
+          output_format: "webp",
+          output_compression: 82,
+          n: 1,
+          user: String(req.user.id),
+        }),
+        signal: AbortSignal.timeout(120000),
+      });
+
+      if (!generation.ok) {
+        const detail = await generation.text().catch(() => "");
+        console.error("[teacher-scenes] OpenAI image failed:", generation.status, detail.slice(0, 800));
+        const message = generation.status === 403
+          ? "Image generation is not enabled for this API organization yet."
+          : generation.status === 429
+            ? "Scene generation is busy or has reached the API rate limit. Try again shortly."
+            : "The AI could not create that Scene right now.";
+        return res.status(generation.status === 429 ? 429 : 503).json({ message });
+      }
+
+      const payload: any = await generation.json();
+      const imageBase64 = payload?.data?.[0]?.b64_json;
+      if (!imageBase64) throw new Error("The image service returned no image data.");
+      const imageBytes = Buffer.from(imageBase64, "base64");
+      if (!imageBytes.length || imageBytes.length > 10 * 1024 * 1024) throw new Error("The generated Scene image was invalid.");
+
+      await ensureTeacherScenesBucket();
+      const id = randomBytes(8).toString("hex");
+      const imagePath = String(req.user.id) + "/" + Date.now() + "-" + id + ".webp";
+      const uploaded = await getAdminSupabase().storage.from(TEACHER_SCENES_BUCKET).upload(imagePath, imageBytes, {
+        contentType: "image/webp",
+        cacheControl: "86400",
+        upsert: false,
+      });
+      if (uploaded.error) throw uploaded.error;
+
+      const scene: TeacherScene = {
+        id,
+        teacherId: req.user.id,
+        bookTitle,
+        author,
+        chapterStart,
+        chapterEnd,
+        characters,
+        sceneNotes,
+        style,
+        labelCharacters,
+        imagePath,
+        fingerprint,
+        createdAt: new Date().toISOString(),
+      };
+      await saveTeacherScenes(req.user.id, [scene, ...existingScenes]);
+      teacherScenesDailyUsage.set(usageKey, usedToday + 1);
+
+      res.status(201).json({ scene: await signTeacherScene(scene), reused: false });
+    } catch (error: any) {
+      console.error("[teacher-scenes] generation failed:", error?.name || error?.message);
+      res.status(503).json({ message: "Could not create and save that Scene right now." });
+    }
+  });
+
+  app.delete("/api/teacher/scenes/:id", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required." });
+      const id = String(req.params.id || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+      const scenes = await readTeacherScenes(req.user.id);
+      const target = scenes.find((scene) => scene.id === id);
+      if (!target) return res.status(404).json({ message: "Scene not found." });
+      const next = scenes.filter((scene) => scene.id !== id);
+      await saveTeacherScenes(req.user.id, next);
+      try {
+        await ensureTeacherScenesBucket();
+        await getAdminSupabase().storage.from(TEACHER_SCENES_BUCKET).remove([target.imagePath]);
+      } catch (storageError: any) {
+        console.warn("[teacher-scenes] image cleanup failed:", storageError?.message);
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[teacher-scenes] delete failed:", error?.message);
+      res.status(503).json({ message: "Could not delete that Scene." });
+    }
+  });
+
   // Print-only parent invites. Teachers can print their roster; admins can print all students.
   app.post('/api/parent-invites/print', authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
