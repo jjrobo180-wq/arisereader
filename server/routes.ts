@@ -8454,6 +8454,207 @@ Important:
     }
   });
 
+
+  type TeacherSceneLiveSession = {
+    id: string;
+    code: string;
+    teacherId: number;
+    teacherName: string;
+    sceneId: string;
+    status: "live" | "ended";
+    createdAt: string;
+    updatedAt: string;
+    viewers: number[];
+  };
+
+  const TEACHER_SCENE_LIVE_KEY = "teacher_scene_live_sessions_v1";
+
+  const readSceneLiveSessions = async (): Promise<Record<string, TeacherSceneLiveSession>> => {
+    const raw = await storage.getSetting(TEACHER_SCENE_LIVE_KEY);
+    let sessions: Record<string, TeacherSceneLiveSession> = {};
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) sessions = parsed;
+      } catch {}
+    }
+    const now = Date.now();
+    let changed = false;
+    for (const [code, session] of Object.entries(sessions)) {
+      const age = now - Date.parse(session.updatedAt || session.createdAt || "");
+      if (!Number.isFinite(age) || age > 24 * 60 * 60 * 1000) {
+        delete sessions[code];
+        changed = true;
+      }
+    }
+    if (changed) await storage.upsertSetting(TEACHER_SCENE_LIVE_KEY, JSON.stringify(sessions));
+    return sessions;
+  };
+
+  const saveSceneLiveSessions = async (sessions: Record<string, TeacherSceneLiveSession>) => {
+    await storage.upsertSetting(TEACHER_SCENE_LIVE_KEY, JSON.stringify(sessions));
+  };
+
+  const makeSceneLiveCode = (sessions: Record<string, TeacherSceneLiveSession>) => {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    for (let attempt = 0; attempt < 30; attempt++) {
+      let value = "";
+      for (let i = 0; i < 6; i++) value += alphabet[Math.floor(Math.random() * alphabet.length)];
+      if (!sessions[value]) return value;
+    }
+    return randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
+  };
+
+  const publicSceneLivePayload = async (session: TeacherSceneLiveSession) => {
+    const teacherScenes = await readTeacherScenes(session.teacherId);
+    const scene = teacherScenes.find(item => item.id === session.sceneId);
+    return {
+      id: session.id,
+      code: session.code,
+      teacherId: session.teacherId,
+      teacherName: session.teacherName,
+      status: session.status,
+      updatedAt: session.updatedAt,
+      viewerCount: Array.isArray(session.viewers) ? session.viewers.length : 0,
+      scene: scene ? await signTeacherScene(scene) : null,
+    };
+  };
+
+  app.post("/api/teacher/scenes/live/start", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const sceneId = String(req.body?.sceneId || "").trim();
+      const teacherScenes = await readTeacherScenes(req.user.id);
+      const scene = teacherScenes.find(item => item.id === sceneId);
+      if (!scene) return res.status(404).json({ message: "Choose one of your saved Scenes first." });
+
+      const sessions = await readSceneLiveSessions();
+      for (const session of Object.values(sessions)) {
+        if (session.teacherId === req.user.id && session.status === "live") {
+          session.status = "ended";
+          session.updatedAt = new Date().toISOString();
+        }
+      }
+      const code = makeSceneLiveCode(sessions);
+      const now = new Date().toISOString();
+      const session: TeacherSceneLiveSession = {
+        id: randomBytes(8).toString("hex"),
+        code,
+        teacherId: req.user.id,
+        teacherName: String(req.user.displayName || req.user.username || "Teacher").slice(0, 80),
+        sceneId: scene.id,
+        status: "live",
+        createdAt: now,
+        updatedAt: now,
+        viewers: [],
+      };
+      sessions[code] = session;
+      await saveSceneLiveSessions(sessions);
+      res.status(201).json(await publicSceneLivePayload(session));
+    } catch (error: any) {
+      console.error("[teacher-scenes-live] start failed:", error?.message);
+      res.status(500).json({ message: "Could not start the live Scene." });
+    }
+  });
+
+  app.post("/api/teacher/scenes/live/:code/select", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const code = String(req.params.code || "").trim().toUpperCase();
+      const sceneId = String(req.body?.sceneId || "").trim();
+      const sessions = await readSceneLiveSessions();
+      const session = sessions[code];
+      if (!session || session.status !== "live" || session.teacherId !== req.user.id) return res.status(404).json({ message: "Live Scene not found." });
+      const teacherScenes = await readTeacherScenes(req.user.id);
+      if (!teacherScenes.some(item => item.id === sceneId)) return res.status(404).json({ message: "Scene not found." });
+      session.sceneId = sceneId;
+      session.updatedAt = new Date().toISOString();
+      await saveSceneLiveSessions(sessions);
+      res.json(await publicSceneLivePayload(session));
+    } catch (error: any) {
+      console.error("[teacher-scenes-live] select failed:", error?.message);
+      res.status(500).json({ message: "Could not change the live Scene." });
+    }
+  });
+
+  app.post("/api/teacher/scenes/live/:code/send", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const code = String(req.params.code || "").trim().toUpperCase();
+      const sessions = await readSceneLiveSessions();
+      const session = sessions[code];
+      if (!session || session.status !== "live" || session.teacherId !== req.user.id) return res.status(404).json({ message: "Live Scene not found." });
+
+      const roster = req.user.isAdmin
+        ? (await storage.getAllUsers()).filter((u: any) => u.role === "student" && !u.isAdmin)
+        : await storage.getTeacherStudents(req.user.id);
+      const requestedIds = Array.isArray(req.body?.studentIds)
+        ? new Set(req.body.studentIds.map((id: unknown) => Number(id)).filter((id: number) => Number.isSafeInteger(id) && id > 0))
+        : null;
+      const recipients = requestedIds?.size ? roster.filter((student: any) => requestedIds.has(student.id)) : roster;
+      const linkUrl = "/#/scene-live?code=" + encodeURIComponent(code);
+      for (const student of recipients) {
+        await storage.createMessage(
+          student.id,
+          "teacher",
+          session.teacherName + " started a live A.R.I.S.E. Scene. Tap to join with code " + code + ".",
+          linkUrl
+        );
+      }
+      res.json({ sent: recipients.length, code });
+    } catch (error: any) {
+      console.error("[teacher-scenes-live] send failed:", error?.message);
+      res.status(500).json({ message: "Could not send the live Scene to students." });
+    }
+  });
+
+  app.post("/api/teacher/scenes/live/:code/end", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const code = String(req.params.code || "").trim().toUpperCase();
+      const sessions = await readSceneLiveSessions();
+      const session = sessions[code];
+      if (!session || session.teacherId !== req.user.id) return res.status(404).json({ message: "Live Scene not found." });
+      session.status = "ended";
+      session.updatedAt = new Date().toISOString();
+      await saveSceneLiveSessions(sessions);
+      res.json({ status: "ended", code });
+    } catch (error: any) {
+      res.status(500).json({ message: "Could not end the live Scene." });
+    }
+  });
+
+  app.post("/api/scenes/live/join", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({ message: "Student account required." });
+      const code = String(req.body?.code || "").trim().toUpperCase();
+      if (!/^[A-Z2-9]{6}$/.test(code)) return res.status(400).json({ message: "Enter the 6-character Scene code." });
+      const sessions = await readSceneLiveSessions();
+      const session = sessions[code];
+      if (!session || session.status !== "live") return res.status(404).json({ message: "That live Scene is not open. Check the code with your teacher." });
+      if (!Array.isArray(session.viewers)) session.viewers = [];
+      if (!session.viewers.includes(req.user.id)) session.viewers.push(req.user.id);
+      session.updatedAt = new Date().toISOString();
+      await saveSceneLiveSessions(sessions);
+      res.json(await publicSceneLivePayload(session));
+    } catch (error: any) {
+      console.error("[teacher-scenes-live] join failed:", error?.message);
+      res.status(500).json({ message: "Could not join the live Scene." });
+    }
+  });
+
+  app.get("/api/scenes/live/:code", authMiddleware, async (req: any, res) => {
+    try {
+      const code = String(req.params.code || "").trim().toUpperCase();
+      const sessions = await readSceneLiveSessions();
+      const session = sessions[code];
+      if (!session) return res.status(404).json({ message: "Live Scene not found." });
+      const isHost = (req.user.role === "teacher" || req.user.isAdmin) && session.teacherId === req.user.id;
+      const isJoinedStudent = req.user.role === "student" && Array.isArray(session.viewers) && session.viewers.includes(req.user.id);
+      if (!isHost && !isJoinedStudent) return res.status(403).json({ message: "Join this Scene with its code first." });
+      res.set("Cache-Control", "no-store");
+      res.json(await publicSceneLivePayload(session));
+    } catch (error: any) {
+      res.status(500).json({ message: "Could not load the live Scene." });
+    }
+  });
+
   app.delete("/api/teacher/scenes/:id", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required." });
