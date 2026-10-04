@@ -10,6 +10,7 @@ import {
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
 import NoProctorReview from "@/components/NoProctorReview";
+import PlayTimeManager from "@/components/PlayTimeManager";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -375,6 +376,8 @@ export default function ParentDashboard() {
         </section>
 
         {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-300">{error}</div>}
+
+        <PlayTimeManager />
 
         {switching ? (
           <section role="status" className="rounded-[2rem] arise-surface border border-white/10 p-10 text-center">
