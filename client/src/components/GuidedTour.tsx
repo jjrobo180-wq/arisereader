@@ -23,9 +23,9 @@ const TOUR_STEPS: TourStep[] = [
     position: "bottom",
   },
   {
-    selector: '[data-tour="iarise-section"]',
-    title: "iARISE Lessons",
-    desc: "iARISE gives you short real-life learning lessons on topics like friendship, feelings, wellness, money, careers, study skills, mindset, and digital citizenship — each connected to a quiz.",
+    selector: '[data-tour="reads"]',
+    title: "Read on Arise and iARISE Lessons",
+    desc: "Read full books and articles right on the site. This is also where iARISE lives: short real-life learning lessons on topics like friendship, feelings, wellness, money, careers, study skills, mindset, and digital citizenship — each connected to a quiz.",
     position: "bottom",
   },
   {
