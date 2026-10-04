@@ -411,6 +411,9 @@ export default function TeacherDashboard() {
       </button>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 18 }}>
         <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0 }}>Host a live quiz</button>
+        <button onClick={() => navigate("/study")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#173b33" }} data-testid="button-teacher-study">
+          <GraduationCap size={18} /> Study Squad sets
+        </button>
         <button onClick={() => navigate("/teacher-scenes")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" }} data-testid="button-teacher-scenes">
           <BookOpen size={18} /> Scenes
         </button>

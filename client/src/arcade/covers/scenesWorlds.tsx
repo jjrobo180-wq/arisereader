@@ -898,7 +898,89 @@ function havenCity(k: Ids) {
   );
 }
 
+// ─── STUDY SQUAD ─────────────────────────────────────────────────────────────
+// A chalkboard under a study lamp, and a hand of four answer cards fanned out
+// over a wooden table: the colours and shapes readers tap in every study game.
+function studySquad(k: Ids) {
+  const cards: [number, string, ReactNode][] = [
+    [-30, "#ff6b5e", <path d="M0,-13 L13,10 L-13,10 Z" />],
+    [-10, "#7cc6fe", <path d="M0,-14 L13,0 L0,14 L-13,0 Z" />],
+    [10, "#ffc53d", <circle r={12} />],
+    [30, "#7be495", <rect x={-11} y={-11} width={22} height={22} rx={2} />],
+  ];
+  const books: [number, number, number, string][] = [[84, 262, 92, "#7c3aed"], [90, 246, 80, "#0891b2"], [86, 231, 86, "#e2574c"]];
+  return (
+    <>
+      <Sky k={k} stops={[[0, "#081a16"], [0.62, "#143229"], [1, "#0a1713"]]} />
+      <defs>
+        {vgrad(k("board"), [[0, "#286152"], [1, "#173b33"]])}
+        {vgrad(k("frame"), [[0, "#c58a4a"], [1, "#6b3f20"]])}
+        {rgrad(k("table"), [[0, "#e0a868"], [0.55, "#a8672f"], [1, "#4f2c14"]], 0.5, 0.05, 0.95)}
+        {vgrad(k("cone"), [[0, "#ffe9a8", 0.36], [1, "#ffe9a8", 0]])}
+        {vgrad(k("shade"), [[0, "#1f6b57"], [1, "#0f3b30"]])}
+      </defs>
+      {/* the chalkboard */}
+      <rect x={50} y={24} width={380} height={184} rx={9} fill={url(k, "frame")} />
+      <rect x={61} y={35} width={358} height={162} rx={3} fill={url(k, "board")} />
+      <g stroke="#f4f1e6" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.78}>
+        <path d="M108,56 L92,92 L110,92 L96,128" />
+        <path d="M338,150 L360,112 L372,130 L386,104 L404,150" />
+        <path d="M386,104 L386,86 L400,92 L386,97" />
+        <path d="M344,62 L352,72 L370,50" />
+        <path d="M128,150 L128,168 M119,159 L137,159" />
+        <path d="M148,150 L164,168 M164,150 L148,168" />
+        <circle cx={186} cy={159} r={9} />
+        <path d="M96,178 L180,178" strokeDasharray="2 9" />
+      </g>
+      <g fill="#f4f1e6" opacity={0.7}>
+        {[[300, 64], [318, 150], [136, 70]].map(([x, y], i) => <path key={i} d={`M${x},${y - 9} L${x + 3},${y - 3} L${x + 9},${y - 2} L${x + 4},${y + 3} L${x + 6},${y + 9} L${x},${y + 5} L${x - 6},${y + 9} L${x - 4},${y + 3} L${x - 9},${y - 2} L${x - 3},${y - 3} Z`} />)}
+      </g>
+      <rect x={58} y={197} width={364} height={9} rx={2} fill="#8a5a2b" />
+      <rect x={300} y={192} width={30} height={6} rx={2} fill="#f4f1e6" />
+      <rect x={338} y={190} width={34} height={9} rx={2} fill="#ff8fa3" />
+      {/* the study lamp */}
+      <rect x={238} y={-4} width={4} height={30} fill="#0c1512" />
+      <polygon points={pts([[218, 30], [262, 30], [336, 300], [144, 300]])} fill={url(k, "cone")} />
+      <path d="M214,34 L224,14 L256,14 L266,34 Z" fill={url(k, "shade")} />
+      <ellipse cx={240} cy={34} rx={26} ry={5} fill="#fff2c4" />
+      <Glow k={k} name="lamp" cx={240} cy={150} r={210} color="#ffd98a" opacity={0.26} />
+      {/* the table */}
+      <ellipse cx={240} cy={382} rx={330} ry={128} fill={url(k, "table")} />
+      <ellipse cx={240} cy={380} rx={330} ry={128} fill="none" stroke="#f0c48c" strokeOpacity={0.35} strokeWidth={2} />
+      {books.map(([x, y, w, color], i) => (
+        <g key={i}>
+          <rect x={x} y={y} width={w} height={15} rx={2} fill={color} />
+          <rect x={x + 5} y={y + 3} width={w - 10} height={9} rx={1} fill="#f8f1dc" />
+          <rect x={x} y={y} width={9} height={15} rx={2} fill={color} />
+        </g>
+      ))}
+      <g transform="translate(352 268) rotate(-16)">
+        <rect x={0} y={-5} width={74} height={10} fill="#ffc53d" />
+        <rect x={0} y={-5} width={74} height={3} fill="#ffe08a" />
+        <rect x={-12} y={-5} width={12} height={10} rx={3} fill="#ff8fa3" />
+        <path d="M74,-5 L90,0 L74,5 Z" fill="#e9cfa3" />
+        <path d="M84,-2 L90,0 L84,2 Z" fill="#2b2b2b" />
+      </g>
+      {/* the hand of answer cards */}
+      <GlowEllipse k={k} name="cardsGlow" cx={240} cy={214} rx={170} ry={90} color="#fff2c4" opacity={0.28} />
+      {cards.map(([angle, color, shape], i) => (
+        <g key={i} transform={`translate(240 352) rotate(${angle})`}>
+          <rect x={-39} y={-210} width={78} height={112} rx={9} fill="#06110e" opacity={0.35} transform="translate(4 5)" />
+          <rect x={-39} y={-210} width={78} height={112} rx={9} fill={color} />
+          <rect x={-39} y={-210} width={78} height={40} rx={9} fill="#ffffff" opacity={0.16} />
+          <g transform="translate(0 -160)" fill="#11231f" opacity={0.82}>{shape}</g>
+          <rect x={-22} y={-128} width={44} height={6} rx={3} fill="#11231f" opacity={0.3} />
+          <rect x={-15} y={-116} width={30} height={6} rx={3} fill="#11231f" opacity={0.2} />
+        </g>
+      ))}
+      <Motes seed={3101} n={26} y0={40} y1={280} color="#fff2c4" size={1.2} opacity={0.5} />
+      <Vignette k={k} strength={0.62} />
+    </>
+  );
+}
+
 export const WORLD_SCENES: Record<string, Painter> = {
+  study: studySquad,
   city: havenCity,
   club: neonArcade,
   chess: chessScene,

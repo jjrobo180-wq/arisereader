@@ -75,6 +75,7 @@ const NewsArticle = lazyPage(() => import("./pages/news/NewsArticle"));
 const ReadHub = lazyPage(() => import("./pages/reads/ReadHub"));
 const BookReader = lazyPage(() => import("./pages/reads/BookReader"));
 const ClubTheater = lazyPage(() => import("./pages/ClubTheater"));
+const StudySquad = lazyPage(() => import("./pages/study/StudySquad"));
 const HomeInterior = lazyPage(() => import("./pages/HomeInterior"));
 const BoardGameWorld = lazyPage(() => import("./pages/BoardGameWorld"));
 const MidnightMystery = lazyPage(() => import("./pages/MidnightMystery"));
@@ -420,6 +421,12 @@ function AppRoutes() {
           ? <ProtectedRoute><Games /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
+      {/* Study Squad: students play, teachers and admins also come here to add study sets. */}
+      <Route path="/study">
+        {user && user.role !== "parent" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><StudySquad /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
       <Route path="/worlds">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><Redirect to="/games" replace /></ProtectedRoute>
@@ -586,7 +593,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/games", "/paintball-arena", "/aurora-rally", "/skybound-sprint"];
+const FULLSCREEN_GAME_ROUTES = ["/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);
