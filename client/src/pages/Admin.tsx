@@ -21,6 +21,7 @@ import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
 import NoProctorReview from "@/components/NoProctorReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
+import PlayTimeManager from "@/components/PlayTimeManager";
 import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
@@ -2311,6 +2312,8 @@ Generate exactly 10 questions.`;
             </div>
           </CardContent>
         </Card>
+
+        <PlayTimeManager />
 
         <Card className="border-violet-400/25 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.05] to-cyan-400/[.07] shadow-md">
           <CardContent className="p-4 sm:p-5">
