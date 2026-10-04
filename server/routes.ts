@@ -11,6 +11,8 @@ import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
 import { registerPrizeRoutes } from "./prizes";
+import { transferIndependentStudents } from "./independentTransfer";
+import { isIndependentSchoolName } from "../shared/independent";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
 import { registerRacingRoutes, supabaseSaveStore } from "./racing";
@@ -1194,6 +1196,42 @@ export async function registerRoutes(
   await storage.seedEyeGazeQuizzes();
   await storage.seedExtraEyeGazeQuizzes();
 
+  // Students who picked "Independent Reader" in the old school list become independent students.
+  // Runs in the background on every start; once they are moved there is nothing left to do.
+  void transferIndependentStudents({
+    schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
+    studentsAtSchool: async (schoolId) => {
+      const { data, error } = await supabase.from("users")
+        .select("id, username, display_name, role, is_admin, teacher_id, class_id, approved_by_teacher").eq("school_id", schoolId);
+      if (error) throw new Error(error.message);
+      return (data || [])
+        .filter((row: any) => !row.is_admin && (row.role || "student") === "student")
+        .map((row: any) => ({
+          id: Number(row.id), username: String(row.username || ""), displayName: String(row.display_name || row.username || ""),
+          teacherId: row.teacher_id ? Number(row.teacher_id) : null, classId: row.class_id ? Number(row.class_id) : null,
+          approvedByTeacher: row.approved_by_teacher !== false,
+        }));
+    },
+    teacherSchoolId: async (teacherId) => {
+      const teacher = await storage.getUser(teacherId);
+      return teacher && teacher.role === "teacher" && teacher.school_id ? Number(teacher.school_id) : null;
+    },
+    detach: async (studentId) => {
+      const { error } = await supabase.from("users")
+        .update({ school_id: null, teacher_id: null, class_id: null, approved_by_teacher: true }).eq("id", studentId);
+      if (error) throw new Error(error.message);
+    },
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    notifyAdmins: async (title, message) => {
+      const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
+      for (const admin of adminRows || []) await supabase.from("notifications").insert({ user_id: admin.id, type: "info", title, message });
+    },
+  }).then((result) => {
+    if (result.moved) { try { clearCache("allUsers"); } catch {} }
+    if (result.moved || result.kept) console.log(`[independent-transfer] moved ${result.moved}, left ${result.kept} (${result.schools.join(", ")})`);
+  }).catch((e: any) => console.error("[independent-transfer] failed:", e?.message));
+
   // Warm up cache - fetch books and leaderboard on startup
   console.log("Warming up cache...");
   try {
@@ -1229,10 +1267,21 @@ export async function registerRoutes(
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, displayName, isEyeGazeUser, teacherId, schoolId, gradeLevel } = req.body;
+      const { username, password, displayName, isEyeGazeUser, gradeLevel } = req.body;
+      let { teacherId, schoolId } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
       }
+      // "Independent Reader" is no longer a school to pick: independent students have their own sign-up.
+      // A page that was opened before this change can still send it, so it is treated as that sign-up.
+      let pickedIndependentSchool = false;
+      if (schoolId && !req.body.independent) {
+        try {
+          const picked = (await storage.getAllSchools()).find((s: any) => Number(s.id) === parseInt(schoolId));
+          pickedIndependentSchool = !!picked && isIndependentSchoolName(picked.name);
+        } catch {}
+      }
+      if (req.body.independent || pickedIndependentSchool) { teacherId = null; schoolId = null; }
       if (username.length < 3) {
         return res.status(400).json({ message: "Username must be at least 3 characters" });
       }
@@ -1270,12 +1319,14 @@ export async function registerRoutes(
       // (homeschool) readers. They get a normal, fully approved student account
       // right away; "teacher not listed" students keep the school they picked.
       // Save what they typed so an admin can connect them later.
-      const unlistedSchoolName = typeof req.body.unlistedSchoolName === "string" ? req.body.unlistedSchoolName.trim().slice(0, 120) : "";
-      const unlistedTeacherName = typeof req.body.unlistedTeacherName === "string" ? req.body.unlistedTeacherName.trim().slice(0, 120) : "";
+      // An independent student has no school or teacher to be connected to.
+      const noSchool = !!req.body.independent || pickedIndependentSchool;
+      const unlistedSchoolName = !noSchool && typeof req.body.unlistedSchoolName === "string" ? req.body.unlistedSchoolName.trim().slice(0, 120) : "";
+      const unlistedTeacherName = !noSchool && typeof req.body.unlistedTeacherName === "string" ? req.body.unlistedTeacherName.trim().slice(0, 120) : "";
       // Remember how every student signed up so school-not-listed students
       // are never confused with independent readers (both start with no school).
       try {
-        const signupType = req.body.independent ? "independent"
+        const signupType = req.body.independent || pickedIndependentSchool ? "independent"
           : unlistedSchoolName ? "school_not_listed"
           : unlistedTeacherName ? "teacher_not_listed"
           : "school";

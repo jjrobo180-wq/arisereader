@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, BookOpen, GraduationCap, School, UserRound } from "lucide-react";
+import { isIndependentSchoolName } from "@shared/independent";
 
 const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 const NOT_LISTED = "__not_listed__";
@@ -43,7 +44,8 @@ export default function Register({ independent = false }: { independent?: boolea
 
   useEffect(() => {
     if (independentStudent) return;
-    fetch(`${API_BASE}/api/schools`).then(r => r.ok ? r.json() : []).then(data => setSchools(Array.isArray(data) ? data : [])).catch(() => {});
+    // "Independent Reader" is not a school: independent students have their own sign-up (the link below the form).
+    fetch(`${API_BASE}/api/schools`).then(r => r.ok ? r.json() : []).then(data => setSchools(Array.isArray(data) ? data.filter((school: any) => !isIndependentSchoolName(school?.name)) : [])).catch(() => {});
   }, [independentStudent]);
 
   useEffect(() => {
