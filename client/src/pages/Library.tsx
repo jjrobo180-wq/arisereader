@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2, MonitorPlay } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2 } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
@@ -1537,23 +1537,7 @@ export default function Library() {
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">PLAY GAMES</span>
           </button>
         )}
-        {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <button
-            type="button"
-            onClick={() => navigate("/scene-live")}
-            className="mb-4 flex w-full items-center justify-between rounded-2xl border border-cyan-300/30 bg-gradient-to-r from-cyan-600 via-sky-600 to-violet-600 px-4 py-3 text-left text-white shadow-lg transition hover:brightness-110"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><MonitorPlay className="h-6 w-6" /></span>
-              <span>
-                <span className="flex items-center gap-2 text-base font-black">Join Teacher Scene<span className="rounded-full bg-emerald-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950">LIVE</span></span>
-                <span className="block text-xs font-bold text-white/80">Enter your teacher's code and watch the visual Scene change live on your device.</span>
-              </span>
-            </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">JOIN</span>
-          </button>
-        )}
-        <EngagementHub
+                <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
           onReadingLevelUp={() => navigate("/reading-level-up")}
         />
