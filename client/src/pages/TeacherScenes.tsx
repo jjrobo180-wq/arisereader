@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BookOpen, Image as ImageIcon, MonitorPlay, Sparkles, Trash2, WandSparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Image as ImageIcon,
+  Maximize2,
+  MonitorPlay,
+  Send,
+  Sparkles,
+  Trash2,
+  Users,
+  WandSparkles,
+  X,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -16,6 +31,16 @@ type Scene = {
   imagePath: string;
   imageUrl?: string | null;
   createdAt: string;
+};
+
+type LiveSession = {
+  id: string;
+  code: string;
+  teacherName: string;
+  status: "live" | "ended";
+  viewerCount: number;
+  updatedAt: string;
+  scene?: Scene | null;
 };
 
 function getTokenFromCookie(): string | null {
@@ -47,11 +72,16 @@ export default function TeacherScenes() {
   const [labelCharacters, setLabelCharacters] = useState(true);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [presenterOpen, setPresenterOpen] = useState(false);
+  const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [sendBusy, setSendBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   const authorized = !!user && (user.role === "teacher" || user.isAdmin);
   const selected = useMemo(() => scenes.find((scene) => scene.id === selectedId) || scenes[0] || null, [scenes, selectedId]);
+  const selectedIndex = useMemo(() => selected ? scenes.findIndex((scene) => scene.id === selected.id) : -1, [scenes, selected]);
 
   const request = async (path: string, options: RequestInit = {}) => {
     const token = getTokenFromCookie();
@@ -62,6 +92,7 @@ export default function TeacherScenes() {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
+      cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || "Something went wrong.");
@@ -91,6 +122,26 @@ export default function TeacherScenes() {
     }
     void loadScenes();
   }, [user?.id, authorized]);
+
+  useEffect(() => {
+    if (!presenterOpen) return;
+    const old = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = old; };
+  }, [presenterOpen]);
+
+  useEffect(() => {
+    if (!liveSession?.code || liveSession.status !== "live") return;
+    const refresh = async () => {
+      try {
+        const data = await request(`/api/scenes/live/${liveSession.code}`);
+        setLiveSession(data);
+        if (data?.status === "ended") setMessage("Live Scene ended.");
+      } catch {}
+    };
+    const timer = window.setInterval(refresh, 1500);
+    return () => window.clearInterval(timer);
+  }, [liveSession?.code, liveSession?.status]);
 
   const generate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -138,6 +189,104 @@ export default function TeacherScenes() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete this Scene.");
     }
+  };
+
+  const openPresenter = () => {
+    if (!selected) return;
+    setError("");
+    setPresenterOpen(true);
+  };
+
+  const changePresentedScene = async (scene: Scene) => {
+    setSelectedId(scene.id);
+    if (!liveSession?.code || liveSession.status !== "live") return;
+    try {
+      const data = await request(`/api/teacher/scenes/live/${liveSession.code}/select`, {
+        method: "POST",
+        body: JSON.stringify({ sceneId: scene.id }),
+      });
+      setLiveSession(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Students could not follow that Scene change.");
+    }
+  };
+
+  const previousScene = () => {
+    if (!scenes.length || selectedIndex < 0) return;
+    const nextIndex = (selectedIndex - 1 + scenes.length) % scenes.length;
+    void changePresentedScene(scenes[nextIndex]);
+  };
+
+  const nextScene = () => {
+    if (!scenes.length || selectedIndex < 0) return;
+    const nextIndex = (selectedIndex + 1) % scenes.length;
+    void changePresentedScene(scenes[nextIndex]);
+  };
+
+  const startLive = async () => {
+    if (!selected) return;
+    setLiveBusy(true);
+    setError("");
+    try {
+      const data = await request("/api/teacher/scenes/live/start", {
+        method: "POST",
+        body: JSON.stringify({ sceneId: selected.id }),
+      });
+      setLiveSession(data);
+      setMessage("Live Scene started. Students can join with the code shown in Present mode.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start the live Scene.");
+    } finally {
+      setLiveBusy(false);
+    }
+  };
+
+  const endLive = async () => {
+    if (!liveSession?.code) return;
+    setLiveBusy(true);
+    try {
+      await request(`/api/teacher/scenes/live/${liveSession.code}/end`, { method: "POST" });
+      setLiveSession((current) => current ? { ...current, status: "ended" } : current);
+      setMessage("Live Scene ended.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not end the live Scene.");
+    } finally {
+      setLiveBusy(false);
+    }
+  };
+
+  const copyStudentLink = async () => {
+    if (!liveSession?.code) return;
+    const link = `${window.location.origin}/#/scene-live?code=${encodeURIComponent(liveSession.code)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setMessage("Student join link copied.");
+    } catch {
+      setError("Could not copy the join link.");
+    }
+  };
+
+  const sendToClass = async () => {
+    if (!liveSession?.code) return;
+    setSendBusy(true);
+    setError("");
+    try {
+      const data = await request(`/api/teacher/scenes/live/${liveSession.code}/send`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      setMessage(`Sent the live Scene to ${data.sent || 0} student${data.sent === 1 ? "" : "s"} in your class inbox.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send the live Scene.");
+    } finally {
+      setSendBusy(false);
+    }
+  };
+
+  const goFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    } catch {}
   };
 
   if (!user || !authorized) return null;
@@ -259,18 +408,18 @@ export default function TeacherScenes() {
                         <p className="m-0 mt-1 text-sm text-slate-400">Chapters {selected.chapterStart}{selected.chapterEnd !== selected.chapterStart ? `–${selected.chapterEnd}` : ""}{selected.author ? ` • ${selected.author}` : ""}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => document.getElementById("scene-presenter")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cyan-300 px-4 font-black text-slate-950"><MonitorPlay size={18} /> Present</button>
+                        <button type="button" onClick={openPresenter} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cyan-300 px-4 font-black text-slate-950"><MonitorPlay size={18} /> Present</button>
                         <button type="button" aria-label="Delete scene" onClick={() => void removeScene(selected)} className="grid h-11 w-11 place-items-center rounded-xl border border-red-400/30 bg-red-500/10 text-red-200"><Trash2 size={18} /></button>
                       </div>
                     </div>
-                    <div id="scene-presenter" className="overflow-x-auto overscroll-x-contain bg-black/50" style={{ WebkitOverflowScrolling: "touch", cursor: "grab" }}>
+                    <div className="overflow-x-auto overscroll-x-contain bg-black/50" style={{ WebkitOverflowScrolling: "touch", cursor: "grab" }}>
                       {selected.imageUrl ? (
                         <img src={selected.imageUrl} alt={`${selected.bookTitle}, chapters ${selected.chapterStart} through ${selected.chapterEnd} visual scene`} className="block h-auto min-w-[980px] max-w-none lg:min-w-full lg:w-full" />
                       ) : (
                         <div className="grid min-h-72 place-items-center text-slate-500">Scene image is unavailable.</div>
                       )}
                     </div>
-                    <div className="border-t border-white/10 px-4 py-3 text-xs text-slate-400">Drag or scroll sideways on smaller screens to move through the panorama.</div>
+                    <div className="border-t border-white/10 px-4 py-3 text-xs text-slate-400">Press Present for a true classroom presentation screen. Saved Scenes do not use more AI credits.</div>
                   </div>
                 )}
 
@@ -290,6 +439,68 @@ export default function TeacherScenes() {
           </section>
         </div>
       </div>
+
+      {presenterOpen && selected && (
+        <div className="fixed inset-0 z-[350] flex flex-col bg-[#05050a] text-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/70 px-4 py-3 backdrop-blur-xl sm:px-6">
+            <div className="min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">A.R.I.S.E. Scene Presenter</div>
+              <div className="truncate text-lg font-black sm:text-2xl">{selected.bookTitle}</div>
+              <div className="text-xs font-bold text-slate-400">Chapters {selected.chapterStart}{selected.chapterEnd !== selected.chapterStart ? `–${selected.chapterEnd}` : ""}</div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {liveSession?.status === "live" ? (
+                <>
+                  <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-center">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-emerald-300">Student code</div>
+                    <div className="text-xl font-black tracking-[0.22em] text-white">{liveSession.code}</div>
+                  </div>
+                  <div className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-black">
+                    <Users size={17} className="text-cyan-300" /> {liveSession.viewerCount || 0} joined
+                  </div>
+                  <button type="button" onClick={() => void copyStudentLink()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-black hover:bg-white/10"><Copy size={17} /> Copy link</button>
+                  <button type="button" disabled={sendBusy} onClick={() => void sendToClass()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-500 px-3 text-sm font-black hover:bg-violet-400 disabled:opacity-60"><Send size={17} /> {sendBusy ? "Sending..." : "Send to class"}</button>
+                  <button type="button" disabled={liveBusy} onClick={() => void endLive()} className="min-h-11 rounded-xl border border-red-400/30 bg-red-500/10 px-3 text-sm font-black text-red-200">End live</button>
+                </>
+              ) : (
+                <button type="button" disabled={liveBusy} onClick={() => void startLive()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-400 px-4 text-sm font-black">
+                  <Users size={17} /> {liveBusy ? "Starting..." : "Start live for students"}
+                </button>
+              )}
+              <button type="button" onClick={() => void goFullscreen()} className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/5" aria-label="Full screen"><Maximize2 size={18} /></button>
+              <button type="button" onClick={() => setPresenterOpen(false)} className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/5" aria-label="Close presenter"><X size={20} /></button>
+            </div>
+          </div>
+
+          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black">
+            {scenes.length > 1 && (
+              <button type="button" onClick={previousScene} className="absolute left-3 z-20 grid h-14 w-14 place-items-center rounded-full border border-white/20 bg-black/60 shadow-xl backdrop-blur sm:left-6" aria-label="Previous Scene">
+                <ChevronLeft size={30} />
+              </button>
+            )}
+            {selected.imageUrl ? (
+              <div className="h-full w-full overflow-auto">
+                <div className="flex min-h-full min-w-full items-center justify-center p-2 sm:p-5">
+                  <img src={selected.imageUrl} alt={`${selected.bookTitle} presentation Scene`} className="max-h-[calc(100vh-110px)] max-w-full object-contain shadow-2xl" />
+                </div>
+              </div>
+            ) : (
+              <div className="text-slate-500">Scene image is unavailable.</div>
+            )}
+            {scenes.length > 1 && (
+              <button type="button" onClick={nextScene} className="absolute right-3 z-20 grid h-14 w-14 place-items-center rounded-full border border-white/20 bg-black/60 shadow-xl backdrop-blur sm:right-6" aria-label="Next Scene">
+                <ChevronRight size={30} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 bg-[#0b0b14] px-4 py-2 text-xs font-bold text-slate-400 sm:px-6">
+            <span>{selectedIndex + 1} of {scenes.length} saved Scenes</span>
+            <span>{liveSession?.status === "live" ? "Students follow this screen automatically when you switch Scenes." : "Start live if students should see the Scene on their own devices."}</span>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
