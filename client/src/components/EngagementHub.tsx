@@ -3,7 +3,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, Flame, Gamepad2, Gift, Sparkles, Target, Trophy, Zap } from "lucide-react";
+import { CheckCircle2, Flame, Gamepad2, Gift, MonitorPlay, Sparkles, Target, Trophy, Zap } from "lucide-react";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -167,9 +167,14 @@ export function EngagementHub({ onCreateQuiz, onReadingLevelUp }: { onCreateQuiz
 
           <div className="flex flex-wrap items-center gap-2">
             {!user?.is_eye_gaze_user && (
-              <Button size="sm" onClick={() => window.location.hash = "/live-quiz"} className="h-9 shrink-0 rounded-lg bg-foreground px-3 text-xs font-black text-background hover:bg-foreground/90">
-                <Gamepad2 className="mr-1.5 h-4 w-4" /> Join Live
-              </Button>
+              <>
+                <Button size="sm" onClick={() => window.location.hash = "/live-quiz"} className="h-9 shrink-0 rounded-lg bg-foreground px-3 text-xs font-black text-background hover:bg-foreground/90">
+                  <Gamepad2 className="mr-1.5 h-4 w-4" /> Join Live
+                </Button>
+                <Button size="sm" onClick={() => window.location.hash = "/scene-live"} className="h-9 shrink-0 rounded-lg bg-gradient-to-r from-cyan-600 to-violet-600 px-3 text-xs font-black text-white hover:brightness-110">
+                  <MonitorPlay className="mr-1.5 h-4 w-4" /> Join Teacher Scene
+                </Button>
+              </>
             )}
             {onCreateQuiz && (
               <Button size="sm" variant="outline" onClick={onCreateQuiz} className="h-9 shrink-0 rounded-lg px-3 text-xs font-black">
