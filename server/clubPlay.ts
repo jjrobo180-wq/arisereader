@@ -15,6 +15,96 @@ const DEFAULT_CLOSING_HOURS: ClubClosingHours = {
   timeZone: "America/Denver",
 };
 
+const CLUB_DAILY_MINUTES_KEY = "club_daily_play_minutes";
+const clampMinutes = (value: unknown, fallback = 10) => {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? Math.max(1, Math.min(240, n)) : fallback;
+};
+
+async function getGlobalDailyMinutes() {
+  const db = getAdminSupabase();
+  const { data, error } = await db.from("settings").select("value").eq("key", CLUB_DAILY_MINUTES_KEY).maybeSingle();
+  if (error) throw error;
+  return clampMinutes(data?.value, 10);
+}
+
+const bonusKey = (studentId: number, day: string) => `club_play_bonus_${studentId}_${day}`;
+const requestKey = (studentId: number, day: string) => `club_play_request_${studentId}_${day}`;
+
+async function getDailyBonusMinutes(studentId: number, day: string) {
+  const { data, error } = await getAdminSupabase().from("settings").select("value").eq("key", bonusKey(studentId, day)).maybeSingle();
+  if (error) throw error;
+  if (!data?.value) return 0;
+  try {
+    const parsed = JSON.parse(data.value);
+    return Math.max(0, Math.min(360, Math.round(Number(parsed?.minutes) || 0)));
+  } catch {
+    return Math.max(0, Math.min(360, Math.round(Number(data.value) || 0)));
+  }
+}
+
+async function getTimeRequest(studentId: number, day: string) {
+  const { data, error } = await getAdminSupabase().from("settings").select("value").eq("key", requestKey(studentId, day)).maybeSingle();
+  if (error) throw error;
+  if (!data?.value) return null;
+  try { return JSON.parse(data.value); } catch { return null; }
+}
+
+async function saveTimeRequest(studentId: number, day: string, value: any) {
+  const { error } = await getAdminSupabase().from("settings").upsert({ key: requestKey(studentId, day), value: JSON.stringify(value) }, { onConflict: "key" });
+  if (error) throw error;
+}
+
+async function addDailyBonus(studentId: number, day: string, minutes: number, by: any) {
+  const db = getAdminSupabase();
+  const current = await getDailyBonusMinutes(studentId, day);
+  const next = Math.max(0, Math.min(360, current + minutes));
+  const value = {
+    minutes: next,
+    updatedAt: new Date().toISOString(),
+    updatedBy: { id: Number(by?.id) || null, role: by?.role || (by?.isAdmin ? "admin" : "unknown"), name: by?.displayName || by?.username || "Adult" },
+  };
+  const { error } = await db.from("settings").upsert({ key: bonusKey(studentId, day), value: JSON.stringify(value) }, { onConflict: "key" });
+  if (error) throw error;
+  return next;
+}
+
+async function parentLinkedStudentIds(parentId: number): Promise<number[]> {
+  const { data, error } = await getAdminSupabase().from("settings").select("value").eq("key", "parent_student_links").maybeSingle();
+  if (error) throw error;
+  if (!data?.value) return [];
+  try {
+    const parsed = JSON.parse(data.value);
+    const raw = parsed?.[String(parentId)];
+    const arr = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
+    return Array.from(new Set(arr.map(Number).filter((id:number)=>Number.isSafeInteger(id)&&id>0)));
+  } catch { return []; }
+}
+
+async function manageableStudentIds(req: any): Promise<number[]> {
+  const db = getAdminSupabase();
+  if (req.user?.isAdmin) {
+    const { data, error } = await db.from("users").select("id").eq("role", "student").eq("is_eye_gaze_user", false).order("display_name");
+    if (error) throw error;
+    return (data || []).map((row:any)=>Number(row.id)).filter(Boolean);
+  }
+  if (req.user?.role === "teacher" && req.user?.accountApproved !== false) {
+    const { data, error } = await db.from("users").select("id").eq("role", "student").eq("teacher_id", Number(req.user.id)).eq("is_eye_gaze_user", false).order("display_name");
+    if (error) throw error;
+    return (data || []).map((row:any)=>Number(row.id)).filter(Boolean);
+  }
+  if (req.user?.role === "parent" && req.user?.accountApproved !== false) {
+    return await parentLinkedStudentIds(Number(req.user.id));
+  }
+  return [];
+}
+
+async function canManageStudent(req:any, studentId:number) {
+  if (req.user?.isAdmin) return true;
+  const ids = await manageableStudentIds(req);
+  return ids.includes(studentId);
+}
+
 async function getClosingHours(): Promise<ClubClosingHours> {
   const now = Date.now();
   if (closingCache && closingCache.until > now) return closingCache.value;
@@ -146,6 +236,10 @@ async function allowance(userId: number, now: number) {
 
 async function playTime(userId: number, sessionId?: string, leaving = false) {
   const now = Date.now(), grant = await allowance(userId, now);
+  const baseDailyMinutes = await getGlobalDailyMinutes();
+  const bonusMinutes = await getDailyBonusMinutes(userId, grant.day);
+  const request = await getTimeRequest(userId, grant.day);
+  const effectiveDailyMs = (baseDailyMinutes + bonusMinutes) * 60_000;
   const closingHours = await getClosingHours();
   const teacherClosingHours = grant.teacherId ? await getTeacherClosingHours(grant.teacherId) : null;
   const closedByAdmin = closingStatus(closingHours, now);
@@ -155,10 +249,11 @@ async function playTime(userId: number, sessionId?: string, leaving = false) {
 
   if (!sessionId && hit && hit.until > now && hit.access.day === grant.day && hit.access.week === grant.week &&
       hit.access.locked === effectiveLocked && hit.access.unlimitedThisWeek === grant.unlimitedThisWeek &&
-      hit.access.weeklyUnlimitedOnPass === grant.weeklyUnlimitedOnPass && hit.access.passedThisWeek === grant.passedThisWeek) {
-    if (hit.access.unlimitedThisWeek) return { ...hit.access, serverNow: now, allowed: !effectiveLocked, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours };
+      hit.access.weeklyUnlimitedOnPass === grant.weeklyUnlimitedOnPass && hit.access.passedThisWeek === grant.passedThisWeek &&
+      hit.access.baseDailyMinutes === baseDailyMinutes && hit.access.bonusMinutes === bonusMinutes) {
+    if (hit.access.unlimitedThisWeek) return { ...hit.access, serverNow: now, allowed: !effectiveLocked, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours, baseDailyMinutes, bonusMinutes, timeRequestStatus: request?.status || null };
     const remainingMs = Math.max(0, hit.access.expiresAt - now);
-    return { ...hit.access, remainingMs, serverNow: now, allowed: !effectiveLocked && remainingMs > 0 && hit.access.leaseUntil > now, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours };
+    return { ...hit.access, remainingMs, serverNow: now, allowed: !effectiveLocked && remainingMs > 0 && hit.access.leaseUntil > now, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours, baseDailyMinutes, bonusMinutes, timeRequestStatus: request?.status || null };
   }
 
   const db = getAdminSupabase(), key = `club_play_time_${userId}`;
@@ -178,6 +273,7 @@ async function playTime(userId: number, sessionId?: string, leaving = false) {
       grant.unlimitedThisWeek,
       grant.weeklyUnlimitedOnPass,
       grant.passedThisWeek,
+      effectiveDailyMs,
     );
 
     if (sessionId) {
@@ -193,7 +289,7 @@ async function playTime(userId: number, sessionId?: string, leaving = false) {
       }
     }
 
-    const finalAccess = { ...access, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours, allowed: access.allowed && !closedByAdmin && !closedByTeacher };
+    const finalAccess = { ...access, locked: grant.locked, closedByAdmin, closedByTeacher, closingHours, teacherClosingHours, baseDailyMinutes, bonusMinutes, timeRequestStatus: request?.status || null, allowed: access.allowed && !closedByAdmin && !closedByTeacher };
     cached.set(userId, { access: finalAccess, until: Date.now() + 2_000 });
     return finalAccess;
   }
@@ -344,6 +440,111 @@ export function registerClubPlayRoutes(app: Express, auth: RequestHandler) {
       res.json({ ...schedule, closedNow:closingStatus(schedule), adminOverrideClosedNow:closingStatus(adminSchedule), adminSchedule, message:'Your class Club closing hours are saved.' });
     } catch {
       res.status(500).json({ message:'Could not save your class Club closing hours.' });
+    }
+  });
+
+
+  app.get('/api/play-time/manage', auth, async (req:any,res) => {
+    try {
+      if (!(req.user?.isAdmin || req.user?.role === 'teacher' || req.user?.role === 'parent')) return res.status(403).json({ message:'Adult account required.' });
+      if ((req.user?.role === 'teacher' || req.user?.role === 'parent') && req.user?.accountApproved === false) return res.status(403).json({ message:'Approved account required.' });
+      const ids = await manageableStudentIds(req);
+      const db = getAdminSupabase();
+      let students:any[] = [];
+      if (ids.length) {
+        const { data, error } = await db.from('users').select('id,display_name,username,teacher_id').in('id', ids).order('display_name');
+        if (error) throw error;
+        students = data || [];
+      }
+      const day = clubDay(Date.now());
+      const globalMinutes = await getGlobalDailyMinutes();
+      const rows = [];
+      for (const student of students) {
+        const extraMinutes = await getDailyBonusMinutes(Number(student.id), day);
+        const request = await getTimeRequest(Number(student.id), day);
+        rows.push({
+          id:Number(student.id),
+          displayName:student.display_name || student.username,
+          username:student.username,
+          teacherId:Number(student.teacher_id)||null,
+          extraMinutes,
+          totalMinutes:globalMinutes + extraMinutes,
+          request:request || null,
+        });
+      }
+      res.set('Cache-Control','no-store');
+      res.json({ globalMinutes, day, students:rows, canSetGlobal:!!req.user?.isAdmin });
+    } catch (error:any) {
+      console.error('[play-time-manage] load failed:', error?.message);
+      res.status(500).json({ message:'Could not load play-time controls.' });
+    }
+  });
+
+  app.post('/api/admin/play-time/default', auth, async (req:any,res) => {
+    if (!req.user?.isAdmin) return res.status(403).json({ message:'Admin access required.' });
+    try {
+      const minutes = clampMinutes(req.body?.minutes, 10);
+      const { error } = await getAdminSupabase().from('settings').upsert({ key:CLUB_DAILY_MINUTES_KEY, value:String(minutes) }, { onConflict:'key' });
+      if (error) throw error;
+      cached.clear();
+      res.json({ minutes, message:`General daily play time is now ${minutes} minutes.` });
+    } catch (error:any) {
+      res.status(500).json({ message:'Could not update general play time.' });
+    }
+  });
+
+  app.post('/api/play-time/students/:studentId/grant', auth, async (req:any,res) => {
+    try {
+      const studentId = Number(req.params.studentId);
+      const minutes = Math.max(1, Math.min(180, Math.round(Number(req.body?.minutes) || 0)));
+      if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message:'Invalid student.' });
+      if (!minutes) return res.status(400).json({ message:'Choose how many minutes to add.' });
+      if (!await canManageStudent(req, studentId)) return res.status(403).json({ message:'You cannot change play time for this student.' });
+      const day = clubDay(Date.now());
+      const extraMinutes = await addDailyBonus(studentId, day, minutes, req.user);
+      const request = await getTimeRequest(studentId, day);
+      if (request?.status === 'pending') {
+        await saveTimeRequest(studentId, day, { ...request, status:'approved', approvedAt:new Date().toISOString(), approvedMinutes:minutes, approvedBy:req.user?.displayName || req.user?.username || 'Adult' });
+      }
+      cached.delete(studentId);
+      res.json({ studentId, extraMinutes, totalMinutes:(await getGlobalDailyMinutes())+extraMinutes, message:`Added ${minutes} minutes for today.` });
+    } catch (error:any) {
+      console.error('[play-time-manage] grant failed:', error?.message);
+      res.status(500).json({ message:'Could not add play time.' });
+    }
+  });
+
+  app.post('/api/play-time/students/:studentId/request-action', auth, async (req:any,res) => {
+    try {
+      const studentId = Number(req.params.studentId);
+      if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message:'Invalid student.' });
+      if (!await canManageStudent(req, studentId)) return res.status(403).json({ message:'You cannot manage this request.' });
+      const action = String(req.body?.action || '').toLowerCase();
+      if (action !== 'deny' && action !== 'dismiss') return res.status(400).json({ message:'Choose deny or dismiss.' });
+      const day = clubDay(Date.now());
+      const request = await getTimeRequest(studentId, day);
+      if (!request) return res.json({ ok:true });
+      await saveTimeRequest(studentId, day, { ...request, status: action === 'deny' ? 'denied' : 'dismissed', resolvedAt:new Date().toISOString(), resolvedBy:req.user?.displayName || req.user?.username || 'Adult' });
+      res.json({ ok:true });
+    } catch {
+      res.status(500).json({ message:'Could not update the request.' });
+    }
+  });
+
+  app.post('/api/club-play/request-more-time', auth, async (req:any,res) => {
+    res.set('Cache-Control','no-store');
+    if (req.user?.role !== 'student' || req.user?.isAdmin || req.user?.is_eye_gaze_user) return res.status(403).json({ message:'Regular student account required.' });
+    try {
+      const day = clubDay(Date.now());
+      const existing = await getTimeRequest(Number(req.user.id), day);
+      if (existing?.status === 'pending') return res.json({ status:'pending', message:'Your request is already waiting for an adult.' });
+      const requestedMinutes = Math.max(5, Math.min(60, Math.round(Number(req.body?.minutes) || 10)));
+      const value = { status:'pending', requestedMinutes, requestedAt:new Date().toISOString(), studentId:Number(req.user.id), studentName:req.user?.displayName || req.user?.username || 'Student' };
+      await saveTimeRequest(Number(req.user.id), day, value);
+      cached.delete(Number(req.user.id));
+      res.json({ status:'pending', message:'Request sent. A teacher, parent, or admin can add time.' });
+    } catch {
+      res.status(500).json({ message:'Could not send your time request.' });
     }
   });
 
