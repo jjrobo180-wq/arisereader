@@ -168,49 +168,6 @@ I'd rather see than be one.`),
     think: ["Why would the poet rather see a purple cow than be one?", "Make up your own: \"I never saw a ___ ___.\""],
   },
   {
-    slug: "the-owl-and-the-pussy-cat", title: "The Owl and the Pussy-Cat", poet: "Edward Lear", year: 1871, band: "K-2", hook: "An owl and a cat sail away in a pea-green boat.",
-    stanzas: lines(`
-The Owl and the Pussy-cat went to sea
-   In a beautiful pea-green boat,
-They took some honey, and plenty of money,
-   Wrapped up in a five-pound note.
-The Owl looked up to the stars above,
-   And sang to a small guitar,
-"O lovely Pussy! O Pussy, my love,
-    What a beautiful Pussy you are,
-         You are,
-         You are!
-What a beautiful Pussy you are!"
-
-Pussy said to the Owl, "You elegant fowl!
-   How charmingly sweet you sing!
-O let us be married! too long we have tarried:
-   But what shall we do for a ring?"
-They sailed away, for a year and a day,
-   To the land where the Bong-Tree grows
-And there in a wood a Piggy-wig stood
-   With a ring at the end of his nose,
-             His nose,
-             His nose,
-   With a ring at the end of his nose.
-
-"Dear Pig, are you willing to sell for one shilling
-   Your ring?" Said the Piggy, "I will."
-So they took it away, and were married next day
-   By the Turkey who lives on the hill.
-They dined on mince, and slices of quince,
-   Which they ate with a runcible spoon;
-And hand in hand, on the edge of the sand,
-   They danced by the light of the moon,
-             The moon,
-             The moon,
-They danced by the light of the moon.`),
-    about: "Edward Lear was an English artist who loved making up nonsense for children. He wrote this poem for the young daughter of a friend.",
-    notice: "Lear made up words when he needed them. Nobody knows what a \"runcible\" spoon is. He invented the word because he liked the sound.",
-    words: [{ word: "five-pound note", meaning: "paper money used in England" }, { word: "fowl", meaning: "a bird" }, { word: "tarried", meaning: "waited" }, { word: "shilling", meaning: "an old English coin" }, { word: "quince", meaning: "a yellow fruit a bit like a pear" }],
-    think: ["What three things did they do after they got the ring?", "Which lines are the most fun to say out loud? Why?"],
-  },
-  {
     slug: "the-pasture", title: "The Pasture", poet: "Robert Frost", year: 1914, band: "K-2", hook: "An invitation to come along to the farm.",
     stanzas: lines(`
 I'm going out to clean the pasture spring;
