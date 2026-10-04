@@ -57,6 +57,7 @@ export function updatePlayRecord(
   unlimitedThisWeek = false,
   weeklyUnlimitedOnPass = true,
   passedThisWeek = 0,
+  dailyPlayMs = DAILY_PLAY_MS,
 ) {
   const day = clubDay(now);
   const week = clubWeek(now);
@@ -74,7 +75,7 @@ export function updatePlayRecord(
     record.sessions[sessionId] = now + PLAY_LEASE_MS + 10_000;
     if (!unlimitedThisWeek) {
       const unspent = Math.max(0, record.paidUntil - now);
-      const reserve = Math.min(Math.max(0, DAILY_PLAY_MS - record.usedMs), Math.max(0, PLAY_LEASE_MS - unspent));
+      const reserve = Math.min(Math.max(0, dailyPlayMs - record.usedMs), Math.max(0, PLAY_LEASE_MS - unspent));
       record.usedMs += reserve;
       record.paidUntil = Math.max(now, record.paidUntil) + reserve;
     }
@@ -82,7 +83,7 @@ export function updatePlayRecord(
 
   const remainingMs = unlimitedThisWeek
     ? 0
-    : Math.max(0, DAILY_PLAY_MS - record.usedMs + Math.max(0, record.paidUntil - now));
+    : Math.max(0, dailyPlayMs - record.usedMs + Math.max(0, record.paidUntil - now));
 
   const access: PlayAccess = {
     allowed: !locked && (unlimitedThisWeek || (remainingMs > 0 && record.paidUntil > now)),
@@ -94,7 +95,7 @@ export function updatePlayRecord(
     serverNow: now,
     day,
     week,
-    dailyMinutes: Math.round(DAILY_PLAY_MS / 60_000),
+    dailyMinutes: Math.round(dailyPlayMs / 60_000),
     weeklyUnlimitedOnPass,
     passedThisWeek,
   };
