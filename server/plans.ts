@@ -15,7 +15,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  PLANS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, grantLive, parentCanLink, premiumMessage, seatsFor,
+  PLANS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, grantLive, isFreeSchoolName, parentCanLink, premiumMessage, seatsFor,
   type Entitlement, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
 } from "../shared/plans";
 
@@ -42,6 +42,8 @@ export type PlanDeps = {
   /** Students at a school. */
   countSchoolStudents(schoolId: number): Promise<number>;
   schoolName(schoolId: number): Promise<string>;
+  /** Every school on the site, for the admin's list of always-free schools. */
+  schools?(): Promise<Array<{ id: number; name: string }>>;
   /** The site's own address, used if a request's Host header is missing or odd. */
   appUrl?: string;
   /** Stripe keys from the hosting environment; the admin panel can also store them. */
@@ -57,6 +59,8 @@ const KEY = {
   /** A Checkout page that was opened and may have been paid: checked with Stripe until it resolves. */
   pending: (kind: PlanKind, id: number) => `plan_pending_${kind}_${id}`,
   index: "plan_index",
+  /** Schools the admin has made always free ("on"), and name-matched ones the admin has taken off ("off"). */
+  freeSchools: "plans_free_schools",
   stripeKey: "stripe_secret_key",
   webhookSecret: "stripe_webhook_secret",
 };
@@ -166,6 +170,38 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return p && typeof p.sessionId === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(p.sessionId) ? p : null;
   };
   const clearPending = (kind: PlanKind, id: number) => write(KEY.pending(kind, id), "");
+
+  // ─── Schools that are always free ──────────────────────────────────────────
+  // A school is always free when its name matches (see isFreeSchoolName) or the
+  // admin has switched it on, unless the admin has switched it off. Every teacher
+  // at such a school has Premium at no charge, and so do the students in their classes.
+  type FreeChoice = { on: number[]; off: number[] };
+  const readFreeChoice = async (fresh = false): Promise<FreeChoice> => {
+    const raw = parse<Partial<FreeChoice>>(await (fresh ? readFresh(KEY.freeSchools) : read(KEY.freeSchools)), {});
+    const ids = (v: unknown) => (Array.isArray(v) ? [...new Set(v.map(posInt).filter(Boolean))] : []);
+    return { on: ids(raw.on), off: ids(raw.off) };
+  };
+  // A name that matched is remembered for good, so a later hiccup looking the name up can't lock the
+  // school out. A name that didn't match is looked at again after a while, in case the school was renamed.
+  const nameMatched = new Map<number, { yes: boolean; at: number }>();
+  const matchesByName = async (schoolId: number): Promise<boolean> => {
+    const known = nameMatched.get(schoolId);
+    if (known && (known.yes || now() - known.at < 10 * 60_000)) return known.yes;
+    const name = await deps.schoolName(schoolId).catch(() => "");
+    if (name) nameMatched.set(schoolId, { yes: isFreeSchoolName(name), at: now() });
+    return nameMatched.get(schoolId)?.yes ?? false;
+  };
+  const isFreeSchool = async (id: number | null | undefined): Promise<boolean> => {
+    const schoolId = posInt(id);
+    if (!schoolId) return false;
+    const choice = await readFreeChoice();
+    if (choice.off.includes(schoolId)) return false;
+    return choice.on.includes(schoolId) || matchesByName(schoolId);
+  };
+  const freeGrant = (schoolId: number): PlanGrant => ({
+    kind: "school", ownerId: schoolId, source: "admin", status: "active", seats: PLANS.school.studentCap,
+    endsAt: null, updatedAt: iso(now()), free: true, note: "Always free",
+  });
 
   // Entitlements are looked up on most requests, so they are remembered briefly.
   // The key includes the role: an admin previewing the site as a student is a different answer from the admin.
@@ -322,6 +358,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const current = async (kind: PlanKind, id: number | null | undefined): Promise<PlanGrant | null> => {
     const ownerId = posInt(id);
     if (!ownerId) return null;
+    if (kind === "school" && (await isFreeSchool(ownerId))) return freeGrant(ownerId);
     let g = await readGrant(kind, ownerId);
     try {
       if (!grantLive(g, now()) && (await reconcilePending(kind, ownerId))) g = await readGrant(kind, ownerId, true);
@@ -489,7 +526,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const grantView = (g: PlanGrant | null) => g && {
     kind: g.kind, source: g.source, status: g.status, seats: g.seats, endsAt: g.endsAt, live: grantLive(g, now()),
-    paidOnline: g.source === "stripe", canManage: !!g.stripeCustomerId,
+    paidOnline: g.source === "stripe", canManage: !!g.stripeCustomerId, free: !!g.free,
   };
   const approvedTeacher = (req: any) => {
     const u: AnyUser = req.user;
@@ -512,7 +549,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const schoolId = schoolOf(user);
         body.students = await deps.countTeacherStudents(user.id);
         body.teacherPlan = grantView(await readGrant("teacher", user.id));
-        body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(await readGrant("school", schoolId)) } : null;
+        const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
+        body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(schoolPlan) } : null;
       }
       res.set("Cache-Control", "no-store");
       res.json(body);
@@ -527,6 +565,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const schoolId = schoolOf(teacher);
       if (kind === "school" && !schoolId) throw new Refused("Your account is not connected to a school yet, so a school plan can't be bought from it.", 409);
       const ownerId = kind === "school" ? schoolId! : teacher.id;
+      if (await isFreeSchool(schoolId)) throw new Refused("Your school has Premium at no charge. There is nothing to buy.", 409);
       // Never sell a plan to someone who already has one, however they got it.
       if (grantLive(await current(kind, ownerId), now())) {
         throw new Refused(kind === "school" ? "Your school already has a Premium plan." : "You already have a Premium plan. Use Manage billing to change it.", 409);
@@ -653,9 +692,14 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         }
       }
       const key = await stripeKey(), secret = await webhookSecret();
+      const choice = await readFreeChoice();
+      const freeSchools = (deps.schools ? await deps.schools() : []).map((sc) => {
+        const byName = isFreeSchoolName(sc.name);
+        return { id: sc.id, name: sc.name, byName, free: !choice.off.includes(sc.id) && (byName || choice.on.includes(sc.id)) };
+      });
       res.set("Cache-Control", "no-store");
       res.json({
-        enforced: await enforced(), plans: rows,
+        enforced: await enforced(), plans: rows, freeSchools,
         stripe: { keySet: !!key, keyPreview: mask(key), keyFromHosting: !!deps.envStripeKey?.(), webhookSet: !!secret, webhookPreview: mask(secret), webhookFromHosting: !!deps.envWebhookSecret?.() },
         grandfather: { before: PLANS.grandfatherBefore, until: PLANS.grandfatherUntil },
       });
@@ -669,6 +713,27 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       forget();
       res.json({ enforced: on });
     } catch (e) { fail(res, e, "enforce"); }
+  });
+
+  /** Makes a school always free, or takes that away. Its teachers are never charged while it is on. */
+  app.post("/api/admin/plans/free-school", auth, admin, async (req: any, res: any) => {
+    try {
+      const schoolId = posInt(req.body?.schoolId);
+      const name = schoolId ? await deps.schoolName(schoolId) : "";
+      if (!schoolId || !name) throw new Refused("That school could not be found.");
+      const free = req.body?.free === true;
+      await serial(async () => {
+        const choice = await readFreeChoice(true);
+        const without = (list: number[]) => list.filter((id) => id !== schoolId);
+        // A school that is free by its name only needs to come off the "off" list.
+        const next: FreeChoice = free
+          ? { on: isFreeSchoolName(name) ? without(choice.on) : [...without(choice.on), schoolId], off: without(choice.off) }
+          : { on: without(choice.on), off: isFreeSchoolName(name) ? [...without(choice.off), schoolId] : without(choice.off) };
+        await write(KEY.freeSchools, JSON.stringify(next));
+        forget();
+      });
+      res.json({ ok: true, free });
+    } catch (e) { fail(res, e, "free school"); }
   });
 
   /** Switches Premium on by hand for a teacher or a school: a purchase order, a gift, a pilot. */
@@ -725,7 +790,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, isPremium, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
+  return { entitlement, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

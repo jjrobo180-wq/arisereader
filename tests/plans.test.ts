@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   PLANS, usd, blocksFor, seatsFor, teacherMonthlyCents, clampBlocks, grantLive, grandfathered, isDemoAccount,
-  entitlementFor, parentCanLink, type PlanGrant,
+  entitlementFor, parentCanLink, isFreeSchoolName, type PlanGrant,
 } from "../shared/plans";
 
 const DAY = 86_400_000;
@@ -139,4 +139,22 @@ test("parents are free, and a profile follows up to five children", () => {
   assert.equal(parentCanLink(5, { enforced: true }), false);
   assert.equal(parentCanLink(9, { enforced: false }), true, "rules off");
   assert.equal(parentCanLink(9, { enforced: true, premiumFamily: true }), true, "a family in a Premium class");
+});
+
+test("CGMS is recognised by its short name or its full name, and other schools are not", () => {
+  for (const name of ["CGMS", "cgms", "CGMS Tigers", "C.G.M.S.", "Cedar Grove Middle School", "Cedar Grove Middle", "cedar-grove middle school"]) {
+    assert.equal(isFreeSchoolName(name), true, name);
+  }
+  for (const name of ["", null, "Lincoln Middle", "CGMSX Academy", "Cedar Grove Elementary", "Central High School", "Middle", "Cedar Grove"]) {
+    assert.equal(isFreeSchoolName(name), false, String(name));
+  }
+});
+
+test("an always-free school has no student limit and no end date", () => {
+  const teacher = { id: 60, role: "teacher", createdAt: LATE, schoolId: 7 };
+  const free = grant({ kind: "school", ownerId: 7, source: "admin", seats: 1000, endsAt: null, free: true });
+  assert.deepEqual(entitlementFor(teacher, { ...on, schoolGrant: free }), { premium: true, via: "school-plan", seats: null, endsAt: null });
+  // and the students in that teacher's class come along
+  const student = { id: 20, role: "student", createdAt: LATE, teacherId: 60, schoolId: 7 };
+  assert.equal(entitlementFor(student, { ...on, classTeacher: teacher, classTeacherSchoolGrant: free }).via, "class");
 });

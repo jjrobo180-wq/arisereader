@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE } from "@/lib/queryClient";
-import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users, Pizza } from "lucide-react";
+import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import { useAuth } from "@/context/AuthContext";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
@@ -165,7 +165,7 @@ export default function LeaderboardPage() {
                 : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
             }`}
           >
-            <Pizza className="w-4 h-4" />
+            <Users className="w-4 h-4" />
             Advisory Challenge
           </button>
         </div>
@@ -366,15 +366,15 @@ export default function LeaderboardPage() {
         ) : (
           /* Advisory Challenge View */
           <>
-            {/* Advisory Challenge — Pizza Party */}
+            {/* Advisory Challenge */}
             <div className="rounded-2xl overflow-hidden border border-violet-400/25 shadow-[0_24px_70px_rgba(0,0,0,.24)]">
               <div className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 px-5 py-4 flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <Pizza className="w-7 h-7 text-white" />
+                  <Users className="w-7 h-7 text-white" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">Advisory Challenge</h2>
-                  <p className="text-sm text-white/90">The advisory with the most points wins a PIZZA PARTY!</p>
+                  <p className="text-sm text-white/90">Which advisory class has read its way to the most points?</p>
                 </div>
               </div>
               <div className="bg-[#151326] p-4 sm:p-6">
@@ -417,7 +417,7 @@ export default function LeaderboardPage() {
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground mt-4 text-center">
-                      Points are earned by every student in each advisory class through reading quizzes. The advisory with the highest total at the end of the competition wins a pizza party!
+                      Points are earned by every student in each advisory class through reading quizzes. The advisory with the highest total at the end of the competition wins the challenge.
                     </p>
                   </>
                 )}

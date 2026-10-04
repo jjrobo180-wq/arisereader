@@ -158,7 +158,7 @@ async function setup(t: any, opts: { plans?: boolean } = {}) {
     registerPlanRoutes(app, auth, (_req: any, _res: any, next: any) => next(), {
       getSetting: async (k) => settings.get(k) ?? "", upsertSetting: async (k, v) => { settings.set(k, v); },
       userForToken: async (token) => USERS[Number(token)] ?? null, getUser: async (id) => USERS[id] ?? null,
-      countTeacherStudents: async () => 30, countSchoolStudents: async () => 240, schoolName: async () => "Cedar Grove Middle",
+      countTeacherStudents: async () => 30, countSchoolStudents: async () => 240, schoolName: async () => "Lincoln Middle",
       now: () => clock.now,
     });
   }

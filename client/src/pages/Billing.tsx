@@ -32,6 +32,12 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
         plan.teacherPlan?.paidOnline ? `It renews on ${day(plan.endsAt)}.` : plan.endsAt ? `It runs until ${day(plan.endsAt)}.` : "It has no end date.",
       ] };
     case "school-plan":
+      if (plan.school?.plan?.free) {
+        return { tone: "good", title: `Premium is free at ${school}`, lines: [
+          `Every teacher at ${school} has Premium at no charge, each with their own account.`,
+          "There is nothing to pay, and it has no end date.",
+        ] };
+      }
       return { tone: "good", title: "You have Premium through your school", lines: [
         `${school}'s plan covers up to ${count(plan.seats ?? PLANS.school.studentCap)} students, and every teacher there has their own account.`,
         plan.endsAt ? `It runs until ${day(plan.endsAt)}.` : "It has no end date.",

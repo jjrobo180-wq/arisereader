@@ -23,7 +23,13 @@ const USERS: Record<number, any> = {
   12: { id: 12, displayName: "Cy", role: "student", createdAt: EARLY, teacherId: 51, school_id: 3 },
   80: { id: 80, displayName: "Parent", role: "parent", createdAt: LATE },
   90: { id: 90, username: "sample", displayName: "Sample", role: "student", createdAt: LATE },
+  // school 7 is CGMS, the school that is always free
+  60: { id: 60, displayName: "Ms. Home", role: "teacher", createdAt: LATE, school_id: 7, email: "home@cgms.org" },
+  61: { id: 61, displayName: "Mr. Next Year", role: "teacher", createdAt: "2027-09-01T15:00:00Z", school_id: 7 },
+  20: { id: 20, displayName: "Eve", role: "student", createdAt: LATE, teacherId: 60, school_id: 7 },
+  21: { id: 21, displayName: "Fay", role: "student", createdAt: LATE, school_id: 7 },
 };
+const SCHOOLS: Record<number, string> = { 3: "Lincoln Middle", 7: "CGMS" };
 
 type Call = { method: string; url: string; auth: string; form: URLSearchParams };
 
@@ -48,8 +54,9 @@ async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; str
     userForToken: async (token) => USERS[Number(token)] ?? null,
     getUser: async (id) => USERS[id] ?? null,
     countTeacherStudents: async () => opts.students ?? 30,
-    countSchoolStudents: async () => 240,
-    schoolName: async (id) => (id === 3 ? "Cedar Grove Middle" : ""),
+    countSchoolStudents: async (id) => (id === 7 ? 2600 : 240),
+    schoolName: async (id) => { if (db.down) throw new Error("database unreachable"); return SCHOOLS[id] ?? ""; },
+    schools: async () => Object.entries(SCHOOLS).map(([id, name]) => ({ id: Number(id), name })),
     envStripeKey: () => opts.stripeKey ?? "",
     envWebhookSecret: () => WHSEC,
     now: () => clock.now,
@@ -112,7 +119,7 @@ test("with plan rules on, a teacher account needs Premium", async (t) => {
   // the locked teacher can still see their plan
   const plan = await call(50, "GET", "/api/plan");
   assert.equal(plan.status, 200);
-  assert.deepEqual([plan.body.premium, plan.body.via, plan.body.students, plan.body.school.name], [false, null, 30, "Cedar Grove Middle"]);
+  assert.deepEqual([plan.body.premium, plan.body.via, plan.body.students, plan.body.school.name], [false, null, 30, "Lincoln Middle"]);
   assert.equal(plan.body.prices.teacherMonthlyCents, 1000);
 
   // signed up before October 1: free this school year
@@ -395,7 +402,7 @@ test("the admin switches rules on, grants plans by hand and stores keys safely",
   await call(1, "POST", "/api/admin/plans/grant", { kind: "school", ownerId: 3, months: 12 });
   list = (await call(1, "GET", "/api/admin/plans")).body;
   const school = list.plans.find((p: any) => p.kind === "school");
-  assert.deepEqual([school.name, school.seats, school.students], ["Cedar Grove Middle", 1000, 240]);
+  assert.deepEqual([school.name, school.seats, school.students], ["Lincoln Middle", 1000, 240]);
   assert.ok(Math.abs(Date.parse(school.endsAt) - (NOW + 365.25 * DAY)) < DAY);
 
   // keys are checked, stored, and never sent back whole
@@ -581,4 +588,75 @@ test("moving a student onto a full plan is refused", async (t) => {
   assert.equal((await plans.seatCheckFor(51)).ok, true);
   assert.equal((await plans.seatCheckFor("not a teacher")).ok, true);
   assert.equal((await plans.seatCheckFor(10)).ok, true, "not a teacher account");
+});
+
+test("every teacher at CGMS has Premium at no charge, now and later, and so do their classes", async (t) => {
+  const { call, plans, clock, calls } = await setup(t, { stripeKey: "sk_test_abcdefghijklmnop" });
+  // signed up after the cutoff, and long after it: neither is asked to pay
+  for (const teacher of [60, 61]) {
+    assert.equal((await call(teacher, "GET", "/api/teacher/students")).status, 200, String(teacher));
+    const plan = (await call(teacher, "GET", "/api/plan")).body;
+    assert.deepEqual([plan.premium, plan.via, plan.seats, plan.endsAt], [true, "school-plan", null, null], String(teacher));
+    assert.deepEqual([plan.school.name, plan.school.plan.free, plan.school.plan.live, plan.school.plan.paidOnline], ["CGMS", true, true, false]);
+  }
+  // still true after the free year for early sign-ups has run out
+  clock.now = Date.parse("2028-02-01T18:00:00Z");
+  plans.forget();
+  assert.equal((await call(61, "GET", "/api/teacher/students")).status, 200);
+
+  // a student in a CGMS class gets the Premium extras; one who only says they go there does not
+  assert.equal((await call(20, "POST", "/api/student/iarise-quiz", {})).status, 200);
+  assert.equal((await call(21, "POST", "/api/student/iarise-quiz", {})).status, 402);
+
+  // nothing can be sold to them, for themselves or for the school, and Stripe is never called
+  for (const kind of ["teacher", "school"]) {
+    const buy = await call(60, "POST", "/api/billing/checkout", { kind });
+    assert.deepEqual([buy.status, buy.body.message], [409, "Your school has Premium at no charge. There is nothing to buy."]);
+  }
+  assert.equal(calls.length, 0);
+
+  // there is no student limit: 2,600 students at the school and room for more
+  assert.deepEqual(await plans.seatCheck(USERS[60]), { ok: true });
+  // a teacher somewhere else is unaffected
+  assert.equal((await call(50, "GET", "/api/teacher/students")).status, 402);
+});
+
+test("the admin sees which schools are always free, and can add or remove one", async (t) => {
+  const { call, plans, settings } = await setup(t);
+  const list = (await call(1, "GET", "/api/admin/plans")).body.freeSchools;
+  assert.deepEqual(list, [{ id: 3, name: "Lincoln Middle", byName: false, free: false }, { id: 7, name: "CGMS", byName: true, free: true }]);
+  // admin only: a student is refused, and a teacher can't make their own school free
+  assert.equal((await call(10, "POST", "/api/admin/plans/free-school", { schoolId: 3, free: true })).status, 403);
+  assert.notEqual((await call(50, "POST", "/api/admin/plans/free-school", { schoolId: 3, free: true })).status, 200);
+  assert.equal((await call(51, "POST", "/api/admin/plans/free-school", { schoolId: 3, free: true })).status, 403, "a teacher with Premium is still not the admin");
+  assert.equal((await call(1, "POST", "/api/admin/plans/free-school", { schoolId: 99, free: true })).status, 400);
+
+  // make another school free
+  assert.equal((await call(1, "POST", "/api/admin/plans/free-school", { schoolId: 3, free: true })).status, 200);
+  assert.equal((await call(50, "GET", "/api/teacher/students")).status, 200);
+  assert.equal((await call(50, "GET", "/api/plan")).body.school.plan.free, true);
+  // and take it back
+  await call(1, "POST", "/api/admin/plans/free-school", { schoolId: 3, free: false });
+  assert.equal((await call(50, "GET", "/api/teacher/students")).status, 402);
+
+  // CGMS can be switched off too, and stays off
+  await call(1, "POST", "/api/admin/plans/free-school", { schoolId: 7, free: false });
+  assert.equal((await call(60, "GET", "/api/teacher/students")).status, 402);
+  plans.forget();
+  assert.equal((await call(60, "GET", "/api/plan")).body.premium, false);
+  assert.deepEqual(JSON.parse(settings.get("plans_free_schools")!), { on: [], off: [7] });
+  assert.equal((await call(1, "GET", "/api/admin/plans")).body.freeSchools[1].free, false);
+  // and back on
+  await call(1, "POST", "/api/admin/plans/free-school", { schoolId: 7, free: true });
+  assert.equal((await call(60, "GET", "/api/teacher/students")).status, 200);
+  assert.deepEqual(JSON.parse(settings.get("plans_free_schools")!), { on: [], off: [] });
+});
+
+test("a hiccup looking up the school's name does not lock a CGMS teacher out", async (t) => {
+  const { call, plans, db } = await setup(t);
+  assert.equal((await call(60, "GET", "/api/teacher/students")).status, 200);
+  db.down = true;
+  plans.forget();
+  assert.equal((await call(60, "GET", "/api/teacher/students")).status, 200);
+  db.down = false;
 });

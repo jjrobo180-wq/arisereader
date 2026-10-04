@@ -975,6 +975,7 @@ export async function registerRoutes(
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
+    schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
     appUrl: APP_URL,
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
@@ -3494,35 +3495,26 @@ export async function registerRoutes(
   });
 
   // === Competition Settings ===
-  // Public GET — anyone can read competition settings
+  // Public GET — anyone can read competition settings.
+  // Only the two countdown dates are settings. The site gives no prizes of its own:
+  // parents, teachers and schools put up theirs (see server/prizes.ts).
+  const competitionDates = (stored: any) => ({
+    monthlyCountdownDate: typeof stored?.monthlyCountdownDate === "string" ? stored.monthlyCountdownDate : "",
+    yearlyCountdownDate: typeof stored?.yearlyCountdownDate === "string" ? stored.yearlyCountdownDate : "",
+  });
   app.get("/api/competition-settings", async (req, res) => {
     const raw = await storage.getSetting("competition_settings");
     let settings: any = {};
     if (raw) { try { settings = JSON.parse(raw); } catch {} }
-    res.json({ settings });
+    res.json({ settings: competitionDates(settings) });
   });
 
   // Admin POST — update competition settings
   app.post("/api/admin/competition-settings", authMiddleware, adminMiddleware, async (req: any, res) => {
-    const {
-      monthlyPrize, monthlyDesc, monthlyCountdownDate,
-      yearly1stPrize, yearly1stAmount, yearlyCountdownDate,
-      yearly2ndPrize, yearly2ndAmount,
-      yearly3rdPrize, yearly3rdAmount,
-      donationNote,
-    } = req.body;
+    const { monthlyCountdownDate, yearlyCountdownDate } = req.body || {};
     const settings: any = {};
-    if (monthlyPrize !== undefined) settings.monthlyPrize = monthlyPrize.trim();
-    if (monthlyDesc !== undefined) settings.monthlyDesc = monthlyDesc.trim();
-    if (monthlyCountdownDate !== undefined) settings.monthlyCountdownDate = monthlyCountdownDate;
-    if (yearly1stPrize !== undefined) settings.yearly1stPrize = yearly1stPrize.trim();
-    if (yearly1stAmount !== undefined) settings.yearly1stAmount = yearly1stAmount.trim();
-    if (yearlyCountdownDate !== undefined) settings.yearlyCountdownDate = yearlyCountdownDate;
-    if (yearly2ndPrize !== undefined) settings.yearly2ndPrize = yearly2ndPrize.trim();
-    if (yearly2ndAmount !== undefined) settings.yearly2ndAmount = yearly2ndAmount.trim();
-    if (yearly3rdPrize !== undefined) settings.yearly3rdPrize = yearly3rdPrize.trim();
-    if (yearly3rdAmount !== undefined) settings.yearly3rdAmount = yearly3rdAmount.trim();
-    if (donationNote !== undefined) settings.donationNote = donationNote.trim();
+    if (typeof monthlyCountdownDate === "string") settings.monthlyCountdownDate = monthlyCountdownDate.trim().slice(0, 40);
+    if (typeof yearlyCountdownDate === "string") settings.yearlyCountdownDate = yearlyCountdownDate.trim().slice(0, 40);
 
     // Merge with existing
     const raw = await storage.getSetting("competition_settings");
@@ -3530,7 +3522,7 @@ export async function registerRoutes(
     if (raw) { try { existing = JSON.parse(raw); } catch {} }
     const merged = { ...existing, ...settings };
     await storage.upsertSetting("competition_settings", JSON.stringify(merged));
-    res.json({ settings: merged, message: "Competition settings updated!" });
+    res.json({ settings: competitionDates(merged), message: "Competition settings updated!" });
   });
 
   // Notification endpoints v3 — one predictable system across roles.
@@ -3946,7 +3938,7 @@ export async function registerRoutes(
     res.json(enriched);
   });
 
-  // Advisory leaderboard (grouped by teacher) — pizza party challenge
+  // Advisory leaderboard (grouped by teacher)
   app.get("/api/advisory-leaderboard", authMiddleware, async (req: any, res) => {
     try {
       const advisoryData = await storage.getAdvisoryLeaderboard();

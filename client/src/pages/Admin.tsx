@@ -237,17 +237,8 @@ export default function Admin() {
   const [eggMsg, setEggMsg] = useState("");
   // Competition settings state
   const [compSettings, setCompSettings] = useState({
-    monthlyPrize: "Free Lunch",
-    monthlyDesc: "The #1 reader from each band every month wins a free lunch!",
     monthlyCountdownDate: "",
-    yearly1stPrize: "Ultimate Prize",
-    yearly1stAmount: "$300",
     yearlyCountdownDate: "",
-    yearly2ndPrize: "Prize TBD",
-    yearly2ndAmount: "$100",
-    yearly3rdPrize: "Prize TBD",
-    yearly3rdAmount: "$50",
-    donationNote: "100% of all donations go directly to student prizes. Prize amounts are goals based on donations received.",
   });
   const [compMsg, setCompMsg] = useState("");
   const [pendingParents, setPendingParents] = useState<any[]>([]);
@@ -1263,7 +1254,10 @@ export default function Admin() {
       if (res.ok) {
         const data = await res.json();
         if (data.settings) {
-          setCompSettings(prev => ({ ...prev, ...data.settings }));
+          setCompSettings({
+            monthlyCountdownDate: data.settings.monthlyCountdownDate || "",
+            yearlyCountdownDate: data.settings.yearlyCountdownDate || "",
+          });
         }
       }
     } catch {}
@@ -2921,21 +2915,12 @@ Generate exactly 10 questions.`;
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">A.R.I.S.E. gives no prizes of its own. Parents, teachers and schools put up their own prizes, and those show on the competition page for their readers.</p>
             {compMsg && <span className="text-xs text-green-400">{compMsg}</span>}
 
             {/* Monthly */}
             <div className="space-y-2 pt-2 border-t border-border">
               <Label className="text-sm font-bold text-yellow-400">Monthly Competition</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <span className="text-xs text-muted-foreground">Monthly Prize Name</span>
-                  <input value={compSettings.monthlyPrize} onChange={(e) => setCompSettings(s => ({ ...s, monthlyPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">Monthly Description</span>
-                  <input value={compSettings.monthlyDesc} onChange={(e) => setCompSettings(s => ({ ...s, monthlyDesc: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-              </div>
               <div>
                 <span className="text-xs text-muted-foreground">Monthly Countdown Date (optional — shows a live countdown to this date)</span>
                 <input type="date" value={compSettings.monthlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, monthlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
@@ -2944,43 +2929,11 @@ Generate exactly 10 questions.`;
 
             {/* Yearly */}
             <div className="space-y-2 pt-2 border-t border-border">
-              <Label className="text-sm font-bold text-primary">Reader of the Year Prizes</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <span className="text-xs text-muted-foreground">1st Place Prize</span>
-                  <input value={compSettings.yearly1stPrize} onChange={(e) => setCompSettings(s => ({ ...s, yearly1stPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">1st Place Amount</span>
-                  <input value={compSettings.yearly1stAmount} onChange={(e) => setCompSettings(s => ({ ...s, yearly1stAmount: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">2nd Place Prize</span>
-                  <input value={compSettings.yearly2ndPrize} onChange={(e) => setCompSettings(s => ({ ...s, yearly2ndPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">2nd Place Amount</span>
-                  <input value={compSettings.yearly2ndAmount} onChange={(e) => setCompSettings(s => ({ ...s, yearly2ndAmount: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">3rd Place Prize</span>
-                  <input value={compSettings.yearly3rdPrize} onChange={(e) => setCompSettings(s => ({ ...s, yearly3rdPrize: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">3rd Place Amount</span>
-                  <input value={compSettings.yearly3rdAmount} onChange={(e) => setCompSettings(s => ({ ...s, yearly3rdAmount: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-              </div>
+              <Label className="text-sm font-bold text-primary">Reader of the Year</Label>
               <div>
                 <span className="text-xs text-muted-foreground">Yearly Countdown Date (optional — shows a live countdown to this date)</span>
                 <input type="date" value={compSettings.yearlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, yearlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
               </div>
-            </div>
-
-            {/* Donation Note */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <Label className="text-sm font-bold">Donation Note</Label>
-              <textarea value={compSettings.donationNote} onChange={(e) => setCompSettings(s => ({ ...s, donationNote: e.target.value }))} rows={2} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
             </div>
 
             <Button onClick={handleSaveCompSettings} className="w-full bg-yellow-600 hover:bg-yellow-700">
