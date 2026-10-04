@@ -962,6 +962,12 @@ export async function registerRoutes(
   const plans = registerPlanRoutes(app, authMiddleware, adminMiddleware, {
     getSetting: (key) => storage.getSetting(key),
     upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    // storage.getSetting turns a database error into "", which would read as "no plan" and lock a paying teacher out.
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
     userForToken: async (token) => (await storage.getSession(token))?.user ?? null,
     getUser: (id) => storage.getUser(id),
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).length,
@@ -978,7 +984,8 @@ export async function registerRoutes(
     getSetting: (key) => storage.getSetting(key),
     upsertSetting: (key, value) => storage.upsertSetting(key, value),
     aiKey: () => getPerplexityApiKey(),
-    premium: (user) => plans.isPremium(user),
+    // An admin previewing the site as a student sees it unlocked.
+    premium: (user, req) => (req?.adminPreview ? Promise.resolve(true) : plans.isPremium(user)),
   });
   registerClubAriseRoutes(app, authMiddleware);
   registerAriseNewsRoutes(app, authMiddleware);
@@ -9279,6 +9286,9 @@ Important:
       if (!newTeacherId) {
         return res.status(400).json({ message: "newTeacherId is required" });
       }
+      // Moving a student onto a paid plan uses one of its seats.
+      const seat = await plans.seatCheckFor(newTeacherId);
+      if (!seat.ok) return res.status(409).json({ message: seat.message });
       // Update the student's teacher_id in users table
       const { error } = await supabase.from("users").update({ teacher_id: newTeacherId }).eq("id", studentId);
       if (error) throw new Error(error.message);

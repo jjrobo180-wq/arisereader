@@ -85,6 +85,9 @@ test("admins and the sample accounts always have Premium", () => {
   assert.equal(entitlementFor({ id: 9, role: "parent", username: "sample-parent", createdAt: LATE }, on).via, "demo");
   assert.equal(isDemoAccount("Tutorial-Eye"), true);
   assert.equal(isDemoAccount("samantha"), false);
+  // exact names only: nobody gets Premium by choosing a username that starts with "sample"
+  assert.equal(isDemoAccount("samplesmith"), false);
+  assert.equal(entitlementFor({ id: 60, role: "teacher", username: "sample_teacher", createdAt: LATE }, on).premium, false);
 });
 
 test("a teacher has Premium through their own plan, their school's plan, or an early sign-up", () => {
@@ -107,7 +110,7 @@ test("a teacher has Premium through their own plan, their school's plan, or an e
   assert.equal(entitlementFor({ ...teacher, createdAt: EARLY }, { enforced: true, now: Date.parse("2027-08-01T00:00:00Z") }).premium, false);
 });
 
-test("a student gets the Premium extras through their teacher or school", () => {
+test("a student gets the Premium extras through the teacher who approved them", () => {
   const student = { id: 10, role: "student", createdAt: LATE, teacherId: 50, schoolId: 3 };
   const teacher = { id: 50, role: "teacher", createdAt: LATE, schoolId: 3 };
 
@@ -116,7 +119,10 @@ test("a student gets the Premium extras through their teacher or school", () => 
   assert.equal(entitlementFor(student, { ...on, classTeacher: teacher, classTeacherSchoolGrant: grant({ kind: "school" }) }).via, "class");
   assert.equal(entitlementFor(student, { ...on, classTeacher: { ...teacher, createdAt: EARLY } }).via, "class", "teacher signed up early");
   assert.equal(entitlementFor(student, { ...on, classTeacher: { ...teacher, accountApproved: false }, classTeacherGrant: grant() }).premium, false, "teacher not approved yet");
-  assert.equal(entitlementFor(student, { ...on, schoolGrant: grant({ kind: "school", ownerId: 3 }) }).via, "school-plan");
+  // the teacher has to have approved the student into the class
+  assert.equal(entitlementFor({ ...student, approvedByTeacher: false }, { ...on, classTeacher: teacher, classTeacherGrant: grant() }).premium, false, "student still waiting for approval");
+  // naming a paying school at sign-up is not enough: the extras come through a teacher there
+  assert.equal(entitlementFor({ id: 13, role: "student", createdAt: LATE, schoolId: 3 }, { ...on, schoolGrant: grant({ kind: "school", ownerId: 3 }) }).premium, false);
 
   // a school student who signed up early keeps what they had
   assert.equal(entitlementFor({ ...student, createdAt: EARLY }, on).via, "grandfathered");

@@ -216,7 +216,8 @@ export default function AdminPlans() {
                 <p className="font-medium text-foreground">Setting up the webhook in Stripe</p>
                 <p>Add an endpoint with this address: <code className="break-all">{webhookUrl}</code></p>
                 <p>Send it these events: checkout.session.completed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted.</p>
-                <p>Then paste that endpoint's signing secret above. Without it, Premium still switches on after paying and renewals are checked when a plan runs out, but a cancellation is only noticed at the end of the paid period.</p>
+                <p>Then paste that endpoint's signing secret above. Without it, payments and renewals are still picked up when the teacher next uses the site, but a cancellation is only noticed at the end of the paid period.</p>
+                <p>Safer: set both as STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in your hosting settings instead of saving them here.</p>
               </div>
             </div>
 

@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { teacherLocked, usePlan } from "@/lib/plan";
+import { lastKnownLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 import { API_BASE } from "./lib/queryClient";
 import ProfileSetupOverlay from "./components/ProfileSetupOverlay";
@@ -220,7 +220,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // teacher without it is sent to the plan page, the one place they can still use.
   const isPlanTeacher = !!user && user.role === "teacher" && !user.isAdmin;
   const { plan, loading: planLoading } = usePlan(isPlanTeacher ? token : null);
-  if (isLoading || (isPlanTeacher && planLoading)) {
+  // The page shows straight away and the plan arrives behind it. Only a teacher who
+  // was locked last time waits, so they don't see a dashboard flash before the plan page.
+  if (isLoading || (isPlanTeacher && planLoading && lastKnownLocked())) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />

@@ -29,6 +29,7 @@ type Call = { method: string; url: string; auth: string; form: URLSearchParams }
 
 async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; stripe?: (c: Call) => any; students?: number } = {}) {
   const clock = { now: NOW };
+  const db = { down: false };
   const settings = new Map<string, string>();
   if (opts.enforced !== false) settings.set("plans_enforced", "1");
   const calls: Call[] = [];
@@ -42,7 +43,8 @@ async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; str
   const admin = (req: any, res: any, next: any) => (req.user?.isAdmin ? next() : res.status(403).json({ message: "Admin access required" }));
   const plans = registerPlanRoutes(app, auth, admin, {
     getSetting: async (k) => settings.get(k) ?? "",
-    upsertSetting: async (k, v) => { settings.set(k, v); },
+    upsertSetting: async (k, v) => { if (db.down) throw new Error("database unreachable"); settings.set(k, v); },
+    readSetting: async (k) => { if (db.down) throw new Error("database unreachable"); return settings.get(k) ?? ""; },
     userForToken: async (token) => USERS[Number(token)] ?? null,
     getUser: async (id) => USERS[id] ?? null,
     countTeacherStudents: async () => opts.students ?? 30,
@@ -82,7 +84,7 @@ async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; str
     const sig = createHmac("sha256", over.secret ?? WHSEC).update(`${time}.${payload}`).digest("hex");
     return call(null, "POST", "/api/billing/webhook", over.tamper ? payload.replace("active", "actlve") : payload, { "Stripe-Signature": `t=${time},v1=${sig}` });
   };
-  return { call, hook, plans, settings, calls, clock };
+  return { call, hook, plans, settings, calls, clock, db };
 }
 
 const subscription = (over: any = {}) => ({
@@ -305,9 +307,14 @@ test("coming back from paying switches Premium on for the buyer only", async (t)
 });
 
 test("a teacher can add blocks and open billing, for their own plan only", async (t) => {
+  let quantity = 2;
   const { call, hook, calls } = await setup(t, {
     stripeKey: "sk_test_abcdefghijklmnop", students: 150,
-    stripe: (c) => (c.url.includes("/billing_portal/") ? { url: "https://billing.stripe.com/p/session/1" } : subscription({ items: { data: [{ id: "si_1", quantity: Number(c.form.get("items[0][quantity]")) }] } })),
+    stripe: (c) => {
+      if (c.url.includes("/billing_portal/")) return { url: "https://billing.stripe.com/p/session/1" };
+      if (c.method === "POST") quantity = Number(c.form.get("items[0][quantity]"));
+      return subscription({ items: { data: [{ id: "si_1", quantity }] } });
+    },
   });
   assert.equal((await call(50, "POST", "/api/billing/blocks", { blocks: 3 })).status, 409, "no plan yet");
   await hook(event("customer.subscription.created", subscription()));
@@ -422,4 +429,156 @@ test("stripeForm writes nested fields the way Stripe reads them", () => {
     ["line_items[0][price_data][recurring][interval]", "month"], ["metadata[kind]", "teacher"],
   ]);
   assert.equal(stripeForm({ note: "a&b=c d" }), "note=a%26b%3Dc%20d");
+});
+
+// ─── Cases found in review ───────────────────────────────────────────────────
+
+test("Stripe messages are only a nudge: late, repeated or overlapping ones can't undo a payment", async (t) => {
+  // Stripe itself says the subscription is active, whatever the messages claim.
+  const { call, hook, calls } = await setup(t, { stripeKey: "sk_test_abcdefghijklmnop", stripe: () => subscription() });
+  const stale = event("customer.subscription.created", subscription({ status: "incomplete" }));
+  const fresh = event("customer.subscription.updated", subscription());
+  // both arrive at once, the older one last
+  const results = await Promise.all([hook(fresh), hook(stale), hook(stale)]);
+  assert.deepEqual(results.map((r) => r.status), [200, 200, 200]);
+  assert.ok(calls.every((c) => c.url === "https://api.stripe.com/v1/subscriptions/sub_123"), "each message asked Stripe for the current state");
+  assert.equal((await call(50, "GET", "/api/plan")).body.via, "teacher-plan");
+  assert.equal((await call(50, "GET", "/api/teacher/students")).status, 200);
+});
+
+test("without a key, an unfinished first payment is not recorded as a cancelled plan", async (t) => {
+  const { call, hook, settings } = await setup(t);
+  await hook(event("customer.subscription.created", subscription({ status: "incomplete" })));
+  assert.equal(settings.get("plan_teacher_50"), undefined, "nothing saved yet");
+  await hook(event("customer.subscription.updated", subscription()));
+  // the same-second "created" arriving after "updated" changes nothing
+  await hook(event("customer.subscription.created", subscription({ status: "incomplete" })));
+  assert.equal((await call(50, "GET", "/api/plan")).body.premium, true);
+});
+
+test("a missed payment gets one week of grace, and re-checking does not extend it", async (t) => {
+  const state = { status: "active", periodEnd: NOW + 30 * DAY };
+  const { call, hook, clock } = await setup(t, {
+    stripeKey: "sk_test_abcdefghijklmnop",
+    stripe: () => subscription({ status: state.status, current_period_end: Math.floor(state.periodEnd / 1000) }),
+  });
+  await hook(event("customer.subscription.created", subscription()));
+  const premium = async () => (await call(50, "GET", "/api/plan")).body.premium;
+  assert.equal(await premium(), true);
+
+  // the renewal payment fails: Stripe moves to the next period but marks it past due
+  clock.now = NOW + 30 * DAY + 3_600_000;
+  state.status = "past_due"; state.periodEnd = NOW + 60 * DAY;
+  await hook(event("customer.subscription.updated", subscription(), clock.now), { at: clock.now });
+  assert.equal(await premium(), true, "inside the week of grace");
+  for (const days of [5, 9, 12, 20, 40]) {
+    clock.now = NOW + 30 * DAY + days * DAY;
+    const expected = days < 10;            // a week, plus the three days every plan gets
+    assert.equal(await premium(), expected, `${days} days after the missed payment`);
+  }
+  // paying brings it straight back
+  state.status = "active"; state.periodEnd = clock.now + 30 * DAY;
+  await hook(event("customer.subscription.updated", subscription(), clock.now), { at: clock.now });
+  assert.equal(await premium(), true);
+});
+
+test("naming a paying school or teacher at sign-up does not unlock the extras", async (t) => {
+  USERS[13] = { id: 13, displayName: "Dee", role: "student", createdAt: LATE, school_id: 3 };                               // chose the school, no teacher
+  USERS[14] = { id: 14, displayName: "Eli", role: "student", createdAt: LATE, teacherId: 50, school_id: 3, approvedByTeacher: false }; // waiting for the teacher
+  t.after(() => { delete USERS[13]; delete USERS[14]; });
+  const { call } = await setup(t);
+  await call(1, "POST", "/api/admin/plans/grant", { kind: "school", ownerId: 3, months: 12 });
+  assert.equal((await call(10, "POST", "/api/student/iarise-quiz", {})).status, 200, "approved student of a teacher at the school");
+  assert.equal((await call(13, "POST", "/api/student/iarise-quiz", {})).status, 402);
+  assert.equal((await call(14, "POST", "/api/student/iarise-quiz", {})).status, 402);
+});
+
+test("a database hiccup never locks out a teacher or loses the list of plans", async (t) => {
+  const { call, hook, clock, db, settings } = await setup(t);
+  await call(1, "POST", "/api/admin/plans/grant", { kind: "school", ownerId: 3, months: 12 });
+  await hook(event("customer.subscription.created", subscription({ metadata: { kind: "teacher", ownerId: "52", buyerId: "52" } })));
+  assert.equal((await call(52, "GET", "/api/teacher/students")).status, 200);
+
+  db.down = true;
+  clock.now += 60_000;                      // past anything remembered in memory
+  assert.equal((await call(52, "GET", "/api/teacher/students")).status, 200, "the paying teacher gets through");
+  assert.equal((await call(10, "POST", "/api/student/iarise-quiz", {})).status, 200, "a student whose plan can't be looked up is not refused on a guess");
+  assert.equal((await call(11, "POST", "/api/student/iarise-quiz", {})).status, 402, "a reader with no teacher is on Free whatever the database says");
+  // a Stripe message that can't be saved is refused, so Stripe sends it again later
+  const during = await hook(event("customer.subscription.created", subscription({ id: "sub_other", metadata: { kind: "teacher", ownerId: "50", buyerId: "50" } }), clock.now), { at: clock.now });
+  assert.equal(during.status, 500);
+
+  db.down = false;
+  clock.now += 60_000;
+  await hook(event("customer.subscription.created", subscription({ id: "sub_other", metadata: { kind: "teacher", ownerId: "50", buyerId: "50" } }), clock.now), { at: clock.now });
+  const index = JSON.parse(settings.get("plan_index")!);
+  assert.deepEqual([index.school, index.teacher.sort()], [[3], [50, 52]], "earlier plans are still listed");
+  assert.equal((await call(1, "GET", "/api/admin/plans")).body.plans.length, 3);
+});
+
+test("a buyer who pays and never comes back still gets Premium", async (t) => {
+  const state = { paid: false };
+  const { call, calls, clock, settings } = await setup(t, {
+    stripeKey: "sk_test_abcdefghijklmnop",
+    stripe: (c) => {
+      if (c.method === "POST") return { id: "cs_test_abcdefgh", url: "https://checkout.stripe.com/c/pay/cs_test_abcdefgh" };
+      if (c.url.includes("/checkout/sessions/")) return state.paid
+        ? { id: "cs_test_abcdefgh", status: "complete", payment_status: "paid", metadata: { kind: "teacher", ownerId: "50", buyerId: "50" }, subscription: subscription() }
+        : { id: "cs_test_abcdefgh", status: "open", payment_status: "unpaid", metadata: { kind: "teacher", ownerId: "50", buyerId: "50" } };
+      return subscription();
+    },
+  });
+  await call(50, "POST", "/api/billing/checkout", { kind: "teacher", blocks: 2 });
+  assert.match(settings.get("plan_pending_teacher_50")!, /cs_test_abcdefgh/);
+  assert.equal((await call(50, "GET", "/api/teacher/students")).status, 402, "not paid yet");
+
+  // they pay on Stripe, close the tab, and there is no webhook
+  state.paid = true;
+  clock.now += 5 * 60_000;
+  assert.equal((await call(50, "GET", "/api/teacher/students")).status, 200);
+  assert.equal((await call(50, "GET", "/api/plan")).body.via, "teacher-plan");
+  assert.equal(settings.get("plan_pending_teacher_50"), "", "the open payment is settled");
+  const before = calls.length;
+  clock.now += 5 * 60_000;
+  await call(50, "GET", "/api/teacher/students");
+  assert.equal(calls.length, before, "Stripe is not asked again once it is settled");
+});
+
+test("nobody is sold a plan they already have, and a school is not paid for twice", async (t) => {
+  USERS[54] = { id: 54, displayName: "Ms. Also", role: "teacher", createdAt: LATE, school_id: 3 };
+  t.after(() => { delete USERS[54]; });
+  const { call, clock } = await setup(t, { stripeKey: "sk_test_abcdefghijklmnop", stripe: (c) => (c.method === "POST" ? { id: "cs_test_abcdefgh", url: "https://checkout.stripe.com/c/pay/x" } : { status: "open", metadata: { kind: "school", ownerId: "3", buyerId: "50" } }) });
+
+  // one teacher opens the school payment page; a colleague trying at the same time is stopped
+  assert.equal((await call(50, "POST", "/api/billing/checkout", { kind: "school" })).status, 200);
+  const second = await call(54, "POST", "/api/billing/checkout", { kind: "school" });
+  assert.equal(second.status, 409);
+  assert.match(second.body.message, /Another teacher at your school/);
+  assert.equal((await call(50, "POST", "/api/billing/checkout", { kind: "school" })).status, 200, "the same teacher may try again");
+  clock.now += 31 * 60_000;
+  assert.equal((await call(54, "POST", "/api/billing/checkout", { kind: "school" })).status, 200, "after half an hour the colleague may");
+
+  // a plan the admin switched on counts too
+  await call(1, "POST", "/api/admin/plans/grant", { kind: "school", ownerId: 3, months: 12 });
+  const covered = await call(50, "POST", "/api/billing/checkout", { kind: "school" });
+  assert.equal(covered.status, 409);
+  assert.match(covered.body.message, /already has a Premium plan/);
+});
+
+test("an admin previewing the site as a student does not change what the admin sees", async (t) => {
+  const { call, plans } = await setup(t);
+  // the masked account the preview uses: the admin's id, a student's role
+  const masked = { ...USERS[1], isAdmin: false, role: "student", username: "admin-preview" };
+  assert.equal((await plans.entitlement(masked)).premium, false);
+  const plan = (await call(1, "GET", "/api/plan")).body;
+  assert.deepEqual([plan.premium, plan.via], [true, "admin"]);
+});
+
+test("moving a student onto a full plan is refused", async (t) => {
+  const { plans, hook } = await setup(t, { students: 200 });
+  await hook(event("customer.subscription.created", subscription()));           // 200 seats, 200 students
+  assert.equal((await plans.seatCheckFor(50)).ok, false);
+  assert.equal((await plans.seatCheckFor(51)).ok, true);
+  assert.equal((await plans.seatCheckFor("not a teacher")).ok, true);
+  assert.equal((await plans.seatCheckFor(10)).ok, true, "not a teacher account");
 });

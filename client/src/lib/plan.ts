@@ -21,27 +21,37 @@ export type PlanInfo = {
   school?: { id: number; name: string; students: number; plan: PlanView | null } | null;
 };
 
-const cache = new Map<string, { at: number; plan: PlanInfo }>();
-const FRESH_MS = 60_000;
+// A failed load is remembered too (as null), so a page doesn't wait on it again and again.
+const cache = new Map<string, { at: number; plan: PlanInfo | null }>();
+const FRESH_MS = 60_000, RETRY_MS = 30_000;
+
+const LOCKED_KEY = "arise_plan_locked";
+/** Was this browser's teacher locked the last time we looked? Decides whether a page waits for the plan before showing. */
+export function lastKnownLocked(): boolean {
+  try { return localStorage.getItem(LOCKED_KEY) === "1"; } catch { return false; }
+}
+function rememberLocked(plan: PlanInfo) {
+  try { localStorage.setItem(LOCKED_KEY, teacherLocked(plan) ? "1" : "0"); } catch { /* private mode */ }
+}
 
 export async function loadPlan(token: string, force = false): Promise<PlanInfo | null> {
   const hit = cache.get(token);
-  if (!force && hit && Date.now() - hit.at < FRESH_MS) return hit.plan;
+  if (!force && hit && Date.now() - hit.at < (hit.plan ? FRESH_MS : RETRY_MS)) return hit.plan;
+  let plan: PlanInfo | null = null;
   try {
     const res = await fetch(`${API_BASE}/api/plan`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-    if (!res.ok) return null;
-    const plan = (await res.json()) as PlanInfo;
-    cache.set(token, { at: Date.now(), plan });
-    return plan;
-  } catch {
-    return null;
-  }
+    if (res.ok) plan = (await res.json()) as PlanInfo;
+  } catch { /* offline: nothing is locked on the screen */ }
+  // keep the last good answer if this try failed
+  cache.set(token, { at: Date.now(), plan: plan ?? hit?.plan ?? null });
+  if (plan) rememberLocked(plan);
+  return plan ?? hit?.plan ?? null;
 }
 
 /** Pass a null token to skip loading (for people the plan doesn't change anything for). */
 export function usePlan(token: string | null | undefined) {
   const [plan, setPlan] = useState<PlanInfo | null>(() => (token ? cache.get(token)?.plan ?? null : null));
-  const [loading, setLoading] = useState<boolean>(!!token && !cache.get(token));
+  const [loading, setLoading] = useState<boolean>(!!token && !cache.has(token));
   useEffect(() => {
     if (!token) { setPlan(null); setLoading(false); return; }
     let alive = true;

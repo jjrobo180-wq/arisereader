@@ -19,7 +19,7 @@ export type StudyDeps = {
   /** The Perplexity key used for the other AI quizzes, or "" when AI isn't set up. */
   aiKey(): Promise<string>;
   /** Does this person have Premium? AI-made sets are a Premium extra for students. Left out, everyone counts as having it. */
-  premium?(user: AnyUser): Promise<boolean>;
+  premium?(user: AnyUser, req?: any): Promise<boolean>;
   fetch?: typeof fetch;
   random?: () => number;
 };
@@ -58,7 +58,7 @@ class Refused extends Error { constructor(message: string, readonly status = 400
 export function registerStudyRoutes(app: Express, auth: RequestHandler, deps: StudyDeps) {
   const random = deps.random ?? Math.random;
   const doFetch: typeof fetch = deps.fetch ?? ((...args) => fetch(...args));
-  const hasPremium = async (u: AnyUser) => (deps.premium ? deps.premium(u).catch(() => true) : true);
+  const hasPremium = async (u: AnyUser, req?: any) => (deps.premium ? deps.premium(u, req).catch(() => true) : true);
 
   // ─── Small storage helpers ─────────────────────────────────────────────────
   async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -388,7 +388,7 @@ Rules:
     ]);
     const limit = isStudent(u) ? AI_PER_DAY.student : AI_PER_DAY.teacher;
     // AI-made sets are a Premium extra for students.
-    const aiLocked = isStudent(u) && !(await hasPremium(u));
+    const aiLocked = isStudent(u) && !(await hasPremium(u, req));
     res.json({
       me: { id: u.id, name: v.name, characterId: v.characterId, teacher: isTeacher(u), student: isStudent(u) },
       lounge: loungeView(v, now),
@@ -465,7 +465,7 @@ Rules:
     const student = isStudent(u);
     if (!student && !isTeacher(u)) throw new Refused("Only students and teachers can make study sets.", 403);
     if (student) {
-      if (!(await hasPremium(u))) throw new Refused("AI study sets are part of A.R.I.S.E. Premium. You can still write your own set or paste a list.", 402);
+      if (!(await hasPremium(u, req))) throw new Refused("AI study sets are part of A.R.I.S.E. Premium. You can still write your own set or paste a list.", 402);
       const rules = await rulesFor(u.teacherId);
       if (!rules.studentSets || !rules.studentAi) throw new Refused("Your teacher has turned off AI study sets for your class.", 403);
     }

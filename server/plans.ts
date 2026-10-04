@@ -21,12 +21,19 @@ import {
 
 type AnyUser = {
   id: number; username?: string; displayName?: string; role?: string; isAdmin?: boolean; email?: string | null;
-  createdAt?: unknown; teacherId?: number | null; school_id?: number | null; schoolId?: number | null; accountApproved?: boolean;
+  createdAt?: unknown; teacherId?: number | null; school_id?: number | null; schoolId?: number | null;
+  accountApproved?: boolean; approvedByTeacher?: boolean;
 };
 
 export type PlanDeps = {
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
+  /**
+   * Reads a setting straight from the database and throws when the database
+   * can't be reached. getSetting hides such failures as "", which here would
+   * read as "no plan" and lock a paying teacher out. Left out, getSetting is used.
+   */
+  readSetting?(key: string): Promise<string>;
   /** The signed-in user for a session token, or null. Used to check teachers before a route runs. */
   userForToken(token: string): Promise<AnyUser | null>;
   getUser(id: number): Promise<AnyUser | null | undefined>;
@@ -35,9 +42,9 @@ export type PlanDeps = {
   /** Students at a school. */
   countSchoolStudents(schoolId: number): Promise<number>;
   schoolName(schoolId: number): Promise<string>;
-  /** Stripe keys from the hosting environment; the admin panel can also store them. */
   /** The site's own address, used if a request's Host header is missing or odd. */
   appUrl?: string;
+  /** Stripe keys from the hosting environment; the admin panel can also store them. */
   envStripeKey?: () => string;
   envWebhookSecret?: () => string;
   fetch?: typeof fetch;
@@ -47,6 +54,8 @@ export type PlanDeps = {
 const KEY = {
   enforced: "plans_enforced",
   grant: (kind: PlanKind, id: number) => `plan_${kind}_${id}`,
+  /** A Checkout page that was opened and may have been paid: checked with Stripe until it resolves. */
+  pending: (kind: PlanKind, id: number) => `plan_pending_${kind}_${id}`,
   index: "plan_index",
   stripeKey: "stripe_secret_key",
   webhookSecret: "stripe_webhook_secret",
@@ -64,7 +73,7 @@ const posInt = (v: unknown) => { const n = Number(v); return Number.isInteger(n)
 const schoolOf = (u: AnyUser | null | undefined) => posInt(u?.school_id ?? u?.schoolId) || null;
 const person = (u: AnyUser): PlanPerson => ({
   id: u.id, role: u.role, isAdmin: u.isAdmin, username: u.username, createdAt: u.createdAt,
-  teacherId: posInt(u.teacherId) || null, schoolId: schoolOf(u), accountApproved: u.accountApproved,
+  teacherId: posInt(u.teacherId) || null, schoolId: schoolOf(u), accountApproved: u.accountApproved, approvedByTeacher: u.approvedByTeacher,
 });
 const mask = (secret: string) => (secret ? `${secret.slice(0, 7)}...${secret.slice(-4)}` : "");
 
@@ -111,64 +120,221 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const now = () => (deps.now ? deps.now() : Date.now());
 
   // ─── Storage ───────────────────────────────────────────────────────────────
-  const readJson = async <T,>(key: string, fallback: T): Promise<T> => {
-    try { const raw = await deps.getSetting(key); return raw ? (JSON.parse(raw) as T) : fallback; } catch { return fallback; }
+  // Reads throw when the database can't be reached, so a hiccup is never mistaken
+  // for "no plan". Values are remembered for a few seconds because the teacher
+  // check runs on most requests.
+  const MEM_MS = 20_000;
+  const mem = new Map<string, { at: number; value: string }>();
+  const readFresh = async (key: string): Promise<string> => {
+    const value = await (deps.readSetting ?? deps.getSetting)(key);
+    mem.set(key, { at: now(), value });
+    return value;
   };
-  const enforced = async () => (await deps.getSetting(KEY.enforced)) === "1";
-  const readGrant = async (kind: PlanKind, id: number | null | undefined): Promise<PlanGrant | null> => {
+  const read = async (key: string): Promise<string> => {
+    const hit = mem.get(key);
+    return hit && now() - hit.at < MEM_MS ? hit.value : readFresh(key);
+  };
+  const write = async (key: string, value: string) => {
+    await deps.upsertSetting(key, value);
+    mem.set(key, { at: now(), value });
+  };
+  const parse = <T,>(raw: string, fallback: T): T => { if (!raw) return fallback; try { return JSON.parse(raw) as T; } catch { return fallback; } };
+
+  let lastEnforced: boolean | null = null;
+  const enforced = async (): Promise<boolean> => {
+    try { lastEnforced = (await read(KEY.enforced)) === "1"; return lastEnforced; }
+    catch (e) { if (lastEnforced !== null) return lastEnforced; throw e; }
+  };
+  const asGrant = (raw: string, kind: PlanKind, id: number): PlanGrant | null => {
+    const g = parse<PlanGrant | null>(raw, null);
+    return g && g.kind === kind && Number(g.ownerId) === id ? g : null;
+  };
+  const readGrant = async (kind: PlanKind, id: number | null | undefined, fresh = false): Promise<PlanGrant | null> => {
     if (!posInt(id)) return null;
-    const g = await readJson<PlanGrant | null>(KEY.grant(kind, Number(id)), null);
-    return g && g.kind === kind && Number(g.ownerId) === Number(id) ? g : null;
+    const key = KEY.grant(kind, Number(id));
+    return asGrant(await (fresh ? readFresh(key) : read(key)), kind, Number(id));
   };
   type Index = { teacher: number[]; school: number[] };
-  const readIndex = async (): Promise<Index> => {
-    const raw = await readJson<Partial<Index>>(KEY.index, {});
+  const readIndex = async (fresh = false): Promise<Index> => {
+    const raw = parse<Partial<Index>>(await (fresh ? readFresh(KEY.index) : read(KEY.index)), {});
     const ids = (v: unknown) => (Array.isArray(v) ? [...new Set(v.map(posInt).filter(Boolean))] : []);
     return { teacher: ids(raw.teacher), school: ids(raw.school) };
   };
+  type Pending = { sessionId: string; buyerId: number; at: string };
+  const readPending = async (kind: PlanKind, id: number): Promise<Pending | null> => {
+    const p = parse<Pending | null>(await read(KEY.pending(kind, id)), null);
+    return p && typeof p.sessionId === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(p.sessionId) ? p : null;
+  };
+  const clearPending = (kind: PlanKind, id: number) => write(KEY.pending(kind, id), "");
 
   // Entitlements are looked up on most requests, so they are remembered briefly.
-  const cache = new Map<number, { at: number; value: Entitlement }>();
+  // The key includes the role: an admin previewing the site as a student is a different answer from the admin.
+  const cache = new Map<string, { at: number; value: Entitlement }>();
   const CACHE_MS = 30_000;
   const forget = () => cache.clear();
 
-  // One write at a time: two Stripe events arriving together must not overwrite each other's index entry.
+  // One change at a time. A plan is read, compared and written in one step, so two
+  // Stripe messages arriving together can't overwrite each other.
   let chain: Promise<unknown> = Promise.resolve();
   const serial = <T,>(job: () => Promise<T>): Promise<T> => { const run = chain.then(job, job); chain = run.catch(() => {}); return run; };
 
-  const writeGrant = (grant: PlanGrant) => serial(async () => {
-    await deps.upsertSetting(KEY.grant(grant.kind, grant.ownerId), JSON.stringify(grant));
-    const index = await readIndex();
+  /** Call inside serial(). */
+  const saveGrant = async (grant: PlanGrant) => {
+    await write(KEY.grant(grant.kind, grant.ownerId), JSON.stringify(grant));
+    const index = await readIndex(true);
     if (!index[grant.kind].includes(grant.ownerId)) {
       index[grant.kind].push(grant.ownerId);
-      await deps.upsertSetting(KEY.index, JSON.stringify(index));
+      await write(KEY.index, JSON.stringify(index));
     }
     forget();
+  };
+
+  // ─── Stripe ────────────────────────────────────────────────────────────────
+  const stripeKey = async () => (deps.envStripeKey?.() || (await read(KEY.stripeKey)) || "").trim();
+  const webhookSecret = async () => (deps.envWebhookSecret?.() || (await read(KEY.webhookSecret)) || "").trim();
+
+  const stripe = async (method: "GET" | "POST", path: string, params?: Record<string, unknown>): Promise<any> => {
+    const key = await stripeKey();
+    if (!key) throw new Refused("Online payment is not set up yet.", 409);
+    let res: Response;
+    try {
+      res = await doFetch(`https://api.stripe.com/v1${path}`, {
+        method,
+        headers: { Authorization: `Bearer ${key}`, ...(method === "POST" ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) },
+        body: method === "POST" ? stripeForm(params || {}) : undefined,
+      });
+    } catch {
+      throw new Refused("Could not reach the payment service. Try again in a moment.", 502);
+    }
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error("[plans] Stripe refused:", res.status, data?.error?.type, data?.error?.code);
+      throw new Refused("The payment service could not complete that. Nothing was charged.", 502);
+    }
+    return data;
+  };
+  const subscriptionPath = (id: unknown) => {
+    if (typeof id !== "string" || !/^sub_[A-Za-z0-9]{1,200}$/.test(id)) throw new Refused("That subscription could not be found.", 400);
+    return `/subscriptions/${id}`;
+  };
+  const sessionPath = (id: unknown) => {
+    if (typeof id !== "string" || !/^cs_[A-Za-z0-9_]{8,200}$/.test(id)) throw new Refused("That payment could not be found.", 400);
+    return `/checkout/sessions/${id}?expand%5B%5D=subscription`;
+  };
+
+  const originOf = (req: any) => {
+    const header = (name: string) => String(req.headers?.[name] || "").split(",")[0].trim();
+    const proto = header("x-forwarded-proto") || req.protocol || "https";
+    const host = header("host");
+    // Only a plain host name goes into the address Stripe sends the buyer back to.
+    if (!/^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?(:\d{1,5})?$/i.test(host)) return String(deps.appUrl || "").replace(/\/+$/, "");
+    return `${proto === "http" ? "http" : "https"}://${host}`;
+  };
+
+  const meta = (m: any): { kind: PlanKind; ownerId: number; buyerId: number } | null => {
+    const kind = m?.kind === "teacher" || m?.kind === "school" ? (m.kind as PlanKind) : null;
+    const ownerId = posInt(m?.ownerId), buyerId = posInt(m?.buyerId);
+    return kind && ownerId ? { kind, ownerId, buyerId } : null;
+  };
+
+  /**
+   * Turns a Stripe subscription into our plan record. A subscription whose first
+   * payment has not finished ("incomplete") is not a plan yet, so it gives null.
+   */
+  const grantFromSubscription = (sub: any, at: number, deleted = false): PlanGrant | null => {
+    const m = meta(sub?.metadata);
+    if (!m || typeof sub?.id !== "string") return null;
+    if (!deleted && sub.status === "incomplete") return null;
+    const item = sub?.items?.data?.[0];
+    const periodEnd = Number(sub.current_period_end ?? item?.current_period_end);
+    const status: PlanGrant["status"] = deleted ? "canceled" : sub.status === "active" || sub.status === "trialing" ? "active" : sub.status === "past_due" ? "past_due" : "canceled";
+    let endsAt = Number.isFinite(periodEnd) && periodEnd > 0 ? periodEnd * 1000 : at;
+    // A missed payment keeps the class running for a week while the card is retried, not a whole period.
+    if (status === "past_due") endsAt = Math.min(endsAt, at + 7 * DAY);
+    return {
+      kind: m.kind, ownerId: m.ownerId, source: "stripe", status,
+      seats: m.kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(item?.quantity ?? 1)),
+      endsAt: iso(endsAt), updatedAt: iso(at), buyerId: m.buyerId || undefined,
+      stripeCustomerId: typeof sub.customer === "string" ? sub.customer : sub.customer?.id,
+      stripeSubscriptionId: sub.id, stripeItemId: typeof item?.id === "string" ? item.id : undefined,
+    };
+  };
+
+  /** Saves a plan from Stripe unless we already hold newer news about it, or it would wrongly switch off a plan that is running. */
+  const applyStripeGrant = (incoming: PlanGrant) => serial(async () => {
+    let next = incoming;
+    const held = await readGrant(next.kind, next.ownerId, true);
+    if (held) {
+      const sameSub = held.stripeSubscriptionId === next.stripeSubscriptionId;
+      const heldLive = grantLive(held, now());
+      // A plan the admin switched on, or a different paid plan that is running, is only replaced by a plan that is itself active.
+      if (!sameSub && heldLive && next.status !== "active") return;
+      if (sameSub && Date.parse(held.updatedAt) > Date.parse(next.updatedAt)) return;
+      // The week of grace after a missed payment starts once. Later checks must not push it out again.
+      if (sameSub && held.status === "past_due" && next.status === "past_due" && held.endsAt && next.endsAt && Date.parse(held.endsAt) < Date.parse(next.endsAt)) {
+        next = { ...next, endsAt: held.endsAt };
+      }
+    }
+    await saveGrant(next);
   });
+
+  /** Asks Stripe what a subscription looks like right now and saves that. */
+  const syncSubscription = async (subscriptionId: unknown) => {
+    const sub = await stripe("GET", subscriptionPath(subscriptionId));
+    const grant = grantFromSubscription(sub, now(), sub?.status === "canceled");
+    if (grant) await applyStripeGrant(grant);
+    return grant;
+  };
+
+  /**
+   * A Checkout page that was opened and never reported back: the buyer may have
+   * paid and closed the tab. Ask Stripe, so nobody pays and gets nothing.
+   */
+  const lastAsked = new Map<string, number>();
+  const reconcilePending = async (kind: PlanKind, id: number): Promise<boolean> => {
+    const pending = await readPending(kind, id);
+    if (!pending) return false;
+    const started = Date.parse(pending.at);
+    if (!Number.isFinite(started) || now() - started > 3 * DAY) { await clearPending(kind, id); return false; }
+    if (now() - (lastAsked.get(pending.sessionId) ?? -Infinity) < 60_000) return false;
+    lastAsked.set(pending.sessionId, now());
+    if (!(await stripeKey())) return false;
+    const session = await stripe("GET", sessionPath(pending.sessionId));
+    const m = meta(session?.metadata);
+    if (session?.status === "expired" || !m || m.kind !== kind || m.ownerId !== id) { await clearPending(kind, id); return false; }
+    const paid = session.status === "complete" && (session.payment_status === "paid" || session.payment_status === "no_payment_required");
+    const grant = paid && session.subscription && typeof session.subscription === "object" ? grantFromSubscription(session.subscription, now()) : null;
+    if (!grant || grant.kind !== kind || grant.ownerId !== id) return false;
+    await applyStripeGrant(grant);
+    await clearPending(kind, id);
+    return true;
+  };
 
   // ─── Who has Premium ───────────────────────────────────────────────────────
   /**
-   * A paid plan whose period has run out is checked with Stripe before it is
-   * treated as ended. Renewals normally arrive by webhook; this covers a webhook
-   * that is late, lost or was never set up, so a paying teacher is not locked out.
+   * The plan as it stands now. A paid plan whose period has run out is checked
+   * with Stripe before it is treated as ended, and an unfinished Checkout is
+   * looked up. Renewals normally arrive by webhook; this covers a webhook that
+   * is late, lost or was never set up, so a paying teacher is not locked out.
    */
   const lastSync = new Map<string, number>();
   const SYNC_EVERY_MS = 6 * 3_600_000;
   const current = async (kind: PlanKind, id: number | null | undefined): Promise<PlanGrant | null> => {
-    const g = await readGrant(kind, id);
-    if (!g || g.source !== "stripe" || !g.stripeSubscriptionId || g.status === "canceled") return g;
-    if (g.endsAt && now() < Date.parse(g.endsAt)) return g;
-    const sub = g.stripeSubscriptionId;
-    if (now() - (lastSync.get(sub) ?? -Infinity) < SYNC_EVERY_MS) return g;
-    lastSync.set(sub, now());
+    const ownerId = posInt(id);
+    if (!ownerId) return null;
+    let g = await readGrant(kind, ownerId);
     try {
+      if (!grantLive(g, now()) && (await reconcilePending(kind, ownerId))) g = await readGrant(kind, ownerId, true);
+      if (!g || g.source !== "stripe" || !g.stripeSubscriptionId || g.status === "canceled") return g;
+      if (g.endsAt && now() < Date.parse(g.endsAt)) return g;
+      const sub = g.stripeSubscriptionId;
+      if (now() - (lastSync.get(sub) ?? -Infinity) < SYNC_EVERY_MS) return g;
+      lastSync.set(sub, now());
       if (!(await stripeKey())) return g;
-      const next = grantFromSubscription(await stripe("GET", `/subscriptions/${encodeURIComponent(sub)}`), now());
-      if (!next || next.kind !== g.kind || next.ownerId !== g.ownerId) return g;
-      await applyStripeGrant(next);
-      return (await readGrant(kind, id)) ?? g;
+      await syncSubscription(sub);
+      return (await readGrant(kind, ownerId, true)) ?? g;
     } catch (e: any) {
-      console.error("[plans] renewal check failed:", e?.message);
+      console.error("[plans] check with Stripe failed:", e?.message);
       return g;
     }
   };
@@ -176,8 +342,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const factsFor = async (user: AnyUser): Promise<PlanFacts> => {
     const facts: PlanFacts = { enforced: await enforced(), now: now() };
     if (!facts.enforced || user.isAdmin) return facts;
-    facts.schoolGrant = await current("school", schoolOf(user));
     if (user.role === "teacher") {
+      facts.schoolGrant = await current("school", schoolOf(user));
       facts.teacherGrant = await current("teacher", user.id);
     } else if (user.role !== "parent" && posInt(user.teacherId)) {
       const teacher = await deps.getUser(Number(user.teacherId));
@@ -191,10 +357,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const entitlement = async (user: AnyUser | null | undefined): Promise<Entitlement> => {
     if (!user || !posInt(user.id)) return { premium: false, via: null, seats: null, endsAt: null };
-    const hit = cache.get(user.id);
+    const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
+    const hit = cache.get(key);
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
     const value = entitlementFor(person(user), await factsFor(user));
-    cache.set(user.id, { at: now(), value });
+    cache.set(key, { at: now(), value });
     return value;
   };
 
@@ -204,7 +371,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /**
    * A teacher account is part of Premium. With plan rules on, a teacher without
    * it can still sign in, see their plan and pay; every other request stops here.
-   * If the plan lookup itself fails, the request goes through: a storage hiccup
+   * If the plan lookup itself fails, the request goes through: a database hiccup
    * must not lock a whole class out.
    */
   const teacherGate: RequestHandler = async (req: any, res: any, next: any) => {
@@ -240,131 +407,73 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
 
   /** Can this parent link another child? Five on Free; no limit for a family with a child in a Premium class. */
   const parentLinkAllowed = async (linkedIds: number[], newChildId: number): Promise<{ ok: boolean; message?: string }> => {
-    const on = await enforced();
-    if (!on) return { ok: true };
-    const ids = [...new Set([...linkedIds, newChildId].map(posInt).filter(Boolean))];
-    let premiumFamily = false;
-    for (const id of ids) {
-      const child = await deps.getUser(id);
-      if (child && (await entitlement(child)).premium) { premiumFamily = true; break; }
-    }
-    if (parentCanLink(linkedIds.length, { enforced: on, premiumFamily })) return { ok: true };
-    return { ok: false, message: premiumMessage("parent") };
+    try {
+      const on = await enforced();
+      if (!on) return { ok: true };
+      const ids = [...new Set([...linkedIds, newChildId].map(posInt).filter(Boolean))];
+      let premiumFamily = false;
+      for (const id of ids) {
+        const child = await deps.getUser(id);
+        if (child && (await entitlement(child)).premium) { premiumFamily = true; break; }
+      }
+      if (parentCanLink(linkedIds.length, { enforced: on, premiumFamily })) return { ok: true };
+      return { ok: false, message: premiumMessage("parent") };
+    } catch { return { ok: true }; }
   };
 
   /** Is there room on this teacher's plan for one more approved student? */
-  const seatCheck = async (teacher: AnyUser): Promise<{ ok: boolean; message?: string }> => {
+  const seatCheck = async (teacher: AnyUser | null | undefined): Promise<{ ok: boolean; message?: string }> => {
     try {
-      if (teacher.isAdmin || teacher.role !== "teacher") return { ok: true };
+      if (!teacher || teacher.isAdmin || teacher.role !== "teacher") return { ok: true };
       const e = await entitlement(teacher);
       if (e.via === "teacher-plan" && e.seats !== null) {
         const used = await deps.countTeacherStudents(teacher.id);
-        if (used >= e.seats) return { ok: false, message: `Your plan covers ${e.seats.toLocaleString("en-US")} students. Add another ${PLANS.teacher.studentsPerBlock} students in Billing to approve more.` };
+        if (used >= e.seats) return { ok: false, message: `This teacher's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full. Another ${PLANS.teacher.studentsPerBlock} students can be added on the plan page.` };
       }
       if (e.via === "school-plan" && e.seats !== null && schoolOf(teacher)) {
         const used = await deps.countSchoolStudents(schoolOf(teacher)!);
-        if (used >= e.seats) return { ok: false, message: `Your school's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full.` };
+        if (used >= e.seats) return { ok: false, message: `The school's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full.` };
       }
       return { ok: true };
     } catch { return { ok: true }; }
   };
-
-  // ─── Stripe ────────────────────────────────────────────────────────────────
-  const stripeKey = async () => (deps.envStripeKey?.() || (await deps.getSetting(KEY.stripeKey)) || "").trim();
-  const webhookSecret = async () => (deps.envWebhookSecret?.() || (await deps.getSetting(KEY.webhookSecret)) || "").trim();
-
-  const stripe = async (method: "GET" | "POST", path: string, params?: Record<string, unknown>): Promise<any> => {
-    const key = await stripeKey();
-    if (!key) throw new Refused("Online payment is not set up yet.", 409);
-    let res: Response;
-    try {
-      res = await doFetch(`https://api.stripe.com/v1${path}`, {
-        method,
-        headers: { Authorization: `Bearer ${key}`, ...(method === "POST" ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) },
-        body: method === "POST" ? stripeForm(params || {}) : undefined,
-      });
-    } catch {
-      throw new Refused("Could not reach the payment service. Try again in a moment.", 502);
-    }
-    const data: any = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error("[plans] Stripe refused:", res.status, data?.error?.type, data?.error?.code);
-      throw new Refused("The payment service could not complete that. Nothing was charged.", 502);
-    }
-    return data;
-  };
-
-  const originOf = (req: any) => {
-    const header = (name: string) => String(req.headers?.[name] || "").split(",")[0].trim();
-    const proto = header("x-forwarded-proto") || req.protocol || "https";
-    const host = header("host");
-    // Only a plain host name goes into the address Stripe sends the buyer back to.
-    if (!/^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?(:\d{1,5})?$/i.test(host)) return String(deps.appUrl || "").replace(/\/+$/, "");
-    return `${proto === "http" ? "http" : "https"}://${host}`;
-  };
-
-  const meta = (m: any): { kind: PlanKind; ownerId: number; buyerId: number } | null => {
-    const kind = m?.kind === "teacher" || m?.kind === "school" ? (m.kind as PlanKind) : null;
-    const ownerId = posInt(m?.ownerId), buyerId = posInt(m?.buyerId);
-    return kind && ownerId ? { kind, ownerId, buyerId } : null;
-  };
-
-  /** Turns a Stripe subscription into our plan record. */
-  const grantFromSubscription = (sub: any, at: number, deleted = false): PlanGrant | null => {
-    const m = meta(sub?.metadata);
-    if (!m || typeof sub?.id !== "string") return null;
-    const item = sub?.items?.data?.[0];
-    const periodEnd = Number(sub.current_period_end ?? item?.current_period_end);
-    const status: PlanGrant["status"] = deleted ? "canceled" : sub.status === "active" || sub.status === "trialing" ? "active" : sub.status === "past_due" ? "past_due" : "canceled";
-    let endsAt = Number.isFinite(periodEnd) && periodEnd > 0 ? periodEnd * 1000 : at;
-    // A missed payment keeps the class running for a week while the card is retried, not a whole period.
-    if (status === "past_due") endsAt = Math.min(endsAt, at + 7 * DAY);
-    return {
-      kind: m.kind, ownerId: m.ownerId, source: "stripe", status,
-      seats: m.kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(item?.quantity ?? 1)),
-      endsAt: iso(endsAt), updatedAt: iso(at), buyerId: m.buyerId || undefined,
-      stripeCustomerId: typeof sub.customer === "string" ? sub.customer : sub.customer?.id,
-      stripeSubscriptionId: sub.id, stripeItemId: typeof item?.id === "string" ? item.id : undefined,
-    };
-  };
-
-  /** Saves a plan from Stripe unless we already hold newer news about it, or the admin granted this plan by hand. */
-  const applyStripeGrant = async (next: PlanGrant) => {
-    const current = await readGrant(next.kind, next.ownerId);
-    if (current) {
-      if (current.source === "admin" && grantLive(current, now()) && next.status !== "active") return;
-      const sameSub = current.stripeSubscriptionId === next.stripeSubscriptionId;
-      if (sameSub && Date.parse(current.updatedAt) > Date.parse(next.updatedAt)) return;
-      // An old, ended subscription must not switch off a newer one that is live.
-      if (!sameSub && current.source === "stripe" && grantLive(current, now()) && next.status === "canceled") return;
-    }
-    await writeGrant(next);
-  };
+  /** The same check, for the teacher a student is being moved to. */
+  const seatCheckFor = async (teacherId: unknown) => (posInt(teacherId) ? seatCheck(await deps.getUser(posInt(teacherId)).catch(() => null)) : { ok: true });
 
   const applyEvent = async (event: any) => {
     const at = Number(event?.created) > 0 ? Number(event.created) * 1000 : now();
     const obj = event?.data?.object;
+    const haveKey = !!(await stripeKey());
     switch (event?.type) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
+        if (!meta(obj?.metadata)) return;
+        // Messages can arrive late or out of order, so the message is only a nudge: Stripe is asked for the truth.
+        if (haveKey) { await syncSubscription(obj?.id); return; }
         const grant = grantFromSubscription(obj, at, event.type.endsWith("deleted"));
         if (grant) await applyStripeGrant(grant);
         return;
       }
       case "checkout.session.completed": {
-        // The subscription events carry the real dates. This only switches Premium on at once if they are late.
         const m = meta(obj?.metadata);
         if (!m || obj?.mode !== "subscription" || typeof obj?.subscription !== "string") return;
         if (obj.payment_status !== "paid" && obj.payment_status !== "no_payment_required") return;
-        const current = await readGrant(m.kind, m.ownerId);
-        if (current?.stripeSubscriptionId === obj.subscription && grantLive(current, now())) return;
-        await applyStripeGrant({
-          kind: m.kind, ownerId: m.ownerId, source: "stripe", status: "active",
-          seats: m.kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(obj?.metadata?.blocks)),
-          endsAt: iso(at + (m.kind === "school" ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
-          stripeCustomerId: typeof obj.customer === "string" ? obj.customer : undefined, stripeSubscriptionId: obj.subscription,
-        });
+        if (haveKey) {
+          await syncSubscription(obj.subscription);
+        } else {
+          // Without a key the real dates can't be fetched. Switch Premium on now; the subscription messages bring the dates.
+          const held = await readGrant(m.kind, m.ownerId, true);
+          if (!(held?.stripeSubscriptionId === obj.subscription && grantLive(held, now()))) {
+            await applyStripeGrant({
+              kind: m.kind, ownerId: m.ownerId, source: "stripe", status: "active",
+              seats: m.kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(obj?.metadata?.blocks)),
+              endsAt: iso(at + (m.kind === "school" ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
+              stripeCustomerId: typeof obj.customer === "string" ? obj.customer : undefined, stripeSubscriptionId: obj.subscription,
+            });
+          }
+        }
+        if (grantLive(await readGrant(m.kind, m.ownerId, true), now())) await clearPending(m.kind, m.ownerId);
         return;
       }
       default:
@@ -418,11 +527,16 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const schoolId = schoolOf(teacher);
       if (kind === "school" && !schoolId) throw new Refused("Your account is not connected to a school yet, so a school plan can't be bought from it.", 409);
       const ownerId = kind === "school" ? schoolId! : teacher.id;
-      const existing = await readGrant(kind, ownerId);
-      if (existing?.source === "stripe" && existing.status !== "canceled" && grantLive(existing, now())) {
+      // Never sell a plan to someone who already has one, however they got it.
+      if (grantLive(await current(kind, ownerId), now())) {
         throw new Refused(kind === "school" ? "Your school already has a Premium plan." : "You already have a Premium plan. Use Manage billing to change it.", 409);
       }
-      if (kind === "teacher" && grantLive(await readGrant("school", schoolId), now())) throw new Refused("Your school already has Premium, so you don't need a plan of your own.", 409);
+      if (kind === "teacher" && grantLive(await current("school", schoolId), now())) throw new Refused("Your school already has Premium, so you don't need a plan of your own.", 409);
+      // Two teachers at one school must not both pay for the school.
+      const pending = await readPending(kind, ownerId);
+      if (pending && pending.buyerId !== teacher.id && now() - Date.parse(pending.at) < 30 * 60_000) {
+        throw new Refused("Another teacher at your school has just started paying for the school plan. Check with them, or try again in half an hour.", 409);
+      }
       const blocks = clampBlocks(req.body?.blocks);
       const metadata: Record<string, string> = { kind, ownerId: String(ownerId), buyerId: String(teacher.id) };
       if (kind === "teacher") metadata.blocks = String(blocks);
@@ -449,6 +563,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         cancel_url: `${origin}/#/billing`,
       });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
+      // Remember the page that was opened, so the payment is found even if the buyer never comes back to the site.
+      if (typeof session.id === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(session.id)) {
+        const opened: Pending = { sessionId: session.id, buyerId: teacher.id, at: iso(now()) };
+        await write(KEY.pending(kind, ownerId), JSON.stringify(opened));
+      }
       res.json({ url: session.url });
     } catch (e) { fail(res, e, "checkout"); }
   });
@@ -456,16 +575,16 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** After paying, the browser comes back with the Checkout id. This asks Stripe directly, so Premium is on even if the webhook is slow. */
   app.post("/api/billing/confirm", auth, async (req: any, res: any) => {
     try {
-      const id = String(req.body?.sessionId || "");
-      if (!/^cs_[A-Za-z0-9_]{8,200}$/.test(id)) throw new Refused("That payment could not be found.", 400);
-      const session = await stripe("GET", `/checkout/sessions/${id}?expand%5B%5D=subscription`);
+      const session = await stripe("GET", sessionPath(String(req.body?.sessionId || "")));
       const m = meta(session?.metadata);
       if (!m || m.buyerId !== Number(req.user?.id)) throw new Refused("That payment belongs to a different account.", 403);
       const paid = session.status === "complete" && (session.payment_status === "paid" || session.payment_status === "no_payment_required");
       const grant = paid && session.subscription && typeof session.subscription === "object" ? grantFromSubscription(session.subscription, now()) : null;
       if (!grant || grant.kind !== m.kind || grant.ownerId !== m.ownerId) throw new Refused("That payment has not gone through yet.", 409);
       await applyStripeGrant(grant);
-      res.json({ ok: true, plan: grantView(grant) });
+      const held = await readGrant(m.kind, m.ownerId, true);
+      if (grantLive(held, now())) await clearPending(m.kind, m.ownerId);
+      res.json({ ok: true, plan: grantView(held) });
     } catch (e) { fail(res, e, "confirm"); }
   });
 
@@ -492,13 +611,13 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const blocks = clampBlocks(req.body?.blocks);
       const students = await deps.countTeacherStudents(teacher.id);
       if (seatsFor(blocks) < students) throw new Refused(`You have ${students} students, so your plan needs to cover at least that many.`, 409);
-      const sub = await stripe("POST", `/subscriptions/${encodeURIComponent(grant.stripeSubscriptionId)}`, {
+      const sub = await stripe("POST", subscriptionPath(grant.stripeSubscriptionId), {
         items: [{ id: grant.stripeItemId, quantity: blocks }], proration_behavior: "create_prorations",
       });
       const next = grantFromSubscription(sub, now());
       if (!next || next.ownerId !== teacher.id || next.kind !== "teacher") throw new Refused("The plan could not be changed.", 502);
       await applyStripeGrant(next);
-      res.json({ ok: true, plan: grantView(next) });
+      res.json({ ok: true, plan: grantView(await readGrant("teacher", teacher.id, true)) });
     } catch (e) { fail(res, e, "blocks"); }
   });
 
@@ -546,7 +665,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/admin/plans/enforce", auth, admin, async (req: any, res: any) => {
     try {
       const on = req.body?.enforced === true;
-      await deps.upsertSetting(KEY.enforced, on ? "1" : "0");
+      await write(KEY.enforced, on ? "1" : "0");
       forget();
       res.json({ enforced: on });
     } catch (e) { fail(res, e, "enforce"); }
@@ -562,8 +681,6 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const t = await deps.getUser(ownerId);
         if (!t || t.role !== "teacher") throw new Refused("That account is not a teacher.");
       } else if (!(await deps.schoolName(ownerId))) throw new Refused("That school could not be found.");
-      const current = await readGrant(kind, ownerId);
-      if (current?.source === "stripe" && grantLive(current, now())) throw new Refused("This plan is being paid online already.", 409);
       const months = Math.min(60, Math.max(0, Math.floor(Number(req.body?.months) || 0)));
       const seats = kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(req.body?.blocks));
       const grant: PlanGrant = {
@@ -571,7 +688,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         endsAt: months ? iso(now() + months * 30.4375 * DAY) : null, updatedAt: iso(now()),
         note: String(req.body?.note || "").replace(/\s+/g, " ").trim().slice(0, 120) || undefined,
       };
-      await writeGrant(grant);
+      await serial(async () => {
+        const held = await readGrant(kind, ownerId, true);
+        if (held?.source === "stripe" && grantLive(held, now())) throw new Refused("This plan is being paid online already.", 409);
+        await saveGrant(grant);
+      });
       res.json({ ok: true });
     } catch (e) { fail(res, e, "grant"); }
   });
@@ -579,10 +700,13 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/admin/plans/revoke", auth, admin, async (req: any, res: any) => {
     try {
       const kind: PlanKind | null = req.body?.kind === "school" ? "school" : req.body?.kind === "teacher" ? "teacher" : null;
-      const current = kind ? await readGrant(kind, posInt(req.body?.ownerId)) : null;
-      if (!current) throw new Refused("That plan could not be found.", 404);
-      if (current.source === "stripe" && grantLive(current, now())) throw new Refused("This plan is paid online. Cancel it in Stripe so the card stops being charged.", 409);
-      await writeGrant({ ...current, status: "canceled", updatedAt: iso(now()) });
+      const ownerId = posInt(req.body?.ownerId);
+      await serial(async () => {
+        const held = kind ? await readGrant(kind, ownerId, true) : null;
+        if (!held) throw new Refused("That plan could not be found.", 404);
+        if (held.source === "stripe" && grantLive(held, now())) throw new Refused("This plan is paid online. Cancel it in Stripe so the card stops being charged.", 409);
+        await saveGrant({ ...held, status: "canceled", updatedAt: iso(now()) });
+      });
       res.json({ ok: true });
     } catch (e) { fail(res, e, "revoke"); }
   });
@@ -595,13 +719,13 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (!key && !secret) throw new Refused("Paste a key to save.");
       if (key && !/^(sk|rk)_(live|test)_[A-Za-z0-9]{10,}$/.test(key)) throw new Refused("That does not look like a Stripe secret key. It starts with sk_live_ or sk_test_.");
       if (secret && !/^whsec_[A-Za-z0-9]{10,}$/.test(secret)) throw new Refused("That does not look like a Stripe webhook secret. It starts with whsec_.");
-      if (key) await deps.upsertSetting(KEY.stripeKey, key);
-      if (secret) await deps.upsertSetting(KEY.webhookSecret, secret);
+      if (key) await write(KEY.stripeKey, key);
+      if (secret) await write(KEY.webhookSecret, secret);
       res.json({ ok: true });
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, isPremium, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, teacherGate, applyEvent, forget };
+  return { entitlement, isPremium, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;
