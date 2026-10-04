@@ -13,6 +13,8 @@ export default function ClubPlayGate({ children }: { children: ReactNode }) {
   const adminPreview = !!realUser?.isAdmin && adminPreviewMode === 'regular';
   const active = clubRoute && user?.role === 'student' && !user.isAdmin && !user.is_eye_gaze_user && !adminPreview;
   const [access, setAccess] = useState<PlayAccess | null>(null), [now, setNow] = useState(Date.now()), [error, setError] = useState('');
+  const [requestingTime, setRequestingTime] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
   const sessionId = useRef(crypto.randomUUID());
   const offset = useRef(0);
   const retry = useRef<() => void>(() => {});
@@ -40,6 +42,25 @@ export default function ClubPlayGate({ children }: { children: ReactNode }) {
     window.addEventListener('pagehide', leave);
     return () => { stopped = true; clearInterval(heartbeat); clearInterval(clock); document.body.classList.remove('club-play-active'); window.removeEventListener('pagehide', leave); leave(); };
   }, [active, token, user?.id]);
+  const requestMoreTime = async () => {
+    if (!token || requestingTime) return;
+    setRequestingTime(true); setRequestMessage('');
+    try {
+      const res = await fetch(`${API_BASE}/api/club-play/request-more-time`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes: 10 }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Could not send your request.');
+      setRequestMessage(body.message || 'Request sent.');
+      setAccess(current => current ? { ...current, timeRequestStatus: 'pending' } : current);
+    } catch (e) {
+      setRequestMessage(e instanceof Error ? e.message : 'Could not send your request.');
+    } finally {
+      setRequestingTime(false);
+    }
+  };
   if (!active) return <>{children}{clubRoute && adminPreview ? <PetCompanionHUD/> : null}</>;
   const remaining = Math.max(0, Math.ceil(((access?.expiresAt || now) - now) / 1000));
   const canPlay = !!access?.allowed && (!!access.unlimitedThisWeek || (remaining > 0 && access.leaseUntil > now));
@@ -52,6 +73,12 @@ export default function ClubPlayGate({ children }: { children: ReactNode }) {
           ? `Your teacher has closed Club A.R.I.S.E. for the class${access.teacherClosingHours ? ` · ${access.teacherClosingHours.start}–${access.teacherClosingHours.end} Mountain Time` : ''}. The admin can still override class hours.`
           : access?.locked ? 'Your teacher has paused Club Arise.' : access?.weeklyUnlimitedOnPass ? 'You get 10 minutes each day. Pass one book quiz to unlock unlimited A.R.I.S.E. play for the rest of this week.' : 'Your normal daily A.R.I.S.E. play time is finished for today.'}</p>
       {error && <p role="alert">{error}</p>}
+      {!access?.closedByAdmin && !access?.closedByTeacher && !access?.locked && access && !remaining && (
+        access.timeRequestStatus === 'pending'
+          ? <button className="secondary" disabled><Clock3 size={20} /> Request waiting for an adult</button>
+          : <button className="secondary" disabled={requestingTime} onClick={() => void requestMoreTime()}><Clock3 size={20} /> {requestingTime ? 'Sending request…' : 'Request 10 more minutes'}</button>
+      )}
+      {requestMessage && <p role="status">{requestMessage}</p>}
       <button onClick={() => navigate('/library')}><BookOpen size={20} /> Go to the library</button>
       {error && <button className="secondary" onClick={() => retry.current()}>Try again</button>}
     </section>
