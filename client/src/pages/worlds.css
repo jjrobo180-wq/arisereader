@@ -51,7 +51,47 @@
   /* never let the page title slide under the button on a narrow phone */
   .worlds-root .axl-brand b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* The chess competition strip (components/chess/ClashStrip.tsx): one gold line
+   between the spotlight and the shelves while a competition is on. */
+.worlds-clash {
+  position: relative; display: flex; align-items: center; gap: 16px; overflow: hidden;
+  width: calc(100% - 2 * var(--gutter)); margin: clamp(14px, 2.4vh, 24px) var(--gutter) 0; padding: 12px 14px 12px 16px;
+  border-radius: 18px; border: 1px solid rgba(245, 215, 120, 0.55);
+  background: linear-gradient(110deg, #1d1533, #2a1a52 55%, #3b2b14);
+  color: #fff !important; text-align: left; line-height: 1.15;
+  box-shadow: 0 0 0 3px rgba(245, 215, 120, 0.12), 0 10px 34px rgba(0, 0, 0, 0.4);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.worlds-clash::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.14) 50%, transparent 60%);
+  transform: translateX(-100%); animation: worlds-clash-sheen 4.5s ease-in-out infinite;
+}
+.worlds-clash:hover { transform: translateY(-1px); border-color: #fde68a; box-shadow: 0 0 0 4px rgba(245, 215, 120, 0.2), 0 12px 40px rgba(0, 0, 0, 0.5); }
+.worlds-clash:active { transform: translateY(1px); }
+.worlds-clash:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.worlds-clash.hot { border-color: rgba(251, 146, 60, 0.8); background: linear-gradient(110deg, #2a1410, #4d2012 55%, #3b2b14); }
+.worlds-clash-crown { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(145deg, #f9e8a4, #d49b2a); color: #1c1321; font-family: Georgia, "Times New Roman", serif; font-size: 30px; line-height: 1; }
+.worlds-clash-text { flex: 1; min-width: 0; }
+.worlds-clash-text b { display: block; font-size: 19px; font-weight: 900; letter-spacing: 0.01em; }
+.worlds-clash-text small { display: block; margin-top: 3px; font-size: 13px; font-weight: 700; color: #d2c9ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.worlds-clash-clock { flex: none; display: flex; gap: 6px; }
+.worlds-clash-clock span { display: grid; justify-items: center; min-width: 46px; padding: 7px 4px 5px; border-radius: 10px; border: 1px solid rgba(245, 215, 120, 0.28); background: rgba(0, 0, 0, 0.36); }
+.worlds-clash-clock b { font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; color: #fff1af; }
+.worlds-clash-clock i { margin-top: 3px; font-style: normal; font-size: 9px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #a79fb8; }
+.worlds-clash-go { flex: none; padding: 12px 17px; border-radius: 12px; background: linear-gradient(105deg, #f5da79, #c99a35); color: #17101d; font-size: 14px; font-weight: 900; white-space: nowrap; }
+@keyframes worlds-clash-sheen { 0%, 55% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@media (max-width: 720px) {
+  .worlds-clash { flex-wrap: wrap; gap: 10px 12px; }
+  .worlds-clash-text small { white-space: normal; }
+  .worlds-clash-clock { order: 3; flex: 1 1 100%; }
+  .worlds-clash-clock span { flex: 1; }
+  .worlds-clash-go { order: 4; flex: 1 1 100%; text-align: center; }
+}
 @media (prefers-reduced-motion: reduce) {
   .worlds-avatar::after { animation: none; }
   .worlds-avatar { animation: none; transition: none; }
+  .worlds-clash::after { animation: none; }
+  .worlds-clash { transition: none; }
 }
