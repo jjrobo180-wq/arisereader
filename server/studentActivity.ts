@@ -11,7 +11,7 @@ import { describeDevice } from "../shared/deviceName";
 const LOG_CAP = 200;
 const logKey = (userId: number) => `login_log_${userId}`;
 
-/** Records a student sign-in (kept in settings so no new table is needed). Never throws. */
+/** Records a sign-in (kept in settings so no new table is needed). Never throws. */
 export async function recordLogin(userId: number, userAgent?: string) {
   try {
     const raw = await storage.getSetting(logKey(userId));

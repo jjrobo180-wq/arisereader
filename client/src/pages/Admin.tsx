@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -23,6 +23,8 @@ import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
+// charts are only downloaded when the Stats tab is opened
+const AdminStats = lazy(() => import("@/components/admin/AdminStats"));
 import {
   ActionMenu, AdminSection, CountBadge, EmptyState, INPUT_CLASS, PersonRow, SELECT_CLASS, SegmentedTabs, StatTile, StatusPill,
 } from "@/components/admin/AdminUi";
@@ -130,10 +132,10 @@ interface QuestionForm {
   correct: string;
 }
 
-type AdminTab = "overview" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
+type AdminTab = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
 type SettingsSection = "alerts" | "banners" | "club" | "ai" | "extras" | "security";
-const ADMIN_TABS: AdminTab[] = ["overview", "todo", "inbox", "people", "library", "schools", "settings"];
+const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
 const TAB_STORAGE = "arise_admin_tab";
 
 // Module-level cache — survives component unmount/remount during navigation
@@ -2386,6 +2388,7 @@ Generate exactly 10 questions.`;
 
   const NAV: { id: AdminTab; label: string; icon: typeof Users; badge?: number }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "stats", label: "Stats", icon: BarChart3 },
     { id: "todo", label: "To-do", icon: ListTodo, badge: todoCount },
     { id: "inbox", label: "Inbox", icon: Inbox, badge: unreadMsgCount },
     { id: "people", label: "People", icon: Users, badge: peopleAttention },
@@ -2488,6 +2491,19 @@ Generate exactly 10 questions.`;
         <StatTile icon={Trophy} tone="violet" label="Quizzes passed" value={totalMastered} />
         <StatTile icon={FileQuestion} tone="orange" label="Quizzes available" value={quizCount} hint={`${books.filter(b => b.readUrl).length} books to read online`} />
       </div>
+      <button
+        type="button"
+        onClick={() => goTo("stats")}
+        data-testid="open-stats"
+        className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-violet-500/25 bg-violet-500/[.07] p-3 text-left transition-colors hover:bg-violet-500/[.12] sm:p-4"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><BarChart3 className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold">Stats and charts</span>
+          <span className="block text-xs text-muted-foreground">Growth over time, who's online, sign-ins, quizzes and the students who haven't been on lately.</span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+      </button>
 
       <AdminSection
         id="needs-attention"
@@ -4147,6 +4163,17 @@ Generate exactly 10 questions.`;
         </aside>
         <main className="min-w-0 flex-1 py-4 pb-24 sm:py-6">
           {tab === "overview" && overviewTab}
+          {tab === "stats" && (
+            <Suspense fallback={<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl border border-card-border bg-card" />)}</div>}>
+              <AdminStats
+                token={token || getTokenFromCookie() || ""}
+                onOpenStudent={(id) => {
+                  const student = students.find((s) => s.id === id);
+                  if (student) void handleViewStudent(student);
+                }}
+              />
+            </Suspense>
+          )}
           {tab === "todo" && todoTab}
           {tab === "inbox" && (
             <div className="space-y-4">
