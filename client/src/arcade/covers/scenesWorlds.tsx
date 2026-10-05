@@ -979,6 +979,212 @@ function studySquad(k: Ids) {
   );
 }
 
+// ─── TWINLIGHT RUN ───────────────────────────────────────────────────────────
+// One sky road seen in two worlds at once: day on the left, night on the right,
+// with the runner on the seam between them.
+function twinlightRun(k: Ids) {
+  const P = perspective(240, 170, 150);
+  const strip = (s0: number, s1: number, z0: number, z1: number) => pts([P(s0, 0, z0), P(s1, 0, z0), P(s1, 0, z1), P(s0, 0, z1)]);
+  const rail = (side: number) => (
+    <g key={side}>
+      <polygon points={strip(side * 138, side * 150, 0.55, 10)} fill="#a02a30" />
+      <polyline points={pts([P(side * 146, 50, 0.55), P(side * 146, 50, 10)])} stroke="#e8483a" strokeWidth={3} fill="none" />
+      {[0.8, 1.15, 1.7, 2.6, 4, 6.5].map((z) => {
+        const a = P(side * 146, 0, z), b = P(side * 146, 66, z);
+        return <line key={z} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#e8483a" strokeWidth={Math.max(1.2, 7 / z)} strokeLinecap="round" />;
+      })}
+    </g>
+  );
+  const island = (cx: number, cy: number, rx: number, rock: string, top: string) => (
+    <g>
+      <path d={`M${cx - rx},${cy} C${cx - rx * 0.7},${cy + rx * 0.7} ${cx - rx * 0.2},${cy + rx * 1.1} ${cx + rx * 0.1},${cy + rx * 1.3} C${cx + rx * 0.5},${cy + rx} ${cx + rx * 0.85},${cy + rx * 0.5} ${cx + rx},${cy} Z`} fill={rock} />
+      <ellipse cx={cx} cy={cy} rx={rx} ry={rx * 0.24} fill={top} />
+    </g>
+  );
+  const [gx0, gy0] = P(-129, 0, 3), [gx1, gy1] = P(129, 200, 3);
+  const torii = { l: P(-178, 0, 2.2), r: P(178, 0, 2.2), top: P(0, 262, 2.2)[1], mid: P(0, 212, 2.2)[1] };
+  // the runner, drawn from behind with the feet at (0, 0)
+  const [rx, ry] = P(0, 0, 1.45);
+  return (
+    <>
+      <Sky k={k} stops={[[0, "#2a78e4"], [0.42, "#bfe7ff"], [0.6, "#eaf6ff"], [1, "#cfe6ff"]]} />
+      <defs>
+        {vgrad(k("night"), [[0, "#060926"], [0.42, "#3b2f8c"], [0.6, "#24206a"], [1, "#15154a"]])}
+        {vgrad(k("road"), [[0, "#b8a892"], [1, "#e3d6c2"]])}
+        {vgrad(k("gold"), [[0, "#fff4b8"], [1, "#ffb13d"]])}
+        {vgrad(k("shirt"), [[0, "#fffaf0"], [1, "#d9d2e6"]])}
+      </defs>
+      <rect x={240} y={0} width={240} height={H} fill={url(k, "night")} />
+      {/* day side */}
+      <Glow k={k} name="sun" cx={132} cy={104} r={120} color="#fff3b0" opacity={0.8} />
+      <circle cx={132} cy={104} r={22} fill="#fffbe0" />
+      <g fill="#ffffff">{[[40, 62, 22], [66, 52, 26], [96, 64, 20], [176, 40, 16], [198, 34, 20], [220, 44, 14]].map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r} />)}</g>
+      {island(56, 168, 46, "#8f7d6e", "#8fdc6f")}
+      <rect x={52} y={140} width={5} height={28} fill="#7c5a44" />
+      <g fill="#ff9fc8">{[[54, 132, 17], [40, 142, 12], [70, 140, 13]].map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r} />)}</g>
+      <g fill="#ffd1e3">{[[50, 126, 9], [66, 134, 7]].map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r} />)}</g>
+      {/* night side */}
+      <Stars seed={2101} n={46} x0={246} y1={170} />
+      <GlowEllipse k={k} name="aurora" cx={380} cy={130} rx={130} ry={40} color="#5dffb0" opacity={0.22} />
+      <Glow k={k} name="moon" cx={368} cy={84} r={70} color="#cfd8ff" opacity={0.5} />
+      <circle cx={368} cy={84} r={23} fill="#eef2ff" />
+      <circle cx={378} cy={77} r={21} fill="#1a1b5e" />
+      {island(430, 172, 44, "#232055", "#2f3f86")}
+      <g fill="#2b2a70">
+        <rect x={420} y={142} width={22} height={30} />
+        <polygon points="410,144 452,144 431,128" />
+        <polygon points="414,158 448,158 431,146" />
+      </g>
+      <g fill="#ffe9a8"><rect x={426} y={150} width={4} height={5} /><rect x={433} y={150} width={4} height={5} /><rect x={429} y={163} width={5} height={6} /></g>
+      {/* the seam between the two worlds */}
+      <Glow k={k} name="seam" cx={240} cy={90} r={110} color="#ffffff" opacity={0.28} />
+      <line x1={240} y1={0} x2={240} y2={176} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={1.5} />
+      {/* clouds under the road */}
+      <g fill="#ffffff">{[[20, 300, 46], [70, 318, 40], [-6, 340, 50], [120, 344, 34]].map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r} />)}</g>
+      <g fill="#4a4fb0">{[[462, 300, 46], [412, 320, 40], [486, 340, 50], [364, 346, 34]].map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r} />)}</g>
+      {/* the road */}
+      <polygon points={strip(-140, 140, 0.55, 10)} fill={url(k, "road")} />
+      <polygon points={strip(0, 140, 0.55, 10)} fill="#2b2f86" opacity={0.6} />
+      {[-43, 43].map((sd) => <polyline key={sd} points={pts([P(sd, 0, 0.55), P(sd, 0, 10)])} stroke="#ffffff" strokeOpacity={0.7} strokeWidth={2} strokeDasharray="14 10" fill="none" />)}
+      {rail(-1)}
+      {rail(1)}
+      {/* a wall across the road: solid gold by day, a ghost at night */}
+      <rect x={gx0} y={gy1} width={240 - gx0} height={gy0 - gy1} fill={url(k, "gold")} stroke="#e07a12" strokeWidth={2} />
+      <circle cx={(gx0 + 240) / 2} cy={(gy0 + gy1) / 2} r={9} fill="#ffffff" />
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => { const a = (i / 8) * Math.PI * 2, cx = (gx0 + 240) / 2, cy = (gy0 + gy1) / 2; return <line key={i} x1={cx + Math.cos(a) * 13} y1={cy + Math.sin(a) * 13} x2={cx + Math.cos(a) * 18} y2={cy + Math.sin(a) * 18} stroke="#ffffff" strokeWidth={2.4} strokeLinecap="round" />; })}
+      <rect x={240} y={gy1} width={gx1 - 240} height={gy0 - gy1} fill="#ffd66b" fillOpacity={0.14} stroke="#ffe9a8" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="5 4" />
+      {/* the gate */}
+      <g>
+        <rect x={torii.l[0] - 6} y={torii.top} width={12} height={torii.l[1] - torii.top} fill="#e8483a" />
+        <rect x={torii.r[0] - 6} y={torii.top} width={12} height={torii.r[1] - torii.top} fill="#c63a36" />
+        <rect x={torii.l[0] - 22} y={torii.top - 2} width={torii.r[0] - torii.l[0] + 44} height={11} fill="#e8483a" />
+        <rect x={torii.l[0] - 30} y={torii.top - 9} width={torii.r[0] - torii.l[0] + 60} height={7} fill="#33263d" />
+        <rect x={torii.l[0] - 8} y={torii.mid} width={torii.r[0] - torii.l[0] + 16} height={7} fill="#d9423a" />
+      </g>
+      {/* orbs: suns by day, moons by night */}
+      {[1.15, 1.6, 2.3].map((z) => { const [x, y] = P(-86, 62, z), s = 12 / z; return <g key={z}><circle cx={x} cy={y} r={s * 1.9} fill="#ffd66b" opacity={0.3} /><circle cx={x} cy={y} r={s} fill="#ffcf4d" /><circle cx={x - s * 0.3} cy={y - s * 0.3} r={s * 0.4} fill="#fffbe0" /></g>; })}
+      {[1.15, 1.6, 2.3].map((z) => { const [x, y] = P(86, 62, z), s = 12 / z; return <g key={z}><circle cx={x} cy={y} r={s * 1.9} fill="#9a97ff" opacity={0.35} /><circle cx={x} cy={y} r={s} fill="#dfe3ff" /><ellipse cx={x} cy={y} rx={s * 1.7} ry={s * 0.5} fill="none" stroke="#c9c6ff" strokeWidth={1.4} /></g>; })}
+      {/* the runner */}
+      <g transform={`translate(${rx} ${ry})`}>
+        <ellipse cx={0} cy={3} rx={27} ry={6} fill="#1b1436" opacity={0.3} />
+        <path d="M-58,-97 C-34,-106 -22,-90 -4,-94 L-3,-86 C-22,-80 -36,-94 -56,-88 Z" fill="#ff4f5e" />
+        <path d="M-46,-82 C-30,-88 -18,-80 -4,-86 L-4,-80 C-18,-74 -30,-80 -44,-76 Z" fill="#d93a52" />
+        <g stroke="#2b3470" strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" fill="none">
+          <path d="M-6,-50 L-12,-28 L-8,-6" />
+          <path d="M7,-50 L11,-32 L24,-24" />
+        </g>
+        <rect x={-14} y={-8} width={12} height={8} rx={3} fill="#ff7a3c" />
+        <rect x={19} y={-28} width={12} height={8} rx={3} fill="#ff7a3c" transform="rotate(-30 25 -24)" />
+        <path d="M-13,-52 L13,-52 L11,-90 L-11,-90 Z" fill={url(k, "shirt")} />
+        <rect x={-13} y={-56} width={26} height={5} fill="#ff7a3c" />
+        <g stroke="#fffaf0" strokeWidth={7} strokeLinecap="round" fill="none"><path d="M-11,-85 L-27,-62" /><path d="M11,-85 L28,-64" /></g>
+        <circle cx={-28} cy={-60} r={4.5} fill="#ffdcc6" />
+        <circle cx={29} cy={-62} r={4.5} fill="#ffdcc6" />
+        <circle cx={0} cy={-102} r={14} fill="#ffdcc6" />
+        <polygon points="-16,-100 -24,-114 -14,-111 -13,-127 -4,-116 2,-131 7,-116 16,-125 14,-111 24,-112 16,-99 12,-90 -12,-90" fill="#2d3a8c" />
+        <polygon points="-9,-108 -4,-116 2,-124 5,-114 -2,-106" fill="#4a59b8" opacity={0.7} />
+      </g>
+      <Motes seed={2102} n={16} x0={250} x1={470} y0={150} y1={280} color="#c9ffb0" size={1.2} opacity={0.7} />
+      <Vignette k={k} strength={0.42} color="#0d0a24" />
+    </>
+  );
+}
+
+// ─── CHIME OF AOREN ──────────────────────────────────────────────────────────
+// Rin and Pip under the cracked Chime at sunset, with the Hushed closing in.
+function chimeOfAoren(k: Ids) {
+  const tree = (x: number, y: number, s: number) => (
+    <g>
+      <path d={`M${x - 4 * s},${y} L${x - 2 * s},${y - 34 * s} L${x + 3 * s},${y - 34 * s} L${x + 5 * s},${y} Z`} fill="#6d4c3d" />
+      <g fill="#ff8fbe">{[[0, -52, 22], [-18, -40, 15], [18, -42, 16]].map(([dx, dy, r], i) => <circle key={i} cx={x + dx * s} cy={y + dy * s} r={r * s} />)}</g>
+      <g fill="#ffd6e6">{[[-4, -58, 13], [12, -50, 9], [-16, -46, 8]].map(([dx, dy, r], i) => <circle key={i} cx={x + dx * s} cy={y + dy * s} r={r * s} />)}</g>
+    </g>
+  );
+  const hushed = (x: number, y: number, s: number, key: string) => (
+    <g key={key} transform={`translate(${x} ${y}) scale(${s})`}>
+      <path d="M0,-34 C16,-34 20,-18 16,-6 C12,6 4,14 0,24 C-4,14 -12,6 -16,-6 C-20,-18 -16,-34 0,-34 Z" fill={url(k, "hush")} />
+      <path d="M-9,-34 L-6,-44 L-2,-34 Z M3,-34 L7,-44 L10,-34 Z" fill="#241a52" />
+      <ellipse cx={0} cy={-16} rx={10} ry={12} fill="#f4f1ff" />
+      <ellipse cx={-4} cy={-17} rx={2.2} ry={3.4} fill="#0d0a22" />
+      <ellipse cx={4} cy={-17} rx={2.2} ry={3.4} fill="#0d0a22" />
+      <circle cx={-21} cy={-8} r={5} fill="#2e2266" />
+      <circle cx={21} cy={-10} r={5} fill="#2e2266" />
+    </g>
+  );
+  return (
+    <>
+      <Sky k={k} stops={[[0, "#262a72"], [0.32, "#74479a"], [0.55, "#ee866a"], [0.68, "#ffc78a"], [1, "#ffe6b8"]]} />
+      <defs>
+        {hgrad(k("bell"), [[0, "#b9772f"], [0.3, "#f6cc74"], [0.55, "#fff0b8"], [0.75, "#f2b84b"], [1, "#a8661f"]])}
+        {vgrad(k("ground"), [[0, "#d9a878"], [1, "#a8744e"]])}
+        {vgrad(k("hush"), [[0, "#4a3a86"], [1, "#120e2e"]])}
+        {hgrad(k("pillar"), [[0, "#f05a48"], [1, "#b02e33"]])}
+      </defs>
+      <Stars seed={2201} n={26} y1={110} />
+      <Glow k={k} name="sun" cx={240} cy={206} r={210} color="#ffe2a8" opacity={0.75} />
+      <Ridge seed={2202} y={236} amp={30} color="#9a5a8c" opacity={0.55} peaks={[[70, 40], [420, 34]]} />
+      <Ridge seed={2203} y={248} amp={16} color="#7a4078" opacity={0.6} />
+      <rect x={0} y={246} width={W} height={H - 246} fill={url(k, "ground")} />
+      <ellipse cx={240} cy={300} rx={250} ry={62} fill="#e9c398" opacity={0.75} />
+      <ellipse cx={240} cy={296} rx={150} ry={34} fill="#f3d6ac" opacity={0.7} />
+      {tree(78, 250, 1.15)}
+      {tree(408, 248, 1.05)}
+      {/* the frame of the Chime */}
+      <polygon points="118,36 362,36 334,16 146,16" fill="#4f74c8" />
+      <rect x={126} y={34} width={228} height={9} fill="#33263d" />
+      <rect x={138} y={43} width={204} height={13} fill="#e8483a" />
+      <rect x={154} y={56} width={17} height={196} fill={url(k, "pillar")} />
+      <rect x={309} y={56} width={17} height={196} fill={url(k, "pillar")} />
+      <rect x={148} y={246} width={29} height={8} fill="#33263d" />
+      <rect x={303} y={246} width={29} height={8} fill="#33263d" />
+      {/* the Chime, cracked */}
+      <rect x={236} y={56} width={8} height={14} fill="#33263d" />
+      <path d="M198,104 C198,58 282,58 282,104 L300,178 C300,188 180,188 180,178 Z" fill={url(k, "bell")} />
+      <ellipse cx={240} cy={180} rx={61} ry={9} fill="#a8661f" />
+      <ellipse cx={240} cy={178} rx={57} ry={6.5} fill="#f6cc74" opacity={0.7} />
+      <circle cx={240} cy={194} r={8} fill="#33263d" />
+      <polyline points="246,74 234,98 250,116 236,140 248,162 240,176" fill="none" stroke="#c9a2ff" strokeOpacity={0.45} strokeWidth={8} strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points="246,74 234,98 250,116 236,140 248,162 240,176" fill="none" stroke="#7a3fe0" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
+      <g fill="none" stroke="#ffffff" strokeLinecap="round">
+        <path d="M168,96 C150,120 150,150 166,174" strokeOpacity={0.4} strokeWidth={2.5} />
+        <path d="M312,96 C330,120 330,150 314,174" strokeOpacity={0.4} strokeWidth={2.5} />
+        <path d="M146,84 C120,118 120,156 144,188" strokeOpacity={0.22} strokeWidth={2} />
+        <path d="M334,84 C360,118 360,156 336,188" strokeOpacity={0.22} strokeWidth={2} />
+      </g>
+      {/* the Hushed */}
+      {hushed(116, 236, 0.95, "h1")}
+      {hushed(160, 262, 1.15, "h2")}
+      {hushed(376, 244, 0.85, "h3")}
+      {/* Rin, seen from behind, with her bell-mallet */}
+      <g transform="translate(278 284)">
+        <ellipse cx={2} cy={2} rx={24} ry={5.5} fill="#33263d" opacity={0.35} />
+        <g stroke="#fff3e0" strokeWidth={6.5} strokeLinecap="round"><line x1={-5} y1={-30} x2={-5} y2={-5} /><line x1={6} y1={-30} x2={6} y2={-5} /></g>
+        <rect x={-10} y={-7} width={10} height={7} rx={2} fill="#7a4a3a" />
+        <rect x={1} y={-7} width={10} height={7} rx={2} fill="#7a4a3a" />
+        <polygon points="-17,-28 18,-28 11,-48 -10,-48" fill="#2a3a6e" />
+        <polygon points="-10,-48 11,-48 10,-70 -9,-70" fill="#fff3e0" />
+        <rect x={-10} y={-51} width={21} height={4} fill="#22a99a" />
+        <g stroke="#fff3e0" strokeWidth={6} strokeLinecap="round"><line x1={-9} y1={-66} x2={-15} y2={-47} /><line x1={10} y1={-66} x2={21} y2={-54} /></g>
+        <line x1={22} y1={-98} x2={22} y2={-2} stroke="#8d6648" strokeWidth={3.2} strokeLinecap="round" />
+        <polygon points="15,-98 29,-98 26,-111 18,-111" fill="#f2b84b" />
+        <rect x={13} y={-99} width={18} height={3} fill="#b9772f" />
+        <circle cx={0} cy={-82} r={12.5} fill="#ffdcc6" />
+        <path d="M-14,-80 C-15,-98 15,-98 14,-80 C13,-72 8,-70 0,-70 C-8,-70 -13,-72 -14,-80 Z" fill="#f0647e" />
+        <path d="M6,-88 C20,-86 24,-72 17,-58 C15,-66 12,-72 6,-76 Z" fill="#d94f6c" />
+        <path d="M0,-94 C2,-104 8,-106 12,-102" fill="none" stroke="#f0647e" strokeWidth={3} strokeLinecap="round" />
+      </g>
+      {/* Pip */}
+      <Glow k={k} name="pip" cx={320} cy={186} r={26} color="#fff2b8" opacity={0.8} />
+      <path d="M313,190 C313,178 327,178 327,190 L330,196 L310,196 Z" fill="#ffc24a" />
+      <path d="M310,188 C304,184 302,188 306,192 Z M330,188 C336,184 338,188 334,192 Z" fill="#ffffff" />
+      <circle cx={317} cy={189} r={1.5} fill="#3a2a20" />
+      <circle cx={323} cy={189} r={1.5} fill="#3a2a20" />
+      <Motes seed={2204} n={34} y0={20} y1={280} color="#ffd1e3" size={1.5} opacity={0.8} />
+      <Vignette k={k} strength={0.5} color="#2a1030" />
+    </>
+  );
+}
+
 export const WORLD_SCENES: Record<string, Painter> = {
   study: studySquad,
   city: havenCity,
@@ -991,4 +1197,6 @@ export const WORLD_SCENES: Record<string, Painter> = {
   laser: prismPaintball,
   space: skyboundSprint,
   racetrack: auroraRacers,
+  twinlight: twinlightRun,
+  aoren: chimeOfAoren,
 };
