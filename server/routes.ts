@@ -36,6 +36,7 @@ import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBo
 import { createAdminAlerts, type Alert } from "./adminAlerts";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
+import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { raw } from "express";
@@ -911,6 +912,17 @@ function clubDeniedEmail(studentName: string): string {
   `;
 }
 
+// Notes who used the app each day (first and last visit), for the admin Stats tab.
+// One save every half minute at most; see server/adminStats.ts.
+const presence = createPresenceTracker({
+  readSetting: async (key) => {
+    const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data?.value || "";
+  },
+  upsertSetting: (key, value) => storage.upsertSetting(key, value),
+});
+
 // Simple auth middleware
 async function authMiddleware(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace("Bearer ", "");
@@ -937,6 +949,7 @@ async function authMiddleware(req: any, res: any, next: any) {
       }
     : session.user;
   req.sessionToken = token;
+  if (!previewMode) presence.touch(session.user);
   next();
 }
 
@@ -1905,8 +1918,9 @@ export async function registerRoutes(
         loginCount = counts[String(user.id)];
         await storage.upsertSetting('login_counts', JSON.stringify(counts));
         clearCache('setting_login_counts');
-        void recordLogin(user.id, req.get("user-agent"));
       }
+      // every sign-in (students, teachers and parents) is logged for the admin's Stats tab and student activity
+      if (!user.isAdmin) void recordLogin(user.id, req.get("user-agent"));
 
       res.json({
         token: session.token,
@@ -3616,6 +3630,7 @@ export async function registerRoutes(
 
   // Admin routes
   registerStudentActivityRoutes(app, authMiddleware, adminMiddleware);
+  registerAdminStatsRoutes(app, authMiddleware, adminMiddleware, { db: () => getAdminSupabase(), presence });
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);
     const points = req.body?.points;
