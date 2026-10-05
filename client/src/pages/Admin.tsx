@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
+import MonthCountdown from "@/components/MonthCountdown";
+import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -300,6 +302,10 @@ export default function Admin() {
   const [adminLeaderboard, setAdminLeaderboard] = useState<any[]>([]);
   const [adminLbLoading, setAdminLbLoading] = useState(false);
   const [adminLbBand, setAdminLbBand] = useState("");
+  // this month's race by default; all-time is one click away
+  const [adminLbPeriod, setAdminLbPeriodState] = useState<"month" | "all">("month");
+  const adminLbPeriodRef = useRef<"month" | "all">("month");
+  const adminLbBandRef = useRef("");
   const [adminLbPrintCount, setAdminLbPrintCount] = useState("10");
   const [adminLbPosterTitle, setAdminLbPosterTitle] = useState("READING CHAMPIONS");
   const [adminLbPosterMessage, setAdminLbPosterMessage] = useState("Celebrating the readers who rose to the top!");
@@ -1437,13 +1443,15 @@ export default function Admin() {
   };
 
   // Fetch admin leaderboard with optional band filter
-  const fetchAdminLeaderboard = async (band?: string) => {
+  const fetchAdminLeaderboard = async (band: string = adminLbBandRef.current, period: "month" | "all" = adminLbPeriodRef.current) => {
     if (!token) return;
+    adminLbBandRef.current = band;
     setAdminLbLoading(true);
     try {
-      const url = band
-        ? `${API_BASE}/api/leaderboard?band=${band}`
-        : `${API_BASE}/api/leaderboard`;
+      const params = new URLSearchParams();
+      if (band) params.set("band", band);
+      if (period === "month") params.set("month", schoolYearMonth());
+      const url = `${API_BASE}/api/leaderboard${params.toString() ? `?${params.toString()}` : ""}`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
       });
@@ -1453,6 +1461,12 @@ export default function Admin() {
       }
     } catch {}
     setAdminLbLoading(false);
+  };
+
+  const setAdminLbPeriod = (period: "month" | "all") => {
+    adminLbPeriodRef.current = period;
+    setAdminLbPeriodState(period);
+    void fetchAdminLeaderboard(adminLbBandRef.current, period);
   };
 
   const printAdminLeaderboard = () => {
@@ -1471,7 +1485,7 @@ export default function Admin() {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
-    const bandLabel = adminLbBand ? adminLbBand + " BAND" : "ALL READING BANDS";
+    const bandLabel = (adminLbPeriod === "month" ? monthLabel(schoolYearMonth()).toUpperCase() + " • " : "ALL-TIME • ") + (adminLbBand ? adminLbBand + " BAND" : "ALL READING BANDS");
     const listLabel = adminLbPrintCount === "all" ? "FULL LEADERBOARD" : "TOP " + leaders.length + " READERS";
     const printedOn = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     const placeWords = ["1ST PLACE", "2ND PLACE", "3RD PLACE"];
@@ -2553,6 +2567,11 @@ Generate exactly 10 questions.`;
         tone="amber"
         title="Leaderboard"
         actions={
+          <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border p-0.5" role="group" aria-label="Leaderboard period">
+            <button type="button" onClick={() => setAdminLbPeriod("month")} aria-pressed={adminLbPeriod === "month"} className={cn("rounded-md px-3 py-1.5 text-xs font-semibold transition-colors", adminLbPeriod === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")} data-testid="button-admin-lb-month">This month</button>
+            <button type="button" onClick={() => setAdminLbPeriod("all")} aria-pressed={adminLbPeriod === "all"} className={cn("rounded-md px-3 py-1.5 text-xs font-semibold transition-colors", adminLbPeriod === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")} data-testid="button-admin-lb-all">All-time</button>
+          </div>
           <select
             value={adminLbBand}
             onChange={(e) => { setAdminLbBand(e.target.value); fetchAdminLeaderboard(e.target.value); }}
@@ -2565,12 +2584,19 @@ Generate exactly 10 questions.`;
             <option value="6-8">6-8 band</option>
             <option value="9-12">9-12 band</option>
           </select>
+          </div>
         }
       >
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          {adminLbPeriod === "month"
+            ? <MonthCountdown compact onNewMonth={() => { void fetchAdminLeaderboard(); }} />
+            : <p className="text-xs text-muted-foreground">All-time points</p>}
+          <button type="button" onClick={() => navigate("/leaderboard")} className="text-xs font-semibold text-primary hover:underline" data-testid="button-admin-lb-open">Open full leaderboard</button>
+        </div>
         {adminLbLoading ? (
           <p className="py-4 text-center text-sm text-muted-foreground">Loading…</p>
         ) : adminLeaderboard.length === 0 ? (
-          <EmptyState icon={Trophy} title="No students in this band yet" />
+          <EmptyState icon={Trophy} title={adminLbPeriod === "month" ? `No points yet in ${monthLabel(schoolYearMonth())}` : "No students in this band yet"} />
         ) : (
           <ol className="space-y-2">
             {adminLeaderboard.slice(0, lbExpanded ? 20 : 5).map((entry: any, idx: number) => (
@@ -4125,6 +4151,10 @@ Generate exactly 10 questions.`;
             </span>
           </button>
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
+            <button type="button" onClick={() => navigate("/leaderboard")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
+              <Trophy className="h-5 w-5 text-amber-400" />
+              <span className="hidden text-sm font-semibold sm:inline">Leaderboard</span>
+            </button>
             <NotificationBell onNavigate={handleNotifNavigate} onCounts={handleBellCounts} />
             <button type="button" onClick={() => { setTab("inbox"); window.scrollTo({ top: 0 }); }} className="relative grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label={unreadMsgCount ? `Inbox, ${unreadMsgCount} unread` : "Inbox"} data-testid="button-admin-inbox">
               <Inbox className="h-5 w-5" />
