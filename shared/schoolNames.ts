@@ -22,6 +22,30 @@ export function foldSchoolText(text: unknown): string {
   return String(text ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/['’.]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+const SMALL_WORDS = new Set(["of", "the", "and", "at", "for", "a", "an", "in", "on"]);
+
+/**
+ * The initials people use for a school: "Conservatory Green Middle School" is
+ * "CGMS", "Thomas Jefferson High School" is "TJHS". A town on the end ("(Denver,
+ * CO)") is left out. Returns lower-case initials, also with the small words left
+ * out and with leading words dropped ("DSST: Conservatory Green Middle School"
+ * is "dcgms" and "cgms"), each at least three letters long. `spell` turns a short
+ * form into its words first ("hs" -> "high school").
+ */
+export function schoolInitials(name: unknown, spell: Record<string, string> = {}): string[] {
+  const bare = String(name ?? "").replace(/\s*\([^()]*\)\s*$/, "");
+  const words = foldSchoolText(bare).split(" ").filter(Boolean).flatMap((w) => (spell[w] ?? w).split(" "));
+  const out = new Set<string>();
+  for (const list of [words, words.filter((w) => !SMALL_WORDS.has(w))]) {
+    if (list.length < 3) continue;
+    const all = list.map((w) => w[0]).join("");
+    for (let i = 0; i + 3 <= all.length; i++) out.add(all.slice(i));
+  }
+  return [...out];
+}
+/** Could this typed word be a school's initials? Three to eight letters (a digit is fine), one word. */
+export const mayBeInitials = (word: string) => /^[a-z0-9]{3,8}$/.test(word) && /[a-z]/.test(word);
+
 /** How a school from the US list is named on the site: the town is part of the name, because "Lincoln Elementary" is in a thousand towns. */
 export const schoolDisplayName = (name: string, city: string, state: string) => (city ? `${name} (${city}, ${state})` : `${name} (${state})`);
 
