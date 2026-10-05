@@ -20,7 +20,7 @@ function cookieToken(): string | null {
 // Admin cards: students who chose "teacher not listed" (kept at their school)
 // or "school not listed" at signup. Separate from independent (homeschool) readers.
 // They already have full student access; this is where the admin connects them.
-export default function UnlistedSignupsCard() {
+export default function UnlistedSignupsCard({ onCount }: { /** Told how many are waiting whenever that changes. */ onCount?: (waiting: number) => void } = {}) {
   const { token } = useAuth();
   const [requests, setRequests] = useState<UnlistedSignup[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
@@ -28,6 +28,7 @@ export default function UnlistedSignupsCard() {
   const [picks, setPicks] = useState<Record<number, { schoolId: string; teacherId: string }>>({});
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   const authHeaders = () => ({ Authorization: `Bearer ${token || cookieToken()}`, "Content-Type": "application/json" });
 
@@ -38,13 +39,14 @@ export default function UnlistedSignupsCard() {
         fetch(`${API_BASE}/api/schools`),
         fetch(`${API_BASE}/api/teacher-admin/teachers`, { headers: authHeaders() }),
       ]);
-      if (r.ok) setRequests(await r.json());
+      if (r.ok) { setRequests(await r.json()); setLoaded(true); }
       if (s.ok) setSchools(await s.json());
       if (t.ok) setTeachers(await t.json());
     } catch {}
   };
 
   useEffect(() => { void load(); }, [token]);
+  useEffect(() => { if (loaded) onCount?.(requests.length); }, [loaded, requests.length]);
 
   const resolve = async (req: UnlistedSignup, pick: { schoolId: string; teacherId: string }, dismiss = false) => {
     if (!dismiss && !pick.schoolId && !pick.teacherId) { setError("Pick a school or teacher first, or tap Dismiss."); return; }

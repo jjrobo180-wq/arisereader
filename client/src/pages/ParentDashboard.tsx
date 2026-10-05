@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Trophy, BookOpen, Award, LogOut, Brain, Users, Gamepad2, Settings2,
-  UserPlus, ChevronDown, Eye, ShieldCheck, Clock3, Sparkles, MessageSquareText, Home, KeyRound, Copy
+  UserPlus, ChevronDown, Eye, ShieldCheck, Clock3, Sparkles, MessageSquareText, Home, KeyRound, Copy, Gift
 } from "lucide-react";
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
@@ -13,8 +13,16 @@ import NoProctorReview from "@/components/NoProctorReview";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import { PrizeManager } from "@/components/prizes/PrizeManager";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
+import { SectionNav, type NavSection } from "@/components/SectionNav";
+import { PARENT_SECTIONS, isParentSection, type ParentSectionId } from "@/lib/dashboardSections";
 
 const SESSION_COOKIE = "arise_session";
+/** Where the open section is remembered while this browser tab stays open. */
+const SECTION_KEY = "arise_parent_section";
+const SECTION_ICONS: Record<ParentSectionId, ReactNode> = {
+  overview: <Home />, controls: <Gamepad2 />, prizes: <Gift />, progress: <BookOpen />,
+};
+const NAV_SECTIONS: Array<NavSection<ParentSectionId>> = PARENT_SECTIONS.map((s) => ({ ...s, icon: SECTION_ICONS[s.id] }));
 function getTokenFromCookie(): string | null {
   try {
     const cookies = document.cookie.split(";");
@@ -98,6 +106,13 @@ export default function ParentDashboard() {
   const [controlsError, setControlsError] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
   const [proctorCopied, setProctorCopied] = useState(false);
+  const [section, setSection] = useState<ParentSectionId>(() => {
+    try { const saved = sessionStorage.getItem(SECTION_KEY); return isParentSection(saved) ? saved : "overview"; } catch { return "overview"; }
+  });
+  const openSection = (id: ParentSectionId) => {
+    setSection(id);
+    try { sessionStorage.setItem(SECTION_KEY, id); } catch {}
+  };
 
   const authToken = token || getTokenFromCookie();
 
@@ -218,6 +233,7 @@ export default function ParentDashboard() {
 
   const handleLogout = () => {
     sessionStorage.removeItem("arise_parent_child_id");
+    sessionStorage.removeItem(SECTION_KEY);
     logout();
     window.location.hash = "/";
   };
@@ -301,28 +317,6 @@ export default function ParentDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {proctorPassword && (
-          <section className="overflow-hidden rounded-[1.75rem] border border-violet-400/25 bg-gradient-to-r from-violet-500/14 via-fuchsia-500/[.08] to-cyan-400/10 p-4 shadow-[0_18px_55px_rgba(0,0,0,.20)] sm:p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl arise-icon-tile">
-                <KeyRound className="h-6 w-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-200">Parent Proctor Code</p>
-                <h2 className="mt-1 text-lg font-black text-white">Use this code when your child starts a quiz or reading test.</h2>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">This is your private family proctor code. It works for every child linked to this Parent account and records the test as parent-administered.</p>
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0f0d1d] px-4 py-3">
-                <span className="font-mono text-2xl font-black tracking-[.22em] text-cyan-200">{proctorPassword}</span>
-                <button type="button" onClick={() => void copyProctorPassword()} className="rounded-xl p-2 text-violet-200 hover:bg-white/[.07]" aria-label="Copy Parent Proctor Code">
-                  <Copy className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            {proctorCopied && <p className="mt-2 text-right text-xs font-black text-cyan-200">Copied</p>}
-          </section>
-        )}
-
         <section className="rounded-[1.75rem] arise-surface border border-white/10 p-4 sm:p-5 shadow-[0_18px_55px_rgba(0,0,0,.20)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="flex-1">
@@ -379,21 +373,77 @@ export default function ParentDashboard() {
 
         {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-300">{error}</div>}
 
-        <PlayTimeManager />
-
-        {switching ? (
-          <section role="status" className="rounded-[2rem] arise-surface border border-white/10 p-10 text-center">
-            <p className="text-lg font-bold">Loading your child's progress and controls…</p>
+        {linkedStudents.length === 0 ? (
+          <>
+        {proctorPassword && (
+          <section className="overflow-hidden rounded-[1.75rem] border border-violet-400/25 bg-gradient-to-r from-violet-500/14 via-fuchsia-500/[.08] to-cyan-400/10 p-4 shadow-[0_18px_55px_rgba(0,0,0,.20)] sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl arise-icon-tile">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-200">Parent Proctor Code</p>
+                <h2 className="mt-1 text-lg font-black text-white">Use this code when your child starts a quiz or reading test.</h2>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">This is your private family proctor code. It works for every child linked to this Parent account and records the test as parent-administered.</p>
+              </div>
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0f0d1d] px-4 py-3">
+                <span className="font-mono text-2xl font-black tracking-[.22em] text-cyan-200">{proctorPassword}</span>
+                <button type="button" onClick={() => void copyProctorPassword()} className="rounded-xl p-2 text-violet-200 hover:bg-white/[.07]" aria-label="Copy Parent Proctor Code">
+                  <Copy className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {proctorCopied && <p className="mt-2 text-right text-xs font-black text-cyan-200">Copied</p>}
           </section>
-        ) : !data ? (
+        )}
+
           <section className="rounded-[2rem] border border-dashed border-violet-400/30 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.05] to-cyan-400/10 p-10 text-center">
             <Users className="mx-auto h-12 w-12 text-violet-300" />
             <h2 className="mt-4 text-2xl font-black">Connect your first child</h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Once connected, you’ll be able to switch between children, see each child’s progress, and manage the controls that match their account type.</p>
             <Button className="mt-5" onClick={() => setShowLink(true)}>Add child</Button>
           </section>
+          </>
         ) : (
           <>
+            <SectionNav label="Parent portal sections" sections={NAV_SECTIONS} current={section} onChange={openSection} />
+
+            {/* The family's proctor code is the same for every child, so it doesn't wait for one to load */}
+            {section === "overview" && (<>
+        {proctorPassword && (
+          <section className="overflow-hidden rounded-[1.75rem] border border-violet-400/25 bg-gradient-to-r from-violet-500/14 via-fuchsia-500/[.08] to-cyan-400/10 p-4 shadow-[0_18px_55px_rgba(0,0,0,.20)] sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl arise-icon-tile">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-200">Parent Proctor Code</p>
+                <h2 className="mt-1 text-lg font-black text-white">Use this code when your child starts a quiz or reading test.</h2>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">This is your private family proctor code. It works for every child linked to this Parent account and records the test as parent-administered.</p>
+              </div>
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0f0d1d] px-4 py-3">
+                <span className="font-mono text-2xl font-black tracking-[.22em] text-cyan-200">{proctorPassword}</span>
+                <button type="button" onClick={() => void copyProctorPassword()} className="rounded-xl p-2 text-violet-200 hover:bg-white/[.07]" aria-label="Copy Parent Proctor Code">
+                  <Copy className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {proctorCopied && <p className="mt-2 text-right text-xs font-black text-cyan-200">Copied</p>}
+          </section>
+        )}
+            </>)}
+
+            {switching ? (
+          <section role="status" className="rounded-[2rem] arise-surface border border-white/10 p-10 text-center">
+            <p className="text-lg font-bold">Loading your child's progress and controls…</p>
+          </section>
+            ) : !data ? (
+              <section className="rounded-[2rem] arise-surface border border-white/10 p-8 text-center">
+                <p className="text-base font-bold">Pick a child above to see their progress and controls.</p>
+              </section>
+            ) : (
+              <>
+                {section === "overview" && (<>
             <section className="overflow-hidden rounded-[2rem] arise-surface border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,.24)]">
               <div className={`p-5 sm:p-6 ${data.student.isEyeGazeUser ? "bg-gradient-to-r from-cyan-500/15 via-violet-500/10 to-[#151326]" : "bg-gradient-to-r from-violet-500/18 via-fuchsia-500/10 to-cyan-400/[.08]"}`}>
                 <div className="flex flex-wrap items-center gap-4">
@@ -419,6 +469,16 @@ export default function ParentDashboard() {
               </div>
             </section>
 
+            <Card className="shadow-md border-primary/30">
+              <CardContent className="p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0"><Users className="w-6 h-6 text-amber-500" /></div>
+                <div className="flex-1"><h3 className="font-semibold text-sm">A.R.I.S.E Reading Club</h3><p className="text-xs text-muted-foreground">Sign up the child you are currently viewing.</p></div>
+                <Button size="sm" onClick={() => window.location.hash = "#/reading-club"}>Sign Up</Button>
+              </CardContent>
+            </Card>
+                </>)}
+
+                {section === "controls" && (<>
             <Card className="overflow-hidden border-violet-400/20 shadow-md">
               <CardHeader className="bg-violet-500/[.07]">
                 <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-violet-300" /> Parent Controls · {data.student.displayName}</CardTitle>
@@ -544,7 +604,9 @@ export default function ParentDashboard() {
                 {controlMessage && <p className="mt-4 rounded-xl bg-muted/30 p-3 text-sm font-bold">{controlMessage}</p>}
               </CardContent>
             </Card>
+                </>)}
 
+                {section === "prizes" && (<>
             {/* Prizes: the parent's own, then what the child's teacher and school have put up. */}
             <Card className="shadow-md">
               <CardContent className="p-5 flex flex-col gap-6">
@@ -558,15 +620,9 @@ export default function ParentDashboard() {
                 />
               </CardContent>
             </Card>
+                </>)}
 
-            <Card className="shadow-md border-primary/30">
-              <CardContent className="p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0"><Users className="w-6 h-6 text-amber-500" /></div>
-                <div className="flex-1"><h3 className="font-semibold text-sm">A.R.I.S.E Reading Club</h3><p className="text-xs text-muted-foreground">Sign up the child you are currently viewing.</p></div>
-                <Button size="sm" onClick={() => window.location.hash = "#/reading-club"}>Sign Up</Button>
-              </CardContent>
-            </Card>
-
+                {section === "progress" && (<>
             <Card className="shadow-md">
               <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5" /> Quiz History</CardTitle></CardHeader>
               <CardContent>
@@ -625,6 +681,12 @@ export default function ParentDashboard() {
                 </CardContent>
               </Card>
             )}
+                </>)}
+              </>
+            )}
+
+            {/* Play time is set for the whole family, so it stays on screen while a child loads */}
+            {section === "controls" && <PlayTimeManager />}
           </>
         )}
       </main>

@@ -1,0 +1,109 @@
+/* The section list on the admin, teacher and parent pages. Plain CSS so it
+   looks the same on all three, which are styled in different ways. */
+
+.sn {
+  --sn-line: rgba(255, 255, 255, 0.13);
+  --sn-soft: #b4b8d4;
+  --sn-accent: #67e8f9;
+  --sn-top: 84px;
+  min-width: 0;
+  color: #fff;
+}
+.sn *, .sn *::before, .sn *::after { box-sizing: border-box; }
+
+/* One row that slides sideways when it doesn't fit. */
+.sn-list {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px 28px 3px 3px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+.sn-list::-webkit-scrollbar { display: none; }
+.sn-group { display: none; margin: 0; }
+
+.sn-item {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--sn-line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sn-soft);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-align: left;
+  cursor: pointer;
+}
+.sn-item:hover { border-color: rgba(196, 181, 253, 0.5); color: #fff; }
+.sn-item:focus-visible { outline: 2px solid var(--sn-accent); outline-offset: 2px; }
+.sn-item[aria-current="page"] {
+  border-color: rgba(196, 181, 253, 0.6);
+  background: linear-gradient(100deg, rgba(124, 58, 237, 0.5), rgba(192, 38, 211, 0.3) 60%, rgba(6, 182, 212, 0.26));
+  color: #fff;
+}
+.sn-icon { display: inline-flex; flex-shrink: 0; }
+.sn-icon svg { width: 18px; height: 18px; }
+.sn-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #fbbf24;
+  color: #201500;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+.sn-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Four sections or fewer: on a phone they share the row, picture above name. */
+@media (max-width: 719px) {
+  .sn-few .sn-list { display: grid; grid-template-columns: repeat(var(--sn-n, 4), minmax(0, 1fr)); gap: 6px; overflow: visible; padding: 3px; -webkit-mask-image: none; mask-image: none; }
+  .sn-few .sn-item { flex-direction: column; justify-content: center; gap: 4px; min-height: 58px; padding: 8px 4px; font-size: 13px; text-align: center; white-space: normal; }
+}
+
+/* A row above the page: on a wide screen it wraps, so nothing is hidden. */
+@media (min-width: 720px) {
+  .sn-top .sn-list { flex-wrap: wrap; overflow: visible; padding: 3px; -webkit-mask-image: none; mask-image: none; }
+}
+
+/* A list down the left side. */
+@media (min-width: 1024px) {
+  .sn-side { position: sticky; top: var(--sn-top); align-self: start; max-height: calc(100vh - var(--sn-top) - 16px); overflow-y: auto; scrollbar-width: thin; }
+  .sn-side .sn-list { flex-direction: column; gap: 2px; overflow: visible; padding: 3px; -webkit-mask-image: none; mask-image: none; }
+  .sn-side .sn-group { display: block; padding: 16px 12px 6px; font-size: 13px; font-weight: 800; color: #8b90b0; }
+  .sn-side .sn-item { width: 100%; border-color: transparent; background: none; white-space: normal; }
+  .sn-side .sn-item:hover { background: rgba(255, 255, 255, 0.06); }
+  .sn-side .sn-item[aria-current="page"] {
+    border-color: rgba(196, 181, 253, 0.35);
+    background: linear-gradient(100deg, rgba(124, 58, 237, 0.42), rgba(192, 38, 211, 0.2) 70%, rgba(6, 182, 212, 0.14));
+  }
+  .sn-side .sn-count { margin-left: auto; }
+}
+
+/* The page keeps its sideways overflow hidden, but in a way that still lets
+   the side list stay put while the page scrolls. */
+.sn-page { overflow-x: hidden; }
+@supports (overflow: clip) { .sn-page { overflow-x: clip; } }
+
+/* A part of a page that can be jumped to stops below the bar across the top, not under it. */
+[data-section] { scroll-margin-top: 88px; }
+
+/* Name of the open section. */
+.sn-title { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.sn-title h2 { margin: 0; font-size: clamp(22px, 2.4vw, 28px); font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; color: #fff; }
+.sn-title p { margin: 6px 0 0; max-width: 62ch; font-size: 15px; line-height: 1.45; color: #b4b8d4; }
+.sn-title-side { display: flex; flex-wrap: wrap; gap: 8px; }

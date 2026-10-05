@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -19,7 +19,9 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
-import SchoolUsListMatch from "@/components/SchoolUsListMatch";
+import AdminSchools from "@/components/AdminSchools";
+import { SectionNav, SectionTitle, scrollToPart, type NavSection } from "@/components/SectionNav";
+import { ADMIN_SECTIONS, adminWaitingRows, isAdminSection, waitingBySection, type AdminSectionId } from "@/lib/dashboardSections";
 import NoProctorReview from "@/components/NoProctorReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import AdminPlans from "@/components/AdminPlans";
@@ -29,7 +31,8 @@ import { printParentInvites } from "@/lib/parentInvites";
 import {
   ArrowLeft, Users, KeyRound, Send, Trophy, BookOpen,
   Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
-  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, ChevronRight, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck, Clock3, Archive
+  MessageSquarePlus, CheckCircle2, Search, ChevronDown, ChevronLeft, ChevronRight, Building, FileQuestion, FileSearch, RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck, Clock3, Archive,
+  Home, GraduationCap, HeartHandshake, Gamepad2, Megaphone, CreditCard
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -198,6 +201,18 @@ export default function Admin() {
   const studentsRef = useRef<HTMLDivElement>(null);
   const quizRequestsRef = useRef<HTMLDivElement>(null);
   const teachersRef = useRef<HTMLDivElement>(null);
+  // Which section of the page is open. Remembered while this browser tab stays
+  // open, so coming back from a student's profile lands where you were.
+  const [adminTab, setAdminTab] = useState<AdminSectionId>(() => {
+    try { const saved = sessionStorage.getItem("admin_dashboard_section"); return isAdminSection(saved) ? saved : "home"; } catch { return "home"; }
+  });
+  const [unlistedCount, setUnlistedCount] = useState(0);
+  /** Open a section. With `part`, also bring that part of it into view. */
+  const openSection = (id: AdminSectionId, part?: string) => {
+    setAdminTab(id);
+    try { sessionStorage.setItem("admin_dashboard_section", id); } catch {}
+    if (part) scrollToPart(part); else window.scrollTo({ top: 0 });
+  };
   const [showAddQuiz, setShowAddQuiz] = useState(false);
   const [adminSortBy, setAdminSortBy] = useState<"points" | "popular" | "recent" | "classics" | "new">("points");
   const [showAdminSortMenu, setShowAdminSortMenu] = useState(false);
@@ -262,10 +277,6 @@ export default function Admin() {
   const [quizSuccess, setQuizSuccess] = useState("");
   // Schools & Classes state
   const [schools, setSchools] = useState<any[]>([]);
-  const [schoolClasses, setSchoolClasses] = useState<Record<number, any[]>>({});
-  const [classStats, setClassStats] = useState<Record<number, any>>({});
-  const [newSchoolName, setNewSchoolName] = useState("");
-  const [newClassName, setNewClassName] = useState<Record<number, string>>({});
   const [quizError, setQuizError] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [pasteMsg, setPasteMsg] = useState("");
@@ -312,7 +323,9 @@ export default function Admin() {
   const [growthCheckSuccess, setGrowthCheckSuccess] = useState("");
   const [growthCheckError, setGrowthCheckError] = useState("");
 
-  // Schools & Classes handlers
+  // The list of schools. Each school's classes are fetched by the Schools
+  // section when that school is opened, so this stays one request however many
+  // schools there are.
   const fetchSchools = async () => {
     if (!token) return;
     try {
@@ -320,115 +333,21 @@ export default function Admin() {
         headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
       });
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setSchools(data);
-        // Fetch classes for each school
-        for (const school of data) {
-          const clsRes = await fetch(`${API_BASE}/api/admin/schools/${school.id}/classes`, {
-            headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
-          });
-          const clsData = await clsRes.json();
-          setSchoolClasses(prev => ({ ...prev, [school.id]: Array.isArray(clsData) ? clsData : [] }));
-        }
-        // Fetch class stats
-        const statsRes = await fetch(`${API_BASE}/api/admin/school-stats`, {
-          headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
-        });
-        const statsData = await statsRes.json();
-        if (Array.isArray(statsData)) {
-          const statsMap: Record<number, any> = {};
-          for (const school of statsData) {
-            for (const cls of (school.classes || [])) {
-              // Fetch class-specific stats
-              const cRes = await fetch(`${API_BASE}/api/admin/schools/${school.id}/class-stats`, {
-                headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
-              });
-              const cData = await cRes.json();
-              if (Array.isArray(cData)) {
-                for (const c of cData) {
-                  statsMap[c.id] = c;
-                }
-              }
-            }
-          }
-          setClassStats(statsMap);
-        }
-      }
+      if (Array.isArray(data)) setSchools(data);
     } catch (err) {
       console.error("Failed to fetch schools:", err);
     }
   };
 
-  const handleCreateSchool = async () => {
-    if (!token || !newSchoolName.trim()) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/schools`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newSchoolName.trim() }),
-      });
-      if (res.ok) {
-        setNewSchoolName("");
-        fetchSchools();
-      }
-    } catch (err) {
-      console.error("Failed to create school:", err);
-    }
-  };
-
-  const handleCreateClass = async (schoolId: number) => {
-    if (!token || !(newClassName[schoolId] || "").trim()) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/schools/${schoolId}/classes`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: (newClassName[schoolId] || "").trim() }),
-      });
-      if (res.ok) {
-        setNewClassName(prev => ({ ...prev, [schoolId]: "" }));
-        fetchSchools();
-      }
-    } catch (err) {
-      console.error("Failed to create class:", err);
-    }
-  };
-
-  const handleDeleteSchool = async (schoolId: number, schoolName: string) => {
-    if (!window.confirm(`Delete school "${schoolName}"? This will also delete all classes in it and unassign students.`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/schools/${schoolId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.message || "Failed to delete school");
-        return;
-      }
-      setSchools(prev => prev.filter(s => s.id !== schoolId));
-      setSchoolClasses(prev => { const n = { ...prev }; delete n[schoolId]; return n; });
-    } catch (err) {
-      alert("Failed to delete school");
-    }
-  };
-
-  const handleDeleteClass = async (classId: number, className: string) => {
-    if (!window.confirm(`Delete class "${className}"? Students in it will be unassigned.`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/classes/${classId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.message || "Failed to delete class");
-        return;
-      }
-      fetchSchools();
-    } catch (err) {
-      alert("Failed to delete class");
-    }
-  };
+  // How many students are waiting to be connected to a school or teacher. The
+  // card that lists them is in the Students section; Home only needs the number.
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE}/api/admin/unlisted-signups`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` }, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => setUnlistedCount(Array.isArray(rows) ? rows.length : 0))
+      .catch(() => {});
+  }, [token]);
 
   const fetchStudents = async () => {
     if (!token) return;
@@ -593,7 +512,7 @@ export default function Admin() {
 
   const handleNotifNavigate = (type: "request" | "user" | "teacher" | "parent" | "message" | "ai_quiz", id: number) => {
     if (type === "request") {
-      quizRequestsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openSection("books", "quiz-requests");
       const req = quizRequests.find(r => r.id === id);
       if (req) {
         setActiveRequestId(req.id);
@@ -608,18 +527,18 @@ export default function Admin() {
         setShowAddQuiz(true);
       }
     } else if (type === "teacher") {
-      teachersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openSection("teachers", "teachers");
     } else if (type === "parent") {
-      document.querySelector('[data-section="pending-parent-approvals"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+      openSection("parents", "pending-parent-approvals");
     } else if (type === "ai_quiz") {
-      document.querySelector('[data-section="ai-quiz-review"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+      openSection("books", "ai-quiz-review");
     } else if (type === "message") {
       fetchStudentMsgs();
       fetchSentMsgs();
       fetchUnreadMsgCount();
       setShowInbox(true);
     } else {
-      studentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openSection("students", "students-table");
     }
     // Action notifications stay visible until the task is actually resolved.
     window.setTimeout(() => setNotifRefreshKey(k => k + 1), 250);
@@ -2266,6 +2185,7 @@ Generate exactly 10 questions.`;
     // Clear module-level caches to prevent stale data
     adminCache.students = [];
     adminCache.books = [];
+    try { sessionStorage.removeItem("admin_dashboard_section"); } catch {}
     logout();
     navigate("/");
   };
@@ -2289,10 +2209,36 @@ Generate exactly 10 questions.`;
   const totalMastered = (students || []).reduce((sum, s) => sum + (s?.quizzesMastered || 0), 0);
   const unreadMsgs = (studentMsgs || []).filter(m => !m.isRead).length;
 
+  // ── The sections of this page, and what is waiting in each ────────────────
+  const waitingRows = adminWaitingRows({
+    teachers: pendingTeachers.length,
+    students: students.filter(s => s.approvedByTeacher === false).length,
+    parents: pendingParents.length,
+    unlisted: unlistedCount,
+    gradeChanges: gradeChangeRequests.length,
+    eyeGazeChanges: eyeGazeRequests.length,
+    aiQuizzes: pendingQuizzes.length,
+    quizReviews: reviewRequests.filter(r => r.status === "pending").length,
+    quizRequests: quizRequests.filter(r => r.status !== "completed").length,
+    clubSignups: clubSignups.filter(s => s.status === "pending").length,
+  });
+  const sectionWaiting = waitingBySection(waitingRows);
+  const waitingTotal = waitingRows.reduce((sum, row) => sum + row.count, 0) + unreadMsgCount;
+  const sectionById = Object.fromEntries(ADMIN_SECTIONS.map((s) => [s.id, s])) as Record<AdminSectionId, (typeof ADMIN_SECTIONS)[number]>;
+  const sectionIcons: Record<AdminSectionId, ReactNode> = {
+    home: <Home />, students: <Users />, teachers: <GraduationCap />, parents: <HeartHandshake />, schools: <Building />,
+    books: <BookOpen />, programs: <Trophy />, games: <Gamepad2 />, site: <Megaphone />, billing: <CreditCard />,
+  };
+  const navSections: Array<NavSection<AdminSectionId>> = ADMIN_SECTIONS.map((s) => ({
+    id: s.id, label: s.label, group: s.group, icon: sectionIcons[s.id],
+    waiting: sectionWaiting[s.id],
+  }));
+  const openInbox = () => { fetchStudentMsgs(); fetchSentMsgs(); fetchUnreadMsgCount(); setActiveConversationUserId(null); setReplyText(""); setReplyLink(""); setReplySuccess(""); setShowInbox(true); };
+
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
-      <header className="sticky top-0 z-50 w-full max-w-full overflow-x-hidden bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-start gap-1.5 sm:gap-3 min-h-16 py-2">
+    <div className="sn-page min-h-screen w-full max-w-full bg-background">
+      <header className="sm:sticky sm:top-0 z-50 w-full max-w-full overflow-x-hidden bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="w-full max-w-7xl min-w-0 mx-auto px-3 sm:px-4 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-start gap-1.5 sm:gap-3 min-h-16 py-2">
           <Button variant="ghost" size="sm" onClick={() => navigate("/progress")} className="flex-shrink-0">
             <Brain className="w-4 h-4" />
             <span className="hidden sm:inline">Progress</span>
@@ -2315,7 +2261,7 @@ Generate exactly 10 questions.`;
             <h1 className="font-bold text-base sm:text-base truncate">Admin Dashboard</h1>
           </div>
           <NotificationBell refreshKey={notifRefreshKey} onNavigate={handleNotifNavigate} />
-          <Button variant="outline" size="sm" onClick={() => { fetchStudentMsgs(); fetchSentMsgs(); fetchUnreadMsgCount(); setActiveConversationUserId(null); setReplyText(""); setReplyLink(""); setReplySuccess(""); setShowInbox(true); }} className="relative">
+          <Button variant="outline" size="sm" onClick={openInbox} className="relative">
             <Inbox className="w-4 h-4" />
             <span className="hidden sm:inline">Inbox</span>
             {unreadMsgCount > 0 && (
@@ -2330,7 +2276,99 @@ Generate exactly 10 questions.`;
         </div>
       </header>
 
-      <main className="w-full max-w-5xl min-w-0 mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 overflow-x-hidden">
+      <div className="w-full max-w-7xl min-w-0 mx-auto px-3 sm:px-4 py-4 sm:py-8 lg:grid lg:grid-cols-[256px_minmax(0,1fr)] lg:gap-8">
+        <div className="min-w-0 mb-4 lg:mb-0">
+          <SectionNav layout="side" label="Admin sections" sections={navSections} current={adminTab} onChange={(id) => openSection(id)} />
+        </div>
+
+      <main className="w-full max-w-5xl min-w-0 space-y-4 sm:space-y-6 overflow-x-hidden">
+        {adminTab !== "home" && (
+          <SectionTitle title={sectionById[adminTab].label} about={sectionById[adminTab].about}>
+            {adminTab === "books" && (
+          <Button onClick={() => setShowAddQuiz(true)} className="bg-primary">
+            <PlusCircle className="w-4 h-4 mr-1" />
+            Add Quiz
+          </Button>
+            )}
+          </SectionTitle>
+        )}
+
+        {adminTab === "home" && (<>
+        {/* Welcome banner */}
+        <div className="rounded-2xl bg-primary text-white p-4 sm:p-8 shadow-lg">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold">Welcome back</h2>
+              <p className="mt-1 text-white/90">Here's A.R.I.S.E. Reader today.</p>
+            </div>
+            <Button onClick={() => setShowAddQuiz(true)} className="bg-white text-primary hover:bg-white/90 font-bold">
+              <PlusCircle className="w-4 h-4 mr-1" />
+              Add Quiz
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:flex sm:gap-6 mt-4 sm:flex-wrap">
+            <div>
+              <div className="text-3xl font-bold">{students.length}</div>
+              <div className="text-sm text-white/80">Students</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">{totalQuizzes}</div>
+              <div className="text-sm text-white/80">Quizzes Completed</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">{totalMastered}</div>
+              <div className="text-sm text-white/80">Quizzes Mastered</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">{books.filter(b => b.readUrl).length}</div>
+              <div className="text-sm text-white/80">Books to Read</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">{quizCount}</div>
+              <div className="text-sm text-white/80">Quizzes Available</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Everything that needs an answer from the admin, in one list */}
+        <Card className="shadow-md" data-section="waiting">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Waiting for you
+              {waitingTotal > 0 && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-amber-950">{waitingTotal}</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {waitingTotal === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing is waiting on you right now.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {waitingRows.map((row) => (
+                  <li key={row.key}>
+                    <button type="button" onClick={() => openSection(row.section, row.part)} className="flex w-full items-center gap-3 rounded-lg px-1 py-2 min-h-12 text-left hover:bg-white/[.05]" data-testid={`waiting-${row.key}`}>
+                      <span className="grid h-8 min-w-8 flex-shrink-0 place-items-center rounded-full bg-amber-400/15 px-2 text-sm font-bold text-amber-300">{row.count}</span>
+                      <span className="flex-1 min-w-0 text-sm font-medium">{row.label}</span>
+                      <span className="hidden sm:inline text-xs font-semibold text-muted-foreground whitespace-nowrap">{sectionById[row.section].label}</span>
+                      <ChevronRight className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                    </button>
+                  </li>
+                ))}
+                {unreadMsgCount > 0 && (
+                  <li>
+                    <button type="button" onClick={openInbox} className="flex w-full items-center gap-3 rounded-lg px-1 py-2 min-h-12 text-left hover:bg-white/[.05]" data-testid="waiting-messages">
+                      <span className="grid h-8 min-w-8 flex-shrink-0 place-items-center rounded-full bg-amber-400/15 px-2 text-sm font-bold text-amber-300">{unreadMsgCount}</span>
+                      <span className="flex-1 min-w-0 text-sm font-medium">{unreadMsgCount === 1 ? "message you haven't read" : "messages you haven't read"}</span>
+                      <span className="hidden sm:inline text-xs font-semibold text-muted-foreground whitespace-nowrap">Inbox</span>
+                      <ChevronRight className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                    </button>
+                  </li>
+                )}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="border-primary/20 bg-card shadow-sm">
           <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -2361,684 +2399,67 @@ Generate exactly 10 questions.`;
           </CardContent>
         </Card>
 
-        <PlayTimeManager />
-
-        <Card className="border-violet-400/25 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.05] to-cyan-400/[.07] shadow-md">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start gap-3">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl arise-icon-tile">
-                  <Clock3 className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black uppercase tracking-[.16em] text-violet-200">Admin Only · Club A.R.I.S.E.</p>
-                  <h2 className="mt-1 text-lg font-black">Game Closing Hours</h2>
-                  <p className="mt-1 text-sm text-slate-400">Set the hours when all Club games and worlds are unavailable to student accounts. Times use Mountain Time.</p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-black ${clubClosingHours.enabled ? (clubClosingHours.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>
-                  {!clubClosingHours.enabled ? "OFF" : clubClosingHours.closedNow ? "CLOSED NOW" : "OPEN NOW"}
+        {/* A map of the page: every section and what is in it */}
+        <div>
+          <h2 className="text-lg font-bold">Where things are</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {ADMIN_SECTIONS.filter((s) => s.id !== "home").map((s) => (
+              <button key={s.id} type="button" onClick={() => openSection(s.id)} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left hover:border-primary/60" data-testid={`home-section-${s.id}`}>
+                <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-primary/15 text-primary [&_svg]:h-5 [&_svg]:w-5">{sectionIcons[s.id]}</span>
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2 font-bold">
+                    {s.label}
+                    {!!sectionWaiting[s.id] && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-amber-950">{sectionWaiting[s.id]}</span>}
+                  </span>
+                  <span className="mt-1 block text-sm text-muted-foreground">{s.holds}</span>
                 </span>
-              </div>
-
-              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.035] p-3">
-                <input
-                  type="checkbox"
-                  checked={clubClosingHours.enabled}
-                  onChange={(e) => setClubClosingHours(s => ({ ...s, enabled: e.target.checked }))}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm font-bold">Enable automatic closing hours</span>
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-1.5">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Close games at</span>
-                  <input type="time" value={clubClosingHours.start} onChange={(e) => setClubClosingHours(s => ({...s,start:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
-                </label>
-                <label className="space-y-1.5">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Reopen games at</span>
-                  <input type="time" value={clubClosingHours.end} onChange={(e) => setClubClosingHours(s => ({...s,end:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
-                </label>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">Closing days</p>
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                  {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((label, day) => {
-                    const selected = clubClosingHours.days.includes(day);
-                    return <button key={label} type="button" onClick={() => setClubClosingHours(s => ({...s,days:selected?s.days.filter(d=>d!==day):[...s.days,day].sort((a,b)=>a-b)}))} className={`rounded-xl border px-2 py-2 text-xs font-black transition ${selected?"border-violet-400/35 bg-violet-500/15 text-violet-100":"border-white/10 bg-white/[.03] text-slate-500"}`}>{label}</button>;
-                  })}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-slate-400">An overnight schedule such as 9:00 PM → 7:00 AM closes the Club across midnight automatically.</p>
-                <Button onClick={handleSaveClubClosingHours} disabled={clubClosingSaving} className="arise-gradient-button rounded-xl font-black">
-                  {clubClosingSaving ? "Saving…" : "Save Closing Hours"}
-                </Button>
-              </div>
-              {clubClosingMsg && <p className="text-xs font-bold text-cyan-200">{clubClosingMsg}</p>}
-
-              <details className="rounded-2xl border border-white/10 bg-black/10 p-3">
-                <summary className="cursor-pointer text-sm font-black text-violet-100">Teacher class hours · admin override</summary>
-                <p className="mt-2 text-xs text-slate-400">Teachers can set hours for their own students. You can review or replace any teacher's class schedule here. The global admin closing window above still takes priority over every class.</p>
-                <div className="mt-3 space-y-3">
-                  {teacherClubClosingHours.length ? teacherClubClosingHours.map((teacher:any) => {
-                    const schedule = teacher.schedule || { enabled:false,start:"21:00",end:"07:00",days:[0,1,2,3,4,5,6] };
-                    return <div key={teacher.id} className="rounded-xl border border-white/10 bg-[#0f0d1d] p-3">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <div><p className="font-black text-white">{teacher.displayName}</p><p className="text-xs text-slate-500">@{teacher.username}</p></div>
-                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${schedule.enabled ? (schedule.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>{!schedule.enabled ? "OFF" : schedule.closedNow ? "CLOSED NOW" : "OPEN NOW"}</span>
-                      </div>
-                      <label className="mb-3 flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={!!schedule.enabled} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,enabled:e.target.checked}}:item))}/> Use class hours</label>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <label className="text-xs font-bold text-slate-400">Close at<input type="time" value={schedule.start} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,start:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
-                        <label className="text-xs font-bold text-slate-400">Reopen at<input type="time" value={schedule.end} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,end:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-1.5">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((label,day)=>{
-                        const selected=(schedule.days||[]).includes(day);
-                        return <button type="button" key={label} onClick={()=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,days:selected?schedule.days.filter((d:number)=>d!==day):[...schedule.days,day].sort((a:number,b:number)=>a-b)}}:item))} className={`rounded-lg border px-2 py-1.5 text-[10px] font-black ${selected?"border-violet-400/40 bg-violet-500/15 text-violet-100":"border-white/10 text-slate-500"}`}>{label}</button>;
-                      })}</div>
-                      <Button size="sm" onClick={()=>void saveTeacherClubClosingHours(teacher.id)} disabled={teacherClubClosingSavingId===teacher.id} className="mt-3 rounded-xl font-black">{teacherClubClosingSavingId===teacher.id?"Saving…":"Override class hours"}</Button>
-                    </div>;
-                  }) : <p className="text-xs text-slate-500">No teacher accounts found.</p>}
-                </div>
-                {teacherClubClosingMsg && <p className="mt-2 text-xs font-bold text-cyan-200">{teacherClubClosingMsg}</p>}
-              </details>
-            </div>
-          </CardContent>
-        </Card>
-
-        <TheaterAdmin token={token || getTokenFromCookie()} />
-
-        {/* Pending AI quiz alert banner */}
-        {pendingQuizzes.length > 0 && (
-          <div className="rounded-2xl bg-orange-500/10 border-2 border-orange-500/40 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5 text-orange-400" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-orange-400">
-                {pendingQuizzes.length} AI Quiz {pendingQuizzes.length === 1 ? 'Request' : 'Requests'} Pending Review
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Students are waiting for their quizzes to be approved. Review them now.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="default"
-              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
-              onClick={() => {
-                const el = document.querySelector('[data-section="ai-quiz-review"]');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }}
-            >
-              Review Now
-            </Button>
-          </div>
-        )}
-        {/* Welcome banner */}
-        <div className="rounded-2xl bg-primary text-white p-4 sm:p-8 shadow-lg">
-          <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
-          <p className="mt-1 text-white/90">Welcome back! Here's your platform overview.</p>
-          <div className="grid grid-cols-2 gap-4 sm:flex sm:gap-6 mt-4 sm:flex-wrap">
-            <div>
-              <div className="text-3xl font-bold">{students.length}</div>
-              <div className="text-sm text-white/80">Students</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">{totalQuizzes}</div>
-              <div className="text-sm text-white/80">Quizzes Completed</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">{totalMastered}</div>
-              <div className="text-sm text-white/80">Quizzes Mastered</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">{books.filter(b => b.readUrl).length}</div>
-              <div className="text-sm text-white/80">Books to Read</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">{quizCount}</div>
-              <div className="text-sm text-white/80">Quizzes Available</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4">
-          <Card className="shadow-md">
-            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <Users className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">{students.length}</div>
-                <div className="text-xs text-muted-foreground">Students</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-md">
-            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-5 h-5 text-green-400" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">{totalQuizzes}</div>
-                <div className="text-xs text-muted-foreground">Quizzes Completed</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-md">
-            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <Trophy className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">{totalMastered}</div>
-                <div className="text-xs text-muted-foreground">Quizzes Mastered</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-md">
-            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">{books.filter(b => b.readUrl).length}</div>
-                <div className="text-xs text-muted-foreground">Books to Read</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-md">
-            <CardContent className="p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                <FileQuestion className="w-5 h-5 text-orange-400" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">{quizCount}</div>
-                <div className="text-xs text-muted-foreground">Quizzes Available</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setShowAddQuiz(true)} className="bg-primary">
-            <PlusCircle className="w-4 h-4 mr-1" />
-            Add Quiz
-          </Button>
-
-          {/* Announcement banner */}
-          <div className="space-y-2 pt-4 border-t border-border mt-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-              <Label className="text-sm font-medium">Announcement Banner</Label>
-            </div>
-            <p className="text-xs text-muted-foreground">This message appears at the top of every student's Library page.</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                placeholder="Enter an announcement (leave empty to clear)..."
-                value={announcementText}
-                onChange={(e) => setAnnouncementText(e.target.value)}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <Button size="sm" variant="outline" onClick={handleUpdateAnnouncement}>
-                Update
-              </Button>
-            </div>
-            {announcementMsg && <span className="text-xs text-green-400">{announcementMsg}</span>}
-          </div>
-
-          {/* Student Banner */}
-          <div className="space-y-2 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Student Banner (visible to students)</Label>
-            <textarea
-              placeholder="Banner text for students..."
-              value={studentBanner.text}
-              onChange={(e) => setStudentBanner({ ...studentBanner, text: e.target.value })}
-              className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="text-xs text-muted-foreground">Bg:</label>
-                <input type="color" value={studentBanner.bgColor} onChange={(e) => setStudentBanner({ ...studentBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="text-xs text-muted-foreground">Text:</label>
-                <input type="color" value={studentBanner.textColor} onChange={(e) => setStudentBanner({ ...studentBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
-              </div>
-              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
-                <input type="checkbox" checked={studentBanner.active} onChange={(e) => setStudentBanner({ ...studentBanner, active: e.target.checked })} />
-                Active
-              </label>
-              <Button size="sm" variant="outline" onClick={handleUpdateStudentBanner}>Update</Button>
-            </div>
-          </div>
-
-          {/* Teacher Banner */}
-          <div className="space-y-2 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Teacher Banner (visible to teachers only)</Label>
-            <textarea
-              placeholder="Banner text for teachers..."
-              value={teacherBanner.text}
-              onChange={(e) => setTeacherBanner({ ...teacherBanner, text: e.target.value })}
-              className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="text-xs text-muted-foreground">Bg:</label>
-                <input type="color" value={teacherBanner.bgColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="text-xs text-muted-foreground">Text:</label>
-                <input type="color" value={teacherBanner.textColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
-              </div>
-              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
-                <input type="checkbox" checked={teacherBanner.active} onChange={(e) => setTeacherBanner({ ...teacherBanner, active: e.target.checked })} />
-                Active
-              </label>
-              <Button size="sm" variant="outline" onClick={handleUpdateTeacherBanner}>Update</Button>
-            </div>
-            {/* Sync buttons */}
-            <div className="flex items-center gap-2 pt-2">
-              <Button size="sm" variant="ghost" onClick={() => handleSyncBanners("student-to-teacher")}>
-                Copy Student → Teacher
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => handleSyncBanners("teacher-to-student")}>
-                Copy Teacher → Student
-              </Button>
-            </div>
-            {bannerMsg && <span className="text-xs text-green-400">{bannerMsg}</span>}
-          </div>
-
-          {/* Login Banner */}
-          <div className="space-y-2 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Login Page Banner (visible on the login page to everyone)</Label>
-            <Input
-              value={loginBanner.text}
-              onChange={(e) => setLoginBanner({ ...loginBanner, text: e.target.value })}
-              placeholder="e.g. Site maintenance tonight at 9 PM. Expect brief downtime."
-              className="bg-muted/30 border-border text-foreground"
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">BG</span>
-                <input type="color" value={loginBanner.bgColor} onChange={(e) => setLoginBanner({ ...loginBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">Text</span>
-                <input type="color" value={loginBanner.textColor} onChange={(e) => setLoginBanner({ ...loginBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
-              </div>
-              <div className="flex items-center gap-1">
-                <input type="checkbox" checked={loginBanner.active} onChange={(e) => setLoginBanner({ ...loginBanner, active: e.target.checked })} />
-                <span className="text-xs text-muted-foreground">Active</span>
-              </div>
-              <Button size="sm" variant="outline" onClick={handleUpdateLoginBanner}>Update</Button>
-            </div>
-          </div>
-
-          {/* AI Quiz Settings */}
-          <div className="space-y-3 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Instant AI Quiz — Perplexity API Key</Label>
-            <p className="text-xs text-muted-foreground">Students can generate 10-question quizzes for any book. Get a key from docs.perplexity.ai → API Keys.</p>
-            {aiKeyConfigured ? (
-              <div className="flex items-center gap-2 text-sm text-green-400">
-                <span className="w-2 h-2 rounded-full bg-green-400" />
-                Configured ({aiKeyPreview})
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-yellow-400">
-                <span className="w-2 h-2 rounded-full bg-yellow-400" />
-                Not configured — students will see an error message
-              </div>
-            )}
-            {aiKeyMsg && <p className="text-sm text-green-400">{aiKeyMsg}</p>}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                type="password"
-                value={aiApiKey}
-                onChange={(e) => setAiApiKey(e.target.value)}
-                placeholder="Paste your Perplexity API key (pplx-...)"
-                className="bg-muted/30 border-border text-foreground"
-              />
-              <Button size="sm" variant="outline" onClick={handleSaveAiKey} disabled={!aiApiKey.trim()}>
-                Save Key
-              </Button>
-            </div>
-          </div>
-
-          {/* Quiz Generation Guidelines */}
-          <div className="space-y-3 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">AI Quiz Guidelines</Label>
-            <p className="text-xs text-muted-foreground">Control how the AI generates quizzes. Leave empty for defaults. These instructions are added to every AI-generated quiz.</p>
-            {guidelinesMsg && <p className="text-sm text-green-400">{guidelinesMsg}</p>}
-            <textarea
-              value={quizGuidelines}
-              onChange={(e) => setQuizGuidelines(e.target.value)}
-              placeholder={"Examples:\n- Focus on character motivation and plot twists\n- Include 2 vocabulary questions\n- Make questions challenging but fair\n- Avoid questions about minor details"}
-              rows={5}
-              className="w-full rounded-md bg-muted/30 border border-border text-foreground text-sm p-2 resize-y"
-            />
-            <Button size="sm" variant="outline" onClick={handleSaveGuidelines}>
-              Save Guidelines
-            </Button>
-          </div>
-
-          {/* Eye Gaze Quiz Guidelines */}
-          <div className="space-y-3 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Eye Gaze Quiz Standards</Label>
-            <p className="text-xs text-muted-foreground">Control how the AI generates eye gaze quizzes for non-verbal and eye gaze students. Leave empty for defaults. These instructions are added to every eye gaze quiz.</p>
-            {eyeGazeGuidelinesMsg && <p className="text-sm text-green-400">{eyeGazeGuidelinesMsg}</p>}
-            <textarea
-              value={eyeGazeGuidelines}
-              onChange={(e) => setEyeGazeGuidelines(e.target.value)}
-              placeholder={"Examples:\n- Use only single-word answers (nouns)\n- Make distractors very different from the correct answer\n- Focus on identification and matching\n- Use simple, concrete concepts\n- Avoid abstract reasoning for Level 1-2"}
-              rows={5}
-              className="w-full rounded-md bg-muted/30 border border-border text-foreground text-sm p-2 resize-y"
-            />
-            <Button size="sm" variant="outline" onClick={handleSaveEyeGazeGuidelines}>
-              Save Eye Gaze Guidelines
-            </Button>
-          </div>
-
-          {/* Donation Goal Settings */}
-          <div className="space-y-3 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Donation Goal (shows on student library page)</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <span className="text-xs text-muted-foreground">Goal Amount ($)</span>
-                <Input
-                  type="number"
-                  value={donationSettings.goalAmount}
-                  onChange={(e) => setDonationSettings({ ...donationSettings, goalAmount: Number(e.target.value) })}
-                  className="bg-muted/30 border-border text-foreground"
-                />
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Current Amount ($)</span>
-                <Input
-                  type="number"
-                  value={donationSettings.currentAmount}
-                  onChange={(e) => setDonationSettings({ ...donationSettings, currentAmount: Number(e.target.value) })}
-                  className="bg-muted/30 border-border text-foreground"
-                />
-              </div>
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Title</span>
-              <Input
-                value={donationSettings.title}
-                onChange={(e) => setDonationSettings({ ...donationSettings, title: e.target.value })}
-                placeholder="Support Our Readers"
-                className="bg-muted/30 border-border text-foreground"
-              />
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Description</span>
-              <Input
-                value={donationSettings.description}
-                onChange={(e) => setDonationSettings({ ...donationSettings, description: e.target.value })}
-                placeholder="Help us keep A.R.I.S.E Reader free for students"
-                className="bg-muted/30 border-border text-foreground"
-              />
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Donation Link (URL)</span>
-              <Input
-                value={donationSettings.donateUrl}
-                onChange={(e) => setDonationSettings({ ...donationSettings, donateUrl: e.target.value })}
-                placeholder="https://donate.stripe.com/..."
-                className="bg-muted/30 border-border text-foreground"
-              />
-            </div>
-            <div>
-              <span className="text-xs text-muted-foreground">Milestones (one per line, format: amount|label)</span>
-              <textarea
-                value={donationSettings.milestonesText}
-                onChange={(e) => setDonationSettings({ ...donationSettings, milestonesText: e.target.value })}
-                placeholder={"250|First Goal\n500|Halfway\n1000|Fully Funded"}
-                rows={3}
-                className="w-full px-3 py-2 rounded-lg bg-muted/30 border border-border text-foreground text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={donationSettings.active}
-                  onChange={(e) => setDonationSettings({ ...donationSettings, active: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm text-muted-foreground">Active (show on library page)</span>
-              </label>
-              <Button size="sm" variant="outline" onClick={handleUpdateDonation}>Save Donation Settings</Button>
-            </div>
-            {donationMsg && <span className="text-xs text-green-400">{donationMsg}</span>}
-          </div>
-
-          {/* Proctor Password */}
-          <div className="space-y-2 pt-4 border-t border-border mt-4">
-            <Label className="text-sm font-medium">Proctor Password (All Proctored Tests)</Label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={proctorPassword}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-muted/30 border border-border text-foreground text-sm font-mono"
-              />
-              <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(proctorPassword)}>Copy</Button>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                placeholder="New proctor password..."
-                value={newProctorPassword}
-                onChange={(e) => setNewProctorPassword(e.target.value)}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <Button size="sm" variant="outline" onClick={handleUpdateProctorPassword}>Update</Button>
-            </div>
-            <p className="text-xs text-muted-foreground">Updating the proctor password sends a notification to all teachers with a direct link to view it.</p>
-            {proctorMsg && <span className="text-xs text-green-400">{proctorMsg}</span>}
-          </div>
-
-          {/* Easter Eggs */}
-          <div className="space-y-3 pt-4 border-t border-border mt-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base">🥚</span>
-              <Label className="text-sm font-bold">FYP Easter Eggs</Label>
-              <span className={`ml-auto px-2 py-0.5 rounded text-xs font-bold ${easterEggs.active ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"}`}>
-                {easterEggs.active ? "ACTIVE" : "INACTIVE"}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="p-2 rounded-lg bg-muted/30 text-center">
-                <div className="text-xs text-muted-foreground">Total</div>
-                <div className="text-lg font-bold">{easterEggs.totalEggs}</div>
-              </div>
-              <div className="p-2 rounded-lg bg-muted/30 text-center">
-                <div className="text-xs text-muted-foreground">Remaining</div>
-                <div className="text-lg font-bold text-amber-500">{easterEggs.remainingEggs}</div>
-              </div>
-              <div className="p-2 rounded-lg bg-muted/30 text-center">
-                <div className="text-xs text-muted-foreground">Claimed</div>
-                <div className="text-lg font-bold text-green-400">{easterEggs.claims.length}</div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                placeholder="Number of eggs..."
-                value={eggCount}
-                onChange={(e) => setEggCount(parseInt(e.target.value) || 0)}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm"
-              />
-              <Button size="sm" variant="outline" onClick={() => handleUpdateEasterEggs(false)}>Save</Button>
-              <Button size="sm" onClick={() => handleUpdateEasterEggs(true)} className="bg-amber-500 hover:bg-amber-600 text-black">
-                {easterEggs.active ? "Reset & Reactivate" : "Activate"}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">Each egg gives {easterEggs.pointsPerEgg} leaderboard points. Students find them randomly while scrolling the FYP. Each student can only claim once.</p>
-            {eggMsg && <span className="text-xs text-green-400">{eggMsg}</span>}
-            {easterEggs.claims.length > 0 && (
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                <div className="text-xs font-semibold text-muted-foreground">Claims:</div>
-                {easterEggs.claims.map((c: any) => (
-                  <div key={c.id} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-muted/20">
-                    <span className="font-medium">{c.displayName}</span>
-                    <span className="text-muted-foreground">@{c.username}</span>
-                    <span className="text-amber-500 font-bold">+{c.points_awarded}</span>
-                    <span className="text-muted-foreground">{new Date(c.claimed_at).toLocaleDateString()}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Plans and billing */}
-        <AdminPlans />
-
-        {/* Competition Settings */}
-        <Card className="shadow-md border-yellow-500/30">
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-400" />
-              Competition Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-xs text-muted-foreground">A.R.I.S.E. gives no prizes of its own. Parents, teachers and schools put up their own prizes, and those show on the competition page for their readers.</p>
-            {compMsg && <span className="text-xs text-green-400">{compMsg}</span>}
-
-            {/* Monthly */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <Label className="text-sm font-bold text-yellow-400">Monthly Competition</Label>
-              <div>
-                <span className="text-xs text-muted-foreground">Monthly Countdown Date (optional — shows a live countdown to this date)</span>
-                <input type="date" value={compSettings.monthlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, monthlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-              </div>
-            </div>
-
-            {/* Yearly */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <Label className="text-sm font-bold text-primary">Reader of the Year</Label>
-              <div>
-                <span className="text-xs text-muted-foreground">Yearly Countdown Date (optional — shows a live countdown to this date)</span>
-                <input type="date" value={compSettings.yearlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, yearlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
-              </div>
-            </div>
-
-            <Button onClick={handleSaveCompSettings} className="w-full bg-yellow-600 hover:bg-yellow-700">
-              <Trophy className="w-4 h-4 mr-1" /> Save Competition Settings
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Eye Gaze Change Requests */}
-        {eyeGazeRequests.length > 0 && (
-        <Card className="shadow-md border-blue-500/30">
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <Eye className="w-5 h-5 text-blue-500" />
-              Eye Gaze Change Requests ({eyeGazeRequests.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {eyeGazeRequests.map((r) => (
-              <div key={r.id || r.userId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
-                <div>
-                  <p className="font-semibold text-sm">{r.displayName || r.username}</p>
-                  <p className="text-xs text-muted-foreground">@{r.username}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {r.currentStatus ? 'Enable' : 'Disable'} Eye Gaze access
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 w-full sm:w-auto flex-shrink-0">
-                  <button
-                    onClick={() => handleEyeGazeRequest(r.id, true)}
-                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700"
-                  >Approve</button>
-                  <button
-                    onClick={() => handleEyeGazeRequest(r.id, false)}
-                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700"
-                  >Deny</button>
-                </div>
-              </div>
+              </button>
             ))}
-          </CardContent>
-        </Card>
-        )}
+          </div>
+        </div>
+        </>)}
 
-        {/* Admin Leaderboard with Band Switching */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <Trophy className="w-5 h-5 text-primary" />
-              Leaderboard (Admin View)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              <span className="text-sm font-medium">View Band:</span>
-              <select
-                value={adminLbBand}
-                onChange={(e) => {
-                  setAdminLbBand(e.target.value);
-                  fetchAdminLeaderboard(e.target.value);
-                }}
-                className="w-full sm:w-auto px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
-              >
-                <option value="">All Bands</option>
-                <option value="K-2">K-2 Band</option>
-                <option value="3-5">3-5 Band</option>
-                <option value="6-8">6-8 Band</option>
-                <option value="9-12">9-12 Band</option>
-              </select>
-            </div>
-            {adminLbLoading ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
-            ) : adminLeaderboard.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No students in this band yet.</p>
-            ) : (
+        {adminTab === "students" && (<>
+        <div data-section="pending-student-approvals" className="empty:hidden space-y-4 sm:space-y-6">
+        {/* Pending Student Approvals */}
+        {students.filter(s => s.approvedByTeacher === false).length > 0 && (
+          <Card className="shadow-md border-yellow-500/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-500">
+                <CheckCircle2 className="w-5 h-5" />
+                Pending Student Approvals ({students.filter(s => s.approvedByTeacher === false).length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-4">These students selected a teacher and are waiting to be approved. Use this to approve them when their teacher is unavailable.</p>
               <div className="space-y-2">
-                {adminLeaderboard.slice(0, 20).map((entry: any, idx: number) => (
-                  <div key={entry.id} className="grid grid-cols-[auto,minmax(0,1fr),auto] items-center gap-3 p-3 sm:p-4 rounded-xl bg-muted/30">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-muted text-muted-foreground">
-                      {idx + 1}
+                {students.filter(s => s.approvedByTeacher === false).map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {s.displayName.charAt(0).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <p className="font-medium text-sm sm:text-base truncate">{entry.displayName}</p>
-                        {entry.isEyeGaze || entry.isEyeGazeUser ? (
-                          <span className="inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-semibold">EG</span>
-                        ) : null}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] sm:text-xs text-muted-foreground">
-                        <span>{entry.quizzesTaken} quizzes</span>
-                        {entry.schoolName && <span>· {entry.schoolName}</span>}
-                        {entry.grade && <span>· Gr {entry.grade}</span>}
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{s.displayName}</p>
+                      <p className="text-xs text-muted-foreground">@{s.username}{s.teacherName ? ` — waiting for ${s.teacherName}` : ""}</p>
                     </div>
-                    <div className="flex-shrink-0 text-right rounded-lg bg-primary/10 px-2.5 py-1.5 sm:px-3">
-                      <div className="font-bold text-base sm:text-lg leading-none text-primary">{entry.totalPoints}</div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">pts</div>
-                    </div>
+                    <Button size="sm" onClick={() => handleApproveStudent(s.id, s.displayName)} className="bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Approve</span>
+                    </Button>
                   </div>
                 ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+        </div>
 
+        <div data-section="unlisted" className="empty:hidden space-y-4 sm:space-y-6">
+        {/* Students whose school/teacher wasn't listed at signup */}
+        <UnlistedSignupsCard onCount={setUnlistedCount} />
+        </div>
+
+        <div data-section="grade-changes" className="empty:hidden space-y-4 sm:space-y-6">
         {/* Grade Change Requests */}
         {gradeChangeRequests.length > 0 && (
         <Card className="shadow-md border-amber-500/30">
@@ -3075,285 +2496,46 @@ Generate exactly 10 questions.`;
           </CardContent>
         </Card>
         )}
-
-        {/* Teachers Section */}
-        <div ref={teachersRef}>
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <span className="flex flex-wrap items-center gap-2">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Teachers ({allTeachers.length})
-              </span>
-              <button onClick={() => setShowTeacherForm(!showTeacherForm)} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-primary text-white hover:opacity-90">
-                + Add Teacher
-              </button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Create Teacher Form */}
-            {showTeacherForm && (
-              <div className="mb-4 p-4 rounded-lg bg-background border border-border">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Display Name</label>
-                    <input type="text" value={teacherForm.displayName} onChange={(e) => setTeacherForm({ ...teacherForm, displayName: e.target.value })} placeholder="Ms. Johnson" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Username</label>
-                    <input type="text" value={teacherForm.username} onChange={(e) => setTeacherForm({ ...teacherForm, username: e.target.value })} placeholder="mjohnson" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Password</label>
-                    <input type="text" value={teacherForm.password} onChange={(e) => setTeacherForm({ ...teacherForm, password: e.target.value })} placeholder="At least 6 chars" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Email (optional)</label>
-                    <input type="email" value={teacherForm.email} onChange={(e) => setTeacherForm({ ...teacherForm, email: e.target.value })} placeholder="teacher@school.com" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
-                  </div>
-                </div>
-                {teacherFormError && <p className="text-sm text-red-500 mt-2">{teacherFormError}</p>}
-                <div className="flex gap-2 mt-3">
-                  <button onClick={handleCreateTeacher} disabled={teacherFormLoading} className="px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50">
-                    {teacherFormLoading ? "Creating..." : "Create Teacher"}
-                  </button>
-                  <button onClick={() => { setShowTeacherForm(false); setTeacherFormError(""); }} className="px-4 py-2 text-sm font-semibold rounded-lg bg-muted text-muted-foreground hover:opacity-80">
-                    Cancel
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">Teacher will be created as approved and can log in immediately.</p>
-              </div>
-            )}
-
-            {/* Pending Teacher Approvals */}
-            {pendingTeachers.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-sm text-yellow-500 mb-2">Pending Approvals</h3>
-                <div className="space-y-2">
-                  {pendingTeachers.map((t) => (
-                    <div key={t.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
-                      <div>
-                        <span className="font-semibold text-white">{t.display_name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">@{t.username}</span>
-                        {t.email && <span className="text-xs text-muted-foreground ml-2">| {t.email}</span>}
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <button onClick={() => handleApproveTeacher(t.id)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-primary text-white hover:opacity-90">Approve</button>
-                        <button onClick={() => void handleDeleteTeacher(t)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-red-600 text-white hover:opacity-90">Delete</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Approved Teachers List */}
-            {allTeachers.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No teachers registered yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {allTeachers.map((t) => (
-                  <div key={t.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/30 hover:bg-muted/50 transition-colors rounded-xl p-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center">
-                        {(t.display_name || "?").charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-foreground">{t.display_name}</div>
-                        <div className="text-xs text-muted-foreground">@{t.username}{t.email ? " | " + t.email : ""}</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs"
-                        defaultValue={t.school_id || ""}
-                        onChange={async (e) => {
-                          const schoolId = e.target.value ? parseInt(e.target.value) : null;
-                          const authToken = token || getTokenFromCookie();
-                          try {
-                            const res = await fetch(`${API_BASE}/api/admin/teachers/${t.id}/assign-school`, {
-                              method: "POST",
-                              headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-                              body: JSON.stringify({ schoolId }),
-                            });
-                            if (res.ok) {
-                              fetchTeachers();
-                            }
-                          } catch {}
-                        }}
-                      >
-                        <option value="">No school</option>
-                        {schools.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                      <select
-                        className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs"
-                        defaultValue={""}
-                        onChange={async (e) => {
-                          const grade = e.target.value;
-                          if (!grade) return;
-                          const authToken = token || getTokenFromCookie();
-                          const currentGrades = (window as any).__teacherGrades?.[t.id] || [];
-                          const newGrades = currentGrades.includes(grade) ? currentGrades.filter((g: string) => g !== grade) : [...currentGrades, grade];
-                          try {
-                            const res = await fetch(`${API_BASE}/api/admin/teachers/${t.id}/assign-grades`, {
-                              method: "POST",
-                              headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-                              body: JSON.stringify({ grades: newGrades }),
-                            });
-                            if (res.ok) {
-                              (window as any).__teacherGrades = (window as any).__teacherGrades || {};
-                              (window as any).__teacherGrades[t.id] = newGrades;
-                              fetchTeachers();
-                            }
-                          } catch {}
-                        }}
-                      >
-                        <option value="">Assign grade...</option>
-                        {["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map((g) => (
-                          <option key={g} value={g}>Grade {g}</option>
-                        ))}
-                      </select>
-                      <button onClick={() => handleResetTeacherPassword(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-blue-600/80 text-white hover:opacity-90">Reset</button>
-                      <button onClick={() => void handleArchiveUser(t.id, t.display_name || t.username || "this teacher")} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded bg-white/10 text-white hover:bg-white/15" data-testid={`button-archive-teacher-${t.id}`}><Archive className="w-3.5 h-3.5" />Archive</button>
-                      <button onClick={() => void handleDeleteTeacher(t)} className="px-3 py-1.5 text-sm font-semibold rounded bg-red-600/80 text-white hover:opacity-90">Delete</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
         </div>
 
-        {/* Students whose school/teacher wasn't listed at signup */}
-        <UnlistedSignupsCard />
-
-        {/* Quizzes students took on their own with the camera on */}
-        <NoProctorReview />
-
-        {/* Pending Student Approvals */}
-        {students.filter(s => s.approvedByTeacher === false).length > 0 && (
-          <Card className="shadow-md border-yellow-500/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-500">
-                <CheckCircle2 className="w-5 h-5" />
-                Pending Student Approvals ({students.filter(s => s.approvedByTeacher === false).length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-4">These students selected a teacher and are waiting to be approved. Use this to approve them when their teacher is unavailable.</p>
-              <div className="space-y-2">
-                {students.filter(s => s.approvedByTeacher === false).map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
-                    <div className="w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold text-sm flex-shrink-0">
-                      {s.displayName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{s.displayName}</p>
-                      <p className="text-xs text-muted-foreground">@{s.username}{s.teacherName ? ` — waiting for ${s.teacherName}` : ""}</p>
-                    </div>
-                    <Button size="sm" onClick={() => handleApproveStudent(s.id, s.displayName)} className="bg-green-600 hover:bg-green-700 text-white">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline ml-1">Approve</span>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Pending Parent Approvals */}
-        {pendingParents.length > 0 && (
-          <Card data-section="pending-parent-approvals" className="shadow-md border-blue-500/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-400">
-                <Users className="w-5 h-5" />
-                Pending Parent Approvals ({pendingParents.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-4">Parents who signed up and are waiting for approval. They will be linked to their student once approved.</p>
-              <div className="space-y-2">
-                {pendingParents.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
-                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-                      {p.display_name?.charAt(0).toUpperCase() || "?"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{p.display_name}</p>
-                      <p className="text-xs text-muted-foreground">@{p.username}{p.email ? ` — ${p.email}` : ""}</p>
-                      {p.studentName && <p className="text-xs text-blue-400">Linked student: {p.studentName}</p>}
-                    </div>
-                    <Button size="sm" onClick={() => handleApproveParent(p.id)} className="bg-green-600 hover:bg-green-700 text-white">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline ml-1">Approve</span>
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleRejectParent(p.id)} className="text-red-500 border-red-500/30 hover:bg-red-500/10">
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* All Parents Management */}
-        <Card className="shadow-md border-purple-500/20">
+        <div data-section="eye-gaze-requests" className="empty:hidden space-y-4 sm:space-y-6">
+        {/* Eye Gaze Change Requests */}
+        {eyeGazeRequests.length > 0 && (
+        <Card className="shadow-md border-blue-500/30">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-purple-400">
-              <Users className="w-5 h-5" />
-              Parents ({allParents.length})
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <Eye className="w-5 h-5 text-blue-500" />
+              Eye Gaze Change Requests ({eyeGazeRequests.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {allParents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No parent accounts yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {allParents.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-purple-500/30 transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-                      {p.display_name?.charAt(0).toUpperCase() || p.displayName?.charAt(0).toUpperCase() || "?"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{p.display_name || p.displayName}</p>
-                      <p className="text-xs text-muted-foreground">@{p.username}{p.email ? ` — ${p.email}` : ""}</p>
-                      {p.studentName && <p className="text-xs text-purple-400">Student: {p.studentName}</p>}
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${p.accountApproved ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
-                      {p.accountApproved ? "ACTIVE" : "PENDING"}
-                    </span>
-                    {!p.accountApproved && (
-                      <Button size="sm" onClick={() => handleApproveParentParent(p.id)} className="bg-green-600 hover:bg-green-700 text-white">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline ml-1">Approve</span>
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" onClick={() => handleResetParentPassword(p.id, p.display_name || p.displayName || "this parent")} className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10">
-                      <KeyRound className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline ml-1">Reset</span>
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => void handleArchiveUser(p.id, p.display_name || p.displayName || "this parent")} title="Archive" data-testid={`button-archive-parent-${p.id}`}>
-                      <Archive className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline ml-1">Archive</span>
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleDeleteParent(p.id, p.display_name || p.displayName || "this parent")} className="text-red-500 border-red-500/30 hover:bg-red-500/10">
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline ml-1">Delete</span>
-                    </Button>
-                  </div>
-                ))}
+          <CardContent className="space-y-3">
+            {eyeGazeRequests.map((r) => (
+              <div key={r.id || r.userId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                <div>
+                  <p className="font-semibold text-sm">{r.displayName || r.username}</p>
+                  <p className="text-xs text-muted-foreground">@{r.username}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {r.currentStatus ? 'Enable' : 'Disable'} Eye Gaze access
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto flex-shrink-0">
+                  <button
+                    onClick={() => handleEyeGazeRequest(r.id, true)}
+                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700"
+                  >Approve</button>
+                  <button
+                    onClick={() => handleEyeGazeRequest(r.id, false)}
+                    className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  >Deny</button>
+                </div>
               </div>
-            )}
+            ))}
           </CardContent>
         </Card>
+        )}
+        </div>
 
+        <div data-section="students-table">
         {/* Students table */}
         <Card className="shadow-md" ref={studentsRef}>
           <CardHeader>
@@ -3442,9 +2624,9 @@ Generate exactly 10 questions.`;
                     return (
                     <div
                       key={s.id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 p-4 sm:p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
-                      <div className="w-full sm:w-auto flex items-center gap-3">
+                      <div className="w-full sm:w-auto sm:flex-1 min-w-0 flex items-center gap-3">
                         <div className="w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
                           {s.displayName.charAt(0).toUpperCase()}
                         </div>
@@ -3457,7 +2639,7 @@ Generate exactly 10 questions.`;
                         <div className="font-bold text-sm">{s.totalPoints} pts</div>
                         <div className="text-xs text-muted-foreground">{s.quizzesTaken} quizzes</div>
                       </div>
-                    <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-1 w-full sm:w-auto flex-shrink-0">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-1 w-full">
                       <Button variant="outline" size="sm" className="w-full sm:w-auto justify-center" onClick={() => openManualPoints(s)}>
                         <PlusCircle className="w-3.5 h-3.5" />
                         <span className="ml-1">Points</span>
@@ -3758,9 +2940,527 @@ Generate exactly 10 questions.`;
             })()}
           </CardContent>
         </Card>
+        </div>
 
         {/* Archived students, teachers and parents */}
         <ArchivedProfilesCard refreshKey={archiveRefresh} onRestored={() => { void fetchStudents(); void fetchTeachers(); void fetchAllParents(); }} />
+        </>)}
+
+        {adminTab === "teachers" && (<>
+        <div data-section="teachers">
+        {/* Teachers Section */}
+        <div ref={teachersRef}>
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span className="flex flex-wrap items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Teachers ({allTeachers.length})
+              </span>
+              <button onClick={() => setShowTeacherForm(!showTeacherForm)} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-primary text-white hover:opacity-90">
+                + Add Teacher
+              </button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Create Teacher Form */}
+            {showTeacherForm && (
+              <div className="mb-4 p-4 rounded-lg bg-background border border-border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Display Name</label>
+                    <input type="text" value={teacherForm.displayName} onChange={(e) => setTeacherForm({ ...teacherForm, displayName: e.target.value })} placeholder="Ms. Johnson" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Username</label>
+                    <input type="text" value={teacherForm.username} onChange={(e) => setTeacherForm({ ...teacherForm, username: e.target.value })} placeholder="mjohnson" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Password</label>
+                    <input type="text" value={teacherForm.password} onChange={(e) => setTeacherForm({ ...teacherForm, password: e.target.value })} placeholder="At least 6 chars" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Email (optional)</label>
+                    <input type="email" value={teacherForm.email} onChange={(e) => setTeacherForm({ ...teacherForm, email: e.target.value })} placeholder="teacher@school.com" className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm" />
+                  </div>
+                </div>
+                {teacherFormError && <p className="text-sm text-red-500 mt-2">{teacherFormError}</p>}
+                <div className="flex gap-2 mt-3">
+                  <button onClick={handleCreateTeacher} disabled={teacherFormLoading} className="px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50">
+                    {teacherFormLoading ? "Creating..." : "Create Teacher"}
+                  </button>
+                  <button onClick={() => { setShowTeacherForm(false); setTeacherFormError(""); }} className="px-4 py-2 text-sm font-semibold rounded-lg bg-muted text-muted-foreground hover:opacity-80">
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Teacher will be created as approved and can log in immediately.</p>
+              </div>
+            )}
+
+            {/* Pending Teacher Approvals */}
+            {pendingTeachers.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-sm text-yellow-500 mb-2">Pending Approvals</h3>
+                <div className="space-y-2">
+                  {pendingTeachers.map((t) => (
+                    <div key={t.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                      <div>
+                        <span className="font-semibold text-white">{t.display_name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">@{t.username}</span>
+                        {t.email && <span className="text-xs text-muted-foreground ml-2">| {t.email}</span>}
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button onClick={() => handleApproveTeacher(t.id)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-primary text-white hover:opacity-90">Approve</button>
+                        <button onClick={() => void handleDeleteTeacher(t)} className="w-full sm:w-auto px-3 py-1.5 text-sm font-semibold rounded bg-red-600 text-white hover:opacity-90">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Approved Teachers List */}
+            {allTeachers.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No teachers registered yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {allTeachers.map((t) => (
+                  <div key={t.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/30 hover:bg-muted/50 transition-colors rounded-xl p-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center">
+                        {(t.display_name || "?").charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-foreground">{t.display_name}</div>
+                        <div className="text-xs text-muted-foreground">@{t.username}{t.email ? " | " + t.email : ""}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs"
+                        defaultValue={t.school_id || ""}
+                        onChange={async (e) => {
+                          const schoolId = e.target.value ? parseInt(e.target.value) : null;
+                          const authToken = token || getTokenFromCookie();
+                          try {
+                            const res = await fetch(`${API_BASE}/api/admin/teachers/${t.id}/assign-school`, {
+                              method: "POST",
+                              headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                              body: JSON.stringify({ schoolId }),
+                            });
+                            if (res.ok) {
+                              fetchTeachers();
+                            }
+                          } catch {}
+                        }}
+                      >
+                        <option value="">No school</option>
+                        {schools.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <select
+                        className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs"
+                        defaultValue={""}
+                        onChange={async (e) => {
+                          const grade = e.target.value;
+                          if (!grade) return;
+                          const authToken = token || getTokenFromCookie();
+                          const currentGrades = (window as any).__teacherGrades?.[t.id] || [];
+                          const newGrades = currentGrades.includes(grade) ? currentGrades.filter((g: string) => g !== grade) : [...currentGrades, grade];
+                          try {
+                            const res = await fetch(`${API_BASE}/api/admin/teachers/${t.id}/assign-grades`, {
+                              method: "POST",
+                              headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                              body: JSON.stringify({ grades: newGrades }),
+                            });
+                            if (res.ok) {
+                              (window as any).__teacherGrades = (window as any).__teacherGrades || {};
+                              (window as any).__teacherGrades[t.id] = newGrades;
+                              fetchTeachers();
+                            }
+                          } catch {}
+                        }}
+                      >
+                        <option value="">Assign grade...</option>
+                        {["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map((g) => (
+                          <option key={g} value={g}>Grade {g}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => handleResetTeacherPassword(t.id)} className="px-3 py-1.5 text-sm font-semibold rounded bg-blue-600/80 text-white hover:opacity-90">Reset</button>
+                      <button onClick={() => void handleArchiveUser(t.id, t.display_name || t.username || "this teacher")} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded bg-white/10 text-white hover:bg-white/15" data-testid={`button-archive-teacher-${t.id}`}><Archive className="w-3.5 h-3.5" />Archive</button>
+                      <button onClick={() => void handleDeleteTeacher(t)} className="px-3 py-1.5 text-sm font-semibold rounded bg-red-600/80 text-white hover:opacity-90">Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        </div>
+        </div>
+
+        {/* Archived students, teachers and parents */}
+        <ArchivedProfilesCard refreshKey={archiveRefresh} onRestored={() => { void fetchStudents(); void fetchTeachers(); void fetchAllParents(); }} />
+        </>)}
+
+        {adminTab === "parents" && (<>
+        {/* Pending Parent Approvals */}
+        {pendingParents.length > 0 && (
+          <Card data-section="pending-parent-approvals" className="shadow-md border-blue-500/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-400">
+                <Users className="w-5 h-5" />
+                Pending Parent Approvals ({pendingParents.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-4">Parents who signed up and are waiting for approval. They will be linked to their student once approved.</p>
+              <div className="space-y-2">
+                {pendingParents.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {p.display_name?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{p.display_name}</p>
+                      <p className="text-xs text-muted-foreground">@{p.username}{p.email ? ` — ${p.email}` : ""}</p>
+                      {p.studentName && <p className="text-xs text-blue-400">Linked student: {p.studentName}</p>}
+                    </div>
+                    <Button size="sm" onClick={() => handleApproveParent(p.id)} className="bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Approve</span>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleRejectParent(p.id)} className="text-red-500 border-red-500/30 hover:bg-red-500/10">
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* All Parents Management */}
+        <Card className="shadow-md border-purple-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-purple-400">
+              <Users className="w-5 h-5" />
+              Parents ({allParents.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {allParents.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No parent accounts yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {allParents.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-purple-500/30 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {p.display_name?.charAt(0).toUpperCase() || p.displayName?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{p.display_name || p.displayName}</p>
+                      <p className="text-xs text-muted-foreground">@{p.username}{p.email ? ` — ${p.email}` : ""}</p>
+                      {p.studentName && <p className="text-xs text-purple-400">Student: {p.studentName}</p>}
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${p.accountApproved ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                      {p.accountApproved ? "ACTIVE" : "PENDING"}
+                    </span>
+                    {!p.accountApproved && (
+                      <Button size="sm" onClick={() => handleApproveParentParent(p.id)} className="bg-green-600 hover:bg-green-700 text-white">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline ml-1">Approve</span>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => handleResetParentPassword(p.id, p.display_name || p.displayName || "this parent")} className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10">
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Reset</span>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => void handleArchiveUser(p.id, p.display_name || p.displayName || "this parent")} title="Archive" data-testid={`button-archive-parent-${p.id}`}>
+                      <Archive className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Archive</span>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleDeleteParent(p.id, p.display_name || p.displayName || "this parent")} className="text-red-500 border-red-500/30 hover:bg-red-500/10">
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline ml-1">Delete</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Archived students, teachers and parents */}
+        <ArchivedProfilesCard refreshKey={archiveRefresh} onRestored={() => { void fetchStudents(); void fetchTeachers(); void fetchAllParents(); }} />
+        </>)}
+
+        {adminTab === "schools" && (
+          <AdminSchools schools={schools} onChanged={fetchSchools} />
+        )}
+
+        {adminTab === "books" && (<>
+        {/* AI Quiz Review Section */}
+        {pendingQuizzes.length > 0 && (
+          <div data-section="ai-quiz-review" className="mb-6 p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck className="w-5 h-5 text-orange-500" />
+              <h2 className="text-lg font-bold">AI Quiz Review</h2>
+              <span className="text-xs bg-orange-500/20 text-orange-600 px-2 py-0.5 rounded-full font-medium">
+                {pendingQuizzes.length} pending
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Students requested these AI-generated quizzes. Review the questions and approve or reject each one.
+            </p>
+            <div className="space-y-3">
+              {pendingQuizzes.map((quiz) => {
+                let questions = [];
+                try { questions = typeof quiz.questions === 'string' ? JSON.parse(quiz.questions) : quiz.questions; } catch {}
+                if (!Array.isArray(questions)) questions = [];
+                const isExpanded = expandedQuiz === quiz.id;
+                const isRejecting = rejectingQuizId === quiz.id;
+                return (
+                  <div key={quiz.id} className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">{quiz.book_title}</span>
+                          <span className="text-xs text-muted-foreground">by {quiz.author}</span>
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {quiz.quiz_type === 'eye_gaze' ? 'Eye Gaze' : quiz.quiz_type === 'iarise' ? 'iArise' : quiz.quiz_type === 'favorite_topic' ? 'Favorite Topic' : 'Book Quiz'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">Grade {quiz.age_group}</span>
+                          <span className="text-xs text-muted-foreground">{quiz.student_name || 'Unknown student'}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setExpandedQuiz(isExpanded ? null : quiz.id)}
+                        className="text-xs text-primary hover:underline"
+                      >{isExpanded ? 'Hide' : 'Review'}</button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="mt-4 space-y-3">
+                        {questions.length === 0 && (
+                          <p className="text-sm text-muted-foreground italic">No questions could be loaded.</p>
+                        )}
+                        {questions.map((q: any, qIdx: number) => {
+                          const questionText = q.prompt || q.question || '';
+                          const opts = q.option_a_text ? [
+                            { letter: 'A', text: q.option_a_text, image: q.option_a_image },
+                            { letter: 'B', text: q.option_b_text, image: q.option_b_image },
+                            { letter: 'C', text: q.option_c_text, image: q.option_c_image },
+                            { letter: 'D', text: q.option_d_text, image: q.option_d_image },
+                          ] : (q.options || []).map((opt: any, i: number) => ({
+                            letter: String.fromCharCode(65 + i),
+                            text: typeof opt === 'string' ? opt : (opt.text || ''),
+                            image: typeof opt === 'string' ? null : (opt.image || null),
+                          }));
+                          const correctLetter = (q.correct_answer || q.correct || 'A').toString().toUpperCase().charAt(0);
+                          const qImage = q.question_image || q.image || null;
+                          return (
+                          <div key={qIdx} className="bg-muted/50 rounded-lg p-3">
+                            <p className="text-sm font-medium mb-2">{qIdx + 1}. {questionText}</p>
+                            {qImage && (
+                              <div className="mb-2">
+                                {qImage.startsWith('http') || qImage.startsWith('data:') ? (
+                                  <img src={qImage} alt="Question visual" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 6 }} />
+                                ) : (
+                                  <span style={{ fontSize: 28 }}>{qImage}</span>
+                                )}
+                              </div>
+                            )}
+                            <div className="space-y-1">
+                              {opts.map((opt: any, oIdx: number) => (
+                                <div key={oIdx} className={`text-xs px-2 py-1 rounded ${
+                                  opt.letter === correctLetter ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'
+                                }`}>
+                                  {opt.letter}) {opt.text}{opt.letter === correctLetter ? ' ✓' : ''}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          );
+                        })}
+
+                        {isRejecting ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <input
+                              type="text"
+                              placeholder="Reason for rejection (optional)..."
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              className="flex-1 px-3 py-1.5 rounded-lg border border-border text-sm bg-background"
+                            />
+                            <Button size="sm" variant="destructive" onClick={() => handleRejectQuiz(quiz.id)}>
+                              Confirm Reject
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { setRejectingQuizId(null); setRejectReason(""); }}>
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button size="sm" variant="default" onClick={() => handleApproveQuiz(quiz.id)}>
+                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve & Publish
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setRejectingQuizId(quiz.id)}>
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div data-section="quiz-reviews">
+        {/* Quiz Review Requests */}
+        <Card className="shadow-md" ref={reviewRef}>
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <FileSearch className="w-5 h-5 text-orange-400" />
+              Quiz Review Requests
+              {reviewRequests.filter(r => r.status === "pending").length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {reviewRequests.filter(r => r.status === "pending").length} pending
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {reviewRequestsLoading ? (
+              <p className="text-center text-muted-foreground py-8">Loading review requests...</p>
+            ) : reviewRequests.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No quiz review requests yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {reviewRequests.map((r) => (
+                  <div key={r.id} className={`rounded-xl border p-4 ${r.status === "pending" ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-muted/30"}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                      <div>
+                        <span className="font-semibold">{r.studentName}</span>
+                        <span className="text-sm text-muted-foreground ml-2">{r.bookTitle}</span>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === "pending" ? "bg-orange-500/20 text-orange-400" : "bg-green-500/20 text-green-400"}`}>
+                        {r.status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      Score: {r.original_score}/{r.total || 10} | Points: {r.original_points}
+                      {r.reviewed_score !== null && r.status === "resolved" && (
+                        <span className="ml-2 text-green-400">→ Reviewed: {r.reviewed_score}/{r.total || 10}, {r.reviewed_points} pts</span>
+                      )}
+                      {r.reason && <span className="block mt-1 italic">"{r.reason}"</span>}
+                    </div>
+                    {r.status === "pending" && (
+                      <Button size="sm" variant="outline" onClick={() => handleViewReview(r.id)}>
+                        <FileSearch className="w-4 h-4 mr-1" />
+                        Review Quiz
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        </div>
+
+        <div data-section="quiz-requests">
+        {/* Quiz requests */}
+        <Card className="shadow-md" ref={quizRequestsRef}>
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <MessageSquarePlus className="w-5 h-5" />
+              Quiz Requests
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {quizRequestsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />
+                ))}
+              </div>
+            ) : quizRequests.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No quiz requests yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {quizRequests.map((req) => {
+                  const isPending = req.status !== "completed";
+                  const studentName = req.studentName
+                    || req.student?.displayName
+                    || req.student?.username
+                    || "Unknown student";
+                  return (
+                    <div
+                      key={req.id}
+                      className="p-4 rounded-xl bg-muted/30 border border-border"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm">{req.bookTitle}</p>
+                          {req.author && (
+                            <p className="text-xs text-muted-foreground mt-0.5">by {req.author}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Requested by {studentName}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(req.createdAt).toLocaleDateString("en-US", {
+                              year: "numeric", month: "short", day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 ${
+                          isPending ? "bg-primary/20 text-primary" : "bg-green-500/20 text-green-400"
+                        }`}>
+                          {isPending ? "Pending" : "Completed"}
+                        </span>
+                      </div>
+                      {isPending && (
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            className="flex-1"
+                            size="sm"
+                            onClick={() => handleCreateQuizFromRequest(req)}
+                          >
+                            <PlusCircle className="w-3.5 h-3.5 mr-1" />
+                            Create Quiz
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handleMarkRequestComplete(req.id)}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                            Mark Complete
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        </div>
+
+        <div data-section="camera-quizzes" className="empty:hidden space-y-4 sm:space-y-6">
+        {/* Quizzes students took on their own with the camera on */}
+        <NoProctorReview />
+        </div>
 
         {/* Book cover management */}
         <Card className="shadow-md">
@@ -3884,6 +3584,206 @@ Generate exactly 10 questions.`;
           </CardContent>
         </Card>
 
+        <Card className="shadow-md" data-section="quiz-settings">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <ShieldCheck className="w-5 h-5" />
+              Quiz settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+          {/* Proctor Password */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Proctor Password (All Proctored Tests)</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={proctorPassword}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-muted/30 border border-border text-foreground text-sm font-mono"
+              />
+              <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(proctorPassword)}>Copy</Button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="New proctor password..."
+                value={newProctorPassword}
+                onChange={(e) => setNewProctorPassword(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <Button size="sm" variant="outline" onClick={handleUpdateProctorPassword}>Update</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Updating the proctor password sends a notification to all teachers with a direct link to view it.</p>
+            {proctorMsg && <span className="text-xs text-green-400">{proctorMsg}</span>}
+          </div>
+
+          {/* AI Quiz Settings */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Instant AI Quiz — Perplexity API Key</Label>
+            <p className="text-xs text-muted-foreground">Students can generate 10-question quizzes for any book. Get a key from docs.perplexity.ai → API Keys.</p>
+            {aiKeyConfigured ? (
+              <div className="flex items-center gap-2 text-sm text-green-400">
+                <span className="w-2 h-2 rounded-full bg-green-400" />
+                Configured ({aiKeyPreview})
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-yellow-400">
+                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                Not configured — students will see an error message
+              </div>
+            )}
+            {aiKeyMsg && <p className="text-sm text-green-400">{aiKeyMsg}</p>}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="password"
+                value={aiApiKey}
+                onChange={(e) => setAiApiKey(e.target.value)}
+                placeholder="Paste your Perplexity API key (pplx-...)"
+                className="bg-muted/30 border-border text-foreground"
+              />
+              <Button size="sm" variant="outline" onClick={handleSaveAiKey} disabled={!aiApiKey.trim()}>
+                Save Key
+              </Button>
+            </div>
+          </div>
+
+          {/* Quiz Generation Guidelines */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">AI Quiz Guidelines</Label>
+            <p className="text-xs text-muted-foreground">Control how the AI generates quizzes. Leave empty for defaults. These instructions are added to every AI-generated quiz.</p>
+            {guidelinesMsg && <p className="text-sm text-green-400">{guidelinesMsg}</p>}
+            <textarea
+              value={quizGuidelines}
+              onChange={(e) => setQuizGuidelines(e.target.value)}
+              placeholder={"Examples:\n- Focus on character motivation and plot twists\n- Include 2 vocabulary questions\n- Make questions challenging but fair\n- Avoid questions about minor details"}
+              rows={5}
+              className="w-full rounded-md bg-muted/30 border border-border text-foreground text-sm p-2 resize-y"
+            />
+            <Button size="sm" variant="outline" onClick={handleSaveGuidelines}>
+              Save Guidelines
+            </Button>
+          </div>
+
+          {/* Eye Gaze Quiz Guidelines */}
+          <div className="space-y-3 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Eye Gaze Quiz Standards</Label>
+            <p className="text-xs text-muted-foreground">Control how the AI generates eye gaze quizzes for non-verbal and eye gaze students. Leave empty for defaults. These instructions are added to every eye gaze quiz.</p>
+            {eyeGazeGuidelinesMsg && <p className="text-sm text-green-400">{eyeGazeGuidelinesMsg}</p>}
+            <textarea
+              value={eyeGazeGuidelines}
+              onChange={(e) => setEyeGazeGuidelines(e.target.value)}
+              placeholder={"Examples:\n- Use only single-word answers (nouns)\n- Make distractors very different from the correct answer\n- Focus on identification and matching\n- Use simple, concrete concepts\n- Avoid abstract reasoning for Level 1-2"}
+              rows={5}
+              className="w-full rounded-md bg-muted/30 border border-border text-foreground text-sm p-2 resize-y"
+            />
+            <Button size="sm" variant="outline" onClick={handleSaveEyeGazeGuidelines}>
+              Save Eye Gaze Guidelines
+            </Button>
+          </div>
+          </CardContent>
+        </Card>
+        </>)}
+
+        {adminTab === "programs" && (<>
+        {/* Admin Leaderboard with Band Switching */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" />
+              Leaderboard (Admin View)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <span className="text-sm font-medium">View Band:</span>
+              <select
+                value={adminLbBand}
+                onChange={(e) => {
+                  setAdminLbBand(e.target.value);
+                  fetchAdminLeaderboard(e.target.value);
+                }}
+                className="w-full sm:w-auto px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
+              >
+                <option value="">All Bands</option>
+                <option value="K-2">K-2 Band</option>
+                <option value="3-5">3-5 Band</option>
+                <option value="6-8">6-8 Band</option>
+                <option value="9-12">9-12 Band</option>
+              </select>
+            </div>
+            {adminLbLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
+            ) : adminLeaderboard.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No students in this band yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {adminLeaderboard.slice(0, 20).map((entry: any, idx: number) => (
+                  <div key={entry.id} className="grid grid-cols-[auto,minmax(0,1fr),auto] items-center gap-3 p-3 sm:p-4 rounded-xl bg-muted/30">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-muted text-muted-foreground">
+                      {idx + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-medium text-sm sm:text-base truncate">{entry.displayName}</p>
+                        {entry.isEyeGaze || entry.isEyeGazeUser ? (
+                          <span className="inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-semibold">EG</span>
+                        ) : null}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] sm:text-xs text-muted-foreground">
+                        <span>{entry.quizzesTaken} quizzes</span>
+                        {entry.schoolName && <span>· {entry.schoolName}</span>}
+                        {entry.grade && <span>· Gr {entry.grade}</span>}
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-right rounded-lg bg-primary/10 px-2.5 py-1.5 sm:px-3">
+                      <div className="font-bold text-base sm:text-lg leading-none text-primary">{entry.totalPoints}</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">pts</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Competition Settings */}
+        <Card className="shadow-md border-yellow-500/30">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-400" />
+              Competition Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">A.R.I.S.E. gives no prizes of its own. Parents, teachers and schools put up their own prizes, and those show on the competition page for their readers.</p>
+            {compMsg && <span className="text-xs text-green-400">{compMsg}</span>}
+
+            {/* Monthly */}
+            <div className="space-y-2 pt-2 border-t border-border">
+              <Label className="text-sm font-bold text-yellow-400">Monthly Competition</Label>
+              <div>
+                <span className="text-xs text-muted-foreground">Monthly Countdown Date (optional — shows a live countdown to this date)</span>
+                <input type="date" value={compSettings.monthlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, monthlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+              </div>
+            </div>
+
+            {/* Yearly */}
+            <div className="space-y-2 pt-2 border-t border-border">
+              <Label className="text-sm font-bold text-primary">Reader of the Year</Label>
+              <div>
+                <span className="text-xs text-muted-foreground">Yearly Countdown Date (optional — shows a live countdown to this date)</span>
+                <input type="date" value={compSettings.yearlyCountdownDate} onChange={(e) => setCompSettings(s => ({ ...s, yearlyCountdownDate: e.target.value }))} className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm" />
+              </div>
+            </div>
+
+            <Button onClick={handleSaveCompSettings} className="w-full bg-yellow-600 hover:bg-yellow-700">
+              <Trophy className="w-4 h-4 mr-1" /> Save Competition Settings
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div data-section="reading-club">
         {/* Reading Club Sign-Ups */}
         <Card className="shadow-md">
           <CardHeader>
@@ -3958,57 +3858,501 @@ Generate exactly 10 questions.`;
             )}
           </CardContent>
         </Card>
+        </div>
 
-        {/* Quiz Review Requests */}
-        <Card className="shadow-md" ref={reviewRef}>
+        {/* Growth Check Section */}
+        <Card className="shadow-md">
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2">
-              <FileSearch className="w-5 h-5 text-orange-400" />
-              Quiz Review Requests
-              {reviewRequests.filter(r => r.status === "pending").length > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {reviewRequests.filter(r => r.status === "pending").length} pending
-                </span>
-              )}
+              <Brain className="w-5 h-5" />
+              Arise Reading Growth Check
             </CardTitle>
+            <p className="text-sm text-muted-foreground">Manage benchmark windows, forms, and student assignments</p>
           </CardHeader>
           <CardContent>
-            {reviewRequestsLoading ? (
-              <p className="text-center text-muted-foreground py-8">Loading review requests...</p>
-            ) : reviewRequests.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No quiz review requests yet.</p>
+            {growthCheckLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : (
-              <div className="space-y-3">
-                {reviewRequests.map((r) => (
-                  <div key={r.id} className={`rounded-xl border p-4 ${r.status === "pending" ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-muted/30"}`}>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                      <div>
-                        <span className="font-semibold">{r.studentName}</span>
-                        <span className="text-sm text-muted-foreground ml-2">{r.bookTitle}</span>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === "pending" ? "bg-orange-500/20 text-orange-400" : "bg-green-500/20 text-green-400"}`}>
-                        {r.status}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-2">
-                      Score: {r.original_score}/{r.total || 10} | Points: {r.original_points}
-                      {r.reviewed_score !== null && r.status === "resolved" && (
-                        <span className="ml-2 text-green-400">→ Reviewed: {r.reviewed_score}/{r.total || 10}, {r.reviewed_points} pts</span>
-                      )}
-                      {r.reason && <span className="block mt-1 italic">"{r.reason}"</span>}
-                    </div>
-                    {r.status === "pending" && (
-                      <Button size="sm" variant="outline" onClick={() => handleViewReview(r.id)}>
-                        <FileSearch className="w-4 h-4 mr-1" />
-                        Review Quiz
-                      </Button>
+              <div className="space-y-6">
+                {/* Success / Error messages */}
+                {growthCheckSuccess && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    {growthCheckSuccess}
+                  </div>
+                )}
+                {growthCheckError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <X className="w-4 h-4 flex-shrink-0" />
+                    {growthCheckError}
+                  </div>
+                )}
+
+                {/* Benchmark Windows */}
+                <div>
+                  <h3 className="font-semibold text-sm mb-3">Benchmark Windows</h3>
+                  <div className="space-y-2">
+                    {growthCheckWindows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No benchmark windows configured.</p>
+                    ) : (
+                      growthCheckWindows.map((w) => (
+                        <div key={w.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/30 rounded-xl p-3">
+                          <div>
+                            <div className="font-medium text-sm capitalize">{w.window_name || w.name || "Unknown"}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {w.school_year || w.term}{w.start_date && ` • ${w.start_date}${w.end_date ? ` to ${w.end_date}` : ""}`}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleSaveGrowthCheckWindow({ ...w, is_active: !w.is_active })}
+                            disabled={growthCheckSaving}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${
+                              w.is_active
+                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                : "bg-muted text-muted-foreground border border-border hover:bg-muted/80"
+                            } disabled:opacity-50`}
+                          >
+                            {w.is_active ? "Active" : "Inactive"}
+                          </button>
+                        </div>
+                      ))
                     )}
                   </div>
-                ))}
+                </div>
+
+                {/* Assign Growth Check */}
+                <div>
+                  <h3 className="font-semibold text-sm mb-3">Assign Growth Check</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={growthCheckAssignBand}
+                      onChange={(e) => setGrowthCheckAssignBand(e.target.value)}
+                      className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
+                    >
+                      <option value="K-2">K-2</option>
+                      <option value="3-5">3-5</option>
+                      <option value="6-8">6-8</option>
+                      <option value="9-12">9-12</option>
+                    </select>
+                    <Button
+                      onClick={handleAssignGrowthCheckAll}
+                      disabled={growthCheckSaving}
+                      className="bg-primary"
+                    >
+                      Assign to All Students
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Student Results Overview */}
+                <div>
+                  <h3 className="font-semibold text-sm mb-3">Student Results Overview</h3>
+                  {growthCheckOverview.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No student attempts yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto -mx-2 px-2">
+                      <table className="w-full min-w-[640px] text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                            <th className="py-2 px-2">Student</th>
+                            <th className="py-2 px-2">Grade Band</th>
+                            <th className="py-2 px-2">Arise Score</th>
+                            <th className="py-2 px-2">Window</th>
+                            <th className="py-2 px-2">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {growthCheckOverview.map((r, i) => (
+                            <tr key={i} className="border-b border-border/50">
+                              <td className="py-2 px-2 font-medium">{r.studentName || r.student_name || r.displayName || "Student #" + (r.student_id || "—")}</td>
+                              <td className="py-2 px-2">{r.gradeBand || r.grade_band || r.formGradeBand || "—"}</td>
+                              <td className="py-2 px-2">{r.ariseScore ?? r.arise_reading_score ?? r.score ?? "—"}</td>
+                              <td className="py-2 px-2 capitalize">{r.windowName || r.window_name || "—"}</td>
+                              <td className="py-2 px-2 text-muted-foreground">{r.dateTaken || r.submitted_at || r.completedAt || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
+
+        <Card className="shadow-md" data-section="easter-eggs">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <Gift className="w-5 h-5" />
+              Easter eggs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+          {/* Easter Eggs */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-base">🥚</span>
+              <Label className="text-sm font-bold">FYP Easter Eggs</Label>
+              <span className={`ml-auto px-2 py-0.5 rounded text-xs font-bold ${easterEggs.active ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"}`}>
+                {easterEggs.active ? "ACTIVE" : "INACTIVE"}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <div className="text-xs text-muted-foreground">Total</div>
+                <div className="text-lg font-bold">{easterEggs.totalEggs}</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <div className="text-xs text-muted-foreground">Remaining</div>
+                <div className="text-lg font-bold text-amber-500">{easterEggs.remainingEggs}</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <div className="text-xs text-muted-foreground">Claimed</div>
+                <div className="text-lg font-bold text-green-400">{easterEggs.claims.length}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                placeholder="Number of eggs..."
+                value={eggCount}
+                onChange={(e) => setEggCount(parseInt(e.target.value) || 0)}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm"
+              />
+              <Button size="sm" variant="outline" onClick={() => handleUpdateEasterEggs(false)}>Save</Button>
+              <Button size="sm" onClick={() => handleUpdateEasterEggs(true)} className="bg-amber-500 hover:bg-amber-600 text-black">
+                {easterEggs.active ? "Reset & Reactivate" : "Activate"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Each egg gives {easterEggs.pointsPerEgg} leaderboard points. Students find them randomly while scrolling the FYP. Each student can only claim once.</p>
+            {eggMsg && <span className="text-xs text-green-400">{eggMsg}</span>}
+            {easterEggs.claims.length > 0 && (
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-semibold text-muted-foreground">Claims:</div>
+                {easterEggs.claims.map((c: any) => (
+                  <div key={c.id} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-muted/20">
+                    <span className="font-medium">{c.displayName}</span>
+                    <span className="text-muted-foreground">@{c.username}</span>
+                    <span className="text-amber-500 font-bold">+{c.points_awarded}</span>
+                    <span className="text-muted-foreground">{new Date(c.claimed_at).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          </CardContent>
+        </Card>
+        </>)}
+
+        {adminTab === "games" && (<>
+        <PlayTimeManager />
+
+        <Card className="border-violet-400/25 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.05] to-cyan-400/[.07] shadow-md">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl arise-icon-tile">
+                  <Clock3 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase tracking-[.16em] text-violet-200">Admin Only · Club A.R.I.S.E.</p>
+                  <h2 className="mt-1 text-lg font-black">Game Closing Hours</h2>
+                  <p className="mt-1 text-sm text-slate-400">Set the hours when all Club games and worlds are unavailable to student accounts. Times use Mountain Time.</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-black ${clubClosingHours.enabled ? (clubClosingHours.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>
+                  {!clubClosingHours.enabled ? "OFF" : clubClosingHours.closedNow ? "CLOSED NOW" : "OPEN NOW"}
+                </span>
+              </div>
+
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.035] p-3">
+                <input
+                  type="checkbox"
+                  checked={clubClosingHours.enabled}
+                  onChange={(e) => setClubClosingHours(s => ({ ...s, enabled: e.target.checked }))}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm font-bold">Enable automatic closing hours</span>
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Close games at</span>
+                  <input type="time" value={clubClosingHours.start} onChange={(e) => setClubClosingHours(s => ({...s,start:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Reopen games at</span>
+                  <input type="time" value={clubClosingHours.end} onChange={(e) => setClubClosingHours(s => ({...s,end:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
+                </label>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">Closing days</p>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((label, day) => {
+                    const selected = clubClosingHours.days.includes(day);
+                    return <button key={label} type="button" onClick={() => setClubClosingHours(s => ({...s,days:selected?s.days.filter(d=>d!==day):[...s.days,day].sort((a,b)=>a-b)}))} className={`rounded-xl border px-2 py-2 text-xs font-black transition ${selected?"border-violet-400/35 bg-violet-500/15 text-violet-100":"border-white/10 bg-white/[.03] text-slate-500"}`}>{label}</button>;
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-slate-400">An overnight schedule such as 9:00 PM → 7:00 AM closes the Club across midnight automatically.</p>
+                <Button onClick={handleSaveClubClosingHours} disabled={clubClosingSaving} className="arise-gradient-button rounded-xl font-black">
+                  {clubClosingSaving ? "Saving…" : "Save Closing Hours"}
+                </Button>
+              </div>
+              {clubClosingMsg && <p className="text-xs font-bold text-cyan-200">{clubClosingMsg}</p>}
+
+              <details className="rounded-2xl border border-white/10 bg-black/10 p-3">
+                <summary className="cursor-pointer text-sm font-black text-violet-100">Teacher class hours · admin override</summary>
+                <p className="mt-2 text-xs text-slate-400">Teachers can set hours for their own students. You can review or replace any teacher's class schedule here. The global admin closing window above still takes priority over every class.</p>
+                <div className="mt-3 space-y-3">
+                  {teacherClubClosingHours.length ? teacherClubClosingHours.map((teacher:any) => {
+                    const schedule = teacher.schedule || { enabled:false,start:"21:00",end:"07:00",days:[0,1,2,3,4,5,6] };
+                    return <div key={teacher.id} className="rounded-xl border border-white/10 bg-[#0f0d1d] p-3">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div><p className="font-black text-white">{teacher.displayName}</p><p className="text-xs text-slate-500">@{teacher.username}</p></div>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${schedule.enabled ? (schedule.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>{!schedule.enabled ? "OFF" : schedule.closedNow ? "CLOSED NOW" : "OPEN NOW"}</span>
+                      </div>
+                      <label className="mb-3 flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={!!schedule.enabled} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,enabled:e.target.checked}}:item))}/> Use class hours</label>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="text-xs font-bold text-slate-400">Close at<input type="time" value={schedule.start} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,start:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
+                        <label className="text-xs font-bold text-slate-400">Reopen at<input type="time" value={schedule.end} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,end:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((label,day)=>{
+                        const selected=(schedule.days||[]).includes(day);
+                        return <button type="button" key={label} onClick={()=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,days:selected?schedule.days.filter((d:number)=>d!==day):[...schedule.days,day].sort((a:number,b:number)=>a-b)}}:item))} className={`rounded-lg border px-2 py-1.5 text-[10px] font-black ${selected?"border-violet-400/40 bg-violet-500/15 text-violet-100":"border-white/10 text-slate-500"}`}>{label}</button>;
+                      })}</div>
+                      <Button size="sm" onClick={()=>void saveTeacherClubClosingHours(teacher.id)} disabled={teacherClubClosingSavingId===teacher.id} className="mt-3 rounded-xl font-black">{teacherClubClosingSavingId===teacher.id?"Saving…":"Override class hours"}</Button>
+                    </div>;
+                  }) : <p className="text-xs text-slate-500">No teacher accounts found.</p>}
+                </div>
+                {teacherClubClosingMsg && <p className="mt-2 text-xs font-bold text-cyan-200">{teacherClubClosingMsg}</p>}
+              </details>
+            </div>
+          </CardContent>
+        </Card>
+
+        <TheaterAdmin token={token || getTokenFromCookie()} />
+        </>)}
+
+        {adminTab === "site" && (<>
+        <Card className="shadow-md" data-section="banners">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <Megaphone className="w-5 h-5" />
+              Banners
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+          {/* Announcement banner */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+              </svg>
+              <Label className="text-sm font-medium">Announcement Banner</Label>
+            </div>
+            <p className="text-xs text-muted-foreground">This message appears at the top of every student's Library page.</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="Enter an announcement (leave empty to clear)..."
+                value={announcementText}
+                onChange={(e) => setAnnouncementText(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <Button size="sm" variant="outline" onClick={handleUpdateAnnouncement}>
+                Update
+              </Button>
+            </div>
+            {announcementMsg && <span className="text-xs text-green-400">{announcementMsg}</span>}
+          </div>
+
+          {/* Student Banner */}
+          <div className="space-y-2 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Student Banner (visible to students)</Label>
+            <textarea
+              placeholder="Banner text for students..."
+              value={studentBanner.text}
+              onChange={(e) => setStudentBanner({ ...studentBanner, text: e.target.value })}
+              className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs text-muted-foreground">Bg:</label>
+                <input type="color" value={studentBanner.bgColor} onChange={(e) => setStudentBanner({ ...studentBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs text-muted-foreground">Text:</label>
+                <input type="color" value={studentBanner.textColor} onChange={(e) => setStudentBanner({ ...studentBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={studentBanner.active} onChange={(e) => setStudentBanner({ ...studentBanner, active: e.target.checked })} />
+                Active
+              </label>
+              <Button size="sm" variant="outline" onClick={handleUpdateStudentBanner}>Update</Button>
+            </div>
+          </div>
+
+          {/* Teacher Banner */}
+          <div className="space-y-2 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Teacher Banner (visible to teachers only)</Label>
+            <textarea
+              placeholder="Banner text for teachers..."
+              value={teacherBanner.text}
+              onChange={(e) => setTeacherBanner({ ...teacherBanner, text: e.target.value })}
+              className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs text-muted-foreground">Bg:</label>
+                <input type="color" value={teacherBanner.bgColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs text-muted-foreground">Text:</label>
+                <input type="color" value={teacherBanner.textColor} onChange={(e) => setTeacherBanner({ ...teacherBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={teacherBanner.active} onChange={(e) => setTeacherBanner({ ...teacherBanner, active: e.target.checked })} />
+                Active
+              </label>
+              <Button size="sm" variant="outline" onClick={handleUpdateTeacherBanner}>Update</Button>
+            </div>
+            {/* Sync buttons */}
+            <div className="flex items-center gap-2 pt-2">
+              <Button size="sm" variant="ghost" onClick={() => handleSyncBanners("student-to-teacher")}>
+                Copy Student → Teacher
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => handleSyncBanners("teacher-to-student")}>
+                Copy Teacher → Student
+              </Button>
+            </div>
+            {bannerMsg && <span className="text-xs text-green-400">{bannerMsg}</span>}
+          </div>
+
+          {/* Login Banner */}
+          <div className="space-y-2 pt-4 border-t border-border mt-4">
+            <Label className="text-sm font-medium">Login Page Banner (visible on the login page to everyone)</Label>
+            <Input
+              value={loginBanner.text}
+              onChange={(e) => setLoginBanner({ ...loginBanner, text: e.target.value })}
+              placeholder="e.g. Site maintenance tonight at 9 PM. Expect brief downtime."
+              className="bg-muted/30 border-border text-foreground"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">BG</span>
+                <input type="color" value={loginBanner.bgColor} onChange={(e) => setLoginBanner({ ...loginBanner, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Text</span>
+                <input type="color" value={loginBanner.textColor} onChange={(e) => setLoginBanner({ ...loginBanner, textColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+              <div className="flex items-center gap-1">
+                <input type="checkbox" checked={loginBanner.active} onChange={(e) => setLoginBanner({ ...loginBanner, active: e.target.checked })} />
+                <span className="text-xs text-muted-foreground">Active</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={handleUpdateLoginBanner}>Update</Button>
+            </div>
+          </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-md" data-section="donation-goal">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              <Gift className="w-5 h-5" />
+              Donation goal
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+          {/* Donation Goal Settings */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Donation Goal (shows on student library page)</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <span className="text-xs text-muted-foreground">Goal Amount ($)</span>
+                <Input
+                  type="number"
+                  value={donationSettings.goalAmount}
+                  onChange={(e) => setDonationSettings({ ...donationSettings, goalAmount: Number(e.target.value) })}
+                  className="bg-muted/30 border-border text-foreground"
+                />
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Current Amount ($)</span>
+                <Input
+                  type="number"
+                  value={donationSettings.currentAmount}
+                  onChange={(e) => setDonationSettings({ ...donationSettings, currentAmount: Number(e.target.value) })}
+                  className="bg-muted/30 border-border text-foreground"
+                />
+              </div>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Title</span>
+              <Input
+                value={donationSettings.title}
+                onChange={(e) => setDonationSettings({ ...donationSettings, title: e.target.value })}
+                placeholder="Support Our Readers"
+                className="bg-muted/30 border-border text-foreground"
+              />
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Description</span>
+              <Input
+                value={donationSettings.description}
+                onChange={(e) => setDonationSettings({ ...donationSettings, description: e.target.value })}
+                placeholder="Help us keep A.R.I.S.E Reader free for students"
+                className="bg-muted/30 border-border text-foreground"
+              />
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Donation Link (URL)</span>
+              <Input
+                value={donationSettings.donateUrl}
+                onChange={(e) => setDonationSettings({ ...donationSettings, donateUrl: e.target.value })}
+                placeholder="https://donate.stripe.com/..."
+                className="bg-muted/30 border-border text-foreground"
+              />
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Milestones (one per line, format: amount|label)</span>
+              <textarea
+                value={donationSettings.milestonesText}
+                onChange={(e) => setDonationSettings({ ...donationSettings, milestonesText: e.target.value })}
+                placeholder={"250|First Goal\n500|Halfway\n1000|Fully Funded"}
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg bg-muted/30 border border-border text-foreground text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={donationSettings.active}
+                  onChange={(e) => setDonationSettings({ ...donationSettings, active: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-muted-foreground">Active (show on library page)</span>
+              </label>
+              <Button size="sm" variant="outline" onClick={handleUpdateDonation}>Save Donation Settings</Button>
+            </div>
+            {donationMsg && <span className="text-xs text-green-400">{donationMsg}</span>}
+          </div>
+          </CardContent>
+        </Card>
+        </>)}
+
+        {adminTab === "billing" && (<>
+        {/* Plans and billing */}
+        <AdminPlans />
+        </>)}
 
         {/* Review Detail Dialog */}
         {activeReview && (
@@ -4149,425 +4493,8 @@ Generate exactly 10 questions.`;
             </DialogContent>
           </Dialog>
         )}
-
-        {/* Quiz requests */}
-        <Card className="shadow-md" ref={quizRequestsRef}>
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <MessageSquarePlus className="w-5 h-5" />
-              Quiz Requests
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {quizRequestsLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />
-                ))}
-              </div>
-            ) : quizRequests.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No quiz requests yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {quizRequests.map((req) => {
-                  const isPending = req.status !== "completed";
-                  const studentName = req.studentName
-                    || req.student?.displayName
-                    || req.student?.username
-                    || "Unknown student";
-                  return (
-                    <div
-                      key={req.id}
-                      className="p-4 rounded-xl bg-muted/30 border border-border"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm">{req.bookTitle}</p>
-                          {req.author && (
-                            <p className="text-xs text-muted-foreground mt-0.5">by {req.author}</p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Requested by {studentName}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {new Date(req.createdAt).toLocaleDateString("en-US", {
-                              year: "numeric", month: "short", day: "numeric",
-                            })}
-                          </p>
-                        </div>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 ${
-                          isPending ? "bg-primary/20 text-primary" : "bg-green-500/20 text-green-400"
-                        }`}>
-                          {isPending ? "Pending" : "Completed"}
-                        </span>
-                      </div>
-                      {isPending && (
-                        <div className="flex gap-2 mt-3">
-                          <Button
-                            className="flex-1"
-                            size="sm"
-                            onClick={() => handleCreateQuizFromRequest(req)}
-                          >
-                            <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                            Create Quiz
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleMarkRequestComplete(req.id)}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                            Mark Complete
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Schools & Classes Section */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <Building className="w-5 h-5" />
-              Schools & Classes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Create school */}
-            <div className="flex flex-col sm:flex-row gap-2 mb-4">
-              <Input
-                value={newSchoolName}
-                onChange={(e) => setNewSchoolName(e.target.value)}
-                placeholder="New school name"
-                className="text-sm"
-              />
-              <Button onClick={handleCreateSchool} size="sm" className="bg-primary whitespace-nowrap">
-                <PlusCircle className="w-4 h-4 mr-1" />
-                Add School
-              </Button>
-            </div>
-
-            {/* Schools list */}
-            {schools.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No schools added yet. Create one above.</p>
-            ) : (
-              <div className="space-y-3">
-                {schools.map((school: any) => (
-                  <div key={school.id} className="rounded-xl border border-border p-4 bg-muted/20">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                      <div>
-                        <h4 className="font-medium text-sm">{school.name}</h4>
-                        <p className="text-xs text-muted-foreground">
-                          {schoolClasses[school.id]?.length || 0} classes
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteSchool(school.id, school.name)}
-                        className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2 py-1 rounded"
-                      >
-                        Delete School
-                      </button>
-                    </div>
-
-                    {/* Where this school is in the US school list */}
-                    <SchoolUsListMatch school={school} onChanged={fetchSchools} />
-
-                    {/* Create class under school */}
-                    <div className="flex flex-col sm:flex-row gap-2 mb-3">
-                      <Input
-                        value={newClassName[school.id] || ""}
-                        onChange={(e) => setNewClassName({ ...newClassName, [school.id]: e.target.value })}
-                        placeholder="New class name"
-                        className="h-8 text-sm"
-                      />
-                      <Button
-                        onClick={() => handleCreateClass(school.id)}
-                        size="sm"
-                        className="bg-muted border border-border text-foreground hover:bg-muted/80 whitespace-nowrap h-8"
-                      >
-                        Add Class
-                      </Button>
-                    </div>
-
-                    {/* Classes under this school */}
-                    {(schoolClasses[school.id] || []).map((cls: any) => {
-                      const stats = classStats[cls.id];
-                      return (
-                        <div key={cls.id} className="rounded-lg bg-background/50 p-3 mb-2">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <div>
-                              <span className="text-sm font-medium">{cls.name}</span>
-                              {stats && (
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  {stats.studentCount} students | {stats.totalPoints} pts | {stats.quizzesCompleted} quizzes
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleDeleteClass(cls.id, cls.name)}
-                              className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2 py-1 rounded"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* AI Quiz Review Section */}
-        {pendingQuizzes.length > 0 && (
-          <div data-section="ai-quiz-review" className="mb-6 p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-bold">AI Quiz Review</h2>
-              <span className="text-xs bg-orange-500/20 text-orange-600 px-2 py-0.5 rounded-full font-medium">
-                {pendingQuizzes.length} pending
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Students requested these AI-generated quizzes. Review the questions and approve or reject each one.
-            </p>
-            <div className="space-y-3">
-              {pendingQuizzes.map((quiz) => {
-                let questions = [];
-                try { questions = typeof quiz.questions === 'string' ? JSON.parse(quiz.questions) : quiz.questions; } catch {}
-                if (!Array.isArray(questions)) questions = [];
-                const isExpanded = expandedQuiz === quiz.id;
-                const isRejecting = rejectingQuizId === quiz.id;
-                return (
-                  <div key={quiz.id} className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm">{quiz.book_title}</span>
-                          <span className="text-xs text-muted-foreground">by {quiz.author}</span>
-                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                            {quiz.quiz_type === 'eye_gaze' ? 'Eye Gaze' : quiz.quiz_type === 'iarise' ? 'iArise' : quiz.quiz_type === 'favorite_topic' ? 'Favorite Topic' : 'Book Quiz'}
-                          </span>
-                          <span className="text-xs text-muted-foreground">Grade {quiz.age_group}</span>
-                          <span className="text-xs text-muted-foreground">{quiz.student_name || 'Unknown student'}</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setExpandedQuiz(isExpanded ? null : quiz.id)}
-                        className="text-xs text-primary hover:underline"
-                      >{isExpanded ? 'Hide' : 'Review'}</button>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="mt-4 space-y-3">
-                        {questions.length === 0 && (
-                          <p className="text-sm text-muted-foreground italic">No questions could be loaded.</p>
-                        )}
-                        {questions.map((q: any, qIdx: number) => {
-                          const questionText = q.prompt || q.question || '';
-                          const opts = q.option_a_text ? [
-                            { letter: 'A', text: q.option_a_text, image: q.option_a_image },
-                            { letter: 'B', text: q.option_b_text, image: q.option_b_image },
-                            { letter: 'C', text: q.option_c_text, image: q.option_c_image },
-                            { letter: 'D', text: q.option_d_text, image: q.option_d_image },
-                          ] : (q.options || []).map((opt: any, i: number) => ({
-                            letter: String.fromCharCode(65 + i),
-                            text: typeof opt === 'string' ? opt : (opt.text || ''),
-                            image: typeof opt === 'string' ? null : (opt.image || null),
-                          }));
-                          const correctLetter = (q.correct_answer || q.correct || 'A').toString().toUpperCase().charAt(0);
-                          const qImage = q.question_image || q.image || null;
-                          return (
-                          <div key={qIdx} className="bg-muted/50 rounded-lg p-3">
-                            <p className="text-sm font-medium mb-2">{qIdx + 1}. {questionText}</p>
-                            {qImage && (
-                              <div className="mb-2">
-                                {qImage.startsWith('http') || qImage.startsWith('data:') ? (
-                                  <img src={qImage} alt="Question visual" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 6 }} />
-                                ) : (
-                                  <span style={{ fontSize: 28 }}>{qImage}</span>
-                                )}
-                              </div>
-                            )}
-                            <div className="space-y-1">
-                              {opts.map((opt: any, oIdx: number) => (
-                                <div key={oIdx} className={`text-xs px-2 py-1 rounded ${
-                                  opt.letter === correctLetter ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'
-                                }`}>
-                                  {opt.letter}) {opt.text}{opt.letter === correctLetter ? ' ✓' : ''}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          );
-                        })}
-
-                        {isRejecting ? (
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <input
-                              type="text"
-                              placeholder="Reason for rejection (optional)..."
-                              value={rejectReason}
-                              onChange={(e) => setRejectReason(e.target.value)}
-                              className="flex-1 px-3 py-1.5 rounded-lg border border-border text-sm bg-background"
-                            />
-                            <Button size="sm" variant="destructive" onClick={() => handleRejectQuiz(quiz.id)}>
-                              Confirm Reject
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => { setRejectingQuizId(null); setRejectReason(""); }}>
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <Button size="sm" variant="default" onClick={() => handleApproveQuiz(quiz.id)}>
-                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve & Publish
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setRejectingQuizId(quiz.id)}>
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Growth Check Section */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <Brain className="w-5 h-5" />
-              Arise Reading Growth Check
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">Manage benchmark windows, forms, and student assignments</p>
-          </CardHeader>
-          <CardContent>
-            {growthCheckLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Success / Error messages */}
-                {growthCheckSuccess && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    {growthCheckSuccess}
-                  </div>
-                )}
-                {growthCheckError && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                    <X className="w-4 h-4 flex-shrink-0" />
-                    {growthCheckError}
-                  </div>
-                )}
-
-                {/* Benchmark Windows */}
-                <div>
-                  <h3 className="font-semibold text-sm mb-3">Benchmark Windows</h3>
-                  <div className="space-y-2">
-                    {growthCheckWindows.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">No benchmark windows configured.</p>
-                    ) : (
-                      growthCheckWindows.map((w) => (
-                        <div key={w.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/30 rounded-xl p-3">
-                          <div>
-                            <div className="font-medium text-sm capitalize">{w.window_name || w.name || "Unknown"}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {w.school_year || w.term}{w.start_date && ` • ${w.start_date}${w.end_date ? ` to ${w.end_date}` : ""}`}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleSaveGrowthCheckWindow({ ...w, is_active: !w.is_active })}
-                            disabled={growthCheckSaving}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${
-                              w.is_active
-                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                                : "bg-muted text-muted-foreground border border-border hover:bg-muted/80"
-                            } disabled:opacity-50`}
-                          >
-                            {w.is_active ? "Active" : "Inactive"}
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                {/* Assign Growth Check */}
-                <div>
-                  <h3 className="font-semibold text-sm mb-3">Assign Growth Check</h3>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={growthCheckAssignBand}
-                      onChange={(e) => setGrowthCheckAssignBand(e.target.value)}
-                      className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
-                    >
-                      <option value="K-2">K-2</option>
-                      <option value="3-5">3-5</option>
-                      <option value="6-8">6-8</option>
-                      <option value="9-12">9-12</option>
-                    </select>
-                    <Button
-                      onClick={handleAssignGrowthCheckAll}
-                      disabled={growthCheckSaving}
-                      className="bg-primary"
-                    >
-                      Assign to All Students
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Student Results Overview */}
-                <div>
-                  <h3 className="font-semibold text-sm mb-3">Student Results Overview</h3>
-                  {growthCheckOverview.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No student attempts yet.</p>
-                  ) : (
-                    <div className="overflow-x-auto -mx-2 px-2">
-                      <table className="w-full min-w-[640px] text-sm">
-                        <thead>
-                          <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                            <th className="py-2 px-2">Student</th>
-                            <th className="py-2 px-2">Grade Band</th>
-                            <th className="py-2 px-2">Arise Score</th>
-                            <th className="py-2 px-2">Window</th>
-                            <th className="py-2 px-2">Date</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {growthCheckOverview.map((r, i) => (
-                            <tr key={i} className="border-b border-border/50">
-                              <td className="py-2 px-2 font-medium">{r.studentName || r.student_name || r.displayName || "Student #" + (r.student_id || "—")}</td>
-                              <td className="py-2 px-2">{r.gradeBand || r.grade_band || r.formGradeBand || "—"}</td>
-                              <td className="py-2 px-2">{r.ariseScore ?? r.arise_reading_score ?? r.score ?? "—"}</td>
-                              <td className="py-2 px-2 capitalize">{r.windowName || r.window_name || "—"}</td>
-                              <td className="py-2 px-2 text-muted-foreground">{r.dateTaken || r.submitted_at || r.completedAt || "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </main>
+      </div>
 
       {/* Student detail dialog */}
       <Dialog open={!!pointsStudent} onOpenChange={(open) => { if (!open && !manualSaving) setPointsStudent(null); }}>

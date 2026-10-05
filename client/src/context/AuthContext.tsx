@@ -240,6 +240,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem("arise_admin_preview_mode");
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     sessionStorage.removeItem("arise_parent_child_id");
+    // the section each dashboard had open belongs to whoever was signed in
+    for (const key of ["admin_dashboard_section", "teacher_dashboard_section", "arise_parent_section"]) sessionStorage.removeItem(key);
     clearAuthenticatedNavigation();
     setAdminPreviewMode(null);
     if (sessionRef.current.token) {
