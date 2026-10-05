@@ -5,7 +5,7 @@ import type { Server } from "node:http";
 import { storage } from "./storage";
 // Cache-bust: force server restart to pick up new DB entries
 import { seedData } from "./storage";
-import { clearCache } from "./storage";
+import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
@@ -37,6 +37,8 @@ import { createAdminAlerts, type Alert } from "./adminAlerts";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
 import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
+import { shuffleChoices, storedLetter } from "./quizShuffle";
+import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { raw } from "express";
@@ -923,6 +925,11 @@ const presence = createPresenceTracker({
   upsertSetting: (key, value) => storage.upsertSetting(key, value),
 });
 
+// Wrong passwords and proctor codes: after this many misses, wait before trying again.
+const loginFailsByName = createAttemptLimiter({ max: 10, windowMs: 15 * 60_000 });
+const loginFailsByAddress = createAttemptLimiter({ max: 100, windowMs: 15 * 60_000 });
+const proctorFails = createAttemptLimiter({ max: 8, windowMs: 15 * 60_000 });
+
 // Simple auth middleware
 async function authMiddleware(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace("Bearer ", "");
@@ -1245,6 +1252,54 @@ export async function registerRoutes(
   const isDemoStudent = (user: any) => {
     const username = String(user?.username || "").toLowerCase();
     return username.startsWith("sample") || username === "tutorial-eye";
+  };
+  /** Each student's grade (kept in the user_grades setting). */
+  const studentGrades = async (): Promise<Record<string, string>> => {
+    try { const raw = await storage.getSetting("user_grades"); const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; }
+    catch { return {}; }
+  };
+  /** What anyone may see about a teacher on the public sign-up pages. */
+  const publicTeacher = (t: any) => ({ id: t.id, display_name: t.display_name, displayName: t.display_name, role: t.role, school_id: t.school_id });
+  /** The signed-in session for a public route, if the request carries one. */
+  const sessionFromRequest = async (req: any) => {
+    const token = String(req.headers?.authorization || "").replace("Bearer ", "");
+    if (!token) return null;
+    try { return await storage.getSession(token); } catch { return null; }
+  };
+  /** A teacher or the admin looking at a quiz as staff (not previewing it as a student). */
+  const isStaffViewer = (req: any) => !req.adminPreview && !isDemoStudent(req.user) && (req.user?.isAdmin === true || req.user?.role === "teacher");
+  /** Quiz questions without the answer key, for anyone taking the quiz. */
+  const withoutAnswers = (questions: any[] | undefined) => (questions || []).map(({ correct_answer: _answer, ...rest }: any) => rest);
+  /** Checks one answer of an Eye Gazer or custom quiz, so the quiz can cheer right away without sending the answer key. */
+  const checkOneAnswer = async (
+    req: any,
+    res: any,
+    table: "eye_gaze_attempts" | "custom_eye_gaze_attempts",
+    loadQuestions: (quizId: number) => Promise<any[]>,
+  ) => {
+    try {
+      const attemptId = parseInt(req.params.attemptId);
+      const questionId = Number(req.body?.questionId);
+      const answer = String(req.body?.answer || "").trim();
+      if (!Number.isSafeInteger(attemptId) || !Number.isSafeInteger(questionId) || !answer) {
+        return res.status(400).json({ message: "Choose an answer first." });
+      }
+      if (attemptId < 0) {
+        // previews (staff, admin preview and the sample accounts) aren't saved
+        const canPreview = req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher";
+        if (!canPreview) return res.status(403).json({ message: "Start the quiz first." });
+        const question = (await loadQuestions(-attemptId)).find((q: any) => Number(q.id) === questionId);
+        if (!question) return res.status(404).json({ message: "Question not found." });
+        return res.json({ correct: answer === String(question.correct_answer || "") });
+      }
+      const recorded = await storage.recordQuizAnswer(table, attemptId, req.user.id, questionId, answer);
+      if (!recorded) return res.status(409).json({ message: "This quiz is already finished." });
+      const question = (await loadQuestions(recorded.quizId)).find((q: any) => Number(q.id) === questionId);
+      if (!question) return res.status(404).json({ message: "Question not found." });
+      res.json({ correct: recorded.answer === String(question.correct_answer || ""), answer: recorded.answer });
+    } catch (error: any) {
+      res.status(500).json({ message: "Could not check that answer." });
+    }
   };
   /** A real student, not an admin preview, a sample account or staff trying something out. */
   const isRealStudentRequest = (req: any) =>
@@ -1873,15 +1928,27 @@ export async function registerRoutes(
 
   app.post("/api/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
-      if (!username || !password) {
+      const { username, password } = req.body || {};
+      if (typeof username !== "string" || typeof password !== "string" || !username.trim() || !password) {
         return res.status(400).json({ message: "Username and password required" });
       }
 
-      const user = await storage.getUserByUsername(username.toLowerCase());
-      if (!user || !bcrypt.compareSync(password, user.password)) {
+      // Slow down password guessing: 10 misses per account (100 per network) in 15 minutes.
+      const nameKey = username.trim().toLowerCase();
+      const addressKey = clientAddress(req);
+      const wait = Math.max(loginFailsByName.retryAfter(nameKey), loginFailsByAddress.retryAfter(addressKey));
+      if (wait > 0) {
+        res.set("Retry-After", String(Math.ceil(wait / 1000)));
+        return res.status(429).json({ message: `Too many wrong passwords. Try again in ${waitWords(wait)}, or ask your teacher to reset your password.` });
+      }
+
+      const user = await storage.getUserByUsername(nameKey);
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        loginFailsByName.fail(nameKey);
+        loginFailsByAddress.fail(addressKey);
         return res.status(401).json({ message: "Invalid username or password" });
       }
+      loginFailsByName.reset(nameKey);
 
       if (user.archivedAt) {
         return res.status(403).json({ message: "This account is archived. Ask your teacher or the site admin to restore it." });
@@ -1979,6 +2046,33 @@ export async function registerRoutes(
     res.json({ totalBooks: allBooks.length, withPoints: withPoints.length, mambaFound: !!mamba, mambaId: mamba?.id });
   });
 
+  // Two farm animal models are hosted on a site that browsers may not load from other sites
+  // (it sends no CORS header), so the server fetches them once and serves them itself.
+  const FARM_MODELS: Record<string, string> = {
+    cow: "https://static.poly.pizza/382b3d4a-a7c9-4c03-9858-3df630d90047.glb",
+    horse: "https://static.poly.pizza/d37dbc87-ca61-4b2c-a2da-d2f0c4240bef.glb",
+  };
+  const farmModelCache = new Map<string, Buffer>();
+  app.get("/api/farm-models/:name", async (req, res) => {
+    const name = String(req.params.name || "");
+    const url = FARM_MODELS[name];
+    if (!url) return res.status(404).end();
+    try {
+      let bytes = farmModelCache.get(name);
+      if (!bytes) {
+        const upstream = await fetch(url, { headers: { "User-Agent": "ARISEReader/1.0 (https://www.arisereader.com)" }, signal: AbortSignal.timeout(20000) });
+        if (!upstream.ok) return res.status(502).end();
+        bytes = Buffer.from(await upstream.arrayBuffer());
+        if (bytes.length < 25_000_000) farmModelCache.set(name, bytes);
+      }
+      res.setHeader("Content-Type", "model/gltf-binary");
+      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+      res.send(bytes);
+    } catch {
+      res.status(502).end();
+    }
+  });
+
   app.get("/api/book-cover/:id", async (req, res) => {
     try {
       const bookId = Number(req.params.id);
@@ -1997,11 +2091,14 @@ export async function registerRoutes(
 
       const upstream = await fetch(book.coverUrl, {
         headers: {
-          "User-Agent": "ARISEReader/1.0",
+          // Wikimedia refuses requests without a descriptive user agent
+          "User-Agent": "ARISEReader/1.0 (https://www.arisereader.com; reading app for schools)",
           "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
         },
-      });
-      if (!upstream.ok) return res.status(502).end();
+        signal: AbortSignal.timeout(10000),
+      }).catch(() => null);
+      // If the server can't fetch it, let the browser try the picture itself.
+      if (!upstream || !upstream.ok) return res.redirect(302, book.coverUrl);
 
       const type = upstream.headers.get("content-type") || "image/jpeg";
       const bytes = Buffer.from(await upstream.arrayBuffer());
@@ -2015,9 +2112,12 @@ export async function registerRoutes(
 
   app.get("/api/books", authMiddleware, async (req: any, res) => {
     const allBooks = await storage.getAllBooks();
-    // Regular library only shows books WITH quizzes (points_value > 0)
+    // Regular library only shows books with a quiz to take: worth points AND with questions.
+    // (Some books were imported with points but no questions; opening them led to an empty quiz.)
     // FYP feed uses a separate endpoint and shows ALL books
-    const books = allBooks.filter((b: any) => b.pointsValue > 0);
+    let quizIds: Set<number> | null = null;
+    try { quizIds = await storage.getQuizBookIds(); } catch { quizIds = null; }
+    const books = allBooks.filter((b: any) => b.pointsValue > 0 && (!quizIds || quizIds.has(Number(b.id))));
 
     // Fetch all settings needed for filtering
     const rawGrades = await storage.getSetting('user_grades');
@@ -2340,8 +2440,9 @@ export async function registerRoutes(
     if (!book) return res.status(404).json({ message: "Book not found" });
 
     const allQuestions = await storage.getQuestionsByBook(bookId);
-    // Strip correct answers before sending to client
-    const safeQuestions = allQuestions.map(q => ({
+    // Strip correct answers before sending to client, and show each student the choices
+    // in their own order (see server/quizShuffle.ts); grading turns them back.
+    const safeQuestions = allQuestions.map(q => shuffleChoices({
       id: q.id,
       questionText: q.questionText,
       optionA: q.optionA,
@@ -2349,8 +2450,9 @@ export async function registerRoutes(
       optionC: q.optionC,
       optionD: q.optionD,
       questionOrder: q.questionOrder,
-    }));
+    }, req.user.id));
 
+    res.set("Cache-Control", "no-store");
     res.json({ book, questions: safeQuestions });
   });
 
@@ -2401,16 +2503,17 @@ export async function registerRoutes(
       }
     }
 
-    const normalizedAnswers = Object.fromEntries(
-      Object.entries(answers).map(([questionId, answer]) => [
-        questionId,
-        String(answer || "").trim().toUpperCase(),
-      ])
-    );
-
     const allQuestions = await storage.getQuestionsByBook(bookId);
     if (allQuestions.length === 0) {
       return res.status(404).json({ message: "No questions found for this book" });
+    }
+
+    // The student picked letters in their own order of the choices; turn them back into the
+    // stored letters before grading and saving (see server/quizShuffle.ts).
+    const normalizedAnswers: Record<string, string> = {};
+    for (const q of allQuestions) {
+      const picked = String((answers as Record<string, unknown>)[String(q.id)] ?? "").trim().toUpperCase();
+      if (picked) normalizedAnswers[String(q.id)] = storedLetter(q, req.user.id, picked);
     }
 
     let score = 0;
@@ -3623,8 +3726,10 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/messages/:id/read", authMiddleware, async (req, res) => {
-    await storage.markMessageRead(parseInt(req.params.id));
+  app.post("/api/messages/:id/read", authMiddleware, async (req: any, res) => {
+    const id = parseInt(req.params.id);
+    if (req.user.isAdmin && !req.adminPreview) await storage.markMessageRead(id);
+    else await storage.markMessageReadById(id, req.user.id);
     res.json({ message: "Marked as read" });
   });
 
@@ -4232,6 +4337,7 @@ export async function registerRoutes(
         displayName: entry.displayName,
         totalPoints: entry.totalPoints,
         quizzesTaken: entry.quizzesTaken,
+        quizzesPassed: entry.quizzesPassed ?? entry.quizzesTaken,
         isEyeGazeUser,
       };
     });
@@ -4315,9 +4421,11 @@ export async function registerRoutes(
       const schoolId = user?.school_id || user?.schoolId || null;
       const schoolName = schoolId ? (schoolMap.get(schoolId) || null) : null;
       const isEyeGazeUser = user?.is_eye_gaze_user || user?.isEyeGazeUser || false;
+      // usernames are sign-in names: only the admin sees them
+      const { username: _username, ...shown } = entry;
       return {
         rank: idx + 1,
-        ...entry,
+        ...(req.user?.isAdmin && !req.adminPreview ? entry : shown),
         schoolName,
         isEyeGazeUser,
         grade,
@@ -4487,17 +4595,19 @@ export async function registerRoutes(
   });
 
   // Authenticated eye gaze leaderboard (supports monthly filtering)
-  app.get("/api/eye-gaze/leaderboard", authMiddleware, async (req, res) => {
+  app.get("/api/eye-gaze/leaderboard", authMiddleware, async (req: any, res) => {
     const month = req.query.month as string;
     const leaderboard = month
       ? await storage.getMonthlyEyeGazeLeaderboard(month)
       : await storage.getEyeGazeLeaderboard();
+    const admin = req.user?.isAdmin && !req.adminPreview;
     const safe = leaderboard.map((entry: any, idx: number) => ({
       rank: idx + 1,
       displayName: entry.displayName,
       totalPoints: entry.totalPoints,
       quizzesTaken: entry.quizzesTaken,
-      username: entry.username,
+      // usernames are sign-in names: only the admin sees them
+      ...(admin ? { username: entry.username } : {}),
       id: entry.id,
     }));
     res.json(safe);
@@ -4575,7 +4685,7 @@ export async function registerRoutes(
         return schoolMatch && gradeMatch;
       });
       
-      res.json(filtered);
+      res.json(filtered.map(publicTeacher));
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -6031,6 +6141,14 @@ export async function registerRoutes(
         });
       }
 
+      // Slow down guessing the proctor password or a parent's code.
+      const proctorKey = `student:${req.user.id}`;
+      const proctorWait = proctorFails.retryAfter(proctorKey);
+      if (proctorWait > 0) {
+        res.set("Retry-After", String(Math.ceil(proctorWait / 1000)));
+        return res.status(429).json({ message: `Too many wrong proctor codes. Try again in ${waitWords(proctorWait)}.` });
+      }
+
       let identity: ProctorIdentity | null = null;
 
       // School staff proctoring must work even when a student's parent account is
@@ -6043,6 +6161,8 @@ export async function registerRoutes(
         // this specific student.
         const parentIds = await getStudentParentIds(req.user.id);
         if (!parentIds.length) {
+          // it wasn't the school password either, so it counts as a miss
+          proctorFails.fail(proctorKey);
           return res.status(403).json({
             message: "A parent or guardian must connect an A.R.I.S.E. Parent account before using a parent proctor code. School staff may use the school proctor password.",
             parentRequired: true,
@@ -6067,7 +6187,11 @@ export async function registerRoutes(
         }
       }
 
-      if (!identity) return res.status(403).json({ message: "That proctor code is not valid for this student." });
+      if (!identity) {
+        proctorFails.fail(proctorKey);
+        return res.status(403).json({ message: "That proctor code is not valid for this student." });
+      }
+      proctorFails.reset(proctorKey);
 
       const session = await createProctorSession(req.user.id, quizKind, quizId, identity);
       res.set("Cache-Control", "no-store");
@@ -6316,11 +6440,14 @@ export async function registerRoutes(
   });
 
   // Start questions phase (passage disappears)
-  app.post("/api/reading-assessment/:attemptId/start-questions", authMiddleware, async (req, res) => {
+  app.post("/api/reading-assessment/:attemptId/start-questions", authMiddleware, async (req: any, res) => {
     try {
-      const attempt = await storage.startAssessmentQuestions(parseInt(req.params.attemptId));
+      const attemptId = parseInt(req.params.attemptId);
+      const { data: owned } = await getAdminSupabase().from("reading_assessment_attempts").select("user_id").eq("id", attemptId).maybeSingle();
+      if (!owned || Number(owned.user_id) !== Number(req.user.id)) return res.status(404).json({ message: "Reading check not found." });
+      const attempt = await storage.startAssessmentQuestions(attemptId);
       const questions = await storage.getPassageQuestions(attempt.passage_id);
-      res.json({ attempt, questions });
+      res.json({ attempt, questions: withoutAnswers(questions) });
     } catch (err) {
       res.status(500).json({ message: "Failed to start questions" });
     }
@@ -6615,7 +6742,8 @@ export async function registerRoutes(
       const quiz = await storage.getEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
       const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
-      res.json({ ...quiz, hasCompleted: completed });
+      res.set("Cache-Control", "no-store");
+      res.json({ ...quiz, questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions), hasCompleted: completed });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -6628,8 +6756,9 @@ export async function registerRoutes(
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
       const sampleAccount = isDemoStudent(req.user);
       const staffPreview = req.user?.isAdmin || req.user?.role === "teacher";
+      res.set("Cache-Control", "no-store");
       if (req.adminPreview || sampleAccount || staffPreview) {
-        return res.json({ ...quiz, attemptId: -quizId, preview: true });
+        return res.json({ ...quiz, questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions), attemptId: -quizId, preview: true });
       }
 
       const proctor = await validateProctorSession(
@@ -6646,7 +6775,7 @@ export async function registerRoutes(
       const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
       if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
       const attempt = await storage.startEyeGazeAttempt(req.user.id, quizId, proctor);
-      res.json({ ...quiz, attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
+      res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -6690,7 +6819,13 @@ export async function registerRoutes(
       if (!ownedAttempt || Number(ownedAttempt.user_id) !== Number(req.user.id)) {
         return res.status(403).json({ message: "That quiz attempt does not belong to this student." });
       }
-      const result = await storage.submitEyeGazeAttempt(attemptId, answers);
+      let result: any;
+      try {
+        result = await storage.submitEyeGazeAttempt(attemptId, answers);
+      } catch (error) {
+        if (error instanceof AlreadySubmittedError) return res.status(409).json({ message: error.message });
+        throw error;
+      }
       res.json(result);
       void (async () => {
         const { data: quiz } = await supabase.from("eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
@@ -6707,6 +6842,9 @@ export async function registerRoutes(
       res.status(500).json({ message: error.message });
     }
   });
+
+  app.post("/api/eye-gaze/quizzes/:attemptId/check", authMiddleware, (req: any, res) =>
+    checkOneAnswer(req, res, "eye_gaze_attempts", (quizId) => storage.getEyeGazeQuizQuestions(quizId)));
 
   app.get("/api/eye-gaze/profile", authMiddleware, async (req: any, res) => {
     try {
@@ -8734,10 +8872,12 @@ Important:
   });
 
   // List approved teachers for student signup dropdown
-  app.get("/api/teachers", async (_req, res) => {
+  app.get("/api/teachers", async (req: any, res) => {
     try {
       const teachers = await storage.getApprovedTeachers();
-      res.json(teachers);
+      // Emails and usernames are only for the admin; sign-up pages need names.
+      const session = await sessionFromRequest(req);
+      res.json(session?.user?.isAdmin ? teachers : teachers.map(publicTeacher));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -9567,6 +9707,8 @@ Important:
   app.post('/api/parent/link-code', authMiddleware, async (req: any, res) => {
     try {
       if (req.user.role !== 'parent' || req.user.accountApproved === false) return res.status(403).json({ message: 'Approved parent account required.' });
+      // The sample parent is open to everyone, so it must never follow a real child.
+      if (isDemoStudent(req.user)) return res.status(403).json({ message: 'The sample parent account can\'t link students. Create your own parent account.' });
       const code = typeof req.body?.parentCode === 'string' ? req.body.parentCode.replace(/[-\s]/g, '').toUpperCase() : '';
       if (!/^[A-F0-9]{20}$/.test(code)) return res.status(400).json({ message: 'Enter the parent code from your handout.' });
       if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are unavailable.' });
@@ -11092,14 +11234,17 @@ Important:
     }
   });
 
-  app.get("/api/custom-quizzes/:id", authMiddleware, async (req, res) => {
+  app.get("/api/custom-quizzes/:id", authMiddleware, async (req: any, res) => {
     try {
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getCustomEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+      const staff = isStaffViewer(req) || Number(quiz.creator_user_id) === Number(req.user.id);
+      if (!staff && !(await customQuizVisibleTo(req.user, quiz))) return res.status(404).json({ message: "Quiz not found" });
       const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);
-      res.json({ ...quiz, questions, hasCompleted: completed });
+      res.set("Cache-Control", "no-store");
+      res.json({ ...quiz, questions: staff ? questions : withoutAnswers(questions), hasCompleted: completed });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -11107,6 +11252,7 @@ Important:
 
   app.post("/api/custom-quizzes", authMiddleware, async (req: any, res) => {
     try {
+      if (!isStaffViewer(req)) return res.status(403).json({ message: "Only teachers can make quizzes." });
       const { title, description, level, questions, visibility, quizType } = req.body;
       if (!title || !questions || !Array.isArray(questions) || questions.length === 0) {
         return res.status(400).json({ message: "Title and at least one question are required" });
@@ -11135,6 +11281,7 @@ Important:
   // Edit custom quiz
   app.put("/api/custom-quizzes/:id", authMiddleware, async (req: any, res) => {
     try {
+      if (!isStaffViewer(req)) return res.status(403).json({ message: "Only teachers can edit quizzes." });
       const quizId = parseInt(req.params.id);
       const { title, description, level, questions } = req.body;
       if (!title || !questions || !Array.isArray(questions) || questions.length === 0) {
@@ -11161,6 +11308,7 @@ Important:
   // Regenerate an eye gaze quiz with new AI questions (keeps same quiz ID)
   app.post("/api/custom-quizzes/:id/regenerate", authMiddleware, async (req: any, res) => {
     try {
+      if (!isStaffViewer(req)) return res.status(403).json({ message: "Only teachers can change quizzes." });
       const quizId = parseInt(req.params.id);
       const isAdmin = req.user.isAdmin || req.user.role === 'admin';
       // Get the existing quiz
@@ -11197,10 +11345,12 @@ Important:
 
       const sampleAccount = isDemoStudent(req.user);
       const staffPreview = req.user?.isAdmin || req.user?.role === "teacher";
+      res.set("Cache-Control", "no-store");
       if (req.adminPreview || sampleAccount || staffPreview) {
         const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
-        return res.json({ ...quiz, questions, attemptId: -quizId, preview: true });
+        return res.json({ ...quiz, questions: isStaffViewer(req) ? questions : withoutAnswers(questions), attemptId: -quizId, preview: true });
       }
+      if (!(await customQuizVisibleTo(req.user, quiz))) return res.status(404).json({ message: "Quiz not found" });
 
       const proctor = await validateProctorSession(
         String(req.body?.proctorSessionToken || ""),
@@ -11216,7 +11366,7 @@ Important:
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);
       if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
       const attempt = await storage.startCustomEyeGazeAttempt(req.user.id, quizId, proctor);
-      res.json({ ...quiz, attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
+      res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -11245,7 +11395,13 @@ Important:
         return res.status(403).json({ message: "That quiz attempt does not belong to this student." });
       }
 
-      const result = await storage.submitCustomEyeGazeAttempt(attemptId, answers);
+      let result: any;
+      try {
+        result = await storage.submitCustomEyeGazeAttempt(attemptId, answers);
+      } catch (error) {
+        if (error instanceof AlreadySubmittedError) return res.status(409).json({ message: error.message });
+        throw error;
+      }
       res.json(result);
       void (async () => {
         const { data: quiz } = await supabase.from("custom_eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
@@ -11262,6 +11418,17 @@ Important:
       res.status(500).json({ message: error.message });
     }
   });
+
+  app.post("/api/custom-quizzes/:attemptId/check", authMiddleware, (req: any, res) =>
+    checkOneAnswer(req, res, "custom_eye_gaze_attempts", (quizId) => storage.getCustomEyeGazeQuizQuestions(quizId)));
+
+  /** A student sees published quizzes for everyone, and their own teacher's quizzes. */
+  async function customQuizVisibleTo(user: any, quiz: any) {
+    if (!quiz || quiz.is_published === false) return false;
+    if (quiz.visibility === "global") return true;
+    const teacherId = Number(user?.teacherId ?? user?.teacher_id ?? 0);
+    return quiz.visibility === "teacher_students" && teacherId > 0 && Number(quiz.target_teacher_id) === teacherId;
+  }
 
   // ========== POLLS ==========
 
@@ -11700,7 +11867,7 @@ Important:
   // ===== EASTER EGGS =====
 
   // Admin: Get easter egg settings + claims
-  app.get("/api/admin/easter-eggs", authMiddleware, async (req: any, res) => {
+  app.get("/api/admin/easter-eggs", authMiddleware, adminMiddleware, async (req: any, res) => {
     try {
       const { data: settings } = await supabase.from('easter_eggs').select('*').limit(1).single();
       
@@ -12471,7 +12638,7 @@ Important:
       const window = await storage.getActiveGrowthCheckWindow();
       if (!window) return res.json({ available: false, message: "No active benchmark window" });
 
-      const gradeBand = gradeToBand(user.grade || '3') || 'K-2';
+      const gradeBand = gradeToBand((await studentGrades())[String(user.id)] || '3') || 'K-2';
       const form = await storage.getGrowthCheckForm(gradeBand, window.id);
       if (!form) return res.json({ available: false, message: `No form available for grade band ${gradeBand}` });
 
@@ -12480,10 +12647,10 @@ Important:
       const items = await storage.getGrowthCheckItems(form.id);
       const responses = await storage.getGrowthCheckResponses(attempt.id);
 
-      // Group items by passage
+      // Group items by passage. The answer key stays on the server (grading happens there).
       const passagesWithItems = passages.map((p: any) => ({
         ...p,
-        items: items.filter((i: any) => i.passage_id === p.id),
+        items: items.filter((i: any) => i.passage_id === p.id).map(({ correct_answer_json: _key, ...item }: any) => item),
       }));
 
       res.json({
@@ -12509,7 +12676,7 @@ Important:
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      const gradeBand = gradeToBand(user.grade || '3') || 'K-2';
+      const gradeBand = gradeToBand((await studentGrades())[String(user.id)] || '3') || 'K-2';
       const form = await storage.getGrowthCheckForm(gradeBand, window.id);
       if (!form) return res.status(400).json({ error: "No form available for your grade band" });
 
@@ -12683,9 +12850,22 @@ Important:
   // Admin: Upsert window
   app.post("/api/admin/growth-check/windows", authMiddleware, adminMiddleware, async (req: any, res: any) => {
     try {
-      const { schoolYear, windowName, startDate, endDate, isActive } = req.body;
-      const window = await storage.upsertGrowthCheckWindow(schoolYear, windowName, startDate, endDate, isActive);
-      res.json({ window });
+      const body = req.body || {};
+      const pick = (camel: string, snake: string) => body[camel] ?? body[snake];
+      const id = Number(body.id);
+      const fields = {
+        schoolYear: pick("schoolYear", "school_year"),
+        windowName: pick("windowName", "window_name"),
+        startDate: pick("startDate", "start_date"),
+        endDate: pick("endDate", "end_date"),
+        isActive: pick("isActive", "is_active") === true,
+      };
+      if (!Number.isSafeInteger(id) && (!fields.schoolYear || !fields.windowName || !fields.startDate || !fields.endDate)) {
+        return res.status(400).json({ message: "Choose a school year, a window (fall, winter or spring) and its dates." });
+      }
+      const window = await storage.saveGrowthCheckWindow(Number.isSafeInteger(id) && id > 0 ? id : null, fields);
+      // the admin page reads the saved row itself; older callers read { window }
+      res.json({ ...window, window });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
@@ -12698,12 +12878,13 @@ Important:
       const window = await storage.getActiveGrowthCheckWindow();
       if (!window) return res.status(400).json({ error: "No active benchmark window" });
 
-      // Get all students
-      const { data: students } = await supabase.from('users').select('id, grade').eq('role', 'student');
+      // Every current student; grades are kept in the user_grades setting, not on the user row
+      const { data: students } = await supabase.from('users').select('id').eq('role', 'student').is('archived_at', null);
+      const grades = await studentGrades();
       let assigned = 0;
       if (students) {
         for (const student of students) {
-          const studentBand = gradeToBand(student.grade || '3');
+          const studentBand = gradeToBand(grades[String(student.id)] || '3');
           if (studentBand === gradeBand) {
             try {
               await storage.assignGrowthCheck(student.id, req.user.id, formId, window.id);

@@ -1,3 +1,4 @@
+import { monthStartMs, nextYearMonth } from "./schoolTime";
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
 import { lookupARBook } from "./arBookfinder";
@@ -37,6 +38,31 @@ async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Prom
 }
 
 // Clear cache entries matching a prefix
+const inMonth = (iso: unknown, startMs: number, endMs: number) => {
+  const t = typeof iso === "string" ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) && t >= startMs && t < endMs;
+};
+
+/** A quiz attempt that was already turned in. */
+export class AlreadySubmittedError extends Error {
+  constructor() {
+    super("This quiz was already turned in.");
+    this.name = "AlreadySubmittedError";
+  }
+}
+
+/** Answers saved on an attempt, as a plain question id -> letter map. */
+function lockedAnswers(raw: unknown): Record<string, string> {
+  let value = raw;
+  if (typeof value === "string") { try { value = JSON.parse(value); } catch { value = null; } }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) if (typeof v === "string" && v) out[k] = v;
+  return out;
+}
+
+const answerLocks = new Map<string, { tail: Promise<unknown>; pending: number }>();
+
 export function clearCache(prefix: string) {
   for (const key of cache.keys()) {
     if (key.startsWith(prefix)) cache.delete(key);
@@ -419,6 +445,20 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  /** Ids of books that have quiz questions (cached with the book list, so clearing "allBooks" clears it). */
+  async getQuizBookIds(): Promise<Set<number>> {
+    return cached('allBooks_quizIds', 120000, async () => {
+      const ids = new Set<number>();
+      for (let offset = 0; offset < 200_000; offset += 1000) {
+        const { data, error } = await supabase.from("questions").select("book_id").order("id").range(offset, offset + 999);
+        if (error) throw new Error(error.message);
+        for (const row of data || []) ids.add(Number(row.book_id));
+        if (!data || data.length < 1000) break;
+      }
+      return ids;
+    });
+  }
+
   async getBook(id: number) {
     const data = await fetchSingle(supabase.from("books").select("*").eq("id", id).single());
     return mapBook(data);
@@ -428,7 +468,7 @@ export class DatabaseStorage implements IStorage {
     const data = await fetchList(
       supabase.from("questions").select("*").eq("book_id", bookId).order("question_order", { ascending: true })
     );
-    return data.map(mapQuestion);
+    return data.map(mapQuestion).filter((q): q is NonNullable<ReturnType<typeof mapQuestion>> => !!q);
   }
 
   async getAttempt(userId: number, bookId: number) {
@@ -631,11 +671,11 @@ export class DatabaseStorage implements IStorage {
       const allUsers = await fetchList(
         supabase.from("users").select(
           "id, username, display_name, role, total_points, " +
-          "attempts:attempts!attempts_user_id_fkey(points_earned, book_id), " +
+          "attempts:attempts!attempts_user_id_fkey(points_earned, book_id, score, total), " +
           "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total), " +
           "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status), " +
           "manual_point_awards:manual_point_awards!manual_point_awards_student_id_fkey(points)"
-        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%")
+        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%").neq("username", "tutorial-eye")
       );
       const leaderboardUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (leaderboardUsers.length === 0) return [];
@@ -663,6 +703,8 @@ export class DatabaseStorage implements IStorage {
         const calculatedPoints = regularPoints + eyeGazePoints + customEyeGazePoints + manualPoints;
         const totalPoints = Math.max(Number(user.total_points || 0), calculatedPoints);
         const completedEyeGaze = eyeGazeAttempts.filter((a: any) => a.total > 0).length;
+        const passedQuiz = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
+        const quizzesPassed = regularAttempts.filter(passedQuiz).length + eyeGazeAttempts.filter(passedQuiz).length + customAttempts.filter(passedQuiz).length;
 
         return {
           id: user.id,
@@ -670,6 +712,7 @@ export class DatabaseStorage implements IStorage {
           displayName: user.display_name,
           totalPoints,
           quizzesTaken: regularAttempts.length + completedEyeGaze + customAttempts.length,
+          quizzesPassed,
           totalBooks,
         };
       });
@@ -689,7 +732,7 @@ export class DatabaseStorage implements IStorage {
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .is("archived_at", null)
-          .not("username", "like", "sample%")
+          .not("username", "like", "sample%").neq("username", "tutorial-eye")
       );
       if (allUsers.length === 0) return [];
       const result = allUsers.map((user: any) => {
@@ -723,7 +766,7 @@ export class DatabaseStorage implements IStorage {
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .is("archived_at", null)
-          .not("username", "like", "sample%")
+          .not("username", "like", "sample%").neq("username", "tutorial-eye")
       );
       if (allUsers.length === 0) return [];
       const result = allUsers.map((user: any) => {
@@ -1174,17 +1217,18 @@ export class DatabaseStorage implements IStorage {
 
   async getMonthlyLeaderboard(yearMonth: string) {
     return cached('monthlyLeaderboard_' + yearMonth, 300000, async () => {
-      const startDate = `${yearMonth}-01T00:00:00Z`;
-      const [year, month] = yearMonth.split("-").map(Number);
-      const nextMonth = month === 12 ? `${year + 1}-01-01T00:00:00Z` : `${year}-${String(month + 1).padStart(2, "0")}-01T00:00:00Z`;
+      // the month runs from midnight Mountain Time on the 1st, not midnight in London
+      const startMs = monthStartMs(yearMonth);
+      const endMs = monthStartMs(nextYearMonth(yearMonth));
+      const nextMonth = `${nextYearMonth(yearMonth)}-01`;
 
       const allUsers = await fetchList(
         supabase.from("users").select(
           "id, username, display_name, role, " +
-          "attempts:attempts!attempts_user_id_fkey(points_earned, completed_at, book_id), " +
+          "attempts:attempts!attempts_user_id_fkey(points_earned, completed_at, book_id, score, total), " +
           "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at), " +
           "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status, completed_at)"
-        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%")
+        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%").neq("username", "tutorial-eye")
       );
       const monthlyUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
       if (monthlyUsers.length === 0) return [];
@@ -1204,25 +1248,16 @@ export class DatabaseStorage implements IStorage {
 
       const result = [];
       for (const user of monthlyUsers) {
-        const monthlyAttempts = (user.attempts || []).filter((a: any) => {
-          const d = a.completed_at;
-          return Number(a.book_id) > 0 && d && d >= startDate && d < nextMonth;
-        });
+        const monthlyAttempts = (user.attempts || []).filter((a: any) => Number(a.book_id) > 0 && inMonth(a.completed_at, startMs, endMs));
         const monthlyPoints = monthlyAttempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0);
 
-        const monthlyEyeGaze = (user.eye_gaze_attempts || []).filter((a: any) => {
-          const d = a.completed_at;
-          return d && d >= startDate && d < nextMonth && a.total > 0;
-        });
+        const monthlyEyeGaze = (user.eye_gaze_attempts || []).filter((a: any) => a.total > 0 && inMonth(a.completed_at, startMs, endMs));
         const eyeGazePoints = monthlyEyeGaze.reduce((sum: number, a: any) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
         }, 0);
 
-        const monthlyCustomEyeGaze = (user.custom_eye_gaze_attempts || []).filter((a: any) => {
-          const d = a.completed_at;
-          return a.status === "completed" && d && d >= startDate && d < nextMonth && a.total > 0;
-        });
+        const monthlyCustomEyeGaze = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0 && inMonth(a.completed_at, startMs, endMs));
         const customEyeGazePoints = monthlyCustomEyeGaze.reduce((sum: number, a: any) => {
           const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
           return sum + (passed ? 10 : 0);
@@ -1230,6 +1265,8 @@ export class DatabaseStorage implements IStorage {
 
         const totalMonthlyPoints = monthlyPoints + eyeGazePoints + customEyeGazePoints + (manualByStudent.get(user.id) || 0);
         const totalMonthlyQuizzes = monthlyAttempts.length + monthlyEyeGaze.length + monthlyCustomEyeGaze.length;
+        const passedQuiz = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
+        const monthlyPassed = monthlyAttempts.filter(passedQuiz).length + monthlyEyeGaze.filter(passedQuiz).length + monthlyCustomEyeGaze.filter(passedQuiz).length;
         if (totalMonthlyQuizzes > 0 || (manualByStudent.get(user.id) || 0) > 0) {
           result.push({
             id: user.id,
@@ -1237,6 +1274,7 @@ export class DatabaseStorage implements IStorage {
             displayName: user.display_name,
             totalPoints: totalMonthlyPoints,
             quizzesTaken: totalMonthlyQuizzes,
+            quizzesPassed: monthlyPassed,
             totalBooks,
           });
         }
@@ -1263,7 +1301,7 @@ export class DatabaseStorage implements IStorage {
           )
           .eq("is_admin", false)
           .is("archived_at", null)
-          .not("username", "like", "sample%")
+          .not("username", "like", "sample%").neq("username", "tutorial-eye")
       );
       const allStudents = allStudentAccounts.filter((user: any) => !user.role || user.role === "student");
 
@@ -1941,12 +1979,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEyeGazeQuiz(quizId: number): Promise<any> {
+    if (!Number.isSafeInteger(quizId) || quizId < 1) return null;
     const { data: quiz, error: quizError } = await supabase
       .from("eye_gaze_quizzes")
       .select("*")
       .eq("id", quizId)
-      .single();
+      .maybeSingle();
     if (quizError) throw new Error(quizError.message);
+    if (!quiz) return null;
     const { data: questions, error: qError } = await supabase
       .from("eye_gaze_questions")
       .select("*")
@@ -2004,13 +2044,16 @@ export class DatabaseStorage implements IStorage {
     return data;
   }
 
-  async submitEyeGazeAttempt(attemptId: number, answersByQuestionId: Record<number, string>): Promise<any> {
+  async submitEyeGazeAttempt(attemptId: number, submitted: Record<number, string>): Promise<any> {
     const { data: attempt, error: attemptError } = await supabase
       .from("eye_gaze_attempts")
       .select("*")
       .eq("id", attemptId)
       .single();
     if (attemptError) throw new Error(attemptError.message);
+    if (attempt.status !== "in_progress") throw new AlreadySubmittedError();
+    // Answers the student already checked one at a time are kept as they were checked.
+    const answersByQuestionId: Record<string, string> = { ...(submitted || {}), ...lockedAnswers(attempt.answers) };
     const questions = await this.getEyeGazeQuizQuestions(attempt.quiz_id);
     let score = 0;
     const skillScores: Record<string, { correct: number; total: number }> = {};
@@ -2028,14 +2071,16 @@ export class DatabaseStorage implements IStorage {
     const passingScore = Math.ceil(total * 0.7);
     const passed = score >= passingScore;
     const pointsEarned = passed ? 10 : 0;
+    // Only the first turn-in counts: the row changes only while it is still in progress.
     const { data, error } = await supabase.from("eye_gaze_attempts").update({
       status: "completed",
       answers: answersByQuestionId,
       score,
       total,
       completed_at: new Date().toISOString(),
-    }).eq("id", attemptId).select().single();
+    }).eq("id", attemptId).eq("status", "in_progress").select().maybeSingle();
     if (error) throw new Error(error.message);
+    if (!data) throw new AlreadySubmittedError();
     // Award points to user's total if passed
     if (passed) {
       const { data: userData } = await supabase.from("users").select("total_points").eq("id", attempt.user_id).single();
@@ -2290,12 +2335,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomEyeGazeQuiz(quizId: number): Promise<any> {
+    if (!Number.isSafeInteger(quizId) || quizId < 1) return null;
     const { data: quiz, error: quizError } = await supabase
       .from("custom_eye_gaze_quizzes")
       .select("*")
       .eq("id", quizId)
-      .single();
+      .maybeSingle();
     if (quizError) throw new Error(quizError.message);
+    if (!quiz) return null;
     const { data: questions, error: qError } = await supabase
       .from("custom_eye_gaze_questions")
       .select("*")
@@ -2451,13 +2498,15 @@ export class DatabaseStorage implements IStorage {
     return data;
   }
 
-  async submitCustomEyeGazeAttempt(attemptId: number, answersByQuestionId: Record<number, string>): Promise<any> {
+  async submitCustomEyeGazeAttempt(attemptId: number, submitted: Record<number, string>): Promise<any> {
     const { data: attempt, error: attemptError } = await supabase
       .from("custom_eye_gaze_attempts")
       .select("*")
       .eq("id", attemptId)
       .single();
     if (attemptError) throw new Error(attemptError.message);
+    if (attempt.status !== "in_progress") throw new AlreadySubmittedError();
+    const answersByQuestionId: Record<string, string> = { ...(submitted || {}), ...lockedAnswers(attempt.answers) };
     const questions = await this.getCustomEyeGazeQuizQuestions(attempt.quiz_id);
     let score = 0;
     for (const q of questions) {
@@ -2475,8 +2524,9 @@ export class DatabaseStorage implements IStorage {
       score,
       total,
       completed_at: new Date().toISOString(),
-    }).eq("id", attemptId).select().single();
+    }).eq("id", attemptId).eq("status", "in_progress").select().maybeSingle();
     if (error) throw new Error(error.message);
+    if (!data) throw new AlreadySubmittedError();
     // Award points to user's total if passed
     if (passed) {
       const { data: userData } = await supabase.from("users").select("total_points").eq("id", attempt.user_id).single();
@@ -2498,6 +2548,46 @@ export class DatabaseStorage implements IStorage {
     clearCache("monthlyLeaderboard_");
     clearCache("session_");
     return { ...data, pct, score, total, passed, pointsEarned };
+  }
+
+  /**
+   * Saves a student's answer to one question of a quiz in progress and returns the answer that
+   * counts: the first one given. Returns null if the attempt isn't theirs or is already finished.
+   */
+  async recordQuizAnswer(
+    table: "eye_gaze_attempts" | "custom_eye_gaze_attempts",
+    attemptId: number,
+    userId: number,
+    questionId: number,
+    answer: string,
+  ): Promise<{ quizId: number; answer: string } | null> {
+    const key = `${table}:${attemptId}`;
+    const run = async () => {
+      const { data: attempt, error } = await supabase.from(table).select("user_id, quiz_id, status, answers").eq("id", attemptId).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!attempt || Number(attempt.user_id) !== Number(userId) || attempt.status !== "in_progress") return null;
+      const answers = lockedAnswers(attempt.answers);
+      const existing = answers[String(questionId)];
+      if (existing) return { quizId: Number(attempt.quiz_id), answer: existing };
+      answers[String(questionId)] = answer;
+      const { data: saved, error: saveError } = await supabase.from(table).update({ answers })
+        .eq("id", attemptId).eq("status", "in_progress").select("id").maybeSingle();
+      if (saveError) throw new Error(saveError.message);
+      if (!saved) return null;
+      return { quizId: Number(attempt.quiz_id), answer };
+    };
+    // one save at a time per attempt, so two quick answers can't overwrite each other
+    const entry = answerLocks.get(key) ?? { tail: Promise.resolve(), pending: 0 };
+    entry.pending++;
+    answerLocks.set(key, entry);
+    const result = entry.tail.then(run, run);
+    entry.tail = result.then(() => undefined, () => undefined);
+    try {
+      return await result;
+    } finally {
+      entry.pending--;
+      if (entry.pending === 0 && answerLocks.get(key) === entry) answerLocks.delete(key);
+    }
   }
 
   async hasUserCompletedCustomQuiz(userId: number, quizId: number): Promise<boolean> {
@@ -3049,6 +3139,29 @@ export class DatabaseStorage implements IStorage {
       .select('*')
       .order('start_date', { ascending: true });
     if (error || !data) return [];
+    return data;
+  }
+
+  /**
+   * Creates a benchmark window or changes one (by id). Only one window is open at a time, so
+   * opening one closes the others.
+   */
+  async saveGrowthCheckWindow(id: number | null, f: { schoolYear?: string; windowName?: string; startDate?: string; endDate?: string; isActive: boolean }): Promise<any> {
+    const row: Record<string, unknown> = { is_active: f.isActive };
+    if (f.schoolYear) row.school_year = f.schoolYear;
+    if (f.windowName) row.window_name = String(f.windowName).toLowerCase();
+    if (f.startDate) row.start_date = f.startDate;
+    if (f.endDate) row.end_date = f.endDate;
+    const query = id
+      ? supabase.from('growth_check_windows').update(row).eq('id', id).select().maybeSingle()
+      : supabase.from('growth_check_windows').insert(row).select().single();
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("That benchmark window was not found.");
+    if (f.isActive) {
+      const { error: closeError } = await supabase.from('growth_check_windows').update({ is_active: false }).neq('id', data.id).eq('is_active', true);
+      if (closeError) throw new Error(closeError.message);
+    }
     return data;
   }
 

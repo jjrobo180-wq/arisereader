@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Apple, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Eye, Hand, Move, Volume2, VolumeX, Wheat } from "lucide-react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { API_BASE } from "@/lib/queryClient";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
 
@@ -55,8 +56,9 @@ const commonsAudio = (file: string) =>
   "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + encodeURIComponent(file);
 
 const MODEL = {
-  cow: "https://static.poly.pizza/382b3d4a-a7c9-4c03-9858-3df630d90047.glb",
-  horse: "https://static.poly.pizza/d37dbc87-ca61-4b2c-a2da-d2f0c4240bef.glb",
+  // served through our own server: the original host doesn't allow browsers on other sites to load them
+  cow: `${API_BASE}/api/farm-models/cow`,
+  horse: `${API_BASE}/api/farm-models/horse`,
   pig: "https://cdn.3dassets.dev/assets/29194/v1/model.glb",
   sheep: "https://cdn.3dassets.dev/assets/29189/v1/model.glb",
   goat: "https://cdn.3dassets.dev/assets/29192/v1/model.glb",

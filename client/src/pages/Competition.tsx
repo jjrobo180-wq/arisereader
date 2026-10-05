@@ -8,11 +8,18 @@ import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users, Star, Cal
 import { useAuth } from "@/context/AuthContext";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 
+/** "1 quiz passed" / "3 quizzes passed" (older servers only sent quizzes taken). */
+const passedLabel = (entry: { quizzesPassed?: number; quizzesTaken?: number }) => {
+  const n = Number(entry.quizzesPassed ?? entry.quizzesTaken ?? 0);
+  return `${n} ${n === 1 ? "quiz" : "quizzes"} passed`;
+};
+
 interface LeaderboardEntry {
   rank: number;
   displayName: string;
   totalPoints: number;
   quizzesTaken: number;
+  quizzesPassed?: number;
   isEyeGazeUser?: boolean;
 }
 
@@ -182,8 +189,9 @@ export default function Competition() {
           const authToken = document.cookie.match(/arise_session=([^;]+)/);
           const headers: Record<string, string> = {};
           if (authToken) headers["Authorization"] = `Bearer ${JSON.parse(atob(authToken[1])).token}`;
-          const advisoryRes = await fetch(`${API_BASE}/api/advisory-leaderboard`, { headers });
-          if (advisoryRes.ok) {
+          // the advisory standings need a signed-in account; visitors just see the empty state
+          const advisoryRes = headers["Authorization"] ? await fetch(`${API_BASE}/api/advisory-leaderboard`, { headers }) : null;
+          if (advisoryRes?.ok) {
             const advData = await advisoryRes.json();
             if (Array.isArray(advData)) setAdvisoryData(advData);
           }
@@ -327,7 +335,7 @@ export default function Competition() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm text-white truncate">{entry.displayName}</p>
-                              <p className="text-[10px] text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                              <p className="text-[10px] text-muted-foreground">{passedLabel(entry)}</p>
                             </div>
                             <div className="text-right flex-shrink-0">
                               <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
@@ -380,7 +388,7 @@ export default function Competition() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-medium text-sm text-white truncate">{entry.displayName}</p>
-                                    <p className="text-[10px] text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                                    <p className="text-[10px] text-muted-foreground">{passedLabel(entry)}</p>
                                   </div>
                                   <div className="text-right flex-shrink-0">
                                     <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>
@@ -455,7 +463,7 @@ export default function Competition() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-bold text-sm text-white truncate">{entry.displayName}</p>
-                              <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                              <p className="text-xs text-muted-foreground">{passedLabel(entry)}</p>
                             </div>
                             <div className="text-right flex-shrink-0">
                               <div className="font-bold text-lg text-primary">{entry.totalPoints}</div>
@@ -508,7 +516,7 @@ export default function Competition() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-medium text-sm text-white truncate">{entry.displayName}</p>
-                                    <p className="text-[10px] text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                                    <p className="text-[10px] text-muted-foreground">{passedLabel(entry)}</p>
                                   </div>
                                   <div className="text-right flex-shrink-0">
                                     <div className="font-bold text-sm text-primary">{entry.totalPoints}</div>

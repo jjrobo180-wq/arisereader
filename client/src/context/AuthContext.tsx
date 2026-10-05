@@ -57,9 +57,18 @@ function getCookie(name: string): string | null {
 function deleteCookie(name: string) {
   document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax";
 }
+// btoa only takes Latin-1 text, so a name like "Nguyễn" or an emoji would stop the sign-in from
+// being saved. The JSON is turned into UTF-8 bytes first (plain ASCII comes out exactly as before).
+function encodeSession(value: unknown): string {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(value))));
+}
+function decodeSession(raw: string): any {
+  const binary = atob(raw);
+  try { return JSON.parse(decodeURIComponent(escape(binary))); } catch { return JSON.parse(binary); }
+}
 function saveSessionCookie(user: AuthUser | null, token: string | null) {
   if (user && token) {
-    const data = btoa(JSON.stringify({ user, token }));
+    const data = encodeSession({ user, token });
     setCookie(COOKIE_NAME, data, 7);
   } else deleteCookie(COOKIE_NAME);
 }
@@ -67,7 +76,7 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
   try {
     const raw = getCookie(COOKIE_NAME);
     if (!raw) return { user: null, token: null };
-    const data = JSON.parse(atob(raw));
+    const data = decodeSession(raw);
     if (typeof data.user?.username === "string" && SAMPLE_USERNAMES.has(data.user.username)) {
       deleteCookie(COOKIE_NAME);
       sessionStorage.removeItem(SAMPLE_SESSION_KEY);

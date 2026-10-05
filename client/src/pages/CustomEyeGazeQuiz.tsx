@@ -6,6 +6,7 @@ import { speakQuestion, speakOption, stopSpeaking } from "@/lib/tts";
 import Celebration, { CelebrationStyle } from "@/components/Celebration";
 
 import { API_BASE } from "@/lib/queryClient";
+import { checkQuizAnswer, readTurnIn } from "@/lib/quizCheck";
 
 function getTokenFromCookie(): string | null {
   try {
@@ -238,15 +239,14 @@ export default function CustomEyeGazeQuiz() {
     setSelectedAnswer(answer);
   };
 
-  const handleSubmitAnswer = () => {
+  const handleSubmitAnswer = async () => {
     if (!selectedAnswer || autoAdvancing) return;
     const currentQ = quiz?.questions[currentIdx];
     if (!currentQ) return;
     setAutoAdvancing(true);
 
-    // Check if answer is correct and trigger celebration
-    const correctAnswer = (currentQ as any).correct_answer || "";
-    const isCorrect = !!correctAnswer && selectedAnswer === correctAnswer;
+    // The server checks the answer (the answer key never comes to the browser) and keeps the first one.
+    const isCorrect = await checkQuizAnswer(`/api/custom-quizzes/${quiz.attemptId}/check`, authToken || getTokenFromCookie(), currentQ.id, selectedAnswer);
     if (isCorrect) {
       setCelebrationTrigger((t) => t + 1);
       setBossHealth((hp) => Math.max(0, hp - 1));
@@ -280,9 +280,10 @@ export default function CustomEyeGazeQuiz() {
       headers,
       body: JSON.stringify({ answers: finalAnswers }),
     })
-      .then((r) => r.json())
-      .then((data) => {
-        setResult(data);
+      .then(readTurnIn)
+      .then((out) => {
+        if (!out.ok) { setError(out.message); return; }
+        setResult(out.data);
         setPhase("results");
       })
       .catch(() => setError("Failed to submit quiz"));

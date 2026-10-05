@@ -6,8 +6,9 @@ import { API_BASE } from "@/lib/queryClient";
 import { ArrowLeft, CheckCircle2, RotateCcw, Trophy, Volume2, VolumeX, Eye, Gamepad2, Image as ImageIcon, Heart, Shield, Footprints, Lock, KeyRound } from "lucide-react";
 import { speakQuestion, speak, stopSpeaking } from "@/lib/tts";
 import Celebration, { CelebrationStyle } from "@/components/Celebration";
+import { checkQuizAnswer, readTurnIn } from "@/lib/quizCheck";
 
-function getTokenFromCookie(): string | null {
+function readCookieToken(): string | null {
   const match = document.cookie.match(/arise_session=([^;]+)/);
   if (!match) return null;
   try {
@@ -44,7 +45,9 @@ interface Quiz {
 export default function EyeGazeQuiz() {
   const { id } = useParams<{ id: string }>();
   const quizId = parseInt(id || "0");
-  const { user } = useAuth();
+  const { user, token: authToken } = useAuth();
+  // Sample accounts keep their sign-in in memory only (no cookie), so prefer the signed-in token.
+  const getTokenFromCookie = () => authToken || readCookieToken();
   const [, navigate] = useLocation();
   const [phase, setPhase] = useState<"proctor" | "loading" | "quiz" | "results">("proctor");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -397,17 +400,16 @@ export default function EyeGazeQuiz() {
     setSubtitle("");
   };
 
-  const confirmAnswer = (answer: string) => {
-    if (!answer) return;
+  const confirmAnswer = async (answer: string) => {
+    if (!answer || submitting) return;
     const currentQ = quiz.questions[currentIdx];
     if (!currentQ) return;
 
     setSubmitting(true);
     stopSpeaking();
 
-    // Check if answer is correct and trigger celebration
-    const correctAnswer = (currentQ as any).correct_answer || "";
-    const isCorrect = !!correctAnswer && answer === correctAnswer;
+    // The server checks the answer (the answer key never comes to the browser) and keeps the first one.
+    const isCorrect = await checkQuizAnswer(`/api/eye-gaze/quizzes/${quiz.attemptId}/check`, getTokenFromCookie(), currentQ.id, answer);
     if (isCorrect) {
       setCelebrationTrigger((t) => t + 1);
       setBossHealth((hp) => Math.max(0, hp - 1));
@@ -439,9 +441,10 @@ export default function EyeGazeQuiz() {
       headers,
       body: JSON.stringify({ answers: finalAnswers }),
     })
-      .then((r) => r.json())
-      .then((data) => {
-        setResult(data);
+      .then(readTurnIn)
+      .then((out) => {
+        if (!out.ok) { setError(out.message); return; }
+        setResult(out.data);
         setPhase("results");
       })
       .catch(() => setError("Failed to submit quiz"));
