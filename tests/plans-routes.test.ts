@@ -264,7 +264,9 @@ test("checkout builds the right Stripe order", async (t) => {
   assert.equal(f.form.get("subscription_data[metadata][buyerId]"), "50");
   assert.equal(f.form.get("customer_email"), "new@school.org");
   // the buyer comes back to the site they started from
-  assert.match(f.form.get("success_url")!, /^https:\/\/127\.0\.0\.1:\d+\/#\/billing\?paid=\{CHECKOUT_SESSION_ID\}$/);
+  // the query goes in front of the "#": the site's router can't open #/billing?paid=...
+  assert.match(f.form.get("success_url")!, /^https:\/\/127\.0\.0\.1:\d+\/\?paid=\{CHECKOUT_SESSION_ID\}#\/billing$/);
+  assert.match(f.form.get("cancel_url")!, /^https:\/\/127\.0\.0\.1:\d+\/#\/billing$/);
   assert.match(f.form.get("cancel_url")!, /^https:\/\/127\.0\.0\.1:\d+\/#\/billing$/);
 
   await call(50, "POST", "/api/billing/checkout", { kind: "school", blocks: 40 });
@@ -659,4 +661,42 @@ test("a hiccup looking up the school's name does not lock a CGMS teacher out", a
   plans.forget();
   assert.equal((await call(60, "GET", "/api/teacher/students")).status, 200);
   db.down = false;
+});
+
+test("after paying, the buyer is sent back to the page they started from, not to the server's own address", async (t) => {
+  const stripe = (c: Call) => (c.url.includes("/checkout/sessions") ? { id: "cs_test_abcdefgh12345678", url: "https://checkout.stripe.com/c/pay/cs_test_abc" } : c.url.includes("billing_portal") ? { url: "https://billing.stripe.com/p/session/x" } : c.url.includes("/subscriptions/") ? mine : {});
+  const mine = subscription({ metadata: { kind: "teacher", ownerId: "52", buyerId: "52" } });
+  const { call, calls, clock, plans, hook } = await setup(t, { stripeKey: "sk_test_abcdefghijklmnop", stripe });
+  const sent = () => calls.filter((c) => c.url.includes("/checkout/sessions") && c.method === "POST").at(-1)!.form;
+  const buy = async (body: any, headers: Record<string, string>) => {
+    clock.now += 31 * 60_000; // past the "someone else just started paying" guard
+    assert.equal((await call(52, "POST", "/api/billing/checkout", { kind: "teacher", ...body }, headers)).status, 200);
+    return [sent().get("success_url"), sent().get("cancel_url")];
+  };
+  const site = "https://reader.example.org";
+
+  // the page says where it is, and the browser's Origin header agrees
+  assert.deepEqual(await buy({ returnTo: `${site}/` }, { Origin: site }),
+    [`${site}/?paid={CHECKOUT_SESSION_ID}#/billing`, `${site}/#/billing`]);
+  // a site kept in a folder keeps its folder; its ?query and #page are dropped
+  assert.deepEqual(await buy({ returnTo: `${site}/school/index.html?x=1#/billing` }, { Origin: site }),
+    [`${site}/school/index.html?paid={CHECKOUT_SESSION_ID}#/billing`, `${site}/school/index.html#/billing`]);
+  // an older page that doesn't say where it is: the browser's headers are enough
+  assert.equal((await buy({}, { Origin: site }))[0], `${site}/?paid={CHECKOUT_SESSION_ID}#/billing`);
+  assert.equal((await buy({}, { Referer: `${site}/some/page?x=1` }))[0], `${site}/?paid={CHECKOUT_SESSION_ID}#/billing`);
+
+  // an address that doesn't match where the request came from is ignored
+  for (const returnTo of ["https://evil.example.com/", "javascript:alert(1)", "https://user:pw@reader.example.org/", `${site}/a b<script>`, "http://reader.example.org/"]) {
+    const [success] = await buy({ returnTo }, { Origin: site });
+    assert.equal(success, `${site}/?paid={CHECKOUT_SESSION_ID}#/billing`, returnTo);
+  }
+  // and with no browser headers at all, an unknown address is never trusted
+  assert.match((await buy({ returnTo: "https://evil.example.com/" }, {}))[0]!, /^https:\/\/127\.0\.0\.1:\d+\/\?paid=/);
+
+  // the billing page link goes back to the same place
+  mine.current_period_end = Math.floor((clock.now + 30 * DAY) / 1000);
+  assert.equal((await hook(event("customer.subscription.created", mine, clock.now))).status, 200);
+  plans.forget();
+  assert.equal((await call(52, "POST", "/api/billing/portal", { kind: "teacher", returnTo: `${site}/` }, { Origin: site })).status, 200);
+  assert.equal(calls.filter((c) => c.url.includes("billing_portal")).at(-1)!.form.get("return_url"), `${site}/#/billing`);
 });

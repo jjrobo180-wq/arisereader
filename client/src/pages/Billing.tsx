@@ -16,12 +16,27 @@ const day = (isoDate: string | null | undefined) => {
 };
 const count = (n: number) => n.toLocaleString("en-US");
 
-/** The Checkout id Stripe puts in the address when the buyer comes back: #/billing?paid=cs_... */
+/**
+ * The Checkout id Stripe puts in the address when the buyer comes back.
+ * It arrives in front of the "#" (/?paid=cs_...#/billing), which is where the
+ * site's router keeps a query. The older form, #/billing?paid=cs_..., is read too.
+ */
 function paidSession(): string | null {
   const hash = window.location.hash, at = hash.indexOf("?");
-  const id = at >= 0 ? new URLSearchParams(hash.slice(at + 1)).get("paid") : null;
+  const id = new URLSearchParams(window.location.search).get("paid") ?? (at >= 0 ? new URLSearchParams(hash.slice(at + 1)).get("paid") : null);
   return id && /^cs_[A-Za-z0-9_]+$/.test(id) ? id : null;
 }
+/** Takes the Checkout id back out of the address, so reloading the page doesn't check the same payment again. */
+function clearPaidSession() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("paid");
+    const search = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}#/billing`);
+  } catch { /* the address stays as it is; nothing else depends on it */ }
+}
+/** This site's own address, without the ?query and #page parts. Stripe sends the buyer back here. */
+const siteAddress = () => window.location.origin + window.location.pathname;
 
 function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" | "need" | "plain" } {
   const school = plan.school?.name || "your school";
@@ -92,7 +107,7 @@ export default function Billing() {
     post("/api/billing/confirm", { sessionId: id })
       .then(async () => { await refresh(); setConfirm("done"); })
       .catch(async () => { await refresh(); setConfirm("late"); })
-      .finally(() => { window.history.replaceState(null, "", "#/billing"); });
+      .finally(clearPaidSession);
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const go = async (what: string, path: string, body: unknown) => {
@@ -155,7 +170,7 @@ export default function Billing() {
               <button type="button" className="pr-pill" disabled={!!busy || seatsFor(blocks) === plan.seats} onClick={() => go("blocks", "/api/billing/blocks", { blocks })}>
                 {busy === "blocks" ? "Saving…" : `Change to ${count(seatsFor(blocks))} students, ${usd(price)} a month`}
               </button>
-              <button type="button" className="pr-pill pr-pill-ghost" disabled={!!busy} onClick={() => go("portal", "/api/billing/portal", { kind: "teacher" })}>{busy === "portal" ? "Opening…" : "Manage billing"}</button>
+              <button type="button" className="pr-pill pr-pill-ghost" disabled={!!busy} onClick={() => go("portal", "/api/billing/portal", { kind: "teacher", returnTo: siteAddress() })}>{busy === "portal" ? "Opening…" : "Manage billing"}</button>
             </div>
             <small>Manage billing opens Stripe, where you can change your card, see receipts or cancel.</small>
           </div>
@@ -164,7 +179,7 @@ export default function Billing() {
           <div className="bl-card">
             <h2>Your school's plan</h2>
             <p>The teacher who paid for the school plan can change the card, see receipts or cancel.</p>
-            <div className="bl-actions"><button type="button" className="pr-pill pr-pill-ghost" disabled={!!busy} onClick={() => go("school-portal", "/api/billing/portal", { kind: "school" })}>{busy === "school-portal" ? "Opening…" : "Manage school billing"}</button></div>
+            <div className="bl-actions"><button type="button" className="pr-pill pr-pill-ghost" disabled={!!busy} onClick={() => go("school-portal", "/api/billing/portal", { kind: "school", returnTo: siteAddress() })}>{busy === "school-portal" ? "Opening…" : "Manage school billing"}</button></div>
           </div>
         )}
 
@@ -185,7 +200,7 @@ export default function Billing() {
                 <p className="bl-price"><b>{usd(price)}</b> a month</p>
                 <p>Covers your class of up to {count(seatsFor(blocks))} students. You have {count(students)}.</p>
                 <Stepper blocks={blocks} min={needed} onChange={setBlocks} />
-                <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment} onClick={() => go("teacher", "/api/billing/checkout", { kind: "teacher", blocks })} data-testid="billing-buy-teacher">
+                <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment} onClick={() => go("teacher", "/api/billing/checkout", { kind: "teacher", blocks, returnTo: siteAddress() })} data-testid="billing-buy-teacher">
                   {busy === "teacher" ? "Opening the payment page…" : `Pay ${usd(price)} a month`}
                 </button>
                 <small>Billed monthly. Cancel any time.</small>
@@ -196,7 +211,7 @@ export default function Billing() {
                 {plan.school
                   ? <p>Covers {plan.school.name}: up to {count(PLANS.school.studentCap)} students, with a separate account for every teacher. The school has {count(plan.school.students)} students on A.R.I.S.E. now.</p>
                   : <p>Your account isn't connected to a school yet, so a school plan can't be bought from it. Ask the site admin to connect you to your school.</p>}
-                <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("school", "/api/billing/checkout", { kind: "school" })} data-testid="billing-buy-school">
+                <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("school", "/api/billing/checkout", { kind: "school", returnTo: siteAddress() })} data-testid="billing-buy-school">
                   {busy === "school" ? "Opening the payment page…" : `Pay ${usd(PLANS.school.yearlyCents)} a year`}
                 </button>
                 <small>Runs a full 12 months, so summer reading clubs and competitions are covered.</small>

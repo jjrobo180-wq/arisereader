@@ -258,14 +258,48 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return `/checkout/sessions/${id}?expand%5B%5D=subscription`;
   };
 
-  const originOf = (req: any) => {
+  /**
+   * The page the buyer is on: where Stripe sends them back after paying.
+   *
+   * The page tells us its own address ("returnTo"), and it is believed only when
+   * it matches where the browser says the request came from (the Origin or
+   * Referer header, which a web page can't fake) or the site's configured
+   * address. The server's own Host header is the last resort: when the server
+   * sits behind a different address from the site, Host is the server's address,
+   * and sending a buyer there lands them on a page that doesn't exist.
+   */
+  const originFrom = (value: unknown): string => {
+    try {
+      const url = new URL(String(value || ""));
+      const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+      if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) return "";
+      if (url.username || url.password) return "";
+      return url.origin;
+    } catch { return ""; }
+  };
+  const siteOf = (req: any): string => {
     const header = (name: string) => String(req.headers?.[name] || "").split(",")[0].trim();
+    const fromBrowser = [originFrom(header("origin")), originFrom(header("referer"))].filter(Boolean);
+    const configured = originFrom(deps.appUrl);
     const proto = header("x-forwarded-proto") || req.protocol || "https";
     const host = header("host");
-    // Only a plain host name goes into the address Stripe sends the buyer back to.
-    if (!/^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?(:\d{1,5})?$/i.test(host)) return String(deps.appUrl || "").replace(/\/+$/, "");
-    return `${proto === "http" ? "http" : "https"}://${host}`;
+    const fromHost = /^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?(:\d{1,5})?$/i.test(host) ? `${proto === "http" ? "http" : "https"}://${host}` : "";
+
+    const asked = String(req.body?.returnTo || "");
+    const askedOrigin = originFrom(asked);
+    if (askedOrigin && [...fromBrowser, configured].filter(Boolean).includes(askedOrigin)) {
+      // keep the folder the site lives in, drop any ?query and #hash
+      const path = new URL(asked).pathname;
+      if (path.length <= 200 && /^[A-Za-z0-9\/._~-]*$/.test(path)) return askedOrigin + (path || "/");
+    }
+    return (fromBrowser[0] || configured || fromHost) + "/";
   };
+  /**
+   * The plan page's address, with an optional ?query in front of the "#". The site's
+   * router only finds a page when the query is before the hash (/?paid=1#/billing);
+   * #/billing?paid=1 shows "page not found".
+   */
+  const billingUrl = (req: any, query = "") => `${siteOf(req)}${query ? `?${query}` : ""}#/billing`;
 
   const meta = (m: any): { kind: PlanKind; ownerId: number; buyerId: number } | null => {
     const kind = m?.kind === "teacher" || m?.kind === "school" ? (m.kind as PlanKind) : null;
@@ -579,7 +613,6 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const blocks = clampBlocks(req.body?.blocks);
       const metadata: Record<string, string> = { kind, ownerId: String(ownerId), buyerId: String(teacher.id) };
       if (kind === "teacher") metadata.blocks = String(blocks);
-      const origin = originOf(req);
       const email = typeof teacher.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teacher.email) ? teacher.email : undefined;
       const mine = await readGrant("teacher", teacher.id);
       const customer = mine?.buyerId === teacher.id ? mine.stripeCustomerId : undefined;
@@ -598,8 +631,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         }],
         metadata,
         subscription_data: { metadata },
-        success_url: `${origin}/#/billing?paid={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/#/billing`,
+        success_url: billingUrl(req, "paid={CHECKOUT_SESSION_ID}"),
+        cancel_url: billingUrl(req),
       });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
       // Remember the page that was opened, so the payment is found even if the buyer never comes back to the site.
@@ -635,7 +668,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const grant = await readGrant(kind, kind === "school" ? schoolOf(teacher) : teacher.id);
       if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for this plan.", 409);
       if (grant.buyerId && grant.buyerId !== teacher.id) throw new Refused("Only the teacher who paid for this plan can manage its billing.", 403);
-      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: `${originOf(req)}/#/billing` });
+      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: billingUrl(req) });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
       res.json({ url: session.url });
     } catch (e) { fail(res, e, "portal"); }

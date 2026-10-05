@@ -101,7 +101,11 @@ export default function AdminPlans() {
     if (ok) { setSecretKey(""); setWebhookSecret(""); }
   };
 
-  const webhookUrl = `${window.location.origin}/api/billing/webhook`;
+  // Stripe has to reach the site's server, which can live at a different address from the pages.
+  const webhookUrl = (() => {
+    try { return new URL(`${API_BASE}/api/billing/webhook`, window.location.origin).href; }
+    catch { return `${window.location.origin}/api/billing/webhook`; }
+  })();
 
   return (
     <Card className="shadow-md border-violet-500/30" data-testid="admin-plans">
