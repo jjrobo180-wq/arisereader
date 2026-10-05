@@ -57,7 +57,7 @@ export default function Login() {
   const [showSampleChooser,setShowSampleChooser]=useState(false);
   const [sampleLoading,setSampleLoading]=useState<SampleType|null>(null);
   const [loginBanner,setLoginBanner]=useState<{text:string;bgColor:string;textColor:string}|null>(null);
-  const [frontTab,setFrontTab]=useState<FrontTab>(()=>/[?&]tab=create\b/.test(window.location.hash)?"create":"signin");
+  const [frontTab,setFrontTab]=useState<FrontTab>(()=>/[?&]tab=create\b/.test(window.location.hash)||/[?&]tab=create\b/.test(window.location.search)?"create":"signin");
   const [donationOpen,setDonationOpen]=useState(false);
   const [selectedFeature,setSelectedFeature]=useState<FeatureId|null>(null);
 
