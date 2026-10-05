@@ -1491,7 +1491,7 @@ export async function registerRoutes(
     }
   });
 
-  // Teacher signup. A school email (.edu, .net or .org) is required. The teacher confirms it with the
+  // Teacher signup. A school email (.edu, .net, .org or .us) is required. The teacher confirms it with the
   // code emailed to it and is let in at once; the admin only steps in if that email can't be sent.
   app.post("/api/auth/register-teacher", async (req, res) => {
     try {

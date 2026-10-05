@@ -1,13 +1,16 @@
 // Teacher sign-up takes a school email only.
 //
-// A teacher who signs up with an address ending in .edu, .net or .org, and then
+// A teacher who signs up with an address ending in .edu, .net, .org or .us, and then
 // proves the address is theirs by typing the code emailed to it, is let in at
 // once with no wait for the admin. Anything else (.com and every other ending)
 // is refused. Teachers who signed up before this rule keep their accounts as
 // they are: the rule is only checked when a new teacher account is made.
 
-/** The only endings a teacher's sign-up email may have. */
-export const SCHOOL_EMAIL_ENDINGS = ["edu", "net", "org"] as const;
+/**
+ * The only endings a teacher's sign-up email may have. .us is here for the many
+ * public school districts whose addresses look like name@district.k12.co.us.
+ */
+export const SCHOOL_EMAIL_ENDINGS = ["edu", "net", "org", "us"] as const;
 
 /**
  * Home internet and free mailbox companies whose addresses end in .net or .org.
@@ -34,7 +37,7 @@ export const TEACHER_CONFIRM_KEY = "arise_teacher_confirm";
 
 export type SchoolEmailCheck = { ok: true; email: string } | { ok: false; message: string };
 
-const ENDINGS_TEXT = ".edu, .net or .org";
+const ENDINGS_TEXT = ".edu, .net, .org or .us";
 
 /**
  * Checks the email a new teacher typed. Gives back the address tidied up

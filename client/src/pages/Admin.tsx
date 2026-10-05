@@ -3131,7 +3131,7 @@ Generate exactly 10 questions.`;
             {pendingTeachers.length > 0 && (
               <div className="mb-4">
                 <h3 className="font-semibold text-sm text-yellow-500 mb-2">Pending Approvals</h3>
-                <p className="text-xs text-muted-foreground mb-2">New teachers get in on their own by confirming their school email (.edu, .net or .org). The teachers listed here haven&apos;t entered their code yet, or signed up before school emails were required. Approve turns an account on by hand.</p>
+                <p className="text-xs text-muted-foreground mb-2">New teachers get in on their own by confirming their school email (.edu, .net, .org or .us). The teachers listed here haven&apos;t entered their code yet, or signed up before school emails were required. Approve turns an account on by hand.</p>
                 <div className="space-y-2">
                   {pendingTeachers.map((t) => (
                     <div key={t.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">

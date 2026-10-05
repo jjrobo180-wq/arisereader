@@ -161,11 +161,11 @@ export default function TeacherSignup() {
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net or .org). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval.</span>
+              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval.</span>
             </div>
             <Field id="teacher-display-name" label="Display Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="teacher-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
-            <Field id="teacher-email" label="School Email (.edu, .net or .org)" value={email} onChange={setEmail} type="email" autoComplete="email" />
+            <Field id="teacher-email" label="School Email (.edu, .net, .org or .us)" value={email} onChange={setEmail} type="email" autoComplete="email" />
             <Field id="teacher-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
             <div>
               <span style={{ ...styles.label, display: "block", marginBottom: 6 }}>Your School</span>

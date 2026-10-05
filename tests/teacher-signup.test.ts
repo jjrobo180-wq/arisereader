@@ -13,8 +13,8 @@ import {
 
 // ─── The school email rule ───────────────────────────────────────────────────
 
-test("a teacher's email must end in .edu, .net or .org", () => {
-  for (const email of ["ms.rivera@lincoln.edu", "jsmith@dpsk12.net", "t.jones@cherrycreekschools.org", "a@mail.school.k12.org"]) {
+test("a teacher's email must end in .edu, .net, .org or .us", () => {
+  for (const email of ["ms.rivera@lincoln.edu", "jsmith@dpsk12.net", "t.jones@cherrycreekschools.org", "a@mail.school.k12.org", "teacher@district.k12.co.us", "teacher@pueblocityschools.us"]) {
     assert.deepEqual(checkSchoolEmail(email), { ok: true, email }, email);
   }
   // tidied up: trimmed and lower case
@@ -22,10 +22,10 @@ test("a teacher's email must end in .edu, .net or .org", () => {
 });
 
 test("every other ending is refused, .com first of all", () => {
-  for (const email of ["teacher@gmail.com", "teacher@school.com", "teacher@outlook.com", "teacher@district.k12.co.us", "teacher@school.co", "teacher@school.io", "teacher@school.edu.mx", "teacher@school.academy"]) {
+  for (const email of ["teacher@gmail.com", "teacher@school.com", "teacher@outlook.com", "teacher@school.co", "teacher@school.uk", "teacher@school.us.com", "teacher@school.io", "teacher@school.edu.mx", "teacher@school.academy"]) {
     const result = checkSchoolEmail(email);
     assert.equal(result.ok, false, email);
-    if (!result.ok) assert.match(result.message, /\.edu, \.net or \.org/, email);
+    if (!result.ok) assert.match(result.message, /\.edu, \.net, \.org or \.us/, email);
   }
   // the ending is the very end of the address, not something inside it
   assert.equal(checkSchoolEmail("teacher@school.edu.com").ok, false);
