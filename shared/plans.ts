@@ -116,7 +116,9 @@ export const FREE_SCHOOL_CODES = ["CGMS"] as const;
  * ("C… G… Middle School", with or without the word "School").
  */
 export function isFreeSchoolName(name: unknown): boolean {
-  const words = String(name || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  // a town on the end ("(Denver, CO)") is not part of the school's name
+  const bare = String(name || "").replace(/\s*\([^()]*\)\s*$/, "");
+  const words = bare.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().split(" ").filter(Boolean);
   if (!words.length) return false;
   const initials = words.map((w) => w[0]).join("");
   return FREE_SCHOOL_CODES.some((code) =>

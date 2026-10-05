@@ -8,7 +8,7 @@
 // someone searches: one line per school, holding just the folded name and town.
 // Two blocks of text and a few number arrays keep the whole country in about
 // 15 MB of memory, and a search is a handful of scans through the second block.
-import { US_STATES, foldSchoolText, gradeSpan, isUsState } from "../shared/schoolNames";
+import { US_STATES, foldSchoolText, gradeSpan, isUsState, mayBeInitials, schoolInitials } from "../shared/schoolNames";
 // Bundled into the server when it is built, so the list is always there in production.
 import usSchools from "./data/usSchools.json";
 
@@ -61,10 +61,17 @@ function searchText(text: string): string {
  * as typed or by its full words: "ft" finds "Ft Lupton" and "Fort Collins",
  * "tech" finds "Technical" and "Technology".
  */
-function typedWords(text: string): Array<{ word: string; ways: string[][] }> {
+function typedWords(text: string): Array<{ word: string; ways: string[][]; initialsWay: number }> {
   const words = [...new Set(fold(text).split(" ").filter(Boolean))].slice(0, 8);
-  return words.map((word) => ({ word, ways: SPELLED[word] ? [[` ${word}`], SPELLED[word].split(" ").map((w) => ` ${w}`)] : [[` ${word}`]] }));
+  return words.map((word) => {
+    const ways = SPELLED[word] ? [[` ${word}`], SPELLED[word].split(" ").map((w) => ` ${w}`)] : [[` ${word}`]];
+    // "cgms" can also be a school's initials, kept in the name's line as "#cgms"
+    const initialsWay = mayBeInitials(word) ? ways.push([` #${word}`]) - 1 : -1;
+    return { word, ways, initialsWay };
+  });
 }
+/** A school's initials as words for its search line: "#dcgms #cgms #gms". */
+const initialsText = (name: string) => schoolInitials(name, SPELLED).map((t) => ` #${t}`).join("");
 
 // "east high school denver co": a state at the end of what was typed
 const STATE_BY_NAME = new Map<string, string>(US_STATES.map(([code, name]) => [foldSchoolText(name), code]));
@@ -111,7 +118,7 @@ export function createSchoolDirectory(rowsText: string): SchoolDirectory {
       let end = text.indexOf("\n", at);
       if (end === -1) end = text.length;
       const fields = text.slice(at, end).split("\t");
-      const name = searchText(fields[1] || "");
+      const name = searchText(fields[1] || "") + initialsText(fields[1] || "");
       const line = ` ${name} ${searchText(fields[2] || "")}\n`;
       rawStart[i] = at; hayStart[i] = hayAt; nameLen[i] = Math.min(65535, name.length + 1);
       parts[i] = line; hayAt += line.length;
@@ -197,41 +204,46 @@ export function createSchoolDirectory(rowsText: string): SchoolDirectory {
       // only this school's own line is looked at: an unbounded search would run on through the rest of the country
       const line = ix.hay.slice(ix.hayStart[i], ix.hayStart[i + 1]);
       const nameEnd = ix.nameLen[i];
-      let inName = true;
+      let inName = true, byInitials = false;
       for (const group of groups) {
-        let best = -1; // 1: matched in the name, 0: matched in the town
-        for (const way of group.ways) {
+        let best = -1; // 2: matched a word of the name, 1: matched the name's initials, 0: matched the town
+        group.ways.forEach((way, w) => {
+          if (best === 2) return;
           let all = true, name = true;
           for (const needle of way) {
             const hit = line.indexOf(needle);
             if (hit === -1) { all = false; break; }
             if (hit >= nameEnd) name = false;
           }
-          if (all) { best = Math.max(best, name ? 1 : 0); if (best === 1) break; }
-        }
+          if (all) best = Math.max(best, !name ? 0 : w === group.initialsWay ? 1 : 2);
+        });
         if (best === -1) return;
         if (best === 0) inName = false;
+        if (best === 1) byInitials = true;
       }
-      // best: the name starts with what was typed. Then: every word is in the name. Last: a word matched the town.
-      found.push({ i, score: line.startsWith(lead) ? 0 : inName ? 1 : 2 });
+      // best: the name starts with what was typed. Then: every word is in the name. Then: initials. Last: a word matched the town.
+      found.push({ i, score: line.startsWith(lead) ? 0 : !inName ? 3 : byInitials ? 2 : 1 });
     };
 
-    // Jump from one school to the next using the longest plain word: it is in the fewest schools.
-    const anchor = groups.filter((g) => g.ways.length === 1).sort((a, b) => b.word.length - a.word.length)[0];
+    // Jump from school to school using the longest typed word: it is in the fewest schools.
+    // Each way of matching that word is followed (the word itself, its full words, its initials),
+    // using the longest piece of each way, and a school found more than one way is looked at once.
+    const anchor = [...groups].sort((a, b) => b.word.length - a.word.length)[0];
     if (anchor) {
-      const needle = anchor.ways[0][0];
       const stop = ix.hayStart[toRow];
-      let pos = ix.hayStart[fromRow];
-      while (found.length < MOST) {
-        pos = ix.hay.indexOf(needle, pos);
-        if (pos === -1 || pos >= stop) break;
-        const i = rowAt(ix, pos);
-        pos = ix.hayStart[i + 1]; // on to the next school
-        consider(i);
+      const rows = new Set<number>();
+      for (const way of anchor.ways) {
+        const needle = [...way].sort((a, b) => b.length - a.length)[0];
+        let pos = ix.hayStart[fromRow];
+        while (rows.size < MOST) {
+          pos = ix.hay.indexOf(needle, pos);
+          if (pos === -1 || pos >= stop) break;
+          const i = rowAt(ix, pos);
+          pos = ix.hayStart[i + 1]; // on to the next school
+          rows.add(i);
+        }
       }
-    } else {
-      // every word typed was a short form ("st hs"): look at each school in turn
-      for (let i = fromRow; i < toRow && found.length < MOST; i++) consider(i);
+      for (const i of rows) { if (found.length >= MOST) break; consider(i); }
     }
     found.sort((a, b) => a.score - b.score || ix.nameLen[a.i] - ix.nameLen[b.i] || a.i - b.i);
     const schools = found.slice(0, limit).map((f) => parse(ix, f.i)).filter((x): x is DirectorySchool => !!x);

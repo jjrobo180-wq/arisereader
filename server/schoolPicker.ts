@@ -8,7 +8,7 @@
 // just by filling in a form.
 import type { Express } from "express";
 import { isIndependentSchoolName } from "../shared/independent";
-import { SchoolNameError, cleanNewSchool, foldSchoolText, isUsState, schoolDisplayName, type NewSchool } from "../shared/schoolNames";
+import { SchoolNameError, cleanNewSchool, foldSchoolText, isUsState, mayBeInitials, schoolDisplayName, schoolInitials, type NewSchool } from "../shared/schoolNames";
 import type { DirectorySchool, SchoolDirectory } from "./schoolDirectory";
 
 type SchoolRow = { id: number; name: string };
@@ -276,7 +276,12 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
       const visibleById = new Map(visible.map((s) => [Number(s.id), s]));
       const words = folded.split(" ").filter(Boolean);
       const onSite = visible
-        .filter((s) => { const name = ` ${foldSchoolText(s.name)}`; return words.every((w) => name.includes(` ${w}`)); })
+        // each typed word is the start of a word in the name, or the school's initials ("cgms")
+        .filter((s) => {
+          const name = ` ${foldSchoolText(s.name)}`;
+          const initials = schoolInitials(s.name);
+          return words.every((w) => name.includes(` ${w}`) || (mayBeInitials(w) && initials.some((t) => t.startsWith(w))));
+        })
         // a state filter still keeps schools whose name doesn't say a state (the site's own older entries)
         .filter((s) => { const p = parts(s.name); return !state || !p.state || p.state === state; })
         .slice(0, 8)

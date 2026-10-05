@@ -161,7 +161,7 @@ export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | n
       <div className="sp-search">
         <div className="sp-box">
           <Search aria-hidden className="sp-glass" />
-          <input ref={searchBox} id={`${id}-q`} type="search" autoComplete="off" value={query} placeholder="Type your school's name" aria-label="Search for your school"
+          <input ref={searchBox} id={`${id}-q`} type="search" autoComplete="off" value={query} placeholder="Type your school's name or initials" aria-label="Search for your school by name or initials"
             onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} data-testid="input-school-search" />
         </div>
         {stateSelect}
