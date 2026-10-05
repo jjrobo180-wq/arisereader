@@ -85,6 +85,7 @@ const UltimateChess = lazyPage(() => import("./pages/UltimateChess"));
 const PaintballArena = lazyPage(() => import("./pages/PaintballArena"));
 const SkyboundSprint = lazyPage(() => import("./pages/SkyboundSprint"));
 const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
+const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
@@ -486,6 +487,16 @@ function AppRoutes() {
           ? <ProtectedRoute><AuroraRally /></ProtectedRoute>
           : <Redirect to="/" replace />}
       </Route>
+      <Route path="/twinlight-run">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><StandaloneGame key="twinlight-run" file="twinlight-run" title="Twinlight Run" /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/chime-of-aoren">
+        {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
+          ? <ProtectedRoute><StandaloneGame key="chime-of-aoren" file="chime-of-aoren" title="Chime of Aoren" /></ProtectedRoute>
+          : <Redirect to="/" replace />}
+      </Route>
       <Route path="/laser-royale">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
           ? <ProtectedRoute><Redirect to="/games" replace /></ProtectedRoute>
@@ -615,7 +626,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint"];
+const FULLSCREEN_GAME_ROUTES = ["/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);

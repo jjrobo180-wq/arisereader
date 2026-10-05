@@ -1,0 +1,195 @@
+<title>Chime of Aoren</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+<style>
+/* Layout: full-bleed 3D stage. Story text sits in a lower-third band; combat HUD hugs the corners. Single committed look. */
+:root{
+  --ink:#12101f; --paper:#f7efe1; --rose:#f0647e; --teal:#2cc4b0; --gold:#f2b84b; --violet:#9a80ff; --ember:#ff8a3c; --gale:#6fe3c4;
+  --display:'Shippori Mincho B1','Hiragino Mincho ProN','Yu Mincho',Georgia,serif;
+  --body:'Zen Kaku Gothic New','Hiragino Sans','Segoe UI',system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;overflow:hidden;background:#0b0a16;color:var(--paper);font-family:var(--body);font-weight:500}
+#app{position:relative;width:100%;height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.layer{position:absolute;inset:0;pointer-events:none}
+
+/* ---- combat HUD ---- */
+#hud .me{position:absolute;left:16px;top:14px;width:min(300px,56vw);display:grid;gap:5px}
+.who{display:flex;align-items:baseline;gap:8px;font-family:var(--display);font-weight:800;font-size:20px;text-shadow:0 2px 0 rgba(18,16,31,.7)}
+.who small{font-family:var(--body);font-weight:700;font-size:12px;letter-spacing:.12em;background:var(--gold);color:var(--ink);padding:1px 8px;border-radius:3px;text-shadow:none}
+.bar{height:13px;background:rgba(18,16,31,.7);transform:skewX(-18deg);overflow:hidden;box-shadow:0 0 0 2px rgba(247,239,225,.9)}
+.bar>i{display:block;height:100%;width:100%;transform-origin:left center;transition:transform .18s}
+.bar.hp>i{background:linear-gradient(90deg,#ff5d7a,#ffb37a)} .bar.br{height:8px;width:82%} .bar.br>i{background:linear-gradient(90deg,#4fd9ff,#9af7e0)}
+.bar.xp{height:4px;width:64%;box-shadow:0 0 0 1px rgba(247,239,225,.5)} .bar.xp>i{background:var(--gold)}
+#obj{position:absolute;right:16px;top:14px;text-align:right;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;text-shadow:0 2px 0 rgba(18,16,31,.7);display:flex;gap:8px;align-items:center;pointer-events:auto}
+#obj .ib{width:34px;height:34px;border-radius:50%;background:rgba(18,16,31,.65);position:relative}
+#pauseBtn::before,#pauseBtn::after{content:"";position:absolute;top:10px;width:4px;height:14px;background:var(--paper);left:11px;border-radius:1px} #pauseBtn::after{left:19px}
+#soundBtn::before{content:"";position:absolute;left:4px;top:10px;border:7px solid transparent;border-right:9px solid var(--paper)}
+#soundBtn::after{content:"";position:absolute;left:20px;top:10px;width:7px;height:14px;border:3px solid var(--paper);border-left:0;border-radius:0 9px 9px 0;box-sizing:border-box}
+#soundBtn.off::after{border:0;height:3px;width:13px;background:var(--rose);transform:rotate(45deg);top:16px;left:18px}
+#boss{position:absolute;left:50%;top:58px;transform:translateX(-50%);width:min(520px,78vw);text-align:center}
+#boss .nm{font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:.06em;text-shadow:0 2px 0 rgba(18,16,31,.8)} #boss .nm small{font-family:var(--body);font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;display:block;font-weight:700}
+#boss .bar{height:12px;margin-top:5px} #boss .bar>i{background:linear-gradient(90deg,#b08cff,#ff6fa8)}
+#skills{position:absolute;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,auto);gap:10px;align-items:end;justify-items:center;pointer-events:auto}
+.sk{position:relative;width:62px;height:62px;border-radius:50%;background:rgba(18,16,31,.72);box-shadow:0 0 0 2px rgba(247,239,225,.85);display:grid;place-items:center;font-weight:900;font-size:11px;letter-spacing:.06em;overflow:hidden;line-height:1.05;text-align:center}
+.sk b{font-family:var(--display);font-size:13px;display:block}
+.sk kbd{position:absolute;left:50%;top:5px;transform:translateX(-50%);font:inherit;font-size:9px;background:var(--paper);color:var(--ink);border-radius:4px;padding:0 4px;font-weight:900;line-height:1.3}
+.sk>span{margin-top:9px}
+.touch .sk kbd{display:none} .touch .sk>span{margin-top:0}
+.sk .cd{position:absolute;inset:0;background:rgba(18,16,31,.78);transform-origin:bottom;transform:scaleY(0)}
+.sk.atk{width:84px;height:84px;background:linear-gradient(160deg,#f0647e,#b83a62);grid-column:3;grid-row:2}
+.sk.dodge{grid-column:2;grid-row:2;background:rgba(40,60,110,.85)}
+.sk.ember{grid-column:3;grid-row:1;background:linear-gradient(160deg,#ff9a3c,#c2411f)}
+.sk.gale{grid-column:2;grid-row:1;background:linear-gradient(160deg,#58d9b6,#1f7f86)}
+.sk.chord{grid-column:1;grid-row:2;background:linear-gradient(160deg,#ffd76a,#ff7a3c 55%,#58d9b6);color:var(--ink)}
+.sk.chord .cd{background:rgba(18,16,31,.82);transform-origin:top}
+.sk.chord.ready{animation:glow 1s ease-in-out infinite alternate}
+@keyframes glow{to{box-shadow:0 0 0 3px #fff,0 0 26px 6px var(--gold)}}
+.sk.low{filter:saturate(.3) brightness(.7)} .sk:active{transform:scale(.93)}
+body:not(.touch) .sk{width:54px;height:54px} body:not(.touch) .sk.atk{width:66px;height:66px}
+#stick{position:absolute;width:120px;height:120px;border-radius:50%;border:2px solid rgba(247,239,225,.55);background:rgba(18,16,31,.25);transform:translate(-50%,-50%)}
+#stick i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;border-radius:50%;background:rgba(247,239,225,.8)}
+#floats{position:absolute;inset:0;overflow:hidden}
+.fl{position:absolute;font-family:var(--display);font-weight:800;font-size:22px;color:#fff;-webkit-text-stroke:1px var(--ink);text-shadow:0 2px 0 var(--ink);transform:translate(-50%,-50%);white-space:nowrap;will-change:transform,opacity}
+.fl.big{font-size:32px;color:var(--gold)} .fl.hurt{color:#ff6b7f} .fl.heal{color:#8ff0c0} .fl.note{font-size:15px;color:#bfe9ff}
+#tip{position:absolute;left:50%;bottom:calc(120px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(18,16,31,.8);padding:8px 16px;border-left:4px solid var(--gold);font-weight:700;font-size:15px;max-width:min(88vw,560px);text-align:center;opacity:0;transition:opacity .3s;text-wrap:balance}
+#tip.on{opacity:1}
+#toast{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%) scale(.9);font-family:var(--display);font-weight:800;font-size:clamp(26px,6vw,46px);text-align:center;opacity:0;transition:opacity .25s,transform .25s;text-shadow:0 3px 0 var(--ink),0 0 24px rgba(242,184,75,.8);-webkit-text-stroke:1px var(--ink);white-space:nowrap}
+#toast small{display:block;font-family:var(--body);font-size:.36em;letter-spacing:.3em;text-transform:uppercase;-webkit-text-stroke:0;font-weight:700}
+#toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#hurt{position:absolute;inset:0;box-shadow:inset 0 0 120px 40px rgba(255,40,70,.75);opacity:0}
+
+/* ---- story ---- */
+#bars::before,#bars::after{content:"";position:absolute;left:0;right:0;height:9%;background:#07060f;transition:transform .5s}
+#bars::before{top:0;transform:translateY(-100%)} #bars::after{bottom:0;transform:translateY(100%)}
+#bars.on::before,#bars.on::after{transform:none}
+#dlg{position:absolute;left:50%;bottom:calc(11% + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(820px,94vw);pointer-events:auto;cursor:pointer}
+#dlg .name{display:inline-block;font-family:var(--display);font-weight:800;font-size:19px;padding:3px 20px 4px 16px;background:var(--c,var(--gold));color:var(--ink);clip-path:polygon(0 0,100% 0,calc(100% - 12px) 100%,0 100%);margin-left:14px}
+#dlg .box{background:linear-gradient(180deg,rgba(18,16,31,.9),rgba(18,16,31,.82));border-top:3px solid var(--c,var(--gold));padding:16px 22px 20px;min-height:86px;font-size:clamp(16px,2.5vw,20px);line-height:1.5;font-weight:500;position:relative;text-wrap:pretty}
+#dlg .box::after{content:"";position:absolute;right:16px;bottom:10px;border:6px solid transparent;border-top:8px solid var(--c,var(--gold));animation:bob .7s ease-in-out infinite alternate;opacity:0}
+#dlg.done .box::after{opacity:1}
+@keyframes bob{to{transform:translateY(4px)}}
+#dlg.narr .name{display:none} #dlg.narr .box{text-align:center;font-family:var(--display);font-weight:600;font-size:clamp(17px,2.8vw,23px);border-top:0;background:rgba(7,6,15,.72);padding:22px 26px}
+#skip{position:absolute;right:16px;top:calc(11% + 8px);pointer-events:auto;font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;padding:7px 12px;background:rgba(18,16,31,.6);border:1px solid rgba(247,239,225,.4)}
+#card{position:absolute;inset:0;display:grid;place-items:center;background:rgba(7,6,15,.5);opacity:0;transition:opacity .6s}
+#card.on{opacity:1}
+#card div{text-align:center;padding:16px}
+#card .k{font-size:13px;letter-spacing:.5em;text-transform:uppercase;font-weight:700;color:var(--gold)}
+#card .t{font-family:var(--display);font-weight:800;font-size:clamp(34px,8vw,72px);line-height:1.05;margin-top:8px;text-shadow:0 4px 0 var(--ink);text-wrap:balance}
+#card .t::after{content:"";display:block;height:6px;width:min(280px,60%);margin:14px auto 0;background:linear-gradient(90deg,transparent,var(--rose) 15%,var(--rose) 80%,transparent);clip-path:polygon(0 40%,8% 0,60% 20%,100% 50%,70% 100%,10% 80%)}
+#unlock{position:absolute;inset:0;display:grid;place-items:center;pointer-events:auto;background:rgba(7,6,15,.45);cursor:pointer}
+#unlock .u{width:min(460px,90vw);background:var(--paper);color:var(--ink);padding:22px 24px 20px;border-left:10px solid var(--c,var(--ember));box-shadow:10px 10px 0 rgba(7,6,15,.6);display:grid;gap:8px}
+#unlock .k{font-size:12px;letter-spacing:.3em;text-transform:uppercase;font-weight:900;color:#6b5f73}
+#unlock .t{font-family:var(--display);font-weight:800;font-size:38px;line-height:1;color:var(--c,var(--ember))}
+#unlock p{margin:0;font-size:16px;line-height:1.5;font-weight:500} #unlock p b{font-weight:900}
+#unlock .go{font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:900;justify-self:end;color:#6b5f73}
+#cutin{position:absolute;left:0;right:0;top:34%;height:32%;background:repeating-linear-gradient(100deg,#ff8a3c 0 26px,#ffb04a 26px 52px);transform:translateX(-110%) skewY(-4deg);display:grid;place-items:center;box-shadow:0 0 0 6px var(--ink),0 0 0 12px var(--paper)}
+#cutin.on{animation:cut 1.25s cubic-bezier(.2,.9,.2,1) forwards}
+@keyframes cut{0%{transform:translateX(-110%) skewY(-4deg)}16%,78%{transform:translateX(0) skewY(-4deg)}100%{transform:translateX(110%) skewY(-4deg)}}
+#cutin b{font-family:var(--display);font-weight:800;font-size:clamp(34px,9vw,92px);color:var(--paper);-webkit-text-stroke:2px var(--ink);text-shadow:5px 5px 0 var(--ink);letter-spacing:.04em;white-space:nowrap}
+#cutin small{display:block;font-family:var(--body);font-size:.2em;letter-spacing:.5em;text-align:center;-webkit-text-stroke:0;color:var(--ink);font-weight:900;text-shadow:none}
+
+/* ---- panels ---- */
+.panel{position:absolute;inset:0;display:grid;padding:16px;overflow:auto;pointer-events:auto}
+#title{align-content:end;justify-items:start;background:linear-gradient(0deg,rgba(11,10,22,.82),rgba(11,10,22,.2) 46%,rgba(11,10,22,0) 70%)}
+@media(min-width:760px){#title{padding:44px 60px}}
+#title .w{width:min(620px,100%);display:grid;gap:14px;padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+#title .k{font-size:13px;letter-spacing:.5em;text-transform:uppercase;font-weight:700;color:var(--gold)}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(46px,11vw,104px);line-height:.95;margin:0;text-shadow:0 5px 0 var(--ink),0 0 40px rgba(240,100,126,.5);text-wrap:balance}
+h1 em{font-style:normal;color:var(--rose)}
+.lead{margin:0;font-size:clamp(15px,2.4vw,18px);line-height:1.55;max-width:34em;text-shadow:0 2px 0 rgba(18,16,31,.8);text-wrap:pretty}
+.btns{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{font-family:var(--display);font-weight:800;font-size:19px;padding:11px 28px 13px;background:var(--paper);color:var(--ink);clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);transition:transform .1s,background .15s}
+.btn:hover{background:#fff;transform:translateX(3px)} .btn.pri{background:var(--rose);color:#fff}
+.btn.ghost{background:rgba(18,16,31,.7);color:var(--paper);font-size:15px}
+.mid{place-items:center;background:rgba(7,6,15,.72)}
+.sheet{width:min(560px,100%);background:var(--paper);color:var(--ink);padding:26px 26px 22px;border-top:8px solid var(--rose);display:grid;gap:12px;box-shadow:12px 12px 0 rgba(7,6,15,.6);max-height:100%;overflow:auto}
+.sheet h2{font-family:var(--display);font-weight:800;font-size:30px;margin:0;line-height:1.1}
+.sheet p{margin:0;line-height:1.55;font-size:15.5px}
+.sheet .btn{background:var(--ink);color:var(--paper)} .sheet .btn.pri{background:var(--rose)}
+.rules{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.rules li{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;font-size:15px;line-height:1.5}
+.rules i{width:14px;height:14px;margin-top:5px;transform:rotate(45deg);background:var(--c)}
+.rules b{font-weight:900}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px;margin:0;font-size:14px}
+.keys div{display:flex;gap:8px;align-items:center} .keys kbd{font:inherit;font-weight:900;font-size:12px;background:var(--ink);color:var(--paper);padding:1px 7px;border-radius:4px;white-space:nowrap}
+.chs{display:grid;gap:8px}
+.chs button{text-align:left;padding:10px 14px;background:#eadfcb;font-weight:700;display:flex;justify-content:space-between;gap:10px;font-size:15px}
+.chs button:hover:not(:disabled){background:#fff} .chs button:disabled{opacity:.45;cursor:default} .chs small{font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:#8a5a2a}
+.stat{display:flex;gap:18px;flex-wrap:wrap;font-weight:700;font-size:14px;letter-spacing:.06em} .stat b{font-family:var(--display);font-size:22px;display:block;font-variant-numeric:tabular-nums}
+@media (max-width:620px){#tip{bottom:calc(214px + env(safe-area-inset-bottom,0px));font-size:14px} #boss{top:96px} .sk{width:56px;height:56px} .sk.atk{width:76px;height:76px} #dlg .box{padding:12px 16px 18px}}
+@media (max-height:520px){h1{font-size:clamp(34px,10vh,60px)} #title .lead{display:none}}
+@media (prefers-reduced-motion:reduce){.sk.chord.ready{animation:none}}
+</style>
+<div id="app">
+  <canvas id="c" tabindex="0" aria-label="Chime of Aoren game"></canvas>
+  <div class="layer" id="hud" hidden>
+    <div class="me">
+      <div class="who">Rin <small id="lv">LV 1</small></div>
+      <div class="bar hp"><i id="hpF"></i></div><div class="bar br"><i id="brF"></i></div><div class="bar xp"><i id="xpF"></i></div>
+    </div>
+    <div id="obj"><span id="objT"></span><button class="ib" id="soundBtn" aria-label="Sound" aria-pressed="true"></button><button class="ib" id="pauseBtn" aria-label="Pause"></button></div>
+    <div id="boss" hidden><div class="nm"><span id="bossN"></span><small id="bossS"></small></div><div class="bar"><i id="bossF"></i></div></div>
+    <div id="floats"></div>
+    <div id="tip" role="status"></div>
+    <div id="stick" hidden><i></i></div>
+    <div id="skills">
+      <button class="sk chord" id="skChord" hidden aria-label="Chord: Firestorm"><span><b>Chord</b></span><kbd>R</kbd><i class="cd"></i></button>
+      <button class="sk gale" id="skGale" hidden aria-label="Gale dash"><span><b>Gale</b></span><kbd>L</kbd><i class="cd"></i></button>
+      <button class="sk ember" id="skEmber" hidden aria-label="Ember wave"><span><b>Ember</b></span><kbd>K</kbd><i class="cd"></i></button>
+      <button class="sk dodge" id="skDodge" aria-label="Dodge"><span><b>Dodge</b></span><kbd>Space</kbd><i class="cd"></i></button>
+      <button class="sk atk" id="skAtk" aria-label="Attack"><span><b>Strike</b></span><kbd>J</kbd></button>
+    </div>
+  </div>
+  <div class="layer" id="hurt"></div>
+  <div class="layer" id="toast"></div>
+  <div class="layer" id="bars"></div>
+  <div class="layer" id="story" hidden>
+    <div id="dlg"><span class="name" id="dName"></span><div class="box" id="dText"></div></div>
+    <button id="skip">Skip scene</button>
+  </div>
+  <div class="layer" id="card"><div><div class="k" id="cardK"></div><div class="t" id="cardT"></div></div></div>
+  <div class="layer" id="unlock" hidden><div class="u"><span class="k" id="uK"></span><span class="t" id="uT"></span><p id="uP"></p><span class="go">Continue</span></div></div>
+  <div class="layer" id="cutin"><b><small>Chord</small>FIRESTORM</b></div>
+
+  <div class="panel" id="title">
+    <div class="w">
+      <div class="k">An anime adventure in three chapters</div>
+      <h1>Chime <em>of</em> Aoren</h1>
+      <p class="lead">The sky islands of Aoren stay aloft because their great bells never stop ringing. Tonight one of them went silent, and the only person who noticed was a bell-mender's apprentice who has never heard a Tone in her life.</p>
+      <div class="btns"><button class="btn pri" id="bNew">Begin the story</button><button class="btn" id="bCont" hidden>Continue</button><button class="btn ghost" id="bHow">How Resonance works</button><button class="btn ghost exit" hidden>Back to Games</button></div>
+    </div>
+  </div>
+  <div class="panel mid" id="how" hidden>
+    <div class="sheet">
+      <h2>How Resonance works</h2>
+      <p>In Aoren, sound is power. A person who can hear a Chime's voice is a Tuner, and these are the rules every Tuner lives by.</p>
+      <ul class="rules">
+        <li style="--c:#f0647e"><i></i><span><b>A Tone costs Breath.</b> Ember and Gale drain the blue bar. Run dry and the Tone will not answer.</span></li>
+        <li style="--c:#2cc4b0"><i></i><span><b>Every strike is a note.</b> Landing hits with the mallet gives Breath back, so you earn your Tones by fighting.</span></li>
+        <li style="--c:#f2b84b"><i></i><span><b>Two Tones make a Chord.</b> Played together they are stronger than either alone. A Chord fills as you fight.</span></li>
+        <li style="--c:#9a80ff"><i></i><span><b>Silence is not empty.</b> The Hushed are holes where sound used to be. They cannot be reasoned with, only rung away.</span></li>
+      </ul>
+      <div class="keys">
+        <div><kbd>W A S D</kbd> move</div><div><kbd>J</kbd> or click: strike</div><div><kbd>Space</kbd> dodge</div><div><kbd>K</kbd> Ember</div><div><kbd>L</kbd> Gale</div><div><kbd>R</kbd> Chord</div>
+      </div>
+      <p>On a phone: drag on the left side to move, and use the round buttons on the right.</p>
+      <div class="btns"><button class="btn pri" id="bHowBack">Back</button></div>
+    </div>
+  </div>
+  <div class="panel mid" id="chsel" hidden>
+    <div class="sheet"><h2>Continue</h2><div class="chs" id="chList"></div><div class="btns"><button class="btn" id="bChBack">Back</button></div></div>
+  </div>
+  <div class="panel mid" id="dead" hidden>
+    <div class="sheet"><h2>The note fades</h2><p>Rin falls, but a bell can always be rung again. The fight restarts from its beginning with full health.</p><div class="btns"><button class="btn pri" id="bRetry">Try again</button><button class="btn" id="bQuit">Title screen</button><button class="btn exit" hidden>Back to Games</button></div></div>
+  </div>
+  <div class="panel mid" id="pauseP" hidden>
+    <div class="sheet"><h2>Paused</h2><div class="keys"><div><kbd>W A S D</kbd> move</div><div><kbd>J</kbd> or click: strike</div><div><kbd>Space</kbd> dodge</div><div><kbd>K</kbd> Ember</div><div><kbd>L</kbd> Gale</div><div><kbd>R</kbd> Chord</div></div><div class="btns"><button class="btn pri" id="bResume">Resume</button><button class="btn" id="bQuit2">Title screen</button><button class="btn exit" hidden>Back to Games</button></div></div>
+  </div>
+  <div class="panel mid" id="endP" hidden>
+    <div class="sheet"><h2>The End</h2><p>The islands did not fall. Thank you for playing Chime of Aoren.</p><div class="stat"><span>Level<b id="eLv">1</b></span><span>Hushed rung away<b id="eKills">0</b></span><span>Time<b id="eTime">0:00</b></span></div><div class="btns"><button class="btn pri" id="bAgain">Play again</button><button class="btn" id="bEndCh">Chapter select</button><button class="btn exit" hidden>Back to Games</button></div></div>
+  </div>
+  <div class="panel mid" id="fatal" hidden><div class="sheet"><h2>This game needs 3D graphics</h2><p id="fatalMsg"></p><p>Try a current version of Chrome, Edge, Safari or Firefox.</p></div></div>
+</div>

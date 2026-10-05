@@ -1,0 +1,149 @@
+<title>Twinlight Run</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<style>
+/* Layout: full-bleed game canvas; HUD pinned to the four corners; one centred card for menu and results. Single committed look. */
+:root{
+  --ink:#1b1436; --paper:#fff8ec; --sun:#ffc23d; --sun-deep:#ff7a1a; --moon:#9a97ff; --moon-deep:#3b2fb8; --rose:#ff5470; --mint:#6ff0dd;
+  --display:'Mochiy Pop One','Arial Rounded MT Bold','Trebuchet MS',system-ui,sans-serif;
+  --body:'M PLUS Rounded 1c','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;overflow:hidden;background:#0d0a24;color:var(--paper);font-family:var(--body);font-weight:500}
+#app{position:relative;width:100%;height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0}
+button:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+
+/* ---- HUD ---- */
+#hud{position:absolute;inset:0;pointer-events:none;padding:14px 16px}
+.tl{position:absolute;left:16px;top:14px;display:flex;align-items:flex-end;gap:10px}
+.lbl{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.85;font-weight:800;text-shadow:0 2px 0 rgba(27,20,54,.55)}
+#score{font-family:var(--display);font-size:clamp(28px,6vw,44px);line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 3px 0 var(--ink),0 0 18px rgba(27,20,54,.35);-webkit-text-stroke:1px var(--ink)}
+#mult{font-family:var(--display);font-size:16px;padding:3px 9px 4px;border-radius:999px;background:rgba(27,20,54,.55);margin-bottom:4px;transition:transform .15s}
+#mult.hot{background:var(--rose);color:#fff;transform:rotate(-6deg) scale(1.1)}
+.tr{position:absolute;right:16px;top:14px;display:flex;align-items:center;gap:8px;pointer-events:auto}
+.count{display:flex;align-items:center;gap:6px;background:rgba(27,20,54,.55);border-radius:999px;padding:5px 11px 5px 6px;font-weight:800;font-variant-numeric:tabular-nums;font-size:15px}
+.dot{width:18px;height:18px;border-radius:50%;flex:none}
+.dot.sun{background:radial-gradient(circle at 35% 35%,#fff7c4,var(--sun) 60%,var(--sun-deep));box-shadow:0 0 10px var(--sun)}
+.dot.moon{background:radial-gradient(circle at 35% 35%,#fff,var(--moon) 60%,var(--moon-deep));box-shadow:0 0 10px var(--moon)}
+.ib{width:38px;height:38px;border-radius:50%;background:rgba(27,20,54,.6);display:grid;place-items:center;position:relative}
+.ib:hover{background:rgba(27,20,54,.85)}
+#pauseBtn::before,#pauseBtn::after{content:"";width:4px;height:14px;background:var(--paper);border-radius:2px;position:absolute;left:13px}
+#pauseBtn::after{left:21px}
+#soundBtn::before{content:"";width:0;height:0;border:7px solid transparent;border-right:10px solid var(--paper);position:absolute;left:5px}
+#soundBtn::after{content:"";width:8px;height:14px;border:3px solid var(--paper);border-left:0;border-radius:0 10px 10px 0;position:absolute;left:22px;box-sizing:border-box}
+#soundBtn.off::after{border:0;width:14px;height:3px;background:var(--rose);transform:rotate(45deg);left:21px;border-radius:2px}
+#realm{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,var(--sun),var(--sun-deep));color:var(--ink);font-family:var(--display);font-size:13px;letter-spacing:.08em;padding:6px 14px 7px 8px;border-radius:999px;box-shadow:0 3px 0 rgba(27,20,54,.5);transition:background .3s}
+#realm i{width:20px;height:20px;border-radius:50%;background:#fff7c4;box-shadow:0 0 0 3px rgba(255,255,255,.45);display:block;transition:all .3s}
+#realm .n{display:none}
+#realm.night{background:linear-gradient(90deg,var(--moon-deep),#6a5cff);color:#fff}
+#realm.night i{background:transparent;box-shadow:inset -6px -2px 0 0 #fff}
+#realm.night .d{display:none} #realm.night .n{display:inline}
+#flow{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(320px,58vw);text-align:center}
+#flow .bar{height:12px;border-radius:999px;background:rgba(27,20,54,.6);overflow:hidden;box-shadow:0 0 0 2px rgba(255,248,236,.35)}
+#flowFill{height:100%;width:100%;transform-origin:left center;transform:scaleX(0);background:linear-gradient(90deg,var(--sun),var(--rose),var(--moon));border-radius:999px}
+#flow.on .bar{box-shadow:0 0 0 2px #fff,0 0 22px var(--rose)}
+#flow .lbl{display:block;margin-bottom:5px}
+#badges{position:absolute;left:16px;top:74px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.bd{font-weight:800;font-size:12px;letter-spacing:.06em;padding:4px 10px;border-radius:999px;color:var(--ink)}
+.bd.sh{background:var(--mint)} .bd.mg{background:#ff8cc3}
+#hint{position:absolute;left:50%;top:27%;transform:translate(-50%,8px);max-width:min(86vw,460px);text-align:center;background:rgba(27,20,54,.78);padding:10px 18px;border-radius:16px;font-weight:800;font-size:16px;opacity:0;transition:opacity .25s,transform .25s;text-wrap:balance}
+#hint.on{opacity:1;transform:translate(-50%,0)}
+#hint.big{font-family:var(--display);font-size:clamp(20px,5vw,30px);background:var(--paper);color:var(--ink);box-shadow:0 5px 0 var(--rose);animation:pulse .7s ease-in-out infinite alternate}
+@keyframes pulse{to{transform:translate(-50%,0) scale(1.06)}}
+#pops{position:absolute;left:0;right:0;top:40%;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.pop{position:absolute;font-family:var(--display);font-size:clamp(20px,5vw,30px);-webkit-text-stroke:1px var(--ink);text-shadow:0 3px 0 var(--ink);animation:rise .9s ease-out forwards;white-space:nowrap}
+.pop.sun{color:var(--sun)} .pop.moon{color:#c9c7ff} .pop.ecl{color:#ffd9b8;font-size:clamp(30px,8vw,54px)}
+@keyframes rise{0%{transform:translateY(14px) scale(.6);opacity:0}18%{transform:translateY(0) scale(1.12);opacity:1}100%{transform:translateY(-64px) scale(1);opacity:0}}
+#flipBtn{position:absolute;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:86px;height:86px;border-radius:50%;pointer-events:auto;font-family:var(--display);font-size:16px;color:var(--ink);background:conic-gradient(from 90deg,var(--sun) 0 50%,var(--moon) 50% 100%);box-shadow:0 5px 0 var(--ink),0 0 0 4px rgba(255,248,236,.85);display:none}
+#flipBtn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink),0 0 0 4px #fff}
+.touch #flipBtn{display:block}
+.keys.tc{display:none} .touch .keys.tc{display:flex} .touch .keys.kb{display:none}
+@media (max-width:620px){#realm{top:62px} #badges{top:104px;left:auto;right:16px;align-items:flex-end}}
+.touch #flow{left:16px;transform:none;width:min(220px,46vw);text-align:left}
+
+/* ---- panels ---- */
+.panel{position:absolute;inset:0;display:grid;place-items:center;padding:16px;overflow:auto}
+#menu{justify-items:start;align-content:end;background:linear-gradient(0deg,rgba(13,10,36,.8) 0%,rgba(13,10,36,.34) 40%,rgba(13,10,36,0) 66%)}
+.wrap{width:min(640px,100%);display:grid;gap:14px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}
+@media(min-width:760px){#menu{padding:40px 56px}}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(44px,11vw,92px);line-height:.92;margin:0;letter-spacing:-.01em;-webkit-text-stroke:2px var(--ink);text-shadow:0 6px 0 var(--ink);text-wrap:balance}
+h1 .a{color:var(--sun)} h1 .b{color:var(--moon)} h1 small{display:block;font-size:.42em;color:var(--paper);letter-spacing:.3em;margin-top:.25em;-webkit-text-stroke:1px var(--ink);text-shadow:0 3px 0 var(--ink)}
+.lead{font-size:clamp(16px,2.6vw,19px);font-weight:800;margin:0;max-width:34em;text-shadow:0 2px 0 rgba(27,20,54,.7);text-wrap:pretty}
+.keys{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.keys li{background:rgba(27,20,54,.7);border-radius:12px;padding:7px 12px;font-size:14px;font-weight:800;display:flex;gap:8px;align-items:center}
+kbd{font:inherit;font-family:var(--display);font-size:12px;background:var(--paper);color:var(--ink);border-radius:7px;padding:2px 7px 3px;box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.go{font-family:var(--display);font-size:clamp(20px,4vw,26px);color:var(--ink);background:linear-gradient(180deg,#fff3b0,var(--sun));padding:14px 34px 16px;border-radius:999px;box-shadow:0 6px 0 var(--sun-deep),0 0 0 4px var(--ink);transition:transform .08s}
+.go:hover{transform:translateY(-2px)} .go:active{transform:translateY(4px);box-shadow:0 2px 0 var(--sun-deep),0 0 0 4px var(--ink)}
+.best{font-weight:800;font-size:15px;background:rgba(27,20,54,.7);border-radius:999px;padding:8px 14px}
+.best b{font-family:var(--display);font-weight:400;color:var(--sun);font-variant-numeric:tabular-nums}
+.card{width:min(420px,100%);background:var(--paper);color:var(--ink);border-radius:26px;padding:26px 24px 24px;box-shadow:0 10px 0 var(--moon-deep),0 0 0 4px var(--ink);display:grid;gap:14px;text-align:center}
+#over,#pauseP{background:rgba(13,10,36,.6)}
+.card h2{font-family:var(--display);font-weight:400;font-size:28px;margin:0;line-height:1.1}
+.big{font-family:var(--display);font-size:clamp(44px,12vw,64px);line-height:1;font-variant-numeric:tabular-nums;color:var(--moon-deep)}
+.new{justify-self:center;background:var(--rose);color:#fff;font-family:var(--display);font-size:13px;letter-spacing:.1em;padding:4px 12px 5px;border-radius:999px;transform:rotate(-3deg)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0}
+.stats div{background:#f1e6d2;border-radius:14px;padding:9px 8px}
+.stats dt{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;opacity:.7}
+.stats dd{margin:2px 0 0;font-family:var(--display);font-size:18px;font-variant-numeric:tabular-nums}
+.card .go{justify-self:center}
+.quiet{font-weight:800;font-size:15px;background:rgba(27,20,54,.7);color:var(--paper);border-radius:999px;padding:9px 18px}
+.quiet:hover{background:rgba(27,20,54,.9)}
+.card .quiet{background:#eadfcb;color:var(--ink);justify-self:center} .card .quiet:hover{background:#e0d2b8}
+.tip{font-size:13px;font-weight:800;opacity:.75;margin:0}
+#fatal{background:#0d0a24;z-index:5}
+@media (max-height:520px){h1{font-size:clamp(34px,9vh,60px)} .keys,.touch .keys.tc{display:none}}
+@media (prefers-reduced-motion:reduce){#hint.big{animation:none}}
+</style>
+<div id="app">
+  <canvas id="c" tabindex="0" aria-label="Twinlight Run game"></canvas>
+  <div id="hud" hidden>
+    <div class="tl"><div><div class="lbl">Score</div><div id="score">0</div></div><div id="mult">×1</div></div>
+    <div id="realm"><i></i><span class="d">DAY</span><span class="n">NIGHT</span></div>
+    <div class="tr">
+      <div class="count" title="Sun orbs"><span class="dot sun"></span><span id="nSun">0</span></div>
+      <div class="count" title="Moon orbs"><span class="dot moon"></span><span id="nMoon">0</span></div>
+      <button class="ib" id="soundBtn" aria-label="Sound" aria-pressed="true"></button>
+      <button class="ib" id="pauseBtn" aria-label="Pause"></button>
+    </div>
+    <div id="badges"></div>
+    <div id="hint" role="status"></div>
+    <div id="pops"></div>
+    <div id="flow"><span class="lbl">Eclipse</span><div class="bar"><div id="flowFill"></div></div></div>
+    <button id="flipBtn" aria-label="Flip worlds">FLIP</button>
+  </div>
+  <div class="panel" id="menu">
+    <div class="wrap">
+      <h1><span class="a">Twin</span><span class="b">light</span><small>RUN</small></h1>
+      <p class="lead">One sky road, two worlds. Gold walls are solid by day, violet walls are solid at night. Flip between them and run straight through.</p>
+      <ul class="keys kb">
+        <li><kbd>←</kbd><kbd>→</kbd> change lane</li><li><kbd>↑</kbd> jump</li><li><kbd>↓</kbd> slide</li><li><kbd>Space</kbd> flip worlds</li>
+      </ul>
+      <ul class="keys tc">
+        <li><kbd>Swipe</kbd> sideways: change lane</li><li><kbd>Swipe up</kbd> jump</li><li><kbd>Swipe down</kbd> slide</li><li><kbd>Tap</kbd> flip worlds</li>
+      </ul>
+      <div class="row"><button class="go" id="playBtn">Start running</button><span class="best">Best <b id="mBest">0</b></span><button class="exit quiet" hidden>Back to Games</button></div>
+    </div>
+  </div>
+  <div class="panel" id="over" hidden>
+    <div class="card">
+      <h2>Run over</h2>
+      <span class="new" id="oNew" hidden>NEW BEST</span>
+      <div class="big" id="oScore">0</div>
+      <dl class="stats">
+        <div><dt>Best</dt><dd id="oBest">0</dd></div><div><dt>Distance</dt><dd id="oDist">0 m</dd></div>
+        <div><dt>Sun orbs</dt><dd id="oSun">0</dd></div><div><dt>Moon orbs</dt><dd id="oMoon">0</dd></div>
+      </dl>
+      <button class="go" id="againBtn">Run again</button>
+      <button class="exit quiet" hidden>Back to Games</button>
+      <p class="tip">Fill the Eclipse bar with orbs to smash through everything.</p>
+    </div>
+  </div>
+  <div class="panel" id="pauseP" hidden>
+    <div class="card"><h2>Paused</h2><button class="go" id="resumeBtn">Keep running</button><button class="exit quiet" hidden>Back to Games</button></div>
+  </div>
+  <div class="panel" id="fatal" hidden>
+    <div class="card"><h2>This game needs 3D graphics</h2><p class="tip" id="fatalMsg"></p><p class="tip">Try a current version of Chrome, Edge, Safari or Firefox.</p></div>
+  </div>
+</div>

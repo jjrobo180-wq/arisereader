@@ -17,7 +17,7 @@ import { logoFor } from "@/arcade/covers/styles";
 import "@/arcade/library.css";
 import "./worlds.css";
 
-type WorldId = "city" | "study" | "theater" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack";
+type WorldId = "city" | "study" | "theater" | "laser" | "board" | "halloread" | "chess" | "space" | "racetrack" | "twinlight" | "aoren";
 type World = {
   id: WorldId;
   /** The cover title. */
@@ -87,14 +87,26 @@ const WORLDS: World[] = [
     facts: ["Racing", "4 tracks", "Grand Prix"], path: "/aurora-rally",
     look: { family: "strike", metal: ["#ffffff", "#c8ffe6", "#ff5470"], glow: "rgba(93,255,176,.5)", accent: "#8affc8" },
   },
+  {
+    id: "twinlight", title: "Twinlight Run", name: "Sky road runner", tag: "Runner", tagline: "One road, two worlds. Flip and run straight through.",
+    highlights: ["Run a sky road that exists by day and by night at the same time", "Flip worlds to pass through gold walls and violet walls", "Jump, slide and switch lanes as the road speeds up", "Collect sun and moon orbs to fill the Eclipse bar, then smash through everything", "Beat your own best score"],
+    facts: ["Endless runner", "One player", "Day and night"], path: "/twinlight-run",
+    look: { family: "strike", metal: ["#ffffff", "#ffe9a8", "#9a97ff"], glow: "rgba(154,151,255,.55)", accent: "#ffc23d" },
+  },
+  {
+    id: "aoren", title: "Chime of Aoren", name: "Anime adventure", tag: "Story", tagline: "A great bell went silent. One apprentice heard it.",
+    highlights: ["Play a three-chapter anime story with Rin, Kaito and Pip", "Fight the Hushed with your bell-mallet", "Learn the Tones: Ember, Gale and the Firestorm Chord", "Duel a rival and face the Silent Conductor", "Level up as you go; your chapter is saved"],
+    facts: ["Story adventure", "One player", "3 chapters"], path: "/chime-of-aoren",
+    look: { family: "legend", metal: ["#fff6e6", "#ffcf7a", "#e0516f"], glow: "rgba(240,100,126,.5)", accent: "#ffcf7a" },
+  },
 ];
 const BY_ID = Object.fromEntries(WORLDS.map((w) => [w.id, w])) as Record<WorldId, World>;
 
-const TOP_GAMES: WorldId[] = ["city", "study", "laser", "racetrack", "space", "board"];
+const TOP_GAMES: WorldId[] = ["twinlight", "aoren", "city", "study", "laser", "racetrack", "space", "board"];
 
 const SHELVES: { id: string; title: string; note: string; worlds: WorldId[] }[] = [
   { id: "together", title: "Play with readers", note: "Meet up, team up and face off", worlds: ["city", "study", "board", "chess", "theater"] },
-  { id: "action", title: "Action and adventure", note: "Race, battle and explore", worlds: ["laser", "racetrack", "space", "halloread"] },
+  { id: "action", title: "Action and adventure", note: "Race, battle and explore", worlds: ["twinlight", "aoren", "laser", "racetrack", "space", "halloread"] },
 ];
 
 /** Starts downloading a world while the student is looking at it. */
@@ -108,6 +120,8 @@ const WARM: Record<WorldId, () => Promise<unknown>> = {
   laser: () => import("./PaintballArena"),
   space: () => import("./SkyboundSprint"),
   racetrack: () => import("./AuroraRally"),
+  twinlight: () => import("./StandaloneGame"),
+  aoren: () => import("./StandaloneGame"),
 };
 const warm = (id: WorldId) => { void WARM[id]().catch(() => {}); };
 
@@ -124,7 +138,7 @@ const GAME_SHELVES: { id: CategoryId; title: string; note: string }[] = [
 const NEW_LEARNING = ["letter_forge", "reading_detective", "context_clues", "figurative_language", "fraction_frenzy", "multiplication_mayhem", "decimal_dash", "geometry_grid", "money_math", "science_lab", "states_capitals", "history_hustle"];
 
 const SAVED_KEY = "games_selected";
-const ROTATION: WorldId[] = ["city", "study", "space", "laser", "racetrack", "board", "chess", "theater", "halloread"];
+const ROTATION: WorldId[] = ["city", "study", "twinlight", "aoren", "space", "laser", "racetrack", "board", "chess", "theater", "halloread"];
 
 function readSaved(): WorldId | null {
   try {
