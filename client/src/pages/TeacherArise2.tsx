@@ -227,7 +227,7 @@ export default function TeacherArise2() {
           <p className="text-xs font-black uppercase tracking-[.25em] text-emerald-300">Start this week</p>
           <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Up and running in {isTeacher ? "three" : "four"} steps</h2>
           <ol className={`mt-6 grid gap-3 ${isTeacher ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4"}`}>
-            {(isTeacher ? steps : [{ title: "Create your teacher account", text: "Sign up in about a minute. An admin approves new teacher accounts." }, ...steps]).map((s, i) => (
+            {(isTeacher ? steps : [{ title: "Create your teacher account", text: "Sign up in about a minute with your school email. No waiting for approval." }, ...steps]).map((s, i) => (
               <li key={s.title} className="rounded-2xl border border-white/10 bg-white/[.04] p-5">
                 <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-sm font-black">{i + 1}</div>
                 <div className="mt-3 font-black">{s.title}</div>
@@ -239,7 +239,7 @@ export default function TeacherArise2() {
           <div className="relative mt-10 overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-r from-violet-600/30 via-fuchsia-600/20 to-cyan-500/20 p-7 text-center sm:p-10">
             <Rocket className="mx-auto h-8 w-8 text-cyan-200" />
             <h2 className="mx-auto mt-3 max-w-2xl text-2xl font-black sm:text-4xl">Try one live game with your class tomorrow.</h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">{isTeacher ? "It takes about two minutes to set up. Watch what happens to the energy in the room." : "Create your teacher account today. Once you're approved, setting up your first game takes about two minutes."}</p>
+            <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">{isTeacher ? "It takes about two minutes to set up. Watch what happens to the energy in the room." : "Create your teacher account today with your school email. Setting up your first game takes about two minutes."}</p>
             <button onClick={isTeacher ? hostGame : signUp} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-8 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
               {isTeacher ? "Open the Live Game Studio" : "Sign up as a teacher"} <ChevronRight className="h-4 w-4" />
             </button>

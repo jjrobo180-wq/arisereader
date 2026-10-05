@@ -199,7 +199,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (!res.ok) {
       const data = await res.json();
-      throw new Error(data.message || "Login failed");
+      const failure: Error & { confirmEmail?: boolean; username?: string } = new Error(data.message || "Login failed");
+      // a new teacher who still has to type the code from their school email (see TeacherSignup)
+      if (data.confirmEmail) { failure.confirmEmail = true; failure.username = data.username || username; }
+      throw failure;
     }
     const data = await res.json();
     if (SAMPLE_USERNAMES.has(data.user?.username)) sessionStorage.setItem(SAMPLE_SESSION_KEY, "true");

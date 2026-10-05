@@ -13,6 +13,8 @@ import { registerPlanRoutes } from "./plans";
 import { registerPrizeRoutes } from "./prizes";
 import { transferIndependentStudents } from "./independentTransfer";
 import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
+import { checkSchoolEmail } from "../shared/schoolEmail";
+import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherJoinedNotifyEmail, teacherWelcomeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
 import { usSchoolDirectory } from "./schoolDirectory";
 import { isIndependentSchoolName } from "../shared/independent";
 import { registerBoardQuestRoutes } from "./boardQuest";
@@ -820,26 +822,6 @@ function teacherSignupNotifyEmail(displayName: string, username: string, email: 
   `;
 }
 
-function teacherSignupConfirmEmail(displayName: string, username: string): string {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
-        <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
-      </div>
-      <h2 style="color: #FF5900; font-size: 22px;">Teacher Account Request Received</h2>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">We received your teacher account request for A.R.I.S.E Reader. Your account is now pending administrator approval.</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">You will receive another email once your account has been approved, at which point you can log in and start managing your students.</p>
-      <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
-        <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
-        <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
-      </div>
-      <p style="color: #666; font-size: 14px; margin-top: 30px;">If you didn't create this account, please ignore this email.</p>
-    </div>
-  `;
-}
-
 function teacherCreatedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
@@ -979,6 +961,48 @@ export async function registerRoutes(
       return data?.value || "";
     },
   });
+  // New teachers get in without waiting for the admin: they sign up with their school email and
+  // type back the code sent to it. See server/teacherSignup.ts.
+  const teacherEmailCodes = createTeacherEmailCodes({
+    // read straight from the database: a stale copy would hand back guesses that were already used up
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+  });
+  const sendTeacherCode = async (account: TeacherAccount, code: string): Promise<boolean> => {
+    if (!account.email) return false;
+    const result = await sendEmail(account.email, `${code} is your A.R.I.S.E Reader code`, teacherEmailCodeEmail(account.displayName || account.username, code));
+    if (!result.sent) console.error("[teacher-signup] could not email a code:", result.error);
+    return result.sent;
+  };
+  const teacherConfirmDeps: TeacherConfirmDeps = {
+    codes: teacherEmailCodes,
+    findUser: async (username) => (await storage.getUserByUsername(username)) as any,
+    turnOn: (userId) => storage.approveTeacherAccount(userId),
+    sendCode: sendTeacherCode,
+    // The admin no longer approves these teachers, so they are told about each one instead.
+    joined: async (account) => {
+      const name = account.displayName || account.username;
+      if (account.email) sendEmail(account.email, "Your A.R.I.S.E Reader teacher account is ready", teacherWelcomeEmail(name, account.username, APP_URL)).catch(() => {});
+      sendEmail(ADMIN_NOTIFY_EMAIL, "A new teacher joined - A.R.I.S.E Reader", teacherJoinedNotifyEmail(name, account.username, account.email || "No email", APP_URL)).catch(() => {});
+      try {
+        const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
+        for (const admin of adminRows || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.id,
+            type: "info",
+            title: "A new teacher joined",
+            message: `${name} (@${account.username}) confirmed their school email (${account.email}) and now has a teacher account. Nothing to approve.`,
+          });
+        }
+      } catch (e: any) {
+        console.error("[teacher-signup] could not tell the admin about a new teacher:", e?.message);
+      }
+    },
+  };
   // Build the school search's index shortly after start-up, so the first person to search doesn't wait for it.
   setTimeout(() => { try { usSchoolDirectory().search("warm up"); } catch {} }, 4000).unref?.();
 
@@ -1467,12 +1491,18 @@ export async function registerRoutes(
     }
   });
 
-  // Teacher signup (pending admin approval)
+  // Teacher signup. A school email (.edu, .net, .org or .us) is required. The teacher confirms it with the
+  // code emailed to it and is let in at once; the admin only steps in if that email can't be sent.
   app.post("/api/auth/register-teacher", async (req, res) => {
     try {
       const { username, password, displayName, email, schoolId, gradeLevel, gradesTaught } = req.body;
       if (!username || !password || !displayName) {
         return res.status(400).json({ message: "All fields are required" });
+      }
+      // checked before anything is made, so a refused email leaves no account and no school behind
+      const schoolEmail = checkSchoolEmail(email);
+      if (!schoolEmail.ok) {
+        return res.status(400).json({ message: schoolEmail.message });
       }
       if (username.length < 3) {
         return res.status(400).json({ message: "Username must be at least 3 characters" });
@@ -1487,7 +1517,7 @@ export async function registerRoutes(
       }
 
       // The school: one already on the site, one picked from the US list, or one the teacher typed
-      // because it was in neither. A typed school shows for everyone else once this teacher is approved.
+      // because it was in neither. A typed school shows for everyone else once this teacher's account is on.
       let pickedSchool: Awaited<ReturnType<typeof schoolPicker.pick>>;
       try {
         pickedSchool = await schoolPicker.pick({ schoolId, directorySchool: req.body.directorySchool, newSchool: req.body.newSchool }, "teacher");
@@ -1502,10 +1532,12 @@ export async function registerRoutes(
         password: hashedPassword,
         displayName,
         role: 'teacher',
+        // off until the teacher types the code from their school email
         accountApproved: false,
-        email: email || null,
+        email: schoolEmail.email,
         schoolId: pickedSchool.schoolId,
       });
+      if (!user) throw new Error('Could not create teacher account.');
       if (!pickedSchool.schoolId && pickedSchool.schoolName) {
         // The school could not be added just now (too many new schools in the last hour). Don't lose its name.
         try {
@@ -1531,7 +1563,7 @@ export async function registerRoutes(
               user_id: admin.id,
               type: "info",
               title: "A teacher added a school",
-              message: `${displayName} (@${username.toLowerCase()}) signed up with a school that wasn't in the list: “${pickedSchool.schoolName}”. Other people will see it in the school search once you approve this teacher.`,
+              message: `${displayName} (@${username.toLowerCase()}) signed up with a school that wasn't in the list: “${pickedSchool.schoolName}”. Other people will see it in the school search once this teacher confirms their school email. If it isn't a real school, remove it under Schools & Classes.`,
             });
           }
         } catch (e: any) {
@@ -1551,14 +1583,35 @@ export async function registerRoutes(
       // Clear teachers cache
       try { clearCache('teachers'); } catch {}
 
-      // Send emails BEFORE responding so they actually execute
+      // Email the code that turns the account on. Sent BEFORE responding so it actually executes.
+      let codeSent = false;
+      try {
+        const issued = await teacherEmailCodes.issue(user.id);
+        if (issued.ok) {
+          codeSent = await sendTeacherCode({ id: user.id, username: user.username, displayName, email: schoolEmail.email }, issued.code);
+          if (!codeSent) await teacherEmailCodes.forget(user.id).catch(() => {});
+        }
+      } catch (e: any) {
+        console.error("[teacher-signup] could not make a code:", e?.message);
+      }
+      if (codeSent) {
+        return res.status(201).json({
+          success: true,
+          confirmEmail: true,
+          username: user.username,
+          email: schoolEmail.email,
+          message: `We sent a 6-digit code to ${schoolEmail.email}. Enter it to turn on your account.`,
+        });
+      }
+
+      // The code could not be emailed, so this one account goes to the admin the way every sign-up used to.
       let emailSent = false;
       let emailError = '';
       try {
         const result = await sendEmail(
           ADMIN_NOTIFY_EMAIL,
           "New teacher signup - A.R.I.S.E Reader",
-          teacherSignupNotifyEmail(displayName, username.toLowerCase(), email || 'No email provided')
+          teacherSignupNotifyEmail(displayName, username.toLowerCase(), schoolEmail.email)
         );
         emailSent = result.sent;
         if (!result.sent) emailError = result.error || 'Unknown error';
@@ -1566,23 +1619,39 @@ export async function registerRoutes(
         emailError = e.message;
       }
 
-      // Send confirmation email to the teacher (non-blocking - failure is OK)
-      if (email) {
-        sendEmail(
-          email,
-          "Teacher account request received - A.R.I.S.E Reader",
-          teacherSignupConfirmEmail(displayName, username.toLowerCase())
-        ).catch(() => {});
-      }
-
       res.status(201).json({
         success: true,
+        confirmEmail: false,
+        username: user.username,
+        email: schoolEmail.email,
         emailSent,
         emailError,
-        message: "Your request has been submitted! The admin will review your account and notify you when it's approved.",
+        message: "Your account was created, but we couldn't email your confirmation code just now. The site admin has been told and will turn your account on. You can also try sending the code again.",
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // The teacher typed the code from their school email: the account turns on at once.
+  app.post("/api/auth/confirm-teacher-email", async (req, res) => {
+    try {
+      const reply = await confirmTeacherEmail(teacherConfirmDeps, req.body);
+      res.status(reply.status).json(reply.body);
+    } catch (err: any) {
+      console.error("[teacher-signup] confirm failed:", err?.message);
+      res.status(500).json({ message: "We couldn't confirm your code just now. Please try again." });
+    }
+  });
+
+  // The teacher asked for the code to be sent again.
+  app.post("/api/auth/resend-teacher-code", async (req, res) => {
+    try {
+      const reply = await resendTeacherCode(teacherConfirmDeps, req.body);
+      res.status(reply.status).json(reply.body);
+    } catch (err: any) {
+      console.error("[teacher-signup] resend failed:", err?.message);
+      res.status(500).json({ message: "We couldn't send a new code just now. Please try again." });
     }
   });
 
@@ -1661,7 +1730,20 @@ export async function registerRoutes(
         return res.status(403).json({ message: "This account is archived. Ask your teacher or the site admin to restore it." });
       }
 
-      // Teachers and parents must be approved by admin
+      // A new teacher whose school email is not confirmed yet is sent to type the code.
+      if (user.role === 'teacher' && !user.accountApproved) {
+        let waitingForCode = false;
+        try { waitingForCode = await teacherEmailCodes.waiting(user.id); } catch {}
+        if (waitingForCode) {
+          return res.status(403).json({
+            message: "Your teacher account is almost ready. Enter the 6-digit code we emailed to your school address to turn it on.",
+            confirmEmail: true,
+            username: user.username,
+          });
+        }
+      }
+
+      // Teachers from before school emails were required, and parents, must be approved by admin
       if ((user.role === 'teacher' || user.role === 'parent') && !user.accountApproved) {
         return res.status(403).json({ message: `Your ${user.role} account is pending approval. The administrator will review it shortly.` });
       }
