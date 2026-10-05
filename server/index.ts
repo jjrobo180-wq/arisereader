@@ -9,6 +9,16 @@ import { createServer } from "node:http";
 const app = express();
 const httpServer = createServer(app);
 
+// Basic safety headers for every response. (No content security policy or frame blocking:
+// the app embeds videos and games, and schools may show it inside their learning sites.)
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000");
+  next();
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;

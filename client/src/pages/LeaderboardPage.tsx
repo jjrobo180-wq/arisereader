@@ -8,11 +8,18 @@ import { BrandText } from "@/components/BrandText";
 import { useAuth } from "@/context/AuthContext";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 
+/** "1 quiz passed" / "3 quizzes passed" (older servers only sent quizzes taken). */
+const passedLabel = (entry: { quizzesPassed?: number; quizzesTaken?: number }) => {
+  const n = Number(entry.quizzesPassed ?? entry.quizzesTaken ?? 0);
+  return `${n} ${n === 1 ? "quiz" : "quizzes"} passed`;
+};
+
 interface LeaderboardEntry {
   rank: number;
   displayName: string;
   totalPoints: number;
   quizzesTaken: number;
+  quizzesPassed?: number;
   isEyeGazeUser?: boolean;
 }
 
@@ -299,7 +306,7 @@ export default function LeaderboardPage() {
                       <CardContent className="p-3 text-center">
                         <div className="text-2xl font-bold text-violet-300">{entry.totalPoints}</div>
                         <div className="text-xs text-muted-foreground">points</div>
-                        <div className="text-xs text-muted-foreground mt-1">{entry.quizzesTaken} quizzes passed</div>
+                        <div className="text-xs text-muted-foreground mt-1">{passedLabel(entry)}</div>
                       </CardContent>
                     </Card>
                   );
@@ -337,7 +344,7 @@ export default function LeaderboardPage() {
                                 >!EG</button>
                               )}
                             </p>
-                            <p className="text-xs text-muted-foreground">{entry.quizzesTaken} quizzes passed</p>
+                            <p className="text-xs text-muted-foreground">{passedLabel(entry)}</p>
                           </div>
                         <div className="text-right flex-shrink-0">
                           <div className="font-bold text-sm text-violet-300">{entry.totalPoints}</div>

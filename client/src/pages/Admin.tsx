@@ -814,12 +814,15 @@ export default function Admin() {
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(window),
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message || "Failed to save window"); }
-      const updated = await res.json();
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.message || err.error || "Failed to save window"); }
+      const body = await res.json();
+      const { window: _saved, ...updated } = body;
       setGrowthCheckWindows(prev => {
-        const idx = prev.findIndex(w => w.id === updated.id);
-        if (idx >= 0) { const n = [...prev]; n[idx] = updated; return n; }
-        return [...prev, updated];
+        // only one window is open at a time: opening this one closes the others
+        const others = updated.is_active ? prev.map(w => (w.id === updated.id ? w : { ...w, is_active: false })) : prev;
+        const idx = others.findIndex(w => w.id === updated.id);
+        if (idx >= 0) { const n = [...others]; n[idx] = updated; return n; }
+        return [...others, updated];
       });
       setGrowthCheckSuccess("Window updated successfully!");
       setTimeout(() => setGrowthCheckSuccess(""), 3000);
