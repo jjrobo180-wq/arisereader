@@ -137,11 +137,11 @@ export function createPresenceTracker(deps: PresenceDeps) {
     chain = chain.then(async () => {
       const batch = pending;
       pending = new Map();
-      for (const [day, entries] of batch) {
+      for (const [day, entries] of Array.from(batch)) {
         const key = ACTIVITY_KEY_PREFIX + day;
         try {
           const stored = parseActivityDay(await deps.readSetting(key));
-          for (const [id, [first, last]] of entries) {
+          for (const [id, [first, last]] of Array.from(entries)) {
             const cur = stored[String(id)];
             stored[String(id)] = cur ? [Math.min(cur[0], first), Math.max(cur[1], last)] : [first, last];
           }
@@ -149,7 +149,7 @@ export function createPresenceTracker(deps: PresenceDeps) {
         } catch (e: any) {
           let m = pending.get(day);
           if (!m) pending.set(day, (m = new Map()));
-          for (const [id, [first, last]] of entries) merge(m, id, first, last);
+          for (const [id, [first, last]] of Array.from(entries)) merge(m, id, first, last);
           log(`[stats] could not save visits for ${day}: ${e?.message || e}`);
           schedule();
         }
@@ -161,9 +161,9 @@ export function createPresenceTracker(deps: PresenceDeps) {
   /** Visits noted but not saved yet, by day. */
   function unsaved(): Record<string, DayMap> {
     const out: Record<string, DayMap> = {};
-    for (const [day, entries] of pending) {
+    for (const [day, entries] of Array.from(pending)) {
       out[day] = {};
-      for (const [id, pair] of entries) out[day][String(id)] = [pair[0], pair[1]];
+      for (const [id, pair] of Array.from(entries)) out[day][String(id)] = [pair[0], pair[1]];
     }
     return out;
   }
@@ -258,7 +258,7 @@ export function buildAdminStats(
   let from: string;
   if (opts.range === "all") {
     let earliest = today;
-    for (const p of people.values()) if (p.createdDay < earliest) earliest = p.createdDay;
+    for (const p of Array.from(people.values())) if (p.createdDay < earliest) earliest = p.createdDay;
     for (const l of logins) { const d = local(l.at).day; if (d < earliest) earliest = d; }
     from = earliest < addDays(today, -730) ? addDays(today, -730) : earliest;
   } else {
@@ -297,7 +297,7 @@ export function buildAdminStats(
   for (const j of live) note(j.userId, ms(j.at));
   for (const a of awards) if (/quick challenge/i.test(a.reason)) note(a.userId, ms(a.at));
   for (const g of input.games) for (const id of g.userIds) note(id, ms(g.at));
-  for (const [id, at] of opts.heardFrom ?? []) {
+  for (const [id, at] of Array.from(opts.heardFrom ?? new Map<number, number>())) {
     if (!people.has(id)) continue;
     if (at > (lastSeen.get(id) ?? 0)) lastSeen.set(id, at);
     (activeDays.get(id) ?? activeDays.set(id, new Set()).get(id)!).add(local(at).day);
@@ -312,7 +312,7 @@ export function buildAdminStats(
   }]));
   const at = (day: string) => (inRange(day) ? buckets.get(bucketOf(day)) : undefined);
 
-  const created = [...people.values()].map((p) => ({ role: p.role, day: p.createdDay })).sort((a, b) => (a.day < b.day ? -1 : 1));
+  const created = Array.from(people.values()).map((p) => ({ role: p.role, day: p.createdDay })).sort((a, b) => (a.day < b.day ? -1 : 1));
   for (const k of keys) {
     const b = buckets.get(k)!;
     const end = bucket === "week" ? (addDays(k, 6) < today ? addDays(k, 6) : today) : k;
@@ -321,21 +321,21 @@ export function buildAdminStats(
       if (c.role === "student") b.totalStudents++; else if (c.role === "teacher") b.totalTeachers++; else b.totalParents++;
     }
   }
-  for (const p of people.values()) {
+  for (const p of Array.from(people.values())) {
     const b = at(p.createdDay);
     if (b) { if (p.role === "student") b.newStudents++; else if (p.role === "teacher") b.newTeachers++; else b.newParents++; }
   }
   for (const l of logins) { const b = at(local(l.at).day); if (b) { if (isStudent(l.userId)) b.studentLogins++; else b.staffLogins++; } }
   const activeInBucket = new Map<string, Set<number>>();
-  for (const [id, days] of activeDays) {
+  for (const [id, days] of Array.from(activeDays)) {
     if (!isStudent(id)) continue;
-    for (const d of days) {
+    for (const d of Array.from(days)) {
       if (!inRange(d)) continue;
       const k = bucketOf(d);
       (activeInBucket.get(k) ?? activeInBucket.set(k, new Set()).get(k)!).add(id);
     }
   }
-  for (const [k, set] of activeInBucket) { const b = buckets.get(k); if (b) b.activeStudents = set.size; }
+  for (const [k, set] of Array.from(activeInBucket)) { const b = buckets.get(k); if (b) b.activeStudents = set.size; }
   for (const q of bookQuizzes) {
     const b = at(local(q.at).day);
     if (!b) continue;
@@ -347,15 +347,15 @@ export function buildAdminStats(
   for (const r of [...readingChecks, ...growthChecks]) { const b = at(local(r.at).day); if (b) b.assessments++; }
   for (const a of awards) { const b = at(local(a.at).day); if (b) b.points += a.points; }
   for (const f of feed) if (f.type === "view") { const b = at(local(f.at).day); if (b) b.feedViews++; }
-  for (const b of buckets.values()) b.points = Math.round(b.points * 10) / 10;
+  for (const b of Array.from(buckets.values())) b.points = Math.round(b.points * 10) / 10;
 
   // totals for the range, and the same span just before it
   const count = <T,>(rows: T[], dayOf: (r: T) => string, test: (d: string) => boolean) => rows.reduce((n, r) => n + (test(dayOf(r)) ? 1 : 0), 0);
   const delta = (fn: (test: (d: string) => boolean) => number): StatsDelta => ({ now: fn(inRange), before: prev ? fn(inPrev) : null });
-  const all = [...people.values()];
+  const all = Array.from(people.values());
   const byRole = (role: StatsRole) => all.filter((p) => p.role === role);
   const activeWhere = (role: StatsRole, test: (d: string) => boolean) =>
-    [...activeDays].filter(([id, days]) => people.get(id)?.role === role && [...days].some(test)).length;
+    Array.from(activeDays).filter(([id, days]) => people.get(id)?.role === role && Array.from(days).some(test)).length;
   const quizRows = [...bookQuizzes, ...eyeQuizzes, ...readingChecks, ...growthChecks];
   const graded = [...bookQuizzes, ...eyeQuizzes].filter((q) => inRange(local(q.at).day) && q.total > 0);
   const passed = graded.filter((q) => q.score >= passMark(q.total)).length;
@@ -363,16 +363,16 @@ export function buildAdminStats(
     (bookQuizzes.reduce((s, q) => s + (test(local(q.at).day) ? q.points : 0), 0) + awards.reduce((s, a) => s + (test(local(a.at).day) ? a.points : 0), 0)) * 10,
   ) / 10;
   const onlineCutoff = now - ONLINE_WINDOW_MS;
-  const online = [...lastSeen].filter(([, t]) => t >= onlineCutoff && t <= now + 60_000).sort((a, b) => b[1] - a[1]);
+  const online = Array.from(lastSeen).filter(([, t]) => t >= onlineCutoff && t <= now + 60_000).sort((a, b) => b[1] - a[1]);
 
   // when students use the app
   const hours = new Array(24).fill(0);
-  for (const key of studentHours) {
+  for (const key of Array.from(studentHours)) {
     const [, day, hour] = key.split("|");
     if (inRange(day)) hours[Number(hour)]++;
   }
   const weekdays = new Array(7).fill(0);
-  for (const [id, days] of activeDays) if (isStudent(id)) for (const d of days) if (inRange(d)) weekdays[weekdayOf(d)]++;
+  for (const [id, days] of Array.from(activeDays)) if (isStudent(id)) for (const d of Array.from(days)) if (inRange(d)) weekdays[weekdayOf(d)]++;
 
   // devices people sign in on
   const deviceCount = new Map<string, number>();
@@ -381,7 +381,7 @@ export function buildAdminStats(
     const name = l.device.split(" · ")[0] || l.device;
     deviceCount.set(name, (deviceCount.get(name) ?? 0) + 1);
   }
-  const deviceList = [...deviceCount].map(([name, n]) => ({ name, count: n })).sort((a, b) => b.count - a.count);
+  const deviceList = Array.from(deviceCount).map(([name, n]) => ({ name, count: n })).sort((a, b) => b.count - a.count);
   const devices = deviceList.length > 6
     ? [...deviceList.slice(0, 5), { name: "Other", count: deviceList.slice(5).reduce((s, d) => s + d.count, 0) }]
     : deviceList;
@@ -394,16 +394,16 @@ export function buildAdminStats(
     const row = schoolRows.get(id) ?? schoolRows.set(id, { id, name: id ? schoolName.get(id)! : "No school", students: 0, teachers: 0, activeStudents: 0 }).get(id)!;
     if (p.role === "student") {
       row.students++;
-      if ([...(activeDays.get(p.userId) ?? [])].some(inRange)) row.activeStudents++;
+      if (Array.from(activeDays.get(p.userId) ?? []).some(inRange)) row.activeStudents++;
     } else row.teachers++;
   }
-  const schools = [...schoolRows.values()].sort((a, b) => (a.id === null ? 1 : b.id === null ? -1 : b.students - a.students || a.name.localeCompare(b.name)));
+  const schools = Array.from(schoolRows.values()).sort((a, b) => (a.id === null ? 1 : b.id === null ? -1 : b.students - a.students || a.name.localeCompare(b.name)));
   const gradeCount = new Map<string, number>();
   for (const p of byRole("student")) {
     const g = String(input.grades[String(p.userId)] || "").trim() || "Not set";
     gradeCount.set(g, (gradeCount.get(g) ?? 0) + 1);
   }
-  const grades = [...gradeCount].map(([grade, students]) => ({ grade, students })).sort((a, b) => gradeOrder(a.grade) - gradeOrder(b.grade) || a.grade.localeCompare(b.grade));
+  const grades = Array.from(gradeCount).map(([grade, students]) => ({ grade, students })).sort((a, b) => gradeOrder(a.grade) - gradeOrder(b.grade) || a.grade.localeCompare(b.grade));
 
   // people lists
   const person = (id: number): StatsPerson => { const p = people.get(id)!; return { userId: p.userId, name: p.name, role: p.role, school: p.school }; };
@@ -418,7 +418,7 @@ export function buildAdminStats(
   const studentRows = byRole("student").map((p) => {
     const id = p.userId;
     const t = perUser.get(id) ?? { logins: 0, quizzes: 0, passed: 0, points: 0 };
-    const days = [...(activeDays.get(id) ?? [])].filter(inRange).length;
+    const days = Array.from(activeDays.get(id) ?? []).filter(inRange).length;
     return { ...person(id), activeDays: days, logins: t.logins, quizzes: t.quizzes, passed: t.passed, points: Math.round(t.points * 10) / 10, lastSeen: iso(lastSeen.get(id)), createdDay: p.createdDay };
   });
   const topStudents = studentRows

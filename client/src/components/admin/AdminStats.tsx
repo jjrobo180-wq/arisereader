@@ -57,13 +57,15 @@ function Delta({ delta, label }: { delta: StatsDelta; label: string }) {
   const diff = delta.now - delta.before;
   if (diff === 0) return <span className="text-[11px] text-muted-foreground">Same as the {label} before</span>;
   const up = diff > 0;
-  const text = delta.before === 0 ? `${up ? "+" : ""}${num(diff)}` : `${up ? "+" : ""}${Math.round((diff / delta.before) * 100)}%`;
+  // a percentage only means something against a decent base; otherwise show the plain difference
+  const change = Math.round((diff / Math.max(1, delta.before)) * 100);
+  const text = delta.before >= 10 && Math.abs(change) < 1000 ? `${up ? "+" : ""}${change}%` : `${up ? "+" : "−"}${num(Math.abs(diff))}`;
   const Icon = up ? TrendingUp : TrendingDown;
   return (
     <span className={cn("inline-flex items-center gap-1 text-[11px] font-semibold", up ? "text-emerald-400" : "text-red-400")}>
       <Icon className="h-3.5 w-3.5" />
       {text}
-      <span className="font-normal text-muted-foreground">vs the {label} before</span>
+      <span className="font-normal text-muted-foreground">vs the {label} before ({num(delta.before)})</span>
     </span>
   );
 }
@@ -285,7 +287,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
       </div>
 
       {/* headline numbers */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
         <Kpi testId="students" icon={Users} tone="violet" label="Students" value={num(t.students)}
           sub={t.newStudents.now ? `+${num(t.newStudents.now)} new ${range === "all" ? "" : `in ${periodWord}`}` : `No new students ${range === "all" ? "yet" : `in ${periodWord}`}`}
           delta={<Delta delta={t.newStudents} label={periodWord} />} />
@@ -297,9 +299,9 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
           sub={t.passRate === null ? rangeLabel : `${t.passRate}% passed (${num(t.passed)})`} delta={<Delta delta={t.quizzes} label={periodWord} />} />
         <Kpi testId="points" icon={Star} tone="amber" label="Points earned" value={num(t.points.now)}
           sub={`${num(t.feedViews)} book feed views`} delta={<Delta delta={t.points} label={periodWord} />} />
-        <Kpi testId="staff" icon={GraduationCap} tone="cyan" label="Teachers & parents" value={`${num(t.teachers)} · ${num(t.parents)}`}
-          sub={`${t.activeTeachers} teacher${t.activeTeachers === 1 ? "" : "s"} and ${t.activeParents} parent${t.activeParents === 1 ? "" : "s"} active`}
-          delta={(t.newTeachers.now || t.newParents.now) ? <span className="text-[11px] text-muted-foreground">+{t.newTeachers.now} teacher{t.newTeachers.now === 1 ? "" : "s"}, +{t.newParents.now} parent{t.newParents.now === 1 ? "" : "s"} {range === "all" ? "" : `in ${periodWord}`}</span> : undefined} />
+        <Kpi testId="staff" icon={GraduationCap} tone="cyan" label="Teachers & parents" value={num(t.teachers + t.parents)}
+          sub={`${num(t.teachers)} teacher${t.teachers === 1 ? "" : "s"} · ${num(t.parents)} parent${t.parents === 1 ? "" : "s"}`}
+          delta={<span className="text-[11px] text-muted-foreground">{t.activeTeachers} teacher{t.activeTeachers === 1 ? "" : "s"} and {t.activeParents} parent{t.activeParents === 1 ? "" : "s"} active{t.newTeachers.now || t.newParents.now ? ` · ${t.newTeachers.now + t.newParents.now} new` : ""}</span>} />
       </div>
 
       {/* growth */}
@@ -319,10 +321,10 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
               <XAxis dataKey="key" {...axis} tickFormatter={tickFormatter} minTickGap={24} />
               <YAxis {...axis} width={32} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Area type="monotone" dataKey="totalStudents" stackId="t" stroke="var(--color-totalStudents)" fill="var(--color-totalStudents)" fillOpacity={0.25} />
-              <Area type="monotone" dataKey="totalTeachers" stackId="t" stroke="var(--color-totalTeachers)" fill="var(--color-totalTeachers)" fillOpacity={0.25} />
-              <Area type="monotone" dataKey="totalParents" stackId="t" stroke="var(--color-totalParents)" fill="var(--color-totalParents)" fillOpacity={0.25} />
+              <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1 px-2 [&>div]:whitespace-nowrap" />} />
+              <Area isAnimationActive={false} type="monotone" dataKey="totalStudents" stackId="t" stroke="var(--color-totalStudents)" fill="var(--color-totalStudents)" fillOpacity={0.25} />
+              <Area isAnimationActive={false} type="monotone" dataKey="totalTeachers" stackId="t" stroke="var(--color-totalTeachers)" fill="var(--color-totalTeachers)" fillOpacity={0.25} />
+              <Area isAnimationActive={false} type="monotone" dataKey="totalParents" stackId="t" stroke="var(--color-totalParents)" fill="var(--color-totalParents)" fillOpacity={0.25} />
             </AreaChart>
           </ChartContainer>
         ) : (
@@ -332,10 +334,10 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
               <XAxis dataKey="key" {...axis} tickFormatter={tickFormatter} minTickGap={24} />
               <YAxis {...axis} width={32} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="newStudents" stackId="n" fill="var(--color-newStudents)" />
-              <Bar dataKey="newTeachers" stackId="n" fill="var(--color-newTeachers)" />
-              <Bar dataKey="newParents" stackId="n" fill="var(--color-newParents)" radius={[3, 3, 0, 0]} />
+              <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1 px-2 [&>div]:whitespace-nowrap" />} />
+              <Bar isAnimationActive={false} dataKey="newStudents" stackId="n" fill="var(--color-newStudents)" />
+              <Bar isAnimationActive={false} dataKey="newTeachers" stackId="n" fill="var(--color-newTeachers)" />
+              <Bar isAnimationActive={false} dataKey="newParents" stackId="n" fill="var(--color-newParents)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ChartContainer>
         )}
@@ -353,10 +355,10 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
               <XAxis dataKey="key" {...axis} tickFormatter={tickFormatter} minTickGap={24} />
               <YAxis {...axis} width={32} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="studentLogins" stackId="l" fill="var(--color-studentLogins)" fillOpacity={0.8} />
-              <Bar dataKey="staffLogins" stackId="l" fill="var(--color-staffLogins)" fillOpacity={0.6} radius={[3, 3, 0, 0]} />
-              <Line type="monotone" dataKey="activeStudents" stroke="var(--color-activeStudents)" strokeWidth={2.5} dot={series.buckets.length <= 31} />
+              <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1 px-2 [&>div]:whitespace-nowrap" />} />
+              <Bar isAnimationActive={false} dataKey="studentLogins" stackId="l" fill="var(--color-studentLogins)" fillOpacity={0.8} />
+              <Bar isAnimationActive={false} dataKey="staffLogins" stackId="l" fill="var(--color-staffLogins)" fillOpacity={0.6} radius={[3, 3, 0, 0]} />
+              <Line isAnimationActive={false} type="monotone" dataKey="activeStudents" stroke="var(--color-activeStudents)" strokeWidth={2.5} dot={series.buckets.length <= 31} />
             </ComposedChart>
           </ChartContainer>
         </ChartCard>
@@ -372,11 +374,11 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
               <XAxis dataKey="key" {...axis} tickFormatter={tickFormatter} minTickGap={24} />
               <YAxis {...axis} width={32} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="bookQuizzes" stackId="q" fill="var(--color-bookQuizzes)" />
-              <Bar dataKey="eyeGazeQuizzes" stackId="q" fill="var(--color-eyeGazeQuizzes)" />
-              <Bar dataKey="assessments" stackId="q" fill="var(--color-assessments)" radius={[3, 3, 0, 0]} />
-              <Line type="monotone" dataKey="passed" stroke="var(--color-passed)" strokeWidth={2} dot={false} />
+              <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1 px-2 [&>div]:whitespace-nowrap" />} />
+              <Bar isAnimationActive={false} dataKey="bookQuizzes" stackId="q" fill="var(--color-bookQuizzes)" />
+              <Bar isAnimationActive={false} dataKey="eyeGazeQuizzes" stackId="q" fill="var(--color-eyeGazeQuizzes)" />
+              <Bar isAnimationActive={false} dataKey="assessments" stackId="q" fill="var(--color-assessments)" radius={[3, 3, 0, 0]} />
+              <Line isAnimationActive={false} type="monotone" dataKey="passed" stroke="var(--color-passed)" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ChartContainer>
         </ChartCard>
@@ -394,7 +396,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
               <XAxis dataKey="hour" {...axis} interval={2} />
               <YAxis {...axis} width={28} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="count" fill="var(--color-count)" radius={[3, 3, 0, 0]} />
+              <Bar isAnimationActive={false} dataKey="count" fill="var(--color-count)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </ChartCard>
@@ -409,7 +411,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
               <XAxis dataKey="day" {...axis} />
               <YAxis {...axis} width={28} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="count" fill="var(--color-count)" radius={[3, 3, 0, 0]} />
+              <Bar isAnimationActive={false} dataKey="count" fill="var(--color-count)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </ChartCard>
@@ -426,7 +428,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
             <XAxis dataKey="key" {...axis} tickFormatter={tickFormatter} minTickGap={24} />
             <YAxis {...axis} width={32} />
             <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
-            <Bar dataKey="points" fill="var(--color-points)" radius={[3, 3, 0, 0]} />
+            <Bar isAnimationActive={false} dataKey="points" fill="var(--color-points)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ChartContainer>
       </ChartCard>
