@@ -13,6 +13,7 @@ import { IconBack } from "@/arcade/icons";
 import { GAMES, type CategoryId } from "@shared/arcade/catalog";
 import { STUDY_WORLD_PATH, STUDY_WORLD_TITLE } from "@shared/study/sets";
 import GameArt from "@/arcade/covers/Art";
+import ClashStrip from "@/components/chess/ClashStrip";
 import { logoFor } from "@/arcade/covers/styles";
 import "@/arcade/library.css";
 import "./worlds.css";
@@ -291,6 +292,8 @@ export default function Games() {
             </div>
           )}
         </section>
+
+        <ClashStrip onOpen={() => enter(BY_ID.chess)} />
 
         <Shelf id="top-games" title="TOP Games" note="Featured favorites">
           {TOP_GAMES.map((id) => {

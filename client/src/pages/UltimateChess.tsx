@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, Bot, ChevronDown, Crown, Flag, Lightbulb, RotateCcw, Sparkles, Trophy, Undo2, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ClashBanner, ClashBoard, ClashEarnedLine, ClashFanfare, ClashPodium, Confetti, clashClimbed, clashStake, fanfareFor, fanfareSeen, markFanfareSeen, useClash, type ClashEarned, type FanfareKind } from "@/components/chess/CrownClash";
 import "./ultimate-chess.css";
 
 type Move = { from: string; to: string; promotion?: "q" | "r" | "b" | "n"; capture?: boolean };
@@ -74,6 +75,7 @@ export default function UltimateChess() {
   const [ranks, setRanks] = useState<Rank[]>([]), [showRanks, setShowRanks] = useState(false), [movesOpen, setMovesOpen] = useState(false);
   const [thinking, setThinking] = useState(false), [hint, setHint] = useState<{ from: string; to: string } | null>(null);
   const [drag, setDrag] = useState<{ from: string; x: number; y: number } | null>(null);
+  const [rankTab, setRankTab] = useState<"clash" | "all">("clash"), [fanfare, setFanfare] = useState<FanfareKind | null>(null), [earned, setEarned] = useState<ClashEarned | null>(null);
   const [, setTick] = useState(0);
   const receivedAt = useRef(Date.now());
   const reveal = useRef<number | null>(null);
@@ -84,6 +86,9 @@ export default function UltimateChess() {
 
   /** Every match update goes through here so the clocks count down from the moment it arrived. */
   const setMatch = useCallback((next: Match | null) => { receivedAt.current = Date.now(); setMatchState(next); }, []);
+
+  // The chess competition (shared/chessCompetition.ts). Its board is kept fresh while the lobby or the standings are showing.
+  const clash = useClash(token, !match || showRanks);
 
   useEffect(() => { if (bg.current) return atmosphere(bg.current); }, []);
   useEffect(() => { if (!token) return; let live = true; (async () => { try { const r = await fetch(API_BASE + "/api/chess/bootstrap", { headers: { Authorization: "Bearer " + token }, cache: "no-store" }); const d = await r.json(); if (!r.ok) throw new Error(d.message); if (live) setBoot(d); } catch (e: any) { if (live) setMessage(e.message || "Could not enter Chess."); } finally { if (live) setLoading(false); } })(); return () => { live = false; }; }, [token]);
@@ -108,8 +113,32 @@ export default function UltimateChess() {
   useEffect(() => { if (!live) return; const id = setInterval(() => setTick((t) => t + 1), 250); return () => clearInterval(id); }, [live]);
   useEffect(() => () => { if (reveal.current) window.clearTimeout(reveal.current); }, []);
 
-  const beep = (kind: "move" | "hit" | "check" | "start" | "win") => { if (!sound) return; try { const AC = window.AudioContext || (window as any).webkitAudioContext; let ctx = audio.current; if (!ctx || ctx.state === "closed") { ctx = new AC(); audio.current = ctx; } if (ctx.state === "suspended") void ctx.resume(); const plan = kind === "move" ? [190, 145] : kind === "hit" ? [120, 82] : kind === "check" ? [330, 440, 660] : kind === "win" ? [392, 523, 659, 784] : [110, 220, 330]; plan.forEach((f, i) => { const o = ctx!.createOscillator(), g = ctx!.createGain(), t = ctx!.currentTime + i * .07; o.type = i % 2 ? "triangle" : "sine"; o.frequency.value = f; g.gain.setValueAtTime(.055, t); g.gain.exponentialRampToValueAtTime(.0001, t + .12); o.connect(g); g.connect(ctx!.destination); o.start(t); o.stop(t + .14); }); } catch { /* sound is optional */ } };
+  const beep = (kind: "move" | "hit" | "check" | "start" | "win" | "fanfare") => { if (!sound) return; try { const AC = window.AudioContext || (window as any).webkitAudioContext; let ctx = audio.current; if (!ctx || ctx.state === "closed") { ctx = new AC(); audio.current = ctx; } if (ctx.state === "suspended") void ctx.resume(); const plan = kind === "move" ? [190, 145] : kind === "hit" ? [120, 82] : kind === "check" ? [330, 440, 660] : kind === "win" ? [392, 523, 659, 784] : kind === "fanfare" ? [392, 392, 523, 659, 784, 1047] : [110, 220, 330]; plan.forEach((f, i) => { const o = ctx!.createOscillator(), g = ctx!.createGain(), t = ctx!.currentTime + i * .07; o.type = i % 2 ? "triangle" : "sine"; o.frequency.value = f; g.gain.setValueAtTime(.055, t); g.gain.exponentialRampToValueAtTime(.0001, t + .12); o.connect(g); g.connect(ctx!.destination); o.start(t); o.stop(t + .14); }); } catch { /* sound is optional */ } };
   useEffect(() => { const m = match?.state?.lastMove; if (!m) return; const key = m.from + m.to + (m.promotion || "") + (match?.state.moveHistory.length || 0); if (key === last.current) return; last.current = key; beep(match?.state.check ? "check" : m.capture ? "hit" : "move"); }, [match?.state?.lastMove?.from, match?.state?.lastMove?.to, match?.state?.moveHistory.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The competition's big moments (it opens, the final day, the champion) are each shown to a reader once, in the lobby.
+  useEffect(() => {
+    const c = clash.competition, uid = boot?.self?.userId, kind = fanfareFor(clash);
+    if (fanfare && fanfare !== kind) { setFanfare(null); return; } // the moment passed while it was on screen
+    if (!c || !uid || !kind || match || fanfare || !clash.view) return;
+    if (kind === "crowned" && !clash.view.standings.length) return;
+    if (fanfareSeen(c, kind, uid)) return;
+    markFanfareSeen(c, kind, uid);
+    if (kind === "final") markFanfareSeen(c, "open", uid);
+    setFanfare(kind); beep("fanfare");
+  }, [clash.competition?.id, clash.phase, clash.heat, clash.view, boot?.self?.userId, match?.id, fanfare]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When a game ends, read the board again to show what it earned and where the reader stands now.
+  useEffect(() => {
+    if (!match || match.status !== "finished" || !clash.competition || clash.phase === "soon") { setEarned(null); return; }
+    let alive = true; const id = match.id, before = clash.view?.me?.rank ?? null;
+    (async () => {
+      let d = await clash.refresh(true);
+      if (alive && d && d.last?.matchId !== id) { await new Promise((r) => window.setTimeout(r, 2500)); if (alive) d = await clash.refresh(true); }
+      if (alive && d?.last && d.last.matchId === id) setEarned({ last: d.last, before, after: d.me?.rank ?? null, points: d.me?.points ?? 0 });
+    })();
+    return () => { alive = false; };
+  }, [match?.id, match?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const start = async () => { if (!boot?.access?.allowed) { setMessage(boot?.access?.locked ? "Your teacher has locked game play." : "You need another available game play."); return; } try { setBusy(true); setMessage(""); beep("start"); const r = await fetch(API_BASE + "/api/chess/matches/join", { method: "POST", headers, body: JSON.stringify({ computer: mode === "computer", computerLevel: level, timeControlSec: time }) }); const d = await r.json(); if (!r.ok) throw new Error(d.message); setMatch(d); setSelected(null); setHint(null); if (d.status === "active") { setIntro(true); setTimeout(() => setIntro(false), 2300); } } catch (e: any) { setMessage(e.message || "Could not start Chess."); } finally { setBusy(false); } };
   useEffect(() => { if (match?.status === "active" && !intro && match.state.moveHistory.length === 0 && mode === "multiplayer") { setIntro(true); beep("start"); const t = setTimeout(() => setIntro(false), 2300); return () => clearTimeout(t); } }, [match?.status]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -141,7 +170,7 @@ export default function UltimateChess() {
   const takeBack = async () => { try { setBusy(true); setHint(null); setSelected(null); const d = await post("/undo"); if (d) setMatch(d); } catch (e: any) { setMessage(e.message || "Could not take that back."); } finally { setBusy(false); } };
   const resign = async () => { if (!match) return; const r = await fetch(API_BASE + "/api/chess/matches/" + match.id + "/resign", { method: "POST", headers }); const d = await r.json(); if (r.ok) setMatch(d); };
   const cancel = async () => { if (match) try { await fetch(API_BASE + "/api/chess/matches/" + match.id + "/leave", { method: "POST", headers }); } catch { /* best effort */ } setMatch(null); setSelected(null); };
-  const leaderboard = async () => { setShowRanks(true); try { const r = await fetch(API_BASE + "/api/chess/leaderboard", { headers: { Authorization: "Bearer " + token }, cache: "no-store" }); const d = await r.json(); if (r.ok) setRanks(d); } catch { /* keep the old list */ } };
+  const leaderboard = async (tab?: "clash" | "all") => { setRankTab(tab || (clash.competition ? "clash" : "all")); setShowRanks(true); void clash.refresh(); try { const r = await fetch(API_BASE + "/api/chess/leaderboard", { headers: { Authorization: "Bearer " + token }, cache: "no-store" }); const d = await r.json(); if (r.ok) setRanks(d); } catch { /* keep the old list */ } };
 
   const state = match?.state, myTurn = !!match && match.status === "active" && state?.winner === null && state?.turn === match.youAre && !thinking;
   const legalFrom = useMemo(() => new Set((state?.legalMoves || []).map(m => m.from)), [state?.legalMoves]);
@@ -238,13 +267,16 @@ export default function UltimateChess() {
 
   return <main className="uc"><div ref={bg} className="uc-bg" /><div className="uc-shade" />
     <header className="uc-top"><button onClick={() => go("/games")}><ArrowLeft /><span>Games</span></button><div className="uc-logo"><b>♛</b><div><small>A.R.I.S.E. ARENA</small><strong>ULTIMATE CHESS</strong></div></div><div><button onClick={() => setSound(v => !v)} aria-label={sound ? "Turn sound off" : "Turn sound on"}>{sound ? <Volume2 /> : <VolumeX />}</button><button onClick={() => void leaderboard()}><Trophy /><span>Ranks</span></button></div></header>
-    {!match && <section className="uc-lobby"><div className="uc-card"><div className="uc-kicker"><Sparkles /> THE BOARD IS WAITING</div><h1>Enter the <em>Ultimate Chess</em> competition.</h1><p>Challenge another A.R.I.S.E. reader live or face the computer. Against the computer you get 3 hints and 3 take-backs every game.</p>
+    {!match && <section className="uc-lobby"><div className={"uc-card" + (clash.competition ? " with-clash" : "")}>{clash.competition ? <ClashBanner clash={clash} onStandings={() => void leaderboard("clash")} /> : <><div className="uc-kicker"><Sparkles /> THE BOARD IS WAITING</div><h1>Enter the <em>Ultimate Chess</em> competition.</h1><p>Challenge another A.R.I.S.E. reader live or face the computer. Against the computer you get 3 hints and 3 take-backs every game.</p></>}
       <div className="uc-modes"><button className={mode === "computer" ? "active" : ""} onClick={() => setMode("computer")}><Bot /><b>Play Computer</b><span>Instant match, 4 levels</span></button><button className={mode === "multiplayer" ? "active" : ""} onClick={() => setMode("multiplayer")}><Users /><b>Live Multiplayer</b><span>Match another reader</span></button></div>
       {mode === "computer" && <div className="uc-setting"><label>Computer strength <b>{LEVELS[level - 1][0]}</b></label><div className="uc-levels">{LEVELS.map((l, i) => <button key={i} className={level === i + 1 ? "active" : ""} onClick={() => setLevel(i + 1)}><b>{l[0]}</b><span>{l[1]}</span></button>)}</div></div>}
       <div className="uc-setting"><label>Match clock <b>{TIMES.find(t => t[0] === time)?.[1]} each</b></label><div className="uc-times">{TIMES.map(t => <button key={t[0]} className={time === t[0] ? "active" : ""} onClick={() => setTime(t[0])}>{t[1]}</button>)}</div></div>
       {!boot?.access?.allowed && <p className="uc-lock">{boot?.access?.locked ? "Your teacher has locked game play." : "You need another available game play."}</p>}{message && <p className="uc-msg">{message}</p>}
-      <button className="uc-enter" disabled={busy || !boot?.access?.allowed} onClick={() => void start()}><Zap />{busy ? "Opening arena…" : mode === "computer" ? "ENTER VS COMPUTER" : "FIND A CHALLENGER"}</button><button className="uc-ranklink" onClick={() => void leaderboard()}><Trophy /> View Chess leaderboard</button>
-    </div><div className="uc-hero"><Piece code="wK" className="uc-hero-king" /><b>CHECKMATE</b><small>Protect the king. Claim the crown.</small></div></section>}
+      {clash.competition && clash.phase === "live" && <p className="ucc-stake">A win here is worth <b>+{clashStake(mode, level)}</b> {clash.competition.name} points</p>}
+      <button className="uc-enter" disabled={busy || !boot?.access?.allowed} onClick={() => void start()}><Zap />{busy ? "Opening arena…" : mode === "computer" ? "ENTER VS COMPUTER" : "FIND A CHALLENGER"}</button>{!clash.competition && <button className="uc-ranklink" onClick={() => void leaderboard()}><Trophy /> View Chess leaderboard</button>}
+    </div>{clash.competition && clash.phase !== "soon"
+      ? <div className="uc-hero ucc-stage"><Piece code="wK" className="uc-hero-king" /><b>{clash.phase === "ended" ? "THE CHAMPIONS" : "WHO TAKES THE CROWN?"}</b><ClashPodium standings={clash.view?.standings || []} selfId={boot?.self?.userId} crowned={clash.phase === "ended"} /><small>{clash.view && clash.view.players > 0 ? `${clash.view.players} ${clash.view.players === 1 ? "reader" : "readers"} on the board · ${clash.view.games} ${clash.view.games === 1 ? "game" : "games"} played` : "The board is empty. The first win takes first place."}</small></div>
+      : <div className="uc-hero"><Piece code="wK" className="uc-hero-king" /><b>CHECKMATE</b><small>Protect the king. Claim the crown.</small></div>}</section>}
     {match?.status === "waiting" && <section className="uc-wait"><div className="uc-orbit"><span><Piece code="wK" /></span><i /><i /></div><small>LIVE MULTIPLAYER</small><h2>Searching for your challenger…</h2><p>The match begins automatically when another reader joins.</p><button onClick={() => void cancel()}>Cancel search</button></section>}
     {match && state && match.status !== "waiting" && <section className="uc-game">
       <PlayerBar name={match.players[theirs - 1]?.display_name || "Opponent"} side={theirs === 1 ? "WHITE" : "BLACK"} king={theirs === 1 ? "wK" : "bK"} time={clockFor(theirs)} active={live && state.turn === theirs} captured={capturedBy(theirs)} lead={lead(theirs)} />
@@ -279,11 +311,17 @@ export default function UltimateChess() {
       </PlayerBar>
       {message && <button className="uc-toast" onClick={() => setMessage("")}>{message}<X /></button>}</section>}
     {promo && <div className="uc-modal"><div className="uc-promote"><small>PAWN PROMOTION</small><h2>Choose your new piece</h2><div>{promo.choices.map(x => <button key={x} onClick={() => void play(promo.from, promo.to, x)}><span><Piece code={(match?.youAre === 1 ? "w" : "b") + x.toUpperCase()} /></span><b>{NAMES[x.toUpperCase()]}</b></button>)}</div><button onClick={() => setPromo(null)}>Cancel</button></div></div>}
-    {match?.status === "finished" && !thinking && <div className="uc-modal"><div className="uc-result"><div>♛</div><small>ULTIMATE CHESS</small><h2>{winner(match, boot?.self?.userId)[0]}</h2><p>{winner(match, boot?.self?.userId)[1]}</p>
+    {match?.status === "finished" && !thinking && <div className="uc-modal">{earned && clashClimbed(earned) && <Confetti count={60} />}<div className="uc-result"><div>♛</div><small>ULTIMATE CHESS</small><h2>{winner(match, boot?.self?.userId)[0]}</h2><p>{winner(match, boot?.self?.userId)[1]}</p>
       {match.reward && <div className="uc-rewards">{match.reward.coins ? <><span>+10 Reader Coins</span>{state?.winner === match.youAre && <span>+20 win bonus</span>}</> : <span className="off">Daily coin limit reached</span>}{state?.winner === match.youAre && (match.reward.points ? <span>+10 leaderboard points</span> : <span className="off">Leaderboard points are done for today</span>)}</div>}
+      {earned && clash.competition && <ClashEarnedLine earned={earned} name={clash.competition.name} />}
       <section><span><b>{state?.moveHistory.length || 0}</b>moves</span><span><b>{clock(state?.clocks[match.youAre - 1] || 0)}</b>time left</span><span><b>{state?.computer ? LEVELS[(state.computerLevel || 2) - 1][0] : "Live"}</b>opponent</span></section><footer><button onClick={() => { setMatch(null); setTimeout(() => void start(), 30); }}><RotateCcw /> Rematch</button><button onClick={() => setMatch(null)}>Change match</button><button onClick={() => void leaderboard()}><Trophy /> Rankings</button></footer></div></div>}
+    {fanfare && !match && <ClashFanfare kind={fanfare} clash={clash} selfId={boot?.self?.userId} onClose={() => setFanfare(null)} onStandings={() => { setFanfare(null); void leaderboard("clash"); }} />}
     {intro && <div className="uc-intro"><small>A.R.I.S.E. PRESENTS</small><h2>ULTIMATE <em>CHESS</em></h2><div><strong>{match?.players[0].display_name}</strong><span>VS</span><strong>{match?.players[1].display_name}</strong></div><p>Protect the king. Control the board. Claim the crown.</p></div>}
-    {showRanks && <div className="uc-modal"><section className="uc-leaders"><header><div><small>♛ CHESS-ONLY STANDINGS</small><h2>Ultimate Chess Leaderboard</h2><p>3 points per win, 1 per draw</p></div><button onClick={() => setShowRanks(false)} aria-label="Close standings"><X /></button></header>{ranks.length === 0 ? <div className="uc-empty"><Trophy /><h3>No ranked games yet.</h3><p>Finish the first match and take #1.</p></div> : <div className="uc-list">{ranks.slice(0, 50).map(r => <div key={r.userId} className={(r.userId === boot?.self?.userId ? "me " : "") + (r.rank <= 3 ? "podium" : "")}><b>{r.rank === 1 ? "👑" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : "#" + r.rank}</b><strong>{r.displayName}</strong><span>{r.wins}W {r.draws}D {r.losses}L</span><em>{r.points} pts</em><small>{r.winRate}%</small></div>)}</div>}</section></div>}
+    {showRanks && <div className="uc-modal"><section className="uc-leaders">{clash.competition && rankTab === "clash"
+      ? <header><div><small>♛ CHESS COMPETITION</small><h2>{clash.competition.name}</h2><p>{clash.competition.tagline}</p></div><button onClick={() => setShowRanks(false)} aria-label="Close standings"><X /></button></header>
+      : <header><div><small>♛ CHESS-ONLY STANDINGS</small><h2>Ultimate Chess Leaderboard</h2><p>3 points per win, 1 per draw</p></div><button onClick={() => setShowRanks(false)} aria-label="Close standings"><X /></button></header>}
+      {clash.competition && <div className="ucc-tabs" role="tablist" aria-label="Which standings">{([["clash", clash.competition.name], ["all", "All-time"]] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={rankTab === id} className={rankTab === id ? "active" : ""} onClick={() => setRankTab(id)}>{label}</button>)}</div>}
+      {clash.competition && rankTab === "clash" ? <ClashBoard clash={clash} selfId={boot?.self?.userId} /> : ranks.length === 0 ? <div className="uc-empty"><Trophy /><h3>No ranked games yet.</h3><p>Finish the first match and take #1.</p></div> : <div className="uc-list">{ranks.slice(0, 50).map(r => <div key={r.userId} className={(r.userId === boot?.self?.userId ? "me " : "") + (r.rank <= 3 ? "podium" : "")}><b>{r.rank === 1 ? "👑" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : "#" + r.rank}</b><strong>{r.displayName}</strong><span>{r.wins}W {r.draws}D {r.losses}L</span><em>{r.points} pts</em><small>{r.winRate}%</small></div>)}</div>}</section></div>}
   </main>;
 }
 

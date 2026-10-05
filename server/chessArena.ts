@@ -7,6 +7,7 @@ import {
 import { pickChessMove } from "./chessAI";
 import { runComputer } from "./computerGovernor";
 import { awardPoints, decideRewards } from "./arcadeMatches";
+import { clashView, forgetClashBoard } from "./chessCompetition";
 
 function isStudent(user:any){return !!user&&!user.isAdmin&&user.role==="student"&&!user.is_eye_gaze_user;}
 
@@ -76,7 +77,7 @@ export function registerChessArenaRoutes(app:Express,authMiddleware:RequestHandl
     const rewards=await decideRewards(match,state);
     const winnerUserId=state.winner===1?match.player1_id:state.winner===2?match.player2_id:null;
     const saved=await save(match,{...state,rewards},{status:"finished",winner_id:winnerUserId});
-    if(saved)await awardPoints(saved);
+    if(saved){forgetClashBoard();await awardPoints(saved);}
     return saved;
   };
 
@@ -218,5 +219,13 @@ export function registerChessArenaRoutes(app:Express,authMiddleware:RequestHandl
       const ids=[...stats.keys()];const names=await namesFor(ids);const rows=[...stats.values()].map(s=>({...s,displayName:names.get(s.userId)||"Reader",winRate:s.games?Math.round(s.wins/s.games*100):0})).sort((a,b)=>b.points-a.points||b.wins-a.wins||a.losses-b.losses).map((row,i)=>({...row,rank:i+1}));
       res.set("Cache-Control","no-store");res.json(rows);
     }catch(error:any){console.error("[chess] leaderboard",error?.message);res.status(500).json({message:"Could not load the chess leaderboard."});}
+  });
+
+  // The competition: its dates, the top of its board and the reader's own place (shared/chessCompetition.ts).
+  app.get("/api/chess/competition",authMiddleware,async(req:any,res)=>{
+    try{
+      if(!isStudent(req.user))return res.status(403).json({message:"Student account required."});
+      res.set("Cache-Control","no-store");res.json(await clashView(db(),req.user.id,Date.now(),req.query?.fresh==="1"));
+    }catch(error:any){console.error("[chess] competition",error?.message);res.status(500).json({message:"Could not load the chess competition."});}
   });
 }

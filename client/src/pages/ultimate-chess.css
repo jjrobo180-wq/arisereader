@@ -61,3 +61,126 @@
 @media(max-width:840px){.uc-player>.uc-assist-mini{display:flex}.uc-assist{display:none}}
 @media(max-width:520px){.uc-player>.uc-assist-mini{gap:5px;margin-right:6px}.uc-assist-mini button{width:36px;height:36px}.uc-caps .uc-svgpiece{width:13px;height:13px}.uc-player>div>span .uc-svgpiece{width:27px;height:27px}}
 @media(prefers-reduced-motion:reduce){.uc-drag{transform:translate(-50%,-50%)}}
+
+/* ─── The chess competition (components/chess/CrownClash.tsx) ─────────────── */
+.ucc-banner-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ucc-tag{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid rgba(134,239,172,.38);background:rgba(34,197,94,.13);color:#bbf7d0;font-size:10px;font-weight:950;letter-spacing:.19em;text-transform:uppercase}
+.ucc-tag i{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:ucc-live 1.6s ease-out infinite}
+.ucc-banner.soon .ucc-tag,.ucc-banner.ended .ucc-tag{border-color:rgba(245,215,120,.3);background:rgba(245,215,120,.1);color:#f5d778}
+.ucc-banner.soon .ucc-tag i,.ucc-banner.ended .ucc-tag i{background:#f5d778;animation:none}
+.ucc-dates{font-size:11px;font-weight:850;letter-spacing:.06em;color:#a9a2b7;white-space:nowrap}
+.uc-card.with-clash{padding-top:clamp(18px,3vw,26px);padding-bottom:clamp(18px,3vw,26px)}
+.uc-card .ucc-banner h1{margin:10px 0 5px;font-size:clamp(38px,4.9vw,60px);line-height:.94}
+.ucc-banner h1 small{display:block;margin-bottom:7px;font-size:10px;line-height:1.2;font-weight:900;letter-spacing:.22em;text-transform:uppercase;color:#c4b5fd}
+.uc-card .ucc-banner h1 em{background:linear-gradient(90deg,#fff2ba,#f4c85f,#c4b5fd,#f4c85f,#fff2ba);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ucc-shine 6s linear infinite}
+.ucc-tagline{margin:0;color:#b6afc6;font-size:13.5px;font-weight:650;line-height:1.5}
+.ucc-clock{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:13px;perspective:420px}
+.ucc-cell{display:grid;justify-items:center;gap:5px;min-width:0}
+.ucc-cell span{position:relative;display:grid;place-items:center;width:100%;height:clamp(50px,6vw,58px);border-radius:14px;border:1px solid rgba(245,215,120,.3);background:linear-gradient(180deg,#241b39 0 50%,#171126 50% 100%);box-shadow:inset 0 1px rgba(255,255,255,.08),0 10px 26px rgba(0,0,0,.35);overflow:hidden}
+.ucc-cell span:after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.6)}
+.ucc-cell b{font-size:clamp(27px,3.5vw,36px);line-height:1;font-weight:1000;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:#fff1af;text-shadow:0 0 22px rgba(245,215,120,.35);animation:ucc-tick .3s cubic-bezier(.2,.9,.3,1.2)}
+.ucc-cell small{font-size:9px;font-weight:950;letter-spacing:.2em;text-transform:uppercase;color:#9c94ab}
+.ucc-clock.compact{flex:none;margin:0;gap:5px;grid-template-columns:repeat(4,44px)}
+.ucc-clock.compact .ucc-cell{gap:3px}
+.ucc-clock.compact .ucc-cell span{height:38px;border-radius:10px}
+.ucc-clock.compact .ucc-cell b{font-size:19px}
+.ucc-clock.compact .ucc-cell small{font-size:7px;letter-spacing:.12em}
+.heat-day .ucc-tag,.heat-hour .ucc-tag{border-color:rgba(251,146,60,.55);background:rgba(194,65,12,.24);color:#fed7aa}
+.heat-day .ucc-tag i,.heat-hour .ucc-tag i{background:#fb923c}
+.heat-day .ucc-cell span,.heat-hour .ucc-cell span{border-color:rgba(251,146,60,.55);background:linear-gradient(180deg,#3d1c14 0 50%,#27110c 50% 100%)}
+.heat-day .ucc-cell b,.heat-hour .ucc-cell b{color:#ffd9ad;text-shadow:0 0 22px rgba(251,146,60,.55)}
+.heat-hour .ucc-cell span{animation:ucc-hot .9s ease-in-out infinite alternate}
+.ucc-mine{display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 8px 8px 13px;border-radius:14px;border:1px solid rgba(196,181,253,.24);background:rgba(124,58,237,.11)}
+.ucc-mine p{margin:0;flex:1;min-width:0;font-size:13px;font-weight:750;line-height:1.35;color:#ebe5f8}
+.ucc-mine button{flex:none;min-height:38px;padding:0 14px;border-radius:11px;border:1px solid rgba(245,215,120,.38);background:rgba(245,215,120,.1);color:#f3dc8a!important;font-size:11px;font-weight:900;cursor:pointer}
+.ucc-mine button:hover{background:rgba(245,215,120,.18)}
+.uc-card.with-clash .uc-modes{margin-top:14px}
+.uc-card.with-clash .uc-modes button{min-height:66px;padding-top:9px;padding-bottom:9px}
+.uc-card.with-clash .uc-setting{margin-top:14px}
+.uc-card .ucc-stake{margin:11px 0 -9px;text-align:center;font-size:12px;font-weight:800;color:#b9b2c7}
+.ucc-stake b{font-size:14px;color:#f5d778}
+
+/* the podium, in the lobby and in the standings */
+.uc-hero.ucc-stage .uc-hero-king{width:clamp(96px,11vw,150px)}
+.uc-hero.ucc-stage>b{margin-top:12px;font-size:clamp(17px,2.3vw,30px);letter-spacing:.14em}
+.uc-hero.ucc-stage>small{margin-top:4px}
+.ucc-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:8px;width:min(430px,100%);margin:16px auto 10px}
+.ucc-step{display:grid;justify-items:center;min-width:0;text-align:center}
+.ucc-medal{font-size:26px;line-height:1.1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+.ucc-step.p1 .ucc-medal{font-size:38px;animation:uc-float 2.2s ease-in-out infinite}
+.ucc-step strong{max-width:100%;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:900;color:#fff}
+.ucc-step em{margin-bottom:6px;font-style:normal;font-size:11px;font-weight:850;color:#e7cf79}
+.ucc-block{width:100%;display:grid;place-items:start center;padding-top:8px;border:1px solid rgba(245,215,120,.3);border-bottom:0;border-radius:12px 12px 0 0;background:linear-gradient(180deg,rgba(245,215,120,.32),rgba(124,58,237,.14) 72%,rgba(124,58,237,.02));transform-origin:bottom;animation:ucc-rise .8s cubic-bezier(.2,.9,.25,1) both}
+.ucc-block b{font-size:22px;font-weight:1000;color:#fff1af}
+.ucc-step.p1 .ucc-block{height:104px}
+.ucc-step.p2 .ucc-block{height:74px;animation-delay:.12s}
+.ucc-step.p3 .ucc-block{height:54px;animation-delay:.24s}
+.ucc-step.open strong{color:#8f879e}
+.ucc-step.open em{color:#746c7e}
+.ucc-step.open .ucc-medal{opacity:.45;filter:grayscale(1)}
+.ucc-step.open .ucc-block{border-style:dashed;border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.03)}
+.ucc-step.open .ucc-block b{color:#8f879e}
+.ucc-step.me strong{color:#c4b5fd}
+.ucc-podium.crowned .ucc-step.p1 .ucc-block{box-shadow:0 0 44px rgba(245,215,120,.3)}
+
+/* the standings window */
+.ucc-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px 0}
+.ucc-tabs button{min-height:40px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#b9b2c7!important;font-size:12px;font-weight:900;cursor:pointer}
+.ucc-tabs button.active{border-color:#e7c65c;background:linear-gradient(145deg,rgba(221,183,67,.22),rgba(124,58,237,.12));color:#fff1af!important}
+.ucc-board{padding-bottom:10px}
+.ucc-board .ucc-podium{width:min(430px,calc(100% - 28px))}
+.ucc-board-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 12px 0;padding:11px 14px;border-radius:16px;border:1px solid rgba(245,215,120,.18);background:rgba(245,215,120,.06)}
+.ucc-board-head>div:first-child{min-width:0}
+.ucc-board-head>div:first-child b{display:block;font-size:15px;font-weight:950}
+.ucc-board-head>div:first-child span{display:block;margin-top:2px;font-size:11px;font-weight:750;color:#a39bb0}
+.ucc-board .uc-list>div{grid-template-columns:54px minmax(90px,1fr) 104px 58px 64px}
+.ucc-none{margin:2px 12px 14px;text-align:center;color:#9d96aa;font-size:13px;font-weight:700}
+.ucc-gap{margin:0;text-align:center;color:#746c7e;letter-spacing:.3em}
+.ucc-rules{margin:10px 12px 2px;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
+.ucc-rules h3{margin:0 0 9px;font-size:11px;font-weight:950;letter-spacing:.18em;text-transform:uppercase;color:#e7cd72}
+.ucc-rules ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:6px 14px}
+.ucc-rules li{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;color:#d9d3e6}
+.ucc-rules li b{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(245,215,120,.14);color:#f5d778;font-size:14px;font-weight:1000}
+.ucc-rules p{margin:11px 0 0;font-size:11px;line-height:1.55;font-weight:650;color:#978fa5}
+
+/* the full-screen moments: it opens, the final day, the champion */
+.ucc-fanfare{position:absolute;inset:0;z-index:85;display:flex;padding:20px;overflow:hidden auto;text-align:center;background:radial-gradient(circle at 50% 38%,#4a3572,#0d0919 62%,#05040b);animation:ucc-in .45s ease-out both}
+.ucc-fanfare.heat-day,.ucc-fanfare.heat-hour{background:radial-gradient(circle at 50% 38%,#7a3418,#170a0b 62%,#070304)}
+.ucc-rays{position:absolute;left:50%;top:38%;width:170vmax;height:170vmax;margin:-85vmax 0 0 -85vmax;background:repeating-conic-gradient(from 0deg,rgba(245,215,120,.1) 0 7deg,transparent 7deg 18deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 44%);mask-image:radial-gradient(circle,#000 0,transparent 44%);animation:uc-spin 70s linear infinite;pointer-events:none}
+.ucc-fanfare-in{position:relative;z-index:2;display:grid;justify-items:center;width:min(600px,100%);margin:auto}
+.ucc-fanfare.crowned h2{font-size:clamp(36px,6.4vw,68px);line-height:.95}
+.ucc-crown{font-family:Georgia,"Times New Roman",serif;font-size:clamp(64px,12vw,116px);line-height:.9;color:#f1d777;text-shadow:0 0 50px rgba(241,215,119,.55);animation:ucc-drop .9s cubic-bezier(.2,1.3,.4,1) both}
+.ucc-fanfare-in>small{margin-top:8px;font-size:11px;font-weight:950;letter-spacing:.3em;text-transform:uppercase;color:#cbbdee}
+.ucc-fanfare h2{margin:8px 0 6px;font-size:clamp(44px,9.6vw,100px);line-height:.88;font-weight:1000;letter-spacing:-.05em;background:linear-gradient(90deg,#fff2ba,#f4c85f,#c4b5fd,#f4c85f,#fff2ba);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ucc-pop .7s .15s cubic-bezier(.2,1.2,.3,1) both,ucc-shine 5s linear infinite}
+.ucc-fanfare-in>p{margin:10px 0 0;max-width:470px;color:#c3bbd2;font-size:14px;font-weight:650;line-height:1.55}
+.ucc-fanfare-in>p.ucc-big{margin-top:4px;color:#fff;font-size:clamp(17px,2.6vw,23px);font-weight:900}
+.ucc-fanfare .ucc-clock{width:min(430px,100%);margin-top:20px}
+.ucc-fanfare .ucc-podium{margin-top:20px}
+.ucc-fanfare-actions{display:grid;gap:8px;width:min(340px,100%);margin-top:22px}
+.ucc-fanfare .ucc-go{min-height:58px;border:0;border-radius:17px;background:linear-gradient(105deg,#f5da79,#c99a35);color:#17101d!important;font-size:16px;font-weight:1000;letter-spacing:.06em;cursor:pointer;box-shadow:0 14px 40px rgba(196,145,34,.3);animation:ucc-beat 1.6s ease-in-out infinite}
+.ucc-fanfare .ucc-more{min-height:42px;border:1px solid rgba(255,255,255,.14);border-radius:13px;background:rgba(255,255,255,.05);color:#cfc8dc!important;font-size:12px;font-weight:850;cursor:pointer}
+.ucc-confetti{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none}
+.ucc-confetti i{position:absolute;top:-26px;border-radius:2px;opacity:0;animation:ucc-fall var(--t) linear var(--d) 3 both}
+
+/* what the last game earned, on the end-of-game window */
+.ucc-earned{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:12px;margin:0 0 16px;padding:10px 14px;border-radius:14px;border:1px solid rgba(196,181,253,.26);background:rgba(124,58,237,.12);text-align:left}
+.ucc-earned b{grid-row:1/3;font-size:14px;font-weight:1000;color:#c4b5fd}
+.ucc-earned.win b{font-size:30px;line-height:1;color:#f5d778;text-shadow:0 0 20px rgba(245,215,120,.4);animation:ucc-pop .6s cubic-bezier(.2,1.3,.3,1) both}
+.ucc-earned span{font-size:13px;font-weight:850;color:#f1ecfa}
+.ucc-earned em{grid-column:2;font-style:normal;font-size:12px;font-weight:750;color:#b6afc6}
+.ucc-earned.climbed{border-color:rgba(245,215,120,.5);background:linear-gradient(120deg,rgba(245,215,120,.17),rgba(124,58,237,.14))}
+.ucc-earned.climbed em{color:#fde68a}
+.ucc-earned.off span{grid-row:1/3;font-size:12px;font-weight:700;color:#b6afc6}
+
+@keyframes ucc-live{0%{box-shadow:0 0 0 0 rgba(74,222,128,.7)}100%{box-shadow:0 0 0 9px rgba(74,222,128,0)}}
+@keyframes ucc-shine{to{background-position:-200% 0}}
+@keyframes ucc-tick{from{transform:translateY(-38%) rotateX(70deg);opacity:.25}to{transform:none;opacity:1}}
+@keyframes ucc-hot{to{border-color:rgba(248,113,113,.85);box-shadow:0 0 26px rgba(248,113,113,.45),inset 0 1px rgba(255,255,255,.08)}}
+@keyframes ucc-rise{from{transform:scaleY(0)}to{transform:none}}
+@keyframes ucc-in{from{opacity:0}to{opacity:1}}
+@keyframes ucc-drop{from{opacity:0;transform:translateY(-120px) rotate(-18deg) scale(.6)}to{opacity:1;transform:none}}
+@keyframes ucc-pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@keyframes ucc-beat{50%{transform:scale(1.035)}}
+@keyframes ucc-fall{0%{opacity:1;transform:translate3d(0,0,0) rotate(0)}85%{opacity:1}100%{opacity:0;transform:translate3d(var(--x),108vh,0) rotate(var(--r))}}
+@media(max-width:520px){.uc-card .ucc-banner h1{font-size:clamp(34px,11vw,46px)}.ucc-tagline{font-size:12px}.ucc-clock{gap:6px}.ucc-cell span{height:50px;border-radius:12px}.ucc-cell small{font-size:8px;letter-spacing:.14em}.ucc-mine{flex-direction:column;align-items:stretch;padding:10px}.ucc-mine p{font-size:12px}.ucc-board-head{flex-direction:column;align-items:flex-start}.ucc-rules ul{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}.ucc-board .uc-list>div{grid-template-columns:43px minmax(85px,1fr) 76px 48px}.ucc-step strong{font-size:12px}}
+@media(max-height:560px) and (min-width:600px){.uc-card .ucc-banner h1{margin-top:8px;font-size:34px}.ucc-banner h1 small,.ucc-tagline{display:none}.ucc-clock{margin-top:8px}.ucc-cell span{height:40px}.ucc-cell b{font-size:24px}.ucc-mine{margin-top:8px}.uc-card .ucc-stake{display:none}.ucc-fanfare .ucc-crown{font-size:54px}.ucc-fanfare h2{font-size:52px}.ucc-fanfare .ucc-clock{margin-top:10px}.ucc-fanfare-actions{margin-top:12px}.ucc-step.p1 .ucc-block{height:60px}.ucc-step.p2 .ucc-block{height:44px}.ucc-step.p3 .ucc-block{height:32px}}
