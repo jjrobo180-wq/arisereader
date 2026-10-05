@@ -14,7 +14,7 @@ import { registerPrizeRoutes } from "./prizes";
 import { transferIndependentStudents } from "./independentTransfer";
 import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
 import { checkSchoolEmail } from "../shared/schoolEmail";
-import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherJoinedNotifyEmail, teacherWelcomeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
+import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherWelcomeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
 import { usSchoolDirectory } from "./schoolDirectory";
 import { isIndependentSchoolName } from "../shared/independent";
 import { registerBoardQuestRoutes } from "./boardQuest";
@@ -33,8 +33,11 @@ import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
+import { createAdminAlerts, type Alert } from "./adminAlerts";
+import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
+import { ALERT_EVENTS } from "../shared/adminAlerts";
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { raw } from "express";
 
 // Email helper using Resend REST API
@@ -730,38 +733,42 @@ Create exactly ${questionCount} questions. DO NOT use emojis. Each question has 
   }
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
+function emailConfigured(): boolean {
+  return !!((PROXY_URL && PROXY_TOKEN) || RESEND_API_KEY);
+}
+
+// Sends through Resend. A request that times out, is rate limited or hits a Resend outage is tried
+// again (up to three tries); the idempotency key keeps a retry from sending the same email twice.
+async function sendEmail(to: string | string[], subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
   const hasProxy = PROXY_URL && PROXY_TOKEN;
-  const hasDirect = RESEND_API_KEY;
-  if (!hasProxy && !hasDirect) {
+  if (!emailConfigured()) {
     return { sent: false, error: "No email API key configured" };
   }
-  try {
-    const apiUrl = hasProxy ? PROXY_URL + "/emails" : "https://api.resend.com/emails";
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (hasProxy) {
-      headers["x-api-key"] = PROXY_TOKEN;
-    } else {
-      headers["Authorization"] = `Bearer ${RESEND_API_KEY}`;
-    }
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        from: EMAIL_FROM,
-        to: to,
-        subject,
-        html,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.text().catch(() => "");
-      return { sent: false, error: `Email API error ${res.status}: ${err}` };
-    }
-    return { sent: true };
-  } catch (e: any) {
-    return { sent: false, error: e.message };
+  const recipients = (Array.isArray(to) ? to : [to]).map((value) => String(value || "").trim()).filter(Boolean);
+  if (!recipients.length) return { sent: false, error: "No email address to send to" };
+  const apiUrl = hasProxy ? PROXY_URL + "/emails" : "https://api.resend.com/emails";
+  const headers: Record<string, string> = { "Content-Type": "application/json", "Idempotency-Key": randomUUID() };
+  if (hasProxy) {
+    headers["x-api-key"] = PROXY_TOKEN;
+  } else {
+    headers["Authorization"] = `Bearer ${RESEND_API_KEY}`;
   }
+  const body = JSON.stringify({ from: EMAIL_FROM, to: recipients, subject, html });
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(apiUrl, { method: "POST", headers, body, signal: AbortSignal.timeout(15000) });
+      if (res.ok) return { sent: true };
+      const err = await res.text().catch(() => "");
+      lastError = `Email API error ${res.status}: ${err.slice(0, 400)}`;
+      if (res.status !== 429 && res.status < 500) break;
+    } catch (e: any) {
+      lastError = e?.name === "TimeoutError" ? "The email service didn't answer in time" : (e?.message || "Network error");
+    }
+    if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+  }
+  console.error(`[email] not sent: ${lastError}`);
+  return { sent: false, error: lastError };
 }
 
 function parentApprovedEmail(displayName: string, username: string): string {
@@ -961,6 +968,96 @@ export async function registerRoutes(
       return data?.value || "";
     },
   });
+  // Admin alerts: sign-ups, quizzes and requests, by email and in the bell, following the
+  // switches under Admin > Settings > Notifications. See server/adminAlerts.ts.
+  const adminAlerts = createAdminAlerts({
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    adminIds: async () => {
+      const { data, error } = await supabase.from("users").select("id").eq("is_admin", true).is("archived_at", null);
+      if (error) throw new Error(error.message);
+      return (data || []).map((row: any) => Number(row.id)).filter((id: number) => id > 0);
+    },
+    insertNotifications: async (rows) => {
+      const { error } = await supabase.from("notifications").insert(rows);
+      if (error) throw new Error(error.message);
+    },
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html),
+    emailConfigured,
+    fromAddress: EMAIL_FROM,
+    fallbackRecipient: ADMIN_NOTIFY_EMAIL,
+    appUrl: APP_URL,
+    timeZone: "America/Denver",
+  });
+  /** Fire and forget: an alert never slows down or breaks the request that caused it. */
+  const alertAdmin = (event: Parameters<typeof adminAlerts.notify>[0], alert: Alert) => { void adminAlerts.notify(event, alert); };
+  const personName = (user: any) => String(user?.displayName || user?.display_name || user?.username || "Someone");
+  // Grade, school and teacher for a student's alert. Each part is optional.
+  const studentFacts = async (user: any): Promise<{ grade: string; school: string; teacher: string }> => {
+    const facts = { grade: "", school: "", teacher: "" };
+    try {
+      const rawGrades = await storage.getSetting("user_grades");
+      if (rawGrades) facts.grade = String(JSON.parse(rawGrades)[String(user.id)] || "");
+    } catch {}
+    try {
+      const schoolId = Number(user?.school_id ?? user?.schoolId ?? 0);
+      if (schoolId) facts.school = String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || "");
+    } catch {}
+    try {
+      const teacherId = Number(user?.teacherId ?? user?.teacher_id ?? 0);
+      if (teacherId) facts.teacher = String((await storage.getUser(teacherId))?.displayName || "");
+    } catch {}
+    return facts;
+  };
+  const proctorLabel = (type?: string | null, name?: string | null) => {
+    if (!type) return "";
+    if (type === "camera") return "No proctor (camera on)";
+    if (type === "paper") return "Paper quiz";
+    if (type === "parent") return `Parent: ${name || "Parent / Guardian"}`;
+    return `Teacher / staff: ${name || "Teacher"}`;
+  };
+  const alertQuizTaken = async (
+    event: "quiz_completed" | "eye_gaze_quiz_completed",
+    user: any,
+    quiz: { title: string; score: number; total: number; passed: boolean; points: number; proctor?: string; extra?: [string, string][] },
+  ) => {
+    try {
+      const facts = await studentFacts(user);
+      const name = personName(user);
+      const pct = quiz.total > 0 ? Math.round((quiz.score / quiz.total) * 100) : 0;
+      const points = Math.round(Number(quiz.points || 0) * 10) / 10;
+      await adminAlerts.notify(event, {
+        title: `${event === "eye_gaze_quiz_completed" ? "Eye Gazer quiz" : "Quiz taken"}: ${name} scored ${quiz.score}/${quiz.total} on “${quiz.title}”`,
+        summary: [quiz.passed ? `Passed · ${points} point${points === 1 ? "" : "s"}` : "Not passed", quiz.proctor, facts.teacher && `Teacher: ${facts.teacher}`].filter(Boolean).join(" · "),
+        lines: [
+          ["Student", `${name} (@${user?.username || "?"})`],
+          ["Grade", facts.grade],
+          ["School", facts.school],
+          ["Teacher", facts.teacher],
+          ["Quiz", quiz.title],
+          ["Score", `${quiz.score}/${quiz.total} (${pct}%) · ${quiz.passed ? "passed" : "not passed"}`],
+          ["Points earned", String(points)],
+          ["Proctor", quiz.proctor],
+          ...(quiz.extra || []),
+        ],
+        ref: `u${user?.id}`,
+      });
+    } catch (e: any) {
+      console.error("[admin-alerts] quiz alert failed:", e?.message);
+    }
+  };
+  const alertAiQuizReview = (user: any, title: string, kind: string) => alertAdmin("ai_quiz_review", {
+    title: `AI quiz needs review: “${title}”`,
+    summary: `${personName(user)} · ${kind}`,
+    lines: [["Student", `${personName(user)} (@${user?.username || "?"})`], ["Quiz", title], ["Kind", kind]],
+    note: "Approve or reject it under Admin → To-do → AI quiz review. The student is told either way.",
+    row: false,
+  });
+
   // New teachers get in without waiting for the admin: they sign up with their school email and
   // type back the code sent to it. See server/teacherSignup.ts.
   const teacherEmailCodes = createTeacherEmailCodes({
@@ -987,20 +1084,19 @@ export async function registerRoutes(
     joined: async (account) => {
       const name = account.displayName || account.username;
       if (account.email) sendEmail(account.email, "Your A.R.I.S.E Reader teacher account is ready", teacherWelcomeEmail(name, account.username, APP_URL)).catch(() => {});
-      sendEmail(ADMIN_NOTIFY_EMAIL, "A new teacher joined - A.R.I.S.E Reader", teacherJoinedNotifyEmail(name, account.username, account.email || "No email", APP_URL)).catch(() => {});
+      let school = "";
       try {
-        const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
-        for (const admin of adminRows || []) {
-          await supabase.from("notifications").insert({
-            user_id: admin.id,
-            type: "info",
-            title: "A new teacher joined",
-            message: `${name} (@${account.username}) confirmed their school email (${account.email}) and now has a teacher account. Nothing to approve.`,
-          });
-        }
-      } catch (e: any) {
-        console.error("[teacher-signup] could not tell the admin about a new teacher:", e?.message);
-      }
+        const teacher = await storage.getUser(account.id);
+        const schoolId = Number(teacher?.school_id || 0);
+        if (schoolId) school = String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || "");
+      } catch {}
+      alertAdmin("teacher_signup", {
+        title: `New teacher joined: ${name}`,
+        summary: [`@${account.username}`, account.email, school].filter(Boolean).join(" · "),
+        lines: [["Teacher", name], ["Username", `@${account.username}`], ["School email", account.email || "No email"], ["School", school]],
+        note: "They confirmed their school email, so the account is on. Nothing to approve.",
+        ref: `u${account.id}`,
+      });
     },
   };
   // Build the school search's index shortly after start-up, so the first person to search doesn't wait for it.
@@ -1136,6 +1232,39 @@ export async function registerRoutes(
   const isDemoStudent = (user: any) => {
     const username = String(user?.username || "").toLowerCase();
     return username.startsWith("sample") || username === "tutorial-eye";
+  };
+  /** A real student, not an admin preview, a sample account or staff trying something out. */
+  const isRealStudentRequest = (req: any) =>
+    !req.adminPreview && !req.user?.isAdmin && (req.user?.role || "student") === "student" && !isDemoStudent(req.user);
+  const alertAssessment = async (req: any, assessment: { kind: string; score: number; total: number; level?: string; proctor?: string; extra?: [string, string][] }) => {
+    if (!isRealStudentRequest(req)) return;
+    try {
+      const facts = await studentFacts(req.user);
+      const name = personName(req.user);
+      const pct = assessment.total > 0 ? Math.round((assessment.score / assessment.total) * 100) : 0;
+      await adminAlerts.notify("assessment_completed", {
+        title: `${assessment.kind}: ${name} scored ${assessment.score}/${assessment.total}`,
+        summary: [`${pct}%`, assessment.level, assessment.proctor].filter(Boolean).join(" · "),
+        lines: [
+          ["Student", `${name} (@${req.user?.username || "?"})`],
+          ["Grade", facts.grade],
+          ["School", facts.school],
+          ["Teacher", facts.teacher],
+          ["Score", `${assessment.score}/${assessment.total} (${pct}%)`],
+          ["Reading level", assessment.level],
+          ["Proctor", assessment.proctor],
+          ...(assessment.extra || []),
+        ],
+        ref: `u${req.user?.id}`,
+      });
+    } catch (e: any) {
+      console.error("[admin-alerts] assessment alert failed:", e?.message);
+    }
+  };
+  const readingLevelLabel = (level: unknown, grade?: unknown) => {
+    const names: Record<string, string> = { independent: "Independent", instructional: "Instructional", needs_support: "Needs support", frustration: "Too hard for now" };
+    const label = names[String(level || "")] || "";
+    return [label, grade ? `Grade ${grade} level` : ""].filter(Boolean).join(" · ");
   };
 
   const getOrCreateParentInvite = async (studentId: number) => {
@@ -1413,21 +1542,34 @@ export async function registerRoutes(
             createdAt: new Date().toISOString(),
             resolved: false,
           });
+          // The bell shows this from the list itself until the admin connects them.
           await storage.upsertSetting(UNLISTED_SIGNUPS_KEY, JSON.stringify(requests));
-          const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
-          const missing = [unlistedSchoolName && `school "${unlistedSchoolName}"`, unlistedTeacherName && `teacher "${unlistedTeacherName}"`].filter(Boolean).join(" and ");
-          for (const admin of adminRows || []) {
-            await supabase.from("notifications").insert({
-              user_id: admin.id,
-              type: "info",
-              title: "Student needs a teacher connection",
-              message: `${user.displayName} (@${user.username}) signed up but couldn't find their ${missing}. Connect them on the Admin page.`,
-            });
-          }
         } catch (e: any) {
           console.error("[unlisted-signups] save failed:", e?.message);
         }
       }
+
+      void (async () => {
+        if (!user) return;
+        const facts = await studentFacts({ id: user.id, school_id: user.school_id, teacherId: user.teacherId });
+        const schoolText = noSchool ? "Independent reader (no school)" : facts.school || (unlistedSchoolName ? `Not listed: “${unlistedSchoolName}”` : "");
+        const teacherText = facts.teacher
+          ? `${facts.teacher}${user.approvedByTeacher === false ? " (waiting for their OK)" : ""}`
+          : unlistedTeacherName ? `Not listed: “${unlistedTeacherName}”` : "";
+        await adminAlerts.notify("student_signup", {
+          title: `New student: ${user.displayName}`,
+          summary: [`@${user.username}`, (gradeLevel || facts.grade) && `Grade ${gradeLevel || facts.grade}`, schoolText, teacherText && `Teacher: ${teacherText}`].filter(Boolean).join(" · "),
+          lines: [
+            ["Student", `${user.displayName} (@${user.username})`],
+            ["Grade", gradeLevel || facts.grade],
+            ["School", schoolText],
+            ["Teacher", teacherText],
+            ["Account", isEyeGazeUser ? "Eye Gazer" : "Reader"],
+          ],
+          note: unlistedSchoolName || unlistedTeacherName ? "Their school or teacher wasn't in the list. Connect them under Admin → People → Students." : undefined,
+          ref: `u${user.id}`,
+        });
+      })();
 
       const session = await storage.createSession(user.id);
       res.status(201).json({
@@ -1605,27 +1747,21 @@ export async function registerRoutes(
       }
 
       // The code could not be emailed, so this one account goes to the admin the way every sign-up used to.
-      let emailSent = false;
-      let emailError = '';
-      try {
-        const result = await sendEmail(
-          ADMIN_NOTIFY_EMAIL,
-          "New teacher signup - A.R.I.S.E Reader",
-          teacherSignupNotifyEmail(displayName, username.toLowerCase(), schoolEmail.email)
-        );
-        emailSent = result.sent;
-        if (!result.sent) emailError = result.error || 'Unknown error';
-      } catch (e: any) {
-        emailError = e.message;
-      }
+      // The bell already lists teachers whose account isn't on, so this alert is the email only.
+      alertAdmin("teacher_signup", {
+        title: `Teacher needs you to turn their account on: ${displayName}`,
+        summary: [`@${user.username}`, schoolEmail.email, pickedSchool.schoolName].filter(Boolean).join(" · "),
+        lines: [["Teacher", displayName], ["Username", `@${user.username}`], ["School email", schoolEmail.email], ["School", pickedSchool.schoolName]],
+        note: "We couldn't email them their confirmation code. Check the address, then turn the account on under Admin → People → Teachers.",
+        ref: `u${user.id}`,
+        row: false,
+      });
 
       res.status(201).json({
         success: true,
         confirmEmail: false,
         username: user.username,
         email: schoolEmail.email,
-        emailSent,
-        emailError,
         message: "Your account was created, but we couldn't email your confirmation code just now. The site admin has been told and will turn your account on. You can also try sending the code again.",
       });
     } catch (err: any) {
@@ -1704,6 +1840,14 @@ export async function registerRoutes(
       if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
       parentLinks[String(user.id)] = [student.id];
       await storage.upsertSetting('parent_student_links', JSON.stringify(parentLinks));
+
+      alertAdmin("parent_signup", {
+        title: `New parent: ${displayName}`,
+        summary: [`@${user.username}`, `Parent of ${student.displayName}`, email].filter(Boolean).join(" · "),
+        lines: [["Parent", `${displayName} (@${user.username})`], ["Email", email || ""], ["Student", `${student.displayName} (@${student.username})`]],
+        note: "They used the parent code from the student's handout, so the account is already connected.",
+        ref: `u${user.id}`,
+      });
 
       res.status(201).json({
         success: true,
@@ -2314,6 +2458,15 @@ export async function registerRoutes(
         console.error("[no-proctor] finish", error?.message);
       }
     }
+    void alertQuizTaken("quiz_completed", req.user, {
+      title: book?.title || "a book",
+      score,
+      total: allQuestions.length,
+      passed: !!attempt.passed,
+      points: Number(attempt.pointsEarned || 0),
+      proctor: proctorLabel(verifiedProctor?.type, verifiedProctor?.name),
+      extra: integrity ? [["Camera check", `${integrity.flag}${integrity.autoSubmitted ? " · submitted automatically" : ""}`]] : [],
+    });
     res.json({
       score,
       total: allQuestions.length,
@@ -3441,6 +3594,19 @@ export async function registerRoutes(
     }
     const msg = await storage.createMessage(req.user.id, "student", messageText.trim());
     res.status(201).json(msg);
+    if (!req.user.isAdmin && !req.adminPreview) {
+      const { category, body } = splitReport(messageText);
+      const role = req.user.role && req.user.role !== "student" ? ` (${req.user.role})` : "";
+      // The admin's bell shows unread messages by itself; this is the email.
+      alertAdmin(category ? "problem_report" : "student_message", {
+        title: category ? `Problem report from ${personName(req.user)}: ${category}` : `Message from ${personName(req.user)}`,
+        summary: body.slice(0, 200),
+        lines: [["From", `${personName(req.user)} (@${req.user.username})${role}`], ...(category ? [["Kind", category] as [string, string]] : []), ["Message", body.slice(0, 2000)]],
+        note: "Reply from the Inbox on the admin page.",
+        ref: `u${req.user.id}`,
+        row: false,
+      });
+    }
   });
 
   app.post("/api/messages/:id/read", authMiddleware, async (req, res) => {
@@ -3671,11 +3837,14 @@ export async function registerRoutes(
     rewards[idx].claimStatus = "requested";
     rewards[idx].claimedAt = new Date().toISOString();
     await storage.upsertSetting(key, JSON.stringify(rewards));
-    // Notify admin (user ID 1 = admin)
     const studentName = req.user.displayName || req.user.username || `Student #${req.user.id}`;
-    try {
-      await storage.createMessage(1, "system", `Reward Request: ${studentName} is requesting to claim "${reward.title}" — ${reward.message}`);
-    } catch {}
+    alertAdmin("approval_request", {
+      title: `Reward claim: ${studentName} wants “${reward.title}”`,
+      summary: String(reward.message || "").slice(0, 200),
+      lines: [["Student", `${studentName} (@${req.user.username})`], ["Reward", reward.title], ["Message", reward.message || ""]],
+      note: "Approve it from the student's Reward button under Admin → People → Students.",
+      ref: `u${req.user.id}`,
+    });
     res.json({ reward: rewards[idx], message: "Reward request sent to your admin!" });
   });
 
@@ -3738,272 +3907,265 @@ export async function registerRoutes(
     res.json({ settings: competitionDates(merged), message: "Competition settings updated!" });
   });
 
-  // Notification endpoints v3 — one predictable system across roles.
-  // Action items come from their real pending state. Ordinary messages/updates
-  // come from their own unread rows. Clicking an action never silently clears it.
+  // Notification bell. Action items come from the live state of what they're about (a teacher
+  // waiting, an AI quiz to review, an unread message), so they clear by themselves once dealt with,
+  // wherever that happens. Updates are stored notifications and clear once read.
+  // The rules are in server/notificationFeed.ts and the shape in shared/notifications.ts.
   const notifDismissedKey = (userId: number) => `notification_dismissed_${userId}`;
   const notifClearBeforeKey = (userId: number) => `notification_clear_before_${userId}`;
-
-  const getDismissedNotificationKeys = async (userId: number): Promise<Set<string>> => {
-    try {
-      const raw = await storage.getSetting(notifDismissedKey(userId));
-      const parsed = raw ? JSON.parse(raw) : [];
-      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
-    } catch {
-      return new Set<string>();
-    }
+  const parseJsonList = (raw: string): any[] => {
+    try { const value = raw ? JSON.parse(raw) : []; return Array.isArray(value) ? value : []; } catch { return []; }
   };
 
-  const addDismissedNotificationKey = async (userId: number, key: string) => {
+  const getDismissedNotificationKeys = async (userId: number): Promise<Set<string>> => {
+    try { return new Set(parseJsonList(await storage.getSetting(notifDismissedKey(userId))).map(String)); }
+    catch { return new Set<string>(); }
+  };
+
+  const addDismissedNotificationKeys = async (userId: number, keys: string[]) => {
+    if (!keys.length) return;
     const dismissed = await getDismissedNotificationKeys(userId);
-    dismissed.add(key);
+    for (const key of keys) { dismissed.delete(key); dismissed.add(key); }
     await storage.upsertSetting(notifDismissedKey(userId), JSON.stringify(Array.from(dismissed).slice(-800)));
   };
 
   const getNotificationClearBefore = async (userId: number): Promise<number> => {
     const raw = await storage.getSetting(notifClearBeforeKey(userId));
-    if (!raw) return 0;
-    const parsed = new Date(raw).getTime();
+    const parsed = raw ? new Date(raw).getTime() : 0;
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
-  const visibleAction = (dismissed: Set<string>, clearBefore: number, key: string, createdAt: any) => {
-    if (dismissed.has(key)) return false;
-    const created = new Date(createdAt || 0).getTime();
-    return !clearBefore || !Number.isFinite(created) || created > clearBefore;
+  let adminIdCache: { ids: Set<number>; at: number } | null = null;
+  const getAdminIds = async (): Promise<Set<number>> => {
+    if (adminIdCache && Date.now() - adminIdCache.at < 60_000) return adminIdCache.ids;
+    const { data, error } = await supabase.from("users").select("id").eq("is_admin", true);
+    if (error) return adminIdCache?.ids || new Set<number>();
+    adminIdCache = { ids: new Set((data || []).map((row: any) => Number(row.id))), at: Date.now() };
+    return adminIdCache.ids;
   };
+
+  /** Marks everything a person sent to the admin inbox as read. */
+  const markConversationRead = async (senderId: number) => {
+    const { error } = await supabase.from("messages").update({ is_read: true })
+      .eq("user_id", senderId).eq("sender_type", "student").eq("is_read", false);
+    if (error) throw new Error(error.message);
+  };
+
+  const unreadRows = (userId: number) => supabase
+    .from("notifications")
+    .select("id, type, title, message, created_at")
+    .eq("user_id", userId)
+    .eq("read", false)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  async function adminFeed(userId: number) {
+    const [dismissed, clearBefore] = await Promise.all([getDismissedNotificationKeys(userId), getNotificationClearBefore(userId)]);
+    const people = "id, display_name, username, email, created_at";
+    const [
+      rowsRes, teachersRes, parentsRes, waitingRes, aiRes, requestsRes, reviewsRes, clubRes, unreadRes,
+      gradeRaw, eyeRaw, unlisted, settings, adminIds,
+    ] = await Promise.all([
+      unreadRows(userId),
+      supabase.from("users").select(people).eq("role", "teacher").eq("account_approved", false).is("archived_at", null).order("created_at", { ascending: false }).limit(50),
+      supabase.from("users").select(people).eq("role", "parent").eq("account_approved", false).is("archived_at", null).order("created_at", { ascending: false }).limit(50),
+      supabase.from("users").select("id, display_name, username, created_at, teacher_id").eq("role", "student").eq("approved_by_teacher", false).is("archived_at", null).order("created_at", { ascending: false }).limit(200),
+      supabase.from("pending_ai_quizzes").select("id, book_title, quiz_type, student_id, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50),
+      supabase.from("quiz_requests").select("id, book_title, author, user_id, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50),
+      supabase.from("quiz_review_requests").select("id, user_id, book_id, attempt_id, original_score, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50),
+      supabase.from("club_signups").select("id, student_name, grade, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50),
+      supabase.from("messages").select("id, user_id, message_text, created_at").eq("sender_type", "student").eq("is_read", false).order("created_at", { ascending: false }).limit(500),
+      storage.getSetting("grade_change_requests").catch(() => ""),
+      storage.getSetting("eye_gaze_change_requests").catch(() => ""),
+      readUnlistedSignups().catch(() => [] as UnlistedSignup[]),
+      adminAlerts.getSettings(),
+      getAdminIds(),
+    ]);
+
+    const waiting = waitingRes.data || [];
+    const ai = aiRes.data || [];
+    const requests = requestsRes.data || [];
+    const reviews = reviewsRes.data || [];
+    // Messages saved under an admin's own id are old notes, not mail from someone.
+    const unread = (unreadRes.data || []).filter((m: any) => !adminIds.has(Number(m.user_id)));
+
+    const userIds = Array.from(new Set([
+      ...waiting.map((s: any) => Number(s.teacher_id)),
+      ...ai.map((q: any) => Number(q.student_id)),
+      ...requests.map((r: any) => Number(r.user_id)),
+      ...reviews.map((r: any) => Number(r.user_id)),
+      ...unread.map((m: any) => Number(m.user_id)),
+    ].filter((id) => id > 0)));
+    const bookIds = Array.from(new Set(reviews.map((r: any) => Number(r.book_id)).filter((id: number) => id > 0)));
+    const attemptIds = Array.from(new Set(reviews.map((r: any) => Number(r.attempt_id)).filter((id: number) => id > 0)));
+    const [usersRes, booksRes, attemptsRes] = await Promise.all([
+      userIds.length ? supabase.from("users").select("id, display_name, username, role").in("id", userIds) : Promise.resolve({ data: [] as any[] }),
+      bookIds.length ? supabase.from("books").select("id, title").in("id", bookIds) : Promise.resolve({ data: [] as any[] }),
+      attemptIds.length ? supabase.from("attempts").select("id, total").in("id", attemptIds) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const users = new Map<number, any>((usersRes.data || []).map((u: any) => [Number(u.id), u]));
+    const books = new Map<number, string>((booksRes.data || []).map((b: any) => [Number(b.id), String(b.title || "")]));
+    const totals = new Map<number, number>((attemptsRes.data || []).map((a: any) => [Number(a.id), Number(a.total || 0)]));
+    const nameFor = (id: unknown) => {
+      const u = users.get(Number(id));
+      return u ? String(u.display_name || u.username || "Someone") : "Someone";
+    };
+
+    const conversations = new Map<number, Conversation>();
+    for (const m of unread) {
+      const senderId = Number(m.user_id);
+      const existing = conversations.get(senderId);
+      if (existing) { existing.count += 1; continue; }
+      // newest first, so the first one seen is the latest
+      conversations.set(senderId, { userId: senderId, name: nameFor(senderId), role: users.get(senderId)?.role || null, count: 1, latestText: String(m.message_text || ""), latestAt: m.created_at });
+    }
+
+    return buildAdminFeed({
+      rows: rowsRes.data || [],
+      pendingTeachers: teachersRes.data || [],
+      pendingParents: parentsRes.data || [],
+      waitingStudents: waiting.map((s: any) => ({ ...s, teacher_name: s.teacher_id ? nameFor(s.teacher_id) : null })),
+      unlisted: (unlisted || []).filter((r) => !r.resolved),
+      aiQuizzes: ai.map((q: any) => ({ ...q, student_name: nameFor(q.student_id) })),
+      quizRequests: requests.map((r: any) => ({ id: r.id, bookTitle: r.book_title, author: r.author, studentName: nameFor(r.user_id), createdAt: r.created_at })),
+      reviewRequests: reviews.map((r: any) => ({ id: r.id, studentName: nameFor(r.user_id), bookTitle: books.get(Number(r.book_id)) || null, original_score: r.original_score, total: totals.get(Number(r.attempt_id)) || null, created_at: r.created_at })),
+      clubSignups: clubRes.data || [],
+      gradeChanges: parseJsonList(gradeRaw).filter((r: any) => r?.status === "pending"),
+      eyeGazeRequests: parseJsonList(eyeRaw).filter((r: any) => r?.status === "pending"),
+      conversations: Array.from(conversations.values()),
+      inboxUnread: unread.length,
+    }, {
+      dismissed,
+      clearBefore,
+      inApp: (event) => settings.events[event]?.inApp !== false,
+    });
+  }
 
   app.get("/api/notifications", authMiddleware, async (req: any, res) => {
     try {
       res.set("Cache-Control", "no-store");
       const userId = Number(req.user.id);
-      const [dismissed, clearBefore] = await Promise.all([
-        getDismissedNotificationKeys(userId),
-        getNotificationClearBefore(userId),
-      ]);
-
-      const { data: genericRows } = await supabase
-        .from("notifications")
-        .select("id, user_id, type, title, message, read, created_at")
-        .eq("user_id", userId)
-        .eq("read", false)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      const rawGeneric = genericRows || [];
-      const generic = rawGeneric.filter((n: any) => {
-        if (dismissed.has(`generic:${n.id}`)) return false;
-        const title = String(n.title || "").toLowerCase();
-        // These have canonical live action sources below. Keeping the old
-        // generated rows created duplicate/stale badges after the action ended.
-        if (title.includes("ai quiz pending review")) return false;
-        if (req.user.isAdmin && title.includes("student book request")) return false;
-        return true;
-      });
-
-      if (req.user.isAdmin) {
-        const quizRequests = await storage.getQuizRequests();
-        const pendingReqs = (quizRequests || []).filter((r: any) =>
-          r.status === "pending" &&
-          visibleAction(dismissed, clearBefore, `request:${r.id}`, r.createdAt)
-        );
-
-        const allUsers = await storage.getAllUsers();
-        const recentStudentCutoff = Date.now() - 3 * 24 * 60 * 60 * 1000;
-        const newUsersList = (allUsers || []).filter((u: any) => {
-          const created = new Date(u.createdAt || 0).getTime();
-          return (u.role === "student" || !u.role) &&
-            created >= recentStudentCutoff &&
-            visibleAction(dismissed, clearBefore, `user:${u.id}`, u.createdAt);
-        });
-
-        const [{ data: teacherRows }, { data: parentRows }, { data: pendingAIRows }] = await Promise.all([
-          supabase.from("users")
-            .select("id, display_name, username, role, account_approved, email, created_at")
-            .eq("role", "teacher")
-            .eq("account_approved", false)
-            .order("created_at", { ascending: false }),
-          supabase.from("users")
-            .select("id, display_name, username, role, account_approved, email, created_at")
-            .eq("role", "parent")
-            .eq("account_approved", false)
-            .order("created_at", { ascending: false }),
-          supabase.from("pending_ai_quizzes")
-            .select("id, book_title, author, student_id, quiz_type, created_at")
-            .eq("status", "pending")
-            .order("created_at", { ascending: false }),
-        ]);
-
-        const pendingTeachers = (teacherRows || []).filter((t: any) =>
-          visibleAction(dismissed, clearBefore, `teacher:${t.id}`, t.created_at)
-        );
-        const pendingParents = (parentRows || []).filter((p: any) =>
-          visibleAction(dismissed, clearBefore, `parent:${p.id}`, p.created_at)
-        );
-        const pendingAI = (pendingAIRows || []).filter((q: any) =>
-          visibleAction(dismissed, clearBefore, `ai_quiz:${q.id}`, q.created_at)
-        );
-
-        const aiStudentMap: Record<number, string> = {};
-        const studentIds = Array.from(new Set(pendingAI.map((q: any) => Number(q.student_id)).filter(Boolean)));
-        if (studentIds.length) {
-          const { data: aiStudents } = await supabase.from("users").select("id, display_name").in("id", studentIds);
-          (aiStudents || []).forEach((s: any) => { aiStudentMap[Number(s.id)] = s.display_name; });
-        }
-
-        const genericItems = generic.map((n: any) => ({
-          id: n.id,
-          title: n.title,
-          messageText: n.message,
-          notificationType: n.type,
-          createdAt: n.created_at,
-        }));
-
-        const response = {
-          type: "admin",
-          pendingRequestItems: pendingReqs.map((r: any) => ({
-            id: r.id, bookTitle: r.bookTitle, author: r.author,
-            studentName: r.studentName, createdAt: r.createdAt,
-          })),
-          newUserItems: newUsersList.map((u: any) => ({
-            id: u.id, displayName: u.displayName, username: u.username, createdAt: u.createdAt,
-          })),
-          pendingTeacherItems: pendingTeachers.map((t: any) => ({
-            id: t.id, displayName: t.display_name, username: t.username, email: t.email, createdAt: t.created_at,
-          })),
-          pendingParentItems: pendingParents.map((p: any) => ({
-            id: p.id, displayName: p.display_name, username: p.username, email: p.email, createdAt: p.created_at,
-          })),
-          pendingAIQuizItems: pendingAI.map((q: any) => ({
-            id: q.id, bookTitle: q.book_title, author: q.author,
-            studentName: aiStudentMap[Number(q.student_id)] || "Student",
-            quizType: q.quiz_type, createdAt: q.created_at,
-          })),
-          genericItems,
-        };
-        const unreadCount =
-          response.pendingRequestItems.length +
-          response.newUserItems.length +
-          response.pendingTeacherItems.length +
-          response.pendingParentItems.length +
-          response.pendingAIQuizItems.length +
-          response.genericItems.length;
-        return res.json({ ...response, unreadCount });
-      }
+      if (req.user.isAdmin) return res.json(await adminFeed(userId));
 
       if (req.user.role === "teacher") {
-        // Teachers only see items they can act on: direct student book requests,
-        // pending approvals for their students, and normal system updates.
-        const bookRequests = generic.filter((n: any) =>
-          String(n.title || "").toLowerCase().includes("student book request")
-        );
-        const otherGeneric = generic.filter((n: any) =>
-          !String(n.title || "").toLowerCase().includes("student book request")
-        );
-
-        const { data: pendingStudentsRows } = await supabase
-          .from("users")
-          .select("id, display_name, username, created_at")
-          .eq("teacher_id", userId)
-          .eq("approved_by_teacher", false)
-          .order("created_at", { ascending: false });
-
-        const pendingStudents = (pendingStudentsRows || []).filter((s: any) =>
-          visibleAction(dismissed, clearBefore, `user:${s.id}`, s.created_at)
-        );
-
-        const pendingRequestItems = bookRequests.map((n: any) => ({
-          id: n.id,
-          bookTitle: String(n.message || "").match(/read "(.+?)"/)?.[1] ||
-            String(n.message || "").match(/requested "(.+?)"/)?.[1] || "Book request",
-          studentName: String(n.message || "").match(/^(.+?) would like/)?.[1] ||
-            String(n.message || "").match(/^(.+?) requested/)?.[1] || "Student",
-          messageText: n.message,
-          createdAt: n.created_at,
-        }));
-        const newUserItems = pendingStudents.map((s: any) => ({
-          id: s.id, displayName: s.display_name, username: s.username, createdAt: s.created_at,
-        }));
-        const genericItems = otherGeneric.map((n: any) => ({
-          id: n.id, title: n.title, messageText: n.message,
-          notificationType: n.type, createdAt: n.created_at,
-        }));
-        return res.json({
-          type: "teacher",
-          unreadCount: pendingRequestItems.length + newUserItems.length + genericItems.length,
-          pendingRequestItems,
-          newUserItems,
-          genericItems,
-        });
+        const [dismissed, clearBefore, rowsRes, pendingRes] = await Promise.all([
+          getDismissedNotificationKeys(userId),
+          getNotificationClearBefore(userId),
+          unreadRows(userId),
+          supabase.from("users").select("id, display_name, username, created_at")
+            .eq("teacher_id", userId).eq("approved_by_teacher", false).is("archived_at", null)
+            .order("created_at", { ascending: false }).limit(100),
+        ]);
+        return res.json(buildTeacherFeed({ rows: rowsRes.data || [], pendingStudents: pendingRes.data || [] }, { dismissed, clearBefore }));
       }
 
-      const messages = await storage.getUserMessages(userId);
-      const unreadMsgs = (messages || []).filter((m: any) => !m.isRead && m.senderType === "teacher");
-      const genericItems = generic.map((n: any) => ({
-        id: n.id, title: n.title, messageText: n.message,
-        notificationType: n.type, createdAt: n.created_at,
+      const [rowsRes, messagesRes] = await Promise.all([
+        unreadRows(userId),
+        supabase.from("messages").select("id, message_text, created_at")
+          .eq("user_id", userId).eq("sender_type", "teacher").eq("is_read", false)
+          .order("created_at", { ascending: false }).limit(50),
+      ]);
+      return res.json(buildMemberFeed({
+        role: req.user.role === "parent" ? "parent" : "student",
+        rows: rowsRes.data || [],
+        unreadMessages: (messagesRes.data || []).map((m: any) => ({ id: m.id, messageText: m.message_text, createdAt: m.created_at })),
       }));
-      return res.json({
-        type: "student",
-        unreadCount: unreadMsgs.length + genericItems.length,
-        messageItems: unreadMsgs.map((m: any) => ({
-          id: m.id, messageText: m.messageText, createdAt: m.createdAt,
-        })),
-        genericItems,
-      });
     } catch (error: any) {
       console.error("[notifications] load failed:", error?.message);
       return res.status(500).json({ message: "Could not load notifications" });
     }
   });
 
+  // Reads or dismisses bell items by key ({ key } or { keys }); { all: true } clears the bell.
+  // Older pages send { itemType, id } or a bare { id }; those still work.
   app.post("/api/notifications/mark-seen", authMiddleware, async (req: any, res) => {
     try {
       const userId = Number(req.user.id);
-      const itemType = String(req.body?.itemType || "");
-      const legacyType = String(req.body?.type || "");
-      const rawId = req.body?.id;
-      const id = rawId === undefined || rawId === null ? null : Number(rawId);
-      const clearAll = req.body?.all === true || (!itemType && !legacyType && id == null);
+      const role: "admin" | "teacher" | "member" = req.user.isAdmin ? "admin" : req.user.role === "teacher" ? "teacher" : "member";
+      const body = req.body || {};
+      const legacyCategory = String(body.type || "");
+      const clearAll = body.all === true || (!body.key && !Array.isArray(body.keys) && !body.itemType && !legacyCategory && body.id == null);
 
       if (clearAll) {
-        const now = new Date().toISOString();
-        await storage.upsertSetting(notifClearBeforeKey(userId), now);
-        await supabase.from("notifications").update({ read: true }).eq("user_id", userId).eq("read", false);
-        if (!req.user.isAdmin && req.user.role !== "teacher") await storage.markAllMessagesRead(userId);
+        await storage.upsertSetting(notifClearBeforeKey(userId), new Date().toISOString());
+        const { error } = await supabase.from("notifications").update({ read: true }).eq("user_id", userId).eq("read", false);
+        if (error) throw new Error(error.message);
+        if (role === "member") await storage.markAllMessagesRead(userId);
         return res.json({ message: "Notifications cleared" });
       }
 
-      if (legacyType === "messages") {
+      if (legacyCategory === "messages") {
         await storage.markAllMessagesRead(userId);
         return res.json({ message: "Messages marked read" });
       }
 
-      if (itemType && id != null) {
-        if (itemType === "generic") {
-          await supabase.from("notifications").update({ read: true }).eq("id", id).eq("user_id", userId);
-        } else if (itemType === "message") {
-          await storage.markMessageReadById(id, userId);
-        } else if (itemType === "request" && req.user.role === "teacher" && !req.user.isAdmin) {
-          await supabase.from("notifications").update({ read: true }).eq("id", id).eq("user_id", userId);
-        } else if (["request", "user", "teacher", "parent", "ai_quiz"].includes(itemType)) {
-          await addDismissedNotificationKey(userId, `${itemType}:${id}`);
+      const keys: string[] = Array.isArray(body.keys)
+        ? body.keys.slice(0, 100).map((k: unknown) => String(k))
+        : body.key ? [String(body.key)] : [];
+      if (!keys.length) {
+        const legacy = legacyKey(body, role);
+        if (legacy) keys.push(legacy);
+      }
+      if (!keys.length) {
+        // A very old page clearing a whole category: clear this person's bell.
+        if (legacyCategory) {
+          await storage.upsertSetting(notifClearBeforeKey(userId), new Date().toISOString());
+          return res.json({ message: "Notifications updated" });
         }
-        return res.json({ message: "Notification dismissed" });
+        return res.json({ message: "No notification change needed" });
       }
 
-      // Compatibility with older callers: clearing a legacy notification category
-      // now clears the current bell snapshot for this user instead of mutating
-      // shared global timestamps that affected other accounts.
-      if (legacyType) {
-        await storage.upsertSetting(notifClearBeforeKey(userId), new Date().toISOString());
-        return res.json({ message: "Notifications updated" });
+      const dismiss: string[] = [];
+      for (const key of keys) {
+        const action = keyAction(key);
+        if (action.kind === "row") {
+          const { error } = await supabase.from("notifications").update({ read: true }).eq("id", action.id).eq("user_id", userId);
+          if (error) throw new Error(error.message);
+        } else if (action.kind === "message") {
+          await storage.markMessageReadById(action.id, userId);
+        } else if (action.kind === "conversation") {
+          if (role === "admin") await markConversationRead(action.userId);
+        } else if (action.kind === "dismiss") {
+          dismiss.push(action.key);
+        }
       }
-
-      return res.json({ message: "No notification change needed" });
+      await addDismissedNotificationKeys(userId, dismiss);
+      return res.json({ message: "Notifications updated" });
     } catch (error: any) {
       console.error("[notifications] update failed:", error?.message);
       return res.status(500).json({ message: "Failed to update notifications" });
+    }
+  });
+
+  // Admin alert settings: which alerts go by email and to the bell, where emails go, and the email log.
+  app.get("/api/admin/alert-settings", authMiddleware, adminMiddleware, async (_req, res) => {
+    try {
+      res.set("Cache-Control", "no-store");
+      const [settings, status] = await Promise.all([adminAlerts.getSettings(), adminAlerts.status()]);
+      res.json({ settings, events: ALERT_EVENTS, ...status });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not load alert settings." });
+    }
+  });
+
+  app.put("/api/admin/alert-settings", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const settings = await adminAlerts.saveSettings(req.body?.settings ?? req.body);
+      const status = await adminAlerts.status();
+      res.json({ settings, events: ALERT_EVENTS, ...status, message: "Notification settings saved." });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not save alert settings." });
+    }
+  });
+
+  app.post("/api/admin/alert-settings/test", authMiddleware, adminMiddleware, async (_req, res) => {
+    try {
+      const result = await adminAlerts.sendTest();
+      const status = await adminAlerts.status();
+      if (!result.sent) return res.status(400).json({ ...status, message: result.error || "The test email could not be sent." });
+      res.json({ ...status, message: `Test email sent to ${result.to.join(", ")}. It can take a minute to arrive — check spam too.` });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not send the test email." });
     }
   });
 
@@ -4609,22 +4771,40 @@ export async function registerRoutes(
     res.json({ count });
   });
 
-  // Admin: unread student message count (for inbox badge)
+  // Admin: unread message count (for the inbox badge)
   app.get("/api/admin/messages/unread-count", authMiddleware, adminMiddleware, async (_req, res) => {
-    const count = await storage.getUnreadStudentMessageCount();
-    res.json({ count });
+    res.set("Cache-Control", "no-store");
+    const [adminIds, { data }] = await Promise.all([
+      getAdminIds(),
+      supabase.from("messages").select("user_id").eq("sender_type", "student").eq("is_read", false).limit(1000),
+    ]);
+    res.json({ count: (data || []).filter((m: any) => !adminIds.has(Number(m.user_id))).length });
   });
 
-  // Admin: all student messages (inbox)
+  // Admin: everything people sent to the inbox
   app.get("/api/admin/messages", authMiddleware, adminMiddleware, async (_req, res) => {
+    res.set("Cache-Control", "no-store");
     const msgs = await storage.getAllStudentMessages();
     res.json(msgs);
   });
 
-  // Admin: sent messages
+  // Admin: messages sent to students
   app.get("/api/admin/messages/sent", authMiddleware, adminMiddleware, async (_req, res) => {
+    res.set("Cache-Control", "no-store");
     const msgs = await storage.getSentMessages();
     res.json(msgs);
+  });
+
+  // Admin: opening a conversation marks everything that person sent as read, in one step
+  app.post("/api/admin/messages/conversation/:userId/read", authMiddleware, adminMiddleware, async (req, res) => {
+    const senderId = parseInt(req.params.userId);
+    if (!Number.isSafeInteger(senderId) || senderId <= 0) return res.status(400).json({ message: "Invalid conversation" });
+    try {
+      await markConversationRead(senderId);
+      res.json({ message: "Conversation marked as read" });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not mark the conversation as read" });
+    }
   });
 
   // Admin: reply to a student message
@@ -4893,10 +5073,11 @@ export async function registerRoutes(
           quiz_type: 'book',
           status: 'pending'
         });
-        // Notify admin and teachers
+        alertAiQuizReview(req.user, `${cleanTitle} by ${cleanAuthor}`, "Book quiz");
+        // Tell the teachers too. The admin's bell lists these from the pending quizzes themselves.
         try {
           const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+          const notifyIds = (teachers || []).map((t: any) => t.id);
           for (const uid of notifyIds) {
             await supabase.from('notifications').insert({
               user_id: uid,
@@ -5268,10 +5449,11 @@ export async function registerRoutes(
           quiz_type: 'favorite_topic',
           status: 'pending'
         });
-        // Notify admin and teachers
+        alertAiQuizReview(req.user, cleanTopic, "Favorite topic quiz");
+        // Tell the teachers too. The admin's bell lists these from the pending quizzes themselves.
         try {
           const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+          const notifyIds = (teachers || []).map((t: any) => t.id);
           for (const uid of notifyIds) {
             await supabase.from('notifications').insert({
               user_id: uid,
@@ -5449,10 +5631,11 @@ export async function registerRoutes(
           quiz_type: 'iarise',
           status: 'pending'
         });
-        // Notify admin and teachers
+        alertAiQuizReview(req.user, cleanTopic, "iArise quiz");
+        // Tell the teachers too. The admin's bell lists these from the pending quizzes themselves.
         try {
           const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-          const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+          const notifyIds = (teachers || []).map((t: any) => t.id);
           for (const uid of notifyIds) {
             await supabase.from('notifications').insert({
               user_id: uid,
@@ -5733,11 +5916,15 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Author is required" });
     }
     await storage.createQuizRequest(req.user.id, bookTitle.trim(), author.trim());
-    // Create a notification message for the admin
-    const adminUser = await storage.getUserByUsername("admin");
-    if (adminUser) {
-      await storage.createMessage(adminUser.id, "student", `${req.user.displayName} requested a quiz for "${bookTitle.trim()}" by ${author.trim()}`, null);
-    }
+    // The admin's bell lists open quiz requests by itself; this is the email.
+    alertAdmin("quiz_request", {
+      title: `Quiz request: “${bookTitle.trim()}” by ${author.trim()}`,
+      summary: `${personName(req.user)} asked for a quiz`,
+      lines: [["Student", `${personName(req.user)} (@${req.user.username})`], ["Book", bookTitle.trim()], ["Author", author.trim()]],
+      note: "Create the quiz or mark the request done under Admin → To-do → Quiz requests.",
+      ref: `u${req.user.id}`,
+      row: false,
+    });
     res.status(201).json({ message: "Quiz request submitted! Your teacher will create it soon." });
   });
 
@@ -5746,15 +5933,13 @@ export async function registerRoutes(
     try {
       const { bookTitle, author } = req.body;
       if (!bookTitle) return res.status(400).json({ message: "Book title is required" });
-      const adminUser = await storage.getUserByUsername("admin");
-      if (adminUser) {
-        await storage.createMessage(
-          adminUser.id,
-          "student",
-          `${req.user.displayName} requested Learning Ally / Clever access for "${bookTitle}"${author ? ` by ${author}` : ""}. Please add it to Clever so they can read it.`,
-          null
-        );
-      }
+      alertAdmin("quiz_request", {
+        title: `Learning Ally / Clever request: “${bookTitle}”`,
+        summary: `${personName(req.user)} wants to read it${author ? ` · by ${author}` : ""}`,
+        lines: [["Student", `${personName(req.user)} (@${req.user.username})`], ["Book", bookTitle], ["Author", author || ""]],
+        note: "Add the book to Clever so they can read it.",
+        ref: `u${req.user.id}`,
+      });
       res.status(201).json({ message: "Request sent! We'll add it to Clever soon." });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -5917,8 +6102,15 @@ export async function registerRoutes(
       original_score: attempt.score,
       original_points: attempt.points_earned || 0,
     }).select().single();
-    // Also create a message for admin inbox
-    await storage.createMessage(req.user.id, "student", `[MANUAL REVIEW REQUEST] ${req.user.displayName} requested a review for "${book?.title || "Unknown"}". Score: ${attempt.score}/${attempt.total}. ${reason || ""}`);
+    // The admin's bell lists pending reviews by itself; this is the email.
+    alertAdmin("review_request", {
+      title: `Grade review request: ${personName(req.user)} on “${book?.title || "a quiz"}”`,
+      summary: `Score ${attempt.score}/${attempt.total}${reason ? ` · “${String(reason).slice(0, 120)}”` : ""}`,
+      lines: [["Student", `${personName(req.user)} (@${req.user.username})`], ["Quiz", book?.title || "Unknown"], ["Score", `${attempt.score}/${attempt.total}`], ["Points", String(attempt.points_earned || 0)], ["Reason", reason || ""]],
+      note: "Re-check it under Admin → To-do → Grade reviews.",
+      ref: `u${req.user.id}`,
+      row: false,
+    });
     res.status(201).json({ message: "Review request submitted. Your teacher will review it." });
   });
 
@@ -6136,6 +6328,13 @@ export async function registerRoutes(
       const questions = await storage.getPassageQuestions(attempt.passage_id);
       const result = await storage.submitAssessment(attemptId, answers, questions);
       res.json(result);
+      void alertAssessment(req, {
+        kind: "Reading check",
+        score: Number(result?.score || 0),
+        total: Number(result?.total || 0),
+        level: readingLevelLabel(result?.estimated_grade_level),
+        proctor: proctorLabel(result?.proctor_type, result?.proctor_name),
+      });
     } catch (err) {
       res.status(500).json({ message: "Failed to submit assessment" });
     }
@@ -6253,6 +6452,14 @@ export async function registerRoutes(
         timeUsedSeconds || 0
       );
       res.json(result);
+      void alertAssessment(req, {
+        kind: "Reading assessment",
+        score: Number(result?.score || 0),
+        total: Number(result?.total || 0),
+        level: readingLevelLabel(result?.estimated_grade_level, result?.grade_level),
+        proctor: proctorLabel(result?.proctor_type, result?.proctor_name),
+        extra: timeUsedSeconds ? [["Time used", `${Math.round(Number(timeUsedSeconds) / 60)} min`]] : [],
+      });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to submit assessment" });
     }
@@ -6430,7 +6637,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/eye-gaze/quizzes/:attemptId/submit", authMiddleware, async (req, res) => {
+  app.post("/api/eye-gaze/quizzes/:attemptId/submit", authMiddleware, async (req: any, res) => {
     try {
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
@@ -6470,6 +6677,17 @@ export async function registerRoutes(
       }
       const result = await storage.submitEyeGazeAttempt(attemptId, answers);
       res.json(result);
+      void (async () => {
+        const { data: quiz } = await supabase.from("eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
+        await alertQuizTaken("eye_gaze_quiz_completed", req.user, {
+          title: quiz?.title || "an Eye Gazer quiz",
+          score: Number(result.score || 0),
+          total: Number(result.total || 0),
+          passed: !!result.passed,
+          points: Number(result.pointsEarned || 0),
+          proctor: proctorLabel(result.proctor_type, result.proctor_name),
+        });
+      })();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -7953,16 +8171,15 @@ Important:
 
       await storage.upsertSetting('eye_gaze_change_requests', JSON.stringify(requests));
 
-      // Notify admins
-      const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
-      for (const admin of (adminRows || [])) {
-        await storage.createMessage(
-          admin.id,
-          'system',
-          `${req.user.displayName || req.user.username} requested to ${requested ? "enable" : "disable"} eye gaze mode. Review and approve or deny in the Admin panel.`,
-          '/admin'
-        );
-      }
+      // The admin's bell lists pending Eye Gaze requests by itself; this is the email.
+      alertAdmin("approval_request", {
+        title: `Eye Gaze mode request: ${personName(req.user)} wants it ${requested ? "on" : "off"}`,
+        summary: `@${req.user.username}`,
+        lines: [["Student", `${personName(req.user)} (@${req.user.username})`], ["Wants", requested ? "Eye Gaze mode on" : "Eye Gaze mode off"]],
+        note: "Approve or deny it under Admin → To-do → Student requests.",
+        ref: `u${req.user.id}`,
+        row: false,
+      });
 
       res.json({ success: true, message: `Your request to ${requested ? "enable" : "disable"} eye gaze mode has been submitted for approval.` });
     } catch (error: any) {
@@ -8324,16 +8541,15 @@ Important:
       
       await storage.upsertSetting('grade_change_requests', JSON.stringify(requests));
       
-      // Notify all admins
-      const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true).eq("role", "admin");
-      for (const admin of (adminRows || [])) {
-        await storage.createMessage(
-          admin.id,
-          'system',
-          `${req.user.display_name || req.user.username} requested to change from Grade ${oldGrade || 'N/A'} (${oldBand || 'N/A'} Band) to Grade ${newGrade} (${newBand} Band). Review and approve or deny in the Admin panel.`,
-          '/admin'
-        );
-      }
+      // The admin's bell lists pending grade changes by itself; this is the email.
+      alertAdmin("approval_request", {
+        title: `Grade change request: ${personName(req.user)}`,
+        summary: `Grade ${oldGrade || "?"} → Grade ${newGrade} (${newBand} band)`,
+        lines: [["Student", `${personName(req.user)} (@${req.user.username})`], ["Now", `Grade ${oldGrade || "not set"}${oldBand ? ` (${oldBand} band)` : ""}`], ["Wants", `Grade ${newGrade} (${newBand} band)`]],
+        note: "Approve or deny it under Admin → To-do → Student requests.",
+        ref: `u${req.user.id}`,
+        row: false,
+      });
       
       res.json({ success: true, message: 'Grade change request submitted' });
     } catch (error: any) {
@@ -10255,10 +10471,10 @@ Important:
 
       if (error) throw new Error(error.message);
 
-      // Notify admin via in-app notification
+      // Tell the teachers in their bell. The admin's bell lists pending sign-ups by itself.
       try {
         const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-        const notifyIds = [1, ...(teachers || []).map((t: any) => t.id)];
+        const notifyIds = (teachers || []).map((t: any) => t.id);
         for (const uid of notifyIds) {
           await supabase.from('notifications').insert({
             user_id: uid,
@@ -10269,12 +10485,14 @@ Important:
         }
       } catch {}
 
-      // Email admin about new sign-up
-      sendEmail(
-        ADMIN_NOTIFY_EMAIL,
-        "New Reading Club sign-up - A.R.I.S.E Reader",
-        clubSignupNotifyAdminEmail(studentName, grade, parentName, parentContact, parentEmail, notes)
-      ).catch(() => {});
+      alertAdmin("club_signup", {
+        title: `Reading Club sign-up: ${studentName}`,
+        summary: [grade && `Grade ${grade}`, parentName && `Parent: ${parentName}`].filter(Boolean).join(" · ") || "Waiting for you to confirm",
+        lines: [["Student", studentName], ["Grade", grade || ""], ["Parent / guardian", parentName || ""], ["Parent phone", parentContact || ""], ["Parent email", parentEmail || ""], ["Notes", notes || ""], ["Signed up by", `${personName(req.user)} (@${req.user.username})`]],
+        note: "Confirm or deny it under Admin → To-do → Reading Club.",
+        ref: `u${studentId}`,
+        row: false,
+      });
 
       res.status(201).json({ success: true, message: "You're signed up for the Reading Club!", signup: data });
     } catch (error: any) {
@@ -11014,6 +11232,17 @@ Important:
 
       const result = await storage.submitCustomEyeGazeAttempt(attemptId, answers);
       res.json(result);
+      void (async () => {
+        const { data: quiz } = await supabase.from("custom_eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
+        await alertQuizTaken("eye_gaze_quiz_completed", req.user, {
+          title: quiz?.title || "a custom Eye Gazer quiz",
+          score: Number(result.score || 0),
+          total: Number(result.total || 0),
+          passed: !!result.passed,
+          points: Number(result.pointsEarned || 0),
+          proctor: proctorLabel(result.proctor_type, result.proctor_name),
+        });
+      })();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -11394,12 +11623,12 @@ Important:
         message: `${studentName} would like to read "${bookTitle}" by ${bookAuthor}. Can you help them find this book?`
       });
 
-      // Also notify admin
-      await supabase.from('notifications').insert({
-        user_id: 1,
-        type: 'info',
-        title: 'Student book request',
-        message: `${studentName} requested "${bookTitle}" by ${bookAuthor} from teacher ${teacher.display_name || teacher.username}.`
+      // Also tell the admin
+      alertAdmin("quiz_request", {
+        title: `Book request: “${bookTitle}”`,
+        summary: `${studentName} asked ${teacher.display_name || teacher.username} for it`,
+        lines: [["Student", `${studentName} (@${user.username})`], ["Book", bookTitle], ["Author", bookAuthor], ["Sent to teacher", teacher.display_name || teacher.username]],
+        ref: `u${user.id}`,
       });
 
       // Send email to teacher if they have an email
@@ -12349,6 +12578,12 @@ Important:
       );
 
       res.json({ attempt: submitted, skillSummary, studentSummary, nextSteps });
+      void alertAssessment(req, {
+        kind: "Growth Check",
+        score: rawScore,
+        total: maxScore,
+        level: `Arise Reading Score ${ariseScore}`,
+      });
     } catch (e) {
       console.error("Submit growth check error:", e);
       res.status(500).json({ error: (e as Error).message });

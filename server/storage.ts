@@ -559,56 +559,63 @@ export class DatabaseStorage implements IStorage {
     return data ? data.length : 0;
   }
 
+  // The admin inbox. One query for the messages and one for the people in them; messages saved
+  // under an admin's own id are old notes, not mail, and are left out.
   async getAllStudentMessages() {
     const msgs = await fetchList(
-      supabase.from("messages").select("*").eq("sender_type", "student").order("created_at", { ascending: false })
+      supabase.from("messages").select("*").eq("sender_type", "student").order("created_at", { ascending: false }).limit(1000)
     );
-
     if (msgs.length === 0) return [];
-
-    const result = [];
-    for (const msg of msgs) {
-      const student = await fetchSingle(
-        supabase.from("users").select("display_name, username").eq("id", msg.user_id).single()
-      );
-      result.push({
-        id: msg.id,
-        userId: msg.user_id,
-        studentName: student?.display_name || "Unknown",
-        studentUsername: student?.username || "",
-        messageText: msg.message_text,
-        linkUrl: msg.link_url,
-        isRead: msg.is_read,
-        createdAt: msg.created_at,
+    const people = await this.peopleById(msgs.map((m: any) => Number(m.user_id)));
+    return msgs
+      .filter((msg: any) => !people.get(Number(msg.user_id))?.is_admin)
+      .map((msg: any) => {
+        const person = people.get(Number(msg.user_id));
+        return {
+          id: msg.id,
+          userId: msg.user_id,
+          studentName: person?.display_name || "Unknown",
+          studentUsername: person?.username || "",
+          senderRole: person?.role || "student",
+          messageText: msg.message_text,
+          linkUrl: msg.link_url,
+          isRead: msg.is_read,
+          createdAt: msg.created_at,
+        };
       });
-    }
-    return result;
   }
 
   async getSentMessages() {
     const msgs = await fetchList(
-      supabase.from("messages").select("*").eq("sender_type", "teacher").order("created_at", { ascending: false })
+      supabase.from("messages").select("*").eq("sender_type", "teacher").order("created_at", { ascending: false }).limit(1000)
     );
-
     if (msgs.length === 0) return [];
-
-    const result = [];
-    for (const msg of msgs) {
-      const student = await fetchSingle(
-        supabase.from("users").select("display_name, username").eq("id", msg.user_id).single()
-      );
-      result.push({
+    const people = await this.peopleById(msgs.map((m: any) => Number(m.user_id)));
+    return msgs.map((msg: any) => {
+      const person = people.get(Number(msg.user_id));
+      return {
         id: msg.id,
         userId: msg.user_id,
-        studentName: student?.display_name || "Unknown",
-        studentUsername: student?.username || "",
+        studentName: person?.display_name || "Unknown",
+        studentUsername: person?.username || "",
         messageText: msg.message_text,
         linkUrl: msg.link_url,
         isRead: msg.is_read,
         createdAt: msg.created_at,
-      });
+      };
+    });
+  }
+
+  private async peopleById(ids: number[]): Promise<Map<number, any>> {
+    const unique = Array.from(new Set(ids.filter((id) => Number.isSafeInteger(id) && id > 0)));
+    const map = new Map<number, any>();
+    for (let i = 0; i < unique.length; i += 200) {
+      const rows = await fetchList(
+        supabase.from("users").select("id, display_name, username, role, is_admin").in("id", unique.slice(i, i + 200))
+      );
+      for (const row of rows) map.set(Number(row.id), row);
     }
-    return result;
+    return map;
   }
 
   async markMessageReadById(id: number, userId: number) {
