@@ -44,6 +44,12 @@ export type PlanDeps = {
   schoolName(schoolId: number): Promise<string>;
   /** Every school on the site, for the admin's list of always-free schools. */
   schools?(): Promise<Array<{ id: number; name: string }>>;
+  /**
+   * Can this school be free because of its name? Schools that people add at
+   * sign-up can't: otherwise typing the right name would be a way to get Premium.
+   * Left out, every school can.
+   */
+  freeByNameAllowed?(schoolId: number): Promise<boolean>;
   /** The site's own address, used if a request's Host header is missing or odd. */
   appUrl?: string;
   /** Stripe keys from the hosting environment; the admin panel can also store them. */
@@ -188,7 +194,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     const known = nameMatched.get(schoolId);
     if (known && (known.yes || now() - known.at < 10 * 60_000)) return known.yes;
     const name = await deps.schoolName(schoolId).catch(() => "");
-    if (name) nameMatched.set(schoolId, { yes: isFreeSchoolName(name), at: now() });
+    if (name) {
+      const allowed = isFreeSchoolName(name) && (deps.freeByNameAllowed ? await deps.freeByNameAllowed(schoolId) : true);
+      nameMatched.set(schoolId, { yes: allowed, at: now() });
+    }
     return nameMatched.get(schoolId)?.yes ?? false;
   };
   const isFreeSchool = async (id: number | null | undefined): Promise<boolean> => {
@@ -726,10 +735,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       }
       const key = await stripeKey(), secret = await webhookSecret();
       const choice = await readFreeChoice();
-      const freeSchools = (deps.schools ? await deps.schools() : []).map((sc) => {
-        const byName = isFreeSchoolName(sc.name);
+      const freeSchools = await Promise.all((deps.schools ? await deps.schools() : []).map(async (sc) => {
+        const byName = isFreeSchoolName(sc.name) && (deps.freeByNameAllowed ? await deps.freeByNameAllowed(sc.id) : true);
         return { id: sc.id, name: sc.name, byName, free: !choice.off.includes(sc.id) && (byName || choice.on.includes(sc.id)) };
-      });
+      }));
       res.set("Cache-Control", "no-store");
       res.json({
         enforced: await enforced(), plans: rows, freeSchools,
@@ -755,13 +764,14 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const name = schoolId ? await deps.schoolName(schoolId) : "";
       if (!schoolId || !name) throw new Refused("That school could not be found.");
       const free = req.body?.free === true;
+      const byName = isFreeSchoolName(name) && (deps.freeByNameAllowed ? await deps.freeByNameAllowed(schoolId) : true);
       await serial(async () => {
         const choice = await readFreeChoice(true);
         const without = (list: number[]) => list.filter((id) => id !== schoolId);
         // A school that is free by its name only needs to come off the "off" list.
         const next: FreeChoice = free
-          ? { on: isFreeSchoolName(name) ? without(choice.on) : [...without(choice.on), schoolId], off: without(choice.off) }
-          : { on: without(choice.on), off: isFreeSchoolName(name) ? [...without(choice.off), schoolId] : without(choice.off) };
+          ? { on: byName ? without(choice.on) : [...without(choice.on), schoolId], off: without(choice.off) }
+          : { on: without(choice.on), off: byName ? [...without(choice.off), schoolId] : without(choice.off) };
         await write(KEY.freeSchools, JSON.stringify(next));
         forget();
       });

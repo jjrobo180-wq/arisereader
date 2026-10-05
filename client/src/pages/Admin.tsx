@@ -19,6 +19,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
+import SchoolUsListMatch from "@/components/SchoolUsListMatch";
 import NoProctorReview from "@/components/NoProctorReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import AdminPlans from "@/components/AdminPlans";
@@ -4273,6 +4274,9 @@ Generate exactly 10 questions.`;
                         Delete School
                       </button>
                     </div>
+
+                    {/* Where this school is in the US school list */}
+                    <SchoolUsListMatch school={school} onChanged={fetchSchools} />
 
                     {/* Create class under school */}
                     <div className="flex flex-col sm:flex-row gap-2 mb-3">

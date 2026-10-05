@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowLeft, CheckCircle2, Info, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
+import { SchoolPicker, schoolFields, type SchoolChoice } from "@/components/SchoolPicker";
 
 export default function TeacherSignup() {
   const [, navigate] = useLocation();
@@ -12,29 +13,22 @@ export default function TeacherSignup() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [schools, setSchools] = useState<any[]>([]);
-  const [selectedSchoolId, setSelectedSchoolId] = useState("");
+  const [school, setSchool] = useState<SchoolChoice | null>(null);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
 
   const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/schools`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setSchools(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    if (!school) { setError("Please pick your school. Type its name in the school box, or use \"My school isn't listed\"."); return; }
     setLoading(true);
 
     try {
       const response = await fetch(`${API_BASE}/api/auth/register-teacher`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, displayName, email, schoolId: selectedSchoolId ? parseInt(selectedSchoolId) : null, gradesTaught: selectedGrades }),
+        body: JSON.stringify({ username, password, displayName, email, ...schoolFields(school), gradesTaught: selectedGrades }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
@@ -68,20 +62,8 @@ export default function TeacherSignup() {
             <Field id="teacher-email" label="Email (for activation notification)" value={email} onChange={setEmail} type="email" autoComplete="email" />
             <Field id="teacher-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
             <div>
-              <label htmlFor="teacher-school" style={{ ...styles.label, display: "block", marginBottom: 6 }}>Select Your School</label>
-              <select
-                id="teacher-school"
-                value={selectedSchoolId}
-                onChange={(e) => setSelectedSchoolId(e.target.value)}
-                required
-                style={styles.input}
-                data-testid="select-teacher-school"
-              >
-                <option value="">Choose your school...</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <span style={{ ...styles.label, display: "block", marginBottom: 6 }}>Your School</span>
+              <SchoolPicker who="teacher" value={school} onChange={setSchool} />
             </div>
             <div>
               <label style={{ ...styles.label, display: "block", marginBottom: 8 }}>Grades You Teach</label>
