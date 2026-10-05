@@ -3,9 +3,10 @@
 // The site keeps its own short list of schools (the ones somebody on the site
 // belongs to). The sign-up pages also search the full US list, and a school
 // picked from it is added to the site's list at that moment. A teacher whose
-// school is in neither can type it in; it shows for everyone else once the
-// admin has approved that teacher, so nobody can put words in front of children
-// just by filling in a form.
+// school is in neither can type it in; it shows for everyone else once that
+// teacher's account is on (they confirmed their school email, or the admin
+// approved them), so nobody can put words in front of children just by filling
+// in a form.
 import type { Express } from "express";
 import { isIndependentSchoolName } from "../shared/independent";
 import { SchoolNameError, cleanNewSchool, foldSchoolText, isUsState, mayBeInitials, schoolDisplayName, schoolInitials, type NewSchool } from "../shared/schoolNames";
@@ -18,7 +19,7 @@ export type SchoolPickerDeps = {
   /** Every school on the site. Must throw when the list can't be read in full: a short list would make duplicates. */
   allSchools(): Promise<SchoolRow[]>;
   createSchool(name: string): Promise<SchoolRow>;
-  /** The ids of every approved teacher. */
+  /** The ids of every teacher whose account is on. */
   approvedTeacherIds(): Promise<Set<number>>;
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
@@ -37,7 +38,7 @@ type Added = {
   key?: string;
   /** Teachers who typed this school in. */
   teacherIds?: number[];
-  /** Set for good once one of those teachers has been approved, so the school stays up if that teacher later leaves. */
+  /** Set for good once one of those teachers' accounts is on, so the school stays up if that teacher later leaves. */
   shown?: boolean;
   at: string;
 };
@@ -104,8 +105,8 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
   };
 
   /**
-   * Schools a teacher typed in stay hidden until the admin approves one of the
-   * teachers who typed it. Returns the ids to leave out of every public list.
+   * Schools a teacher typed in stay hidden until the account of one of the teachers
+   * who typed it is on. Returns the ids to leave out of every public list.
    */
   async function hiddenIds(): Promise<Set<number>> {
     const added = await readAdded();
@@ -218,7 +219,7 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
       }
       const school = await addTyped(typed);
       if (!school) return { schoolId: null, schoolName: schoolDisplayName(typed.name, typed.city, typed.state), added: null };
-      // "teacher" means the school is waiting on a teacher's approval before others see it
+      // "teacher" means the school is waiting on that teacher's account being on before others see it
       const how = (await readAdded())[String(school.id)];
       return { schoolId: Number(school.id), schoolName: school.name, added: how?.by === "teacher" && !how.shown ? "teacher" : null };
     }

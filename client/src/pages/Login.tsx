@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
 import { useLocation } from "wouter";
+import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,7 +73,7 @@ export default function Login() {
   const featureKeys=useMemo(()=>Object.keys(FEATURES) as FeatureId[],[]);
   const categories=useMemo(()=>Array.from(new Set(featureKeys.map(k=>FEATURES[k].category))),[featureKeys]);
 
-  const handleSubmit=async(e:React.FormEvent)=>{e.preventDefault();setError("");setLoading(true);try{await login(username,password);}catch(err:any){setError(err.message);}finally{setLoading(false);}};
+  const handleSubmit=async(e:React.FormEvent)=>{e.preventDefault();setError("");setLoading(true);try{await login(username,password);}catch(err:any){if(err?.confirmEmail){try{sessionStorage.setItem(TEACHER_CONFIRM_KEY,err.username||username);}catch{}navigate("/teacher-signup");return;}setError(err.message);}finally{setLoading(false);}};
   const loginSample=async(type:SampleType)=>{const names={student:"sample","eye-gaze":"tutorial-eye",parent:"sample-parent"} as const;setError("");setSampleLoading(type);try{await login(names[type],"sample1234");setShowSampleChooser(false);}catch(err:any){setError(err.message||"Could not open that sample account.");}finally{setSampleLoading(null);}};
   const openFrontTab=(tab:FrontTab)=>{setFrontTab(tab);requestAnimationFrame(()=>document.getElementById("account-panel")?.scrollIntoView({behavior:"smooth",block:"center"}));};
   const scrollToFeatures=()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth",block:"start"});

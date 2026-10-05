@@ -1,40 +1,108 @@
-import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Info, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, CheckCircle2, Info, KeyRound, MailCheck, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
 import { SchoolPicker, schoolFields, type SchoolChoice } from "@/components/SchoolPicker";
+import { TEACHER_CONFIRM_KEY, checkSchoolEmail } from "@shared/schoolEmail";
+
+const waitingUsername = () => { try { return (sessionStorage.getItem(TEACHER_CONFIRM_KEY) || "").trim().toLowerCase(); } catch { return ""; } };
+
+/**
+ * form  fill in the sign-up form
+ * code  type the 6-digit code that was emailed to the school address
+ * stuck the code could not be emailed; the admin turns the account on (or the teacher tries the email again)
+ * done  confirmed, but there is no password on this page to sign in with (they came back later from the login page)
+ */
+type Step = "form" | "code" | "stuck" | "done";
 
 export default function TeacherSignup() {
   const [, navigate] = useLocation();
+  const { login } = useAuth();
+  // The login page sends a teacher here when their school email still needs its code.
+  const [returning] = useState(waitingUsername);
+  useEffect(() => { try { sessionStorage.removeItem(TEACHER_CONFIRM_KEY); } catch {} }, []);
+  const [step, setStep] = useState<Step>(returning ? "code" : "form");
   const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(returning);
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [school, setSchool] = useState<SchoolChoice | null>(null);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
 
   const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
+  const post = async (path: string, body: unknown) => {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Something went wrong. Please try again.");
+    return data;
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setNote("");
+    const schoolEmail = checkSchoolEmail(email);
+    if (!schoolEmail.ok) { setError(schoolEmail.message); return; }
     if (!school) { setError("Please pick your school. Type its name in the school box, or use \"My school isn't listed\"."); return; }
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/auth/register-teacher`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, displayName, email, ...schoolFields(school), gradesTaught: selectedGrades }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
-      setSubmitted(true);
+      const data = await post("/api/auth/register-teacher", { username, password, displayName, email: schoolEmail.email, ...schoolFields(school), gradesTaught: selectedGrades });
+      if (data.username) setUsername(data.username);
+      setEmail(data.email || schoolEmail.email);
+      setStep(data.confirmEmail ? "code" : "stuck");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit your request.");
+      setError(err instanceof Error ? err.message : "Unable to create your account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setNote("");
+    setLoading(true);
+    try {
+      await post("/api/auth/confirm-teacher-email", { username, code });
+      // Straight in when the password is still on this page; otherwise they sign in on the login page.
+      if (password) {
+        try {
+          await login(username.trim().toLowerCase(), password);
+          navigate("/");
+          return;
+        } catch { /* the account is on either way: fall through to the log-in button */ }
+      }
+      setStep("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to confirm your code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendNewCode = async () => {
+    setError("");
+    setNote("");
+    setLoading(true);
+    try {
+      const data = await post("/api/auth/resend-teacher-code", { username });
+      if (data.alreadyOn) { setStep("done"); return; }
+      setCode("");
+      setNote(data.message || "A new code is on its way to your school email.");
+      setStep("code");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send a new code.");
     } finally {
       setLoading(false);
     }
@@ -46,20 +114,58 @@ export default function TeacherSignup() {
         <div style={styles.brand}>A.R.I.S.E. READER</div>
         <h1 id="teacher-signup-title" style={styles.title}>Teacher Sign Up</h1>
 
-        {submitted ? (
-          <div style={styles.success} role="status" data-testid="status-teacher-signup-success">
-            <CheckCircle2 size={28} aria-hidden="true" />
-            <p style={{ margin: 0 }}>Your request has been submitted! The admin will review your account and notify you when it&apos;s approved.</p>
-          </div>
-        ) : (
+        {step === "done" && (
+          <>
+            <div style={styles.success} role="status" data-testid="status-teacher-signup-success">
+              <CheckCircle2 size={28} aria-hidden="true" style={{ flexShrink: 0 }} />
+              <p style={{ margin: 0 }}>Your school email is confirmed and your teacher account is ready. Log in with the username and password you chose.</p>
+            </div>
+            <button type="button" onClick={() => navigate("/")} style={{ ...styles.primaryButton, width: "100%" }} data-testid="button-teacher-go-login">Log In</button>
+          </>
+        )}
+
+        {step === "stuck" && (
+          <>
+            <div style={styles.infoBox} role="status" data-testid="status-teacher-signup-stuck">
+              <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>Your account was created, but we couldn&apos;t email your confirmation code to {email || "your school email"} just now. The site admin has been told and will turn your account on. You can also try sending the code again.</span>
+            </div>
+            {note && <div style={styles.note} role="status">{note}</div>}
+            {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
+            <button type="button" onClick={sendNewCode} disabled={loading} style={{ ...styles.primaryButton, width: "100%", marginTop: 18, opacity: loading ? 0.7 : 1 }} data-testid="button-teacher-try-code-again">
+              <MailCheck size={20} aria-hidden="true" /> {loading ? "Sending..." : "Try sending the code again"}
+            </button>
+          </>
+        )}
+
+        {step === "code" && (
+          <form onSubmit={handleConfirm} style={styles.form}>
+            <div style={styles.infoBox} data-testid="status-teacher-code-sent">
+              <MailCheck size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>We emailed a 6-digit code to {email ? <strong>{email}</strong> : "your school email"}. Enter it here and your account turns on right away. There is no wait for approval. School email can take a minute, so check your junk or spam folder too.</span>
+            </div>
+            {returning && <Field id="teacher-confirm-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />}
+            <label htmlFor="teacher-email-code" style={styles.label}>6-digit code
+              <input id="teacher-email-code" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" autoFocus style={{ ...styles.input, fontSize: 26, fontWeight: 800, letterSpacing: "0.4em", textAlign: "center" }} data-testid="input-teacher-email-code" />
+            </label>
+            {note && <div style={styles.note} role="status">{note}</div>}
+            {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
+            <button type="submit" disabled={loading || code.length !== 6} style={{ ...styles.primaryButton, opacity: loading || code.length !== 6 ? 0.7 : 1 }} data-testid="button-confirm-teacher-email">
+              <KeyRound size={20} aria-hidden="true" /> {loading ? "Checking..." : "Confirm and Open My Account"}
+            </button>
+            <button type="button" onClick={sendNewCode} disabled={loading} style={styles.linkButton} data-testid="button-teacher-new-code">Send a new code</button>
+          </form>
+        )}
+
+        {step === "form" && (
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>After submitting, your account will be reviewed by the administrator. You&apos;ll receive a confirmation email when your account is approved.</span>
+              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net or .org). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval.</span>
             </div>
             <Field id="teacher-display-name" label="Display Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="teacher-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
-            <Field id="teacher-email" label="Email (for activation notification)" value={email} onChange={setEmail} type="email" autoComplete="email" />
+            <Field id="teacher-email" label="School Email (.edu, .net or .org)" value={email} onChange={setEmail} type="email" autoComplete="email" />
             <Field id="teacher-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
             <div>
               <span style={{ ...styles.label, display: "block", marginBottom: 6 }}>Your School</span>
@@ -136,7 +242,7 @@ export default function TeacherSignup() {
             </div>
             {error && <div style={styles.error} role="alert" data-testid="text-teacher-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-teacher-account">
-              <UserPlus size={20} aria-hidden="true" /> {loading ? "Submitting Request..." : "Request Teacher Account"}
+              <UserPlus size={20} aria-hidden="true" /> {loading ? "Creating Your Account..." : "Create Teacher Account"}
             </button>
           </form>
         )}
@@ -235,6 +341,8 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 32px rgba(124,58,237,.22)",
   },
   error: { borderRadius: 12, padding: 12, background: "rgba(239,68,68,.12)", border: "1px solid rgba(248,113,113,.35)", color: "#fecaca" },
+  note: { borderRadius: 12, padding: 12, background: "rgba(6,182,212,.10)", border: "1px solid rgba(34,211,238,.30)", color: "#cffafe" },
+  linkButton: { justifySelf: "center", color: "#c4b5fd", background: "transparent", border: 0, cursor: "pointer", fontSize: 15, fontWeight: 750, minHeight: 44, padding: "0 12px", textDecoration: "underline" },
   success: { display: "flex", alignItems: "flex-start", gap: 12, background: "rgba(6,182,212,.10)", border: "1px solid rgba(34,211,238,.30)", borderRadius: 14, color: "#cffafe", fontSize: 16, lineHeight: 1.5, padding: 18, marginBottom: 24 },
   backButton: { display: "inline-flex", alignItems: "center", gap: 8, color: "#c4b5fd", background: "transparent", border: 0, cursor: "pointer", fontSize: 15, fontWeight: 750, marginTop: 26, padding: 0 },
 };
