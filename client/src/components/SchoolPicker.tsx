@@ -2,7 +2,7 @@
 // the schools already on A.R.I.S.E. and the full US school list. A school that
 // is in neither can be typed in: a teacher's school is added for everyone after
 // them, and a student's is passed to the admin to connect.
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Check, Search } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { NEW_SCHOOL_LIMITS, US_STATES } from "@shared/schoolNames";
@@ -39,7 +39,8 @@ type Found = {
 const STATE_KEY = "arise_signup_state";
 const savedState = () => { try { const s = localStorage.getItem(STATE_KEY) || ""; return US_STATES.some(([code]) => code === s) ? s : ""; } catch { return ""; } };
 
-export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | null; onChange: (choice: SchoolChoice | null) => void; who: "student" | "teacher" }) {
+/** `who` "admin" is the admin matching one of the site's schools to the US list: only that list is searched, and nothing can be typed in. */
+export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | null; onChange: (choice: SchoolChoice | null) => void; who: "student" | "teacher" | "admin" }) {
   const id = useId();
   const [query, setQuery] = useState("");
   const [state, setState] = useState(savedState);
@@ -57,12 +58,13 @@ export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | n
   // Search a moment after the typing stops. Only the newest answer is shown.
   useEffect(() => {
     if (value || typing) return;
-    if (!ready) { setFound(null); setSearching(false); setFailed(false); return; }
+    // every change makes older answers out of date, including clearing the box
     const mine = ++latest.current;
+    if (!ready) { setFound(null); setSearching(false); setFailed(false); return; }
     setSearching(true);
     const timer = window.setTimeout(async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/schools/search?q=${encodeURIComponent(query.trim())}${state ? `&state=${state}` : ""}`);
+        const res = await fetch(`${API_BASE}/api/schools/search?q=${encodeURIComponent(query.trim())}${state ? `&state=${state}` : ""}${who === "admin" ? "&only=us" : ""}`);
         const data = res.ok ? await res.json() : null;
         if (mine !== latest.current) return;
         if (!data || !Array.isArray(data.onSite) || !Array.isArray(data.directory)) { setFound(null); setFailed(true); }
@@ -71,20 +73,23 @@ export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | n
       finally { if (mine === latest.current) setSearching(false); }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [query, state, ready, value, typing]);
+  }, [query, state, ready, value, typing, who]);
 
   const pickState = (code: string) => { setState(code); try { localStorage.setItem(STATE_KEY, code); } catch { /* private mode */ } };
   const change = () => { onChange(null); setTyping(false); window.setTimeout(() => searchBox.current?.focus(), 0); };
 
-  const useTyped = () => {
+  const acceptTyped = () => {
     const name = typed.name.replace(/\s+/g, " ").trim(), city = typed.city.replace(/\s+/g, " ").trim();
     if (name.length < NEW_SCHOOL_LIMITS.nameMin) return setTypedError("Type your school's full name.");
     if (who === "student") { setTypedError(""); return onChange({ kind: "unlisted", name }); }
-    if (city.length < 2) return setTypedError("Type the town or city your school is in.");
+    if (!/^\p{L}[\p{L} .'\u2019-]{1,}$/u.test(city)) return setTypedError("Type the town or city your school is in.");
     if (!state) return setTypedError("Pick the state your school is in.");
     setTypedError("");
     onChange({ kind: "new", name, city, state });
   };
+
+  // Enter in these boxes means "use this school", not "send the whole sign-up form"
+  const enterUsesTyped = (e: KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); acceptTyped(); } };
 
   const stateSelect = (
     <select className="sp-state" aria-label="State" value={state} onChange={(e) => pickState(e.target.value)} data-testid="select-school-state">
@@ -120,13 +125,13 @@ export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | n
         <div className="sp-typing">
           <label htmlFor={`${id}-name`}>School name</label>
           <input id={`${id}-name`} type="text" autoFocus value={typed.name} maxLength={NEW_SCHOOL_LIMITS.nameMax} placeholder="Example: Oak Hill Academy"
-            onChange={(e) => setTyped({ ...typed, name: e.target.value })} data-testid="input-new-school-name" />
+            onChange={(e) => setTyped({ ...typed, name: e.target.value })} onKeyDown={enterUsesTyped} data-testid="input-new-school-name" />
           {who === "teacher" && (
             <div className="sp-two">
               <div>
                 <label htmlFor={`${id}-city`}>Town or city</label>
                 <input id={`${id}-city`} type="text" value={typed.city} maxLength={NEW_SCHOOL_LIMITS.cityMax} placeholder="Example: Denver"
-                  onChange={(e) => setTyped({ ...typed, city: e.target.value })} data-testid="input-new-school-city" />
+                  onChange={(e) => setTyped({ ...typed, city: e.target.value })} onKeyDown={enterUsesTyped} data-testid="input-new-school-city" />
               </div>
               <div>
                 <label htmlFor={`${id}-state`}>State</label>
@@ -141,7 +146,7 @@ export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | n
           </p>
           {typedError && <p className="sp-error" role="alert">{typedError}</p>}
           <div className="sp-row">
-            <button type="button" className="sp-btn sp-btn-main" onClick={useTyped} data-testid="button-use-typed-school">Use this school</button>
+            <button type="button" className="sp-btn sp-btn-main" onClick={acceptTyped} data-testid="button-use-typed-school">Use this school</button>
             <button type="button" className="sp-btn" onClick={() => { setTyping(false); setTypedError(""); }}>Back to search</button>
           </div>
         </div>
@@ -162,7 +167,7 @@ export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | n
         {stateSelect}
       </div>
 
-      {!ready && <p className="sp-hint">Start typing and pick your school from the list. Picking your state first makes it quicker.</p>}
+      {!ready && <p className="sp-hint">{who === "admin" ? "Type the school's full name and pick it from the US school list." : "Start typing and pick your school from the list. Picking your state first makes it quicker."}</p>}
       {ready && searching && !found && <p className="sp-hint" role="status">Searching…</p>}
       {failed && <p className="sp-error" role="alert">School search isn't working right now. Use “My school isn't listed” to keep going.</p>}
 
@@ -181,14 +186,16 @@ export function SchoolPicker({ value, onChange, who }: { value: SchoolChoice | n
               <span>{[`${s.city}, ${s.state}`, s.grades && `Grades ${s.grades}`, s.private && "Private"].filter(Boolean).join(" · ")}</span>
             </button>
           ))}
-          {none && <p className="sp-hint">No school found with that name{state ? " in that state" : ""}. Check the spelling, or use the button below.</p>}
+          {none && <p className="sp-hint">No school found with that name{state ? " in that state" : ""}. Check the spelling{who === "admin" ? "." : ", or use the button below."}</p>}
           {found.more && <p className="sp-hint">More schools match. Add the town{state ? "" : " or pick your state"} to narrow it down.</p>}
         </div>
       )}
 
-      <button type="button" className="sp-link sp-missing" onClick={() => { setTyping(true); setTyped({ name: query.trim().slice(0, NEW_SCHOOL_LIMITS.nameMax), city: "" }); }} data-testid="button-school-not-listed">
-        My school isn't listed
-      </button>
+      {who !== "admin" && (
+        <button type="button" className="sp-link sp-missing" onClick={() => { setTyping(true); setTyped({ name: query.trim().slice(0, NEW_SCHOOL_LIMITS.nameMax), city: "" }); }} data-testid="button-school-not-listed">
+          My school isn't listed
+        </button>
+      )}
     </div>
   );
 }

@@ -50,12 +50,15 @@ export type NewSchool = { name: string; city: string; state: string };
  */
 export function cleanNewSchool(input: unknown): NewSchool {
   const raw = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
-  const name = tidy(raw.name, NEW_SCHOOL_LIMITS.nameMax);
-  const city = tidy(raw.city, NEW_SCHOOL_LIMITS.cityMax);
+  // phones type a curly apostrophe: O’Fallon is the same town as O'Fallon
+  const straight = (v: unknown) => String(v ?? "").replace(/[\u2018\u2019\u02BC]/g, "'");
+  const name = tidy(straight(raw.name), NEW_SCHOOL_LIMITS.nameMax);
+  const city = tidy(straight(raw.city), NEW_SCHOOL_LIMITS.cityMax);
   const state = String(raw.state ?? "").trim().toUpperCase();
-  if (name.length < NEW_SCHOOL_LIMITS.nameMin || (name.match(/[A-Za-z]/g) || []).length < 3) throw new SchoolNameError("Type your school's full name.");
+  if (name.length < NEW_SCHOOL_LIMITS.nameMin || (name.match(/\p{L}/gu) || []).length < 3) throw new SchoolNameError("Type your school's full name.");
   if (/https?:|www\.|@|[<>{}\\]/i.test(name + city)) throw new SchoolNameError("Type just the school's name and town.");
-  if (!/^[A-Za-z][A-Za-z .'-]{1,}$/.test(city)) throw new SchoolNameError("Type the town or city your school is in.");
+  // letters in any alphabet: Mayagüez and Cañon City are towns too
+  if (!/^\p{L}[\p{L} .'-]{1,}$/u.test(city)) throw new SchoolNameError("Type the town or city your school is in.");
   if (!isUsState(state)) throw new SchoolNameError("Pick the state your school is in.");
   const bad = blockedWord(`${name} ${city}`);
   if (bad) throw new SchoolNameError("That doesn't look like a school name. Please check it.");

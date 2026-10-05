@@ -308,6 +308,7 @@ export interface IStorage {
   // Schools & Classes
   createSchool(name: string): Promise<any>;
   getAllSchools(): Promise<any[]>;
+  getAllSchoolsOrThrow(): Promise<any[]>;
   createClass(schoolId: number, name: string): Promise<any>;
   getClassesBySchool(schoolId: number): Promise<any[]>;
   getAllClasses(): Promise<any[]>;
@@ -1025,17 +1026,31 @@ export class DatabaseStorage implements IStorage {
 
   // The list grows as schools are picked from the US directory at sign-up, so it is
   // read a page at a time (one request returns at most 1,000 rows) and kept for a minute.
+  // A list that was cut short by a failed request is never kept.
+  private async loadSchools(): Promise<{ list: any[]; complete: boolean }> {
+    const kept = cache.get('allSchools');
+    if (kept && Date.now() < kept.expires) return { list: kept.data as any[], complete: true };
+    const all: any[] = [];
+    for (let from = 0; from < 200000; from += 1000) {
+      // ordered by id as well, so two schools with the same name can't swap pages between requests
+      const { data, error } = await supabase.from("schools").select("*").order("name", { ascending: true }).order("id", { ascending: true }).range(from, from + 999);
+      if (error) return { list: all, complete: false };
+      all.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    cache.set('allSchools', { data: all, expires: Date.now() + 60000 });
+    return { list: all, complete: true };
+  }
+
   async getAllSchools() {
-    const list = await cached('allSchools', 60000, async () => {
-      const all: any[] = [];
-      for (let from = 0; from < 100000; from += 1000) {
-        const page = await fetchList(supabase.from("schools").select("*").order("name", { ascending: true }).range(from, from + 999));
-        all.push(...page);
-        if (page.length < 1000) break;
-      }
-      return all;
-    });
     // a copy, so a caller that sorts or filters in place can't change the kept list
+    return (await this.loadSchools()).list.slice();
+  }
+
+  /** The same list, but it throws if it could not be read in full. For code that would make duplicates from a short list. */
+  async getAllSchoolsOrThrow() {
+    const { list, complete } = await this.loadSchools();
+    if (!complete) throw new Error("The list of schools could not be read.");
     return list.slice();
   }
 

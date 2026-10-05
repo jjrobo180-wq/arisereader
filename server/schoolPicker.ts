@@ -12,23 +12,38 @@ import { SchoolNameError, cleanNewSchool, foldSchoolText, isUsState, schoolDispl
 import type { DirectorySchool, SchoolDirectory } from "./schoolDirectory";
 
 type SchoolRow = { id: number; name: string };
-type AnyUser = { id: number; role?: string | null; accountApproved?: boolean };
 
 export type SchoolPickerDeps = {
   directory: SchoolDirectory;
+  /** Every school on the site. Must throw when the list can't be read in full: a short list would make duplicates. */
   allSchools(): Promise<SchoolRow[]>;
   createSchool(name: string): Promise<SchoolRow>;
-  getUser(id: number): Promise<AnyUser | null | undefined>;
+  /** The ids of every approved teacher. */
+  approvedTeacherIds(): Promise<Set<number>>;
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
+  /**
+   * The same read, but it throws when the database can't be reached. The records here decide
+   * which schools are hidden and are rewritten on every change, so a failed read must never
+   * look like "no records". Left out, getSetting is used.
+   */
+  readSetting?(key: string): Promise<string>;
   now?: () => number;
 };
 
 /** How a school got onto the site's list through sign-up. */
-type Added = { by: "directory" | "teacher"; key?: string; teacherIds?: number[]; at: string };
+type Added = {
+  by: "directory" | "teacher";
+  key?: string;
+  /** Teachers who typed this school in. */
+  teacherIds?: number[];
+  /** Set for good once one of those teachers has been approved, so the school stays up if that teacher later leaves. */
+  shown?: boolean;
+  at: string;
+};
 
 const KEY = {
-  /** US-list id -> the site's school id, for schools already picked. */
+  /** US-list id -> the site's school id, for schools already picked or linked by the admin. */
   links: "school_directory_links",
   /** The site's school id -> how it was added at sign-up. */
   added: "schools_from_signup",
@@ -42,16 +57,41 @@ export type PickedSchool =
 
 export class SchoolPickError extends Error {}
 
+/** "Lincoln Elementary (Springfield, IL)" -> its three parts. A name with no town in it has only the name. */
+function parts(display: string): { name: string; city: string; state: string } {
+  const withTown = /^(.*) \(([^()]*), ([A-Z]{2})\)$/.exec(display);
+  if (withTown) return { name: withTown[1], city: withTown[2], state: withTown[3] };
+  const stateOnly = /^(.*) \(([A-Z]{2})\)$/.exec(display);
+  if (stateOnly) return { name: stateOnly[1], city: "", state: stateOnly[2] };
+  return { name: display, city: "", state: "" };
+}
+/**
+ * What makes two entries the same school: the same name in the same town and state.
+ * The three parts are compared separately. Folding the whole text would let
+ * "X High School New (York, NY)" pass for "X High School (New York, NY)".
+ */
+const identity = (name: string, city: string, state: string) => `${foldSchoolText(name)}|${foldSchoolText(city)}|${state}`;
+const identityOf = (row: SchoolRow) => { const p = parts(row.name); return identity(p.name, p.city, p.state); };
+
 export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps) {
   const now = () => (deps.now ? deps.now() : Date.now());
 
-  const readJson = async <T,>(key: string, fallback: T): Promise<T> => {
-    try { const raw = await deps.getSetting(key); return raw ? (JSON.parse(raw) as T) : fallback; } catch { return fallback; }
+  // ─── Storage ───────────────────────────────────────────────────────────────
+  // Reads throw when the database can't be reached and are remembered for a few seconds.
+  const MEM_MS = 20_000;
+  const mem = new Map<string, { at: number; value: string }>();
+  const read = async (key: string): Promise<string> => {
+    const hit = mem.get(key);
+    if (hit && now() - hit.at < MEM_MS) return hit.value;
+    const value = await (deps.readSetting ?? deps.getSetting)(key);
+    mem.set(key, { at: now(), value });
+    return value;
   };
-  const readAdded = async () => {
-    const raw = await readJson<Record<string, Added>>(KEY.added, {});
-    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-  };
+  const write = async (key: string, value: string) => { await deps.upsertSetting(key, value); mem.set(key, { at: now(), value }); };
+  const parse = <T,>(raw: string, fallback: T): T => { if (!raw) return fallback; try { const v = JSON.parse(raw); return v && typeof v === "object" && !Array.isArray(v) ? (v as T) : fallback; } catch { return fallback; } };
+  const readLinks = async () => parse<Record<string, number>>(await read(KEY.links), {});
+  const readAdded = async () => parse<Record<string, Added>>(await read(KEY.added), {});
+
   // one change at a time, so two sign-ups picking the same school make one school
   let chain: Promise<unknown> = Promise.resolve();
   const serial = <T,>(job: () => Promise<T>): Promise<T> => { const run = chain.then(job, job); chain = run.catch(() => {}); return run; };
@@ -64,21 +104,27 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
   };
 
   /**
-   * Schools a teacher typed in stay hidden until the admin approves that teacher.
-   * Returns the ids to leave out of every public list.
+   * Schools a teacher typed in stay hidden until the admin approves one of the
+   * teachers who typed it. Returns the ids to leave out of every public list.
    */
   async function hiddenIds(): Promise<Set<number>> {
     const added = await readAdded();
+    const waiting = Object.entries(added).filter(([, how]) => how?.by === "teacher" && !how.shown);
     const hidden = new Set<number>();
-    for (const [id, how] of Object.entries(added)) {
-      if (how?.by !== "teacher") continue;
-      // shown as soon as one of the teachers who typed it has been approved
-      let approved = false;
-      for (const teacherId of Array.isArray(how.teacherIds) ? how.teacherIds : []) {
-        const teacher = await deps.getUser(Number(teacherId)).catch(() => null);
-        if (teacher && teacher.role === "teacher" && teacher.accountApproved !== false) { approved = true; break; }
-      }
-      if (!approved) hidden.add(Number(id));
+    if (!waiting.length) return hidden;
+    const approved = await deps.approvedTeacherIds();
+    const nowShown: string[] = [];
+    for (const [id, how] of waiting) {
+      if ((Array.isArray(how.teacherIds) ? how.teacherIds : []).some((t) => approved.has(Number(t)))) nowShown.push(id);
+      else hidden.add(Number(id));
+    }
+    // Written down once, so the school stays up even if that teacher's account is removed later.
+    if (nowShown.length) {
+      void serial(async () => {
+        const fresh = await readAdded();
+        for (const id of nowShown) if (fresh[id]?.by === "teacher") fresh[id] = { ...fresh[id], shown: true };
+        await write(KEY.added, JSON.stringify(fresh));
+      }).catch((e: any) => console.error("[schools] could not record an approved school:", e?.message));
     }
     return hidden;
   }
@@ -87,61 +133,59 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
     const [all, hidden] = await Promise.all([deps.allSchools(), hiddenIds()]);
     return all.filter((s) => !hidden.has(Number(s.id)) && !isIndependentSchoolName(s.name));
   }
-  /** Was this school added through sign-up? Those are never free by their name alone. */
+  /** Was this school added through sign-up? Those are never free by their name alone. Throws if that can't be checked. */
   async function addedAtSignup(schoolId: number): Promise<boolean> {
     return !!(await readAdded())[String(schoolId)];
   }
 
   /** Puts a school from the US list on the site's list, or finds it there. */
   const activate = (entry: DirectorySchool) => serial(async (): Promise<SchoolRow | null> => {
-    const links = await readJson<Record<string, number>>(KEY.links, {});
-    const all = await deps.allSchools();
+    const [links, all] = [await readLinks(), await deps.allSchools()];
     const linked = all.find((s) => Number(s.id) === Number(links[entry.key]));
     if (linked) return linked;
-    const name = schoolDisplayName(entry.name, entry.city, entry.state);
-    // the town is part of the name, so the same name is the same school
-    let school = all.find((s) => foldSchoolText(s.name) === foldSchoolText(name)) ?? null;
-    let created = false;
-    if (!school) {
+    const added = await readAdded();
+    const want = identity(entry.name, entry.city, entry.state);
+    let school = all.find((s) => identityOf(s) === want) ?? null;
+    if (school) {
+      // The US list vouches for this name, so a teacher's typed copy of it no longer has to wait.
+      const how = added[String(school.id)];
+      if (how?.by === "teacher" && !how.shown) { added[String(school.id)] = { ...how, shown: true }; await write(KEY.added, JSON.stringify(added)); }
+    } else {
       if (!underCap("directory")) return null;
-      school = await deps.createSchool(name);
+      school = await deps.createSchool(schoolDisplayName(entry.name, entry.city, entry.state));
       recent.directory.push(now());
-      created = true;
+      added[String(school.id)] = { by: "directory", key: entry.key, at: new Date(now()).toISOString() };
+      await write(KEY.added, JSON.stringify(added));
     }
     links[entry.key] = Number(school.id);
-    await deps.upsertSetting(KEY.links, JSON.stringify(links));
-    if (created) {
-      const added = await readAdded();
-      added[String(school.id)] = { by: "directory", key: entry.key, at: new Date(now()).toISOString() };
-      await deps.upsertSetting(KEY.added, JSON.stringify(added));
-    }
+    await write(KEY.links, JSON.stringify(links));
     return school;
   });
 
-  /** Adds a school a teacher typed. Hidden from everyone else until `approveAddedBy` names an approved teacher. */
-  const addTyped = (typed: NewSchool) => serial(async (): Promise<{ school: SchoolRow; isNew: boolean } | null> => {
-    const name = schoolDisplayName(typed.name, typed.city, typed.state);
+  /** Adds a school a teacher typed, or finds the same name in the same town already there. */
+  const addTyped = (typed: NewSchool) => serial(async (): Promise<SchoolRow | null> => {
     const all = await deps.allSchools();
-    const same = all.find((s) => foldSchoolText(s.name) === foldSchoolText(name) || foldSchoolText(s.name) === foldSchoolText(typed.name));
-    if (same) return { school: same, isNew: false };
+    const want = identity(typed.name, typed.city, typed.state);
+    const same = all.find((s) => identityOf(s) === want);
+    if (same) return same;
     if (!underCap("teacher")) return null;
-    const school = await deps.createSchool(name);
+    const school = await deps.createSchool(schoolDisplayName(typed.name, typed.city, typed.state));
     recent.teacher.push(now());
     const added = await readAdded();
     added[String(school.id)] = { by: "teacher", at: new Date(now()).toISOString() };
-    await deps.upsertSetting(KEY.added, JSON.stringify(added));
-    return { school, isNew: true };
+    await write(KEY.added, JSON.stringify(added));
+    return school;
   });
 
   /** Records a teacher who typed this school in, once that teacher's account exists. */
   const setAddedBy = (schoolId: number, teacherId: number) => serial(async () => {
     const added = await readAdded();
     const how = added[String(schoolId)];
-    if (!how || how.by !== "teacher") return;
+    if (!how || how.by !== "teacher" || how.shown) return;
     const ids = Array.isArray(how.teacherIds) ? how.teacherIds : [];
     if (ids.includes(teacherId) || ids.length >= 25) return;
     added[String(schoolId)] = { ...how, teacherIds: [...ids, teacherId] };
-    await deps.upsertSetting(KEY.added, JSON.stringify(added));
+    await write(KEY.added, JSON.stringify(added));
   });
 
   /**
@@ -152,8 +196,6 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
    * Throws SchoolPickError with a message for the person signing up.
    */
   async function pick(body: any, who: "teacher" | "student"): Promise<PickedSchool> {
-    const none: PickedSchool = { schoolId: null, schoolName: "", added: null };
-
     if (body?.directorySchool) {
       const entry = deps.directory.get(String(body.directorySchool));
       if (!entry) throw new SchoolPickError("That school could not be found. Please search for it again.");
@@ -167,19 +209,18 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
       let typed: NewSchool;
       try { typed = cleanNewSchool(body.newSchool); }
       catch (e) { throw new SchoolPickError(e instanceof SchoolNameError ? e.message : "Type your school's name, town and state."); }
+      if (isIndependentSchoolName(typed.name)) throw new SchoolPickError("Type your school's full name.");
       // it may be in the US list after all, typed a little differently
       const listed = deps.directory.find(typed.name, typed.city, typed.state);
       if (listed) {
         const school = await activate(listed);
         if (school) return { schoolId: Number(school.id), schoolName: school.name, added: "directory" };
       }
-      if (isIndependentSchoolName(typed.name)) throw new SchoolPickError("Type your school's full name.");
-      const made = await addTyped(typed);
-      // over the hourly limit: the account is still made, and the admin connects the school
-      if (!made) return { schoolId: null, schoolName: schoolDisplayName(typed.name, typed.city, typed.state), added: null };
+      const school = await addTyped(typed);
+      if (!school) return { schoolId: null, schoolName: schoolDisplayName(typed.name, typed.city, typed.state), added: null };
       // "teacher" means the school is waiting on a teacher's approval before others see it
-      const waiting = (await readAdded())[String(made.school.id)]?.by === "teacher";
-      return { schoolId: Number(made.school.id), schoolName: made.school.name, added: waiting ? "teacher" : null };
+      const how = (await readAdded())[String(school.id)];
+      return { schoolId: Number(school.id), schoolName: school.name, added: how?.by === "teacher" && !how.shown ? "teacher" : null };
     }
 
     const id = Number(body?.schoolId);
@@ -188,8 +229,39 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
       if (!school) throw new SchoolPickError("That school could not be found. Please pick your school again.");
       return { schoolId: id, schoolName: school.name, added: null };
     }
-    return none;
+    return { schoolId: null, schoolName: "", added: null };
   }
+
+  // ─── For the admin: tie one of the site's schools to its entry in the US list ───
+  // A school the admin made by hand ("CGMS") is not in the US list under that name.
+  // Linking it means someone who searches the school's full name lands in the same school.
+
+  /** Each linked school's entry in the US list, by the site's school id. */
+  async function linkedEntries(): Promise<Record<number, DirectorySchool>> {
+    const out: Record<number, DirectorySchool> = {};
+    for (const [key, schoolId] of Object.entries(await readLinks())) {
+      const entry = deps.directory.get(key);
+      if (entry) out[Number(schoolId)] = entry;
+    }
+    return out;
+  }
+  /** Links a school to a US-list entry, or with `key` null takes its link away. */
+  const link = (schoolId: number, key: string | null) => serial(async (): Promise<DirectorySchool | null> => {
+    const all = await deps.allSchools();
+    const school = all.find((s) => Number(s.id) === schoolId);
+    if (!school) throw new SchoolPickError("That school could not be found.");
+    const links = await readLinks();
+    const entry = key ? deps.directory.get(key) : null;
+    if (key && !entry) throw new SchoolPickError("That school could not be found in the US list.");
+    if (entry) {
+      const taken = all.find((s) => Number(s.id) === Number(links[entry.key]) && Number(s.id) !== schoolId);
+      if (taken) throw new SchoolPickError(`That school in the US list is already linked to “${taken.name}”.`);
+    }
+    for (const [k, id] of Object.entries(links)) if (Number(id) === schoolId) delete links[k];
+    if (entry) links[entry.key] = schoolId;
+    await write(KEY.links, JSON.stringify(links));
+    return entry;
+  });
 
   // ─── Search, for the sign-up pages. No sign-in: nobody has an account yet. ───
   app.get("/api/schools/search", async (req: any, res: any) => {
@@ -200,22 +272,27 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
       res.set("Cache-Control", "public, max-age=60");
       if (folded.replace(/ /g, "").length < 2) return res.json({ onSite: [], directory: [], more: false, total: deps.directory.size });
 
-      const [visible, links] = await Promise.all([visibleSchools(), readJson<Record<string, number>>(KEY.links, {})]);
+      const [visible, links] = await Promise.all([visibleSchools(), readLinks()]);
+      const visibleById = new Map(visible.map((s) => [Number(s.id), s]));
       const words = folded.split(" ").filter(Boolean);
       const onSite = visible
         .filter((s) => { const name = ` ${foldSchoolText(s.name)}`; return words.every((w) => name.includes(` ${w}`)); })
         // a state filter still keeps schools whose name doesn't say a state (the site's own older entries)
-        .filter((s) => !state || !/\([^()]*, [A-Z]{2}\)$/.test(s.name) || s.name.endsWith(`, ${state})`))
+        .filter((s) => { const p = parts(s.name); return !state || !p.state || p.state === state; })
         .slice(0, 8)
         .map((s) => ({ id: Number(s.id), name: s.name }));
-      const shownIds = new Set(onSite.map((s) => s.id));
-      const visibleIds = new Set(visible.map((s) => Number(s.id)));
+      const shown = new Set(onSite.map((s) => s.id));
 
       const found = deps.directory.search(q, { state, limit: 20 });
-      const directory = found.schools
-        .map((s) => ({ ...s, schoolId: visibleIds.has(Number(links[s.key])) ? Number(links[s.key]) : null }))
-        // already listed above under its site name
-        .filter((s) => !s.schoolId || !shownIds.has(s.schoolId));
+      // the admin's matching tool wants the US list as it is, not merged with the site's schools
+      if (req.query?.only === "us") return res.json({ onSite: [], directory: found.schools.map((sc) => ({ ...sc, schoolId: Number(links[sc.key]) || null })), more: found.more, total: deps.directory.size });
+      const directory: Array<DirectorySchool & { schoolId: number | null }> = [];
+      for (const s of found.schools) {
+        const site = visibleById.get(Number(links[s.key]));
+        if (!site) { directory.push({ ...s, schoolId: null }); continue; }
+        // a US-list school that is on the site is shown once, under the site's name for it
+        if (!shown.has(Number(site.id)) && onSite.length < 12) { onSite.push({ id: Number(site.id), name: site.name }); shown.add(Number(site.id)); }
+      }
       res.json({ onSite, directory, more: found.more, total: deps.directory.size });
     } catch (e: any) {
       console.error("[schools] search failed:", e?.message);
@@ -223,7 +300,7 @@ export function registerSchoolPickerRoutes(app: Express, deps: SchoolPickerDeps)
     }
   });
 
-  return { pick, setAddedBy, visibleSchools, hiddenIds, addedAtSignup };
+  return { pick, setAddedBy, visibleSchools, hiddenIds, addedAtSignup, link, linkedEntries };
 }
 
 export type SchoolPicker = ReturnType<typeof registerSchoolPickerRoutes>;

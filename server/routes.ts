@@ -966,12 +966,21 @@ export async function registerRoutes(
   // Its one route is public, so it can sit in front of the plan check.
   const schoolPicker = registerSchoolPickerRoutes(app, {
     directory: usSchoolDirectory(),
-    allSchools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
+    // throws if the list can't be read in full: a short list would make duplicate schools
+    allSchools: async () => (await storage.getAllSchoolsOrThrow()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
     createSchool: async (name) => { const made = await storage.createSchool(name); return { id: Number(made.id), name: String(made.name || name) }; },
-    getUser: (id) => storage.getUser(id),
+    approvedTeacherIds: async () => new Set((await storage.getAllUsers()).filter((u: any) => u.role === "teacher" && u.accountApproved !== false).map((u: any) => Number(u.id))),
     getSetting: (key) => storage.getSetting(key),
     upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    // storage.getSetting turns a database error into "", which would un-hide schools and then be saved back as "no records"
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
   });
+  // Build the school search's index shortly after start-up, so the first person to search doesn't wait for it.
+  setTimeout(() => { try { usSchoolDirectory().search("warm up"); } catch {} }, 4000).unref?.();
 
   // Plans and billing. Registered first: its teacher check has to run before every other route.
   // It locks nothing until the admin turns plan rules on, and takes no payment until a Stripe key is set.
@@ -1497,6 +1506,22 @@ export async function registerRoutes(
         email: email || null,
         schoolId: pickedSchool.schoolId,
       });
+      if (!pickedSchool.schoolId && pickedSchool.schoolName) {
+        // The school could not be added just now (too many new schools in the last hour). Don't lose its name.
+        try {
+          const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
+          for (const admin of adminRows || []) {
+            await supabase.from("notifications").insert({
+              user_id: admin.id,
+              type: "info",
+              title: "Teacher needs a school connection",
+              message: `${displayName} (@${username.toLowerCase()}) signed up for “${pickedSchool.schoolName}”, but the school could not be added automatically. Add it under Schools & Classes and connect them.`,
+            });
+          }
+        } catch (e: any) {
+          console.error("[schools] could not tell the admin about a teacher's school:", e?.message);
+        }
+      }
       if (pickedSchool.schoolId && pickedSchool.added === "teacher") {
         try {
           await schoolPicker.setAddedBy(pickedSchool.schoolId, user.id);
@@ -4374,7 +4399,22 @@ export async function registerRoutes(
 
   app.get("/api/admin/schools", authMiddleware, adminMiddleware, async (_req, res) => {
     const schools = await storage.getAllSchools();
-    res.json(schools);
+    // where each school sits in the US school list, and whether it is still waiting to be shown
+    let linked: Record<number, any> = {}, hidden = new Set<number>();
+    try { [linked, hidden] = await Promise.all([schoolPicker.linkedEntries(), schoolPicker.hiddenIds()]); } catch {}
+    res.json(schools.map((s: any) => ({ ...s, usList: linked[Number(s.id)] || null, waitingForTeacherApproval: hidden.has(Number(s.id)) })));
+  });
+
+  // Admin: match one of the site's schools to its entry in the US school list (or take the match away).
+  // Someone who then searches the school's full name at sign-up lands in this school instead of making a second one.
+  app.post("/api/admin/schools/:id/us-list", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const key = typeof req.body?.key === "string" && req.body.key ? req.body.key : null;
+      const entry = await schoolPicker.link(parseInt(req.params.id), key);
+      res.json({ success: true, usList: entry });
+    } catch (err: any) {
+      res.status(err instanceof SchoolPickError ? 400 : 500).json({ message: err.message });
+    }
   });
 
   app.post("/api/admin/schools", authMiddleware, adminMiddleware, async (req, res) => {
