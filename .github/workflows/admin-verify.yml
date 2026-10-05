@@ -1,0 +1,74 @@
+name: Admin verify (temporary)
+
+on:
+  push:
+    branches:
+      - ci/admin-verify
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: |
+          mkdir -p ci-out
+          set +e
+          npx tsc --noEmit > ci-out/tsc.txt 2>&1
+          echo "exit=$?" >> ci-out/tsc.txt
+          grep -c "error TS" ci-out/tsc.txt > ci-out/tsc-count.txt || true
+          # ClubArise.tsx is an archived file with a syntax error that stops tsc before it checks types.
+          printf '{ "extends": "./tsconfig.json", "compilerOptions": { "incremental": false }, "exclude": ["node_modules", "build", "dist", "**/*.test.ts", "client/src/pages/ClubArise.tsx"] }' > tsconfig.ci.json
+          npx tsc --noEmit -p tsconfig.ci.json > ci-out/tsc-semantic.txt 2>&1
+          echo "exit=$?" >> ci-out/tsc-semantic.txt
+          rm -f tsconfig.ci.json
+          grep "error TS" ci-out/tsc-semantic.txt | sed -E 's/\(([0-9]+),[0-9]+\)/(\1)/' | cut -d'(' -f1 | sort | uniq -c | sort -rn > ci-out/tsc-semantic-by-file.txt || true
+      - name: Typecheck master for comparison
+        run: |
+          set +e
+          git fetch -q --depth=1 origin master
+          git worktree add -q /tmp/base FETCH_HEAD
+          cd /tmp/base
+          ln -s "$GITHUB_WORKSPACE/node_modules" node_modules
+          printf '{ "extends": "./tsconfig.json", "compilerOptions": { "incremental": false }, "exclude": ["node_modules", "build", "dist", "**/*.test.ts", "client/src/pages/ClubArise.tsx"] }' > tsconfig.ci.json
+          npx tsc --noEmit -p tsconfig.ci.json > "$GITHUB_WORKSPACE/ci-out/tsc-semantic-base.txt" 2>&1
+          echo "exit=$?" >> "$GITHUB_WORKSPACE/ci-out/tsc-semantic-base.txt"
+          grep "error TS" "$GITHUB_WORKSPACE/ci-out/tsc-semantic-base.txt" | sed -E 's/\(([0-9]+),[0-9]+\)/(\1)/' | cut -d'(' -f1 | sort | uniq -c | sort -rn > "$GITHUB_WORKSPACE/ci-out/tsc-semantic-base-by-file.txt" || true
+      - name: Tests
+        run: |
+          set +e
+          npx tsx --test tests/*.test.ts > ci-out/tests.txt 2>&1
+          echo "exit=$?" >> ci-out/tests.txt
+          for f in tests/*.mjs; do echo "== $f" >> ci-out/tests-mjs.txt; node "$f" >> ci-out/tests-mjs.txt 2>&1; echo "exit=$?" >> ci-out/tests-mjs.txt; done
+      - name: Build
+        run: |
+          set +e
+          npm run build > ci-out/build.txt 2>&1
+          echo "exit=$?" >> ci-out/build.txt
+          git status --short > ci-out/build-changed-files.txt
+      - name: Screenshots
+        run: |
+          set +e
+          npm i --no-save playwright@1.48.2 > /dev/null 2>&1
+          npx playwright install --with-deps chromium > /dev/null 2>&1
+          npx tsx scripts/ci/admin-shots.mjs > ci-out/shots.txt 2>&1
+          echo "exit=$?" >> ci-out/shots.txt
+      - name: Publish results
+        if: always()
+        run: |
+          cd ci-out
+          echo "${{ github.sha }}" > sha.txt
+          git init -q
+          git checkout -q -b results
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "CI results ${{ github.run_id }}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" results:refs/heads/ci-results/admin-verify
