@@ -1019,12 +1019,24 @@ export class DatabaseStorage implements IStorage {
   async createSchool(name: string) {
     const { data, error } = await supabase.from("schools").insert({ name }).select().single();
     if (error) throw new Error(error.message);
+    clearCache('allSchools');
     return data;
   }
 
+  // The list grows as schools are picked from the US directory at sign-up, so it is
+  // read a page at a time (one request returns at most 1,000 rows) and kept for a minute.
   async getAllSchools() {
-    const data = await fetchList(supabase.from("schools").select("*").order("name", { ascending: true }));
-    return data;
+    const list = await cached('allSchools', 60000, async () => {
+      const all: any[] = [];
+      for (let from = 0; from < 100000; from += 1000) {
+        const page = await fetchList(supabase.from("schools").select("*").order("name", { ascending: true }).range(from, from + 999));
+        all.push(...page);
+        if (page.length < 1000) break;
+      }
+      return all;
+    });
+    // a copy, so a caller that sorts or filters in place can't change the kept list
+    return list.slice();
   }
 
   async createClass(schoolId: number, name: string) {
@@ -1054,6 +1066,7 @@ export class DatabaseStorage implements IStorage {
     // Null out school_id on remaining students
     await supabase.from("users").update({ school_id: null }).eq("school_id", schoolId);
     const { error } = await supabase.from("schools").delete().eq("id", schoolId);
+    clearCache('allSchools');
     if (error) throw new Error(error.message);
   }
 

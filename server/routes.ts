@@ -12,6 +12,8 @@ import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
 import { registerPrizeRoutes } from "./prizes";
 import { transferIndependentStudents } from "./independentTransfer";
+import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
+import { usSchoolDirectory } from "./schoolDirectory";
 import { isIndependentSchoolName } from "../shared/independent";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
@@ -960,6 +962,17 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Picking a school at sign-up: search the US school list, or (teachers) type one that is missing.
+  // Its one route is public, so it can sit in front of the plan check.
+  const schoolPicker = registerSchoolPickerRoutes(app, {
+    directory: usSchoolDirectory(),
+    allSchools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
+    createSchool: async (name) => { const made = await storage.createSchool(name); return { id: Number(made.id), name: String(made.name || name) }; },
+    getUser: (id) => storage.getUser(id),
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+  });
+
   // Plans and billing. Registered first: its teacher check has to run before every other route.
   // It locks nothing until the admin turns plan rules on, and takes no payment until a Stripe key is set.
   const plans = registerPlanRoutes(app, authMiddleware, adminMiddleware, {
@@ -978,6 +991,8 @@ export async function registerRoutes(
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
+    // a school someone added at sign-up is never free just because of what it is called
+    freeByNameAllowed: async (schoolId) => !(await schoolPicker.addedAtSignup(schoolId)),
     appUrl: APP_URL,
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
@@ -1294,6 +1309,20 @@ export async function registerRoutes(
         return res.status(409).json({ message: "Username already taken" });
       }
 
+      // The school: one already on the site, or one picked from the US list (added to the site now).
+      let pickedSchoolName = "";
+      if (!req.body.independent && !pickedIndependentSchool) {
+        try {
+          const picked = await schoolPicker.pick({ schoolId, directorySchool: req.body.directorySchool }, "student");
+          // over the hourly limit for new schools: the account is made and the admin connects the school
+          if (picked.schoolId === null && picked.schoolName) pickedSchoolName = picked.schoolName;
+          schoolId = picked.schoolId;
+        } catch (e: any) {
+          if (e instanceof SchoolPickError) return res.status(400).json({ message: e.message });
+          throw e;
+        }
+      }
+
       const hashedPassword = bcrypt.hashSync(password, 10);
       const user = await storage.createUser({
         username: username.toLowerCase(),
@@ -1321,7 +1350,7 @@ export async function registerRoutes(
       // Save what they typed so an admin can connect them later.
       // An independent student has no school or teacher to be connected to.
       const noSchool = !!req.body.independent || pickedIndependentSchool;
-      const unlistedSchoolName = !noSchool && typeof req.body.unlistedSchoolName === "string" ? req.body.unlistedSchoolName.trim().slice(0, 120) : "";
+      const unlistedSchoolName = noSchool ? "" : pickedSchoolName || (typeof req.body.unlistedSchoolName === "string" ? req.body.unlistedSchoolName.trim().slice(0, 120) : "");
       const unlistedTeacherName = !noSchool && typeof req.body.unlistedTeacherName === "string" ? req.body.unlistedTeacherName.trim().slice(0, 120) : "";
       // Remember how every student signed up so school-not-listed students
       // are never confused with independent readers (both start with no school).
@@ -1448,6 +1477,16 @@ export async function registerRoutes(
         return res.status(409).json({ message: "Username already taken" });
       }
 
+      // The school: one already on the site, one picked from the US list, or one the teacher typed
+      // because it was in neither. A typed school shows for everyone else once this teacher is approved.
+      let pickedSchool: Awaited<ReturnType<typeof schoolPicker.pick>>;
+      try {
+        pickedSchool = await schoolPicker.pick({ schoolId, directorySchool: req.body.directorySchool, newSchool: req.body.newSchool }, "teacher");
+      } catch (e: any) {
+        if (e instanceof SchoolPickError) return res.status(400).json({ message: e.message });
+        throw e;
+      }
+
       const hashedPassword = bcrypt.hashSync(password, 10);
       const user = await storage.createUser({
         username: username.toLowerCase(),
@@ -1456,8 +1495,24 @@ export async function registerRoutes(
         role: 'teacher',
         accountApproved: false,
         email: email || null,
-        schoolId: schoolId ? parseInt(schoolId) : null,
+        schoolId: pickedSchool.schoolId,
       });
+      if (pickedSchool.schoolId && pickedSchool.added === "teacher") {
+        try {
+          await schoolPicker.setAddedBy(pickedSchool.schoolId, user.id);
+          const { data: adminRows } = await supabase.from("users").select("id").eq("is_admin", true);
+          for (const admin of adminRows || []) {
+            await supabase.from("notifications").insert({
+              user_id: admin.id,
+              type: "info",
+              title: "A teacher added a school",
+              message: `${displayName} (@${username.toLowerCase()}) signed up with a school that wasn't in the list: “${pickedSchool.schoolName}”. Other people will see it in the school search once you approve this teacher.`,
+            });
+          }
+        } catch (e: any) {
+          console.error("[schools] could not record the teacher's school:", e?.message);
+        }
+      }
 
       // Save grade level for teacher
       if (gradesTaught && Array.isArray(gradesTaught)) {
@@ -4167,7 +4222,8 @@ export async function registerRoutes(
   // Public endpoint - get all schools with themes (for signup dropdown)
   app.get("/api/schools", async (_req, res) => {
     try {
-      const schools = await storage.getAllSchools();
+      // A school a teacher typed in is left out until that teacher is approved.
+      const schools = await schoolPicker.visibleSchools();
       // Get school themes from settings
       const themesSetting = await storage.getSetting('school_themes');
       let themes: Record<string, any> = {};
