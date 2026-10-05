@@ -7,6 +7,8 @@ import { Trophy, ArrowLeft, Crown, Medal, Award, GraduationCap, Users } from "lu
 import { BrandText } from "@/components/BrandText";
 import { useAuth } from "@/context/AuthContext";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
+import MonthCountdown from "@/components/MonthCountdown";
+import { monthLabel, previousYearMonth, recentSchoolMonths, schoolYearMonth } from "@shared/schoolMonth";
 
 /** "1 quiz passed" / "3 quizzes passed" (older servers only sent quizzes taken). */
 const passedLabel = (entry: { quizzesPassed?: number; quizzesTaken?: number }) => {
@@ -23,40 +25,28 @@ interface LeaderboardEntry {
   isEyeGazeUser?: boolean;
 }
 
-function getMonthLabel(ym: string): string {
-  const [y, m] = ym.split("-").map(Number);
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  return `${months[m - 1]} ${y}`;
-}
-
-function getCurrentMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function getRecentMonths(count: number): string[] {
-  const months: string[] = [];
-  const d = new Date();
-  for (let i = 0; i < count; i++) {
-    const dt = new Date(d.getFullYear(), d.getMonth() - i, 1);
-    months.push(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`);
-  }
-  return months;
-}
+// Months are the school's months (Mountain Time), the same ones the server totals points by.
+const getMonthLabel = monthLabel;
 
 export default function LeaderboardPage() {
   const [, navigate] = useLocation();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<"all-time" | "monthly">("all-time");
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  // opens on this month's race; All-Time is one click away
+  const [period, setPeriod] = useState<"all-time" | "monthly">("monthly");
+  const [selectedMonth, setSelectedMonth] = useState(() => schoolYearMonth());
   const [userBand, setUserBand] = useState<string | null>(null);
   const [selectedBand, setSelectedBand] = useState<string | null>(null);
   const [showEGInfo, setShowEGInfo] = useState(false);
   const [advisoryData, setAdvisoryData] = useState<any[]>([]);
   const [view, setView] = useState<"individual" | "advisory">("individual");
-  const recentMonths = getRecentMonths(6);
+  const currentMonth = schoolYearMonth();
+  const recentMonths = recentSchoolMonths(6);
+  // At midnight on the 1st, someone watching this month moves on to the new one by themselves.
+  const onNewMonth = (fresh: string) => setSelectedMonth((was) => (was === previousYearMonth(fresh) ? fresh : was));
+  const home = user?.isAdmin ? "/admin" : user?.role === "teacher" ? "/teacher-dashboard" : user?.role === "parent" ? "/parent-dashboard" : user ? "/library" : "/";
+  const homeLabel = user?.isAdmin ? "Back to Admin" : user?.role === "teacher" ? "Back to Dashboard" : user ? "Back" : "Back to Login";
 
   // Fetch user's grade band
   useEffect(() => {
@@ -113,10 +103,11 @@ export default function LeaderboardPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate(home)}
               className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1"
+              data-testid="button-leaderboard-back"
             >
-              <ArrowLeft className="w-3 h-3" /> Back to Login
+              <ArrowLeft className="w-3 h-3" /> {homeLabel}
             </button>
           </div>
           <h1 className="text-xl font-black text-white tracking-[-.025em]">A.R.I.S.E<span className="arise-gradient-text"> Reader</span></h1>
@@ -210,24 +201,26 @@ export default function LeaderboardPage() {
         {/* Period Toggle */}
         <div className="flex items-center justify-center gap-2 mb-6">
           <button
-            onClick={() => setPeriod("all-time")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              period === "all-time"
-                ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
-                : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
-            }`}
-          >
-            All-Time
-          </button>
-          <button
             onClick={() => setPeriod("monthly")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               period === "monthly"
                 ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
                 : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
             }`}
+            data-testid="button-leaderboard-monthly"
           >
             Monthly
+          </button>
+          <button
+            onClick={() => setPeriod("all-time")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              period === "all-time"
+                ? "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15"
+                : "bg-white/[.04] border border-white/10 text-slate-300 hover:bg-white/[.08]"
+            }`}
+            data-testid="button-leaderboard-all-time"
+          >
+            All-Time
           </button>
         </div>
 
@@ -244,9 +237,21 @@ export default function LeaderboardPage() {
                     : "bg-white/[.04] border border-white/10 text-slate-400 hover:bg-white/[.08]"
                 }`}
               >
-                {getMonthLabel(ym)}
+                {ym === currentMonth ? `${getMonthLabel(ym)} (now)` : getMonthLabel(ym)}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* How long this month's race has left. Shown while looking at this month. */}
+        {period === "monthly" && selectedMonth === currentMonth && (
+          <MonthCountdown onNewMonth={onNewMonth} className="mb-6" />
+        )}
+        {period === "monthly" && selectedMonth !== currentMonth && (
+          <div className="text-center mb-6">
+            <button type="button" onClick={() => setSelectedMonth(currentMonth)} className="text-xs font-semibold text-violet-300 hover:underline" data-testid="button-leaderboard-this-month">
+              Looking back at {getMonthLabel(selectedMonth)}. Jump to {getMonthLabel(currentMonth)}
+            </button>
           </div>
         )}
 
@@ -357,8 +362,8 @@ export default function LeaderboardPage() {
               </Card>
             )}
 
-            {/* Login CTA */}
-            <div className="text-center mt-8">
+            {/* Login CTA, for visitors who aren't signed in */}
+            {!token && <div className="text-center mt-8">
               <p className="text-sm text-muted-foreground mb-4">
                 Want to see your name here? Log in and start earning points!
               </p>
@@ -366,7 +371,7 @@ export default function LeaderboardPage() {
                 <Trophy className="w-5 h-5" />
                 Login to Start Earning Points
               </Button>
-            </div>
+            </div>}
           </>
         )}
         </>

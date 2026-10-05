@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight } from "lucide-react";
+import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -414,6 +414,9 @@ export default function TeacherDashboard() {
         <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0 }}>Host a live quiz</button>
         <button onClick={() => navigate("/study")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#173b33" }} data-testid="button-teacher-study">
           <GraduationCap size={18} /> Study Squad sets
+        </button>
+        <button onClick={() => navigate("/leaderboard")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#b45309 0%,#d97706 50%,#f59e0b 100%)" }} data-testid="button-teacher-leaderboard">
+          <Trophy size={18} /> Leaderboard
         </button>
         <button onClick={() => navigate("/teacher-scenes")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" }} data-testid="button-teacher-scenes">
           <BookOpen size={18} /> Scenes
