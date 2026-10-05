@@ -1,0 +1,381 @@
+client/src/arcade/covers/styles.ts(55,39): error TS2802: Type 'string' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/Celebration.tsx(2,22): error TS7016: Could not find a declaration file for module 'canvas-confetti'. '/home/runner/work/arisereader/arisereader/node_modules/canvas-confetti/src/confetti.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/canvas-confetti` if it exists or add a new declaration (.d.ts) file containing `declare module 'canvas-confetti';`
+client/src/components/LeaderboardPopup.tsx(142,44): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(timeout: string | number | Timeout | undefined): void', gave the following error.
+    Argument of type 'Timeout | null' is not assignable to parameter of type 'string | number | Timeout | undefined'.
+      Type 'null' is not assignable to type 'string | number | Timeout | undefined'.
+  Overload 2 of 2, '(id: number | undefined): void', gave the following error.
+    Argument of type 'Timeout | null' is not assignable to parameter of type 'number | undefined'.
+      Type 'null' is not assignable to type 'number | undefined'.
+client/src/components/MobileJoystick.tsx(31,22): error TS2802: Type 'Set<MoveKey>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/MobileJoystick.tsx(32,22): error TS2802: Type 'Set<MoveKey>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/MobileJoystick.tsx(37,22): error TS2802: Type 'Set<MoveKey>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/ParentConnectionBanner.tsx(29,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ Authorization: string; } | { Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ Authorization?: undefined; }' is not assignable to type 'Record<string, string>'.
+          Property 'Authorization' is incompatible with index signature.
+            Type 'undefined' is not assignable to type 'string'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ Authorization: string; } | { Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ Authorization?: undefined; }' is not assignable to type 'Record<string, string>'.
+          Property 'Authorization' is incompatible with index signature.
+            Type 'undefined' is not assignable to type 'string'.
+client/src/components/ParentConnectionBanner.tsx(70,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "Content-Type": string; Authorization: string; } | { "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "Content-Type": string; Authorization: string; } | { "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'undefined'.
+client/src/components/ProfileSetupOverlay.tsx(69,22): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'className' does not exist on type 'IntrinsicAttributes'.
+client/src/components/QuizGeneratingOverlay.tsx(97,22): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'className' does not exist on type 'IntrinsicAttributes'.
+client/src/components/SchoolPicker.tsx(85,40): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+client/src/components/UnlistedSignupsCard.tsx(68,46): error TS2783: 'schoolId' is specified more than once, so this usage will be overwritten.
+client/src/components/UnlistedSignupsCard.tsx(68,60): error TS2783: 'teacherId' is specified more than once, so this usage will be overwritten.
+client/src/components/board-quest/BoardScene.ts(31,26): error TS2802: Type 'Map<number, { r: number; label: string; color: number; temple?: boolean | undefined; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/board-quest/BoardScene.ts(71,416): error TS18047: 'introPlayer' is possibly 'null'.
+client/src/game/build/build.ts(367,23): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(253,33): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(627,27): error TS2802: Type 'Map<number, Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(827,67): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(947,21): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(962,21): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(1005,25): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(1180,21): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/models.ts(173,25): error TS2802: Type 'ArrayIterator<[number, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/venues.ts(592,30): error TS2802: Type 'Map<string, Group<Object3DEventMap>>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/smash/smash.ts(502,29): error TS2802: Type 'Map<Mat, InstancedMesh<BufferGeometry<NormalBufferAttributes, BufferGeometryEventMap>, Material | Material[], InstancedMeshEventMap>>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/lib/halloread.ts(164,25): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(iterable: Iterable<string> | ArrayLike<string>): string[]', gave the following error.
+    Argument of type 'string | null | undefined' is not assignable to parameter of type 'Iterable<string> | ArrayLike<string>'.
+      Type 'undefined' is not assignable to type 'Iterable<string> | ArrayLike<string>'.
+  Overload 2 of 4, '(arrayLike: ArrayLike<string>): string[]', gave the following error.
+    Argument of type 'string | null | undefined' is not assignable to parameter of type 'ArrayLike<string>'.
+      Type 'undefined' is not assignable to type 'ArrayLike<string>'.
+client/src/pages/ARISECity.tsx(941,23): error TS2339: Property 'id' does not exist on type 'never'.
+client/src/pages/ARISECity.tsx(961,21): error TS2339: Property 'name' does not exist on type 'never'.
+client/src/pages/CoursePage.tsx(5,36): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+client/src/pages/CoursePage.tsx(70,78): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/CustomEyeGazeQuiz.tsx(173,24): error TS2339: Property 'visual' does not exist on type 'CustomQuestion'.
+client/src/pages/CustomEyeGazeQuiz.tsx(278,45): error TS18047: 'quiz' is possibly 'null'.
+client/src/pages/CustomEyeGazeQuiz.tsx(512,32): error TS2339: Property 'visual' does not exist on type 'CustomQuestion'.
+client/src/pages/EyeGazeFarmWorld.tsx(634,24): error TS2339: Property 'canRoam' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(635,14): error TS2339: Property 'foodTarget' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(636,14): error TS2339: Property 'target' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(637,14): error TS2339: Property 'pausedUntil' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(638,52): error TS2339: Property 'def' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(640,25): error TS2339: Property 'def' does not exist on type 'never'.
+client/src/pages/EyeGazeMyWorld.tsx(342,11): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; "X-My-World-Label": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; "X-My-World-Label": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'undefined'.
+client/src/pages/EyeGazeMyWorld.tsx(370,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+client/src/pages/EyeGazeMyWorld.tsx(678,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+client/src/pages/EyeGazePottyCoach.tsx(102,20): error TS2802: Type 'MapIterator<[number, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/Games.tsx(114,22): error TS1261: Already included file name '/tmp/base/client/src/pages/AriseCity.tsx' differs from file name '/tmp/base/client/src/pages/ARISECity.tsx' only in casing.
+  The file is in the program because:
+    Imported via "./AriseCity" from file '/tmp/base/client/src/pages/Games.tsx'
+    Imported via "./pages/AriseCity" from file '/tmp/base/client/src/App.tsx'
+    Matched by include pattern 'client/src/**/*' in 'tsconfig.ci.json'
+    Matched by include pattern 'client/src/**/*' in 'tsconfig.ci.json'
+client/src/pages/Games.tsx(230,16): error TS2802: Type 'Set<WorldId>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/Games.tsx(230,56): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<WorldId, World>'.
+client/src/pages/Library.tsx(1315,68): error TS2540: Cannot assign to 'current' because it is a read-only property.
+client/src/pages/Library.tsx(2172,44): error TS2339: Property 'passed' does not exist on type 'QuizResult'.
+client/src/pages/Library.tsx(2455,44): error TS2339: Property 'passed' does not exist on type 'QuizResult'.
+client/src/pages/Profile.tsx(263,13): error TS2461: Type 'unknown' is not an array type.
+client/src/pages/QuizBuilder.tsx(313,1): error TS2322: Type '{ children: string; n: true; type: "button"; onClick: () => void; style: { flex: number; padding: string; borderRadius: string; border: string; background: string; color: "hsl(21 100% 50%)" | "hsl(0 0% 66%)"; cursor: "pointer"; fontWeight: number; fontSize: string; }; }' is not assignable to type 'DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>'.
+  Property 'n' does not exist on type 'DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>'.
+client/src/pages/StudentProfileView.tsx(190,69): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"camera"' have no overlap.
+client/src/pages/StudentProfileView.tsx(191,28): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"paper"' have no overlap.
+client/src/pages/StudentProfileView.tsx(191,90): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"camera"' have no overlap.
+client/src/pages/StudentProfileView.tsx(192,45): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"camera"' have no overlap.
+client/src/pages/TeacherDashboard.tsx(663,933): error TS2345: Argument of type 'Student' is not assignable to parameter of type 'SetStateAction<AllStudent | null>'.
+  Type 'Student' is missing the following properties from type 'AllStudent': createdAt, quizzesMastered
+client/src/pages/UltimateChess.tsx(159,68): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/arBookfinder.ts(105,14): error TS2802: Type 'MapIterator<[string, string]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/arBookfinder.ts(188,21): error TS2802: Type 'MapIterator<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/arBookfinder.ts(239,33): error TS2802: Type 'Map<number, number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/arBookfinder.ts(272,22): error TS2802: Type 'MapIterator<any[]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseNews.ts(22,26): error TS2322: Type 'Promise<({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined)[]>' is not assignable to type 'Promise<{ id: number; title: string; author: string; }[]>'.
+  Type '({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined)[]' is not assignable to type '{ id: number; title: string; author: string; }[]'.
+    Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+      Type 'undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+server/ariseNews.ts(23,42): error TS2322: Type 'Promise<{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined>' is not assignable to type 'Promise<{ id: number; }>'.
+  Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined' is not assignable to type '{ id: number; }'.
+    Type 'undefined' is not assignable to type '{ id: number; }'.
+server/chessArena.ts(218,21): error TS2802: Type 'MapIterator<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/chessArena.ts(218,82): error TS2802: Type 'MapIterator<{ userId: number; wins: number; draws: number; losses: number; games: number; points: number; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/clubPlay.ts(353,9): error TS2322: Type 'unknown[]' is not assignable to type 'number[]'.
+  Type 'unknown' is not assignable to type 'number'.
+server/clubPlay.ts(353,53): error TS18046: 'a' is of type 'unknown'.
+server/clubPlay.ts(353,55): error TS18046: 'b' is of type 'unknown'.
+server/clubPlay.ts(397,84): error TS2322: Type 'unknown[]' is not assignable to type 'number[]'.
+  Type 'unknown' is not assignable to type 'number'.
+server/clubPlay.ts(397,127): error TS18046: 'a' is of type 'unknown'.
+server/clubPlay.ts(397,129): error TS18046: 'b' is of type 'unknown'.
+server/clubPlay.ts(431,9): error TS2322: Type 'unknown[]' is not assignable to type 'number[]'.
+  Type 'unknown' is not assignable to type 'number'.
+server/clubPlay.ts(431,53): error TS18046: 'a' is of type 'unknown'.
+server/clubPlay.ts(431,55): error TS18046: 'b' is of type 'unknown'.
+server/independentTransfer.ts(72,20): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/independentTransfer.ts(95,23): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/plans.ts(170,57): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/plans.ts(187,57): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/plans.ts(493,23): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/quizIntegrity.ts(334,40): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/quizIntegrity.ts(334,101): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/readsSync.ts(21,26): error TS2322: Type 'Promise<({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined)[]>' is not assignable to type 'Promise<{ id: number; title: string; author: string; }[]>'.
+  Type '({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined)[]' is not assignable to type '{ id: number; title: string; author: string; }[]'.
+    Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+      Type 'undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+server/readsSync.ts(34,42): error TS2322: Type 'Promise<{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined>' is not assignable to type 'Promise<{ id: number; }>'.
+  Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; arQuizNumber: any; arBookLevel: number | null; arWordCount: any; arPoints: number | null; arMatchStatus: any; arSourceUrl: any; arVerifiedAt: any; } | undefined' is not assignable to type '{ id: number; }'.
+    Type 'undefined' is not assignable to type '{ id: number; }'.
+server/routes.ts(714,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(715,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(716,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(717,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(1573,27): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1595,28): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1603,21): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1604,23): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1605,26): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1642,51): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1644,16): error TS18048: 'session' is possibly 'undefined'.
+server/routes.ts(1645,21): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,40): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,68): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,95): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,127): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,156): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,178): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,213): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,254): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,286): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1645,315): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1993,16): error TS18048: 'session' is possibly 'undefined'.
+server/routes.ts(2265,45): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(2269,29): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(2270,30): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(2315,41): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(2606,45): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(2609,32): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2610,43): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2611,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2613,17): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2619,16): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2620,16): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2621,23): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2624,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2625,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2626,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(2627,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3181,37): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3181,75): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3276,13): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3276,53): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3278,26): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(3598,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(3601,34): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3602,45): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3603,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3605,19): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3611,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3612,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3613,25): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3616,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3620,98): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3800,11): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(3800,48): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(3800,54): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(3803,40): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3804,36): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3804,73): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/routes.ts(3804,78): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/routes.ts(3805,47): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/routes.ts(3806,27): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3806,57): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3808,13): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3809,19): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3810,22): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3811,20): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3815,28): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(3816,20): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4684,60): error TS2345: Argument of type 'string | ParsedQs | (string | ParsedQs)[]' is not assignable to parameter of type 'string'.
+  Type 'ParsedQs' is not assignable to type 'string'.
+server/routes.ts(5029,26): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5033,74): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5370,58): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(5378,50): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(5378,101): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(5381,49): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(5381,99): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(5839,30): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(5908,28): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5920,30): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5928,32): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5935,32): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(6426,28): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6434,65): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6466,35): error TS2339: Property 'user' does not exist on type 'Request<{ attemptId: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6488,59): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6498,62): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6508,64): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6518,16): error TS2339: Property 'user' does not exist on type 'Request<{ id: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6531,16): error TS2339: Property 'user' does not exist on type 'Request<{ id: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6617,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6629,67): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6638,49): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6651,54): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6704,85): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6730,73): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(6744,71): error TS2339: Property 'user' does not exist on type 'Request<{ id: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8075,43): error TS2802: Type 'MapIterator<[string, { audio: Buffer; lastUsed: number; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(8275,21): error TS2339: Property 'saveSetting' does not exist on type 'DatabaseStorage'.
+server/routes.ts(8446,46): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8462,63): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8466,21): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8565,15): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8565,47): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8620,15): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8620,47): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8866,25): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(9145,17): error TS7006: Parameter 'label' implicitly has an 'any' type.
+server/routes.ts(9522,113): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(9526,91): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(9530,101): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(9535,32): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(9535,57): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(9742,13): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(9742,50): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(9742,56): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(9801,13): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(9801,50): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(9801,56): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(9920,65): error TS2339: Property 'message' does not exist on type '{ ok: boolean; message?: string | undefined; } | { ok: boolean; }'.
+  Property 'message' does not exist on type '{ ok: boolean; }'.
+server/routes.ts(9955,30): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(10004,28): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(10167,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(10169,34): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10170,45): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10171,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10173,19): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10179,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10180,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10181,25): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10184,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10185,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10186,26): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10187,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10191,97): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10257,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(10260,47): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10261,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10264,36): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10266,21): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10268,27): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10269,26): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10465,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(10467,34): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10468,45): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10469,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10471,19): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10477,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10478,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10479,25): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10482,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10483,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10484,26): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10485,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10488,97): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(10775,76): error TS18046: 'createErr' is of type 'unknown'.
+server/routes.ts(10777,57): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10777,81): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10777,100): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10777,128): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10777,153): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10780,13): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10782,13): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10784,46): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10973,29): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(11201,25): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12277,25): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12344,33): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12345,20): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12346,39): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12347,43): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12442,27): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12566,49): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(12571,29): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12572,30): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(12618,41): error TS18048: 'book' is possibly 'undefined'.
+server/schoolDirectory.ts(53,19): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/schoolDirectory.ts(65,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/schoolDirectory.ts(246,23): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(67,21): error TS2802: Type 'MapIterator<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(1155,9): error TS18047: 'schools' is possibly 'null'.
+server/storage.ts(1158,26): error TS18047: 'schools' is possibly 'null'.
+server/storage.ts(1189,9): error TS18047: 'classes' is possibly 'null'.
+server/storage.ts(1192,23): error TS18047: 'classes' is possibly 'null'.
+server/storage.ts(1527,61): error TS18048: 'a' is possibly 'undefined'.
+server/storage.ts(1527,96): error TS18048: 'a' is possibly 'undefined'.
+server/storage.ts(1529,44): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1529,96): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1530,42): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1530,96): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1530,105): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1531,50): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1531,93): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1881,16): error TS2339: Property 'sendMessage' does not exist on type 'DatabaseStorage'.
+server/storage.ts(2823,24): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/studentActivity.ts(60,88): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/studentActivity.ts(61,91): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/supabase.ts(19,5): error TS2322: Type 'typeof WebSocket' is not assignable to type 'WebSocketLikeConstructor'.
+  Types of parameters 'address' and 'address' are incompatible.
+    Type 'string | URL' is not assignable to type 'null'.
+      Type 'string' is not assignable to type 'null'.
+shared/arcade/games/learning.ts(136,46): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/arcade/games/logic.ts(141,33): error TS2802: Type 'MapIterator<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/arcade/games/seabattle.ts(138,21): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/city/navigate.ts(34,21): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/city/navigate.ts(50,27): error TS2802: Type 'Map<number, { to: number; d: number; }[]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/city/navigate.ts(87,26): error TS2802: Type 'Map<number, number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/schoolNames.ts(44,14): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/schoolNames.ts(82,70): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/schoolNames.ts(85,32): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+exit=2

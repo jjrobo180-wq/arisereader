@@ -1,0 +1,220 @@
+
+> rest-express@1.0.0 build
+> tsx script/addLeaderboardPrint.ts && tsx script/enforceQuizPolicy.ts && tsx script/build.ts
+
+[leaderboard-print] already installed
+[quiz-policy] verified: 70%+ earns the book's full point value across API, persistence, and UI.
+building client...
+[36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 2636 modules transformed.
+rendering chunks...
+computing gzip size...
+[2m../dist/public/[22m[32mindex.html                                  [39m[1m[2m  3.89 kB[22m[1m[22m[2m │ gzip:   1.35 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mBilling-BptUYueT.css                 [39m[1m[2m  2.51 kB[22m[1m[22m[2m │ gzip:   0.88 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mBuildZone-t8iRATrB.css               [39m[1m[2m  3.35 kB[22m[1m[22m[2m │ gzip:   1.19 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mplay-BUbGr3xf.css                    [39m[1m[2m  4.39 kB[22m[1m[22m[2m │ gzip:   1.39 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mpricing-DPb3jgl3.css                 [39m[1m[2m  7.52 kB[22m[1m[22m[2m │ gzip:   2.12 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mPrizeBoard-B1witNKM.css              [39m[1m[2m  7.54 kB[22m[1m[22m[2m │ gzip:   2.00 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mreads-D9e25hHH.css                   [39m[1m[2m  9.75 kB[22m[1m[22m[2m │ gzip:   2.72 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mPlayTimeManager-_zn8eAix.css         [39m[1m[2m 10.39 kB[22m[1m[22m[2m │ gzip:   2.61 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mQuiz-C4n1vyBY.css                    [39m[1m[2m 11.82 kB[22m[1m[22m[2m │ gzip:   3.01 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mnews-B9QRGqHw.css                    [39m[1m[2m 11.90 kB[22m[1m[22m[2m │ gzip:   3.22 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mAriseCity-2LP7ju8m.css               [39m[1m[2m 17.61 kB[22m[1m[22m[2m │ gzip:   4.14 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mBoardGameWorld-rvoGLbH4.css          [39m[1m[2m 25.88 kB[22m[1m[22m[2m │ gzip:   6.32 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mStudySquad-CImL6ZUB.css              [39m[1m[2m 27.37 kB[22m[1m[22m[2m │ gzip:   6.30 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mUltimateChess-8ai_O4f-.css           [39m[1m[2m 28.17 kB[22m[1m[22m[2m │ gzip:   6.97 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mGames-Cmwl5mv4.css                   [39m[1m[2m 54.98 kB[22m[1m[22m[2m │ gzip:  12.63 kB[22m
+[2m../dist/public/[22m[2massets/[22m[35mindex-oO-w6BKj.css                   [39m[1m[2m315.67 kB[22m[1m[22m[2m │ gzip:  44.45 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mplay-BeZDf_1a.js                     [39m[1m[2m  0.13 kB[22m[1m[22m[2m │ gzip:   0.15 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mloader-circle-DSq0apAF.js            [39m[1m[2m  0.14 kB[22m[1m[22m[2m │ gzip:   0.15 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mplus-ljuaCiYW.js                     [39m[1m[2m  0.15 kB[22m[1m[22m[2m │ gzip:   0.15 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36marrow-up-DTbsdA-F.js                 [39m[1m[2m  0.16 kB[22m[1m[22m[2m │ gzip:   0.16 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mbookmark-BAnHO_MQ.js                 [39m[1m[2m  0.16 kB[22m[1m[22m[2m │ gzip:   0.16 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mgauge-Biy1wDoW.js                    [39m[1m[2m  0.17 kB[22m[1m[22m[2m │ gzip:   0.17 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mmessage-square-BZIvPFhF.js           [39m[1m[2m  0.18 kB[22m[1m[22m[2m │ gzip:   0.17 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mclock-BsIGIHl-.js                    [39m[1m[2m  0.18 kB[22m[1m[22m[2m │ gzip:   0.17 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36muser-CozrcAFB.js                     [39m[1m[2m  0.19 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mrotate-ccw-B6i_-sNK.js               [39m[1m[2m  0.20 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mtrending-up-BudSuLSF.js              [39m[1m[2m  0.20 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mlock-QO3WHSmO.js                     [39m[1m[2m  0.20 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcircle-x-BUjZVCog.js                 [39m[1m[2m  0.20 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcircle-plus-Dk2Izdem.js              [39m[1m[2m  0.20 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mundo-2-PQBeqngV.js                   [39m[1m[2m  0.20 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mbell-CN71Jy-Y.js                     [39m[1m[2m  0.21 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mlock-open-C1JQKaij.js                [39m[1m[2m  0.21 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mstar-BmA8-Wwb.js                     [39m[1m[2m  0.21 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mpause-jj16W1Qo.js                    [39m[1m[2m  0.21 kB[22m[1m[22m[2m │ gzip:   0.16 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mgem-PZeSZx5b.js                      [39m[1m[2m  0.21 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mflag-Cq7tEMSY.js                     [39m[1m[2m  0.22 kB[22m[1m[22m[2m │ gzip:   0.20 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mellipsis-vertical-Bs_oBqzm.js        [39m[1m[2m  0.23 kB[22m[1m[22m[2m │ gzip:   0.17 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mheadphones-7WDf6pWI.js               [39m[1m[2m  0.23 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcircle-help-B-FE0wzq.js              [39m[1m[2m  0.24 kB[22m[1m[22m[2m │ gzip:   0.20 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mtimer-BhCUli9E.js                    [39m[1m[2m  0.24 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcamera-BDwhvAdB.js                   [39m[1m[2m  0.25 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcircle-alert-Iw0Ujy6e.js             [39m[1m[2m  0.25 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mchart-column-A38zhVp3.js             [39m[1m[2m  0.25 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mmessage-square-plus-vAAI4LvS.js      [39m[1m[2m  0.25 kB[22m[1m[22m[2m │ gzip:   0.20 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcalendar-DodPMgLd.js                 [39m[1m[2m  0.25 kB[22m[1m[22m[2m │ gzip:   0.20 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mmap-pin-Dr5mgGIP.js                  [39m[1m[2m  0.26 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mtriangle-alert-jFVMks0z.js           [39m[1m[2m  0.26 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mimage-dB2n3Q-9.js                    [39m[1m[2m  0.27 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mbook-plus-C8TxrLZH.js                [39m[1m[2m  0.27 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mshield-BnoBRGwx.js                   [39m[1m[2m  0.27 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mfile-question-KiIsv_tO.js            [39m[1m[2m  0.27 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mflame-CRF-0LwP.js                    [39m[1m[2m  0.28 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36minbox-Dy6e0iRO.js                    [39m[1m[2m  0.28 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mlightbulb-BxF3PDq4.js                [39m[1m[2m  0.28 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mmaximize-2-ByItOAoM.js               [39m[1m[2m  0.30 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mclipboard-check-C1NjZZkx.js          [39m[1m[2m  0.30 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mrefresh-cw-DIEKIFUC.js               [39m[1m[2m  0.32 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mmove-BT8eP3Ix.js                     [39m[1m[2m  0.32 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mfile-search-BmrERTrF.js              [39m[1m[2m  0.32 kB[22m[1m[22m[2m │ gzip:   0.24 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36msave-DaKN9Le6.js                     [39m[1m[2m  0.32 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mmonitor-play-CBb3aAg2.js             [39m[1m[2m  0.35 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mgift-C6jnjWtJ.js                     [39m[1m[2m  0.35 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mshare-2-BYU44qFU.js                  [39m[1m[2m  0.35 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mtrash-2-wJWXpOTk.js                  [39m[1m[2m  0.35 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcrown-BnyTv61I.js                    [39m[1m[2m  0.36 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mimage-plus-lAQkwZCx.js               [39m[1m[2m  0.36 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mdoor-open-CRtTWqxb.js                [39m[1m[2m  0.37 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mradio-CeNeFevH.js                    [39m[1m[2m  0.37 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeBuddy-BBOBKWiS.js             [39m[1m[2m  0.37 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mvolume-x-Bw6hV377.js                 [39m[1m[2m  0.39 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mhand-CxNfCUWn.js                     [39m[1m[2m  0.40 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mclipboard-list-6kfBvorh.js           [39m[1m[2m  0.41 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mmedal-7WNJw5gB.js                    [39m[1m[2m  0.43 kB[22m[1m[22m[2m │ gzip:   0.28 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mwifi-off-BWGA9aRd.js                 [39m[1m[2m  0.46 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mtextarea-Bc-dHyJe.js                 [39m[1m[2m  0.50 kB[22m[1m[22m[2m │ gzip:   0.33 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mindex-CEYdWexl.js                    [39m[1m[2m  0.50 kB[22m[1m[22m[2m │ gzip:   0.34 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mwand-sparkles-D2z9TTYz.js            [39m[1m[2m  0.51 kB[22m[1m[22m[2m │ gzip:   0.29 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mplans-CwBIweZB.js                    [39m[1m[2m  0.59 kB[22m[1m[22m[2m │ gzip:   0.33 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36msettings-SZjj2BBC.js                 [39m[1m[2m  0.72 kB[22m[1m[22m[2m │ gzip:   0.34 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mparty-popper-DOzfdZNy.js             [39m[1m[2m  0.73 kB[22m[1m[22m[2m │ gzip:   0.41 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mbrain-BVIOqEz3.js                    [39m[1m[2m  0.73 kB[22m[1m[22m[2m │ gzip:   0.35 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mStandaloneGame-80nuvKZ9.js           [39m[1m[2m  0.81 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mplay-5mo2Lshd.js                     [39m[1m[2m  0.95 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mquizCheck-eqKqyV1m.js                [39m[1m[2m  1.06 kB[22m[1m[22m[2m │ gzip:   0.68 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mworldModels-il8MnMuv.js              [39m[1m[2m  1.17 kB[22m[1m[22m[2m │ gzip:   0.69 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mARISECityComingLater-BAh6yb3e.js     [39m[1m[2m  1.40 kB[22m[1m[22m[2m │ gzip:   0.71 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mboardQuest-BXSVoU22.js               [39m[1m[2m  1.66 kB[22m[1m[22m[2m │ gzip:   0.92 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mRoundedBoxGeometry-CajqHoxH.js       [39m[1m[2m  1.75 kB[22m[1m[22m[2m │ gzip:   0.83 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36museReads-C1JyStfc.js                 [39m[1m[2m  1.89 kB[22m[1m[22m[2m │ gzip:   1.00 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mRoomEnvironment-CmS73vtM.js          [39m[1m[2m  2.05 kB[22m[1m[22m[2m │ gzip:   0.88 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mWorldLoadingOverlay-4zftn3Ea.js      [39m[1m[2m  2.08 kB[22m[1m[22m[2m │ gzip:   0.82 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeLifeSkills-D8aGrGuO.js        [39m[1m[2m  2.37 kB[22m[1m[22m[2m │ gzip:   1.01 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mhomes-C_jo1X2s.js                    [39m[1m[2m  2.58 kB[22m[1m[22m[2m │ gzip:   1.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mclubTheater-DNweArzn.js              [39m[1m[2m  2.60 kB[22m[1m[22m[2m │ gzip:   1.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mMobileJoystick-Bn5P7rEP.js           [39m[1m[2m  2.71 kB[22m[1m[22m[2m │ gzip:   1.13 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36msets-4f62gF_N.js                     [39m[1m[2m  3.35 kB[22m[1m[22m[2m │ gzip:   1.48 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mPrizeBoard-DbkXpX56.js               [39m[1m[2m  3.45 kB[22m[1m[22m[2m │ gzip:   1.63 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mavatarCharacters-BDfp4uwE.js         [39m[1m[2m  3.59 kB[22m[1m[22m[2m │ gzip:   1.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mStudentCertificates-Ch74LpXw.js      [39m[1m[2m  3.69 kB[22m[1m[22m[2m │ gzip:   1.47 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mFypSharePage-S2_Z9Fc7.js             [39m[1m[2m  4.16 kB[22m[1m[22m[2m │ gzip:   1.41 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mindex-C6yU3d3C.js                    [39m[1m[2m  4.28 kB[22m[1m[22m[2m │ gzip:   1.93 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mBookAccessLinks-BDahPy27.js          [39m[1m[2m  4.64 kB[22m[1m[22m[2m │ gzip:   1.68 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mStudentMessages-CEv_jJEj.js          [39m[1m[2m  4.80 kB[22m[1m[22m[2m │ gzip:   1.92 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mBufferGeometryUtils-PCMw_VaK.js      [39m[1m[2m  4.89 kB[22m[1m[22m[2m │ gzip:   1.49 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mAriseNews-7GVMCkcw.js                [39m[1m[2m  4.93 kB[22m[1m[22m[2m │ gzip:   1.66 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mPoemReader-BTqt-pEB.js               [39m[1m[2m  5.12 kB[22m[1m[22m[2m │ gzip:   2.00 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mReadBook-BCB-EhxP.js                 [39m[1m[2m  5.16 kB[22m[1m[22m[2m │ gzip:   1.93 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mFypMyBooksPage-D7Dbt2nW.js           [39m[1m[2m  5.48 kB[22m[1m[22m[2m │ gzip:   1.88 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeProgress-B5KWMX6H.js          [39m[1m[2m  5.48 kB[22m[1m[22m[2m │ gzip:   1.86 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mBookReader-BP-pZ4EM.js               [39m[1m[2m  5.59 kB[22m[1m[22m[2m │ gzip:   2.33 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mCoursePage-BbNkp7d4.js               [39m[1m[2m  5.61 kB[22m[1m[22m[2m │ gzip:   1.96 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mtts-74RGm1VD.js                      [39m[1m[2m  5.89 kB[22m[1m[22m[2m │ gzip:   2.41 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeHome-fQfbQpXE.js              [39m[1m[2m  5.96 kB[22m[1m[22m[2m │ gzip:   2.08 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mworldAvatar-CaBF94KE.js              [39m[1m[2m  6.02 kB[22m[1m[22m[2m │ gzip:   2.74 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mradio-group-FyBq6cyz.js              [39m[1m[2m  6.08 kB[22m[1m[22m[2m │ gzip:   2.42 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mparentInvites-DiNYp3SC.js            [39m[1m[2m  6.09 kB[22m[1m[22m[2m │ gzip:   1.81 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mNewsArticle-DIIOT9x5.js              [39m[1m[2m  6.26 kB[22m[1m[22m[2m │ gzip:   2.37 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mQuizGeneratingOverlay-C8YHWi1p.js    [39m[1m[2m  7.01 kB[22m[1m[22m[2m │ gzip:   2.39 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mStudentProfileView-ObI09ATI.js       [39m[1m[2m  7.04 kB[22m[1m[22m[2m │ gzip:   2.24 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mReadingClub-0pxbmDk7.js              [39m[1m[2m  7.60 kB[22m[1m[22m[2m │ gzip:   1.85 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeLessons-Bzhv9coa.js           [39m[1m[2m  8.54 kB[22m[1m[22m[2m │ gzip:   2.74 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mcertificate-CVGwxiJc.js              [39m[1m[2m  8.68 kB[22m[1m[22m[2m │ gzip:   2.30 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mPrizeManager-1waUaHik.js             [39m[1m[2m  8.68 kB[22m[1m[22m[2m │ gzip:   3.07 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mStudentSceneLive-BTEFDScn.js         [39m[1m[2m  8.92 kB[22m[1m[22m[2m │ gzip:   3.38 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mPolls-neXSpwzA.js                    [39m[1m[2m  9.34 kB[22m[1m[22m[2m │ gzip:   3.34 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mBilling-D5SYf4av.js                  [39m[1m[2m 10.01 kB[22m[1m[22m[2m │ gzip:   3.48 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mStudentProgress-CkeNOaci.js          [39m[1m[2m 10.23 kB[22m[1m[22m[2m │ gzip:   2.99 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mNotificationBell-DaipMslX.js         [39m[1m[2m 11.54 kB[22m[1m[22m[2m │ gzip:   4.26 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mParentArise2-CfxpztAj.js             [39m[1m[2m 11.57 kB[22m[1m[22m[2m │ gzip:   3.50 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeTV-Cjp2QE-R.js                [39m[1m[2m 11.97 kB[22m[1m[22m[2m │ gzip:   4.27 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mreadsCatalog-qhr_gpFZ.js             [39m[1m[2m 12.47 kB[22m[1m[22m[2m │ gzip:   3.52 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mPricing-BeGT8QUJ.js                  [39m[1m[2m 13.17 kB[22m[1m[22m[2m │ gzip:   4.01 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mTeacherArise2-BN7XK6WB.js            [39m[1m[2m 13.17 kB[22m[1m[22m[2m │ gzip:   4.28 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mReadHub-DYM4H_tL.js                  [39m[1m[2m 13.68 kB[22m[1m[22m[2m │ gzip:   4.65 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mQuizBuilder-wSx9qcaF.js              [39m[1m[2m 13.89 kB[22m[1m[22m[2m │ gzip:   3.84 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeFlashcards-BUptZQFP.js        [39m[1m[2m 14.22 kB[22m[1m[22m[2m │ gzip:   4.65 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeProfileDashboard-Bt315ScX.js  [39m[1m[2m 14.26 kB[22m[1m[22m[2m │ gzip:   4.35 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mCelebration-BAoKLkxl.js              [39m[1m[2m 14.51 kB[22m[1m[22m[2m │ gzip:   5.52 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeParentControls-DTlIolFJ.js    [39m[1m[2m 14.76 kB[22m[1m[22m[2m │ gzip:   4.57 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mAbout-Cp6O9rXN.js                    [39m[1m[2m 14.93 kB[22m[1m[22m[2m │ gzip:   4.67 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mLeaderboardPage-Dg8ashnN.js          [39m[1m[2m 15.11 kB[22m[1m[22m[2m │ gzip:   4.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mscene-CjLYCJu8.js                    [39m[1m[2m 18.12 kB[22m[1m[22m[2m │ gzip:   7.38 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mOutputPass-D9sexwqe.js               [39m[1m[2m 18.50 kB[22m[1m[22m[2m │ gzip:   4.43 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeAccount-Cc3UwWk9.js           [39m[1m[2m 18.50 kB[22m[1m[22m[2m │ gzip:   5.00 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mCompetition-hRi1mk0R.js              [39m[1m[2m 18.99 kB[22m[1m[22m[2m │ gzip:   4.39 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mOrbitControls-DEgtEjsq.js            [39m[1m[2m 19.14 kB[22m[1m[22m[2m │ gzip:   4.36 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mCustomEyeGazeQuiz-a2Lj0X1l.js        [39m[1m[2m 19.63 kB[22m[1m[22m[2m │ gzip:   5.94 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeQuiz-D35PFs4s.js              [39m[1m[2m 20.74 kB[22m[1m[22m[2m │ gzip:   6.23 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mPlayTimeManager-DEwLItPG.js          [39m[1m[2m 20.92 kB[22m[1m[22m[2m │ gzip:   7.07 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mGrowthCheck-8iD7oSF7.js              [39m[1m[2m 22.06 kB[22m[1m[22m[2m │ gzip:   5.28 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeBuddyWorld-C_A3gv1p.js        [39m[1m[2m 22.18 kB[22m[1m[22m[2m │ gzip:   6.85 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazePottyCoach-BfJML7Dv.js        [39m[1m[2m 22.27 kB[22m[1m[22m[2m │ gzip:   6.87 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mTeacherScenes-DRUoaQPo.js            [39m[1m[2m 23.56 kB[22m[1m[22m[2m │ gzip:   6.42 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mdialog-BI8CBgNY.js                   [39m[1m[2m 23.60 kB[22m[1m[22m[2m │ gzip:   8.59 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mFypPage-DWOkTuPJ.js                  [39m[1m[2m 23.72 kB[22m[1m[22m[2m │ gzip:   6.27 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mUltimateChess-CjdwBrwO.js            [39m[1m[2m 24.43 kB[22m[1m[22m[2m │ gzip:   8.63 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeFarmWorld-CnYsQcPe.js         [39m[1m[2m 25.00 kB[22m[1m[22m[2m │ gzip:   9.41 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mReportProblemButton-Bx9qwrcR.js      [39m[1m[2m 25.11 kB[22m[1m[22m[2m │ gzip:   8.75 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mParentDashboard-Igm-7TVl.js          [39m[1m[2m 25.18 kB[22m[1m[22m[2m │ gzip:   6.92 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeParentMode-DP3NDBLF.js        [39m[1m[2m 25.78 kB[22m[1m[22m[2m │ gzip:   7.13 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36museNews-CaIpXxgo.js                  [39m[1m[2m 28.04 kB[22m[1m[22m[2m │ gzip:  10.44 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mBuildZone-e3HxcZtp.js                [39m[1m[2m 29.68 kB[22m[1m[22m[2m │ gzip:  10.97 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mSmashRoom-C5XRY-qR.js                [39m[1m[2m 30.23 kB[22m[1m[22m[2m │ gzip:  11.20 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mProfile-DwkH6Rqn.js                  [39m[1m[2m 30.35 kB[22m[1m[22m[2m │ gzip:   8.35 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mReadingLevelUp-VytgsD1M.js           [39m[1m[2m 30.48 kB[22m[1m[22m[2m │ gzip:   9.24 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mReadingAssessment-Bn9y31KE.js        [39m[1m[2m 32.92 kB[22m[1m[22m[2m │ gzip:   7.77 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mClubTheater-D12PD21L.js              [39m[1m[2m 34.43 kB[22m[1m[22m[2m │ gzip:  12.25 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mMidnightMystery-DGPaDdXo.js          [39m[1m[2m 34.55 kB[22m[1m[22m[2m │ gzip:  11.29 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeFidgetLab-DqLY-KhY.js         [39m[1m[2m 34.97 kB[22m[1m[22m[2m │ gzip:  10.37 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mHomeInterior-DjDX8V3h.js             [39m[1m[2m 35.21 kB[22m[1m[22m[2m │ gzip:  13.70 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mLiveQuiz-Bpw2zXju.js                 [39m[1m[2m 36.54 kB[22m[1m[22m[2m │ gzip:   9.89 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mAvatarWorld-DsUxFKIC.js              [39m[1m[2m 39.71 kB[22m[1m[22m[2m │ gzip:  11.70 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mQuiz-BAlWPpGj.js                     [39m[1m[2m 42.17 kB[22m[1m[22m[2m │ gzip:  12.49 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mTeacherDashboard-BgkOK1IB.js         [39m[1m[2m 42.88 kB[22m[1m[22m[2m │ gzip:  10.87 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeMyWorld-Dbbv5P8P.js           [39m[1m[2m 43.40 kB[22m[1m[22m[2m │ gzip:  12.30 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mGLTFLoader-gvDH8uL0.js               [39m[1m[2m 43.91 kB[22m[1m[22m[2m │ gzip:  12.95 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mpoems-CskMuM2d.js                    [39m[1m[2m 46.76 kB[22m[1m[22m[2m │ gzip:  17.93 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mStudySquad-B2QC0Iil.js               [39m[1m[2m 54.11 kB[22m[1m[22m[2m │ gzip:  17.11 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mPaintballArena-BU1iFHeV.js           [39m[1m[2m 58.89 kB[22m[1m[22m[2m │ gzip:  17.98 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mAuroraRally-CMql7-vw.js              [39m[1m[2m 61.75 kB[22m[1m[22m[2m │ gzip:  18.90 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeTalker-Dy2hZWaP.js            [39m[1m[2m 65.94 kB[22m[1m[22m[2m │ gzip:  17.79 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mBoardGameWorld-Clho_IXq.js           [39m[1m[2m 66.91 kB[22m[1m[22m[2m │ gzip:  24.10 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mrace-Dk8LP75J.js                     [39m[1m[2m 73.81 kB[22m[1m[22m[2m │ gzip:  26.71 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mariseNews-BRdKa-uu.js                [39m[1m[2m 75.44 kB[22m[1m[22m[2m │ gzip:  27.40 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mEyeGazeGames-CZqJwJyI.js             [39m[1m[2m100.23 kB[22m[1m[22m[2m │ gzip:  26.89 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mTutorial-C7rZyu85.js                 [39m[1m[2m100.37 kB[22m[1m[22m[2m │ gzip:  22.44 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mgame-KGXGxlFl.js                     [39m[1m[2m107.87 kB[22m[1m[22m[2m │ gzip:  37.27 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mLibrary-SgEP0N1z.js                  [39m[1m[2m115.83 kB[22m[1m[22m[2m │ gzip:  25.39 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mSkyboundSprint-1Ej9fh2c.js           [39m[1m[2m121.76 kB[22m[1m[22m[2m │ gzip:  41.18 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mAriseCity-ByLlaqpM.js                [39m[1m[2m202.56 kB[22m[1m[22m[2m │ gzip:  72.50 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mGames-Byie2w4u.js                    [39m[1m[2m215.90 kB[22m[1m[22m[2m │ gzip:  69.37 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mAdmin-V_NuhaiU.js                    [39m[1m[2m267.35 kB[22m[1m[22m[2m │ gzip:  66.60 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mthree.module-Crulq332.js             [39m[1m[2m324.34 kB[22m[1m[22m[2m │ gzip:  78.46 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mAdminStats-DfvtQhUI.js               [39m[1m[2m444.80 kB[22m[1m[22m[2m │ gzip: 120.82 kB[22m
+[2m../dist/public/[22m[2massets/[22m[36mindex-DCgQ9nX5.js                    [39m[1m[33m765.42 kB[39m[22m[2m │ gzip: 230.61 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 13.45s[39m
+building server...
+
+  dist/index.cjs  8.2mb ⚠️
+
+⚡ Done in 550ms
+exit=0

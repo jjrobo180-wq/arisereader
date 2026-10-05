@@ -1,0 +1,2124 @@
+TAP version 13
+# Subtest: settings default to every alert on, by email and in the bell, sent to the admin's address
+ok 1 - settings default to every alert on, by email and in the bell, sent to the admin's address
+  ---
+  duration_ms: 3.538958
+  type: 'test'
+  ...
+# Subtest: saved settings are cleaned up: bad emails dropped, limits clamped, unknown events ignored
+ok 2 - saved settings are cleaned up: bad emails dropped, limits clamped, unknown events ignored
+  ---
+  duration_ms: 0.506403
+  type: 'test'
+  ...
+# Subtest: an alert makes a notification for every admin and sends one email
+ok 3 - an alert makes a notification for every admin and sends one email
+  ---
+  duration_ms: 27.406476
+  type: 'test'
+  ...
+# Subtest: switching an alert off stops that channel only
+ok 4 - switching an alert off stops that channel only
+  ---
+  duration_ms: 0.945158
+  type: 'test'
+  ...
+# Subtest: the email master switch turns off every alert email but not the bell
+ok 5 - the email master switch turns off every alert email but not the bell
+  ---
+  duration_ms: 0.482768
+  type: 'test'
+  ...
+# Subtest: alerts the bell already shows from live state make no stored notification
+ok 6 - alerts the bell already shows from live state make no stored notification
+  ---
+  duration_ms: 0.631668
+  type: 'test'
+  ...
+# Subtest: alerts within a minute of an email are combined into one email
+ok 7 - alerts within a minute of an email are combined into one email
+  ---
+  duration_ms: 36.89875
+  type: 'test'
+  ...
+# Subtest: with combining off, every alert is its own email
+ok 8 - with combining off, every alert is its own email
+  ---
+  duration_ms: 1.023005
+  type: 'test'
+  ...
+# Subtest: the daily limit stops alert emails for the rest of the day and says so once
+ok 9 - the daily limit stops alert emails for the rest of the day and says so once
+  ---
+  duration_ms: 12.548419
+  type: 'test'
+  ...
+# Subtest: a failed email is logged with the reason and doesn't count toward the limit
+ok 10 - a failed email is logged with the reason and doesn't count toward the limit
+  ---
+  duration_ms: 1.167266
+  type: 'test'
+  ...
+# Subtest: nothing is emailed when the server has no email key, and no addresses means no email
+ok 11 - nothing is emailed when the server has no email key, and no addresses means no email
+  ---
+  duration_ms: 0.571345
+  type: 'test'
+  ...
+# Subtest: a broken database or email service never throws into the request
+ok 12 - a broken database or email service never throws into the request
+  ---
+  duration_ms: 5.927433
+  type: 'test'
+  ...
+# Subtest: the test email goes out whatever the switches say, and explains what's missing
+ok 13 - the test email goes out whatever the switches say, and explains what's missing
+  ---
+  duration_ms: 0.989452
+  type: 'test'
+  ...
+# Subtest: saving settings takes effect at once and status reports today's count
+ok 14 - saving settings takes effect at once and status reports today's count
+  ---
+  duration_ms: 1.468072
+  type: 'test'
+  ...
+# Subtest: names in emails are escaped, never sent as HTML
+ok 15 - names in emails are escaped, never sent as HTML
+  ---
+  duration_ms: 0.302799
+  type: 'test'
+  ...
+# Subtest: the day rolls over at midnight Mountain Time
+ok 16 - the day rolls over at midnight Mountain Time
+  ---
+  duration_ms: 0.439267
+  type: 'test'
+  ...
+# Subtest: days and hours are counted in Denver time
+ok 17 - days and hours are counted in Denver time
+  ---
+  duration_ms: 19.487425
+  type: 'test'
+  ...
+# Subtest: the last 7 days: totals, sign-ins and who counts
+ok 18 - the last 7 days: totals, sign-ins and who counts
+  ---
+  duration_ms: 5.271538
+  type: 'test'
+  ...
+# Subtest: growth over time: new accounts per day and the running total
+ok 19 - growth over time: new accounts per day and the running total
+  ---
+  duration_ms: 1.361612
+  type: 'test'
+  ...
+# Subtest: visits count students as active, and show when they use the app
+ok 20 - visits count students as active, and show when they use the app
+  ---
+  duration_ms: 2.162829
+  type: 'test'
+  ...
+# Subtest: quiet students, online now and the most active
+ok 21 - quiet students, online now and the most active
+  ---
+  duration_ms: 1.511404
+  type: 'test'
+  ...
+# Subtest: schools and grades
+ok 22 - schools and grades
+  ---
+  duration_ms: 1.053813
+  type: 'test'
+  ...
+# Subtest: all time uses weeks once the history is long
+ok 23 - all time uses weeks once the history is long
+  ---
+  duration_ms: 2.470939
+  type: 'test'
+  ...
+# Subtest: the previous period is the same number of days just before
+ok 24 - the previous period is the same number of days just before
+  ---
+  duration_ms: 0.564232
+  type: 'test'
+  ...
+# Subtest: visits: noted at most every 5 minutes, saved together, merged with what's stored
+ok 25 - visits: noted at most every 5 minutes, saved together, merged with what's stored
+  ---
+  duration_ms: 2.546782
+  type: 'test'
+  ...
+# Subtest: visits: a failed save is kept and tried again, and a new day gets its own record
+ok 26 - visits: a failed save is kept and tried again, and a new day gets its own record
+  ---
+  duration_ms: 1.338048
+  type: 'test'
+  ...
+# Subtest: unsaved visits are folded into what the database returned
+ok 27 - unsaved visits are folded into what the database returned
+  ---
+  duration_ms: 0.380977
+  type: 'test'
+  ...
+# Subtest: catalog and registry list the same 47 games
+ok 28 - catalog and registry list the same 47 games
+  ---
+  duration_ms: 2.806621
+  type: 'test'
+  ...
+# Subtest: every game finishes with legal computer moves at every level
+ok 29 - every game finishes with legal computer moves at every level
+  ---
+  duration_ms: 14082.459721
+  type: 'test'
+  ...
+# Subtest: states survive a JSON round trip (they are stored in the database)
+ok 30 - states survive a JSON round trip (they are stored in the database)
+  ---
+  duration_ms: 86.918158
+  type: 'test'
+  ...
+# Subtest: moves out of turn and junk input are rejected with friendly errors
+ok 31 - moves out of turn and junk input are rejected with friendly errors
+  ---
+  duration_ms: 3.764322
+  type: 'test'
+  ...
+# Subtest: tic-tac-toe: hard computer never loses
+ok 32 - tic-tac-toe: hard computer never loses
+  ---
+  duration_ms: 319.706468
+  type: 'test'
+  ...
+# Subtest: fifteen: three numbers adding to 15 win, and hard never loses
+ok 33 - fifteen: three numbers adding to 15 win, and hard never loses
+  ---
+  duration_ms: 27.714933
+  type: 'test'
+  ...
+# Subtest: connect four: full columns are rejected and hard usually beats easy
+ok 34 - connect four: full columns are rejected and hard usually beats easy
+  ---
+  duration_ms: 3280.581739
+  type: 'test'
+  ...
+# Subtest: checkers: captures are compulsory, multi-jumps continue, crowning ends the move
+ok 35 - checkers: captures are compulsory, multi-jumps continue, crowning ends the move
+  ---
+  duration_ms: 14891.59262
+  type: 'test'
+  ...
+# Subtest: reversi: four opening moves, flips, and hard beats easy
+ok 36 - reversi: four opening moves, flips, and hard beats easy
+  ---
+  duration_ms: 16808.016739
+  type: 'test'
+  ...
+# Subtest: dots & boxes: finishing a box scores it and keeps the turn
+ok 37 - dots & boxes: finishing a box scores it and keeps the turn
+  ---
+  duration_ms: 0.535307
+  type: 'test'
+  ...
+# Subtest: mancala: landing in your store earns another turn; captures take the opposite pit
+ok 38 - mancala: landing in your store earns another turn; captures take the opposite pit
+  ---
+  duration_ms: 699.532843
+  type: 'test'
+  ...
+# Subtest: gobble: only bigger pieces can cover, and uncovering an opponent line loses
+ok 39 - gobble: only bigger pieces can cover, and uncovering an opponent line loses
+  ---
+  duration_ms: 0.350319
+  type: 'test'
+  ...
+# Subtest: sea battle: fleets stay hidden, ready starts battle, sinking all ships wins
+ok 40 - sea battle: fleets stay hidden, ready starts battle, sinking all ships wins
+  ---
+  duration_ms: 0.789625
+  type: 'test'
+  ...
+# Subtest: crazy eights: must play a match before drawing, hands stay hidden
+ok 41 - crazy eights: must play a match before drawing, hands stay hidden
+  ---
+  duration_ms: 0.394332
+  type: 'test'
+  ...
+# Subtest: go fish: asking takes every matching card and books are laid down
+ok 42 - go fish: asking takes every matching card and books are laid down
+  ---
+  duration_ms: 0.230915
+  type: 'test'
+  ...
+# Subtest: memory: a match keeps the turn, a miss passes it, faces stay hidden
+ok 43 - memory: a match keeps the turn, a miss passes it, faces stay hidden
+  ---
+  duration_ms: 0.316606
+  type: 'test'
+  ...
+# Subtest: rock paper scissors: picks stay secret until both are in
+ok 44 - rock paper scissors: picks stay secret until both are in
+  ---
+  duration_ms: 0.206648
+  type: 'test'
+  ...
+# Subtest: last stone: taking the last stone wins and hard plays perfectly
+ok 45 - last stone: taking the last stone wins and hard plays perfectly
+  ---
+  duration_ms: 0.783924
+  type: 'test'
+  ...
+# Subtest: code breaker: feedback is correct and rival codes stay hidden
+ok 46 - code breaker: feedback is correct and rival codes stay hidden
+  ---
+  duration_ms: 22.684484
+  type: 'test'
+  ...
+# Subtest: quiz duels: answers are simultaneous and the correct answer stays hidden
+ok 47 - quiz duels: answers are simultaneous and the correct answer stays hidden
+  ---
+  duration_ms: 0.326564
+  type: 'test'
+  ...
+# Subtest: word rescue: a right letter keeps the turn and the eighth miss loses
+ok 48 - word rescue: a right letter keeps the turn and the eighth miss loses
+  ---
+  duration_ms: 0.237207
+  type: 'test'
+  ...
+# Subtest: harder computers beat easy ones in the strategy games
+ok 49 - harder computers beat easy ones in the strategy games
+  ---
+  duration_ms: 32265.985955
+  type: 'test'
+  ...
+# Subtest: every story has a unique slug and title
+ok 50 - every story has a unique slug and title
+  ---
+  duration_ms: 1.313792
+  type: 'test'
+  ...
+# Subtest: news stories are recent, sourced and steer clear of off-limits topics
+ok 51 - news stories are recent, sourced and steer clear of off-limits topics
+  ---
+  duration_ms: 1.021963
+  type: 'test'
+  ...
+# Subtest: stories are a good length for young readers
+ok 52 - stories are a good length for young readers
+  ---
+  duration_ms: 2.340183
+  type: 'test'
+  ...
+# Subtest: each quiz has five 4-choice questions with a real answer, worth 5 points
+ok 53 - each quiz has five 4-choice questions with a real answer, worth 5 points
+  ---
+  duration_ms: 0.413128
+  type: 'test'
+  ...
+# Subtest: news stories become 5-point library quizzes exactly once
+ok 54 - news stories become 5-point library quizzes exactly once
+  ---
+  duration_ms: 1.748129
+  type: 'test'
+  ...
+# Subtest: an existing news book is reused if the map was lost
+ok 55 - an existing news book is reused if the map was lost
+  ---
+  duration_ms: 0.464645
+  type: 'test'
+  ...
+# Subtest: every story has a cover file in the build
+ok 56 - every story has a cover file in the build
+  ---
+  duration_ms: 1.118434
+  type: 'test'
+  ...
+# Subtest: a story taken out of the issue leaves the library once
+ok 57 - a story taken out of the issue leaves the library once
+  ---
+  duration_ms: 0.767123
+  type: 'test'
+  ...
+# Subtest: server owns rolls, blocks spectators, duplicate answers, and premature replay
+ok 58 - server owns rolls, blocks spectators, duplicate answers, and premature replay
+  ---
+  duration_ms: 2.459758
+  type: 'test'
+  ...
+# Subtest: all clients get the same cue and timestamp; rewards apply once after landing
+ok 59 - all clients get the same cue and timestamp; rewards apply once after landing
+  ---
+  duration_ms: 1.412398
+  type: 'test'
+  ...
+# Subtest: steal transfers only available points and shields block strikes
+ok 60 - steal transfers only available points and shields block strikes
+  ---
+  duration_ms: 0.533393
+  type: 'test'
+  ...
+# Subtest: power bonus is distinct from six-sided die and movement caps at finish
+ok 61 - power bonus is distinct from six-sided die and movement caps at finish
+  ---
+  duration_ms: 0.550586
+  type: 'test'
+  ...
+# Subtest: RPS is private until simultaneous reveal; duplicate choice cannot change a hand
+ok 62 - RPS is private until simultaneous reveal; duplicate choice cannot change a hand
+  ---
+  duration_ms: 0.686582
+  type: 'test'
+  ...
+# Subtest: RPS timeout resolves absent players and ties do not add strikes
+ok 63 - RPS timeout resolves absent players and ties do not add strikes
+  ---
+  duration_ms: 0.31361
+  type: 'test'
+  ...
+# Subtest: all RPS pairings follow the real rules
+ok 64 - all RPS pairings follow the real rules
+  ---
+  duration_ms: 0.141026
+  type: 'test'
+  ...
+# Subtest: join/reconnect preserve roster; full or running room rejects new members
+ok 65 - join/reconnect preserve roster; full or running room rejects new members
+  ---
+  duration_ms: 0.391166
+  type: 'test'
+  ...
+# Subtest: shared HTTP room enforces membership and turn ownership across two clients
+ok 66 - shared HTTP room enforces membership and turn ownership across two clients
+  ---
+  duration_ms: 208.243326
+  type: 'test'
+  ...
+# Subtest: every numbered dice face settles toward the viewing camera
+ok 67 - every numbered dice face settles toward the viewing camera
+  ---
+  duration_ms: 167.303451
+  type: 'test'
+  ...
+# Subtest: every starter world saves and loads back exactly, and stays small
+ok 68 - every starter world saves and loads back exactly, and stays small
+  ---
+  duration_ms: 58.445814
+  type: 'test'
+  ...
+# Subtest: you spawn standing on the ground, not inside it
+ok 69 - you spawn standing on the ground, not inside it
+  ---
+  duration_ms: 24.459369
+  type: 'test'
+  ...
+# Subtest: raycasts find the block you look at, and the face to build on
+ok 70 - raycasts find the block you look at, and the face to build on
+  ---
+  duration_ms: 0.676152
+  type: 'test'
+  ...
+# Subtest: the computer's move generator matches known perft counts
+ok 71 - the computer's move generator matches known perft counts
+  ---
+  duration_ms: 316.578199
+  type: 'test'
+  ...
+# Subtest: the rules engine matches known perft counts
+ok 72 - the rules engine matches known perft counts
+  ---
+  duration_ms: 412.736007
+  type: 'test'
+  ...
+# Subtest: move notation tells pieces apart and marks mate
+ok 73 - move notation tells pieces apart and marks mate
+  ---
+  duration_ms: 2.892272
+  type: 'test'
+  ...
+# Subtest: the computer finds mate in one and grabs a free queen
+ok 74 - the computer finds mate in one and grabs a free queen
+  ---
+  duration_ms: 33.05377
+  type: 'test'
+  ...
+# Subtest: the computer stays inside its time budget
+ok 75 - the computer stays inside its time budget
+  ---
+  duration_ms: 718.849979
+  type: 'test'
+  ...
+# Subtest: stronger levels beat weaker ones and every move is legal
+ok 76 - stronger levels beat weaker ones and every move is legal
+  ---
+  duration_ms: 3346.107768
+  type: 'test'
+  ...
+# Subtest: the computer replies as Black and taking moves back rebuilds the game
+ok 77 - the computer replies as Black and taking moves back rebuilds the game
+  ---
+  duration_ms: 3.599763
+  type: 'test'
+  ...
+# Subtest: the computer sees repeated positions from the game so far
+ok 78 - the computer sees repeated positions from the game so far
+  ---
+  duration_ms: 1.011363
+  type: 'test'
+  ...
+# Subtest: there are 18 home lots, all off the roads
+ok 79 - there are 18 home lots, all off the roads
+  ---
+  duration_ms: 1.885077
+  type: 'test'
+  ...
+# Subtest: spawn, doors and shop spots are reachable (not inside a building)
+ok 80 - spawn, doors and shop spots are reachable (not inside a building)
+  ---
+  duration_ms: 2.992992
+  type: 'test'
+  ...
+# Subtest: every door can be walked to from the road
+ok 81 - every door can be walked to from the road
+  ---
+  duration_ms: 0.679969
+  type: 'test'
+  ...
+# Subtest: roads are road, the speedway is track
+ok 82 - roads are road, the speedway is track
+  ---
+  duration_ms: 0.603736
+  type: 'test'
+  ...
+# Subtest: bounds hold on every side
+ok 83 - bounds hold on every side
+  ---
+  duration_ms: 1.078659
+  type: 'test'
+  ...
+# Subtest: track progress inverts track points
+ok 84 - track progress inverts track points
+  ---
+  duration_ms: 0.389332
+  type: 'test'
+  ...
+# Subtest: a full lap counts once; cutting across the infield doesn't help
+ok 85 - a full lap counts once; cutting across the infield doesn't help
+  ---
+  duration_ms: 2.222802
+  type: 'test'
+  ...
+# Subtest: cars speed up, respect their top speed and bounce off walls
+ok 86 - cars speed up, respect their top speed and bounce off walls
+  ---
+  duration_ms: 28.194164
+  type: 'test'
+  ...
+# Subtest: the free starter is the slowest car
+ok 87 - the free starter is the slowest car
+  ---
+  duration_ms: 0.551197
+  type: 'test'
+  ...
+# Subtest: rivals finish laps at different paces
+ok 88 - rivals finish laps at different paces
+  ---
+  duration_ms: 6.785236
+  type: 'test'
+  ...
+# Subtest: traffic stays on the roads and keeps moving
+ok 89 - traffic stays on the roads and keeps moving
+  ---
+  duration_ms: 383.245732
+  type: 'test'
+  ...
+# Subtest: the seaside, lake park and stunt park have the right ground
+ok 90 - the seaside, lake park and stunt park have the right ground
+  ---
+  duration_ms: 0.447091
+  type: 'test'
+  ...
+# Subtest: the ocean and the far edges stop you
+ok 91 - the ocean and the far edges stop you
+  ---
+  duration_ms: 0.327516
+  type: 'test'
+  ...
+# Subtest: you can't drive into the lake
+ok 92 - you can't drive into the lake
+  ---
+  duration_ms: 2.975158
+  type: 'test'
+  ...
+# Subtest: every hidden star can be reached
+ok 93 - every hidden star can be reached
+  ---
+  duration_ms: 0.900625
+  type: 'test'
+  ...
+# Subtest: ramps sit on open road
+ok 94 - ramps sit on open road
+  ---
+  duration_ms: 3.531915
+  type: 'test'
+  ...
+# Subtest: driving off the big ramp makes the car fly, then land
+ok 95 - driving off the big ramp makes the car fly, then land
+  ---
+  duration_ms: 17.652813
+  type: 'test'
+  ...
+# Subtest: the tall end of a ramp is a wall
+ok 96 - the tall end of a ramp is a wall
+  ---
+  duration_ms: 0.193964
+  type: 'test'
+  ...
+# Subtest: sand is slower than road, the SUV handles it best
+ok 97 - sand is slower than road, the SUV handles it best
+  ---
+  duration_ms: 35.149653
+  type: 'test'
+  ...
+# Subtest: the road network is connected and every junction has lights on 3 or 4 arms
+ok 98 - the road network is connected and every junction has lights on 3 or 4 arms
+  ---
+  duration_ms: 0.396857
+  type: 'test'
+  ...
+# Subtest: lights alternate: one direction is always red while the other goes
+ok 99 - lights alternate: one direction is always red while the other goes
+  ---
+  duration_ms: 0.461448
+  type: 'test'
+  ...
+# Subtest: a car sees the red light ahead of it
+ok 100 - a car sees the red light ahead of it
+  ---
+  duration_ms: 0.230124
+  type: 'test'
+  ...
+# Subtest: North Haven has houses, the library and blocks of every kind
+ok 101 - North Haven has houses, the library and blocks of every kind
+  ---
+  duration_ms: 0.417065
+  type: 'test'
+  ...
+# Subtest: walkers stay on their sidewalks: never on a road, never inside anything
+ok 102 - walkers stay on their sidewalks: never on a road, never inside anything
+  ---
+  duration_ms: 106.858811
+  type: 'test'
+  ...
+# Subtest: every restaurant and the arcade has a door outside and a room to walk into
+ok 103 - every restaurant and the arcade has a door outside and a room to walk into
+  ---
+  duration_ms: 0.831504
+  type: 'test'
+  ...
+# Subtest: inside spots: exits, counters, tables and arcade machines are all inside their room and reachable
+ok 104 - inside spots: exits, counters, tables and arcade machines are all inside their room and reachable
+  ---
+  duration_ms: 1.014899
+  type: 'test'
+  ...
+# Subtest: the fairgrounds: rides you can walk up to, booths inside the fence, a clear gate
+ok 105 - the fairgrounds: rides you can walk up to, booths inside the fence, a clear gate
+  ---
+  duration_ms: 0.524127
+  type: 'test'
+  ...
+# Subtest: the elevated train's pillars stand in the road median, never on a lane or a sidewalk
+ok 106 - the elevated train's pillars stand in the road median, never on a lane or a sidewalk
+  ---
+  duration_ms: 0.430289
+  type: 'test'
+  ...
+# Subtest: rush hour: a busier downtown still flows
+ok 107 - rush hour: a busier downtown still flows
+  ---
+  duration_ms: 340.492701
+  type: 'test'
+  ...
+# Subtest: directions follow the streets to every place
+ok 108 - directions follow the streets to every place
+  ---
+  duration_ms: 21.594684
+  type: 'test'
+  ...
+# [independent-transfer] could not move 11 write failed
+# Subtest: the old school-list entry is recognised however it was typed, and real schools are not
+ok 109 - the old school-list entry is recognised however it was typed, and real schools are not
+  ---
+  duration_ms: 1.604128
+  type: 'test'
+  ...
+# Subtest: students who picked Independent Reader become independent students
+ok 110 - students who picked Independent Reader become independent students
+  ---
+  duration_ms: 2.45527
+  type: 'test'
+  ...
+# Subtest: a student who is in a real school's class is left alone
+ok 111 - a student who is in a real school's class is left alone
+  ---
+  duration_ms: 0.460607
+  type: 'test'
+  ...
+# Subtest: what each student had before is written down, so the move can be undone
+ok 112 - what each student had before is written down, so the move can be undone
+  ---
+  duration_ms: 0.394912
+  type: 'test'
+  ...
+# Subtest: the admin is told once, and running it again does nothing
+ok 113 - the admin is told once, and running it again does nothing
+  ---
+  duration_ms: 0.550285
+  type: 'test'
+  ...
+# Subtest: with no Independent Reader entry, or a database hiccup, nothing is changed
+ok 114 - with no Independent Reader entry, or a database hiccup, nothing is changed
+  ---
+  duration_ms: 2.031249
+  type: 'test'
+  ...
+# Subtest: a student whose move fails is not marked independent, and is picked up next time
+ok 115 - a student whose move fails is not marked independent, and is picked up next time
+  ---
+  duration_ms: 1.287993
+  type: 'test'
+  ...
+# (node:2753) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: switching tabs counts one leave even when the page also closes
+ok 116 - switching tabs counts one leave even when the page also closes
+  ---
+  duration_ms: 7.041745
+  type: 'test'
+  ...
+# Subtest: focus leaving the window counts only after the 2 second grace
+ok 117 - focus leaving the window counts only after the 2 second grace
+  ---
+  duration_ms: 1.146417
+  type: 'test'
+  ...
+# Subtest: the leave that turns the quiz in hands its events to the turn-in request
+ok 118 - the leave that turns the quiz in hands its events to the turn-in request
+  ---
+  duration_ms: 0.787942
+  type: 'test'
+  ...
+# Subtest: pausing stops counting; stop removes every listener and turns the camera off
+ok 119 - pausing stops counting; stop removes every listener and turns the camera off
+  ---
+  duration_ms: 0.656234
+  type: 'test'
+  ...
+# Subtest: pictures: one at the start, every 30 seconds, and at a leave
+ok 120 - pictures: one at the start, every 30 seconds, and at a leave
+  ---
+  duration_ms: 1.568461
+  type: 'test'
+  ...
+# Subtest: leaving inside the app counts as a leave; stopping the quiz does not
+ok 121 - leaving inside the app counts as a leave; stopping the quiz does not
+  ---
+  duration_ms: 0.726026
+  type: 'test'
+  ...
+# Subtest: the camera going off is noticed and logged once; turning it back on is logged too
+ok 122 - the camera going off is noticed and logged once; turning it back on is logged too
+  ---
+  duration_ms: 0.886578
+  type: 'test'
+  ...
+# Subtest: preview mode works on screen but sends nothing
+ok 123 - preview mode works on screen but sends nothing
+  ---
+  duration_ms: 0.614536
+  type: 'test'
+  ...
+# Subtest: every kind of waiting work becomes an action item that links to it
+ok 124 - every kind of waiting work becomes an action item that links to it
+  ---
+  duration_ms: 16.097307
+  type: 'test'
+  ...
+# Subtest: students waiting on a teacher are one item, which comes back when someone new joins the wait
+ok 125 - students waiting on a teacher are one item, which comes back when someone new joins the wait
+  ---
+  duration_ms: 0.465095
+  type: 'test'
+  ...
+# Subtest: unread messages are one item per person and problem reports are called out
+ok 126 - unread messages are one item per person and problem reports are called out
+  ---
+  duration_ms: 0.547861
+  type: 'test'
+  ...
+# Subtest: dismissed items and items older than Clear all stay hidden; newer ones show
+ok 127 - dismissed items and items older than Clear all stay hidden; newer ones show
+  ---
+  duration_ms: 0.571586
+  type: 'test'
+  ...
+# Subtest: the admin's in-bell switches hide whole categories
+ok 128 - the admin's in-bell switches hide whole categories
+  ---
+  duration_ms: 0.379785
+  type: 'test'
+  ...
+# Subtest: stored notifications are updates; old ones the bell now shows live are hidden for the admin
+ok 129 - stored notifications are updates; old ones the bell now shows live are hidden for the admin
+  ---
+  duration_ms: 0.813982
+  type: 'test'
+  ...
+# Subtest: a teacher sees book requests and students to approve as actions, other notifications as updates
+ok 130 - a teacher sees book requests and students to approve as actions, other notifications as updates
+  ---
+  duration_ms: 0.70671
+  type: 'test'
+  ...
+# Subtest: students and parents see unread messages and their notifications
+ok 131 - students and parents see unread messages and their notifications
+  ---
+  duration_ms: 0.368573
+  type: 'test'
+  ...
+# Subtest: keys say what reading or dismissing an item does
+ok 132 - keys say what reading or dismissing an item does
+  ---
+  duration_ms: 0.616791
+  type: 'test'
+  ...
+# Subtest: requests from older pages still work, including a bare id from the teacher dashboard
+ok 133 - requests from older pages still work, including a bare id from the teacher dashboard
+  ---
+  duration_ms: 0.56334
+  type: 'test'
+  ...
+# Subtest: problem reports are recognized by their label
+ok 134 - problem reports are recognized by their label
+  ---
+  duration_ms: 0.201079
+  type: 'test'
+  ...
+# Subtest: alert types are read back into a category and a link
+ok 135 - alert types are read back into a category and a link
+  ---
+  duration_ms: 0.283664
+  type: 'test'
+  ...
+# Subtest: with plan rules off, nothing is locked
+ok 136 - with plan rules off, nothing is locked
+  ---
+  duration_ms: 151.93847
+  type: 'test'
+  ...
+# Subtest: with plan rules on, a teacher account needs Premium
+ok 137 - with plan rules on, a teacher account needs Premium
+  ---
+  duration_ms: 45.665157
+  type: 'test'
+  ...
+# Subtest: student extras follow the teacher's plan
+not ok 138 - student extras follow the teacher's plan
+  ---
+  duration_ms: 41.077455
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:134:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    400 !== 200
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 200
+  actual: 400
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:142:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: a parent profile follows up to five children on Free
+ok 139 - a parent profile follows up to five children on Free
+  ---
+  duration_ms: 6.178664
+  type: 'test'
+  ...
+# Subtest: a paid teacher plan covers a set number of students
+not ok 140 - a paid teacher plan covers a set number of students
+  ---
+  duration_ms: 8.938267
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:160:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:164:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: the webhook only accepts messages signed by Stripe
+not ok 141 - the webhook only accepts messages signed by Stripe
+  ---
+  duration_ms: 33.029193
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:170:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    400 !== 200
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 200
+  actual: 400
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:179:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: verifyStripeSignature
+ok 142 - verifyStripeSignature
+  ---
+  duration_ms: 1.377101
+  type: 'test'
+  ...
+# Subtest: renewals, missed payments and cancellations change the plan
+not ok 143 - renewals, missed payments and cancellations change the plan
+  ---
+  duration_ms: 9.100081
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:199:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:203:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: a school plan covers every teacher at the school and their students
+not ok 144 - a school plan covers every teacher at the school and their students
+  ---
+  duration_ms: 9.720749
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:230:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+    +   false,
+    +   null,
+    +   null
+    -   true,
+    -   'school-plan',
+    -   1000
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: true
+    1: 'school-plan'
+    2: 1000
+  actual:
+    0: false
+    1: ~
+    2: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:234:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: checkout builds the right Stripe order
+ok 145 - checkout builds the right Stripe order
+  ---
+  duration_ms: 63.850302
+  type: 'test'
+  ...
+# [plans] Stripe refused: 402 card_error undefined
+# Subtest: a Stripe failure is reported plainly and switches nothing on
+ok 146 - a Stripe failure is reported plainly and switches nothing on
+  ---
+  duration_ms: 10.691625
+  type: 'test'
+  ...
+# Subtest: coming back from paying switches Premium on for the buyer only
+ok 147 - coming back from paying switches Premium on for the buyer only
+  ---
+  duration_ms: 17.593492
+  type: 'test'
+  ...
+# Subtest: a teacher can add blocks and open billing, for their own plan only
+not ok 148 - a teacher can add blocks and open billing, for their own plan only
+  ---
+  duration_ms: 8.513277
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:318:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /150 students/. Input:
+    
+    "You don't have a teacher plan paid online to change."
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: "You don't have a teacher plan paid online to change."
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:333:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: with no webhook, a plan that reaches its end date is checked with Stripe before it stops
+ok 149 - with no webhook, a plan that reaches its end date is checked with Stripe before it stops
+  ---
+  duration_ms: 14.083458
+  type: 'test'
+  ...
+# Subtest: the admin switches rules on, grants plans by hand and stores keys safely
+ok 150 - the admin switches rules on, grants plans by hand and stores keys safely
+  ---
+  duration_ms: 42.519688
+  type: 'test'
+  ...
+# Subtest: a plan given by hand is not switched off by an old Stripe cancellation
+not ok 151 - a plan given by hand is not switched off by an old Stripe cancellation
+  ---
+  duration_ms: 13.073517
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:422:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    404 !== 409
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 409
+  actual: 404
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:430:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: stripeForm writes nested fields the way Stripe reads them
+ok 152 - stripeForm writes nested fields the way Stripe reads them
+  ---
+  duration_ms: 0.438605
+  type: 'test'
+  ...
+# Subtest: Stripe messages are only a nudge: late, repeated or overlapping ones can't undo a payment
+not ok 153 - Stripe messages are only a nudge: late, repeated or overlapping ones can't undo a payment
+  ---
+  duration_ms: 8.806529
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:445:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+    +   400,
+    +   400,
+    +   400
+    -   200,
+    -   200,
+    -   200
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 200
+    1: 200
+    2: 200
+  actual:
+    0: 400
+    1: 400
+    2: 400
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:452:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: without a key, an unfinished first payment is not recorded as a cancelled plan
+not ok 154 - without a key, an unfinished first payment is not recorded as a cancelled plan
+  ---
+  duration_ms: 15.019569
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:458:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:465:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: a missed payment gets one week of grace, and re-checking does not extend it
+not ok 155 - a missed payment gets one week of grace, and re-checking does not extend it
+  ---
+  duration_ms: 6.603003
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:468:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:476:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: naming a paying school or teacher at sign-up does not unlock the extras
+ok 156 - naming a paying school or teacher at sign-up does not unlock the extras
+  ---
+  duration_ms: 9.656228
+  type: 'test'
+  ...
+# Subtest: a database hiccup never locks out a teacher or loses the list of plans
+not ok 157 - a database hiccup never locks out a teacher or loses the list of plans
+  ---
+  duration_ms: 7.375146
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:505:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    402 !== 200
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 200
+  actual: 402
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:509:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: a buyer who pays and never comes back still gets Premium
+ok 158 - a buyer who pays and never comes back still gets Premium
+  ---
+  duration_ms: 10.735349
+  type: 'test'
+  ...
+# Subtest: nobody is sold a plan they already have, and a school is not paid for twice
+ok 159 - nobody is sold a plan they already have, and a school is not paid for twice
+  ---
+  duration_ms: 20.641747
+  type: 'test'
+  ...
+# Subtest: an admin previewing the site as a student does not change what the admin sees
+ok 160 - an admin previewing the site as a student does not change what the admin sees
+  ---
+  duration_ms: 4.113088
+  type: 'test'
+  ...
+# Subtest: moving a student onto a full plan is refused
+not ok 161 - moving a student onto a full plan is refused
+  ---
+  duration_ms: 7.34577
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:586:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:589:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: every teacher at CGMS has Premium at no charge, now and later, and so do their classes
+ok 162 - every teacher at CGMS has Premium at no charge, now and later, and so do their classes
+  ---
+  duration_ms: 18.479568
+  type: 'test'
+  ...
+# Subtest: the admin sees which schools are always free, and can add or remove one
+ok 163 - the admin sees which schools are always free, and can add or remove one
+  ---
+  duration_ms: 24.116033
+  type: 'test'
+  ...
+# Subtest: a hiccup looking up the school's name does not lock a CGMS teacher out
+ok 164 - a hiccup looking up the school's name does not lock a CGMS teacher out
+  ---
+  duration_ms: 5.351088
+  type: 'test'
+  ...
+# Subtest: after paying, the buyer is sent back to the page they started from, not to the server's own address
+not ok 165 - after paying, the buyer is sent back to the page they started from, not to the server's own address
+  ---
+  duration_ms: 26.619253
+  type: 'test'
+  location: '/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:666:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    400 !== 200
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 200
+  actual: 400
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/arisereader/arisereader/tests/plans-routes.test.ts:698:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: the prices are the ones on the pricing page
+ok 166 - the prices are the ones on the pricing page
+  ---
+  duration_ms: 25.903446
+  type: 'test'
+  ...
+# Subtest: a teacher pays for one block of 100 students, then one more per extra 100
+ok 167 - a teacher pays for one block of 100 students, then one more per extra 100
+  ---
+  duration_ms: 0.362603
+  type: 'test'
+  ...
+# Subtest: a plan is live until it ends, plus a short grace period
+ok 168 - a plan is live until it ends, plus a short grace period
+  ---
+  duration_ms: 0.64836
+  type: 'test'
+  ...
+# Subtest: sign-ups before October 1, 2026 are grandfathered until the school year ends
+ok 169 - sign-ups before October 1, 2026 are grandfathered until the school year ends
+  ---
+  duration_ms: 0.316465
+  type: 'test'
+  ...
+# Subtest: nothing is locked until the admin turns plan rules on
+ok 170 - nothing is locked until the admin turns plan rules on
+  ---
+  duration_ms: 1.303292
+  type: 'test'
+  ...
+# Subtest: admins and the sample accounts always have Premium
+ok 171 - admins and the sample accounts always have Premium
+  ---
+  duration_ms: 0.330271
+  type: 'test'
+  ...
+# Subtest: a teacher has Premium through their own plan, their school's plan, or an early sign-up
+ok 172 - a teacher has Premium through their own plan, their school's plan, or an early sign-up
+  ---
+  duration_ms: 0.629464
+  type: 'test'
+  ...
+# Subtest: a student gets the Premium extras through the teacher who approved them
+ok 173 - a student gets the Premium extras through the teacher who approved them
+  ---
+  duration_ms: 0.464875
+  type: 'test'
+  ...
+# Subtest: parents are free, and a profile follows up to five children
+ok 174 - parents are free, and a profile follows up to five children
+  ---
+  duration_ms: 0.476877
+  type: 'test'
+  ...
+# Subtest: CGMS is recognised by its short name or its full name, and other schools are not
+ok 175 - CGMS is recognised by its short name or its full name, and other schools are not
+  ---
+  duration_ms: 2.783087
+  type: 'test'
+  ...
+# Subtest: an always-free school has no student limit and no end date
+ok 176 - an always-free school has no student limit and no end date
+  ---
+  duration_ms: 0.381758
+  type: 'test'
+  ...
+# Subtest: every poem is complete and safe to publish
+ok 177 - every poem is complete and safe to publish
+  ---
+  duration_ms: 3.186396
+  type: 'test'
+  ...
+# Subtest: each grade band has a good handful of poems
+ok 178 - each grade band has a good handful of poems
+  ---
+  duration_ms: 0.353174
+  type: 'test'
+  ...
+# Subtest: a few well-known lines are exactly right
+ok 179 - a few well-known lines are exactly right
+  ---
+  duration_ms: 0.303431
+  type: 'test'
+  ...
+# Subtest: a prize needs a name and a way to win it
+ok 180 - a prize needs a name and a way to win it
+  ---
+  duration_ms: 5.165148
+  type: 'test'
+  ...
+# Subtest: children read the prize, so rude words are refused
+ok 181 - children read the prize, so rude words are refused
+  ---
+  duration_ms: 0.585341
+  type: 'test'
+  ...
+# Subtest: the last day has to be a real day, today or later, within about a year
+ok 182 - the last day has to be a real day, today or later, within about a year
+  ---
+  duration_ms: 24.044388
+  type: 'test'
+  ...
+# Subtest: a parent's prize is a family prize; a teacher picks class or school
+ok 183 - a parent's prize is a family prize; a teacher picks class or school
+  ---
+  duration_ms: 0.800416
+  type: 'test'
+  ...
+# Subtest: a prize id says which list it is in
+ok 184 - a prize id says which list it is in
+  ---
+  duration_ms: 0.569672
+  type: 'test'
+  ...
+# Subtest: only quizzes passed after the prize was added, and by its last day, count
+ok 185 - only quizzes passed after the prize was added, and by its last day, count
+  ---
+  duration_ms: 0.988399
+  type: 'test'
+  ...
+# Subtest: what the reader sees: open, reached, ended, yours, or won by someone else
+ok 186 - what the reader sees: open, reached, ended, yours, or won by someone else
+  ---
+  duration_ms: 0.642139
+  type: 'test'
+  ...
+# Subtest: a finished prize drops off the reader's page after two weeks
+ok 187 - a finished prize drops off the reader's page after two weeks
+  ---
+  duration_ms: 0.305856
+  type: 'test'
+  ...
+# Subtest: a parent adds a prize and only their own child sees it
+ok 188 - a parent adds a prize and only their own child sees it
+  ---
+  duration_ms: 149.909423
+  type: 'test'
+  ...
+# Subtest: a family prize can be for one child, and never for someone else's
+ok 189 - a family prize can be for one child, and never for someone else's
+  ---
+  duration_ms: 39.698862
+  type: 'test'
+  ...
+# Subtest: students can't add prizes, and a grown-up has to be approved first
+ok 190 - students can't add prizes, and a grown-up has to be approved first
+  ---
+  duration_ms: 36.9183
+  type: 'test'
+  ...
+# Subtest: a teacher's class prize goes to the students they approved
+ok 191 - a teacher's class prize goes to the students they approved
+  ---
+  duration_ms: 24.983004
+  type: 'test'
+  ...
+# Subtest: a school prize reaches every class in the school, and only that school's classes
+ok 192 - a school prize reaches every class in the school, and only that school's classes
+  ---
+  duration_ms: 47.426631
+  type: 'test'
+  ...
+# Subtest: a parent sees everything their child can win, and nothing about other children
+ok 193 - a parent sees everything their child can win, and nothing about other children
+  ---
+  duration_ms: 21.089529
+  type: 'test'
+  ...
+# Subtest: a quiz goal counts the quizzes each child passes after the prize was added
+ok 194 - a quiz goal counts the quizzes each child passes after the prize was added
+  ---
+  duration_ms: 20.13321
+  type: 'test'
+  ...
+# Subtest: the teacher sees who is closest, then gives the prize to one student
+ok 195 - the teacher sees who is closest, then gives the prize to one student
+  ---
+  duration_ms: 29.886841
+  type: 'test'
+  ...
+# Subtest: a prize can go to everyone it was for
+ok 196 - a prize can go to everyone it was for
+  ---
+  duration_ms: 24.859613
+  type: 'test'
+  ...
+# Subtest: only the person who added a prize can remove it
+ok 197 - only the person who added a prize can remove it
+  ---
+  duration_ms: 21.817098
+  type: 'test'
+  ...
+# Subtest: there is a cap on how many prizes are up at once
+ok 198 - there is a cap on how many prizes are up at once
+  ---
+  duration_ms: 111.614458
+  type: 'test'
+  ...
+# [prizes] POST /api/prizes database unreachable
+# [prizes] POST /api/prizes/s3-mwi53k000944f0fd/give database unreachable
+# [prizes] DELETE /api/prizes/s3-mwi53k000944f0fd database unreachable
+# Subtest: a database hiccup never wipes a list of prizes
+ok 199 - a database hiccup never wipes a list of prizes
+  ---
+  duration_ms: 39.765187
+  type: 'test'
+  ...
+# Subtest: taking a prize back never makes it disappear, however old it is
+ok 200 - taking a prize back never makes it disappear, however old it is
+  ---
+  duration_ms: 13.744751
+  type: 'test'
+  ...
+# Subtest: the day a prize was given is the site's day, not the day in London
+ok 201 - the day a prize was given is the site's day, not the day in London
+  ---
+  duration_ms: 15.142149
+  type: 'test'
+  ...
+# Subtest: a class prize can only go to a student, and each parent sees only their own family prizes
+ok 202 - a class prize can only go to a student, and each parent sees only their own family prizes
+  ---
+  duration_ms: 15.169049
+  type: 'test'
+  ...
+# Subtest: prizes leave the reader's page two weeks after they end, and the list is cleaned up later
+ok 203 - prizes leave the reader's page two weeks after they end, and the list is cleaned up later
+  ---
+  duration_ms: 20.451214
+  type: 'test'
+  ...
+# Subtest: a damaged list is read as empty instead of breaking the page
+ok 204 - a damaged list is read as empty instead of breaking the page
+  ---
+  duration_ms: 5.324989
+  type: 'test'
+  ...
+# Subtest: with plan rules on, class and school prizes are a Premium tool; a parent's prizes stay free
+ok 205 - with plan rules on, class and school prizes are a Premium tool; a parent's prizes stay free
+  ---
+  duration_ms: 14.078057
+  type: 'test'
+  ...
+# Subtest: only students can start, and not for a quiz they already took
+ok 206 - only students can start, and not for a quiz they already took
+  ---
+  duration_ms: 4.927942
+  type: 'test'
+  ...
+# Subtest: events arrive as JSON or as a closing-page beacon, and unknown ones are ignored
+ok 207 - events arrive as JSON or as a closing-page beacon, and unknown ones are ignored
+  ---
+  duration_ms: 3.975741
+  type: 'test'
+  ...
+# Subtest: snapshots must be JPEGs, are rate limited, and land in the private bucket
+ok 208 - snapshots must be JPEGs, are rate limited, and land in the private bucket
+  ---
+  duration_ms: 1.898091
+  type: 'test'
+  ...
+# Subtest: a picture taken as the quiz is turned in still arrives; later ones and late events don't
+ok 209 - a picture taken as the quiz is turned in still arrives; later ones and late events don't
+  ---
+  duration_ms: 2.885579
+  type: 'test'
+  ...
+# Subtest: turning in sets the flag from what happened
+ok 210 - turning in sets the flag from what happened
+  ---
+  duration_ms: 2.640398
+  type: 'test'
+  ...
+# Subtest: the same try can't be turned in twice at once, and a failed grading can try again
+ok 211 - the same try can't be turned in twice at once, and a failed grading can try again
+  ---
+  duration_ms: 1.378293
+  type: 'test'
+  ...
+# Subtest: starting again without finishing is remembered and flagged
+ok 212 - starting again without finishing is remembered and flagged
+  ---
+  duration_ms: 1.540248
+  type: 'test'
+  ...
+# Subtest: reviewers only see their own students; parents can look but not change points
+ok 213 - reviewers only see their own students; parents can look but not change points
+  ---
+  duration_ms: 6.286879
+  type: 'test'
+  ...
+# Subtest: the detail shows the timeline, signed pictures and earlier unfinished tries
+ok 214 - the detail shows the timeline, signed pictures and earlier unfinished tries
+  ---
+  duration_ms: 3.592159
+  type: 'test'
+  ...
+# Subtest: teachers and the admin can remove points and give them back
+ok 215 - teachers and the admin can remove points and give them back
+  ---
+  duration_ms: 1.807661
+  type: 'test'
+  ...
+# Subtest: pictures are deleted after 30 days and stale tries expire
+ok 216 - pictures are deleted after 30 days and stale tries expire
+  ---
+  duration_ms: 2.410305
+  type: 'test'
+  ...
+# Subtest: flag rules
+ok 217 - flag rules
+  ---
+  duration_ms: 0.348837
+  type: 'test'
+  ...
+# Subtest: every readable book has its contents and chapters on disk
+ok 218 - every readable book has its contents and chapters on disk
+  ---
+  duration_ms: 280.15526
+  type: 'test'
+  ...
+# Subtest: every new keyed book has a 10-question quiz with a real answer
+ok 219 - every new keyed book has a 10-question quiz with a real answer
+  ---
+  duration_ms: 0.936963
+  type: 'test'
+  ...
+# Subtest: the reads sync makes each quiz once, and fills an existing book that has no questions
+ok 220 - the reads sync makes each quiz once, and fills an existing book that has no questions
+  ---
+  duration_ms: 2.115611
+  type: 'test'
+  ...
+# Subtest: a school's initials leave out the town and any leading words
+ok 221 - a school's initials leave out the town and any leading words
+  ---
+  duration_ms: 2.545469
+  type: 'test'
+  ...
+# Subtest: typing a school's initials finds it
+ok 222 - typing a school's initials finds it
+  ---
+  duration_ms: 2.977392
+  type: 'test'
+  ...
+# Subtest: names still come before initials, and plain searches work as before
+ok 223 - names still come before initials, and plain searches work as before
+  ---
+  duration_ms: 1.124095
+  type: 'test'
+  ...
+# Subtest: only words that could be initials are tried as initials
+ok 224 - only words that could be initials are tried as initials
+  ---
+  duration_ms: 0.178576
+  type: 'test'
+  ...
+# Subtest: CGMS stays a free school under its full name
+ok 225 - CGMS stays a free school under its full name
+  ---
+  duration_ms: 0.517283
+  type: 'test'
+  ...
+# Subtest: names are compared without case, accents or punctuation
+ok 226 - names are compared without case, accents or punctuation
+  ---
+  duration_ms: 1.270641
+  type: 'test'
+  ...
+# Subtest: a school a teacher types has to look like a school
+ok 227 - a school a teacher types has to look like a school
+  ---
+  duration_ms: 3.251748
+  type: 'test'
+  ...
+# Subtest: the list is searched by name, town, or both, in any order
+ok 228 - the list is searched by name, town, or both, in any order
+  ---
+  duration_ms: 3.918282
+  type: 'test'
+  ...
+# Subtest: short forms and full words find each other
+ok 229 - short forms and full words find each other
+  ---
+  duration_ms: 1.230415
+  type: 'test'
+  ...
+# Subtest: names like O'Fallon are found however the apostrophe is typed
+ok 230 - names like O'Fallon are found however the apostrophe is typed
+  ---
+  duration_ms: 0.984122
+  type: 'test'
+  ...
+# Subtest: one letter is not a search, and results are capped
+ok 231 - one letter is not a search, and results are capped
+  ---
+  duration_ms: 0.744842
+  type: 'test'
+  ...
+# Subtest: a school is looked up by its id, and found by its exact name and town
+ok 232 - a school is looked up by its id, and found by its exact name and town
+  ---
+  duration_ms: 1.139544
+  type: 'test'
+  ...
+# Subtest: the real list holds the country's schools and answers quickly
+ok 233 - the real list holds the country's schools and answers quickly
+  ---
+  duration_ms: 2318.981687
+  type: 'test'
+  ...
+# Subtest: picking a school from the US list adds it to the site once, with its town in the name
+ok 234 - picking a school from the US list adds it to the site once, with its town in the name
+  ---
+  duration_ms: 16.564535
+  type: 'test'
+  ...
+# Subtest: a school already on the site is picked by its id; an unknown id is refused
+ok 235 - a school already on the site is picked by its id; an unknown id is refused
+  ---
+  duration_ms: 3.471071
+  type: 'test'
+  ...
+# Subtest: a teacher can type a school that is missing; a student cannot
+ok 236 - a teacher can type a school that is missing; a student cannot
+  ---
+  duration_ms: 1.912659
+  type: 'test'
+  ...
+# Subtest: a typed school that is really in the US list is not added twice
+ok 237 - a typed school that is really in the US list is not added twice
+  ---
+  duration_ms: 1.752406
+  type: 'test'
+  ...
+# Subtest: a typed name never attaches a teacher to a different school that happens to share it
+ok 238 - a typed name never attaches a teacher to a different school that happens to share it
+  ---
+  duration_ms: 1.731618
+  type: 'test'
+  ...
+# Subtest: a typed name can't be shaped to take over a real school's entry
+ok 239 - a typed name can't be shaped to take over a real school's entry
+  ---
+  duration_ms: 2.22724
+  type: 'test'
+  ...
+# Subtest: a typed school is hidden from everyone else until its teacher is approved
+ok 240 - a typed school is hidden from everyone else until its teacher is approved
+  ---
+  duration_ms: 124.477904
+  type: 'test'
+  ...
+# [schools] search failed: database unreachable
+# [schools] search failed: The list of schools could not be read.
+# Subtest: a database hiccup never un-hides a school or wipes the records
+ok 241 - a database hiccup never un-hides a school or wipes the records
+  ---
+  duration_ms: 47.084815
+  type: 'test'
+  ...
+# Subtest: the admin can match one of the site's schools to its entry in the US list
+ok 242 - the admin can match one of the site's schools to its entry in the US list
+  ---
+  duration_ms: 33.55981
+  type: 'test'
+  ...
+# Subtest: the search shows the site's own schools first, then the US list
+ok 243 - the search shows the site's own schools first, then the US list
+  ---
+  duration_ms: 31.410276
+  type: 'test'
+  ...
+# Subtest: there is a ceiling on new schools per hour, and sign-up still goes through
+ok 244 - there is a ceiling on new schools per hour, and sign-up still goes through
+  ---
+  duration_ms: 12.729359
+  type: 'test'
+  ...
+# Subtest: a school added at sign-up is never free just because of its name
+ok 245 - a school added at sign-up is never free just because of its name
+  ---
+  duration_ms: 4.963428
+  type: 'test'
+  ...
+# Subtest: each student sees the choices in their own order, the same every time
+ok 246 - each student sees the choices in their own order, the same every time
+  ---
+  duration_ms: 3.250185
+  type: 'test'
+  ...
+# Subtest: the letter a student picks is graded as the stored letter
+ok 247 - the letter a student picks is graded as the stored letter
+  ---
+  duration_ms: 10.118467
+  type: 'test'
+  ...
+# Subtest: tapping the same letter every time no longer passes an all-A quiz
+ok 248 - tapping the same letter every time no longer passes an all-A quiz
+  ---
+  duration_ms: 122.949098
+  type: 'test'
+  ...
+# Subtest: questions with fewer choices keep the empty ones at the end
+ok 249 - questions with fewer choices keep the empty ones at the end
+  ---
+  duration_ms: 1.25399
+  type: 'test'
+  ...
+# Subtest: wrong passwords: 10 misses, then wait; a right password clears the count
+ok 250 - wrong passwords: 10 misses, then wait; a right password clears the count
+  ---
+  duration_ms: 0.658519
+  type: 'test'
+  ...
+# Subtest: missing files and API addresses get a real 404; app pages still open
+ok 251 - missing files and API addresses get a real 404; app pages still open
+  ---
+  duration_ms: 149.946881
+  type: 'test'
+  ...
+# Subtest: monthly leaderboard months start at midnight Mountain Time
+ok 252 - monthly leaderboard months start at midnight Mountain Time
+  ---
+  duration_ms: 25.543989
+  type: 'test'
+  ...
+# Subtest: the built game pages match their sources
+ok 253 - the built game pages match their sources
+  ---
+  duration_ms: 6.506101
+  type: 'test'
+  ...
+# Subtest: each game is one complete page with everything inside it
+ok 254 - each game is one complete page with everything inside it
+  ---
+  duration_ms: 3.212183
+  type: 'test'
+  ...
+# Subtest: the game scripts are valid JavaScript
+ok 255 - the game scripts are valid JavaScript
+  ---
+  duration_ms: 11.637204
+  type: 'test'
+  ...
+# Subtest: inside the site each reader has their own save and a way back to the Games page
+ok 256 - inside the site each reader has their own save and a way back to the Games page
+  ---
+  duration_ms: 1.471188
+  type: 'test'
+  ...
+# Subtest: both games are wired into the site like the other game worlds
+ok 257 - both games are wired into the site like the other game worlds
+  ---
+  duration_ms: 1.642019
+  type: 'test'
+  ...
+# Subtest: sign-ins show a readable device
+ok 258 - sign-ins show a readable device
+  ---
+  duration_ms: 1.242327
+  type: 'test'
+  ...
+# Subtest: only student and teacher accounts get into the study hall
+ok 259 - only student and teacher accounts get into the study hall
+  ---
+  duration_ms: 141.285916
+  type: 'test'
+  ...
+# Subtest: study sets: students keep theirs private, teachers share with their class, and teachers can review and remove
+ok 260 - study sets: students keep theirs private, teachers share with their class, and teachers can review and remove
+  ---
+  duration_ms: 112.413787
+  type: 'test'
+  ...
+# Subtest: tables: sit to open one, friends join, private tables need the code, visitors go home after
+ok 261 - tables: sit to open one, friends join, private tables need the code, visitors go home after
+  ---
+  duration_ms: 47.701987
+  type: 'test'
+  ...
+# Subtest: a whole game over the network: answers stay hidden, coins and the weekly board are paid once
+ok 262 - a whole game over the network: answers stay hidden, coins and the weekly board are paid once
+  ---
+  duration_ms: 79.511083
+  type: 'test'
+  ...
+# Subtest: AI study sets: cleaned up, limited per day, and off when the teacher says so
+ok 263 - AI study sets: cleaned up, limited per day, and off when the teacher says so
+  ---
+  duration_ms: 33.800352
+  type: 'test'
+  ...
+# Subtest: AI study sets say so plainly when no AI key is set up
+ok 264 - AI study sets say so plainly when no AI key is set up
+  ---
+  duration_ms: 6.524495
+  type: 'test'
+  ...
+# Subtest: the hall opens another floor when one fills up
+ok 265 - the hall opens another floor when one fills up
+  ---
+  duration_ms: 62.457228
+  type: 'test'
+  ...
+# Subtest: AI study sets are a Premium extra for students; teachers keep them
+ok 266 - AI study sets are a Premium extra for students; teachers keep them
+  ---
+  duration_ms: 14.641477
+  type: 'test'
+  ...
+# Subtest: every starter set is valid and playable in every format
+ok 267 - every starter set is valid and playable in every format
+  ---
+  duration_ms: 9.062781
+  type: 'test'
+  ...
+# Subtest: the right answer never reaches a player before the question closes
+ok 268 - the right answer never reaches a player before the question closes
+  ---
+  duration_ms: 1.845623
+  type: 'test'
+  ...
+# Subtest: lightning round: faster right answers score more, wrong answers score nothing, streaks add up
+ok 269 - lightning round: faster right answers score more, wrong answers score nothing, streaks add up
+  ---
+  duration_ms: 2.088409
+  type: 'test'
+  ...
+# Subtest: a question closes at its deadline and unanswered counts as missed
+ok 270 - a question closes at its deadline and unanswered counts as missed
+  ---
+  duration_ms: 0.379364
+  type: 'test'
+  ...
+# Subtest: last one standing: hearts, elimination, mercy when everyone misses
+ok 271 - last one standing: hearts, elimination, mercy when everyone misses
+  ---
+  duration_ms: 0.951982
+  type: 'test'
+  ...
+# Subtest: tug of war: balanced teams, the better team pulls, a clean sweep pulls twice, first to the line wins
+ok 272 - tug of war: balanced teams, the better team pulls, a clean sweep pulls twice, first to the line wins
+  ---
+  duration_ms: 0.832016
+  type: 'test'
+  ...
+# Subtest: tug of war with one reader brings in a bot so there are two sides
+ok 273 - tug of war with one reader brings in a bot so there are two sides
+  ---
+  duration_ms: 0.387869
+  type: 'test'
+  ...
+# Subtest: summit race: own pace, boosts on streaks, a miss freezes you, first to the top ends it
+ok 274 - summit race: own pace, boosts on streaks, a miss freezes you, first to the top ends it
+  ---
+  duration_ms: 0.911435
+  type: 'test'
+  ...
+# Subtest: typed and flashcard questions work in a game
+ok 275 - typed and flashcard questions work in a game
+  ---
+  duration_ms: 1.159792
+  type: 'test'
+  ...
+# Subtest: study bots answer on their own and a whole game finishes without stalling
+ok 276 - study bots answer on their own and a whole game finishes without stalling
+  ---
+  duration_ms: 7.747076
+  type: 'test'
+  ...
+# Subtest: lobby rules: host-only settings, full tables, bots give up seats, host hand-off, rematch
+ok 277 - lobby rules: host-only settings, full tables, bots give up seats, host hand-off, rematch
+  ---
+  duration_ms: 0.941391
+  type: 'test'
+  ...
+# Subtest: readers who walk away are not waited for, and empty lobbies clear out
+ok 278 - readers who walk away are not waited for, and empty lobbies clear out
+  ---
+  duration_ms: 0.433135
+  type: 'test'
+  ...
+# Subtest: the word check blocks rude words and their disguises but leaves schoolwork alone
+ok 279 - the word check blocks rude words and their disguises but leaves schoolwork alone
+  ---
+  duration_ms: 0.578048
+  type: 'test'
+  ...
+# Subtest: set rules: sizes, formats and tidy-up
+ok 280 - set rules: sizes, formats and tidy-up
+  ---
+  duration_ms: 0.676302
+  type: 'test'
+  ...
+# Subtest: importing: vocabulary lists, spreadsheets, CSV, and Q/A notes
+ok 281 - importing: vocabulary lists, spreadsheets, CSV, and Q/A notes
+  ---
+  duration_ms: 1.887561
+  type: 'test'
+  ...
+# Subtest: typed answers forgive capitals, punctuation, 'the' and small spelling slips, but not numbers
+ok 282 - typed answers forgive capitals, punctuation, 'the' and small spelling slips, but not numbers
+  ---
+  duration_ms: 0.612562
+  type: 'test'
+  ...
+# [teacher-signup] could not send the welcome: email is down
+# Subtest: a teacher's email must end in .edu, .net, .org or .us
+ok 283 - a teacher's email must end in .edu, .net, .org or .us
+  ---
+  duration_ms: 4.353941
+  type: 'test'
+  ...
+# Subtest: every other ending is refused, .com first of all
+ok 284 - every other ending is refused, .com first of all
+  ---
+  duration_ms: 0.473712
+  type: 'test'
+  ...
+# Subtest: a personal mailbox that happens to end in .net or .org is not a school email
+ok 285 - a personal mailbox that happens to end in .net or .org is not a school email
+  ---
+  duration_ms: 0.495201
+  type: 'test'
+  ...
+# Subtest: something that isn't an email address is refused
+ok 286 - something that isn't an email address is refused
+  ---
+  duration_ms: 0.237246
+  type: 'test'
+  ...
+# Subtest: the right code works once
+ok 287 - the right code works once
+  ---
+  duration_ms: 2.961672
+  type: 'test'
+  ...
+# Subtest: a real code is six random digits
+ok 288 - a real code is six random digits
+  ---
+  duration_ms: 0.800386
+  type: 'test'
+  ...
+# Subtest: wrong guesses run out, and then even the right code needs a fresh one
+ok 289 - wrong guesses run out, and then even the right code needs a fresh one
+  ---
+  duration_ms: 1.891198
+  type: 'test'
+  ...
+# Subtest: two guesses sent at the same moment both count
+ok 290 - two guesses sent at the same moment both count
+  ---
+  duration_ms: 0.962441
+  type: 'test'
+  ...
+# Subtest: a code runs out after half an hour
+ok 291 - a code runs out after half an hour
+  ---
+  duration_ms: 0.767744
+  type: 'test'
+  ...
+# Subtest: new codes are spaced out and capped for the day
+ok 292 - new codes are spaced out and capped for the day
+  ---
+  duration_ms: 1.42458
+  type: 'test'
+  ...
+# Subtest: a forgotten code is gone, and old ones are cleared out
+ok 293 - a forgotten code is gone, and old ones are cleared out
+  ---
+  duration_ms: 0.673847
+  type: 'test'
+  ...
+# Subtest: a database that can't be read is an error, never 'no code'
+ok 294 - a database that can't be read is an error, never 'no code'
+  ---
+  duration_ms: 0.952272
+  type: 'test'
+  ...
+# Subtest: typing the right code turns the account on at once
+ok 295 - typing the right code turns the account on at once
+  ---
+  duration_ms: 3.322741
+  type: 'test'
+  ...
+# Subtest: no code, no account: guessing, a run-out code and other people's accounts all fail
+ok 296 - no code, no account: guessing, a run-out code and other people's accounts all fail
+  ---
+  duration_ms: 0.799494
+  type: 'test'
+  ...
+# Subtest: an archived account can't be turned on with a code
+ok 297 - an archived account can't be turned on with a code
+  ---
+  duration_ms: 0.315443
+  type: 'test'
+  ...
+# Subtest: the account is still on when the welcome email fails
+ok 298 - the account is still on when the welcome email fails
+  ---
+  duration_ms: 1.640086
+  type: 'test'
+  ...
+# Subtest: a new code can be asked for, within the limits
+ok 299 - a new code can be asked for, within the limits
+  ---
+  duration_ms: 1.120439
+  type: 'test'
+  ...
+# Subtest: teachers from before the rule are left as they were
+ok 300 - teachers from before the rule are left as they were
+  ---
+  duration_ms: 0.295336
+  type: 'test'
+  ...
+# Subtest: the emails carry the code and never raw HTML from a name
+ok 301 - the emails carry the code and never raw HTML from a name
+  ---
+  duration_ms: 0.476437
+  type: 'test'
+  ...
+# Subtest: the sign-up route checks the email before it makes anything, and never turns the account on by itself
+ok 302 - the sign-up route checks the email before it makes anything, and never turns the account on by itself
+  ---
+  duration_ms: 4.849815
+  type: 'test'
+  ...
+# Subtest: skipping one tutorial never advances another connected reader or starts the competition
+ok 303 - skipping one tutorial never advances another connected reader or starts the competition
+  ---
+  duration_ms: 2.460289
+  type: 'test'
+  ...
+# Subtest: only a player can mark themselves ready; bots and disconnected players do not block the tutorial
+ok 304 - only a player can mark themselves ready; bots and disconnected players do not block the tutorial
+  ---
+  duration_ms: 0.546448
+  type: 'test'
+  ...
+# Subtest: leaving during a tutorial releases the other ready readers on the next room update
+ok 305 - leaving during a tutorial releases the other ready readers on the next room update
+  ---
+  duration_ms: 0.412737
+  type: 'test'
+  ...
+# Subtest: pasted video links normalize without accepting deceptive hosts, credentials, scripts, or arbitrary pages
+ok 306 - pasted video links normalize without accepting deceptive hosts, credentials, scripts, or arbitrary pages
+  ---
+  duration_ms: 0.84499
+  type: 'test'
+  ...
+# Subtest: titles persist, external services stay out of the shared screen, and the last playable show cannot be disabled
+ok 307 - titles persist, external services stay out of the shared screen, and the last playable show cannot be disabled
+  ---
+  duration_ms: 0.901476
+  type: 'test'
+  ...
+# Subtest: catalog saves survive a new store and stale admin edits cannot overwrite newer changes
+ok 308 - catalog saves survive a new store and stale admin edits cannot overwrite newer changes
+  ---
+  duration_ms: 1.424951
+  type: 'test'
+  ...
+# Subtest: HTTP catalogue endpoints enforce admin access and reject unavailable provider playback
+ok 309 - HTTP catalogue endpoints enforce admin access and reject unavailable provider playback
+  ---
+  duration_ms: 112.034703
+  type: 'test'
+  ...
+1..309
+# tests 309
+# suites 0
+# pass 296
+# fail 13
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 83028.965806
+exit=1

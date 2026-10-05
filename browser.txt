@@ -1,0 +1,10 @@
+== errors and checks ==
+phone landing overflow: {"scrollWidth":390,"clientWidth":390,"wide":["button.relative inline-flex shrink-0 items-center gap-2 font-semibold transition-colors right=433","span.inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11 right=419","button.relative inline-flex shrink-0 items-center gap-2 font-semibold transition-colors right=556","svg.[object SVGAnimatedString] right=467","path.[object SVGAnimatedString] right=462","circle.[object SVGAnimatedString] right=460","path.[object SVGAnimatedString] right=466","path.[object SVGAnimatedString] right=464","span. right=514","span.inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11 right=542","button.relative inline-flex shrink-0 items-center gap-2 font-semibold transition-colors right=652","svg.[object SVGAnimatedString] right=590"]}
+laptop landing overflow: {"scrollWidth":1366,"clientWidth":1366,"wide":[]}
+farm models (10): ["200 https://cdn.3dassets.dev/assets/29194/v1/model.glb","200 https://cdn.3dassets.dev/assets/29189/v1/model.glb","200 https://cdn.3dassets.dev/assets/29201/v1/model.glb","200 https://cdn.3dassets.dev/assets/29187/v1/model.glb","200 https://cdn.3dassets.dev/assets/29181/v1/model.glb","200 https://cdn.3dassets.dev/assets/29180/v1/model.glb","200 https://cdn.3dassets.dev/assets/29192/v1/model.glb","200 https://cdn.3dassets.dev/assets/29197/v1/model.glb","200 https://cdn.3dassets.dev/assets/29204/v1/model.glb","200 https://cdn.3dassets.dev/assets/29184/v1/model.glb"]
+farm text: Games A.R.I.S.E. Farm World 19 animals · huge open farm · authentic sounds · feeding · free exploration Explore the farm. Animals roam, eat, and react to you. FEED ANIMALS Hay Grain Apples Carrots Look & hold Tap animal Drag animal 3D assets + authentic animal recordings
+
+== unknown GET endpoints (returned {}) ==
+/api/eye-gaze/appearance x3
+
+== writes ==

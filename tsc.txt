@@ -1,0 +1,4 @@
+client/src/pages/ClubArise.tsx(1,179): error TS1127: Invalid character.
+client/src/pages/ClubArise.tsx(1,180): error TS1435: Unknown keyword or identifier. Did you mean 'import'?
+client/src/pages/ClubArise.tsx(1,242): error TS1434: Unexpected keyword or identifier.
+exit=2
