@@ -8,7 +8,7 @@ type Sent = { to: string; subject: string; html: string; replyTo?: string };
 function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "revoked" | "none"; text?: boolean } = {}) {
   const routes: Record<string, Function> = {};
   const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
-  const app: any = { get: add("GET"), post: add("POST"), delete: add("DELETE") };
+  const app: any = { get: add("GET"), post: add("POST"), put: add("PUT"), delete: add("DELETE") };
   const sent: Sent[] = [];
   const fromNames: string[] = [];
   let clock = Date.parse("2026-10-06T18:00:00Z");

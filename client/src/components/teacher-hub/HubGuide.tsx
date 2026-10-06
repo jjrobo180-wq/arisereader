@@ -5,6 +5,7 @@
 //
 // No one's name is built in. A teacher saves the people they work with once
 // (Sped team contacts) and picks who is assigned for each student.
+import { WeeklyEditor } from "./HubAvailability";
 import { useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { ArrowLeft, Check, ChevronRight, Copy, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { clock12, type GuideKind, type GuideStep, type HubContact, type IepGuide, type Workspace } from "@shared/teacherHub";
@@ -108,6 +109,10 @@ function Contacts({ workspace, setWorkspace, makeId }: Shared) {
               <Select aria-label="Role" value={GUIDE_ROLES.some((r) => r.id === c.role) ? c.role : "other"} onChange={(e) => change(c.id, { role: e.target.value })}>{roles}</Select>
               <Field type="email" inputMode="email" placeholder="Email (optional)" aria-label="Email" value={c.email || ""} onChange={(e) => change(c.id, { email: e.target.value })} maxLength={120} />
               <PrimaryButton onClick={() => setEditing(null)}><Check className="h-4 w-4" /> Done</PrimaryButton>
+              <div className="md:col-span-full">
+                <div className="mb-2 text-sm font-medium text-slate-700">Usual free times (used to suggest meeting times)</div>
+                <WeeklyEditor value={c.free || []} onChange={(free) => change(c.id, { free })} label={c.name || "this person"} />
+              </div>
             </li>
           ) : (
             <li key={c.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">

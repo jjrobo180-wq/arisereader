@@ -3,6 +3,7 @@
 //
 // Everyone invited gets their own private link (no account needed). The page behind it
 // shows only the meeting's name, place, message and times, and that person's own answers.
+import { cleanWeekly, fitOption, type FreeWindow } from "../shared/availability";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Express, RequestHandler } from "express";
 import type { MailboxSendResult } from "./teacherMailbox";
@@ -13,7 +14,7 @@ import {
 } from "../shared/meetingPoll";
 
 export type PollRow = { id: string; teacher_id: number; title: string; location: string; message: string; hub_meeting_id: string; sender_name: string; reply_to: string; send_via: SendVia; send_text: boolean; options: PollOption[]; status: "open" | "booked"; chosen_option: string | null; created_at: string };
-export type InviteeRow = { id: string; poll_id: string; name: string; email: string; phone: string; role: string; token: string; answers: Record<string, PollAnswer>; comment: string; email_sent: boolean; invited_at: string; responded_at: string | null };
+export type InviteeRow = { id: string; poll_id: string; name: string; email: string; phone: string; role: string; token: string; answers: Record<string, PollAnswer>; comment: string; email_sent: boolean; /** The A.R.I.S.E. account this person linked from their private link, if any. */ user_id?: number | null; invited_at: string; responded_at: string | null };
 export type PollWithPeople = { poll: PollRow; invitees: InviteeRow[] };
 
 export interface PollStore {
@@ -25,6 +26,49 @@ export interface PollStore {
   byToken(token: string): Promise<{ poll: PollRow; invitee: InviteeRow } | null>;
   saveAnswers(inviteeId: string, answers: Record<string, PollAnswer>, comment: string, at: string): Promise<void>;
   markEmailed(inviteeId: string, sent: boolean): Promise<void>;
+  /** Ties an invitee to the account of the person who opened their private link while signed in. */
+  claim(inviteeId: string, userId: number | null): Promise<void>;
+  /** Polls this account has linked to itself. */
+  invitedTo(userId: number): Promise<{ poll: PollRow; invitee: InviteeRow }[]>;
+  inviteeById(inviteeId: string): Promise<{ poll: PollRow; invitee: InviteeRow } | null>;
+}
+
+/** Each person's saved weekly free times (migrations/hub_availability.sql). */
+export interface AvailabilityStore {
+  get(userId: number): Promise<FreeWindow[]>;
+  getMany(userIds: number[]): Promise<Map<number, FreeWindow[]>>;
+  set(userId: number, weekly: FreeWindow[]): Promise<void>;
+}
+
+export function createSupabaseAvailabilityStore(): AvailabilityStore {
+  return {
+    async get(userId) {
+      const r = await (await db()).from("hub_availability").select("weekly").eq("user_id", userId).maybeSingle();
+      if (r.error) throw r.error;
+      return cleanWeekly(r.data?.weekly);
+    },
+    async getMany(userIds) {
+      const out = new Map<number, FreeWindow[]>();
+      if (!userIds.length) return out;
+      const r = await (await db()).from("hub_availability").select("user_id, weekly").in("user_id", userIds);
+      if (r.error) throw r.error;
+      for (const row of r.data || []) out.set(Number(row.user_id), cleanWeekly(row.weekly));
+      return out;
+    },
+    async set(userId, weekly) {
+      const r = await (await db()).from("hub_availability").upsert({ user_id: userId, weekly, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (r.error) throw r.error;
+    },
+  };
+}
+
+export function createMemoryAvailabilityStore(): AvailabilityStore {
+  const all = new Map<number, FreeWindow[]>();
+  return {
+    async get(userId) { return structuredClone(all.get(userId) ?? []); },
+    async getMany(ids) { return new Map(ids.filter((i) => all.has(i)).map((i) => [i, structuredClone(all.get(i)!)])); },
+    async set(userId, weekly) { all.set(userId, structuredClone(weekly)); },
+  };
 }
 
 /** The real store: Supabase tables from migrations/meeting_polls.sql. (Loaded on first use, so tests need no database settings.) */
@@ -77,6 +121,23 @@ export function createSupabasePollStore(): PollStore {
     },
     async saveAnswers(inviteeId, answers, comment, at) { fail((await (await db()).from("meeting_poll_invitees").update({ answers, comment, responded_at: at }).eq("id", inviteeId)).error); },
     async markEmailed(inviteeId, sent) { fail((await (await db()).from("meeting_poll_invitees").update({ email_sent: sent }).eq("id", inviteeId)).error); },
+    async claim(inviteeId, userId) { fail((await (await db()).from("meeting_poll_invitees").update({ user_id: userId }).eq("id", inviteeId)).error); },
+    async invitedTo(userId) {
+      const people = await (await db()).from("meeting_poll_invitees").select("*").eq("user_id", userId).order("invited_at", { ascending: false }).limit(60);
+      fail(people.error);
+      if (!people.data?.length) return [];
+      const polls = await (await db()).from("meeting_polls").select("*").in("id", people.data.map((p: any) => p.poll_id));
+      fail(polls.error);
+      return (people.data as InviteeRow[]).flatMap((invitee) => { const poll = (polls.data as PollRow[]).find((x) => x.id === invitee.poll_id); return poll ? [{ poll, invitee }] : []; });
+    },
+    async inviteeById(inviteeId) {
+      const invitee = await (await db()).from("meeting_poll_invitees").select("*").eq("id", inviteeId).maybeSingle();
+      fail(invitee.error);
+      if (!invitee.data) return null;
+      const poll = await (await db()).from("meeting_polls").select("*").eq("id", invitee.data.poll_id).maybeSingle();
+      fail(poll.error);
+      return poll.data ? { poll: poll.data as PollRow, invitee: invitee.data as InviteeRow } : null;
+    },
   };
 }
 
@@ -102,6 +163,9 @@ export function createMemoryPollStore(): PollStore {
     async byToken(token) { const i = people.find((x) => x.token === token); const p = i && polls.find((x) => x.id === i.poll_id); return i && p ? { poll: structuredClone(p), invitee: structuredClone(i) } : null; },
     async saveAnswers(id, answers, comment, at) { const i = people.find((x) => x.id === id); if (i) { i.answers = answers; i.comment = comment; i.responded_at = at; } },
     async markEmailed(id, sent) { const i = people.find((x) => x.id === id); if (i) i.email_sent = sent; },
+    async claim(id, userId) { const i = people.find((x) => x.id === id); if (i) i.user_id = userId; },
+    async invitedTo(userId) { return people.filter((i) => i.user_id === userId).flatMap((i) => { const p = polls.find((x) => x.id === i.poll_id); return p ? [{ poll: structuredClone(p), invitee: structuredClone(i) }] : []; }); },
+    async inviteeById(id) { const i = people.find((x) => x.id === id); const p = i && polls.find((x) => x.id === i.poll_id); return i && p ? { poll: structuredClone(p), invitee: structuredClone(i) } : null; },
   };
 }
 
@@ -150,6 +214,7 @@ export type MeetingPollDeps = {
   text?: { send(to: string, body: string): Promise<{ sent: boolean; error?: string }> };
   appUrl: string;
   store?: PollStore;
+  availability?: AvailabilityStore;
   now?: () => number;
 };
 
@@ -158,6 +223,7 @@ const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestHandler, deps: MeetingPollDeps) {
   const store = deps.store ?? createSupabasePollStore();
+  const availability = deps.availability ?? createSupabaseAvailabilityStore();
   const now = deps.now ?? Date.now;
   const pollsMade = createAttemptLimiter({ max: POLL_LIMITS.pollsPerDay, windowMs: 24 * 3600_000, now });
   const emailsSent = createAttemptLimiter({ max: POLL_LIMITS.emailsPerDay, windowMs: 24 * 3600_000, now });
@@ -176,7 +242,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
   const mailOptions = (req: any, poll: Pick<PollRow, "sender_name" | "reply_to">) => ({ replyTo: String(poll.reply_to || "").trim() || teacherEmail(req), fromName: senderFor(req, poll) });
 
   /** The poll as the teacher sees it. */
-  function teacherView({ poll, invitees }: PollWithPeople) {
+  function teacherView({ poll, invitees }: PollWithPeople, weekly: Map<number, FreeWindow[]> = new Map()) {
     const people = invitees.map((i) => ({ name: i.name, answers: i.answers || {}, respondedAt: i.responded_at }));
     const tally = tallyPoll(poll.options, people);
     return {
@@ -184,7 +250,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       senderName: poll.sender_name || "", replyTo: poll.reply_to || "", sendVia: poll.send_via || "site", sendText: !!poll.send_text,
       status: poll.status, chosenOption: poll.chosen_option, createdAt: poll.created_at,
       options: poll.options.map((o) => ({ ...o, label: describeOption(o) })),
-      invitees: invitees.map((i) => ({ id: i.id, name: i.name, email: i.email, phone: i.phone || "", link: linkFor(i.token), role: i.role, answers: i.answers || {}, comment: i.comment || "", respondedAt: i.responded_at, emailSent: i.email_sent })),
+      invitees: invitees.map((i) => ({ id: i.id, name: i.name, email: i.email, phone: i.phone || "", link: linkFor(i.token), role: i.role, answers: i.answers || {}, comment: i.comment || "", respondedAt: i.responded_at, emailSent: i.email_sent, linked: !!i.user_id, fit: i.user_id && weekly.get(i.user_id)?.length ? Object.fromEntries(poll.options.map((o) => [o.id, fitOption(weekly.get(i.user_id!)!, o)])) : {} })),
       tally: tally.options, best: tally.best,
     };
   }
@@ -264,7 +330,10 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     if (!(await deps.gate(req, res))) return;
     res.set("Cache-Control", "no-store");
     try {
-      res.json({ polls: (await store.list(Number(req.user.id))).map(teacherView), textAvailable: !!deps.text });
+      const rows = await store.list(Number(req.user.id));
+      const linked = [...new Set(rows.flatMap((r) => r.invitees.map((i) => i.user_id)).filter((x): x is number => !!x))];
+      const weekly = await availability.getMany(linked).catch(() => new Map<number, FreeWindow[]>());
+      res.json({ polls: rows.map((r) => teacherView(r, weekly)), textAvailable: !!deps.text });
     } catch (error: any) {
       console.error("[meeting-poll] list failed", error?.message);
       res.status(500).json({ message: "Could not load your polls." });
@@ -339,6 +408,71 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     }
   });
 
+  /** The teacher fills in someone's answers for them (a phone call, a hallway chat). */
+  app.post("/api/teacher-hub/polls/:id/answer", authMiddleware, async (req: any, res) => {
+    if (!(await deps.gate(req, res))) return;
+    try {
+      const row = await store.get(Number(req.user.id), String(req.params.id));
+      const person = row?.invitees.find((i) => i.id === String(req.body?.inviteeId || ""));
+      if (!row || !person) return res.status(404).json({ message: "That person was not found in this poll." });
+      if (row.poll.status === "booked") return res.status(409).json({ message: "A time has already been chosen, so this poll is closed." });
+      const answers = cleanAnswers(req.body?.answers, row.poll.options);
+      if (!Object.keys(answers).length) return res.status(400).json({ message: "Pick an answer for at least one time." });
+      await store.saveAnswers(person.id, answers, cleanComment(req.body?.comment), new Date(now()).toISOString());
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("[meeting-poll] teacher answer failed", error?.message);
+      res.status(500).json({ message: "Could not save those answers." });
+    }
+  });
+
+  // ---- A signed-in staff member: weekly free times, and polls linked to their account ----
+
+  app.get("/api/teacher-hub/availability", authMiddleware, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    try { res.json({ weekly: await availability.get(Number(req.user.id)) }); }
+    catch (error: any) { console.error("[availability] read failed", error?.message); res.status(500).json({ message: "Could not load your free times." }); }
+  });
+
+  app.put("/api/teacher-hub/availability", authMiddleware, async (req: any, res) => {
+    try {
+      const weekly = cleanWeekly(req.body?.weekly);
+      await availability.set(Number(req.user.id), weekly);
+      res.json({ weekly });
+    } catch (error: any) { console.error("[availability] save failed", error?.message); res.status(500).json({ message: "Could not save your free times." }); }
+  });
+
+  const invitedView = ({ poll, invitee }: { poll: PollRow; invitee: InviteeRow }) => ({
+    inviteeId: invitee.id, ...guestView({ poll, invitee }), from: poll.sender_name || "", options: poll.options.map((o) => ({ id: o.id, date: o.date, start: o.start, end: o.end, label: describeOption(o) })),
+  });
+
+  app.get("/api/teacher-hub/polls-invited", authMiddleware, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    try { res.json({ polls: (await store.invitedTo(Number(req.user.id))).map(invitedView) }); }
+    catch (error: any) { console.error("[meeting-poll] invited list failed", error?.message); res.status(500).json({ message: "Could not load your invitations." }); }
+  });
+
+  app.post("/api/teacher-hub/polls-invited/:inviteeId/answer", authMiddleware, async (req: any, res) => {
+    try {
+      const found = await store.inviteeById(String(req.params.inviteeId));
+      if (!found || found.invitee.user_id !== Number(req.user.id)) return res.status(404).json({ message: "That invitation was not found." });
+      if (found.poll.status === "booked") return res.status(409).json({ message: "A time has already been chosen, so this poll is closed." });
+      const answers = cleanAnswers(req.body?.answers, found.poll.options);
+      if (!Object.keys(answers).length) return res.status(400).json({ message: "Pick an answer for at least one time." });
+      await store.saveAnswers(found.invitee.id, answers, cleanComment(req.body?.comment), new Date(now()).toISOString());
+      res.json({ ok: true });
+    } catch (error: any) { console.error("[meeting-poll] invited answer failed", error?.message); res.status(500).json({ message: "Could not save your answers." }); }
+  });
+
+  app.delete("/api/teacher-hub/polls-invited/:inviteeId", authMiddleware, async (req: any, res) => {
+    try {
+      const found = await store.inviteeById(String(req.params.inviteeId));
+      if (!found || found.invitee.user_id !== Number(req.user.id)) return res.status(404).json({ message: "That invitation was not found." });
+      await store.claim(found.invitee.id, null);
+      res.json({ ok: true });
+    } catch (error: any) { console.error("[meeting-poll] unlink failed", error?.message); res.status(500).json({ message: "Could not remove that." }); }
+  });
+
   app.delete("/api/teacher-hub/polls/:id", authMiddleware, async (req: any, res) => {
     if (!(await deps.gate(req, res))) return;
     try {
@@ -388,6 +522,21 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     } catch (error: any) {
       console.error("[meeting-poll] reply failed", error?.message);
       res.status(500).json({ message: "Could not save your answers. Please try again." });
+    }
+  });
+
+  /** A signed-in person who opened their private link adds the poll to their own account. */
+  app.post("/api/meeting-poll/:token/claim", authMiddleware, async (req: any, res) => {
+    const found = await findByLink(req, res);
+    if (!found) return;
+    try {
+      if (found.poll.teacher_id === Number(req.user.id)) return res.status(400).json({ message: "This is your own poll." });
+      if (found.invitee.user_id && found.invitee.user_id !== Number(req.user.id)) return res.status(409).json({ message: "This invitation is already on another account." });
+      await store.claim(found.invitee.id, Number(req.user.id));
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("[meeting-poll] claim failed", error?.message);
+      res.status(500).json({ message: "Could not add this to your account yet. Ask the site owner to finish the setup." });
     }
   });
 }

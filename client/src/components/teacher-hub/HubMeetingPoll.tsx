@@ -7,12 +7,14 @@ import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
 import type { Workspace } from "@shared/teacherHub";
+import { AnswerEditor, InvitedPolls, MyAvailability } from "./HubAvailability";
+import { FIT_WORDS, fitOption, type Fit, type FreeWindow } from "@shared/availability";
 import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
 
 type PollView = {
   id: string; title: string; location: string; message: string; hubMeetingId: string; senderName: string; sendVia: "site" | "mailbox" | "self"; sendText: boolean; status: "open" | "booked"; chosenOption: string | null; best: string | null;
   options: { id: string; date: string; start: string; end: string; label: string }[];
-  invitees: { id: string; name: string; email: string; phone: string; link: string; role: string; answers: Record<string, PollAnswer>; comment: string; respondedAt: string | null; emailSent: boolean }[];
+  invitees: { id: string; name: string; email: string; phone: string; link: string; role: string; answers: Record<string, PollAnswer>; comment: string; respondedAt: string | null; emailSent: boolean; linked: boolean; fit: Record<string, Fit> }[];
   tally: { id: string; yes: number; maybe: number; no: number; waiting: number; everyone: boolean }[];
 };
 
@@ -94,6 +96,8 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
       <div className="space-y-4" data-testid="meeting-polls">
         {notice && <div role="status" data-testid="poll-notice" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</div>}
         <MailboxRow token={token} box={box} onChanged={loadBox} setNotice={setNotice} />
+        <MyAvailability token={token} setNotice={setNotice} />
+        <InvitedPolls token={token} setNotice={setNotice} />
         {composing && (
           <Composer
             box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account} initial={composing}
@@ -104,7 +108,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
         {polls === null && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
         {loadError && <div className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{loadError}</div>}
         {polls && !polls.length && !composing && !loadError && <Empty>No polls yet. Tap “Ask for times” to message parents and staff a few possible times.</Empty>}
-        {polls?.map((poll) => <PollCard key={poll.id} poll={poll} token={token} senderName={poll.senderName || workspace.profile.senderName || account.name} onBooked={booked} onChanged={load} setNotice={setNotice} />)}
+        {polls?.map((poll) => <PollCard key={poll.id} poll={poll} token={token} senderName={poll.senderName || workspace.profile.senderName || account.name} contacts={workspace.spedContacts} onBooked={booked} onChanged={load} setNotice={setNotice} />)}
       </div>
     </Card>
   );
@@ -270,12 +274,13 @@ function Composer({ box, textAvailable, token, workspace, setWorkspace, account,
   );
 }
 
-function PollCard({ poll, token, senderName, onBooked, onChanged, setNotice }: {
-  poll: PollView; token: string | null; senderName: string; onBooked: (poll: PollView, option: PollView["options"][number], told: number, selfSend?: boolean) => void; onChanged: () => void; setNotice: (text: string) => void;
+function PollCard({ poll, token, senderName, contacts, onBooked, onChanged, setNotice }: {
+  poll: PollView; token: string | null; senderName: string; contacts: { email: string; free?: FreeWindow[] }[]; onBooked: (poll: PollView, option: PollView["options"][number], told: number, selfSend?: boolean) => void; onChanged: () => void; setNotice: (text: string) => void;
 }) {
   const selfMode = poll.sendVia === "self";
   const [showSelf, setShowSelf] = useState(selfMode && poll.status === "open");
   const [picking, setPicking] = useState<string | null>(null);
+  const [entering, setEntering] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
   const answered = poll.invitees.filter((i) => i.respondedAt).length;
@@ -293,6 +298,19 @@ function PollCard({ poll, token, senderName, onBooked, onChanged, setNotice }: {
     const r = await call(token, "POST", `/api/teacher-hub/polls/${poll.id}/choose`, { optionId: option.id, notify });
     setPicking(null);
     onBooked(poll, option, r.told, !!r.selfSend);
+  });
+  /** How free someone usually is: from their own account if they linked one, else from the free times saved on your team list. */
+  const fitFor = (i: PollView["invitees"][number], optionId: string): Fit => {
+    if (i.fit?.[optionId]) return i.fit[optionId];
+    const saved = i.email ? contacts.find((c) => c.email && c.email.toLowerCase() === i.email.toLowerCase())?.free : undefined;
+    const option = poll.options.find((o) => o.id === optionId);
+    return saved?.length && option ? fitOption(saved, option) : "unknown";
+  };
+  const enter = (i: PollView["invitees"][number], answers: Record<string, string>, comment: string) => run(async () => {
+    await call(token, "POST", `/api/teacher-hub/polls/${poll.id}/answer`, { inviteeId: i.id, answers, comment });
+    setEntering(null);
+    setNotice(`Saved ${i.name}'s answers.`);
+    onChanged();
   });
   const remove = () => run(async () => {
     if (!window.confirm(`Delete “${poll.title}”? The links in the emails will stop working.`)) return;
@@ -338,10 +356,10 @@ function PollCard({ poll, token, senderName, onBooked, onChanged, setNotice }: {
           <tbody>
             {poll.invitees.map((i) => (
               <tr key={i.id} data-testid="poll-person">
-                <td className="pr-2 align-middle"><div className="max-w-[9rem] truncate font-medium">{i.name}</div><div className="text-[11px] text-slate-500">{i.role}{!i.emailSent ? (selfMode ? " · not sent yet" : " · email not sent") : ""}</div></td>
+                <td className="pr-2 align-middle"><div className="max-w-[9rem] truncate font-medium">{i.name}</div>{poll.status === "open" && <button type="button" onClick={() => setEntering(entering === i.id ? null : i.id)} className="min-h-11 text-[11px] font-medium text-teal-800 underline decoration-teal-200 underline-offset-2">{i.respondedAt ? "Change answers" : "Enter answers"}<span className="sr-only"> for {i.name}</span></button>}<div className="text-[11px] text-slate-500">{i.role}{!i.emailSent ? (selfMode ? " · not sent yet" : " · email not sent") : ""}</div></td>
                 {poll.options.map((o) => {
                   const a = i.respondedAt ? i.answers[o.id] : undefined;
-                  return <td key={o.id} className="px-1 text-center">{a ? <span className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 font-bold ${SYMBOL[a].cls}`} title={SYMBOL[a].word}><span aria-hidden>{SYMBOL[a].mark}</span><span className="sr-only">{SYMBOL[a].word}</span></span> : <span className="text-slate-300" title="No answer yet">–<span className="sr-only">No answer yet</span></span>}</td>;
+                  return <td key={o.id} className="px-1 text-center">{a ? <span className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 font-bold ${SYMBOL[a].cls}`} title={SYMBOL[a].word}><span aria-hidden>{SYMBOL[a].mark}</span><span className="sr-only">{SYMBOL[a].word}</span></span> : <span className="text-slate-300" title="No answer yet">–<span className="sr-only">No answer yet</span></span>}{fitFor(i, o.id) !== "unknown" && <div className={`mt-0.5 text-[10px] leading-tight ${fitFor(i, o.id) === "busy" ? "text-rose-700" : fitFor(i, o.id) === "partly" ? "text-amber-700" : "text-emerald-700"}`} data-testid="fit-hint">{FIT_WORDS[fitFor(i, o.id) as Exclude<Fit, "unknown">]}</div>}</td>;
                 })}
               </tr>
             ))}
@@ -358,6 +376,19 @@ function PollCard({ poll, token, senderName, onBooked, onChanged, setNotice }: {
           </tbody>
         </table>
       </div>
+
+      {entering && (() => {
+        const person = poll.invitees.find((x) => x.id === entering);
+        if (!person) return null;
+        const free = person.email ? contacts.find((c) => c.email && c.email.toLowerCase() === person.email.toLowerCase())?.free : undefined;
+        return (
+          <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3" data-testid="enter-answers">
+            <div className="text-sm font-semibold">Answers for {person.name}</div>
+            <p className="text-xs text-slate-600">Use this when someone tells you their times by phone, in person or in a meeting.</p>
+            <AnswerEditor key={person.id} options={poll.options} answers={person.answers} comment={person.comment} weekly={free} fit={person.fit} saveLabel="Save their answers" busy={busy} onSave={(a, c) => enter(person, a, c)} onCancel={() => setEntering(null)} />
+          </div>
+        );
+      })()}
 
       {picking && (
         <div className="mt-3 space-y-3 rounded-xl bg-slate-50 p-3" data-testid="poll-pick">
