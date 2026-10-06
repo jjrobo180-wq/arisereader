@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { CalendarCheck, Loader2, Plus, Send, Trash2 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
-import { INVITEE_ROLES, POLL_LIMITS, type PollAnswer } from "@shared/meetingPoll";
+import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
 import type { Workspace } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
@@ -39,8 +39,8 @@ const SYMBOL: Record<PollAnswer, { mark: string; word: string; cls: string }> = 
 const blankTime = () => ({ date: "", start: "", end: "" });
 type Guest = { name: string; email: string; role: string };
 
-export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId, start, onStarted }: {
-  token: string | null; workspace: Workspace; setWorkspace: Setter; makeId: () => string; start: PollStart; onStarted: () => void;
+export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId, start, onStarted, account }: {
+  token: string | null; workspace: Workspace; setWorkspace: Setter; makeId: () => string; start: PollStart; onStarted: () => void; account: { name: string; email: string };
 }) {
   const [polls, setPolls] = useState<PollView[] | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -74,7 +74,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
         {notice && <div role="status" data-testid="poll-notice" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</div>}
         {composing && (
           <Composer
-            token={token} workspace={workspace} initial={composing}
+            token={token} workspace={workspace} setWorkspace={setWorkspace} account={account} initial={composing}
             onClose={() => setComposing(null)}
             onSent={(message) => { setComposing(null); setNotice(message); void load(); }}
           />
@@ -88,30 +88,35 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
   );
 }
 
-function Composer({ token, workspace, initial, onClose, onSent }: {
-  token: string | null; workspace: Workspace; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string) => void;
+function Composer({ token, workspace, setWorkspace, account, initial, onClose, onSent }: {
+  token: string | null; workspace: Workspace; setWorkspace: Setter; account: { name: string; email: string }; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string) => void;
 }) {
   const [title, setTitle] = useState(initial.title);
   const [location, setLocation] = useState("");
   const [message, setMessage] = useState("");
+  const [senderName, setSenderName] = useState(workspace.profile.senderName || account.name);
+  const [replyTo, setReplyTo] = useState(workspace.profile.replyEmail || account.email);
   const [times, setTimes] = useState([blankTime(), blankTime()]);
   const team = workspace.spedContacts.filter((c) => c.email);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [guests, setGuests] = useState<Guest[]>([{ name: "", email: "", role: "Parent or guardian" }]);
+  const [seed, setSeed] = useState(true); // the first blank row is replaced by the first role button tapped
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function send() {
     setBusy(true); setError("");
     const invitees = [
-      ...team.filter((c) => picked[c.id]).map((c) => ({ name: c.name, email: c.email, role: "Staff" })),
+      ...team.filter((c) => picked[c.id]).map((c) => ({ name: c.name, email: c.email, role: roleLabel(c.role) })),
       ...guests.filter((g) => g.email.trim() || g.name.trim()),
     ];
     try {
       const data = await call(token, "POST", "/api/teacher-hub/polls", {
-        title, location, message, hubMeetingId: initial.meetingId,
+        title, location, message, hubMeetingId: initial.meetingId, senderName, replyTo,
         options: times.filter((t) => t.date || t.start), invitees,
       });
+      // Remember the choice for next time.
+      setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo } }));
       onSent(data.notSent ? `Sent, but ${data.notSent} ${data.notSent === 1 ? "email" : "emails"} did not go through. Open the poll to see who.` : `Sent to ${invitees.length} ${invitees.length === 1 ? "person" : "people"}. Their answers will show up here.`);
     } catch (e: any) { setError(e?.message || "Could not send."); }
     finally { setBusy(false); }
@@ -166,8 +171,26 @@ function Composer({ token, workspace, initial, onClose, onSent }: {
             </div>
           ))}
         </div>
-        <div className="mt-2"><GhostButton onClick={() => setGuests([...guests, { name: "", email: "", role: "Parent or guardian" }])}><Plus className="h-4 w-4" /> Add a parent or someone else</GhostButton></div>
+        <div className="mt-2"><GhostButton onClick={() => setGuests([...guests, { name: "", email: "", role: "Parent or guardian" }])}><Plus className="h-4 w-4" /> Add another person</GhostButton></div>
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Add a person by role">
+          {QUICK_ROLES.map((role) => (
+            <button key={role} type="button" onClick={() => { setGuests((prev) => [...(seed && prev.length === 1 && !prev[0].name && !prev[0].email ? [] : prev), { name: "", email: "", role }]); setSeed(false); }} className="min-h-11 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ {role}</button>
+          ))}
+        </div>
         {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add your team's emails on the IEP guide tab and they'll show up here to tick.</p>}
+      </div>
+
+      <div>
+        <div className="mb-2 text-sm font-semibold text-slate-800">Who the email comes from</div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-xs font-medium text-slate-600">Name on the email
+            <Field className="mt-1" aria-label="Name on the email" value={senderName} onChange={(e) => setSenderName(e.target.value)} maxLength={POLL_LIMITS.senderName} />
+          </label>
+          <label className="text-xs font-medium text-slate-600">Send replies to (your own email, or any you choose)
+            <Field className="mt-1" type="email" inputMode="email" aria-label="Send replies to" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} maxLength={120} />
+          </label>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">Emails are sent through A.R.I.S.E. Reader so they reach inboxes instead of junk. People see your name, and when they tap Reply it goes to the address above.</p>
       </div>
 
       <TextArea placeholder="A short note (optional)" aria-label="Note" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={POLL_LIMITS.message} className="min-h-16" />

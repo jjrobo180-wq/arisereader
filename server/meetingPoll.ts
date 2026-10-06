@@ -11,7 +11,7 @@ import {
   type PollAnswer, type PollOption,
 } from "../shared/meetingPoll";
 
-export type PollRow = { id: string; teacher_id: number; title: string; location: string; message: string; hub_meeting_id: string; options: PollOption[]; status: "open" | "booked"; chosen_option: string | null; created_at: string };
+export type PollRow = { id: string; teacher_id: number; title: string; location: string; message: string; hub_meeting_id: string; sender_name: string; reply_to: string; options: PollOption[]; status: "open" | "booked"; chosen_option: string | null; created_at: string };
 export type InviteeRow = { id: string; poll_id: string; name: string; email: string; role: string; token: string; answers: Record<string, PollAnswer>; comment: string; email_sent: boolean; invited_at: string; responded_at: string | null };
 export type PollWithPeople = { poll: PollRow; invitees: InviteeRow[] };
 
@@ -33,11 +33,16 @@ export function createSupabasePollStore(): PollStore {
   const fail = (error: any) => { if (error) throw error; };
   return {
     async create(poll, invitees) {
-      const made = await (await db()).from("meeting_polls").insert(poll).select("*").single();
+      let made = await (await db()).from("meeting_polls").insert(poll).select("*").single();
+      // Before migrations/meeting_polls_sender.sql has been run, the two sender columns don't exist yet: send anyway, with the account's own name and email.
+      if (made.error && /sender_name|reply_to/.test(`${made.error.message} ${made.error.details ?? ""}`)) {
+        const { sender_name: _a, reply_to: _b, ...plain } = poll as any;
+        made = await (await db()).from("meeting_polls").insert(plain).select("*").single();
+      }
       fail(made.error);
       const rows = await (await db()).from("meeting_poll_invitees").insert(invitees.map((i) => ({ ...i, poll_id: made.data.id }))).select("*");
       if (rows.error) { await (await db()).from("meeting_polls").delete().eq("id", made.data.id); throw rows.error; }
-      return { poll: made.data as PollRow, invitees: rows.data as InviteeRow[] };
+      return { poll: { sender_name: "", reply_to: "", ...made.data } as PollRow, invitees: rows.data as InviteeRow[] };
     },
     async list(teacherId) {
       const polls = await (await db()).from("meeting_polls").select("*").eq("teacher_id", teacherId).order("created_at", { ascending: false }).limit(40);
@@ -130,7 +135,7 @@ export function pollBookedEmail(p: { guest: string; teacher: string; title: stri
 
 export type MeetingPollDeps = {
   gate(req: any, res: any): Promise<unknown | null>;
-  sendEmail(to: string, subject: string, html: string, options?: { replyTo?: string }): Promise<{ sent: boolean; error?: string }>;
+  sendEmail(to: string, subject: string, html: string, options?: { replyTo?: string; fromName?: string }): Promise<{ sent: boolean; error?: string }>;
   appUrl: string;
   store?: PollStore;
   now?: () => number;
@@ -152,6 +157,10 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
   const linkFor = (token: string) => `${base}/#/meet/${token}`;
   const teacherName = (req: any) => String(req.user?.displayName || req.user?.display_name || req.user?.username || "Your teacher");
   const teacherEmail = (req: any) => String(req.user?.email || "").trim() || undefined;
+  /** The name on the emails: what the teacher chose for this poll, else their account name. */
+  const senderFor = (req: any, poll: Pick<PollRow, "sender_name">) => String(poll.sender_name || "").trim() || teacherName(req);
+  /** Where replies go: what the teacher chose for this poll, else their account email. */
+  const mailOptions = (req: any, poll: Pick<PollRow, "sender_name" | "reply_to">) => ({ replyTo: String(poll.reply_to || "").trim() || teacherEmail(req), fromName: senderFor(req, poll) });
 
   /** The poll as the teacher sees it. */
   function teacherView({ poll, invitees }: PollWithPeople) {
@@ -159,6 +168,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     const tally = tallyPoll(poll.options, people);
     return {
       id: poll.id, title: poll.title, location: poll.location, message: poll.message, hubMeetingId: poll.hub_meeting_id,
+      senderName: poll.sender_name || "", replyTo: poll.reply_to || "",
       status: poll.status, chosenOption: poll.chosen_option, createdAt: poll.created_at,
       options: poll.options.map((o) => ({ ...o, label: describeOption(o) })),
       invitees: invitees.map((i) => ({ id: i.id, name: i.name, email: i.email, role: i.role, answers: i.answers || {}, comment: i.comment || "", respondedAt: i.responded_at, emailSent: i.email_sent })),
@@ -171,8 +181,8 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     const result = await deps.sendEmail(
       invitee.email,
       `${reminder ? "Reminder: " : ""}Which times work for ${poll.title}?`,
-      pollInviteEmail({ guest: invitee.name, teacher: teacherName(req), title: poll.title, location: poll.location, message: poll.message, options: poll.options, link: linkFor(invitee.token), reminder }),
-      { replyTo: teacherEmail(req) },
+      pollInviteEmail({ guest: invitee.name, teacher: senderFor(req, poll), title: poll.title, location: poll.location, message: poll.message, options: poll.options, link: linkFor(invitee.token), reminder }),
+      mailOptions(req, poll),
     ).catch((error: any) => ({ sent: false, error: String(error?.message || error) }));
     await store.markEmailed(invitee.id, result.sent).catch(() => {});
     invitee.email_sent = result.sent;
@@ -190,7 +200,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     try {
       pollsMade.fail(teacher);
       const row = await store.create(
-        { teacher_id: Number(req.user.id), title: made.poll.title, location: made.poll.location, message: made.poll.message, hub_meeting_id: made.poll.hubMeetingId, options: made.poll.options },
+        { teacher_id: Number(req.user.id), title: made.poll.title, location: made.poll.location, message: made.poll.message, hub_meeting_id: made.poll.hubMeetingId, sender_name: made.poll.senderName, reply_to: made.poll.replyTo, options: made.poll.options },
         made.poll.invitees.map((i) => ({ ...i, token: randomBytes(24).toString("base64url") })),
       );
       await Promise.all(row.invitees.map((invitee) => emailInvitee(req, row.poll, invitee)));
@@ -247,8 +257,8 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
         const results = await Promise.all(row.invitees.map(async (i) => {
           emailsSent.fail(String(req.user.id));
           const r = await deps.sendEmail(i.email, `The time is set: ${row.poll.title}`,
-            pollBookedEmail({ guest: i.name, teacher: teacherName(req), title: row.poll.title, location: row.poll.location, when: describeOption(option) }),
-            { replyTo: teacherEmail(req) }).catch(() => ({ sent: false }));
+            pollBookedEmail({ guest: i.name, teacher: senderFor(req, row.poll), title: row.poll.title, location: row.poll.location, when: describeOption(option) }),
+            mailOptions(req, row.poll)).catch(() => ({ sent: false }));
           return r.sent;
         }));
         told = results.filter(Boolean).length;

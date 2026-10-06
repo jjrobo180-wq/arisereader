@@ -10,11 +10,13 @@ function setup(opts: { allow?: boolean; failEmailTo?: string } = {}) {
   const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
   const app: any = { get: add("GET"), post: add("POST"), delete: add("DELETE") };
   const sent: Sent[] = [];
+  const fromNames: string[] = [];
   let clock = Date.parse("2026-10-06T18:00:00Z");
   const store = createMemoryPollStore();
   registerMeetingPollRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
     gate: async (_req, res) => (opts.allow === false ? (res.status(402).json({ message: "Teacher Hub needed" }), null) : {}),
     sendEmail: async (to, subject, html, options) => {
+      fromNames.push(String(options?.fromName));
       if (to === opts.failEmailTo) return { sent: false, error: "bounced" };
       sent.push({ to, subject, html, replyTo: options?.replyTo });
       return { sent: true };
@@ -27,7 +29,7 @@ function setup(opts: { allow?: boolean; failEmailTo?: string } = {}) {
     await routes[key]({ body: {}, params: {}, headers: {}, user: { id: 7, displayName: "Ms. Rivera", email: "rivera@school.org" }, ...req }, res);
     return { code, body: payload };
   };
-  return { call, sent, store, tick: (ms: number) => { clock += ms; } };
+  return { call, sent, fromNames, store, tick: (ms: number) => { clock += ms; } };
 }
 
 const poll = () => ({
@@ -156,4 +158,22 @@ test("emails escape what people typed", () => {
   assert.ok(!html.includes("<script>") && !html.includes("<b>Al"));
   assert.match(html, /T &amp; Co/);
   assert.match(pollBookedEmail({ guest: "G", teacher: "T", title: "<i>", location: "Room", when: "Tue" }), /&lt;i&gt;/);
+});
+
+test("the teacher can choose the name and reply address; reminders and the final email use them too", async () => {
+  const t = setup();
+  const made = await t.call("POST /api/teacher-hub/polls", { body: { ...poll(), senderName: "Maria R., 4th grade", replyTo: "maria.personal@example.com" } });
+  assert.equal(made.code, 201);
+  assert.ok(t.sent.every((s) => s.replyTo === "maria.personal@example.com"));
+  assert.ok(t.fromNames.every((n) => n === "Maria R., 4th grade"));
+  assert.match(t.sent[0].html, /Maria R\., 4th grade is trying/);
+  assert.equal(made.body.poll.replyTo, "maria.personal@example.com");
+  t.sent.length = 0; t.fromNames.length = 0;
+  await t.call("POST /api/teacher-hub/polls/:id/remind", { params: { id: made.body.poll.id } });
+  await t.call("POST /api/teacher-hub/polls/:id/choose", { params: { id: made.body.poll.id }, body: { optionId: "o1" } });
+  assert.equal(t.sent.length, 4);
+  assert.ok(t.sent.every((s) => s.replyTo === "maria.personal@example.com"));
+  assert.ok(t.fromNames.every((n) => n === "Maria R., 4th grade"));
+  const bad = await t.call("POST /api/teacher-hub/polls", { body: { ...poll(), replyTo: "nope" } });
+  assert.equal(bad.code, 400);
 });

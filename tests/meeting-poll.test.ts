@@ -6,7 +6,7 @@ import { cleanAnswers, cleanEmail, cleanPollInput, describeOption, tallyPoll } f
 const good = () => ({
   title: "IEP meeting for Jordan", location: "Room 4", message: "Please pick what works.",
   options: [{ date: "2026-10-13", start: "3:30 PM", end: "4:30 PM" }, { date: "2026-10-14", start: "08:15", end: "" }],
-  invitees: [{ name: "Ms. Lee", email: " Lee@Example.com ", role: "Parent or guardian" }, { name: "", email: "coach@school.org", role: "Staff" }],
+  invitees: [{ name: "Ms. Lee", email: " Lee@Example.com ", role: "Parent or guardian" }, { name: "", email: "coach@school.org", role: "Social worker" }],
 });
 
 test("a good poll is cleaned up", () => {
@@ -14,7 +14,7 @@ test("a good poll is cleaned up", () => {
   assert.ok(r.ok);
   if (!r.ok) return;
   assert.deepEqual(r.poll.options, [{ id: "o1", date: "2026-10-13", start: "15:30", end: "16:30" }, { id: "o2", date: "2026-10-14", start: "08:15", end: "" }]);
-  assert.deepEqual(r.poll.invitees.map((i) => [i.name, i.email, i.role]), [["Ms. Lee", "lee@example.com", "Parent or guardian"], ["coach", "coach@school.org", "Staff"]]);
+  assert.deepEqual(r.poll.invitees.map((i) => [i.name, i.email, i.role]), [["Ms. Lee", "lee@example.com", "Parent or guardian"], ["coach", "coach@school.org", "Social worker"]]);
 });
 
 test("mistakes come back as one plain sentence", () => {
@@ -69,4 +69,27 @@ test("the tally counts everyone and picks the best time", () => {
   assert.equal(tallyPoll(options, [{ name: "A", respondedAt: "x", answers: { o1: "yes", o2: "yes", o3: "yes" } as any }]).options[0].everyone, true);
   assert.equal(tallyPoll(options, []).best, null);
   assert.equal(tallyPoll(options, [people[2]]).best, null);
+});
+
+test("any team role can be asked, and a blank role becomes Other", () => {
+  const p: any = good();
+  p.invitees = [{ email: "a@x.org", role: "Gen ed teacher" }, { email: "b@x.org", role: "OT" }, { email: "c@x.org", role: "" }, { email: "d@x.org", role: "x".repeat(80) }];
+  const r = cleanPollInput(p, "2026-10-06");
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.deepEqual(r.poll.invitees.map((i) => i.role.length > 40 ? "long" : i.role), ["Gen ed teacher", "OT", "Other", "x".repeat(40)]);
+});
+
+test("the sender's name and reply address are cleaned and checked", () => {
+  const p: any = good();
+  p.senderName = ' Ms. "Rivera" <boss@x.org> '; p.replyTo = " Rivera@School.org ";
+  const r = cleanPollInput(p, "2026-10-06");
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.poll.senderName, "Ms. Rivera");
+  assert.equal(r.poll.replyTo, "rivera@school.org");
+  const none = cleanPollInput(good(), "2026-10-06");
+  assert.ok(none.ok && none.poll.senderName === "" && none.poll.replyTo === "");
+  const bad = cleanPollInput({ ...good(), replyTo: "not an email" }, "2026-10-06");
+  assert.ok(!bad.ok && /replies/.test(bad.error));
 });
