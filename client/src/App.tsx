@@ -87,6 +87,7 @@ const SkyboundSprint = lazyPage(() => import("./pages/SkyboundSprint"));
 const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
+const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -329,6 +330,9 @@ function AppRoutes() {
       </Route>
       <Route path="/teacher-dashboard">
         <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
+      </Route>
+      <Route path="/teacher-hub">
+        <TeacherHub />
       </Route>
       <Route path="/teacher-scenes">
         {user && (user.role === "teacher" || user.isAdmin)
@@ -666,7 +670,7 @@ function AppInner() {
         </EyeGazeSiteShell>
       </Router>
       {!inGame && (
-        <a href="https://jermaine-teacher-hub.jjrobo.chatgpt.site" target="_blank" rel="noopener noreferrer">TeacherHub</a>
+        <a href="#/teacher-hub">TeacherHub</a>
       )}
     </>
   );
