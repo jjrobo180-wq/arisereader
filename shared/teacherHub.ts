@@ -46,8 +46,36 @@ export type HubEvent = {
 /** A calendar the teacher connected by its link (Google, Outlook, Apple or any calendar feed). */
 export type HubCalendar = { id: string; name: string; url: string; syncedAt: string };
 
+// The IEP guide (shared/hubGuide.ts has its checklist and rules).
+/** Someone on the teacher's special education team. Every teacher keeps their own list; no names are built in. */
+export type HubContact = { id: string; name: string; role: string; email: string };
+/** A link the teacher uses for every IEP (a room form, a folder, a deadlines list). */
+export type HubLink = { id: string; label: string; url: string };
+export type GuideStep = { id: string; text: string; done: boolean; note: string };
+export type GuideSection = { id: string; title: string; steps: GuideStep[] };
+export type GuideKind = "IEP meeting" | "Re-evaluation";
+/** One student's checklist for an IEP or re-evaluation meeting. */
+export type IepGuide = {
+  id: string;
+  student: string;
+  kind: GuideKind;
+  /** YYYY-MM-DD, or "" until it is set. */
+  planningDate: string;
+  meetingDate: string;
+  /** "HH:MM", or "". */
+  meetingTime: string;
+  room: string;
+  parent1: string;
+  parent1Phone: string;
+  parent2: string;
+  parent2Phone: string;
+  /** Who is assigned to this student: a role's id to the id of one of the teacher's saved contacts. */
+  team: Record<string, string>;
+  sections: GuideSection[];
+};
+
 export const HUB_TABS = [
-  "overview", "calendar", "caseload", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
+  "overview", "calendar", "caseload", "iep", "guide", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 
@@ -70,6 +98,9 @@ export type Workspace = {
   emails: EmailItem[];
   events: HubEvent[];
   calendars: HubCalendar[];
+  guides: IepGuide[];
+  spedContacts: HubContact[];
+  guideLinks: HubLink[];
 };
 
 export function emptyWorkspace(): Workspace {
@@ -79,10 +110,11 @@ export function emptyWorkspace(): Workspace {
     visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, true])) as Record<HubTab, boolean>,
     students: [], meetings: [], lessons: [], tasks: [], notes: [], ariseRecords: [], behavior: [], attendance: [],
     assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], events: [], calendars: [],
+    guides: [], spedContacts: [], guideLinks: [],
   };
 }
 
-const LISTS = ["students", "meetings", "lessons", "tasks", "notes", "ariseRecords", "behavior", "attendance", "assignments", "gradeScores", "parentLogs", "schedules", "emails", "events", "calendars"] as const;
+const LISTS = ["students", "meetings", "lessons", "tasks", "notes", "ariseRecords", "behavior", "attendance", "assignments", "gradeScores", "parentLogs", "schedules", "emails", "events", "calendars", "guides", "spedContacts", "guideLinks"] as const;
 
 /** A saved workspace made safe to use: every list is a list, even in one saved before a list existed. */
 export function normalizeWorkspace(raw: any): Workspace {
@@ -457,7 +489,7 @@ export function describeHubAdded(result: Pick<HubMergeResult, "added" | "already
 // corrected on the caseload those rows have to follow it.
 
 /** The lists whose rows name a student. */
-export const STUDENT_LISTS = ["meetings", "notes", "ariseRecords", "behavior", "attendance", "gradeScores", "parentLogs", "schedules"] as const;
+export const STUDENT_LISTS = ["meetings", "notes", "ariseRecords", "behavior", "attendance", "gradeScores", "parentLogs", "schedules", "guides"] as const;
 
 export type StudentChange =
   /** `moved` is how many rows in the other tabs now carry the new name. */
