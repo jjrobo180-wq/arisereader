@@ -1,5 +1,6 @@
 // The chess competition standings (rules and dates live in shared/chessCompetition.ts).
 // The database is handed in, so the tests can run this against a pretend one.
+import { isSampleAccount } from "../shared/sampleAccounts";
 import {
   CLASH_BOARD_SIZE, clashPhase, clashStandings, currentClash,
   type ChessCompetition, type ClashGame, type ClashLast, type ClashStanding, type ClashTable, type ClashView,
@@ -92,7 +93,7 @@ async function readPeople(db: ClashDb, ids: number[]): Promise<Map<number, Perso
       people.set(Number(u.id), {
         name: String(u.display_name || username || "Reader"),
         // Sample (demo) and admin accounts never take a place on the board.
-        counts: !u.is_admin && u.role !== "admin" && !username.startsWith("sample"),
+        counts: !u.is_admin && u.role !== "admin" && !isSampleAccount(u),
       });
     }
   }

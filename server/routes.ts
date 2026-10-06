@@ -1,3 +1,4 @@
+import { isSampleAccount } from "../shared/sampleAccounts";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
@@ -4312,7 +4313,7 @@ export async function registerRoutes(
       : await storage.getLeaderboard();
     
     // Exclude sample/demo account from leaderboard
-    leaderboard = leaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
+    leaderboard = leaderboard.filter((entry: any) => !isSampleAccount(entry));
     
     // Filter by grade band if requested
     if (band) {
@@ -4353,7 +4354,7 @@ export async function registerRoutes(
       : await storage.getLeaderboard();
 
     // Exclude sample/demo account from leaderboard
-    leaderboard = leaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
+    leaderboard = leaderboard.filter((entry: any) => !isSampleAccount(entry));
 
     // Fetch enrichment data: user grades, eye gaze flags, schools
     const rawGrades = await storage.getSetting('user_grades');
@@ -4463,7 +4464,7 @@ export async function registerRoutes(
       const fullLeaderboard = await storage.getLeaderboard();
 
       // Exclude sample/demo account
-      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
+      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => !isSampleAccount(entry));
 
       // Filter to user's band (or all if no band)
       const bandLeaderboard = myBand
@@ -4550,7 +4551,7 @@ export async function registerRoutes(
       const fullLeaderboard = await storage.getLeaderboard();
 
       // Exclude sample/demo account
-      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => !String(entry.username || '').startsWith('sample'));
+      const filteredLeaderboard = fullLeaderboard.filter((entry: any) => !isSampleAccount(entry));
       
       // Filter to user's band
       const bandLeaderboard = filteredLeaderboard.filter((entry: any) => {

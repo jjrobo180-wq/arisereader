@@ -5,6 +5,7 @@
 // so a student who used the app every day looked like they came once. The presence tracker
 // notes the first and last time each person used the app each day (at most one save every
 // half minute, stored in settings as activity_day_YYYY-MM-DD, so no new table is needed).
+import { isSampleAccount } from "../shared/sampleAccounts";
 import type { Express, RequestHandler } from "express";
 import {
   ONLINE_WINDOW_MS, QUIET_AFTER_DAYS, STATS_TIME_ZONE, isStatsRange,
@@ -225,7 +226,7 @@ export function buildAdminStats(
   const schoolName = new Map(input.schools.map((s) => [s.id, s.name]));
   const people = new Map<number, Person>();
   for (const u of input.users) {
-    if (u.isAdmin || u.role === "admin" || u.archived || isDemoUsername(u.username) || !Number.isFinite(ms(u.createdAt))) continue;
+    if (u.isAdmin || u.role === "admin" || u.archived || isDemoUsername(u.username) || isSampleAccount(u) || !Number.isFinite(ms(u.createdAt))) continue;
     people.set(u.id, {
       userId: u.id, name: u.displayName || u.username || `User ${u.id}`, role: roleOf(u.role),
       school: u.schoolId ? schoolName.get(u.schoolId) ?? null : null, schoolId: u.schoolId, createdDay: local(u.createdAt).day,

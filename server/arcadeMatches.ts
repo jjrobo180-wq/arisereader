@@ -1,3 +1,4 @@
+import { isSampleAccount } from "../shared/sampleAccounts";
 import type { Express, RequestHandler } from "express";
 import { getAdminSupabase } from "./supabase";
 import { clubDay } from "../shared/clubPlay";
@@ -215,8 +216,8 @@ export async function awardPoints(row: any) {
     if (!state.rewards?.[seat]?.points) continue;
     const userId = seat === 1 ? row.player1_id : row.player2_id;
     if (!userId) continue;
-    const { data: user } = await db.from("users").select("total_points,username,is_admin,role").eq("id", userId).single();
-    if (!user || user.is_admin || user.role === "admin" || String(user.username || "").startsWith("sample")) continue;
+    const { data: user } = await db.from("users").select("total_points,username,display_name,is_admin,role").eq("id", userId).single();
+    if (!user || user.is_admin || user.role === "admin" || isSampleAccount(user)) continue;
     await db.from("users").update({ total_points: Math.round((Number(user.total_points || 0) + WIN_LEADERBOARD_POINTS) * 10) / 10 }).eq("id", userId);
   }
 }
