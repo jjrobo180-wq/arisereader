@@ -5,7 +5,7 @@ import { createMemoryPollStore, pollBookedEmail, pollInviteEmail, registerMeetin
 
 type Sent = { to: string; subject: string; html: string; replyTo?: string };
 
-function setup(opts: { allow?: boolean; failEmailTo?: string } = {}) {
+function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "revoked" | "none" } = {}) {
   const routes: Record<string, Function> = {};
   const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
   const app: any = { get: add("GET"), post: add("POST"), delete: add("DELETE") };
@@ -13,6 +13,11 @@ function setup(opts: { allow?: boolean; failEmailTo?: string } = {}) {
   const fromNames: string[] = [];
   let clock = Date.parse("2026-10-06T18:00:00Z");
   const store = createMemoryPollStore();
+  const viaMailbox: { to: string; subject: string; fromName?: string }[] = [];
+  const mailbox = opts.mailbox ? {
+    status: async () => (opts.mailbox === "none" ? null : { email: "maria@school.org", needsReconnect: false }),
+    send: async (_id: number, m: any) => { if (opts.mailbox === "revoked") return { sent: false, error: "revoked", reconnect: true }; viaMailbox.push({ to: m.to, subject: m.subject, fromName: m.fromName }); return { sent: true }; },
+  } : undefined;
   registerMeetingPollRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
     gate: async (_req, res) => (opts.allow === false ? (res.status(402).json({ message: "Teacher Hub needed" }), null) : {}),
     sendEmail: async (to, subject, html, options) => {
@@ -21,7 +26,7 @@ function setup(opts: { allow?: boolean; failEmailTo?: string } = {}) {
       sent.push({ to, subject, html, replyTo: options?.replyTo });
       return { sent: true };
     },
-    appUrl: "https://www.arisereader.com/", store, now: () => clock,
+    appUrl: "https://www.arisereader.com/", store, now: () => clock, mailbox,
   });
   const call = async (key: string, req: any) => {
     let code = 200; let payload: any;
@@ -29,7 +34,7 @@ function setup(opts: { allow?: boolean; failEmailTo?: string } = {}) {
     await routes[key]({ body: {}, params: {}, headers: {}, user: { id: 7, displayName: "Ms. Rivera", email: "rivera@school.org" }, ...req }, res);
     return { code, body: payload };
   };
-  return { call, sent, fromNames, store, tick: (ms: number) => { clock += ms; } };
+  return { call, sent, viaMailbox, fromNames, store, tick: (ms: number) => { clock += ms; } };
 }
 
 const poll = () => ({
@@ -102,7 +107,7 @@ test("reminders go only to people who haven't answered, a few times a day", asyn
   await t.call("POST /api/meeting-poll/:token", { params: { token: lee }, body: { answers: { o1: "yes" } } });
   t.sent.length = 0;
   const r = await t.call("POST /api/teacher-hub/polls/:id/remind", { params: { id: made.body.poll.id } });
-  assert.deepEqual(r.body, { sent: 1, failed: 0 });
+  assert.deepEqual([r.body.sent, r.body.failed, r.body.mailboxProblem], [1, 0, null]);
   assert.deepEqual(t.sent.map((s) => s.to), ["coach@school.org"]);
   assert.match(t.sent[0].subject, /^Reminder:/);
   await t.call("POST /api/teacher-hub/polls/:id/remind", { params: { id: made.body.poll.id } });
@@ -176,4 +181,39 @@ test("the teacher can choose the name and reply address; reminders and the final
   assert.ok(t.fromNames.every((n) => n === "Maria R., 4th grade"));
   const bad = await t.call("POST /api/teacher-hub/polls", { body: { ...poll(), replyTo: "nope" } });
   assert.equal(bad.code, 400);
+});
+
+test("sending from the teacher's own mailbox: needs a connection, skips the site's sender, covers reminders and the final email", async () => {
+  const none = setup({ mailbox: "none" });
+  const refused = await none.call("POST /api/teacher-hub/polls", { body: { ...poll(), sendVia: "mailbox" } });
+  assert.equal(refused.code, 400);
+  assert.match(refused.body.message, /Connect your Gmail or Outlook/);
+  assert.equal(none.sent.length + none.viaMailbox.length, 0);
+
+  const t = setup({ mailbox: "ok" });
+  const made = await t.call("POST /api/teacher-hub/polls", { body: { ...poll(), sendVia: "mailbox", senderName: "Maria R." } });
+  assert.equal(made.code, 201);
+  assert.equal(made.body.poll.sendVia, "mailbox");
+  assert.equal(made.body.mailboxProblem, null);
+  assert.equal(t.sent.length, 0);
+  assert.deepEqual(t.viaMailbox.map((m) => m.to).sort(), ["coach@school.org", "lee@example.com"]);
+  assert.ok(t.viaMailbox.every((m) => m.fromName === "Maria R."));
+  await t.call("POST /api/teacher-hub/polls/:id/remind", { params: { id: made.body.poll.id } });
+  await t.call("POST /api/teacher-hub/polls/:id/choose", { params: { id: made.body.poll.id }, body: { optionId: "o1" } });
+  assert.equal(t.viaMailbox.length, 6);
+  assert.equal(t.sent.length, 0);
+  // the normal way is unchanged
+  const plain = await t.call("POST /api/teacher-hub/polls", { body: poll() });
+  assert.equal(plain.body.poll.sendVia, "site");
+  assert.equal(t.sent.length, 2);
+});
+
+test("if the connected mailbox stops working, the emails still go out from the site and the teacher is told", async () => {
+  const t = setup({ mailbox: "revoked" });
+  const made = await t.call("POST /api/teacher-hub/polls", { body: { ...poll(), sendVia: "mailbox" } });
+  assert.equal(made.code, 201);
+  assert.equal(made.body.mailboxProblem, "reconnect");
+  assert.equal(made.body.notSent, 0);
+  assert.equal(t.sent.length, 2);
+  assert.ok(t.sent.every((s) => s.replyTo === "rivera@school.org"));
 });

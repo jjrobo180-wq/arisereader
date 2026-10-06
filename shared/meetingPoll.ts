@@ -28,7 +28,7 @@ export const QUICK_ROLES = ["Parent or guardian", "Gen ed teacher", "Social work
 
 export type PollOption = { id: string; date: string; start: string; end: string };
 export type PollInvitee = { name: string; email: string; role: string };
-export type PollInput = { title: string; location: string; message: string; hubMeetingId: string; senderName: string; replyTo: string; options: PollOption[]; invitees: PollInvitee[] };
+export type PollInput = { title: string; location: string; message: string; hubMeetingId: string; senderName: string; replyTo: string; sendVia: "site" | "mailbox"; options: PollOption[]; invitees: PollInvitee[] };
 
 const EMAIL = /^[^\s@<>()"',;:]+@[^\s@<>()"',;:]+\.[^\s@<>()"',;:]{2,}$/;
 export const cleanEmail = (value: unknown) => {
@@ -80,7 +80,7 @@ export function cleanPollInput(raw: any, today: string): { ok: true; poll: PollI
 
   return {
     ok: true,
-    poll: { senderName, replyTo, title, location: oneLine(raw?.location, POLL_LIMITS.location), message: oneLine(raw?.message, POLL_LIMITS.message), hubMeetingId: oneLine(raw?.hubMeetingId, 60), options, invitees },
+    poll: { senderName, replyTo, sendVia: raw?.sendVia === "mailbox" ? "mailbox" : "site", title, location: oneLine(raw?.location, POLL_LIMITS.location), message: oneLine(raw?.message, POLL_LIMITS.message), hubMeetingId: oneLine(raw?.hubMeetingId, 60), options, invitees },
   };
 }
 

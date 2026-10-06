@@ -2,7 +2,7 @@
 // The teacher offers a few times and picks the people (parents, staff, anyone else).
 // Each gets an email with their own link; answers show up here, and the teacher books a time.
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { CalendarCheck, Loader2, Plus, Send, Trash2 } from "lucide-react";
+import { CalendarCheck, Loader2, Mail, Plus, Send, Trash2 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
@@ -18,6 +18,8 @@ type PollView = {
 
 export type PollStart = { meetingId: string; title: string } | null;
 type Setter = Dispatch<SetStateAction<Workspace>>;
+type Box = { connected: { provider: "google" | "microsoft"; email: string; name: string; needsReconnect: boolean } | null; available: { google: boolean; microsoft: boolean } };
+const providerName = (p: "google" | "microsoft") => (p === "google" ? "Gmail" : "Outlook");
 
 async function call(token: string | null, method: string, path: string, body?: unknown) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -46,6 +48,21 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
   const [loadError, setLoadError] = useState("");
   const [composing, setComposing] = useState<PollStart | { meetingId: ""; title: "" }>(null);
   const [notice, setNotice] = useState("");
+  const [box, setBox] = useState<Box | null>(null);
+
+  const loadBox = useCallback(async () => {
+    try { setBox(await call(token, "GET", "/api/teacher-hub/mailbox")); } catch { setBox({ connected: null, available: { google: false, microsoft: false } }); }
+  }, [token]);
+  useEffect(() => { void loadBox(); }, [loadBox]);
+  // Coming back from Google or Microsoft's "Allow" screen.
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("mailbox");
+    if (!result) return;
+    window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+    setNotice(result === "connected" ? "Your email is connected. Poll emails can now come from your own address."
+      : result === "cancelled" ? "Connecting your email was cancelled. Nothing was changed."
+      : `Could not connect your email${result.startsWith("failed:") ? `: ${result.slice(7)}` : "."}`);
+  }, []);
 
   const load = useCallback(async () => {
     try { setPolls((await call(token, "GET", "/api/teacher-hub/polls")).polls); setLoadError(""); }
@@ -72,9 +89,10 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
     >
       <div className="space-y-4" data-testid="meeting-polls">
         {notice && <div role="status" data-testid="poll-notice" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</div>}
+        <MailboxRow token={token} box={box} onChanged={loadBox} setNotice={setNotice} />
         {composing && (
           <Composer
-            token={token} workspace={workspace} setWorkspace={setWorkspace} account={account} initial={composing}
+            box={box} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account} initial={composing}
             onClose={() => setComposing(null)}
             onSent={(message) => { setComposing(null); setNotice(message); void load(); }}
           />
@@ -88,8 +106,8 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
   );
 }
 
-function Composer({ token, workspace, setWorkspace, account, initial, onClose, onSent }: {
-  token: string | null; workspace: Workspace; setWorkspace: Setter; account: { name: string; email: string }; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string) => void;
+function Composer({ box, token, workspace, setWorkspace, account, initial, onClose, onSent }: {
+  box: Box | null; token: string | null; workspace: Workspace; setWorkspace: Setter; account: { name: string; email: string }; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string) => void;
 }) {
   const [title, setTitle] = useState(initial.title);
   const [location, setLocation] = useState("");
@@ -100,6 +118,11 @@ function Composer({ token, workspace, setWorkspace, account, initial, onClose, o
   const team = workspace.spedContacts.filter((c) => c.email);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [guests, setGuests] = useState<Guest[]>([{ name: "", email: "", role: "Parent or guardian" }]);
+  const mailboxReady = !!box?.connected && !box.connected.needsReconnect;
+  const [sendVia, setSendVia] = useState<"mailbox" | "site">("site");
+  const [pickedVia, setPickedVia] = useState(false);
+  // Once the mailbox is known to be connected, use it unless the teacher chose otherwise.
+  const via: "mailbox" | "site" = pickedVia ? (mailboxReady ? sendVia : "site") : (mailboxReady ? "mailbox" : "site");
   const [seed, setSeed] = useState(true); // the first blank row is replaced by the first role button tapped
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -112,12 +135,13 @@ function Composer({ token, workspace, setWorkspace, account, initial, onClose, o
     ];
     try {
       const data = await call(token, "POST", "/api/teacher-hub/polls", {
-        title, location, message, hubMeetingId: initial.meetingId, senderName, replyTo,
+        title, location, message, hubMeetingId: initial.meetingId, senderName, replyTo, sendVia: via,
         options: times.filter((t) => t.date || t.start), invitees,
       });
       // Remember the choice for next time.
       setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo } }));
-      onSent(data.notSent ? `Sent, but ${data.notSent} ${data.notSent === 1 ? "email" : "emails"} did not go through. Open the poll to see who.` : `Sent to ${invitees.length} ${invitees.length === 1 ? "person" : "people"}. Their answers will show up here.`);
+      const fell = data.mailboxProblem ? " Your connected email could not send, so these went out from A.R.I.S.E. Reader instead. Reconnect your email in the box above." : "";
+      onSent((data.notSent ? `Sent, but ${data.notSent} ${data.notSent === 1 ? "email" : "emails"} did not go through. Open the poll to see who.` : `Sent to ${invitees.length} ${invitees.length === 1 ? "person" : "people"}. Their answers will show up here.`) + fell);
     } catch (e: any) { setError(e?.message || "Could not send."); }
     finally { setBusy(false); }
   }
@@ -182,15 +206,33 @@ function Composer({ token, workspace, setWorkspace, account, initial, onClose, o
 
       <div>
         <div className="mb-2 text-sm font-semibold text-slate-800">Who the email comes from</div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-medium text-slate-600">Name on the email
-            <Field className="mt-1" aria-label="Name on the email" value={senderName} onChange={(e) => setSenderName(e.target.value)} maxLength={POLL_LIMITS.senderName} />
+        <div className="space-y-2">
+          <label className={`flex min-h-11 items-start gap-3 rounded-xl border bg-white px-3 py-2 ${mailboxReady ? "border-slate-200" : "border-slate-100 opacity-60"}`}>
+            <input type="radio" name="send-via" className="mt-1 h-5 w-5 shrink-0" disabled={!mailboxReady} checked={via === "mailbox"} onChange={() => { setSendVia("mailbox"); setPickedVia(true); }} />
+            <span className="text-sm"><span className="block font-medium">{mailboxReady ? `My own email: ${box!.connected!.email}` : "My own email (Gmail or Outlook)"}</span>
+              <span className="block text-xs text-slate-500">{mailboxReady ? "It sends from your real address and shows in your Sent folder. Replies come straight to you." : "Connect it above first."}</span></span>
           </label>
-          <label className="text-xs font-medium text-slate-600">Send replies to (your own email, or any you choose)
-            <Field className="mt-1" type="email" inputMode="email" aria-label="Send replies to" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} maxLength={120} />
+          <label className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <input type="radio" name="send-via" className="mt-1 h-5 w-5 shrink-0" checked={via === "site"} onChange={() => { setSendVia("site"); setPickedVia(true); }} />
+            <span className="text-sm"><span className="block font-medium">A.R.I.S.E. Reader</span>
+              <span className="block text-xs text-slate-500">Your name shows on the email and replies go to the address you choose.</span></span>
           </label>
         </div>
-        <p className="mt-1 text-xs text-slate-500">Emails are sent through A.R.I.S.E. Reader so they reach inboxes instead of junk. People see your name, and when they tap Reply it goes to the address above.</p>
+        {via === "site" && (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="text-xs font-medium text-slate-600">Name on the email
+              <Field className="mt-1" aria-label="Name on the email" value={senderName} onChange={(e) => setSenderName(e.target.value)} maxLength={POLL_LIMITS.senderName} />
+            </label>
+            <label className="text-xs font-medium text-slate-600">Send replies to (your own email, or any you choose)
+              <Field className="mt-1" type="email" inputMode="email" aria-label="Send replies to" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} maxLength={120} />
+            </label>
+          </div>
+        )}
+        {via === "mailbox" && (
+          <label className="mt-3 block text-xs font-medium text-slate-600">Your name on the email
+            <Field className="mt-1" aria-label="Name on the email" value={senderName} onChange={(e) => setSenderName(e.target.value)} maxLength={POLL_LIMITS.senderName} />
+          </label>
+        )}
       </div>
 
       <TextArea placeholder="A short note (optional)" aria-label="Note" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={POLL_LIMITS.message} className="min-h-16" />
@@ -218,7 +260,7 @@ function PollCard({ poll, token, onBooked, onChanged, setNotice }: {
   }
   const remind = () => run(async () => {
     const r = await call(token, "POST", `/api/teacher-hub/polls/${poll.id}/remind`);
-    setNotice(`Reminder sent to ${r.sent} ${r.sent === 1 ? "person" : "people"}${r.failed ? `; ${r.failed} did not go through` : ""}.`);
+    setNotice(`Reminder sent to ${r.sent} ${r.sent === 1 ? "person" : "people"}${r.failed ? `; ${r.failed} did not go through` : ""}.${r.mailboxProblem ? " Your connected email could not send, so these went out from A.R.I.S.E. Reader. Reconnect it above." : ""}`);
   });
   const choose = (option: PollView["options"][number]) => run(async () => {
     const r = await call(token, "POST", `/api/teacher-hub/polls/${poll.id}/choose`, { optionId: option.id, notify });
@@ -304,6 +346,59 @@ function PollCard({ poll, token, onBooked, onChanged, setNotice }: {
         <ul className="mt-3 space-y-1 text-sm text-slate-600">
           {poll.invitees.filter((i) => i.comment).map((i) => <li key={i.id}><span className="font-medium text-slate-800">{i.name}:</span> {i.comment}</li>)}
         </ul>
+      )}
+    </div>
+  );
+}
+
+function MailboxRow({ token, box, onChanged, setNotice }: { token: string | null; box: Box | null; onChanged: () => void; setNotice: (text: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  if (!box) return null;
+  const { connected, available } = box;
+  const anyAvailable = available.google || available.microsoft;
+
+  async function connect(provider: "google" | "microsoft") {
+    setBusy(true);
+    try {
+      const data = await call(token, "POST", "/api/teacher-hub/mailbox/start", { provider });
+      window.location.href = data.url; // Google's or Microsoft's own "Allow" screen
+    } catch (e: any) { setNotice(e?.message || "Could not start connecting."); setBusy(false); }
+  }
+  async function disconnect() {
+    if (!window.confirm("Disconnect your email? Polls you already sent keep working, and new ones will come from A.R.I.S.E. Reader.")) return;
+    setBusy(true);
+    try { await call(token, "POST", "/api/teacher-hub/mailbox/disconnect", {}); onChanged(); setNotice("Your email was disconnected."); }
+    catch (e: any) { setNotice(e?.message || "Could not disconnect."); }
+    finally { setBusy(false); }
+  }
+
+  const buttons = (
+    <div className="flex flex-wrap gap-2">
+      {available.google && <GhostButton onClick={() => connect("google")}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Connect Gmail</GhostButton>}
+      {available.microsoft && <GhostButton onClick={() => connect("microsoft")}><Mail className="h-4 w-4" /> Connect Outlook</GhostButton>}
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-slate-200 p-3 text-sm" data-testid="mailbox-row">
+      {connected && !connected.needsReconnect ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0"><span className="font-semibold">Your email is connected:</span> <span className="break-all">{connected.email}</span> <span className="text-xs text-slate-500">({providerName(connected.provider)})</span></div>
+          <GhostButton onClick={disconnect}>Disconnect</GhostButton>
+        </div>
+      ) : connected ? (
+        <div className="space-y-2">
+          <div className="font-semibold text-amber-700">Your email ({connected.email}) needs to be connected again.</div>
+          <p className="text-xs text-slate-500">Until then, poll emails go out from A.R.I.S.E. Reader.</p>
+          {buttons}
+        </div>
+      ) : anyAvailable ? (
+        <div className="space-y-2">
+          <div><span className="font-semibold">Send from your own email.</span> <span className="text-slate-500">Connect Gmail or Outlook once, and poll emails come from your real address. The site can only send; it can't read your mail.</span></div>
+          {buttons}
+        </div>
+      ) : (
+        <div className="text-slate-500">Sending from your own email isn't set up on the site yet. Poll emails come from A.R.I.S.E. Reader, with replies going to the address you choose.</div>
       )}
     </div>
   );
