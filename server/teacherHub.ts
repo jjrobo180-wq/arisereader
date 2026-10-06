@@ -38,9 +38,12 @@ export async function countHubStudents(teacherId: number): Promise<number> {
   return hubStudentCount(data?.workspace);
 }
 
-export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHandler, deps: TeacherHubDeps) {
-  /** Sends the refusal and returns null when this person can't use Teacher Hub. */
-  const access = async (req: any, res: any): Promise<HubAccess | null> => {
+/**
+ * The check every Teacher Hub request starts with. It answers the request itself
+ * (and returns null) when this person can't use Teacher Hub.
+ */
+export function createHubGate(deps: TeacherHubDeps) {
+  return async (req: any, res: any): Promise<HubAccess | null> => {
     if (!teacherAccess(req)) {
       res.status(403).json({ message: "Teacher access required" });
       return null;
@@ -59,6 +62,10 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
     }
     return hub;
   };
+}
+
+export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHandler, deps: TeacherHubDeps) {
+  const access = createHubGate(deps);
 
   app.get("/api/teacher-hub/workspace", authMiddleware, async (req: any, res) => {
     const hub = await access(req, res);

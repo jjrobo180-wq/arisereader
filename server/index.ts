@@ -34,6 +34,11 @@ app.use("/api/eye-gaze/my-world/upload", express.raw({
   limit: "20mb",
 }));
 
+// Teacher Hub: a workspace with a full caseload and connected calendars is bigger than the usual
+// request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
+app.use("/api/teacher-hub/workspace", express.json({ limit: "1mb" }));
+app.use("/api/teacher-hub/import", express.json({ limit: "24mb" }));
+
 // No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
 // its last events with sendBeacon (plain text) while it is closing.
 app.use("/api/integrity/live", express.raw({ type: "image/jpeg", limit: "220kb" }));

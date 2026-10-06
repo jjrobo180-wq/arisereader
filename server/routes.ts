@@ -32,7 +32,8 @@ import { registerBuildWorldRoutes } from "./buildWorld";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
-import { countHubStudents, registerTeacherHubRoutes } from "./teacherHub";
+import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
+import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
@@ -1155,6 +1156,8 @@ export async function registerRoutes(
   });
   // Teacher Hub, the paid add-on: only teachers with a Teacher Hub plan can open it.
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
+  // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
+  registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   // Study Squad: the study hall, its tables and study sets (kept in the settings table).

@@ -73,6 +73,8 @@ const HUB_WORKSPACE: Item[] = [
   "Check-ins, concerns and meeting notes for each student",
   "Attendance with a CSV export, a gradebook with averages, and behavior points",
   "Parent contact logs, weekly student schedules with overlap warnings, and an email organizer",
+  "Add with AI: paste a list, snap a screenshot of your reminders or notes, or upload Excel, Word or PDF, and check it before it's saved",
+  "A calendar that can connect to Google, Outlook or Apple calendars",
 ];
 const HUB_HOW: Item[] = [
   "Private to each teacher, and saved to their account on any device",
