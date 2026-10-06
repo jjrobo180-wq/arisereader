@@ -42,6 +42,7 @@ import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubCalendarTab, { byWhen, dayLabel, eventTime, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import HubGuideTab from "@/components/teacher-hub/HubGuide";
+import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -460,6 +461,7 @@ export default function TeacherHub() {
         </aside>
 
         <main className="min-w-0 space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
+          <PinBanners workspace={workspace} setWorkspace={setWorkspace} />
           {saveStatus === "error" && saveMessage && (
             <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
               <span>{saveMessage}</span>
@@ -585,7 +587,7 @@ export default function TeacherHub() {
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} account={{ name: String((user as any)?.displayName || (user as any)?.username || ""), email: String((user as any)?.email || "") }} />}
           {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
-          {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
+          {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
           {tab === "notes" && <Notes workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
@@ -753,6 +755,7 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
               <div className="mt-1 text-sm text-slate-500">{m.date || "No date"}{m.notes ? ` · ${m.notes}` : ""}</div>
               {!m.done && <button type="button" onClick={() => setPollStart({ meetingId: m.id, title: `${m.type}${m.student ? ` for ${m.student.split(" ")[0]}` : ""}` })} className="mt-1 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Find a time with everyone</button>}
             </div>
+            <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="meeting" refId={m.id} title={`${m.student} ${m.type}`} makeId={makeId} />
             <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("meetings", m.id)}><Trash2 className="h-4 w-4" /></button>
           </div>
         ))}</div> : <Empty>No meetings added.</Empty>}
@@ -796,7 +799,7 @@ function Lessons({ workspace, setWorkspace, remove }: SectionProps) {
   );
 }
 
-function Tasks({ workspace, setWorkspace, remove }: SectionProps) {
+function Tasks({ workspace, setWorkspace, remove, makeId }: SectionProps & { makeId: () => string }) {
   const [form, setForm] = useState({ title: "", dueDate: "", recurring: "" });
   function add(e: FormEvent) {
     e.preventDefault();
@@ -816,6 +819,7 @@ function Tasks({ workspace, setWorkspace, remove }: SectionProps) {
         <div key={task.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
           <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => t.id === task.id ? { ...t, done: !t.done } : t) }))} />
           <div className="min-w-0 flex-1"><div className={task.done ? "text-slate-400 line-through" : "font-medium"}>{task.title}</div><div className="text-xs text-slate-500">{task.dueDate || "No due date"} · {task.recurring || "One-time"}</div></div>
+          <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
           <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("tasks", task.id)}><Trash2 className="h-4 w-4" /></button>
         </div>
       ))}</div> : <Empty>No tasks yet.</Empty>}
