@@ -35,6 +35,7 @@ import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerPushRoutes } from "./pushNotifications";
+import { registerMeetingPollRoutes } from "./meetingPoll";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
@@ -748,7 +749,7 @@ function emailConfigured(): boolean {
 // Sends through Resend. A request that times out, is rate limited or hits a Resend outage is tried
 // again (up to three tries); the idempotency key keeps a retry from sending the same email twice.
 // Every email goes out as a complete page with the site's footer (server/emailFormat.ts).
-async function sendEmail(to: string | string[], subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
+async function sendEmail(to: string | string[], subject: string, html: string, options: { replyTo?: string } = {}): Promise<{ sent: boolean; error?: string }> {
   const hasProxy = PROXY_URL && PROXY_TOKEN;
   if (!emailConfigured()) {
     return { sent: false, error: "No email API key configured" };
@@ -762,7 +763,7 @@ async function sendEmail(to: string | string[], subject: string, html: string): 
   } else {
     headers["Authorization"] = `Bearer ${RESEND_API_KEY}`;
   }
-  const body = JSON.stringify({ from: EMAIL_FROM, to: recipients, subject, html: emailDocument(subject, html, APP_URL) });
+  const body = JSON.stringify({ from: EMAIL_FROM, to: recipients, subject, html: emailDocument(subject, html, APP_URL), ...(options.replyTo ? { reply_to: options.replyTo } : {}) });
   let lastError = "";
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -1159,6 +1160,8 @@ export async function registerRoutes(
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
+  // Asking everyone for a time that works for an IEP or re-evaluation meeting.
+  registerMeetingPollRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), sendEmail, appUrl: APP_URL });
   // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerClubPlayRoutes(app, authMiddleware);
