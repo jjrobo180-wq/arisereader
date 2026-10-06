@@ -16,6 +16,7 @@ import {
   LogOut,
   Mail,
   MessageSquare,
+  Pencil,
   Plus,
   Save,
   Settings2,
@@ -31,7 +32,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { HUB_REQUIRED, PLANS, usd } from "@shared/plans";
 import {
-  HUB_IMPORT, HUB_IMPORT_KINDS, cleanHubImport, describeHubAdded, emptyWorkspace, mergeHubImport, normalizeWorkspace,
+  HUB_IMPORT, HUB_IMPORT_KINDS, cleanHubImport, describeHubAdded, emptyWorkspace, mergeHubImport, normalizeWorkspace, updateStudent,
   type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Workspace,
 } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
@@ -608,6 +609,8 @@ type SectionProps = {
   remove: <K extends keyof Workspace>(key: K, rowId: string) => void;
 };
 
+const NO_DETAILS: Omit<Student, "id"> = { name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" };
+
 function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { seats: number | null }) {
   const [form, setForm] = useState<Omit<Student, "id">>({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
   // The plan covers this many students; the caseload can't grow past it.
@@ -618,6 +621,29 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
     setWorkspace((p) => ({ ...p, students: [...p.students, { id: id(), ...form, name: form.name.trim() }] }));
     setForm({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
   }
+
+  // The student being changed and what has been typed so far. One at a time.
+  const [editing, setEditing] = useState<{ id: string; form: Omit<Student, "id">; error: string } | null>(null);
+  function startEdit(student: Student) {
+    const { id: studentId, ...saved } = student;
+    // A student saved long ago, or read in from a file, may be missing a field.
+    setEditing({ id: studentId, form: { ...NO_DETAILS, ...saved }, error: "" });
+  }
+  function typed(change: Partial<Omit<Student, "id">>) {
+    setEditing((now) => (now ? { ...now, form: { ...now.form, ...change }, error: "" } : now));
+  }
+  function saveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const result = updateStudent(workspace, editing.id, editing.form);
+    if (!result.ok) { setEditing({ ...editing, error: result.message }); return; }
+    setWorkspace((p) => { const saved = updateStudent(p, editing.id, editing.form); return saved.ok ? saved.workspace : p; });
+    setEditing(null);
+  }
+  // A new name is carried to the student's meetings, notes, grades and the rest; say so before it is saved.
+  const preview = editing ? updateStudent(workspace, editing.id, editing.form) : null;
+  const following = preview && preview.ok ? preview.moved : 0;
+
   return (
     <>
       <Card title="Caseload" right={seats !== null ? <span className="shrink-0 text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")}</span> : undefined}>
@@ -640,8 +666,36 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
         </form>
       </Card>
       <div className="grid gap-4 xl:grid-cols-2">
-        {workspace.students.length ? workspace.students.map((s) => (
-          <Card key={s.id} title={s.name} right={<button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>}>
+        {workspace.students.length ? workspace.students.map((s) => editing?.id === s.id ? (
+          <Card key={s.id} title={`Edit ${s.name}`}>
+            <form onSubmit={saveEdit} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} className="grid gap-3 sm:grid-cols-2" data-testid="hub-student-edit-form">
+              <Labeled label="Student name"><Field value={editing.form.name} onChange={(e) => typed({ name: e.target.value })} required autoFocus /></Labeled>
+              <Labeled label="Grade"><Field value={editing.form.grade} onChange={(e) => typed({ grade: e.target.value })} /></Labeled>
+              <Labeled label="Reading level"><Field value={editing.form.readingLevel} onChange={(e) => typed({ readingLevel: e.target.value })} /></Labeled>
+              <Labeled label="Math level"><Field value={editing.form.mathLevel} onChange={(e) => typed({ mathLevel: e.target.value })} /></Labeled>
+              <Labeled label="IEP date"><Field type="date" value={editing.form.iepDate} onChange={(e) => typed({ iepDate: e.target.value })} /></Labeled>
+              <Labeled label="Reevaluation date"><Field type="date" value={editing.form.reevalDate} onChange={(e) => typed({ reevalDate: e.target.value })} /></Labeled>
+              <Labeled label="Accommodations" className="sm:col-span-2"><Field value={editing.form.accommodations} onChange={(e) => typed({ accommodations: e.target.value })} /></Labeled>
+              <Labeled label="Quick notes" className="sm:col-span-2"><TextArea value={editing.form.notes} onChange={(e) => typed({ notes: e.target.value })} /></Labeled>
+              {following > 0 && (
+                <p className="text-sm text-slate-600 sm:col-span-2">
+                  {following === 1 ? "1 record" : `${following} records`} for {s.name} in your other tabs will show the new name too.
+                </p>
+              )}
+              {editing.error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2" role="alert">{editing.error}</div>}
+              <div className="flex flex-wrap gap-2 sm:col-span-2">
+                <PrimaryButton type="submit"><Save className="h-4 w-4" /> Save changes</PrimaryButton>
+                <GhostButton onClick={() => setEditing(null)}>Cancel</GhostButton>
+              </div>
+            </form>
+          </Card>
+        ) : (
+          <Card key={s.id} title={s.name} right={
+            <div className="-m-2 flex shrink-0 items-center">
+              <button type="button" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950" onClick={() => startEdit(s)} data-testid="hub-student-edit"><Pencil className="h-4 w-4" /> Edit</button>
+              <button type="button" aria-label="Delete" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>
+            </div>
+          }>
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <Info label="Grade" value={s.grade || "—"} />
               <Info label="Reading" value={s.readingLevel || "—"} />
@@ -656,6 +710,11 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
       </div>
     </>
   );
+}
+
+/** A box to type in with its name above it, so two date boxes side by side can be told apart. */
+function Labeled({ label, className = "", children }: { label: string; className?: string; children: ReactNode }) {
+  return <label className={`block ${className}`}><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>{children}</label>;
 }
 
 function Info({ label, value }: { label: string; value: string }) {
