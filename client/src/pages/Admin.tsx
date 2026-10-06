@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import MonthCountdown from "@/components/MonthCountdown";
 import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
+import { isSampleAccount } from "@shared/sampleAccounts";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -154,6 +155,9 @@ export default function Admin() {
     toast({ title: ok ? text : "Something went wrong", description: ok ? undefined : text, variant: ok ? "default" : "destructive" });
   }, [toast]);
   const [students, setStudents] = useState<Student[]>(adminCache.students);
+  // sample accounts (made to try the site out) are kept out of the student and parent counts
+  const [sampleStudents, setSampleStudents] = useState<any[]>([]);
+  const [sampleParents, setSampleParents] = useState<any[]>([]);
   const [loading, setLoading] = useState(adminCache.students.length === 0);
   const [studentSearch, setStudentSearch] = useState("");
   const [filterBand, setFilterBand] = useState("");
@@ -462,7 +466,9 @@ export default function Admin() {
       });
       if (!res.ok) { console.error("Students fetch failed:", res.status); return; }
       const data = await res.json();
-      const studentsArr = (Array.isArray(data) ? data : []).filter((s: any) => s.role === 'student' || (!s.role && !s.isAdmin));
+      const everyStudent = (Array.isArray(data) ? data : []).filter((s: any) => s.role === 'student' || (!s.role && !s.isAdmin));
+      const studentsArr = everyStudent.filter((s: any) => !isSampleAccount(s));
+      setSampleStudents(everyStudent.filter((s: any) => isSampleAccount(s)));
       setStudents(studentsArr);
       adminCache.students = studentsArr;
       // Fetch user grades for band filtering
@@ -1317,7 +1323,9 @@ export default function Admin() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/all-parents`, { headers: { Authorization: `Bearer ${token || getTokenFromCookie()}` } });
       const data = res.ok ? await res.json() : [];
-      setAllParents(data);
+      const list = Array.isArray(data) ? data : [];
+      setAllParents(list.filter((p: any) => !isSampleAccount(p)));
+      setSampleParents(list.filter((p: any) => isSampleAccount(p)));
     } catch {}
   };
 
@@ -3104,6 +3112,32 @@ Generate exactly 10 questions.`;
           </div>
         )}
       </AdminSection>
+
+      {sampleStudents.length + sampleParents.length > 0 && (
+        <AdminSection
+          id="sample-accounts"
+          icon={Eye}
+          tone="blue"
+          title={`Sample accounts (${sampleStudents.length + sampleParents.length})`}
+          description="Accounts whose sign-in name starts with “sample” or whose name starts with “Sample”. They aren't counted as students or parents and never show on a leaderboard."
+        >
+          <div className="space-y-2" data-testid="list-sample-accounts">
+            {[...sampleStudents.map((u) => ({ ...u, kind: "Student" })), ...sampleParents.map((u) => ({ ...u, kind: "Parent" }))].map((u: any) => (
+              <PersonRow
+                key={`sample-${u.kind}-${u.id}`}
+                id={`sample-${u.id}`}
+                name={u.displayName || u.display_name || u.username}
+                avatarTone="blue"
+                badges={<StatusPill tone="blue">Sample {u.kind.toLowerCase()}</StatusPill>}
+                meta={<p>@{u.username}</p>}
+                actions={u.kind === "Student" ? (
+                  <Button size="sm" variant="outline" onClick={() => handleViewStudent(u)}><Eye className="h-4 w-4" />Details</Button>
+                ) : undefined}
+              />
+            ))}
+          </div>
+        </AdminSection>
+      )}
     </div>
   );
 

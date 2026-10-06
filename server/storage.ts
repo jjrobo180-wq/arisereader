@@ -1,4 +1,5 @@
 import { monthStartMs, nextYearMonth } from "./schoolTime";
+import { isSampleAccount } from "../shared/sampleAccounts";
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
 import { lookupARBook } from "./arBookfinder";
@@ -675,9 +676,9 @@ export class DatabaseStorage implements IStorage {
           "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total), " +
           "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status), " +
           "manual_point_awards:manual_point_awards!manual_point_awards_student_id_fkey(points)"
-        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%").neq("username", "tutorial-eye")
+        ).eq("is_admin", false).is("archived_at", null).not("username", "ilike", "sample%").neq("username", "tutorial-eye")
       );
-      const leaderboardUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
+      const leaderboardUsers = allUsers.filter((user: any) => (!user.role || user.role === "student") && !isSampleAccount(user));
       if (leaderboardUsers.length === 0) return [];
 
       const allBooks = await fetchList(supabase.from("books").select("id"));
@@ -732,10 +733,10 @@ export class DatabaseStorage implements IStorage {
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .is("archived_at", null)
-          .not("username", "like", "sample%").neq("username", "tutorial-eye")
+          .not("username", "ilike", "sample%").neq("username", "tutorial-eye")
       );
       if (allUsers.length === 0) return [];
-      const result = allUsers.map((user: any) => {
+      const result = allUsers.filter((user: any) => !isSampleAccount(user)).map((user: any) => {
         const standard = (user.eye_gaze_attempts || []).filter((a: any) => a.total > 0);
         const custom = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0);
         const totalScore = [...standard, ...custom].reduce((sum: number, a: any) => {
@@ -766,10 +767,10 @@ export class DatabaseStorage implements IStorage {
           .eq("is_admin", false)
           .eq("is_eye_gaze_user", true)
           .is("archived_at", null)
-          .not("username", "like", "sample%").neq("username", "tutorial-eye")
+          .not("username", "ilike", "sample%").neq("username", "tutorial-eye")
       );
       if (allUsers.length === 0) return [];
-      const result = allUsers.map((user: any) => {
+      const result = allUsers.filter((user: any) => !isSampleAccount(user)).map((user: any) => {
         const standard = (user.eye_gaze_attempts || []).filter((a: any) => {
           const d = a.completed_at || a.created_at;
           return d && d.startsWith(yearMonth) && a.total > 0;
@@ -1156,9 +1157,10 @@ export class DatabaseStorage implements IStorage {
 
     const result = [];
     for (const school of schools) {
-      const { data: students } = await supabase.from("users").select("id, display_name, total_points").eq("school_id", school.id).eq("is_admin", false);
+      const { data: people } = await supabase.from("users").select("id, username, display_name, role, total_points").eq("school_id", school.id).eq("is_admin", false).is("archived_at", null);
+      const students = (people || []).filter((u: any) => (!u.role || u.role === "student") && !isSampleAccount(u));
       const studentCount = students ? students.length : 0;
-      const totalPoints = students ? students.reduce((sum: number, s: any) => sum + (s.total_points || 0), 0) : 0;
+      const totalPoints = students.reduce((sum: number, s: any) => sum + Number(s.total_points || 0), 0);
 
       const { data: classes } = await supabase.from("classes").select("id, name").eq("school_id", school.id);
 
@@ -1190,9 +1192,10 @@ export class DatabaseStorage implements IStorage {
 
     const result = [];
     for (const cls of classes) {
-      const { data: students } = await supabase.from("users").select("id, display_name, total_points").eq("class_id", cls.id).eq("is_admin", false);
+      const { data: people } = await supabase.from("users").select("id, username, display_name, role, total_points").eq("class_id", cls.id).eq("is_admin", false).is("archived_at", null);
+      const students = (people || []).filter((u: any) => (!u.role || u.role === "student") && !isSampleAccount(u));
       const studentCount = students ? students.length : 0;
-      const totalPoints = students ? students.reduce((sum: number, s: any) => sum + (s.total_points || 0), 0) : 0;
+      const totalPoints = students.reduce((sum: number, s: any) => sum + Number(s.total_points || 0), 0);
 
       let quizzesCompleted = 0;
       if (students && students.length > 0) {
@@ -1228,9 +1231,9 @@ export class DatabaseStorage implements IStorage {
           "attempts:attempts!attempts_user_id_fkey(points_earned, completed_at, book_id, score, total), " +
           "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at), " +
           "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status, completed_at)"
-        ).eq("is_admin", false).is("archived_at", null).not("username", "like", "sample%").neq("username", "tutorial-eye")
+        ).eq("is_admin", false).is("archived_at", null).not("username", "ilike", "sample%").neq("username", "tutorial-eye")
       );
-      const monthlyUsers = allUsers.filter((user: any) => !user.role || user.role === "student");
+      const monthlyUsers = allUsers.filter((user: any) => (!user.role || user.role === "student") && !isSampleAccount(user));
       if (monthlyUsers.length === 0) return [];
 
       const allBooks = await fetchList(supabase.from("books").select("id"));
@@ -1301,9 +1304,9 @@ export class DatabaseStorage implements IStorage {
           )
           .eq("is_admin", false)
           .is("archived_at", null)
-          .not("username", "like", "sample%").neq("username", "tutorial-eye")
+          .not("username", "ilike", "sample%").neq("username", "tutorial-eye")
       );
-      const allStudents = allStudentAccounts.filter((user: any) => !user.role || user.role === "student");
+      const allStudents = allStudentAccounts.filter((user: any) => (!user.role || user.role === "student") && !isSampleAccount(user));
 
       const advisoryMap = new Map<number, { teacherId: number; teacherName: string; totalPoints: number; studentCount: number; quizzesCompleted: number }>();
       for (const teacher of teachers) {
