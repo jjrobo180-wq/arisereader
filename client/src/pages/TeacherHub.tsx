@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BookHeart,
   BookOpen,
+  Calendar,
   CalendarDays,
   CheckCircle2,
   CheckSquare,
@@ -10,6 +11,8 @@ import {
   Clock3,
   GraduationCap,
   Home,
+  ImagePlus,
+  Link2,
   LogOut,
   Mail,
   MessageSquare,
@@ -19,168 +22,25 @@ import {
   Sparkles,
   StickyNote,
   Trash2,
+  Upload,
   Users,
+  WandSparkles,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { HUB_REQUIRED, PLANS, usd } from "@shared/plans";
+import {
+  HUB_IMPORT, HUB_IMPORT_KINDS, cleanHubImport, describeHubAdded, emptyWorkspace, mergeHubImport, normalizeWorkspace,
+  type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Workspace,
+} from "@shared/teacherHub";
+import { Card, Empty, Field, GhostButton, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
+import HubNotifications from "@/components/teacher-hub/HubNotifications";
+import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
+import HubCalendarTab, { byWhen, dayLabel, eventTime, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 
-type Student = {
-  id: string;
-  name: string;
-  grade: string;
-  accommodations: string;
-  iepDate: string;
-  reevalDate: string;
-  readingLevel: string;
-  mathLevel: string;
-  notes: string;
-};
-
-type Meeting = {
-  id: string;
-  student: string;
-  type: string;
-  date: string;
-  notes: string;
-  done: boolean;
-};
-
-type Lesson = {
-  id: string;
-  title: string;
-  subject: string;
-  group: string;
-  date: string;
-  objective: string;
-  materials: string;
-};
-
-type Task = {
-  id: string;
-  title: string;
-  dueDate: string;
-  recurring: string;
-  done: boolean;
-};
-
-type NoteItem = {
-  id: string;
-  student: string;
-  type: string;
-  body: string;
-  date: string;
-};
-
-type AriseRecord = {
-  id: string;
-  student: string;
-  book: string;
-  score: string;
-  points: string;
-  date: string;
-};
-
-type BehaviorEntry = {
-  id: string;
-  student: string;
-  points: number;
-  reason: string;
-  date: string;
-};
-
-type AttendanceEntry = {
-  id: string;
-  student: string;
-  date: string;
-  status: "Present" | "Absent" | "Tardy" | "Excused";
-  className: string;
-};
-
-type Assignment = {
-  id: string;
-  title: string;
-  category: string;
-  points: number;
-  date: string;
-};
-
-type GradeScore = {
-  id: string;
-  assignmentId: string;
-  student: string;
-  score: number | null;
-  missing: boolean;
-  excused: boolean;
-};
-
-type ParentLog = {
-  id: string;
-  student: string;
-  guardian: string;
-  message: string;
-  status: string;
-  date: string;
-};
-
-type ScheduleEntry = {
-  id: string;
-  student: string;
-  day: string;
-  start: string;
-  end: string;
-  label: string;
-};
-
-type EmailItem = {
-  id: string;
-  from: string;
-  subject: string;
-  body: string;
-  action: string;
-  draft: string;
-  date: string;
-};
-
-type HubTab =
-  | "overview"
-  | "caseload"
-  | "iep"
-  | "lessons"
-  | "tasks"
-  | "notes"
-  | "arise"
-  | "behavior"
-  | "attendance"
-  | "gradebook"
-  | "parents"
-  | "schedules"
-  | "email";
-
-type Workspace = {
-  version: number;
-  profile: {
-    school: string;
-    gradeBand: string;
-    subject: string;
-  };
-  visibleTabs: Record<HubTab, boolean>;
-  students: Student[];
-  meetings: Meeting[];
-  lessons: Lesson[];
-  tasks: Task[];
-  notes: NoteItem[];
-  ariseRecords: AriseRecord[];
-  behavior: BehaviorEntry[];
-  attendance: AttendanceEntry[];
-  assignments: Assignment[];
-  gradeScores: GradeScore[];
-  parentLogs: ParentLog[];
-  schedules: ScheduleEntry[];
-  emails: EmailItem[];
-};
-
-const TODAY = () => new Date().toISOString().slice(0, 10);
+// Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
+const TODAY = () => localDay();
 const id = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -188,6 +48,7 @@ const id = () =>
 
 const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "overview", label: "Home", icon: <Home className="h-4 w-4" /> },
+  { id: "calendar", label: "Calendar", icon: <Calendar className="h-4 w-4" /> },
   { id: "caseload", label: "Caseload", icon: <Users className="h-4 w-4" /> },
   { id: "iep", label: "IEP & Meetings", icon: <CalendarDays className="h-4 w-4" /> },
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
@@ -201,131 +62,6 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "schedules", label: "Schedules", icon: <Clock3 className="h-4 w-4" /> },
   { id: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
 ];
-
-function emptyWorkspace(): Workspace {
-  return {
-    version: 1,
-    profile: { school: "", gradeBand: "", subject: "" },
-    visibleTabs: Object.fromEntries(TAB_META.map((tab) => [tab.id, true])) as Record<HubTab, boolean>,
-    students: [],
-    meetings: [],
-    lessons: [],
-    tasks: [],
-    notes: [],
-    ariseRecords: [],
-    behavior: [],
-    attendance: [],
-    assignments: [],
-    gradeScores: [],
-    parentLogs: [],
-    schedules: [],
-    emails: [],
-  };
-}
-
-function normalizeWorkspace(raw: any): Workspace {
-  const base = emptyWorkspace();
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return base;
-  return {
-    ...base,
-    ...raw,
-    profile: { ...base.profile, ...(raw.profile || {}) },
-    visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
-    students: Array.isArray(raw.students) ? raw.students : [],
-    meetings: Array.isArray(raw.meetings) ? raw.meetings : [],
-    lessons: Array.isArray(raw.lessons) ? raw.lessons : [],
-    tasks: Array.isArray(raw.tasks) ? raw.tasks : [],
-    notes: Array.isArray(raw.notes) ? raw.notes : [],
-    ariseRecords: Array.isArray(raw.ariseRecords) ? raw.ariseRecords : [],
-    behavior: Array.isArray(raw.behavior) ? raw.behavior : [],
-    attendance: Array.isArray(raw.attendance) ? raw.attendance : [],
-    assignments: Array.isArray(raw.assignments) ? raw.assignments : [],
-    gradeScores: Array.isArray(raw.gradeScores) ? raw.gradeScores : [],
-    parentLogs: Array.isArray(raw.parentLogs) ? raw.parentLogs : [],
-    schedules: Array.isArray(raw.schedules) ? raw.schedules : [],
-    emails: Array.isArray(raw.emails) ? raw.emails : [],
-  };
-}
-
-function Card({ title, children, right }: { title?: string; children: ReactNode; right?: ReactNode }) {
-  return (
-    <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-      {(title || right) && (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
-          <h2 className="min-w-0 break-words font-semibold text-slate-900">{title}</h2>
-          {right}
-        </div>
-      )}
-      <div className="p-4 sm:p-5">{children}</div>
-    </section>
-  );
-}
-
-function Field(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={`w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
-    />
-  );
-}
-
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={`min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
-    />
-  );
-}
-
-function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={`w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
-    />
-  );
-}
-
-function PrimaryButton({
-  children,
-  type = "button",
-  onClick,
-  disabled,
-}: {
-  children: ReactNode;
-  type?: "button" | "submit";
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {children}
-    </button>
-  );
-}
-
-function GhostButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-    >
-      {children}
-    </button>
-  );
-}
-
-function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">{children}</div>;
-}
 
 function dateValue(date: string) {
   const t = Date.parse(date);
@@ -417,6 +153,8 @@ function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
     "Check-ins, concerns and meeting notes",
     "Attendance with CSV export, a gradebook and behavior points",
     "Parent contact logs, weekly schedules and an email organizer",
+    "Add with AI: paste a list, snap a screenshot, or upload Excel, Word or PDF",
+    "Connect your Google, Outlook or Apple calendar",
   ];
   return (
     <div className="min-h-screen bg-slate-100 px-3 py-6 sm:px-5 sm:py-12">
@@ -472,6 +210,9 @@ export default function TeacherHub() {
   const [needsPlan, setNeedsPlan] = useState(false);
   const [seats, setSeats] = useState<number | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
+  // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
+  const [adding, setAdding] = useState<{ start?: "photo" | "file" } | null>(null);
+  const [added, setAdded] = useState<{ words: string; tab: HubTab | null } | null>(null);
 
   const canUseHub = !!user && (user.role === "teacher" || user.isAdmin);
 
@@ -531,6 +272,27 @@ export default function TeacherHub() {
     }, 700);
     return () => window.clearTimeout(timer);
   }, [workspace, canUseHub, token, loaded, loadError, needsPlan]);
+
+  // The "added" message belongs to the screen it appeared on.
+  useEffect(() => { setAdded(null); }, [tab]);
+
+  // Connected calendars are read again when the Hub opens.
+  useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
+
+  const upcomingEvents = useMemo(() => {
+    const today = TODAY();
+    return workspace.events.filter((e) => e.date >= today).sort(byWhen).slice(0, 6);
+  }, [workspace.events]);
+
+  /** Adds what the teacher checked in "Add with AI", and says what happened. */
+  function addFound(items: HubImportItems) {
+    const safe = cleanHubImport(items, TODAY());
+    const result = mergeHubImport(workspace, safe, id, seats);
+    setWorkspace((prev) => mergeHubImport(prev, safe, id, seats).workspace);
+    const most = HUB_IMPORT_KINDS.filter((kind) => result.added[kind]).sort((a, b) => (result.added[b] || 0) - (result.added[a] || 0))[0];
+    setAdded({ words: describeHubAdded(result), tab: most ? HUB_IMPORT[most].tab : null });
+    setAdding(null);
+  }
 
   const upcomingMeetings = useMemo(
     () => workspace.meetings.filter((m) => !m.done).sort((a, b) => dateValue(a.date) - dateValue(b.date)).slice(0, 5),
@@ -661,6 +423,9 @@ export default function TeacherHub() {
                 <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Saved</>
               )}
             </div>
+            <button type="button" onClick={() => setAdding({})} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:px-4" data-testid="hub-add-with-ai">
+              <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
+            </button>
             <GhostButton onClick={() => setCustomize((v) => !v)}><Settings2 className="h-4 w-4" /> <span className="hidden sm:inline">Customize tabs</span></GhostButton>
             <GhostButton onClick={logout}><LogOut className="h-4 w-4" /></GhostButton>
           </div>
@@ -692,6 +457,19 @@ export default function TeacherHub() {
             <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
               <span>{saveMessage}</span>
               <a href="#/billing" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-red-700 px-4 text-sm font-semibold text-white">Your plan</a>
+            </div>
+          )}
+          {added && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950 sm:flex-row sm:items-center sm:justify-between" role="status" data-testid="hub-added">
+              <span>{added.words}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                {added.tab && added.tab !== tab && (
+                  <button type="button" onClick={() => { setTab(added.tab!); setAdded(null); }} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">
+                    Open {TAB_META.find((t) => t.id === added.tab)?.label}
+                  </button>
+                )}
+                <button type="button" onClick={() => setAdded(null)} aria-label="Dismiss" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-teal-900 hover:bg-teal-100"><X className="h-4 w-4" /></button>
+              </span>
             </div>
           )}
           {customize && (
@@ -732,7 +510,30 @@ export default function TeacherHub() {
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-2">
+              <Card title="Add things fast">
+                <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <QuickAdd icon={<WandSparkles className="h-5 w-5" />} title="Paste or ask" detail="A list, notes, an email, or “plan my week”" onClick={() => setAdding({})} />
+                  <QuickAdd icon={<ImagePlus className="h-5 w-5" />} title="Photo or screenshot" detail="Reminders, notes or a calendar" onClick={() => setAdding({ start: "photo" })} />
+                  <QuickAdd icon={<Upload className="h-5 w-5" />} title="Upload a file" detail="Excel, Word, PDF or CSV" onClick={() => setAdding({ start: "file" })} />
+                  <QuickAdd icon={<Link2 className="h-5 w-5" />} title="Connect a calendar" detail="Google, Outlook or Apple" onClick={() => setTab("calendar")} />
+                </div>
+              </Card>
+
+              <div className="grid gap-4 xl:grid-cols-3">
+                <Card title="Coming up" right={<button type="button" onClick={() => setTab("calendar")} className="min-h-11 shrink-0 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Calendar</button>}>
+                  {upcomingEvents.length ? (
+                    <div className="space-y-2">
+                      {upcomingEvents.map((event) => (
+                        <button key={event.id} onClick={() => setTab("calendar")} className="flex w-full items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-3 text-left hover:bg-slate-100">
+                          <div className="min-w-0"><div className="truncate font-medium">{event.title}</div><div className="text-xs text-slate-500">{dayLabel(event.date)}</div></div>
+                          <div className="shrink-0 text-right text-sm font-semibold text-slate-700">{eventTime(event)}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : <Empty>Nothing on your calendar yet.</Empty>}
+                </Card>
+
                 <Card title="Upcoming IEP / reevaluation meetings">
                   {upcomingMeetings.length ? (
                     <div className="space-y-2">
@@ -760,6 +561,8 @@ export default function TeacherHub() {
                 </Card>
               </div>
 
+              <HubNotifications token={token} />
+
               <Card title="Workspace profile">
                 <div className="grid gap-3 md:grid-cols-3">
                   <Field placeholder="School" value={workspace.profile.school} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, school: e.target.value } }))} />
@@ -770,6 +573,7 @@ export default function TeacherHub() {
             </>
           )}
 
+          {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
@@ -784,7 +588,17 @@ export default function TeacherHub() {
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
         </main>
       </div>
+      {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
     </div>
+  );
+}
+
+function QuickAdd({ icon, title, detail, onClick }: { icon: ReactNode; title: string; detail: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-left transition hover:border-teal-300 hover:bg-teal-50">
+      <span className="shrink-0 text-teal-700">{icon}</span>
+      <span className="min-w-0"><span className="block text-sm font-semibold text-slate-900">{title}</span><span className="block text-xs text-slate-500">{detail}</span></span>
+    </button>
   );
 }
 

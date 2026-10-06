@@ -1,11 +1,18 @@
 {
   "name": "A.R.I.S.E. Reader",
   "short_name": "A.R.I.S.E.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Teacher Hub", "short_name": "Hub", "url": "/#/teacher-hub", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ],
   "theme_color": "#0b0a16",
   "background_color": "#0b0a16",
-  "display": "browser"
+  "display": "standalone",
+  "orientation": "portrait"
 }

@@ -11,6 +11,11 @@ import "./login-mobile-fix.css";
   }
 }
 
+// The service worker is what lets the Home Screen app show notifications.
+if ("serviceWorker" in navigator && window.location.protocol === "https:") {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+}
+
 if (!window.location.hash) {
   window.location.hash = "#/";
 }
