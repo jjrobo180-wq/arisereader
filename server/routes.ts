@@ -40,6 +40,7 @@ import { ALERT_EVENTS } from "../shared/adminAlerts";
 import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { raw } from "express";
@@ -83,7 +84,7 @@ const PROXY_URL = process.env.CUSTOM_CRED_API_RESEND_COM_URL || "";
 const PROXY_TOKEN = process.env.CUSTOM_CRED_API_RESEND_COM_TOKEN || "";
 const EMAIL_FROM = process.env.EMAIL_FROM || "A.R.I.S.E Reader <noreply@arisereader.com>";
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "jjrobo180@gmail.com";
-const APP_URL = process.env.APP_URL || "https://arisereader.pplx.app";
+const APP_URL = process.env.APP_URL || DEFAULT_SITE_URL;
 
 // LLM API for instant quiz generation
 // Uses Perplexity API (sonar model) to generate quiz questions via HTTP
@@ -743,6 +744,7 @@ function emailConfigured(): boolean {
 
 // Sends through Resend. A request that times out, is rate limited or hits a Resend outage is tried
 // again (up to three tries); the idempotency key keeps a retry from sending the same email twice.
+// Every email goes out as a complete page with the site's footer (server/emailFormat.ts).
 async function sendEmail(to: string | string[], subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
   const hasProxy = PROXY_URL && PROXY_TOKEN;
   if (!emailConfigured()) {
@@ -757,7 +759,7 @@ async function sendEmail(to: string | string[], subject: string, html: string): 
   } else {
     headers["Authorization"] = `Bearer ${RESEND_API_KEY}`;
   }
-  const body = JSON.stringify({ from: EMAIL_FROM, to: recipients, subject, html });
+  const body = JSON.stringify({ from: EMAIL_FROM, to: recipients, subject, html: emailDocument(subject, html, APP_URL) });
   let lastError = "";
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -930,6 +932,8 @@ const presence = createPresenceTracker({
 const loginFailsByName = createAttemptLimiter({ max: 10, windowMs: 15 * 60_000 });
 const loginFailsByAddress = createAttemptLimiter({ max: 100, windowMs: 15 * 60_000 });
 const proctorFails = createAttemptLimiter({ max: 8, windowMs: 15 * 60_000 });
+// Parent invitations a student has sent today (each send is counted with .fail()).
+const parentInviteSends = createAttemptLimiter({ max: PARENT_INVITES_PER_DAY, windowMs: 24 * 60 * 60_000 });
 
 // Simple auth middleware
 async function authMiddleware(req: any, res: any, next: any) {
@@ -9664,24 +9668,24 @@ Important:
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ message: "Enter a valid parent or guardian email." });
       }
+      // An invitation goes to whatever address the student types. A few a day is plenty for a family,
+      // and it keeps the site from being used to fill strangers' inboxes (which gets all its mail marked as junk).
+      const inviteKey = String(req.user.id);
+      if (parentInviteSends.retryAfter(inviteKey) > 0) {
+        return res.status(429).json({ message: `You have sent ${PARENT_INVITES_PER_DAY} invitations today. You can send more tomorrow, or show your parent the link code on this screen.` });
+      }
       const invite = await getOrCreateParentInvite(req.user.id);
       const forwardedProtocol = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
       const origin = `${forwardedProtocol}://${req.get("host")}`;
       const signupUrl = `${origin}/#/parent-signup?code=${encodeURIComponent(invite.formattedCode)}`;
-      const studentName = String(req.user.displayName || "your student")
-        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const safe = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       const result = await sendEmail(
         email,
         `${req.user.displayName || "Your student"} invited you to A.R.I.S.E. Reader`,
-        `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;background:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px">
-          <h1 style="margin:0 0 8px;background:linear-gradient(90deg,#8b5cf6,#d946ef,#22d3ee);-webkit-background-clip:text;color:transparent">A.R.I.S.E. Reader</h1>
-          <h2 style="margin:24px 0 8px">Connect with ${studentName}</h2>
-          <p style="line-height:1.6;color:#cbd5e1">Create a free Parent account to connect to ${studentName}, view reading progress, and receive your private Parent Proctor Code for quizzes.</p>
-          <p style="margin:24px 0"><a href="${signupUrl}" style="display:inline-block;background:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:white;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px">Create / Connect Parent Account</a></p>
-          <p style="color:#94a3b8">Student link code: <strong style="color:#fff;letter-spacing:.08em">${invite.formattedCode}</strong></p>
-        </div>`
+        parentInviteEmail(safe(String(req.user.displayName || "your student")), safe(signupUrl), safe(String(invite.formattedCode))),
       );
       if (!result.sent) return res.status(503).json({ message: result.error || "Could not send the email right now." });
+      parentInviteSends.fail(inviteKey);
       res.json({ success: true, message: "Parent invitation sent." });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Could not send the parent invitation." });
@@ -11709,7 +11713,7 @@ Important:
       const { bookId } = req.body;
       if (!bookId) return res.status(400).json({ message: 'bookId is required' });
       const token = await storage.createFypShareLink(req.user.id, parseInt(bookId));
-      const shareUrl = `${process.env.APP_URL || 'https://arisereader.pplx.app'}/fyp/share/${token}`;
+      const shareUrl = `${APP_URL}/fyp/share/${token}`;
       res.json({ shareUrl });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
