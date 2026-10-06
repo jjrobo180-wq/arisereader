@@ -79,6 +79,11 @@ export function GhostButton({ children, onClick }: { children: ReactNode; onClic
   );
 }
 
+/** A box to type in with its name above it, so two date boxes side by side can be told apart. */
+export function Labeled({ label, className = "", children }: { label: string; className?: string; children: ReactNode }) {
+  return <label className={`block ${className}`}><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>{children}</label>;
+}
+
 export function Empty({ children }: { children: ReactNode }) {
   return <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">{children}</div>;
 }

@@ -13,6 +13,7 @@ import {
   Home,
   ImagePlus,
   Link2,
+  ListChecks,
   LogOut,
   Mail,
   MessageSquare,
@@ -35,10 +36,11 @@ import {
   HUB_IMPORT, HUB_IMPORT_KINDS, cleanHubImport, describeHubAdded, emptyWorkspace, mergeHubImport, normalizeWorkspace, updateStudent,
   type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Workspace,
 } from "@shared/teacherHub";
-import { Card, Empty, Field, GhostButton, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
+import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubCalendarTab, { byWhen, dayLabel, eventTime, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
+import HubGuideTab from "@/components/teacher-hub/HubGuide";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -52,6 +54,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "calendar", label: "Calendar", icon: <Calendar className="h-4 w-4" /> },
   { id: "caseload", label: "Caseload", icon: <Users className="h-4 w-4" /> },
   { id: "iep", label: "IEP & Meetings", icon: <CalendarDays className="h-4 w-4" /> },
+  { id: "guide", label: "IEP Guide", icon: <ListChecks className="h-4 w-4" /> },
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
   { id: "tasks", label: "Tasks", icon: <CheckSquare className="h-4 w-4" /> },
   { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
@@ -214,6 +217,8 @@ export default function TeacherHub() {
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
   const [adding, setAdding] = useState<{ start?: "photo" | "file" } | null>(null);
   const [added, setAdded] = useState<{ words: string; tab: HubTab | null } | null>(null);
+  // The IEP guide that is open. It is kept here so it is still open after a look at another tab.
+  const [guideId, setGuideId] = useState<string | null>(null);
 
   const canUseHub = !!user && (user.role === "teacher" || user.isAdmin);
 
@@ -577,6 +582,7 @@ export default function TeacherHub() {
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
+          {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "notes" && <Notes workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
@@ -710,11 +716,6 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
       </div>
     </>
   );
-}
-
-/** A box to type in with its name above it, so two date boxes side by side can be told apart. */
-function Labeled({ label, className = "", children }: { label: string; className?: string; children: ReactNode }) {
-  return <label className={`block ${className}`}><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>{children}</label>;
 }
 
 function Info({ label, value }: { label: string; value: string }) {
