@@ -665,6 +665,23 @@ function AppInner() {
           <EyeGazeCelebrations />
         </EyeGazeSiteShell>
       </Router>
+      {!inGame && (
+        <footer
+          aria-label="Teacher workspace"
+          style={{ padding: "24px 20px 32px", textAlign: "center", borderTop: "1px solid rgba(148,163,184,.18)", background: "#f8fafc" }}
+        >
+          <a
+            href="https://jermaine-teacher-hub.jjrobo.chatgpt.site"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-block", padding: "12px 18px", borderRadius: 12, color: "#315e52", fontSize: 14, fontWeight: 800, textDecoration: "underline", textUnderlineOffset: 4 }}
+          >
+            A.R.I.S.E. Teacher Hub
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          <p style={{ margin: "2px 0 0", color: "#64748b", fontSize: 12 }}>Your teaching workspace, all in one place.</p>
+        </footer>
+      )}
     </>
   );
 }
