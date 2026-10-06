@@ -68,6 +68,7 @@ function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
 }
 const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
+const MeetingPoll = lazyPage(() => import("./pages/MeetingPoll"));
 const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const SmashRoom = lazyPage(() => import("./pages/play/SmashRoom"));
 const BuildZone = lazyPage(() => import("./pages/play/BuildZone"));
@@ -318,6 +319,9 @@ function AppRoutes() {
       </Route>
       <Route path="/register-independent">
         {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+      </Route>
+      <Route path="/meet/:token">
+        <MeetingPoll />
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />
