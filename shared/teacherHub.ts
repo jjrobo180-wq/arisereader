@@ -451,6 +451,51 @@ export function describeHubAdded(result: Pick<HubMergeResult, "added" | "already
   return lines.join(" ");
 }
 
+// ─── Changing a student ─────────────────────────────────────────────────────
+//
+// Every other tab files its rows under a student's name, so when a name is
+// corrected on the caseload those rows have to follow it.
+
+/** The lists whose rows name a student. */
+export const STUDENT_LISTS = ["meetings", "notes", "ariseRecords", "behavior", "attendance", "gradeScores", "parentLogs", "schedules"] as const;
+
+export type StudentChange =
+  /** `moved` is how many rows in the other tabs now carry the new name. */
+  | { ok: true; workspace: Workspace; moved: number }
+  | { ok: false; message: string };
+
+/**
+ * Saves changes to a student who is already on the caseload. When the name
+ * changes, the meetings, notes, grades and other rows filed under the old name
+ * are filed under the new one, so nothing is left behind. Two students can't
+ * end up with the same name, because their rows could not be told apart.
+ */
+export function updateStudent(workspace: Workspace, studentId: string, changes: Omit<Student, "id">): StudentChange {
+  const current = workspace.students.find((s) => s.id === studentId);
+  if (!current) return { ok: false, message: "That student is no longer on your caseload." };
+  const name = String(changes.name ?? "").replace(/\s+/g, " ").trim();
+  if (!name) return { ok: false, message: "A student needs a name." };
+  const was = fold(current.name);
+  const others = workspace.students.filter((s) => s.id !== studentId);
+  const taken = fold(name) !== was ? others.find((s) => fold(s.name) === fold(name)) : undefined;
+  if (taken) return { ok: false, message: `${taken.name} is already on your caseload.` };
+  const next: Workspace = { ...workspace, students: workspace.students.map((s) => (s.id === studentId ? { ...s, ...changes, id: s.id, name } : s)) };
+  let moved = 0;
+  // If another student already shares the old name, there is no telling whose rows are whose, so they stay put.
+  if (name !== current.name && was && !others.some((s) => fold(s.name) === was)) {
+    for (const list of STUDENT_LISTS) {
+      const rows = workspace[list] as Array<{ student: string }>;
+      if (!rows.some((row) => fold(row.student) === was && row.student !== name)) continue;
+      (next as any)[list] = rows.map((row) => {
+        if (fold(row.student) !== was || row.student === name) return row;
+        moved++;
+        return { ...row, student: name };
+      });
+    }
+  }
+  return { ok: true, workspace: next, moved };
+}
+
 /** Puts a calendar's fresh events in place of its old ones. Events the teacher typed in are untouched. */
 export function replaceCalendarEvents(workspace: Workspace, calendar: HubCalendar, events: Omit<HubEvent, "id" | "calendarId">[], makeId: () => string): Workspace {
   const kept = workspace.events.filter((event) => event.calendarId !== calendar.id);
