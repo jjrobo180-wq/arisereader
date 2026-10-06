@@ -250,12 +250,12 @@ function Card({ title, children, right }: { title?: string; children: ReactNode;
   return (
     <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
       {(title || right) && (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <h2 className="font-semibold text-slate-900">{title}</h2>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
+          <h2 className="min-w-0 break-words font-semibold text-slate-900">{title}</h2>
           {right}
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="p-4 sm:p-5">{children}</div>
     </section>
   );
 }
@@ -264,7 +264,7 @@ function Field(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
+      className={`w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
     />
   );
 }
@@ -273,7 +273,7 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className={`min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
+      className={`min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
     />
   );
 }
@@ -282,7 +282,7 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
+      className={`w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
     />
   );
 }
@@ -303,7 +303,7 @@ function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </button>
@@ -315,7 +315,7 @@ function GhostButton({ children, onClick }: { children: ReactNode; onClick?: () 
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+      className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
     >
       {children}
     </button>
@@ -354,11 +354,11 @@ function TeacherHubLogin() {
   if (user) return null;
 
   return (
-    <div className="min-h-screen bg-slate-100 px-5 py-12">
-      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl md:grid-cols-[1.05fr_.95fr]">
-        <div className="bg-slate-950 p-8 text-white md:p-12">
-          <div className="mb-16 text-xs font-semibold uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</div>
-          <h1 className="max-w-lg text-4xl font-bold tracking-tight md:text-5xl">Teacher Hub</h1>
+    <div className="min-h-screen bg-slate-100 px-3 py-6 sm:px-5 sm:py-12">
+      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[1.05fr_.95fr]">
+        <div className="bg-slate-950 p-6 text-white sm:p-8 md:p-12">
+          <div className="mb-6 text-xs font-semibold md:mb-16 uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</div>
+          <h1 className="max-w-lg text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Teacher Hub</h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-slate-300">
             Your private teacher workspace for caseloads, IEP timelines, lessons, tasks, student notes,
             attendance, grades, family communication, A.R.I.S.E. records, schedules, and more.
@@ -367,7 +367,7 @@ function TeacherHubLogin() {
             Your Hub is saved to your teacher account, so it is waiting for you on any device after you sign in.
           </div>
         </div>
-        <form onSubmit={submit} className="p-8 md:p-12">
+        <form onSubmit={submit} className="p-6 sm:p-8 md:p-12">
           <p className="text-sm font-semibold text-slate-500">Teacher account</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Sign in</h2>
           <div className="mt-8 space-y-4">
@@ -540,9 +540,9 @@ export default function TeacherHub() {
           <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
           <h1 className="mt-4 text-2xl font-bold text-slate-950">Teacher accounts only</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">Sign in with an approved teacher account to open the Teacher Hub.</p>
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <GhostButton onClick={logout}><LogOut className="h-4 w-4" /> Sign out</GhostButton>
-            <a href="#/teacher-signup" className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create teacher account</a>
+            <a href="#/teacher-signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create teacher account</a>
           </div>
         </div>
       </div>
@@ -602,8 +602,8 @@ export default function TeacherHub() {
       </header>
 
       <div className="mx-auto grid max-w-[1500px] gap-4 px-4 py-4 md:grid-cols-[220px_1fr] md:px-6">
-        <aside className="md:sticky md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
-          <div className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm md:h-full md:flex-col md:overflow-y-auto">
+        <aside className="sticky top-[69px] z-30 -mx-4 bg-slate-100/95 px-4 py-1 backdrop-blur md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
+          <div className="flex snap-x gap-2 overflow-x-auto rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white p-2 shadow-sm md:h-full md:flex-col md:overflow-y-auto">
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
@@ -612,7 +612,7 @@ export default function TeacherHub() {
               <button
                 key={item.id}
                 onClick={() => setTab(item.id)}
-                className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition md:w-full ${tab === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
+                className={`flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition md:w-full ${tab === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
               >
                 {item.icon}
                 <span>{item.label}</span>
@@ -621,7 +621,7 @@ export default function TeacherHub() {
           </div>
         </aside>
 
-        <main className="min-w-0 space-y-4 pb-20">
+        <main className="min-w-0 space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
               <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records.</p>
@@ -630,7 +630,7 @@ export default function TeacherHub() {
                   <label key={item.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 text-sm">
                     <span className="flex items-center gap-2">{item.icon}{item.label}</span>
                     <input
-                      type="checkbox"
+                      type="checkbox" className="h-5 w-5 shrink-0"
                       checked={workspace.visibleTabs[item.id] !== false}
                       onChange={(e) => setWorkspace((prev) => ({
                         ...prev,
@@ -645,17 +645,17 @@ export default function TeacherHub() {
 
           {tab === "overview" && (
             <>
-              <div className="rounded-[2rem] bg-slate-950 p-6 text-white md:p-8">
+              <div className="rounded-3xl bg-slate-950 p-5 text-white sm:p-6 md:rounded-[2rem] md:p-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-400">Welcome back, {user.displayName.split(" ")[0]}</p>
-                    <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">Your teacher workspace</h1>
+                    <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Your teacher workspace</h1>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Everything here saves to your account automatically.</p>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-2xl bg-white/10 px-4 py-3"><div className="text-2xl font-bold">{workspace.students.length}</div><div className="text-[11px] text-slate-300">Students</div></div>
-                    <div className="rounded-2xl bg-white/10 px-4 py-3"><div className="text-2xl font-bold">{workspace.tasks.filter((t) => !t.done).length}</div><div className="text-[11px] text-slate-300">Open tasks</div></div>
-                    <div className="rounded-2xl bg-white/10 px-4 py-3"><div className="text-2xl font-bold">{workspace.meetings.filter((m) => !m.done).length}</div><div className="text-[11px] text-slate-300">Meetings</div></div>
+                    <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.students.length}</div><div className="text-[11px] text-slate-300">Students</div></div>
+                    <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.tasks.filter((t) => !t.done).length}</div><div className="text-[11px] text-slate-300">Open tasks</div></div>
+                    <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.meetings.filter((m) => !m.done).length}</div><div className="text-[11px] text-slate-300">Meetings</div></div>
                   </div>
                 </div>
               </div>
@@ -679,7 +679,7 @@ export default function TeacherHub() {
                     <div className="space-y-2">
                       {dueTasks.map((task) => (
                         <label key={task.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
-                          <input type="checkbox" checked={task.done} onChange={() => update("tasks", workspace.tasks.map((t) => t.id === task.id ? { ...t, done: !t.done } : t))} />
+                          <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => update("tasks", workspace.tasks.map((t) => t.id === task.id ? { ...t, done: !t.done } : t))} />
                           <div className="min-w-0 flex-1"><div className="truncate font-medium">{task.title}</div><div className="text-xs text-slate-500">{task.recurring || "One-time"} {task.dueDate ? `· due ${task.dueDate}` : ""}</div></div>
                         </label>
                       ))}
@@ -747,7 +747,7 @@ function Caseload({ workspace, setWorkspace, remove }: SectionProps) {
       </Card>
       <div className="grid gap-4 xl:grid-cols-2">
         {workspace.students.length ? workspace.students.map((s) => (
-          <Card key={s.id} title={s.name} right={<button onClick={() => remove("students", s.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>}>
+          <Card key={s.id} title={s.name} right={<button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>}>
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <Info label="Grade" value={s.grade || "—"} />
               <Info label="Reading" value={s.readingLevel || "—"} />
@@ -790,13 +790,13 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions }: SectionPr
       </Card>
       <Card title="Timeline">
         {workspace.meetings.length ? <div className="space-y-2">{[...workspace.meetings].sort((a,b)=>dateValue(a.date)-dateValue(b.date)).map((m) => (
-          <div key={m.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4 sm:flex-row sm:items-center">
-            <input type="checkbox" checked={m.done} onChange={() => setWorkspace((p) => ({ ...p, meetings: p.meetings.map((x) => x.id === m.id ? { ...x, done: !x.done } : x) }))} />
+          <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 sm:items-center">
+            <input type="checkbox" className="h-5 w-5 shrink-0" checked={m.done} onChange={() => setWorkspace((p) => ({ ...p, meetings: p.meetings.map((x) => x.id === m.id ? { ...x, done: !x.done } : x) }))} />
             <div className="min-w-0 flex-1">
               <div className={`font-semibold ${m.done ? "text-slate-400 line-through" : ""}`}>{m.student} · {m.type}</div>
               <div className="mt-1 text-sm text-slate-500">{m.date || "No date"}{m.notes ? ` · ${m.notes}` : ""}</div>
             </div>
-            <button onClick={() => remove("meetings", m.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+            <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("meetings", m.id)}><Trash2 className="h-4 w-4" /></button>
           </div>
         ))}</div> : <Empty>No meetings added.</Empty>}
       </Card>
@@ -827,7 +827,7 @@ function Lessons({ workspace, setWorkspace, remove }: SectionProps) {
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
         {workspace.lessons.length ? workspace.lessons.map((lesson) => (
-          <Card key={lesson.id} title={lesson.title} right={<button onClick={() => remove("lessons", lesson.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button>}>
+          <Card key={lesson.id} title={lesson.title} right={<button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("lessons", lesson.id)}><Trash2 className="h-4 w-4" /></button>}>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{lesson.subject} · {lesson.group || "No group"} · {lesson.date || "No date"}</div>
             {lesson.objective && <p className="mt-3 text-sm text-slate-700">{lesson.objective}</p>}
             {lesson.materials && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{lesson.materials}</div>}
@@ -856,9 +856,9 @@ function Tasks({ workspace, setWorkspace, remove }: SectionProps) {
       </form>
       {workspace.tasks.length ? <div className="space-y-2">{workspace.tasks.map((task) => (
         <div key={task.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-          <input type="checkbox" checked={task.done} onChange={() => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => t.id === task.id ? { ...t, done: !t.done } : t) }))} />
+          <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => t.id === task.id ? { ...t, done: !t.done } : t) }))} />
           <div className="min-w-0 flex-1"><div className={task.done ? "text-slate-400 line-through" : "font-medium"}>{task.title}</div><div className="text-xs text-slate-500">{task.dueDate || "No due date"} · {task.recurring || "One-time"}</div></div>
-          <button onClick={() => remove("tasks", task.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button>
+          <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("tasks", task.id)}><Trash2 className="h-4 w-4" /></button>
         </div>
       ))}</div> : <Empty>No tasks yet.</Empty>}
     </Card>
@@ -889,7 +889,7 @@ function Notes({ workspace, setWorkspace, remove, studentOptions }: SectionProps
           <div key={n.id} className="rounded-2xl border border-slate-200 p-4">
             <div className="flex items-start justify-between gap-3">
               <div><div className="font-semibold">{n.student || "General"} · {n.type}</div><div className="text-xs text-slate-500">{n.date}</div></div>
-              <button onClick={() => remove("notes", n.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button>
+              <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("notes", n.id)}><Trash2 className="h-4 w-4" /></button>
             </div>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{n.body}</p>
           </div>
@@ -919,7 +919,7 @@ function Arise({ workspace, setWorkspace, remove, studentOptions }: SectionProps
         </form>
       </Card>
       <Card title="Reading history">
-        {workspace.ariseRecords.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Student</th><th>Book</th><th>Score</th><th>Points</th><th>Date</th><th /></tr></thead><tbody>{workspace.ariseRecords.map((r) => <tr key={r.id} className="border-t border-slate-100"><td className="py-3 font-medium">{r.student}</td><td>{r.book}</td><td>{r.score}</td><td>{r.points}</td><td>{r.date}</td><td><button onClick={() => remove("ariseRecords", r.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button></td></tr>)}</tbody></table></div> : <Empty>No A.R.I.S.E. records yet.</Empty>}
+        {workspace.ariseRecords.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Student</th><th>Book</th><th>Score</th><th>Points</th><th>Date</th><th /></tr></thead><tbody>{workspace.ariseRecords.map((r) => <tr key={r.id} className="border-t border-slate-100"><td className="py-3 font-medium">{r.student}</td><td>{r.book}</td><td>{r.score}</td><td>{r.points}</td><td>{r.date}</td><td><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("ariseRecords", r.id)}><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div> : <Empty>No A.R.I.S.E. records yet.</Empty>}
       </Card>
     </>
   );
@@ -948,7 +948,7 @@ function Behavior({ workspace, setWorkspace, remove, studentOptions, totals }: S
           {Object.keys(totals).length ? <div className="space-y-2">{Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([name,total]) => <div key={name} className="flex justify-between rounded-xl bg-slate-50 px-3 py-2"><span>{name}</span><strong>{total > 0 ? "+" : ""}{total}</strong></div>)}</div> : <Empty>No points yet.</Empty>}
         </Card>
         <Card title="Point history">
-          {workspace.behavior.length ? <div className="space-y-2">{workspace.behavior.map((b) => <div key={b.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><div className={`w-12 text-center text-lg font-bold ${b.points >= 0 ? "text-emerald-600" : "text-red-600"}`}>{b.points >= 0 ? "+" : ""}{b.points}</div><div className="min-w-0 flex-1"><div className="font-medium">{b.student}</div><div className="text-xs text-slate-500">{b.reason || "No reason"} · {b.date}</div></div><button onClick={() => remove("behavior", b.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button></div>)}</div> : <Empty>No behavior points yet.</Empty>}
+          {workspace.behavior.length ? <div className="space-y-2">{workspace.behavior.map((b) => <div key={b.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><div className={`w-12 text-center text-lg font-bold ${b.points >= 0 ? "text-emerald-600" : "text-red-600"}`}>{b.points >= 0 ? "+" : ""}{b.points}</div><div className="min-w-0 flex-1"><div className="font-medium">{b.student}</div><div className="text-xs text-slate-500">{b.reason || "No reason"} · {b.date}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("behavior", b.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <Empty>No behavior points yet.</Empty>}
         </Card>
       </div>
     </>
@@ -973,7 +973,7 @@ function Attendance({ workspace, setWorkspace, remove, studentOptions, exportAtt
         </form>
       </Card>
       <Card title="Attendance log">
-        {workspace.attendance.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Date</th><th>Student</th><th>Class</th><th>Status</th><th /></tr></thead><tbody>{workspace.attendance.map((a) => <tr key={a.id} className="border-t border-slate-100"><td className="py-3">{a.date}</td><td className="font-medium">{a.student}</td><td>{a.className}</td><td>{a.status}</td><td><button onClick={() => remove("attendance", a.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button></td></tr>)}</tbody></table></div> : <Empty>No attendance entries yet.</Empty>}
+        {workspace.attendance.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Date</th><th>Student</th><th>Class</th><th>Status</th><th /></tr></thead><tbody>{workspace.attendance.map((a) => <tr key={a.id} className="border-t border-slate-100"><td className="py-3">{a.date}</td><td className="font-medium">{a.student}</td><td>{a.className}</td><td>{a.status}</td><td><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("attendance", a.id)}><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div> : <Empty>No attendance entries yet.</Empty>}
       </Card>
     </>
   );
@@ -1015,14 +1015,14 @@ function Gradebook({ workspace, setWorkspace, remove, studentOptions }: SectionP
             <Field type="date" value={assignment.date} onChange={(e) => setAssignment({ ...assignment, date: e.target.value })} />
             <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add assignment</PrimaryButton>
           </form>
-          <div className="mt-4 space-y-2">{workspace.assignments.map((a) => <div key={a.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm"><div><div className="font-medium">{a.title}</div><div className="text-xs text-slate-500">{a.category} · {a.points} pts · {a.date}</div></div><button onClick={() => remove("assignments", a.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button></div>)}</div>
+          <div className="mt-4 space-y-2">{workspace.assignments.map((a) => <div key={a.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm"><div><div className="font-medium">{a.title}</div><div className="text-xs text-slate-500">{a.category} · {a.points} pts · {a.date}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("assignments", a.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div>
         </Card>
         <Card title="Enter score">
           <form onSubmit={addScore} className="grid gap-3 sm:grid-cols-2">
             <Select value={score.assignmentId} onChange={(e) => setScore({ ...score, assignmentId: e.target.value })} required><option value="">Choose assignment</option>{workspace.assignments.map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}</Select>
             <Select value={score.student} onChange={(e) => setScore({ ...score, student: e.target.value })} required>{studentOptions()}</Select>
             <Field type="number" placeholder="Points earned" value={score.score} onChange={(e) => setScore({ ...score, score: e.target.value })} />
-            <div className="flex items-center gap-4 rounded-xl border border-slate-200 px-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={score.missing} onChange={(e) => setScore({ ...score, missing: e.target.checked })} /> Missing</label><label className="flex items-center gap-2"><input type="checkbox" checked={score.excused} onChange={(e) => setScore({ ...score, excused: e.target.checked })} /> Excused</label></div>
+            <div className="flex min-h-11 flex-wrap items-center gap-4 rounded-xl border border-slate-200 px-3 py-2 text-sm"><label className="flex items-center gap-2"><input type="checkbox" className="h-5 w-5 shrink-0" checked={score.missing} onChange={(e) => setScore({ ...score, missing: e.target.checked })} /> Missing</label><label className="flex items-center gap-2"><input type="checkbox" className="h-5 w-5 shrink-0" checked={score.excused} onChange={(e) => setScore({ ...score, excused: e.target.checked })} /> Excused</label></div>
             <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Save score</PrimaryButton>
           </form>
         </Card>
@@ -1055,7 +1055,7 @@ function Parents({ workspace, setWorkspace, remove, studentOptions }: SectionPro
         </form>
       </Card>
       <Card title="Contact log">
-        {workspace.parentLogs.length ? <div className="space-y-3">{workspace.parentLogs.map((p) => <div key={p.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex justify-between gap-3"><div><div className="font-semibold">{p.student || "General"} · {p.guardian || "Guardian"}</div><div className="text-xs text-slate-500">{p.status} · {p.date}</div></div><button onClick={() => remove("parentLogs", p.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button></div><p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{p.message}</p></div>)}</div> : <Empty>No parent communication saved yet.</Empty>}
+        {workspace.parentLogs.length ? <div className="space-y-3">{workspace.parentLogs.map((p) => <div key={p.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex justify-between gap-3"><div><div className="font-semibold">{p.student || "General"} · {p.guardian || "Guardian"}</div><div className="text-xs text-slate-500">{p.status} · {p.date}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("parentLogs", p.id)}><Trash2 className="h-4 w-4" /></button></div><p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{p.message}</p></div>)}</div> : <Empty>No parent communication saved yet.</Empty>}
       </Card>
     </>
   );
@@ -1082,7 +1082,7 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
       </Card>
       {warnings.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex gap-2 font-semibold text-amber-900"><AlertTriangle className="h-5 w-5" /> Schedule overlap</div><div className="mt-2 space-y-1 text-sm text-amber-800">{warnings.map((w) => <div key={w}>{w}</div>)}</div></div>}
       <Card title="Schedule blocks">
-        {workspace.schedules.length ? <div className="grid gap-3 lg:grid-cols-2">{workspace.schedules.map((s) => <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><div className="font-medium">{s.student} · {s.label || "Schedule block"}</div><div className="text-xs text-slate-500">{s.day} · {s.start}–{s.end}</div></div><button onClick={() => remove("schedules", s.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button></div>)}</div> : <Empty>No schedule blocks yet.</Empty>}
+        {workspace.schedules.length ? <div className="grid gap-3 lg:grid-cols-2">{workspace.schedules.map((s) => <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><div className="font-medium">{s.student} · {s.label || "Schedule block"}</div><div className="text-xs text-slate-500">{s.day} · {s.start}–{s.end}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("schedules", s.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <Empty>No schedule blocks yet.</Empty>}
       </Card>
     </>
   );
@@ -1111,7 +1111,7 @@ function Emails({ workspace, setWorkspace, remove }: SectionProps) {
         </form>
       </Card>
       <Card title="Saved emails">
-        {workspace.emails.length ? <div className="space-y-3">{workspace.emails.map((e) => <div key={e.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-semibold">{e.subject || "Untitled email"}</div><div className="text-xs text-slate-500">{e.from || "Unknown sender"} · {e.date}</div></div><button onClick={() => remove("emails", e.id)}><Trash2 className="h-4 w-4 text-slate-400" /></button></div>{e.action && <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Action:</strong> {e.action}</div>}{e.body && <details className="mt-3 text-sm text-slate-600"><summary className="cursor-pointer font-medium text-slate-700">Original email</summary><p className="mt-2 whitespace-pre-wrap leading-6">{e.body}</p></details>}{e.draft && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><strong>Reply draft</strong><p className="mt-1 whitespace-pre-wrap">{e.draft}</p></div>}</div>)}</div> : <Empty>No emails saved yet.</Empty>}
+        {workspace.emails.length ? <div className="space-y-3">{workspace.emails.map((e) => <div key={e.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-semibold">{e.subject || "Untitled email"}</div><div className="text-xs text-slate-500">{e.from || "Unknown sender"} · {e.date}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("emails", e.id)}><Trash2 className="h-4 w-4" /></button></div>{e.action && <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Action:</strong> {e.action}</div>}{e.body && <details className="mt-3 text-sm text-slate-600"><summary className="cursor-pointer font-medium text-slate-700">Original email</summary><p className="mt-2 whitespace-pre-wrap leading-6">{e.body}</p></details>}{e.draft && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><strong>Reply draft</strong><p className="mt-1 whitespace-pre-wrap">{e.draft}</p></div>}</div>)}</div> : <Empty>No emails saved yet.</Empty>}
       </Card>
     </>
   );
