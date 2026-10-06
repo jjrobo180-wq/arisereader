@@ -578,7 +578,7 @@ export default function TeacherHub() {
   const visibleTabs = TAB_META.filter((item) => item.id === "overview" || workspace.visibleTabs[item.id] !== false);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-950">
+    <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="min-w-0">
@@ -601,8 +601,8 @@ export default function TeacherHub() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1500px] gap-4 px-4 py-4 md:grid-cols-[220px_1fr] md:px-6">
-        <aside className="sticky top-[69px] z-30 -mx-4 bg-slate-100/95 px-4 py-1 backdrop-blur md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
+      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-4 px-4 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
+        <aside className="min-w-0 sticky top-[69px] z-30 -mx-4 bg-slate-100/95 px-4 py-1 backdrop-blur md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
           <div className="flex snap-x gap-2 overflow-x-auto rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white p-2 shadow-sm md:h-full md:flex-col md:overflow-y-auto">
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
@@ -652,7 +652,7 @@ export default function TeacherHub() {
                     <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Your teacher workspace</h1>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Everything here saves to your account automatically.</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid w-full grid-cols-3 gap-2 text-center lg:w-auto">
                     <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.students.length}</div><div className="text-[11px] text-slate-300">Students</div></div>
                     <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.tasks.filter((t) => !t.done).length}</div><div className="text-[11px] text-slate-300">Open tasks</div></div>
                     <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.meetings.filter((m) => !m.done).length}</div><div className="text-[11px] text-slate-300">Meetings</div></div>
