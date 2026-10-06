@@ -35,6 +35,7 @@ import {
   type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Workspace,
 } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
+import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubCalendarTab, { byWhen, dayLabel, eventTime, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 
@@ -559,6 +560,8 @@ export default function TeacherHub() {
                   ) : <Empty>Nothing due right now.</Empty>}
                 </Card>
               </div>
+
+              <HubNotifications token={token} />
 
               <Card title="Workspace profile">
                 <div className="grid gap-3 md:grid-cols-3">

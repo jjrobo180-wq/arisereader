@@ -11,6 +11,12 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // The notification worker must always be the newest copy, or updates to it never reach phones.
+  app.get("/sw.js", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.type("application/javascript").sendFile(path.resolve(distPath, "sw.js"));
+  });
+
   app.use(express.static(distPath));
 
   // An API address that doesn't exist answers in JSON, not with the app's page.
