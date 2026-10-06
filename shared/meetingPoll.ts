@@ -9,6 +9,8 @@ export const POLL_LIMITS = {
   location: 120,
   message: 600,
   name: 80,
+  role: 40,
+  senderName: 60,
   comment: 400,
   pollsPerDay: 20,
   emailsPerDay: 80,
@@ -16,11 +18,17 @@ export const POLL_LIMITS = {
 
 export type PollAnswer = "yes" | "maybe" | "no";
 export const POLL_ANSWERS: readonly PollAnswer[] = ["yes", "maybe", "no"];
-export const INVITEE_ROLES = ["Parent or guardian", "Staff", "Other"] as const;
+/** Who can be asked. The team labels match the IEP guide's contact roles. */
+export const INVITEE_ROLES = [
+  "Parent or guardian", "Student", "Gen ed teacher", "Special ed teacher", "Social worker", "OT", "Speech (SLP)", "Psych",
+  "Counselor", "Nurse / health", "Sped coordinator", "Meeting leader", "Administrator", "Interpreter", "Advocate", "Other",
+] as const;
+/** The ones offered as one-tap buttons. */
+export const QUICK_ROLES = ["Parent or guardian", "Gen ed teacher", "Social worker", "OT", "Speech (SLP)", "Psych", "Administrator", "Other"] as const;
 
 export type PollOption = { id: string; date: string; start: string; end: string };
 export type PollInvitee = { name: string; email: string; role: string };
-export type PollInput = { title: string; location: string; message: string; hubMeetingId: string; options: PollOption[]; invitees: PollInvitee[] };
+export type PollInput = { title: string; location: string; message: string; hubMeetingId: string; senderName: string; replyTo: string; options: PollOption[]; invitees: PollInvitee[] };
 
 const EMAIL = /^[^\s@<>()"',;:]+@[^\s@<>()"',;:]+\.[^\s@<>()"',;:]{2,}$/;
 export const cleanEmail = (value: unknown) => {
@@ -58,15 +66,21 @@ export function cleanPollInput(raw: any, today: string): { ok: true; poll: PollI
     if (!email) return { ok: false, error: `“${oneLine(item?.email, 60) || "A blank email"}” is not a working email address.` };
     if (seenEmails.has(email)) continue;
     seenEmails.add(email);
-    const role = (INVITEE_ROLES as readonly string[]).includes(item?.role) ? String(item.role) : "Other";
+    const role = oneLine(item?.role, POLL_LIMITS.role) || "Other";
     invitees.push({ name: oneLine(item?.name, POLL_LIMITS.name) || email.split("@")[0], email, role });
   }
   if (!invitees.length) return { ok: false, error: "Add at least one person to ask." };
   if (invitees.length > POLL_LIMITS.invitees) return { ok: false, error: `Ask ${POLL_LIMITS.invitees} people or fewer at a time.` };
 
+  // The name shown on the email, and where replies go. Quotes and angle brackets would break the "From" line.
+  const senderName = oneLine(raw?.senderName, POLL_LIMITS.senderName).replace(/["@]/g, "").trim();
+  const replyRaw = String(raw?.replyTo ?? "").trim();
+  const replyTo = replyRaw ? cleanEmail(replyRaw) : "";
+  if (replyRaw && !replyTo) return { ok: false, error: `“${oneLine(replyRaw, 60)}” is not a working email address for replies.` };
+
   return {
     ok: true,
-    poll: { title, location: oneLine(raw?.location, POLL_LIMITS.location), message: oneLine(raw?.message, POLL_LIMITS.message), hubMeetingId: oneLine(raw?.hubMeetingId, 60), options, invitees },
+    poll: { senderName, replyTo, title, location: oneLine(raw?.location, POLL_LIMITS.location), message: oneLine(raw?.message, POLL_LIMITS.message), hubMeetingId: oneLine(raw?.hubMeetingId, 60), options, invitees },
   };
 }
 

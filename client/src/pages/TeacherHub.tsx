@@ -582,7 +582,7 @@ export default function TeacherHub() {
 
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
-          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} />}
+          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} account={{ name: String((user as any)?.displayName || (user as any)?.username || ""), email: String((user as any)?.email || "") }} />}
           {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
@@ -723,7 +723,7 @@ function Info({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div><div className="mt-1 text-slate-700">{value}</div></div>;
 }
 
-function Meetings({ workspace, setWorkspace, remove, studentOptions, token, makeId }: SectionProps & { studentOptions: () => ReactNode; token: string | null; makeId: () => string }) {
+function Meetings({ workspace, setWorkspace, remove, studentOptions, token, makeId, account }: SectionProps & { studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
   const [pollStart, setPollStart] = useState<PollStart>(null);
   const [form, setForm] = useState({ student: "", type: "Annual IEP", date: "", notes: "" });
   function add(e: FormEvent) {
@@ -757,7 +757,7 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
           </div>
         ))}</div> : <Empty>No meetings added.</Empty>}
       </Card>
-      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} />
+      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} />
     </>
   );
 }

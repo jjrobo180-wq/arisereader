@@ -749,7 +749,7 @@ function emailConfigured(): boolean {
 // Sends through Resend. A request that times out, is rate limited or hits a Resend outage is tried
 // again (up to three tries); the idempotency key keeps a retry from sending the same email twice.
 // Every email goes out as a complete page with the site's footer (server/emailFormat.ts).
-async function sendEmail(to: string | string[], subject: string, html: string, options: { replyTo?: string } = {}): Promise<{ sent: boolean; error?: string }> {
+async function sendEmail(to: string | string[], subject: string, html: string, options: { replyTo?: string; fromName?: string } = {}): Promise<{ sent: boolean; error?: string }> {
   const hasProxy = PROXY_URL && PROXY_TOKEN;
   if (!emailConfigured()) {
     return { sent: false, error: "No email API key configured" };
@@ -763,7 +763,11 @@ async function sendEmail(to: string | string[], subject: string, html: string, o
   } else {
     headers["Authorization"] = `Bearer ${RESEND_API_KEY}`;
   }
-  const body = JSON.stringify({ from: EMAIL_FROM, to: recipients, subject, html: emailDocument(subject, html, APP_URL), ...(options.replyTo ? { reply_to: options.replyTo } : {}) });
+  // A teacher's name can go in front of the site's own address, but mail can't truly come "from" their address: their email provider would mark it as fake.
+  const fromAddress = /<([^>]+)>/.exec(EMAIL_FROM)?.[1] || EMAIL_FROM;
+  const fromName = String(options.fromName || "").replace(/["<>@\r\n]/g, "").trim().slice(0, 60);
+  const from = fromName ? `"${fromName} via A.R.I.S.E. Reader" <${fromAddress}>` : EMAIL_FROM;
+  const body = JSON.stringify({ from, to: recipients, subject, html: emailDocument(subject, html, APP_URL), ...(options.replyTo ? { reply_to: options.replyTo } : {}) });
   let lastError = "";
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {

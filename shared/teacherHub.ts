@@ -81,7 +81,7 @@ export type HubTab = (typeof HUB_TABS)[number];
 
 export type Workspace = {
   version: number;
-  profile: { school: string; gradeBand: string; subject: string };
+  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string };
   visibleTabs: Record<HubTab, boolean>;
   students: Student[];
   meetings: Meeting[];
