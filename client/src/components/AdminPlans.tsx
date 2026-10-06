@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PLANS, usd } from "@shared/plans";
+import { PLANS, usd, type PlanKind } from "@shared/plans";
 
-type PlanRow = { kind: "teacher" | "school"; ownerId: number; name: string; students: number; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; note: string };
+type PlanRow = { kind: PlanKind; ownerId: number; name: string; students: number; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; note: string };
 type FreeSchool = { id: number; name: string; free: boolean; byName: boolean };
 type AdminPlansData = {
   enforced: boolean;
@@ -28,6 +28,8 @@ function cookieToken(): string | null {
 }
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "No end date");
 const select = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
+const KIND_LABEL: Record<PlanKind, string> = { school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Teacher Hub · School", hub_teacher: "Teacher Hub · Teacher" };
+const isSchool = (k: PlanKind) => k === "school" || k === "hub_school";
 
 export default function AdminPlans() {
   const { token } = useAuth();
@@ -37,7 +39,7 @@ export default function AdminPlans() {
   const [teachers, setTeachers] = useState<{ id: number; displayName: string; username: string }[]>([]);
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
-  const [kind, setKind] = useState<"teacher" | "school">("school");
+  const [kind, setKind] = useState<PlanKind>("school");
   const [ownerId, setOwnerId] = useState("");
   const [months, setMonths] = useState("12");
   const [blocks, setBlocks] = useState("1");
@@ -84,13 +86,15 @@ export default function AdminPlans() {
     await post("rules", "/api/admin/plans/enforce", { enforced: turnOn }, turnOn ? "Plan rules are on." : "Plan rules are off.");
   };
   const grant = async () => {
-    if (!ownerId) { setNote({ ok: false, text: kind === "school" ? "Choose a school." : "Choose a teacher." }); return; }
-    const ok = await post("grant", "/api/admin/plans/grant", { kind, ownerId: Number(ownerId), months: Number(months), blocks: Number(blocks), note: grantNote }, "Premium is on for them.");
+    if (!ownerId) { setNote({ ok: false, text: isSchool(kind) ? "Choose a school." : "Choose a teacher." }); return; }
+    const what = kind.startsWith("hub_") ? "Teacher Hub" : "Premium";
+    const ok = await post("grant", "/api/admin/plans/grant", { kind, ownerId: Number(ownerId), months: Number(months), blocks: Number(blocks), note: grantNote }, `${what} is on for them.`);
     if (ok) { setOwnerId(""); setGrantNote(""); }
   };
   const revoke = async (row: PlanRow) => {
-    if (!window.confirm(`Switch Premium off for ${row.name}?`)) return;
-    await post(`revoke-${row.kind}-${row.ownerId}`, "/api/admin/plans/revoke", { kind: row.kind, ownerId: row.ownerId }, "Premium is off for them.");
+    const what = row.kind.startsWith("hub_") ? "Teacher Hub" : "Premium";
+    if (!window.confirm(`Switch ${what} off for ${row.name}?`)) return;
+    await post(`revoke-${row.kind}-${row.ownerId}`, "/api/admin/plans/revoke", { kind: row.kind, ownerId: row.ownerId }, `${what} is off for them.`);
   };
   const setFree = async (school: FreeSchool, free: boolean) => {
     if (!free && !window.confirm(`Stop ${school.name} being free?\n\nIts teachers will need a paid plan once plan rules are on, unless they signed up before October 1, 2026.`)) return;
@@ -162,7 +166,7 @@ export default function AdminPlans() {
 
             {/* Who has Premium */}
             <div className="space-y-2 pt-4 border-t border-border">
-              <Label className="text-sm font-medium">Premium plans ({data.plans.filter((p) => p.live).length} active)</Label>
+              <Label className="text-sm font-medium">Plans ({data.plans.filter((p) => p.live).length} active)</Label>
               {data.plans.length === 0 ? <p className="text-sm text-muted-foreground">No teacher or school has a plan yet.</p> : (
                 <div className="space-y-2">
                   {data.plans.map((p) => (
@@ -171,7 +175,7 @@ export default function AdminPlans() {
                         <div className="flex items-center gap-2 font-semibold">
                           {p.live && <BadgeCheck className="w-4 h-4 shrink-0 text-green-400" />}
                           <span className="truncate">{p.name}</span>
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{p.kind === "school" ? "School" : "Teacher"}</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{KIND_LABEL[p.kind] ?? p.kind}</span>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {p.live ? "Active" : "Ended"} · {p.source === "stripe" ? "Paid online" : "Switched on by you"} · {p.students} of {p.seats.toLocaleString("en-US")} students · {p.live ? (p.endsAt ? `until ${day(p.endsAt)}` : "no end date") : `ended ${day(p.endsAt)}`}
@@ -189,21 +193,23 @@ export default function AdminPlans() {
 
             {/* Switch Premium on by hand */}
             <div className="space-y-3 pt-4 border-t border-border">
-              <Label className="text-sm font-medium">Switch Premium on by hand</Label>
+              <Label className="text-sm font-medium">Switch a plan on by hand</Label>
               <p className="text-sm text-muted-foreground">For a school paying by check or purchase order, a pilot, or a gift. Nobody is charged.</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">For</Label>
-                  <select className={select} value={kind} onChange={(e) => { setKind(e.target.value as "teacher" | "school"); setOwnerId(""); }}>
-                    <option value="school">A whole school (up to {PLANS.school.studentCap.toLocaleString("en-US")} students)</option>
-                    <option value="teacher">One teacher</option>
+                  <select className={select} value={kind} onChange={(e) => { setKind(e.target.value as PlanKind); setOwnerId(""); }}>
+                    <option value="school">Premium: a whole school (up to {PLANS.school.studentCap.toLocaleString("en-US")} students)</option>
+                    <option value="teacher">Premium: one teacher</option>
+                    <option value="hub_school">Teacher Hub: a whole school (up to {PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)</option>
+                    <option value="hub_teacher">Teacher Hub: one teacher</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">{kind === "school" ? "School" : "Teacher"}</Label>
+                  <Label className="text-xs">{isSchool(kind) ? "School" : "Teacher"}</Label>
                   <select className={select} value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
                     <option value="">Choose…</option>
-                    {kind === "school"
+                    {isSchool(kind)
                       ? schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)
                       : teachers.map((t) => <option key={t.id} value={t.id}>{t.displayName || t.username}</option>)}
                   </select>
@@ -217,7 +223,7 @@ export default function AdminPlans() {
                     <option value="0">No end date</option>
                   </select>
                 </div>
-                {kind === "teacher" && (
+                {!isSchool(kind) && (
                   <div className="space-y-1">
                     <Label className="text-xs">Students covered</Label>
                     <select className={select} value={blocks} onChange={(e) => setBlocks(e.target.value)}>
@@ -227,14 +233,14 @@ export default function AdminPlans() {
                 )}
               </div>
               <Input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} maxLength={120} placeholder="Note for yourself (optional), such as PO 1234" />
-              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : "Switch Premium on"}</Button>
+              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Teacher Hub on" : "Switch Premium on"}</Button>
             </div>
 
             {/* Online payment */}
             <div className="space-y-3 pt-4 border-t border-border">
               <Label className="text-sm font-medium">Online payment (Stripe)</Label>
               <p className="text-sm text-muted-foreground">
-                Teachers pay {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a year for a school. Payment stays closed until a Stripe secret key is set.
+                Premium and Teacher Hub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Teacher Hub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
               </p>
               <div className="space-y-1 text-sm">
                 <div className={data.stripe.keySet ? "text-green-400" : "text-muted-foreground"}>

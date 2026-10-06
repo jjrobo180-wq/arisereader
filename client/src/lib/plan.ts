@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 
-export type PlanView = { kind: "teacher" | "school"; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; paidOnline: boolean; canManage: boolean; /** A school that is always Premium at no charge. */ free?: boolean };
+export type PlanView = { kind: "teacher" | "school" | "hub_teacher" | "hub_school"; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; paidOnline: boolean; canManage: boolean; /** A school that is always Premium at no charge. */ free?: boolean };
 export type PlanInfo = {
   /** Has the site admin turned plan rules on? */
   enforced: boolean;
@@ -19,6 +19,19 @@ export type PlanInfo = {
   students?: number;
   teacherPlan?: PlanView | null;
   school?: { id: number; name: string; students: number; plan: PlanView | null } | null;
+  /** Teacher Hub, the paid add-on. Teachers and the admin only. */
+  hub?: HubInfo;
+};
+export type HubInfo = {
+  access: boolean;
+  via: "admin" | "hub-teacher-plan" | "hub-school-plan" | null;
+  seats: number | null;
+  endsAt: string | null;
+  /** Students in the teacher's Hub caseload. */
+  students: number;
+  teacherPlan: PlanView | null;
+  schoolPlan: PlanView | null;
+  prices: { monthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number };
 };
 
 // A failed load is remembered too (as null), so a page doesn't wait on it again and again.

@@ -83,7 +83,8 @@ export default function Billing() {
   const [blocks, setBlocks] = useState(1);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [confirm, setConfirm] = useState<"none" | "checking" | "done" | "late">(() => (paidSession() ? "checking" : "none"));
+  const [confirm, setConfirm] = useState<"none" | "checking" | "done" | "done-hub" | "late">(() => (paidSession() ? "checking" : "none"));
+  const [hubBlocks, setHubBlocks] = useState(1);
   const confirmed = useRef(false);
 
   const students = plan?.students ?? 0;
@@ -91,6 +92,12 @@ export default function Billing() {
   // Start the stepper at what they pay for now, and never below what their class needs.
   const paidSeats = plan?.teacherPlan?.live ? plan.teacherPlan.seats : 0;
   useEffect(() => { setBlocks((b) => Math.max(b, needed, Math.round(paidSeats / PLANS.teacher.studentsPerBlock))); }, [needed, paidSeats]);
+  // The same for Teacher Hub, counted against the students in the Hub caseload.
+  const hub = plan?.hub;
+  const hubStudents = hub?.students ?? 0;
+  const hubNeeded = useMemo(() => blocksFor(hubStudents), [hubStudents]);
+  const hubPaidSeats = hub?.teacherPlan?.live ? hub.teacherPlan.seats : 0;
+  useEffect(() => { setHubBlocks((b) => Math.max(b, hubNeeded, Math.round(hubPaidSeats / PLANS.hub.studentsPerBlock))); }, [hubNeeded, hubPaidSeats]);
 
   const post = async (path: string, body: unknown) => {
     const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -105,7 +112,7 @@ export default function Billing() {
     if (!id || !token || confirmed.current) return;
     confirmed.current = true;
     post("/api/billing/confirm", { sessionId: id })
-      .then(async () => { await refresh(); setConfirm("done"); })
+      .then(async (data) => { await refresh(); setConfirm(String(data?.plan?.kind || "").startsWith("hub_") ? "done-hub" : "done"); })
       .catch(async () => { await refresh(); setConfirm("late"); })
       .finally(clearPaidSession);
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -146,6 +153,7 @@ export default function Billing() {
 
         {confirm === "checking" && <p className="bl-banner" role="status">Checking your payment…</p>}
         {confirm === "done" && <p className="bl-banner good" role="status">Payment received. Premium is on.</p>}
+        {confirm === "done-hub" && <p className="bl-banner good" role="status">Payment received. Teacher Hub is on. <button type="button" className="bl-text" onClick={() => navigate("/teacher-hub")}>Open Teacher Hub</button></p>}
         {confirm === "late" && <p className="bl-banner" role="status">We couldn't confirm the payment yet. If your card was charged, Premium will switch on within a few minutes. Refresh this page to check.</p>}
 
         {loading && !plan && <p className="bl-banner" role="status">Loading your plan…</p>}
@@ -220,6 +228,20 @@ export default function Billing() {
             <p className="bl-foot">Card details are entered on Stripe's secure payment page, never on A.R.I.S.E. <button type="button" className="bl-text" onClick={() => navigate("/pricing")}>See what Premium includes</button></p>
           </>
         )}
+
+        {isTeacher && hub && (
+          <HubSection
+            plan={plan!}
+            hub={hub}
+            blocks={hubBlocks}
+            min={hubNeeded}
+            setBlocks={setHubBlocks}
+            busy={busy}
+            go={go}
+            open={() => navigate("/teacher-hub")}
+            pricing={() => navigate("/pricing")}
+          />
+        )}
       </section>
     </main>
   );
@@ -232,6 +254,101 @@ function Stepper({ blocks, min, onChange }: { blocks: number; min: number; onCha
       <button type="button" onClick={() => onChange(Math.max(min, blocks - 1))} disabled={blocks <= min} aria-label={`Cover ${PLANS.teacher.studentsPerBlock} fewer students`}>−</button>
       <span aria-live="polite"><b>{count(seatsFor(blocks))}</b> students</span>
       <button type="button" onClick={() => onChange(Math.min(max, blocks + 1))} disabled={blocks >= max} aria-label={`Cover ${PLANS.teacher.studentsPerBlock} more students`}>+</button>
+    </div>
+  );
+}
+
+/** Teacher Hub, the paid add-on: what the teacher has, and buying or changing it. */
+function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing }: {
+  plan: PlanInfo;
+  hub: NonNullable<PlanInfo["hub"]>;
+  blocks: number;
+  min: number;
+  setBlocks: (n: number) => void;
+  busy: string | null;
+  go: (what: string, path: string, body: unknown) => Promise<void>;
+  open: () => void;
+  pricing: () => void;
+}) {
+  const H = PLANS.hub;
+  const own = hub.teacherPlan?.live ? hub.teacherPlan : null;
+  const school = hub.schoolPlan?.live ? hub.schoolPlan : null;
+  const price = blocks * H.monthlyCents;
+  return (
+    <div className="bl-hub" data-testid="billing-hub">
+      <h2 className="bl-h2">Teacher Hub <span className="bl-tag">Add-on</span></h2>
+      <p className="bl-hub-lede">Your private workspace for caseloads, IEP timelines, lessons, notes, attendance, grades, parent contact and schedules. Teacher Hub is sold on its own and isn't part of Premium.</p>
+
+      {hub.access ? (
+        <div className="bl-status good">
+          <h2>{hub.via === "hub-school-plan" ? "You have Teacher Hub through your school" : "You have Teacher Hub"}</h2>
+          {hub.via === "hub-school-plan"
+            ? <p>{plan.school?.name || "Your school"}'s plan covers up to {count(hub.seats ?? H.schoolStudentCap)} students, and every teacher there gets their own Hub.</p>
+            : <p>Your plan covers up to {count(hub.seats ?? 0)} students in your caseload. You have {count(hub.students)}.</p>}
+          <p>{own?.paidOnline ? `It renews on ${day(hub.endsAt)}.` : hub.endsAt ? `It runs until ${day(hub.endsAt)}.` : "It has no end date."}</p>
+          <button type="button" className="pr-pill pr-pill-sm" onClick={open} data-testid="billing-open-hub">Open Teacher Hub</button>
+        </div>
+      ) : (
+        <>
+          {!plan.payment && <p className="bl-banner">Online payment isn't open yet. You'll be able to pay here soon.</p>}
+          <div className="bl-options">
+            <div className="bl-card">
+              <h3>One teacher</h3>
+              <p className="bl-price"><b>{usd(price)}</b> a month</p>
+              <p>Covers a caseload of up to {count(blocks * H.studentsPerBlock)} students.{hub.students ? ` You have ${count(hub.students)}.` : ""}</p>
+              <HubStepper blocks={blocks} min={min} onChange={setBlocks} />
+              <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment} onClick={() => go("hub-teacher", "/api/billing/checkout", { kind: "hub_teacher", blocks, returnTo: siteAddress() })} data-testid="billing-buy-hub-teacher">
+                {busy === "hub-teacher" ? "Opening the payment page…" : `Pay ${usd(price)} a month`}
+              </button>
+              <small>Billed monthly. Cancel any time.</small>
+            </div>
+            <div className="bl-card">
+              <h3>Whole school</h3>
+              <p className="bl-price"><b>{usd(H.schoolYearlyCents)}</b> a year</p>
+              {plan.school
+                ? <p>Gives every teacher at {plan.school.name} their own Teacher Hub, for up to {count(H.schoolStudentCap)} students.</p>
+                : <p>Your account isn't connected to a school yet, so a school plan can't be bought from it.</p>}
+              <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("hub-school", "/api/billing/checkout", { kind: "hub_school", returnTo: siteAddress() })} data-testid="billing-buy-hub-school">
+                {busy === "hub-school" ? "Opening the payment page…" : `Pay ${usd(H.schoolYearlyCents)} a year`}
+              </button>
+              <small>Runs a full 12 months.</small>
+            </div>
+          </div>
+          <p className="bl-foot">Teacher Hub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Teacher Hub includes</button></p>
+        </>
+      )}
+
+      {own?.paidOnline && (
+        <div className="bl-card">
+          <h2>Change your Teacher Hub plan</h2>
+          <p>Each block covers {H.studentsPerBlock} students for {usd(H.monthlyCents)} a month. Your caseload has {count(hub.students)} students.</p>
+          <HubStepper blocks={blocks} min={min} onChange={setBlocks} />
+          <div className="bl-actions">
+            <button type="button" className="pr-pill" disabled={!!busy || blocks * H.studentsPerBlock === own.seats} onClick={() => go("hub-blocks", "/api/billing/blocks", { kind: "hub_teacher", blocks })}>
+              {busy === "hub-blocks" ? "Saving…" : `Change to ${count(blocks * H.studentsPerBlock)} students, ${usd(price)} a month`}
+            </button>
+            <button type="button" className="pr-pill pr-pill-ghost" disabled={!!busy} onClick={() => go("hub-portal", "/api/billing/portal", { kind: "hub_teacher", returnTo: siteAddress() })}>{busy === "hub-portal" ? "Opening…" : "Manage billing"}</button>
+          </div>
+        </div>
+      )}
+      {school?.canManage && (
+        <div className="bl-card">
+          <h2>Your school's Teacher Hub plan</h2>
+          <p>The teacher who paid for it can change the card, see receipts or cancel.</p>
+          <div className="bl-actions"><button type="button" className="pr-pill pr-pill-ghost" disabled={!!busy} onClick={() => go("hub-school-portal", "/api/billing/portal", { kind: "hub_school", returnTo: siteAddress() })}>{busy === "hub-school-portal" ? "Opening…" : "Manage school billing"}</button></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HubStepper({ blocks, min, onChange }: { blocks: number; min: number; onChange: (n: number) => void }) {
+  const H = PLANS.hub;
+  return (
+    <div className="bl-stepper" role="group" aria-label="Students in your caseload">
+      <button type="button" onClick={() => onChange(Math.max(min, blocks - 1))} disabled={blocks <= min} aria-label={`Cover ${H.studentsPerBlock} fewer students`}>−</button>
+      <span aria-live="polite"><b>{count(blocks * H.studentsPerBlock)}</b> students</span>
+      <button type="button" onClick={() => onChange(Math.min(H.maxBlocks, blocks + 1))} disabled={blocks >= H.maxBlocks} aria-label={`Cover ${H.studentsPerBlock} more students`}>+</button>
     </div>
   );
 }

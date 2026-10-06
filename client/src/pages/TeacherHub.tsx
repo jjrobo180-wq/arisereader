@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { HUB_REQUIRED, PLANS, usd } from "@shared/plans";
 
 type Student = {
   id: string;
@@ -406,6 +407,59 @@ function TeacherHubLogin() {
   );
 }
 
+/** Shown to a teacher without a Teacher Hub plan. */
+function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
+  const H = PLANS.hub;
+  const features = [
+    "Caseloads with accommodations, IEP and reevaluation dates",
+    "IEP and meeting timelines",
+    "Lesson plans, reminders and to-dos",
+    "Check-ins, concerns and meeting notes",
+    "Attendance with CSV export, a gradebook and behavior points",
+    "Parent contact logs, weekly schedules and an email organizer",
+  ];
+  return (
+    <div className="min-h-screen bg-slate-100 px-3 py-6 sm:px-5 sm:py-12">
+      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[1.05fr_.95fr]">
+        <div className="bg-slate-950 p-6 text-white sm:p-8 md:p-12">
+          <div className="mb-6 flex flex-wrap items-center gap-3 md:mb-12">
+            <span className="text-xs font-semibold uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</span>
+            <span className="rounded-full border border-teal-300/50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-teal-200">Add-on</span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Teacher Hub</h1>
+          <p className="mt-4 text-base leading-7 text-slate-300">Your private teacher workspace, saved to your account and waiting on any device.</p>
+          <ul className="mt-6 space-y-3 text-sm leading-6 text-slate-200">
+            {features.map((f) => (
+              <li key={f} className="flex gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-teal-300" />{f}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="flex flex-col gap-5 p-6 sm:p-8 md:p-12">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Teacher Hub is a paid add-on</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Get Teacher Hub</h2>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 p-4">
+              <div><div className="font-semibold text-slate-950">One teacher</div><div className="mt-1 text-sm text-slate-600">Up to {H.studentsPerBlock} students. Add {usd(H.monthlyCents)} a month for each extra {H.studentsPerBlock}.</div></div>
+              <div className="shrink-0 text-right"><div className="text-xl font-bold text-slate-950">{usd(H.monthlyCents)}</div><div className="text-xs text-slate-500">a month</div></div>
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 p-4">
+              <div><div className="font-semibold text-slate-950">Whole school</div><div className="mt-1 text-sm text-slate-600">Every teacher gets their own Hub, up to {H.schoolStudentCap.toLocaleString("en-US")} students.</div></div>
+              <div className="shrink-0 text-right"><div className="text-xl font-bold text-slate-950">{usd(H.schoolYearlyCents)}</div><div className="text-xs text-slate-500">a year</div></div>
+            </div>
+          </div>
+          <p className="text-sm text-slate-600">Teacher Hub is sold on its own. It isn't included with A.R.I.S.E. Premium or a free school account.</p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {!isAdmin && <a href="#/billing" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 text-base font-semibold text-white hover:bg-slate-800" data-testid="hub-get">Get Teacher Hub</a>}
+            <a href="#/teacher-dashboard" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 px-5 text-base font-semibold text-slate-700 hover:bg-slate-50">Back to dashboard</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TeacherHub() {
   const { user, token, logout } = useAuth();
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
@@ -414,6 +468,10 @@ export default function TeacherHub() {
   const [loadError, setLoadError] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [customize, setCustomize] = useState(false);
+  // Teacher Hub is a paid add-on: without a plan the server says so, and the page shows how to get it.
+  const [needsPlan, setNeedsPlan] = useState(false);
+  const [seats, setSeats] = useState<number | null>(null);
+  const [saveMessage, setSaveMessage] = useState("");
 
   const canUseHub = !!user && (user.role === "teacher" || user.isAdmin);
 
@@ -422,16 +480,20 @@ export default function TeacherHub() {
     let cancelled = false;
     setLoaded(false);
     setLoadError("");
+    setNeedsPlan(false);
     fetch(`${API_BASE}/api/teacher-hub/workspace`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
+        if (r.status === 402 && data.code === HUB_REQUIRED) return { needsPlan: true };
         if (!r.ok) throw new Error(data.message || "Could not load Teacher Hub.");
         return data;
       })
       .then((data) => {
         if (cancelled) return;
+        if (data.needsPlan) { setNeedsPlan(true); setLoaded(true); return; }
+        setSeats(typeof data.seats === "number" ? data.seats : null);
         setWorkspace(normalizeWorkspace(data.workspace));
         setLoaded(true);
         setSaveStatus("saved");
@@ -447,7 +509,7 @@ export default function TeacherHub() {
   }, [canUseHub, token, user?.id]);
 
   useEffect(() => {
-    if (!canUseHub || !token || !loaded || loadError) return;
+    if (!canUseHub || !token || !loaded || loadError || needsPlan) return;
     setSaveStatus("saving");
     const timer = window.setTimeout(() => {
       fetch(`${API_BASE}/api/teacher-hub/workspace`, {
@@ -460,13 +522,15 @@ export default function TeacherHub() {
       })
         .then(async (r) => {
           const data = await r.json().catch(() => ({}));
+          if (r.status === 402 && data.code === HUB_REQUIRED) { setNeedsPlan(true); return; }
           if (!r.ok) throw new Error(data.message || "Could not save Teacher Hub.");
           setSaveStatus("saved");
+          setSaveMessage("");
         })
-        .catch(() => setSaveStatus("error"));
+        .catch((err) => { setSaveStatus("error"); setSaveMessage(err?.message || "Could not save Teacher Hub."); });
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [workspace, canUseHub, token, loaded, loadError]);
+  }, [workspace, canUseHub, token, loaded, loadError, needsPlan]);
 
   const upcomingMeetings = useMemo(
     () => workspace.meetings.filter((m) => !m.done).sort((a, b) => dateValue(a.date) - dateValue(b.date)).slice(0, 5),
@@ -560,6 +624,8 @@ export default function TeacherHub() {
     );
   }
 
+  if (needsPlan) return <HubPaywall isAdmin={!!user.isAdmin} />;
+
   if (loadError) {
     return (
       <div className="min-h-screen bg-slate-100 px-5 py-16">
@@ -622,6 +688,12 @@ export default function TeacherHub() {
         </aside>
 
         <main className="min-w-0 space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
+          {saveStatus === "error" && saveMessage && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
+              <span>{saveMessage}</span>
+              <a href="#/billing" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-red-700 px-4 text-sm font-semibold text-white">Your plan</a>
+            </div>
+          )}
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
               <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records.</p>
@@ -698,7 +770,7 @@ export default function TeacherHub() {
             </>
           )}
 
-          {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
+          {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
@@ -722,17 +794,25 @@ type SectionProps = {
   remove: <K extends keyof Workspace>(key: K, rowId: string) => void;
 };
 
-function Caseload({ workspace, setWorkspace, remove }: SectionProps) {
+function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { seats: number | null }) {
   const [form, setForm] = useState<Omit<Student, "id">>({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
+  // The plan covers this many students; the caseload can't grow past it.
+  const full = seats !== null && workspace.students.length >= seats;
   function add(e: FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || full) return;
     setWorkspace((p) => ({ ...p, students: [...p.students, { id: id(), ...form, name: form.name.trim() }] }));
     setForm({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
   }
   return (
     <>
-      <Card title="Caseload">
+      <Card title="Caseload" right={seats !== null ? <span className="shrink-0 text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")}</span> : undefined}>
+        {full && (
+          <div className="mb-4 flex flex-col gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+            <span>Your plan covers {seats!.toLocaleString("en-US")} students, and your caseload is full.</span>
+            <a href="#/billing" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">Add {PLANS.hub.studentsPerBlock} more</a>
+          </div>
+        )}
         <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
           <Field placeholder="Student name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <Field placeholder="Grade" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />

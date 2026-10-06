@@ -642,30 +642,6 @@ function useFullscreenGameRoute() {
   return inGame;
 }
 
-// The site-wide way into the Teacher Hub: a real button in a footer strip at the bottom of every page.
-function TeacherHubFooterButton() {
-  const read = () => window.location.hash.replace(/^#/, "").split("?")[0];
-  const [path, setPath] = useState(read);
-  useEffect(() => {
-    const update = () => setPath(read());
-    window.addEventListener("hashchange", update);
-    return () => window.removeEventListener("hashchange", update);
-  }, []);
-  if (path.startsWith("/teacher-hub")) return null;
-  return (
-    <footer className="w-full border-t border-slate-200 bg-white/90 px-4 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto flex max-w-3xl justify-center">
-        <a
-          href="#/teacher-hub"
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 active:scale-[.98] sm:w-auto"
-        >
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c3 2 9 2 12 0v-5" /></svg>
-          Teacher Hub
-        </a>
-      </div>
-    </footer>
-  );
-}
 
 function AppInner() {
   const { user, realUser, adminPreviewMode } = useAuth();
@@ -694,7 +670,6 @@ function AppInner() {
           <EyeGazeCelebrations />
         </EyeGazeSiteShell>
       </Router>
-      {!inGame && <TeacherHubFooterButton />}
     </>
   );
 }

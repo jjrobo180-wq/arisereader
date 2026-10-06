@@ -33,3 +33,9 @@
 
 .bl button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .bl .bl-text { font-weight: 800; color: #67e8f9; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Teacher Hub, the add-on: its own block below Premium. */
+.bl-hub { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; padding-top: 28px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.bl-hub .bl-h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 0; }
+.bl-tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(94, 234, 212, 0.45); color: #5eead4; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.bl-hub-lede { font-size: 17px; color: #cbd5e1; max-width: 62ch; }

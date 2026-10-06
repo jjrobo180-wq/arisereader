@@ -1,7 +1,9 @@
 // Plans, prices and who gets Premium.
 //
-// Two plans. Free is for students and their parents. Premium is for teachers
-// and schools, and their students get the Premium extras through them.
+// Free is for students and their parents. Premium is for teachers and
+// schools, and their students get the Premium extras through them.
+// Teacher Hub is a separate add-on for teachers and schools, sold at the same
+// prices as Premium. Nobody gets it free: no free year, no free school.
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
@@ -17,6 +19,14 @@ export const PLANS = {
     /** $700 for a full 12 months, summer included. */
     yearlyCents: 70000,
     studentCap: 1000,
+  },
+  /** Teacher Hub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
+  hub: {
+    monthlyCents: 1000,
+    studentsPerBlock: 100,
+    maxBlocks: 50,
+    schoolYearlyCents: 70000,
+    schoolStudentCap: 1000,
   },
   /** One parent profile can follow this many children on the Free plan. */
   parentMaxChildren: 5,
@@ -46,7 +56,25 @@ export function clampBlocks(blocks: unknown): number {
   return Number.isFinite(n) ? Math.min(PLANS.teacher.maxBlocks, Math.max(1, n)) : 1;
 }
 
-export type PlanKind = "teacher" | "school";
+/**
+ * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
+ * "hub_teacher" and "hub_school" are the Teacher Hub add-on.
+ */
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher"];
+export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
+export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
+export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
+/** The school plan that covers the same product as this plan. */
+export const schoolKindOf = (kind: PlanKind): PlanKind => (isHubKind(kind) ? "hub_school" : "school");
+export const teacherKindOf = (kind: PlanKind): PlanKind => (isHubKind(kind) ? "hub_teacher" : "teacher");
+/** Price and size of a plan, by kind. */
+export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "year"; seats: (blocks: number) => number } {
+  if (kind === "school") return { cents: PLANS.school.yearlyCents, interval: "year", seats: () => PLANS.school.studentCap };
+  if (kind === "hub_school") return { cents: PLANS.hub.schoolYearlyCents, interval: "year", seats: () => PLANS.hub.schoolStudentCap };
+  const t = kind === "hub_teacher" ? PLANS.hub : PLANS.teacher;
+  return { cents: t.monthlyCents, interval: "month", seats: (blocks) => clampBlocks(blocks) * t.studentsPerBlock };
+}
 
 /** A Premium plan held by one teacher or one school. */
 export type PlanGrant = {
@@ -217,6 +245,31 @@ export function parentCanLink(linkedCount: number, opts: { enforced: boolean; pr
   if (!opts.enforced || opts.premiumFamily) return true;
   return linkedCount < PLANS.parentMaxChildren;
 }
+
+// ─── Teacher Hub ─────────────────────────────────────────────────────────────
+
+export type HubVia = "admin" | "hub-teacher-plan" | "hub-school-plan";
+export type HubAccess = { access: boolean; via: HubVia | null; seats: number | null; endsAt: string | null };
+
+/**
+ * Can this person open Teacher Hub? Only with a Teacher Hub plan of their own or
+ * their school's, or as the site admin. Unlike Premium it does not depend on plan
+ * rules being on, and there is no free year, free school or sample account.
+ */
+export function hubAccessFor(person: PlanPerson | null | undefined, facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
+  const none: HubAccess = { access: false, via: null, seats: null, endsAt: null };
+  if (!person) return none;
+  if (person.isAdmin || person.role === "admin") return { access: true, via: "admin", seats: null, endsAt: null };
+  if (person.role !== "teacher") return none;
+  const now = facts.now ?? Date.now();
+  const own = facts.teacherGrant, school = facts.schoolGrant;
+  if (grantLive(own, now) && own!.kind === "hub_teacher") return { access: true, via: "hub-teacher-plan", seats: own!.seats, endsAt: own!.endsAt };
+  if (grantLive(school, now) && school!.kind === "hub_school" && !school!.free) return { access: true, via: "hub-school-plan", seats: school!.seats, endsAt: school!.endsAt };
+  return none;
+}
+
+export const HUB_REQUIRED = "hub_required";
+export const hubMessage = "Teacher Hub is a paid add-on. Get it on your plan page.";
 
 /** The message shown when something needs Premium. */
 export const PREMIUM_REQUIRED = "premium_required";

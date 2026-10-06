@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy } from "lucide-react";
+import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy, ClipboardList } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -420,6 +420,9 @@ export default function TeacherDashboard() {
         </button>
         <button onClick={() => navigate("/teacher-scenes")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" }} data-testid="button-teacher-scenes">
           <BookOpen size={18} /> Scenes
+        </button>
+        <button onClick={() => navigate("/teacher-hub")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#0f172a", justifyContent: "center" }} data-testid="button-teacher-hub">
+          <ClipboardList size={18} /> Teacher Hub <span style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(94,234,212,.55)", color: "#99f6e4", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase" }}>Add-on</span>
         </button>
         {!user.isAdmin && <button onClick={() => navigate("/billing")} style={{ ...styles.subtleButton, width: "100%", justifyContent: "center" }} data-testid="button-teacher-plan">
           Your plan

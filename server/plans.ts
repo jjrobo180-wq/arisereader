@@ -5,6 +5,10 @@
 // "does this person have Premium?", locks what needs it, and takes payment
 // through Stripe.
 //
+// Teacher Hub is a separate add-on with its own plans ("hub_teacher" and
+// "hub_school"), bought the same way. It is always paid: plan rules, the free
+// year and always-free schools don't apply to it.
+//
 // Two switches keep a live site safe:
 //   - Plan rules do nothing until the admin turns them on (setting "plans_enforced").
 //   - Payment does nothing until a Stripe key is set.
@@ -15,8 +19,9 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  PLANS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, grantLive, isFreeSchoolName, parentCanLink, premiumMessage, seatsFor,
-  type Entitlement, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
+  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, grantLive, hubAccessFor, isFreeSchoolName, isHubKind, isPlanKind,
+  isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
+  type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
 } from "../shared/plans";
 
 type AnyUser = {
@@ -41,6 +46,8 @@ export type PlanDeps = {
   countTeacherStudents(teacherId: number): Promise<number>;
   /** Students at a school. */
   countSchoolStudents(schoolId: number): Promise<number>;
+  /** Students in a teacher's Teacher Hub caseload. Left out, counted as 0. */
+  countHubStudents?(teacherId: number): Promise<number>;
   schoolName(schoolId: number): Promise<string>;
   /** Every school on the site, for the admin's list of always-free schools. */
   schools?(): Promise<Array<{ id: number; name: string }>>;
@@ -72,7 +79,7 @@ const KEY = {
 };
 
 /** What a teacher without Premium may still reach: signing in and out, their plan, and paying for it. */
-const TEACHER_OPEN = ["/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
+const TEACHER_OPEN = ["/api/teacher-hub", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
 
 // Never 401 or 503 here: the app retries those for several seconds before showing the message.
 class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
@@ -164,11 +171,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     const key = KEY.grant(kind, Number(id));
     return asGrant(await (fresh ? readFresh(key) : read(key)), kind, Number(id));
   };
-  type Index = { teacher: number[]; school: number[] };
+  type Index = Record<PlanKind, number[]>;
   const readIndex = async (fresh = false): Promise<Index> => {
     const raw = parse<Partial<Index>>(await (fresh ? readFresh(KEY.index) : read(KEY.index)), {});
     const ids = (v: unknown) => (Array.isArray(v) ? [...new Set(v.map(posInt).filter(Boolean))] : []);
-    return { teacher: ids(raw.teacher), school: ids(raw.school) };
+    return { teacher: ids(raw.teacher), school: ids(raw.school), hub_teacher: ids(raw.hub_teacher), hub_school: ids(raw.hub_school) };
   };
   type Pending = { sessionId: string; buyerId: number; at: string };
   const readPending = async (kind: PlanKind, id: number): Promise<Pending | null> => {
@@ -215,8 +222,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // Entitlements are looked up on most requests, so they are remembered briefly.
   // The key includes the role: an admin previewing the site as a student is a different answer from the admin.
   const cache = new Map<string, { at: number; value: Entitlement }>();
+  const hubCache = new Map<string, { at: number; value: HubAccess }>();
   const CACHE_MS = 30_000;
-  const forget = () => cache.clear();
+  const forget = () => { cache.clear(); hubCache.clear(); };
 
   // One change at a time. A plan is read, compared and written in one step, so two
   // Stripe messages arriving together can't overwrite each other.
@@ -311,7 +319,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const billingUrl = (req: any, query = "") => `${siteOf(req)}${query ? `?${query}` : ""}#/billing`;
 
   const meta = (m: any): { kind: PlanKind; ownerId: number; buyerId: number } | null => {
-    const kind = m?.kind === "teacher" || m?.kind === "school" ? (m.kind as PlanKind) : null;
+    const kind = isPlanKind(m?.kind) ? m.kind : null;
     const ownerId = posInt(m?.ownerId), buyerId = posInt(m?.buyerId);
     return kind && ownerId ? { kind, ownerId, buyerId } : null;
   };
@@ -332,7 +340,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (status === "past_due") endsAt = Math.min(endsAt, at + 7 * DAY);
     return {
       kind: m.kind, ownerId: m.ownerId, source: "stripe", status,
-      seats: m.kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(item?.quantity ?? 1)),
+      seats: priceOf(m.kind).seats(clampBlocks(item?.quantity ?? 1)),
       endsAt: iso(endsAt), updatedAt: iso(at), buyerId: m.buyerId || undefined,
       stripeCustomerId: typeof sub.customer === "string" ? sub.customer : sub.customer?.id,
       stripeSubscriptionId: sub.id, stripeItemId: typeof item?.id === "string" ? item.id : undefined,
@@ -401,6 +409,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const current = async (kind: PlanKind, id: number | null | undefined): Promise<PlanGrant | null> => {
     const ownerId = posInt(id);
     if (!ownerId) return null;
+    // An always-free school is free for Premium only. Teacher Hub is always paid.
     if (kind === "school" && (await isFreeSchool(ownerId))) return freeGrant(ownerId);
     let g = await readGrant(kind, ownerId);
     try {
@@ -442,6 +451,22 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
     const value = entitlementFor(person(user), await factsFor(user));
     cache.set(key, { at: now(), value });
+    return value;
+  };
+
+  /** Can this teacher open Teacher Hub, and how many students may its caseload hold? */
+  const hubAccess = async (user: AnyUser | null | undefined): Promise<HubAccess> => {
+    if (!user || !posInt(user.id)) return { access: false, via: null, seats: null, endsAt: null };
+    const key = `hub|${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
+    const hit = hubCache.get(key);
+    if (hit && now() - hit.at < CACHE_MS) return hit.value;
+    const isTeacher = user.role === "teacher" && !user.isAdmin;
+    const value = hubAccessFor(person(user), {
+      now: now(),
+      teacherGrant: isTeacher ? await current("hub_teacher", user.id) : null,
+      schoolGrant: isTeacher ? await current("hub_school", schoolOf(user)) : null,
+    });
+    hubCache.set(key, { at: now(), value });
     return value;
   };
 
@@ -547,8 +572,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           if (!(held?.stripeSubscriptionId === obj.subscription && grantLive(held, now()))) {
             await applyStripeGrant({
               kind: m.kind, ownerId: m.ownerId, source: "stripe", status: "active",
-              seats: m.kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(obj?.metadata?.blocks)),
-              endsAt: iso(at + (m.kind === "school" ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
+              seats: priceOf(m.kind).seats(clampBlocks(obj?.metadata?.blocks)),
+              endsAt: iso(at + (isSchoolKind(m.kind) ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
               stripeCustomerId: typeof obj.customer === "string" ? obj.customer : undefined, stripeSubscriptionId: obj.subscription,
             });
           }
@@ -595,6 +620,17 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
         body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(schoolPlan) } : null;
       }
+      if (user.role === "teacher" || user.isAdmin) {
+        const h = await hubAccess(user);
+        const isTeacher = user.role === "teacher" && !user.isAdmin;
+        body.hub = {
+          access: h.access, via: h.via, seats: h.seats, endsAt: h.endsAt,
+          students: isTeacher && deps.countHubStudents ? await deps.countHubStudents(user.id) : 0,
+          teacherPlan: isTeacher ? grantView(await readGrant("hub_teacher", user.id)) : null,
+          schoolPlan: isTeacher && schoolOf(user) ? grantView(await readGrant("hub_school", schoolOf(user))) : null,
+          prices: { monthlyCents: PLANS.hub.monthlyCents, studentsPerBlock: PLANS.hub.studentsPerBlock, maxBlocks: PLANS.hub.maxBlocks, schoolYearlyCents: PLANS.hub.schoolYearlyCents, schoolStudentCap: PLANS.hub.schoolStudentCap },
+        };
+      }
       res.set("Cache-Control", "no-store");
       res.json(body);
     } catch (e) { fail(res, e, "plan"); }
@@ -604,38 +640,53 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/billing/checkout", auth, async (req: any, res: any) => {
     try {
       const teacher = approvedTeacher(req);
-      const kind: PlanKind = req.body?.kind === "school" ? "school" : "teacher";
+      const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
+      const hub = isHubKind(kind);
+      const what = hub ? "Teacher Hub" : "Premium";
       const schoolId = schoolOf(teacher);
-      if (kind === "school" && !schoolId) throw new Refused("Your account is not connected to a school yet, so a school plan can't be bought from it.", 409);
-      const ownerId = kind === "school" ? schoolId! : teacher.id;
-      if (await isFreeSchool(schoolId)) throw new Refused("Your school has Premium at no charge. There is nothing to buy.", 409);
+      if (isSchoolKind(kind) && !schoolId) throw new Refused("Your account is not connected to a school yet, so a school plan can't be bought from it.", 409);
+      const ownerId = isSchoolKind(kind) ? schoolId! : teacher.id;
+      if (!hub && (await isFreeSchool(schoolId))) throw new Refused("Your school has Premium at no charge. There is nothing to buy.", 409);
       // Never sell a plan to someone who already has one, however they got it.
       if (grantLive(await current(kind, ownerId), now())) {
-        throw new Refused(kind === "school" ? "Your school already has a Premium plan." : "You already have a Premium plan. Use Manage billing to change it.", 409);
+        throw new Refused(isSchoolKind(kind) ? `Your school already has a ${what} plan.` : `You already have a ${what} plan. Use Manage billing to change it.`, 409);
       }
-      if (kind === "teacher" && grantLive(await current("school", schoolId), now())) throw new Refused("Your school already has Premium, so you don't need a plan of your own.", 409);
+      if (!isSchoolKind(kind)) {
+        const schoolPlan = await current(schoolKindOf(kind), schoolId);
+        if (grantLive(schoolPlan, now()) && !(hub && schoolPlan?.free)) throw new Refused(`Your school already has ${what}, so you don't need a plan of your own.`, 409);
+      }
       // Two teachers at one school must not both pay for the school.
       const pending = await readPending(kind, ownerId);
       if (pending && pending.buyerId !== teacher.id && now() - Date.parse(pending.at) < 30 * 60_000) {
         throw new Refused("Another teacher at your school has just started paying for the school plan. Check with them, or try again in half an hour.", 409);
       }
       const blocks = clampBlocks(req.body?.blocks);
+      if (kind === "hub_teacher" && deps.countHubStudents) {
+        const students = await deps.countHubStudents(teacher.id);
+        if (seatsFor(blocks) < students) throw new Refused(`Your Teacher Hub caseload has ${students} students, so your plan needs to cover at least that many.`, 409);
+      }
       const metadata: Record<string, string> = { kind, ownerId: String(ownerId), buyerId: String(teacher.id) };
-      if (kind === "teacher") metadata.blocks = String(blocks);
+      if (!isSchoolKind(kind)) metadata.blocks = String(blocks);
       const email = typeof teacher.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teacher.email) ? teacher.email : undefined;
-      const mine = await readGrant("teacher", teacher.id);
+      // Reuse the Stripe customer from the teacher's other plan, so their cards and receipts stay in one place.
+      const mine = (await readGrant("teacher", teacher.id)) ?? (await readGrant("hub_teacher", teacher.id));
       const customer = mine?.buyerId === teacher.id ? mine.stripeCustomerId : undefined;
+      const price = priceOf(kind);
+      const productName = kind === "school" ? `A.R.I.S.E. Premium for a school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
+        : kind === "teacher" ? `A.R.I.S.E. Premium for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
+        : kind === "hub_school" ? `A.R.I.S.E. Teacher Hub for a school (up to ${PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)`
+        : `A.R.I.S.E. Teacher Hub for a teacher (per ${PLANS.hub.studentsPerBlock} students)`;
       const session = await stripe("POST", "/checkout/sessions", {
         mode: "subscription",
         client_reference_id: `${kind}:${ownerId}`,
         ...(customer ? { customer } : email ? { customer_email: email } : {}),
         line_items: [{
-          quantity: kind === "school" ? 1 : blocks,
+          quantity: isSchoolKind(kind) ? 1 : blocks,
           price_data: {
             currency: "usd",
-            unit_amount: kind === "school" ? PLANS.school.yearlyCents : PLANS.teacher.monthlyCents,
-            recurring: { interval: kind === "school" ? "year" : "month" },
-            product_data: { name: kind === "school" ? `A.R.I.S.E. Premium for a school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)` : `A.R.I.S.E. Premium for a teacher (per ${PLANS.teacher.studentsPerBlock} students)` },
+            unit_amount: price.cents,
+            recurring: { interval: price.interval },
+            product_data: { name: productName },
           },
         }],
         metadata,
@@ -673,8 +724,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/billing/portal", auth, async (req: any, res: any) => {
     try {
       const teacher = approvedTeacher(req);
-      const kind: PlanKind = req.body?.kind === "school" ? "school" : "teacher";
-      const grant = await readGrant(kind, kind === "school" ? schoolOf(teacher) : teacher.id);
+      const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
+      const grant = await readGrant(kind, isSchoolKind(kind) ? schoolOf(teacher) : teacher.id);
       if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for this plan.", 409);
       if (grant.buyerId && grant.buyerId !== teacher.id) throw new Refused("Only the teacher who paid for this plan can manage its billing.", 403);
       const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: billingUrl(req) });
@@ -687,18 +738,19 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/billing/blocks", auth, async (req: any, res: any) => {
     try {
       const teacher = approvedTeacher(req);
-      const grant = await readGrant("teacher", teacher.id);
+      const kind: PlanKind = req.body?.kind === "hub_teacher" ? "hub_teacher" : "teacher";
+      const grant = await readGrant(kind, teacher.id);
       if (!grant || grant.source !== "stripe" || !grant.stripeSubscriptionId || !grant.stripeItemId || !grantLive(grant, now())) throw new Refused("You don't have a teacher plan paid online to change.", 409);
       const blocks = clampBlocks(req.body?.blocks);
-      const students = await deps.countTeacherStudents(teacher.id);
+      const students = kind === "hub_teacher" ? (deps.countHubStudents ? await deps.countHubStudents(teacher.id) : 0) : await deps.countTeacherStudents(teacher.id);
       if (seatsFor(blocks) < students) throw new Refused(`You have ${students} students, so your plan needs to cover at least that many.`, 409);
       const sub = await stripe("POST", subscriptionPath(grant.stripeSubscriptionId), {
         items: [{ id: grant.stripeItemId, quantity: blocks }], proration_behavior: "create_prorations",
       });
       const next = grantFromSubscription(sub, now());
-      if (!next || next.ownerId !== teacher.id || next.kind !== "teacher") throw new Refused("The plan could not be changed.", 502);
+      if (!next || next.ownerId !== teacher.id || next.kind !== kind) throw new Refused("The plan could not be changed.", 502);
       await applyStripeGrant(next);
-      res.json({ ok: true, plan: grantView(await readGrant("teacher", teacher.id, true)) });
+      res.json({ ok: true, plan: grantView(await readGrant(kind, teacher.id, true)) });
     } catch (e) { fail(res, e, "blocks"); }
   });
 
@@ -724,12 +776,14 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const index = await readIndex();
       const rows: any[] = [];
-      for (const kind of ["school", "teacher"] as PlanKind[]) {
+      for (const kind of PLAN_KINDS) {
         for (const id of index[kind]) {
           const g = await readGrant(kind, id);
           if (!g) continue;
-          const name = kind === "school" ? await deps.schoolName(id) : (await deps.getUser(id))?.displayName || `Teacher ${id}`;
-          const students = kind === "school" ? await deps.countSchoolStudents(id) : await deps.countTeacherStudents(id);
+          const name = isSchoolKind(kind) ? await deps.schoolName(id) : (await deps.getUser(id))?.displayName || `Teacher ${id}`;
+          const students = isSchoolKind(kind) ? await deps.countSchoolStudents(id)
+            : kind === "hub_teacher" ? (deps.countHubStudents ? await deps.countHubStudents(id) : 0)
+            : await deps.countTeacherStudents(id);
           rows.push({ kind, ownerId: id, name, students, source: g.source, status: g.status, seats: g.seats, endsAt: g.endsAt, live: grantLive(g, now()), note: g.note || "" });
         }
       }
@@ -782,15 +836,15 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** Switches Premium on by hand for a teacher or a school: a purchase order, a gift, a pilot. */
   app.post("/api/admin/plans/grant", auth, admin, async (req: any, res: any) => {
     try {
-      const kind: PlanKind | null = req.body?.kind === "school" ? "school" : req.body?.kind === "teacher" ? "teacher" : null;
+      const kind: PlanKind | null = isPlanKind(req.body?.kind) ? req.body.kind : null;
       const ownerId = posInt(req.body?.ownerId);
       if (!kind || !ownerId) throw new Refused("Choose a teacher or a school.");
-      if (kind === "teacher") {
+      if (!isSchoolKind(kind)) {
         const t = await deps.getUser(ownerId);
         if (!t || t.role !== "teacher") throw new Refused("That account is not a teacher.");
       } else if (!(await deps.schoolName(ownerId))) throw new Refused("That school could not be found.");
       const months = Math.min(60, Math.max(0, Math.floor(Number(req.body?.months) || 0)));
-      const seats = kind === "school" ? PLANS.school.studentCap : seatsFor(clampBlocks(req.body?.blocks));
+      const seats = priceOf(kind).seats(clampBlocks(req.body?.blocks));
       const grant: PlanGrant = {
         kind, ownerId, source: "admin", status: "active", seats,
         endsAt: months ? iso(now() + months * 30.4375 * DAY) : null, updatedAt: iso(now()),
@@ -807,7 +861,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
 
   app.post("/api/admin/plans/revoke", auth, admin, async (req: any, res: any) => {
     try {
-      const kind: PlanKind | null = req.body?.kind === "school" ? "school" : req.body?.kind === "teacher" ? "teacher" : null;
+      const kind: PlanKind | null = isPlanKind(req.body?.kind) ? req.body.kind : null;
       const ownerId = posInt(req.body?.ownerId);
       await serial(async () => {
         const held = kind ? await readGrant(kind, ownerId, true) : null;
@@ -833,7 +887,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
+  return { entitlement, hubAccess, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

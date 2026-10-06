@@ -42,9 +42,9 @@
 
 /* Plan cards */
 /* Each card has the same seven parts (name, prices, summary, button, two lists,
-   note). Subgrid lines those parts up across the two cards, so the buttons and
+   note). Subgrid lines those parts up across the cards, so the buttons and
    the list headings sit level whatever the text length. */
-.pr-plans { position: relative; max-width: 1120px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) clamp(56px, 8vw, 96px); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 20px; }
+.pr-plans { position: relative; max-width: 1280px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) clamp(56px, 8vw, 96px); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px; }
 .pr-plans > .pr-card, .pr-ring, .pr-ring > .pr-card { display: grid; grid-template-rows: subgrid; row-gap: 24px; }
 .pr-plans > .pr-card, .pr-ring { grid-row: span 7; }
 .pr-ring > .pr-card { grid-row: 1 / -1; }
@@ -55,6 +55,9 @@
 .pr-name h2 { font-size: 30px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; }
 .pr-name p { font-size: 15px; font-weight: 700; color: #67e8f9; }
 .pr-name.premium p { color: #c4b5fd; }
+.pr-card-hub { border-color: rgba(94, 234, 212, 0.35); }
+.pr-name.hub p, .pr-group.hub h3 { color: #5eead4; }
+.pr-note.hub { border-color: rgba(94, 234, 212, 0.3); }
 .pr-prices { display: grid; grid-auto-rows: 1fr; gap: 10px; }
 .pr-price { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.3); }
 .pr-price.premium { border-color: rgba(196, 181, 253, 0.3); }

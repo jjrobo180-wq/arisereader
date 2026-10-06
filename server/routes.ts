@@ -32,7 +32,7 @@ import { registerBuildWorldRoutes } from "./buildWorld";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
-import { registerTeacherHubRoutes } from "./teacherHub";
+import { countHubStudents, registerTeacherHubRoutes } from "./teacherHub";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
@@ -977,7 +977,6 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  registerTeacherHubRoutes(app, authMiddleware);
   // Picking a school at sign-up: search the US school list, or (teachers) type one that is missing.
   // Its one route is public, so it can sit in front of the plan check.
   const schoolPicker = registerSchoolPickerRoutes(app, {
@@ -1145,6 +1144,7 @@ export async function registerRoutes(
     // students only: a parent account carries its child's teacher too, and must not use up a place
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
+    countHubStudents: (teacherId) => countHubStudents(teacherId),
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
     // a school someone added at sign-up is never free just because of what it is called
@@ -1153,6 +1153,8 @@ export async function registerRoutes(
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
   });
+  // Teacher Hub, the paid add-on: only teachers with a Teacher Hub plan can open it.
+  registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   // Study Squad: the study hall, its tables and study sets (kept in the settings table).
