@@ -8,16 +8,16 @@ import type { Express, RequestHandler } from "express";
 import type { MailboxSendResult } from "./teacherMailbox";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
-  POLL_LIMITS, cleanAnswers, cleanComment, cleanPollInput, describeOption, tallyPoll,
-  type PollAnswer, type PollOption,
+  POLL_LIMITS, bookedSmsText, cleanAnswers, cleanComment, cleanPollInput, describeOption, inviteSmsText, tallyPoll,
+  type PollAnswer, type PollOption, type SendVia,
 } from "../shared/meetingPoll";
 
-export type PollRow = { id: string; teacher_id: number; title: string; location: string; message: string; hub_meeting_id: string; sender_name: string; reply_to: string; send_via: "site" | "mailbox"; options: PollOption[]; status: "open" | "booked"; chosen_option: string | null; created_at: string };
-export type InviteeRow = { id: string; poll_id: string; name: string; email: string; role: string; token: string; answers: Record<string, PollAnswer>; comment: string; email_sent: boolean; invited_at: string; responded_at: string | null };
+export type PollRow = { id: string; teacher_id: number; title: string; location: string; message: string; hub_meeting_id: string; sender_name: string; reply_to: string; send_via: SendVia; send_text: boolean; options: PollOption[]; status: "open" | "booked"; chosen_option: string | null; created_at: string };
+export type InviteeRow = { id: string; poll_id: string; name: string; email: string; phone: string; role: string; token: string; answers: Record<string, PollAnswer>; comment: string; email_sent: boolean; invited_at: string; responded_at: string | null };
 export type PollWithPeople = { poll: PollRow; invitees: InviteeRow[] };
 
 export interface PollStore {
-  create(poll: Omit<PollRow, "id" | "created_at" | "status" | "chosen_option">, invitees: { name: string; email: string; role: string; token: string }[]): Promise<PollWithPeople>;
+  create(poll: Omit<PollRow, "id" | "created_at" | "status" | "chosen_option">, invitees: { name: string; email: string; phone: string; role: string; token: string }[]): Promise<PollWithPeople>;
   list(teacherId: number): Promise<PollWithPeople[]>;
   get(teacherId: number, pollId: string): Promise<PollWithPeople | null>;
   book(pollId: string, optionId: string): Promise<void>;
@@ -36,14 +36,18 @@ export function createSupabasePollStore(): PollStore {
     async create(poll, invitees) {
       let made = await (await db()).from("meeting_polls").insert(poll).select("*").single();
       // Before migrations/meeting_polls_sender.sql has been run, the two sender columns don't exist yet: send anyway, with the account's own name and email.
-      if (made.error && /sender_name|reply_to|send_via/.test(`${made.error.message} ${made.error.details ?? ""}`)) {
-        const { sender_name: _a, reply_to: _b, send_via: _c, ...plain } = poll as any;
+      if (made.error && /sender_name|reply_to|send_via|send_text/.test(`${made.error.message} ${made.error.details ?? ""}`)) {
+        const { sender_name: _a, reply_to: _b, send_via: _c, send_text: _d, ...plain } = poll as any;
         made = await (await db()).from("meeting_polls").insert(plain).select("*").single();
       }
       fail(made.error);
-      const rows = await (await db()).from("meeting_poll_invitees").insert(invitees.map((i) => ({ ...i, poll_id: made.data.id }))).select("*");
+      let rows = await (await db()).from("meeting_poll_invitees").insert(invitees.map((i) => ({ ...i, poll_id: made.data.id }))).select("*");
+      // Before migrations/meeting_polls_self_and_text.sql has been run there is no phone column: carry on without phone numbers.
+      if (rows.error && /phone/.test(`${rows.error.message} ${rows.error.details ?? ""}`)) {
+        rows = await (await db()).from("meeting_poll_invitees").insert(invitees.map(({ phone: _p, ...i }) => ({ ...i, poll_id: made.data.id }))).select("*");
+      }
       if (rows.error) { await (await db()).from("meeting_polls").delete().eq("id", made.data.id); throw rows.error; }
-      return { poll: { sender_name: "", reply_to: "", send_via: "site", ...made.data } as PollRow, invitees: rows.data as InviteeRow[] };
+      return { poll: { sender_name: "", reply_to: "", send_via: "site", send_text: false, ...made.data } as PollRow, invitees: rows.data as InviteeRow[] };
     },
     async list(teacherId) {
       const polls = await (await db()).from("meeting_polls").select("*").eq("teacher_id", teacherId).order("created_at", { ascending: false }).limit(40);
@@ -142,6 +146,8 @@ export type MeetingPollDeps = {
     status(teacherId: number): Promise<{ email: string; needsReconnect: boolean } | null>;
     send(teacherId: number, message: { to: string; subject: string; html: string; fromName?: string }): Promise<MailboxSendResult>;
   };
+  /** Text messages (Twilio), if the site has that set up. */
+  text?: { send(to: string, body: string): Promise<{ sent: boolean; error?: string }> };
   appUrl: string;
   store?: PollStore;
   now?: () => number;
@@ -155,6 +161,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
   const now = deps.now ?? Date.now;
   const pollsMade = createAttemptLimiter({ max: POLL_LIMITS.pollsPerDay, windowMs: 24 * 3600_000, now });
   const emailsSent = createAttemptLimiter({ max: POLL_LIMITS.emailsPerDay, windowMs: 24 * 3600_000, now });
+  const textsSent = createAttemptLimiter({ max: POLL_LIMITS.textsPerDay, windowMs: 24 * 3600_000, now });
   const reminders = createAttemptLimiter({ max: 3, windowMs: 24 * 3600_000, now });
   const badLinks = createAttemptLimiter({ max: 30, windowMs: 3600_000, now });
   const replies = createAttemptLimiter({ max: 40, windowMs: 3600_000, now });
@@ -174,18 +181,18 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     const tally = tallyPoll(poll.options, people);
     return {
       id: poll.id, title: poll.title, location: poll.location, message: poll.message, hubMeetingId: poll.hub_meeting_id,
-      senderName: poll.sender_name || "", replyTo: poll.reply_to || "", sendVia: poll.send_via || "site",
+      senderName: poll.sender_name || "", replyTo: poll.reply_to || "", sendVia: poll.send_via || "site", sendText: !!poll.send_text,
       status: poll.status, chosenOption: poll.chosen_option, createdAt: poll.created_at,
       options: poll.options.map((o) => ({ ...o, label: describeOption(o) })),
-      invitees: invitees.map((i) => ({ id: i.id, name: i.name, email: i.email, role: i.role, answers: i.answers || {}, comment: i.comment || "", respondedAt: i.responded_at, emailSent: i.email_sent })),
+      invitees: invitees.map((i) => ({ id: i.id, name: i.name, email: i.email, phone: i.phone || "", link: linkFor(i.token), role: i.role, answers: i.answers || {}, comment: i.comment || "", respondedAt: i.responded_at, emailSent: i.email_sent })),
       tally: tally.options, best: tally.best,
     };
   }
 
   type Note = { fellBack: boolean; reason?: string };
 
-  /** Sends one email: from the teacher's own mailbox when the poll asks for that, else from the site (or if the mailbox fails). */
-  async function deliver(req: any, poll: PollRow, to: string, subject: string, html: string, note: Note): Promise<boolean> {
+  /** One email: from the teacher's own mailbox when the poll asks for that, else from the site (or if the mailbox fails). */
+  async function sendOneEmail(req: any, poll: PollRow, to: string, subject: string, html: string, note: Note): Promise<boolean> {
     emailsSent.fail(String(poll.teacher_id));
     if (poll.send_via === "mailbox" && deps.mailbox) {
       const r = await deps.mailbox.send(poll.teacher_id, { to, subject, html, fromName: senderFor(req, poll) });
@@ -197,13 +204,27 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     return result.sent;
   }
 
+  /** Reaches one person by email and/or text, depending on what the poll asks for and what they have. True if either got through. */
+  async function reach(req: any, poll: PollRow, person: InviteeRow, content: { subject: string; html: string; sms: string }, note: Note): Promise<boolean> {
+    if (poll.send_via === "self") return false; // the teacher sends these from their own email or phone
+    let reached = false;
+    if (person.email) reached = await sendOneEmail(req, poll, person.email, content.subject, content.html, note);
+    if (poll.send_text && deps.text && person.phone && textsSent.retryAfter(String(poll.teacher_id)) === 0) {
+      textsSent.fail(String(poll.teacher_id));
+      const r = await deps.text.send(person.phone, content.sms).catch(() => ({ sent: false }));
+      reached = r.sent || reached;
+    }
+    return reached;
+  }
+
   async function emailInvitee(req: any, poll: PollRow, invitee: InviteeRow, note: Note, reminder = false) {
-    const sent = await deliver(
-      req, poll, invitee.email,
-      `${reminder ? "Reminder: " : ""}Which times work for ${poll.title}?`,
-      pollInviteEmail({ guest: invitee.name, teacher: senderFor(req, poll), title: poll.title, location: poll.location, message: poll.message, options: poll.options, link: linkFor(invitee.token), reminder }),
-      note,
-    );
+    const guest = invitee.name;
+    const link = linkFor(invitee.token);
+    const sent = await reach(req, poll, invitee, {
+      subject: `${reminder ? "Reminder: " : ""}Which times work for ${poll.title}?`,
+      html: pollInviteEmail({ guest, teacher: senderFor(req, poll), title: poll.title, location: poll.location, message: poll.message, options: poll.options, link, reminder }),
+      sms: inviteSmsText({ guest, sender: senderFor(req, poll), title: poll.title, link, reminder }),
+    }, note);
     await store.markEmailed(invitee.id, sent).catch(() => {});
     invitee.email_sent = sent;
     return sent;
@@ -219,18 +240,19 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       const box = deps.mailbox ? await deps.mailbox.status(Number(req.user.id)).catch(() => null) : null;
       if (!box || box.needsReconnect) return res.status(400).json({ message: box ? "Your mailbox needs to be connected again before it can send." : "Connect your Gmail or Outlook first, or choose to send from A.R.I.S.E. Reader." });
     }
-    const wait = Math.max(pollsMade.retryAfter(teacher), emailsSent.retryAfter(teacher));
-    if (wait) return res.status(429).json({ message: `That is a lot of meeting emails for one day. Try again in ${waitWords(wait)}.` });
+    if (made.poll.sendText && !deps.text) return res.status(400).json({ message: "Texting isn't set up on the site yet. Uncheck the text option, or send the links yourself." });
+    const wait = Math.max(pollsMade.retryAfter(teacher), made.poll.sendVia === "self" ? 0 : emailsSent.retryAfter(teacher), made.poll.sendText ? textsSent.retryAfter(teacher) : 0);
+    if (wait) return res.status(429).json({ message: `That is a lot of meeting messages for one day. Try again in ${waitWords(wait)}.` });
     try {
       pollsMade.fail(teacher);
       const row = await store.create(
-        { teacher_id: Number(req.user.id), title: made.poll.title, location: made.poll.location, message: made.poll.message, hub_meeting_id: made.poll.hubMeetingId, sender_name: made.poll.senderName, reply_to: made.poll.replyTo, send_via: made.poll.sendVia, options: made.poll.options },
+        { teacher_id: Number(req.user.id), title: made.poll.title, location: made.poll.location, message: made.poll.message, hub_meeting_id: made.poll.hubMeetingId, sender_name: made.poll.senderName, reply_to: made.poll.replyTo, send_via: made.poll.sendVia, send_text: made.poll.sendText, options: made.poll.options },
         made.poll.invitees.map((i) => ({ ...i, token: randomBytes(24).toString("base64url") })),
       );
       const note: Note = { fellBack: false };
-      await Promise.all(row.invitees.map((invitee) => emailInvitee(req, row.poll, invitee, note)));
+      if (made.poll.sendVia !== "self") await Promise.all(row.invitees.map((invitee) => emailInvitee(req, row.poll, invitee, note)));
       const view = teacherView(row);
-      const missed = view.invitees.filter((i) => !i.emailSent).length;
+      const missed = made.poll.sendVia === "self" ? 0 : view.invitees.filter((i) => !i.emailSent).length;
       res.status(201).json({ poll: view, notSent: missed, mailboxProblem: note.fellBack ? note.reason : null });
     } catch (error: any) {
       console.error("[meeting-poll] create failed", error?.message);
@@ -242,7 +264,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     if (!(await deps.gate(req, res))) return;
     res.set("Cache-Control", "no-store");
     try {
-      res.json({ polls: (await store.list(Number(req.user.id))).map(teacherView) });
+      res.json({ polls: (await store.list(Number(req.user.id))).map(teacherView), textAvailable: !!deps.text });
     } catch (error: any) {
       console.error("[meeting-poll] list failed", error?.message);
       res.status(500).json({ message: "Could not load your polls." });
@@ -255,6 +277,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       const row = await store.get(Number(req.user.id), String(req.params.id));
       if (!row) return res.status(404).json({ message: "That poll was not found." });
       if (row.poll.status === "booked") return res.status(409).json({ message: "A time is already chosen." });
+      if (row.poll.send_via === "self") return res.status(409).json({ message: "You are sending this poll yourself. Use the buttons under “Send the links yourself”." });
       const key = `${req.user.id}:${row.poll.id}`;
       const wait = Math.max(reminders.retryAfter(key), emailsSent.retryAfter(String(req.user.id)));
       if (wait) return res.status(429).json({ message: `You already sent reminders for this poll. Try again in ${waitWords(wait)}.` });
@@ -280,18 +303,39 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       await store.book(row.poll.id, option.id);
       let told = 0;
       let mailboxProblem: string | null = null;
-      if (req.body?.notify !== false && emailsSent.retryAfter(String(req.user.id)) === 0) {
+      if (row.poll.send_via !== "self" && req.body?.notify !== false && emailsSent.retryAfter(String(req.user.id)) === 0) {
         const note: Note = { fellBack: false };
-        const results = await Promise.all(row.invitees.map((i) => deliver(
-          req, row.poll, i.email, `The time is set: ${row.poll.title}`,
-          pollBookedEmail({ guest: i.name, teacher: senderFor(req, row.poll), title: row.poll.title, location: row.poll.location, when: describeOption(option) }), note)));
+        const results = await Promise.all(row.invitees.map((i) => {
+          const when = describeOption(option);
+          const sender = senderFor(req, row.poll);
+          return reach(req, row.poll, i, {
+            subject: `The time is set: ${row.poll.title}`,
+            html: pollBookedEmail({ guest: i.name, teacher: sender, title: row.poll.title, location: row.poll.location, when }),
+            sms: bookedSmsText({ guest: i.name, sender, title: row.poll.title, location: row.poll.location, when }),
+          }, note);
+        }));
         mailboxProblem = note.fellBack ? note.reason ?? "error" : null;
         told = results.filter(Boolean).length;
       }
-      res.json({ ok: true, mailboxProblem, option: { ...option, label: describeOption(option) }, told, invited: row.invitees.length, title: row.poll.title, location: row.poll.location, hubMeetingId: row.poll.hub_meeting_id });
+      res.json({ ok: true, mailboxProblem, selfSend: row.poll.send_via === "self", option: { ...option, label: describeOption(option) }, told, invited: row.invitees.length, title: row.poll.title, location: row.poll.location, hubMeetingId: row.poll.hub_meeting_id });
     } catch (error: any) {
       console.error("[meeting-poll] choose failed", error?.message);
       res.status(500).json({ message: "Could not save that time. Try again in a moment." });
+    }
+  });
+
+  // The teacher marks who they have already sent a link to (when they send the links themselves).
+  app.post("/api/teacher-hub/polls/:id/sent", authMiddleware, async (req: any, res) => {
+    if (!(await deps.gate(req, res))) return;
+    try {
+      const row = await store.get(Number(req.user.id), String(req.params.id));
+      const person = row?.invitees.find((i) => i.id === String(req.body?.inviteeId || ""));
+      if (!row || !person) return res.status(404).json({ message: "That person was not found in this poll." });
+      await store.markEmailed(person.id, req.body?.sent !== false);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("[meeting-poll] mark sent failed", error?.message);
+      res.status(500).json({ message: "Could not save that." });
     }
   });
 

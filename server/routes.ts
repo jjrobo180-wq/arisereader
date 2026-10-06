@@ -36,6 +36,7 @@ import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./tea
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
+import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
@@ -1175,7 +1176,8 @@ export async function registerRoutes(
   } catch (error: any) {
     console.warn("[mailbox] connecting a teacher's own mailbox is off:", error?.message);
   }
-  registerMeetingPollRoutes(app, authMiddleware, { gate: hubGate, sendEmail, appUrl: APP_URL, mailbox });
+  const textConfig = textConfigFromEnv();
+  registerMeetingPollRoutes(app, authMiddleware, { gate: hubGate, sendEmail, appUrl: APP_URL, mailbox, text: textConfig ? createTextService(textConfig) : undefined });
   // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerClubPlayRoutes(app, authMiddleware);
