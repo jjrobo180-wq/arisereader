@@ -41,6 +41,7 @@ import {
   RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck, Clock3, Archive, Printer, LayoutDashboard, ListTodo,
   GraduationCap, Library, Settings, BellRing, Megaphone, Gamepad2, Sparkles, MoreVertical, UserPlus, PartyPopper,
   TrendingUp, School, SlidersHorizontal, Camera,
+  ClipboardList,
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -4185,6 +4186,10 @@ Generate exactly 10 questions.`;
             </span>
           </button>
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
+            <button type="button" onClick={() => navigate("/teacher-hub")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Teacher Hub" title="Your Teacher Hub" data-testid="button-admin-teacher-hub">
+              <ClipboardList className="h-5 w-5 text-teal-400" />
+              <span className="hidden text-sm font-semibold sm:inline">Teacher Hub</span>
+            </button>
             <button type="button" onClick={() => navigate("/leaderboard")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
               <Trophy className="h-5 w-5 text-amber-400" />
               <span className="hidden text-sm font-semibold sm:inline">Leaderboard</span>
@@ -4203,6 +4208,7 @@ Generate exactly 10 questions.`;
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[220px]">
                 <DropdownMenuLabel className="text-xs text-muted-foreground">{user?.displayName || "Admin"}</DropdownMenuLabel>
+                <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/teacher-hub")}><ClipboardList className="h-4 w-4" />My Teacher Hub</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/progress")}><Brain className="h-4 w-4" />Student progress</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/polls")}><BarChart3 className="h-4 w-4" />Polls</DropdownMenuItem>
                 <DropdownMenuSeparator />

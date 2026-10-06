@@ -647,10 +647,10 @@ export default function TeacherHub() {
     <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <div className="min-w-0">
+          <a href={user.isAdmin ? "#/admin" : "#/teacher-dashboard"} className="min-w-0 rounded-xl" aria-label={user.isAdmin ? "Back to admin" : "Back to your dashboard"} title={user.isAdmin ? "Back to admin" : "Back to your dashboard"}>
             <div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">A.R.I.S.E.</div>
             <div className="truncate text-xl font-bold tracking-tight">Teacher Hub</div>
-          </div>
+          </a>
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 sm:flex">
               {saveStatus === "saving" ? (

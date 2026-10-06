@@ -334,6 +334,9 @@ function AppRoutes() {
       <Route path="/teacher-hub">
         <TeacherHub />
       </Route>
+      <Route path="/hub">
+        <Redirect to="/teacher-hub" replace />
+      </Route>
       <Route path="/teacher-scenes">
         {user && (user.role === "teacher" || user.isAdmin)
           ? <ProtectedRoute><TeacherScenes /></ProtectedRoute>

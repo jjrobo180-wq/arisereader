@@ -3,6 +3,14 @@ import App from "./App";
 import "./index.css";
 import "./login-mobile-fix.css";
 
+// arisereader.com/hub (or /teacher-hub) goes straight to the Teacher Hub sign-in.
+{
+  const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
+  if (path === "/hub" || path === "/teacher-hub") {
+    window.history.replaceState(null, "", "/" + window.location.search + "#/teacher-hub");
+  }
+}
+
 if (!window.location.hash) {
   window.location.hash = "#/";
 }
