@@ -1672,6 +1672,31 @@ export default function Admin() {
     finally { setManualSaving(false); }
   };
 
+  // takes back points that were added by hand
+  const removeManualPoints = async (award: { id: number; points: number; reason: string }) => {
+    if (!pointsStudent || manualSaving) return;
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    if (!window.confirm(`Remove ${award.points} points from ${pointsStudent.displayName} (${award.reason})?`)) return;
+    setManualSaving(true);
+    setManualError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${pointsStudent.id}/manual-points/${award.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      // already gone counts as removed
+      if (!res.ok && res.status !== 404) throw new Error(data.message || "Could not remove the points.");
+      setManualHistory(prev => prev.filter(a => a.id !== award.id));
+      setActivityKey(k => k + 1);
+      refreshOpenDetail();
+      await fetchStudents();
+      fetchAdminLeaderboard();
+    } catch (error: any) { setManualError(error.message || "Could not remove the points."); }
+    finally { setManualSaving(false); }
+  };
+
   // keeps the open student's totals and quiz list current after adding points
   const refreshOpenDetail = async () => {
     if (!detailStudent) return;
@@ -4659,7 +4684,10 @@ Generate exactly 10 questions.`;
           <div className="max-h-40 overflow-y-auto text-sm space-y-1">
             <p className="font-medium">Recent manual awards</p>
             {manualHistory.length === 0 ? <p className="text-muted-foreground">No manual awards recorded.</p> : manualHistory.map(a => (
-              <p key={a.id}>{a.earned_on}: +{a.points} points — {a.reason}</p>
+              <div key={a.id} className="flex items-center justify-between gap-2">
+                <p className="min-w-0 break-words">{a.earned_on}: +{a.points} points — {a.reason}</p>
+                <Button type="button" size="sm" variant="ghost" className="h-8 shrink-0 text-destructive" disabled={manualSaving} onClick={() => removeManualPoints(a)} data-testid="manual-points-remove">Remove</Button>
+              </div>
             ))}
           </div>
         </DialogContent>
