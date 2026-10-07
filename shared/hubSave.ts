@@ -5,7 +5,7 @@
 // can't quietly save over newer work (every save says which copy it started from).
 
 /** The most the server will save for one teacher. */
-export const MAX_WORKSPACE_BYTES = 800_000;
+export const MAX_WORKSPACE_BYTES = 5_000_000;
 
 /** What a failed save means, in the words the page shows. */
 export type SaveBlock = "conflict" | "too_large" | "seats_full" | "plan" | "signed_out" | "rejected";

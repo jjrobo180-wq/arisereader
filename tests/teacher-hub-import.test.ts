@@ -553,7 +553,7 @@ test("the new ways to add things are wired into the server and the Hub page", ()
   const routes = read("server/routes.ts"), index = read("server/index.ts"), page = read("client/src/pages/TeacherHub.tsx"), server = read("server/teacherHubImport.ts");
   assert.ok(routes.includes("registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });"), "the same plan check as the rest of the Hub");
   // the bigger request sizes are set before the site's general one
-  assert.ok(index.indexOf('app.use("/api/teacher-hub/workspace", express.json({ limit: "1mb" }))') > 0);
+  assert.ok(index.indexOf('app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }))') > 0);
   assert.ok(index.indexOf('app.use("/api/teacher-hub/import", express.json({ limit: "24mb" }))') < index.indexOf("app.use(\n  express.json({"));
   for (const part of ["<HubImport ", "<HubCalendarTab ", "useCalendarRefresh(", 'data-testid="hub-add-with-ai"', "mergeHubImport(", "cleanHubImport(items, TODAY())"]) assert.ok(page.includes(part), part);
   assert.ok(page.includes('{ id: "calendar", label: "Calendar"'));
