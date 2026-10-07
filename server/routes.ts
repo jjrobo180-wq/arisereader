@@ -40,7 +40,7 @@ import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
 import { matchEarnsCoins } from "./arcadeMatches";
-import { adminBookPoints, isSetByAdmin, registerBookPointsRoutes, rememberAdminPoints, supabaseBookPointsStore, switchLibraryToArisePoints } from "./bookPoints";
+import { adminBookPoints, isSetByAdmin, keepSwitching, registerBookPointsRoutes, rememberAdminPoints, supabaseBookPointsStore } from "./bookPoints";
 import { lookupPages } from "./bookPages";
 import { ARISE_POINTS, cleanBookPoints, cleanPages, pointsForBook } from "../shared/bookPoints";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
@@ -5048,9 +5048,17 @@ export async function registerRoutes(
 
   // Book points the admin sets by hand (server/bookPoints.ts).
   const bookPointsStore = supabaseBookPointsStore(supabase);
+  const clearPointCaches = () => { for (const key of ["allBooks", "allUsers", "leaderboard", "monthlyLeaderboard", "advisoryLeaderboard", "eye_gaze_leaderboard", "session_"]) clearCache(key); };
+  // The one-time switch of the library to A.R.I.S.E.'s own points. It is kept going
+  // until it has finished, even across restarts, and does nothing after that.
+  const startBookPointsSwitch = keepSwitching(bookPointsStore, (summary) => {
+    clearPointCaches();
+    console.log("[book-points] library switched to A.R.I.S.E. points", JSON.stringify(summary));
+  });
   registerBookPointsRoutes(app, authMiddleware, adminMiddleware, {
     store: bookPointsStore,
-    clearCaches: () => { for (const key of ["allBooks", "allUsers", "leaderboard", "monthlyLeaderboard", "advisoryLeaderboard", "eye_gaze_leaderboard", "session_"]) clearCache(key); },
+    clearCaches: clearPointCaches,
+    startSwitch: startBookPointsSwitch,
   });
 
   // Admin: Get ALL books (including those without quizzes) for management
@@ -12978,20 +12986,7 @@ Important:
 
   // The one-time switch of the library to A.R.I.S.E.'s own points (server/bookPoints.ts).
   // It runs in the background shortly after start-up and does nothing once it has finished.
-  const switchBookPoints = (triesLeft: number) => {
-    void switchLibraryToArisePoints(bookPointsStore)
-      .then((summary) => {
-        if (!summary) return;
-        for (const key of ["allBooks", "allUsers", "leaderboard", "monthlyLeaderboard", "advisoryLeaderboard", "eye_gaze_leaderboard", "session_"]) clearCache(key);
-        console.log("[book-points] library switched to A.R.I.S.E. points", JSON.stringify(summary));
-      })
-      .catch((error: any) => {
-        console.error("[book-points] switch stopped:", error?.message || error);
-        // It picks up where it left off, here in ten minutes or at the next start.
-        if (triesLeft > 0) setTimeout(() => switchBookPoints(triesLeft - 1), 10 * 60_000);
-      });
-  };
-  setTimeout(() => switchBookPoints(3), 7000);
+  setTimeout(startBookPointsSwitch, 7000);
 
   return httpServer;
 }

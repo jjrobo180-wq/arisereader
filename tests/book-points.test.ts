@@ -10,8 +10,8 @@ import {
   readAdminBookPoints, type SavedAttempt,
 } from "../shared/bookPoints";
 import {
-  BOOK_POINTS_SYSTEM_KEY, adminBookPoints, isSetByAdmin, planSwitch, rememberAdminPoints, rescoreBook, setBookPointsByAdmin,
-  switchLibraryToArisePoints, type BookForSwitch, type BookPointsStore,
+  BOOK_POINTS_SYSTEM_KEY, adminBookPoints, isSetByAdmin, keepSwitching, planSwitch, rememberAdminPoints, rescoreBook, setBookPointsByAdmin,
+  switchLibraryToArisePoints, switchStatus, type BookForSwitch, type BookPointsStore,
 } from "../server/bookPoints";
 import { lookupPages, pagesFromSearch } from "../server/bookPages";
 
@@ -198,11 +198,14 @@ test("the switch changes only books still carrying an Accelerated Reader value",
     { id: 7, points_value: 5, ar_points: null, ar_match_status: null },           // a news article with its own 5 points
     { id: 8, points_value: 0, ar_points: 4, ar_match_status: "exact" },           // no quiz yet (0 points): stays hidden
     { id: 9, points_value: 12, ar_points: null, ar_match_status: "not_found" },   // never matched: keeps what it has
-    { id: 10, points_value: 6, ar_points: 6, ar_match_status: "ambiguous" },      // AR was not sure: keeps what it has
+    { id: 10, points_value: 6, ar_points: "6.0", ar_match_status: null },         // not marked as matched, but still worth exactly the copied number: becomes 15
+    { id: 11, points_value: 20, ar_points: 6, ar_match_status: "unverified" },    // has a value of its own that is not the copied one: kept
   ];
   books[4].points_value = 20;
-  assert.deepEqual(planSwitch(books, { "5": 20 }), [{ id: 1, from: 3, to: 10 }, { id: 2, from: 7, to: 15 }, { id: 4, from: 44, to: 30 }]);
+  assert.deepEqual(planSwitch(books, { "5": 20 }), [{ id: 1, from: 3, to: 10 }, { id: 2, from: 7, to: 15 }, { id: 4, from: 44, to: 30 }, { id: 10, from: 6, to: 15 }]);
 });
+
+const AT = (clock: string) => () => Date.parse(`2026-10-07T${clock}Z`);
 
 test("switching the library moves every book and every student who passed, once", async () => {
   const db = memoryStore({
@@ -218,13 +221,16 @@ test("switching the library moves every book and every student who passed, once"
     totals: { 101: 47, 102: 25, 103: 9.6 },
     settings: { [BOOK_POINTS_BY_ADMIN_KEY]: JSON.stringify({ "11": 20 }) },
   });
-  const summary = await switchLibraryToArisePoints(db.store, () => Date.parse("2026-10-07T04:00:00Z"));
-  assert.deepEqual(summary, { system: "arise-1", state: "done", at: "2026-10-07T04:00:00.000Z", books: 6, attempts: 3, students: 2 });
+  assert.deepEqual(await switchStatus(db.store), { state: "waiting", at: null, left: 6, books: 0, attempts: 0, students: 0 });
+
+  const summary = await switchLibraryToArisePoints(db.store, AT("04:00:00"));
+  assert.deepEqual(summary, { system: "arise-2", state: "done", at: "2026-10-07T04:00:00.000Z", books: 6, attempts: 3, students: 2 });
   assert.deepEqual([HARD_LUCK, 8, 9, 10, 11, 12, 13, 14].map(db.points), [10, 5, 20, 30, 20, 5, 15, 10], "the admin's book and the site's own article are left alone");
   assert.deepEqual(db.attempts.map((a) => a.points_earned), [10, 0, 30, 20, 5, 20]);
   assert.deepEqual(db.totals, { 101: 40, 102: 25, 103: 20 }, "+7 for Hard Luck and -14 for the very long book; a full 20 in place of part credit");
   assert.ok(db.log.indexOf("attempt 1") < db.log.indexOf(`book ${HARD_LUCK}`), "students are corrected before the book is marked done");
   assert.deepEqual(db.log.filter((l) => l.startsWith("many")), ["many 5", "many 10", "many 15"], "books nobody has passed yet go in a few large steps");
+  assert.deepEqual(await switchStatus(db.store), { state: "done", at: "2026-10-07T04:00:00.000Z", left: 0, books: 6, attempts: 3, students: 2 });
 
   // It only ever happens once.
   const before = JSON.stringify([db.totals, db.attempts]);
@@ -233,26 +239,98 @@ test("switching the library moves every book and every student who passed, once"
   assert.equal(JSON.parse(db.settings[BOOK_POINTS_SYSTEM_KEY]).state, "done");
 });
 
-test("a switch that is interrupted finishes on the next try without paying anyone twice", async () => {
+test("a switch that hits a problem says so, and finishes on the next try without paying anyone twice", async () => {
   const db = library();
   db.failAt("book 7"); // the database drops just after Hard Luck's students were corrected
-  await assert.rejects(switchLibraryToArisePoints(db.store), /database went away/);
-  assert.equal(JSON.parse(db.settings[BOOK_POINTS_SYSTEM_KEY]).state, "stopped");
+  await assert.rejects(switchLibraryToArisePoints(db.store, AT("04:00:00")), /database went away/);
+  const stopped = await switchStatus(db.store, AT("04:00:05"));
+  assert.deepEqual([stopped.state, stopped.error, stopped.left], ["stopped", "database went away", 2]);
   assert.equal(db.points(HARD_LUCK), 3, "the book is not marked done yet");
   assert.deepEqual(db.totals, { 101: 15, 102: 0, 103: 12, 104: 10 });
 
-  const summary = await switchLibraryToArisePoints(db.store);
-  assert.equal(summary?.state, "done");
+  const summary = await switchLibraryToArisePoints(db.store, AT("04:00:10"));
+  assert.deepEqual([summary?.state, summary?.error], ["done", undefined]);
   assert.deepEqual([db.points(HARD_LUCK), db.points(8)], [10, 15]);
   assert.deepEqual(db.totals, { 101: 25, 102: 0, 103: 12, 104: 10 }, "Hard Luck's 7 is added once; the other book's 5 becomes 15");
+});
 
-  // One that is still running somewhere else is left to finish.
-  const other = library();
-  other.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-1", state: "running", at: "2026-10-07T04:00:00Z" });
-  assert.equal(await switchLibraryToArisePoints(other.store, () => Date.parse("2026-10-07T04:10:00Z")), null);
-  assert.equal(other.points(HARD_LUCK), 3);
-  // ...unless it has plainly died.
-  assert.equal((await switchLibraryToArisePoints(other.store, () => Date.parse("2026-10-07T05:00:00Z")))?.state, "done");
+test("a switch cut off by a restart is picked up again a few minutes later, not left for good", async () => {
+  // The server restarted three times in a row while the first switch was at work:
+  // it was left marked as running with one book done and one not.
+  const db = library();
+  db.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-2", state: "running", at: "2026-10-07T04:16:00.000Z", books: 1, attempts: 1, students: 1 });
+
+  // Straight after the restart it could still be at work somewhere, so it is left alone...
+  assert.equal(await switchLibraryToArisePoints(db.store, AT("04:17:00")), null);
+  assert.equal(db.points(HARD_LUCK), 3);
+  assert.equal((await switchStatus(db.store, AT("04:17:00"))).state, "running");
+  // ...but once it has plainly gone quiet it is picked up, and counts on from where it was.
+  assert.deepEqual(await switchStatus(db.store, AT("04:20:00")), { state: "waiting", at: "2026-10-07T04:16:00.000Z", left: 2, books: 1, attempts: 1, students: 1 });
+  const summary = await switchLibraryToArisePoints(db.store, AT("04:20:00"));
+  assert.deepEqual(summary, { system: "arise-2", state: "done", at: "2026-10-07T04:20:00.000Z", books: 3, attempts: 4, students: 3 });
+  assert.equal(db.points(HARD_LUCK), 10);
+
+  // A finished switch under the earlier rules does not stop this one from running once.
+  const earlier = library();
+  earlier.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-1", state: "done", at: "2026-10-07T04:00:00.000Z", books: 0, attempts: 0, students: 0 });
+  assert.equal((await switchStatus(earlier.store)).state, "waiting");
+  assert.equal((await switchLibraryToArisePoints(earlier.store))?.state, "done");
+  assert.equal(earlier.points(HARD_LUCK), 10);
+});
+
+test("a long switch keeps checking in, so it is not mistaken for one that was cut off", async () => {
+  const db = library();
+  let clock = Date.parse("2026-10-07T04:00:00Z");
+  const saves: string[] = [];
+  const save = db.store.saveSetting;
+  db.store.saveSetting = async (key, value) => { if (key === BOOK_POINTS_SYSTEM_KEY) saves.push(JSON.parse(value).at); return save(key, value); };
+  const setBook = db.store.setBookPoints;
+  db.store.setBookPoints = async (id, points) => { clock += 20_000; return setBook(id, points); }; // each book takes 20 seconds
+  await switchLibraryToArisePoints(db.store, () => clock);
+  assert.deepEqual(saves, ["2026-10-07T04:00:00.000Z", "2026-10-07T04:00:20.000Z", "2026-10-07T04:00:40.000Z", "2026-10-07T04:00:40.000Z"]);
+});
+
+test("the site keeps at the switch until it is finished", async () => {
+  // at work somewhere else at first, then free
+  const db = library();
+  db.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-2", state: "running", at: new Date().toISOString() });
+  const waits: number[] = [];
+  let next: (() => void) | null = null;
+  const done: any[] = [];
+  const start = keepSwitching(db.store, (summary) => done.push(summary), { againMs: 120_000, later: (run, ms) => { waits.push(ms); next = run; }, log: () => {} });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  start();
+  await settle();
+  assert.deepEqual([done.length, waits], [0, [120_000]], "it could not start, so it looks again in two minutes");
+  start(); // the admin presses "Switch them now" meanwhile
+  await settle();
+  assert.deepEqual(waits, [120_000], "one look ahead is enough");
+
+  db.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-2", state: "running", at: "2026-10-07T04:00:00.000Z" }); // it went quiet
+  next!();
+  await settle();
+  assert.equal(done.length, 1);
+  assert.equal(done[0].state, "done");
+  assert.equal(db.points(HARD_LUCK), 10);
+  // once finished there is nothing more to look for
+  start();
+  await settle();
+  assert.deepEqual([done.length, waits.length], [1, 1]);
+
+  // a problem is tried again too, and it gives up after its tries rather than going round for ever
+  const broken = library();
+  broken.store.allBooks = async () => { throw new Error("no database"); };
+  const again: (() => void)[] = [];
+  const problems: string[] = [];
+  keepSwitching(broken.store, () => {}, { tries: 3, later: (run) => { again.push(run); }, log: (m) => problems.push(m) })();
+  await settle();
+  again[0]();
+  await settle();
+  again[1]();
+  await settle();
+  assert.deepEqual([again.length, problems.length], [2, 3]);
+  assert.ok(problems[0].includes("no database"));
 });
 
 // ─── Page counts ────────────────────────────────────────────────────────────
@@ -298,12 +376,16 @@ test("points are set when a quiz is added, and the library is switched once at s
   assert.ok(routes.includes("pointsValue: chosenPoints ?? 0, pointsSetByAdmin: chosenPoints !== null"), "points picked on the add-quiz form are used");
   assert.ok(routes.includes("await rememberAdminPoints(bookPointsStore, book.id, chosenPoints)"));
   assert.ok(routes.includes("registerBookPointsRoutes(app, authMiddleware, adminMiddleware,"), "only an admin can set a book's points");
-  assert.ok(routes.includes("void switchLibraryToArisePoints(bookPointsStore)"));
+  assert.ok(routes.includes("const startBookPointsSwitch = keepSwitching(bookPointsStore,"), "the switch is kept going until it has finished");
+  assert.ok(routes.includes("setTimeout(startBookPointsSwitch, 7000);"));
+  assert.ok(routes.includes("startSwitch: startBookPointsSwitch,"), "and the admin can start it from the Library");
   assert.equal((routes.match(/keepPoints: pending\.quiz_type === 'iarise'/g) || []).length, 2, "an approved book quiz gets worked-out points; a site lesson keeps its own");
 });
 
 test("the Library lets the admin see and change each book's points", () => {
   const page = read("client/src/pages/Admin.tsx"), dialog = read("client/src/components/admin/BookPointsDialog.tsx");
-  for (const part of ["<BookPointsDialog book={pointsBook}", 'data-testid="book-points-open"', "onSaved={fetchBooks}", "<option value={0}>Automatic</option>", 'id="q-pages"']) assert.ok(page.includes(part), part);
+  for (const part of ["<BookPointsDialog book={pointsBook}", 'data-testid="book-points-open"', "onSaved={fetchBooks}", "<option value={0}>Automatic</option>", 'id="q-pages"', "<BookPointsSwitch token="]) assert.ok(page.includes(part), part);
+  const status = read("client/src/components/admin/BookPointsSwitch.tsx");
+  for (const part of ["/api/admin/book-points/switch", 'data-testid="book-points-switch-start"', "still on old points"]) assert.ok(status.includes(part), part);
   for (const part of ["/api/admin/books/${book.id}/points", 'method: "PATCH"', 'data-testid="book-points-save"', "ARISE_POINTS.map("]) assert.ok(dialog.includes(part), part);
 });
