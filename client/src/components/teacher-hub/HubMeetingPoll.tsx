@@ -443,6 +443,9 @@ function PollCard({ poll, token, senderName, contacts, onBooked, onChanged, setN
   );
 }
 
+/** iPhones and iPads want ?body= (the other form is for Android and older phones). */
+const IPHONE = typeof navigator !== "undefined" && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
 function SelfSend({ poll, token, senderName, chosen, onChanged, setNotice }: {
   poll: PollView; token: string | null; senderName: string; chosen?: PollView["options"][number]; onChanged: () => void; setNotice: (text: string) => void;
 }) {
@@ -496,7 +499,7 @@ function SelfSend({ poll, token, senderName, chosen, onChanged, setNotice }: {
         {poll.invitees.map((i) => {
           const m = messages(i);
           const mail = i.email ? `mailto:${encodeURIComponent(i.email)}?subject=${encodeURIComponent(m.email.subject)}&body=${encodeURIComponent(m.email.body)}` : "";
-          const text = i.phone ? `sms:${i.phone}?&body=${encodeURIComponent(m.sms)}` : "";
+          const text = i.phone ? `sms:${i.phone}${IPHONE ? "?" : "?&"}body=${encodeURIComponent(m.sms)}` : "";
           return (
             <li key={i.id} className="rounded-xl bg-white p-2" data-testid="self-person">
               <div className="text-sm font-medium">{i.name} <span className="text-xs font-normal text-slate-500">{i.role}{i.respondedAt ? " · answered" : i.emailSent ? " · sent" : ""}</span></div>
