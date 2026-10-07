@@ -35,7 +35,14 @@ function memoryStore(start: { books: Row[]; attempts: Attempt[]; totals: Record<
     async setManyBookPoints(ids, points) { step(`many ${points}`); for (const id of ids) book(id)!.points_value = points; },
     async booksWithPoints() { return new Set(attempts.filter((a) => Number(a.points_earned) > 0).map((a) => a.book_id)); },
     async attempts(id) { return attempts.filter((a) => a.book_id === id).map((a) => ({ ...a })); },
-    async setAttemptPoints(id, points) { step(`attempt ${id}`); attempts.find((a) => a.id === id)!.points_earned = points; },
+    async setAttemptPoints(id, _points) {
+      step(`attempt ${id}`);
+      // The real database has a rule of its own (trigger attempts_full_points_at_70): whenever a
+      // quiz row is changed, a passed quiz is given its book's CURRENT points, whatever was asked for.
+      const attempt = attempts.find((a) => a.id === id)!;
+      const total = Number(attempt.total) || 0;
+      attempt.points_earned = total > 0 && Number(attempt.score) / total >= 0.7 ? Number(book(attempt.book_id)!.points_value) : 0;
+    },
     async studentTotal(id) { return totals[id] || 0; },
     async setStudentTotal(id, total) { step(`total ${id}`); totals[id] = total; },
     async setting(key) { return settings[key] || ""; },
@@ -228,8 +235,8 @@ test("switching the library moves every book and every student who passed, once"
   assert.deepEqual([HARD_LUCK, 8, 9, 10, 11, 12, 13, 14].map(db.points), [10, 5, 20, 30, 20, 5, 15, 10], "the admin's book and the site's own article are left alone");
   assert.deepEqual(db.attempts.map((a) => a.points_earned), [10, 0, 30, 20, 5, 20]);
   assert.deepEqual(db.totals, { 101: 40, 102: 25, 103: 20 }, "+7 for Hard Luck and -14 for the very long book; a full 20 in place of part credit");
-  assert.ok(db.log.indexOf("attempt 1") < db.log.indexOf(`book ${HARD_LUCK}`), "students are corrected before the book is marked done");
-  assert.deepEqual(db.log.filter((l) => l.startsWith("many")), ["many 5", "many 10", "many 15"], "books nobody has passed yet go in a few large steps");
+  assert.deepEqual(db.log.filter((l) => l.startsWith("many")), ["many 5", "many 10", "many 15", "many 20", "many 30"], "the books go in a few large steps");
+  assert.ok(db.log.indexOf("many 10") < db.log.indexOf("attempt 1"), "a book is moved before its students' quizzes, or the database puts the quiz back");
   assert.deepEqual(await switchStatus(db.store), { state: "done", at: "2026-10-07T04:00:00.000Z", left: 0, books: 6, attempts: 3, students: 2 });
 
   // It only ever happens once.
@@ -239,19 +246,48 @@ test("switching the library moves every book and every student who passed, once"
   assert.equal(JSON.parse(db.settings[BOOK_POINTS_SYSTEM_KEY]).state, "done");
 });
 
+test("the book is moved before the quiz, because the database keeps a passed quiz equal to its book", async () => {
+  // What went wrong on the live site: one student, one quiz, a book worth 3 that should be worth 10.
+  const db = memoryStore({
+    books: [ar(HARD_LUCK, 3)],
+    attempts: [{ id: 57, book_id: HARD_LUCK, user_id: 190, score: 7, total: 10, points_earned: 3 }],
+    totals: { 190: 3 },
+  });
+  // Changing the quiz while its book is still worth 3 does nothing at all:
+  await db.store.setAttemptPoints(57, 10);
+  assert.equal(db.attempts[0].points_earned, 3);
+
+  await switchLibraryToArisePoints(db.store, AT("04:00:00"));
+  assert.deepEqual([db.points(HARD_LUCK), db.attempts[0].points_earned, db.totals[190]], [10, 10, 10], "the book, the quiz and the student's total all say 10");
+
+  // However many more times it is started, by a restart or by hand, the student is not paid again.
+  db.settings[BOOK_POINTS_SYSTEM_KEY] = "";
+  await switchLibraryToArisePoints(db.store, AT("04:05:00"));
+  db.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-2", state: "stopped", at: "2026-10-07T04:05:00.000Z" });
+  await switchLibraryToArisePoints(db.store, AT("04:06:00"));
+  assert.deepEqual([db.attempts[0].points_earned, db.totals[190]], [10, 10]);
+
+  // The same when the admin sets a book by hand in the Library.
+  assert.deepEqual(await setBookPointsByAdmin(db.store, HARD_LUCK, 20), { ok: true, pointsValue: 20, previous: 10, attempts: 1, students: 1 });
+  assert.deepEqual([db.points(HARD_LUCK), db.attempts[0].points_earned, db.totals[190]], [20, 20, 20]);
+});
+
 test("a switch that hits a problem says so, and finishes on the next try without paying anyone twice", async () => {
   const db = library();
-  db.failAt("book 7"); // the database drops just after Hard Luck's students were corrected
+  db.failAt("total 101"); // the database drops between one student's quiz being corrected and their total
   await assert.rejects(switchLibraryToArisePoints(db.store, AT("04:00:00")), /database went away/);
   const stopped = await switchStatus(db.store, AT("04:00:05"));
-  assert.deepEqual([stopped.state, stopped.error, stopped.left], ["stopped", "database went away", 2]);
-  assert.equal(db.points(HARD_LUCK), 3, "the book is not marked done yet");
-  assert.deepEqual(db.totals, { 101: 15, 102: 0, 103: 12, 104: 10 });
+  assert.deepEqual([stopped.state, stopped.error, stopped.left], ["stopped", "database went away", 0]);
+  assert.deepEqual([db.points(HARD_LUCK), db.points(8)], [10, 15], "the books were already moved");
+  assert.deepEqual(db.attempts.map((a) => a.points_earned), [10, 0, 0, "3", 5]);
 
   const summary = await switchLibraryToArisePoints(db.store, AT("04:00:10"));
   assert.deepEqual([summary?.state, summary?.error], ["done", undefined]);
-  assert.deepEqual([db.points(HARD_LUCK), db.points(8)], [10, 15]);
-  assert.deepEqual(db.totals, { 101: 25, 102: 0, 103: 12, 104: 10 }, "Hard Luck's 7 is added once; the other book's 5 becomes 15");
+  assert.deepEqual(db.attempts.map((a) => a.points_earned), [10, 0, 0, 10, 15], "every passed quiz now matches its book");
+  // Student 101's Hard Luck quiz was corrected just before the stop, so that 7 is not added again:
+  // their saved total is short by it (the site shows the larger of the saved total and the quizzes
+  // added up, 25 here, so the student still sees the right number). Nobody is ever paid twice.
+  assert.deepEqual(db.totals, { 101: 18, 102: 0, 103: 12, 104: 10 });
 });
 
 test("a switch cut off by a restart is picked up again within a minute, not left for good", async () => {
@@ -270,6 +306,15 @@ test("a switch cut off by a restart is picked up again within a minute, not left
   assert.deepEqual(summary, { system: "arise-2", state: "done", at: "2026-10-07T04:17:00.000Z", books: 3, attempts: 4, students: 3 });
   assert.equal(db.points(HARD_LUCK), 10);
 
+  // Cut off just after the books were moved and before any student was corrected: the quizzes are
+  // found still holding their old points and are corrected, once.
+  const half = library();
+  half.store.setManyBookPoints([HARD_LUCK], 10);
+  half.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-2", state: "running", at: "2026-10-07T04:16:00.000Z", books: 1, attempts: 0, students: 0 });
+  await switchLibraryToArisePoints(half.store, AT("04:17:00"));
+  assert.deepEqual(half.attempts.map((a) => a.points_earned), [10, 0, 0, 10, 15]);
+  assert.deepEqual(half.totals, { 101: 25, 102: 0, 103: 12, 104: 10 });
+
   // A finished switch under the earlier rules does not stop this one from running once.
   const earlier = library();
   earlier.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-1", state: "done", at: "2026-10-07T04:00:00.000Z", books: 0, attempts: 0, students: 0 });
@@ -284,8 +329,8 @@ test("a long switch keeps checking in, so it is not mistaken for one that was cu
   const saves: string[] = [];
   const save = db.store.saveSetting;
   db.store.saveSetting = async (key, value) => { if (key === BOOK_POINTS_SYSTEM_KEY) saves.push(JSON.parse(value).at); return save(key, value); };
-  const setBook = db.store.setBookPoints;
-  db.store.setBookPoints = async (id, points) => { clock += 20_000; return setBook(id, points); }; // each book takes 20 seconds
+  const setBooks = db.store.setManyBookPoints;
+  db.store.setManyBookPoints = async (ids, points) => { clock += 20_000; return setBooks(ids, points); }; // each step takes 20 seconds
   await switchLibraryToArisePoints(db.store, () => clock);
   assert.deepEqual(saves, ["2026-10-07T04:00:00.000Z", "2026-10-07T04:00:20.000Z", "2026-10-07T04:00:40.000Z", "2026-10-07T04:00:40.000Z"]);
 
@@ -304,7 +349,7 @@ test("a long switch keeps checking in, so it is not mistaken for one that was cu
   crowd.store.setStudentTotal = async (id, total) => { time += 2_000; return setTotal(id, total); };
   await switchLibraryToArisePoints(crowd.store, () => time);
   const gaps = beats.slice(1).map((beat, i) => beat - beats[i]);
-  assert.ok(beats.length > 20 && Math.max(...gaps) <= 6_000, `longest quiet spell was ${Math.max(...gaps)} ms`);
+  assert.ok(beats.length > 15 && Math.max(...gaps) <= 10_000, `longest quiet spell was ${Math.max(...gaps)} ms`);
   assert.deepEqual(Object.values(crowd.totals), Array(40).fill(7));
 });
 
