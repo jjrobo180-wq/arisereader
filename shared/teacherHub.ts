@@ -5,6 +5,7 @@
 // JSON object per teacher (server/teacherHub.ts).
 
 import { cleanPins, type Pin } from "./hubPins";
+import type { StepPlan } from "./meetingSteps";
 
 export type Student = {
   id: string;
@@ -18,7 +19,7 @@ export type Student = {
   notes: string;
 };
 
-export type Meeting = { id: string; student: string; type: string; date: string; notes: string; done: boolean };
+export type Meeting = { id: string; student: string; type: string; date: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
 export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean };
 export type NoteItem = { id: string; student: string; type: string; body: string; date: string };
