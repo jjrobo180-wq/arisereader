@@ -3,7 +3,7 @@
 // Outlook, Apple or any other calendar that can be shared as a link).
 import { PinButton } from "./HubPins";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { AlertTriangle, Calendar, ChevronLeft, ChevronRight, Link2, Loader2, MapPin, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Bell, Calendar, ChevronLeft, ChevronRight, Link2, Loader2, MapPin, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import {
   HUB_IMPORT_LIMITS, cleanHubImport, clock12, describeHubAdded, mergeHubImport, removeCalendar, replaceCalendarEvents,
@@ -15,6 +15,8 @@ import { HubModal } from "./HubModal";
 import { MyAvailability } from "./HubAvailability";
 import type { FreeWindow } from "@shared/availability";
 import { addMonthsTo, clockOf, isPast, monthGrid, nowParts, openRanges, shiftDay, stillAhead, weekOf, type Now } from "@shared/hubCalendar";
+import { addDays } from "@shared/hubDates";
+import { QUICK_TITLE_MAX, addQuickItems, quickItems, type QuickForm, type QuickItems, type QuickKind } from "@shared/hubQuickAdd";
 
 type SetWorkspace = Dispatch<SetStateAction<Workspace>>;
 
@@ -51,26 +53,62 @@ const happeningNow = (e: HubEvent, now: Now) => {
   return s <= now.minutes && now.minutes < (t !== null && t > s ? t : s + 60);
 };
 
-/** The quick "add an event" pop-up. Used by the Calendar tab and the + button on every screen. */
-export function AddEventModal({ onClose, onAdd, date, start, end }: { onClose: () => void; onAdd: (event: Omit<HubEvent, "id">) => void; date?: string; start?: string; end?: string }) {
-  const [form, setForm] = useState({ title: "", date: date || localDay(), start: start || "", end: end || "", location: "" });
+const QUICK_KINDS = [["event", "Event", Calendar], ["reminder", "Reminder", Bell]] as const;
+
+/**
+ * The quick "add" pop-up: a calendar event, a reminder for Reminders & to-dos, or an event with a
+ * reminder for it. Used by the Calendar tab and the + button on every screen.
+ */
+export function AddEventModal({ onClose, onAdd, date, start, end }: { onClose: () => void; onAdd: (items: QuickItems) => void; date?: string; start?: string; end?: string }) {
+  const today = localDay();
+  const [form, setForm] = useState<QuickForm>({ kind: "event", title: "", date: date || today, start: start || "", end: end || "", location: "", alsoRemind: false });
+  const reminder = form.kind === "reminder";
+  const items = quickItems(form);
+  // An event has to have a day, so coming back from a reminder with no date picks one again.
+  const setKind = (kind: QuickKind) => setForm((f) => ({ ...f, kind, date: kind === "event" && !f.date ? date || today : f.date }));
   function save(e?: FormEvent) {
     e?.preventDefault();
-    if (!form.title.trim() || !form.date) return;
-    onAdd({ title: form.title.trim(), date: form.date, start: form.start, end: form.start ? form.end : "", location: form.location.trim(), notes: "" });
+    if (!items) return;
+    onAdd(items);
     onClose();
   }
+  const chip = (active: boolean) => `inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
   return (
-    <HubModal title="Add an event" onClose={onClose} closeOnBackdrop footer={<PrimaryButton onClick={() => save()} disabled={!form.title.trim() || !form.date}><Plus className="h-4 w-4" /> Add event</PrimaryButton>}>
+    <HubModal title={reminder ? "Add a reminder" : "Add an event"} onClose={onClose} closeOnBackdrop
+      footer={<PrimaryButton onClick={() => save()} disabled={!items}><Plus className="h-4 w-4" /> {reminder ? "Add reminder" : form.alsoRemind ? "Add event and reminder" : "Add event"}</PrimaryButton>}>
       <form onSubmit={save} className="space-y-3" data-testid="add-event-form">
-        <Field data-autofocus placeholder="What is it?" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required aria-label="Event" />
-        <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required aria-label="Date" />
-        <div className="grid grid-cols-2 gap-3">
-          <label className="text-xs font-medium text-slate-500">Starts<Field type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} aria-label="Starts" /></label>
-          <label className="text-xs font-medium text-slate-500">Ends<Field type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} aria-label="Ends" /></label>
+        <div role="tablist" aria-label="What to add" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="quick-add-kind">
+          {QUICK_KINDS.map(([kind, label, Icon]) => (
+            <button key={kind} type="button" role="tab" aria-selected={form.kind === kind} onClick={() => setKind(kind)}
+              className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold ${form.kind === kind ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}><Icon className="h-4 w-4" /> {label}</button>
+          ))}
         </div>
-        <p className="-mt-1 text-xs text-slate-500">Leave the times empty for an all-day event.</p>
-        <Field placeholder="Where (optional)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} aria-label="Where" />
+        <Field data-autofocus placeholder={reminder ? "What do you need to remember?" : "What is it?"} value={form.title} maxLength={QUICK_TITLE_MAX} onChange={(e) => setForm({ ...form, title: e.target.value })} required aria-label={reminder ? "Reminder" : "Event"} />
+        {reminder ? (
+          <>
+            <label className="block text-xs font-medium text-slate-500">Due<Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label="Due" /></label>
+            <div className="flex flex-wrap gap-2">
+              {[["Today", today], ["Tomorrow", addDays(today, 1)], ["Next week", addDays(today, 7)], ["No date", ""]].map(([label, value]) => (
+                <button key={label} type="button" aria-pressed={form.date === value} className={chip(form.date === value)} onClick={() => setForm({ ...form, date: value })}>{label}</button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">It goes on your Reminders & to-dos list, where you can check it off or make it repeat.</p>
+          </>
+        ) : (
+          <>
+            <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required aria-label="Date" />
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-xs font-medium text-slate-500">Starts<Field type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} aria-label="Starts" /></label>
+              <label className="text-xs font-medium text-slate-500">Ends<Field type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} aria-label="Ends" /></label>
+            </div>
+            <p className="-mt-1 text-xs text-slate-500">Leave the times empty for an all-day event.</p>
+            <Field placeholder="Where (optional)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} aria-label="Where" />
+            <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700">
+              <input type="checkbox" className="h-5 w-5 shrink-0" checked={form.alsoRemind} onChange={(e) => setForm({ ...form, alsoRemind: e.target.checked })} data-testid="quick-add-also-remind" />
+              Also add it to Reminders & to-dos
+            </label>
+          </>
+        )}
         <button type="submit" hidden />
       </form>
     </HubModal>
@@ -147,8 +185,11 @@ function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete
   );
 }
 
-/** The calendar with its views (agenda, week, month, open times) and Add event. Used on the Calendar tab and on Home. */
-export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = "Calendar" }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; title?: string }) {
+/**
+ * The calendar with its views (agenda, week, month, open times) and Add event. Used on the Calendar tab and on Home.
+ * `onReminderAdded` is told when the pop-up put something in Reminders & to-dos, which this screen does not show.
+ */
+export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = "Calendar", onReminderAdded }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; title?: string; onReminderAdded?: (items: QuickItems) => void }) {
   const now = useNow();
   const today = now.date;
   const [view, setViewState] = useState<View>(readView);
@@ -176,7 +217,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
   }, [sorted]);
   const earlier = workspace.events.length - stillAhead(workspace.events, now).length;
 
-  const addEvent = (event: Omit<HubEvent, "id">) => setWorkspace((p) => ({ ...p, events: [...p.events, { ...event, id: makeId() }] }));
+  const addQuick = (items: QuickItems) => { setWorkspace((p) => addQuickItems(p, items, makeId)); if (items.task) onReminderAdded?.(items); };
   const removeEvent = (id: string) => setWorkspace((p) => ({ ...p, events: p.events.filter((x) => x.id !== id) }));
   const move = (n: number) => setAnchor((a) => (view === "month" ? addMonthsTo(a, n) : shiftDay(a, n * 7)));
   const heading = view === "month"
@@ -311,12 +352,12 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         {(view === "agenda" || view === "week" || view === "month") && earlier > 0 && (
           <div className="mt-4 text-center"><button type="button" onClick={() => setShowPast((v) => !v)} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">{showPast ? "Hide events that are over" : `Show ${earlier} that ${earlier === 1 ? "is" : "are"} over`}</button></div>
         )}
-        {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addEvent} />}
+        {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addQuick} />}
       </Card>
   );
 }
 
-export default function HubCalendarTab({ workspace, setWorkspace, token, makeId }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string }) {
+export default function HubCalendarTab({ workspace, setWorkspace, token, makeId, onReminderAdded }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; onReminderAdded?: (items: QuickItems) => void }) {
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -386,7 +427,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId 
 
   return (
     <>
-      <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={makeId} />
+      <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={makeId} onReminderAdded={onReminderAdded} />
 
       <Card title="Connected calendars" right={<span className="shrink-0 text-xs font-medium text-slate-500">{workspace.calendars.length} of {HUB_IMPORT_LIMITS.calendars}</span>}>
         {workspace.calendars.length > 0 && (
