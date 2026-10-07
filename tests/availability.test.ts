@@ -22,7 +22,7 @@ function setup() {
   };
   return { call, sent, availability };
 }
-const tokenOf = (html: string) => /#\/meet\/([\w-]+)/.exec(html)![1];
+const tokenOf = (html: string) => /\/meet\/([\w-]+)/.exec(html)![1];
 const poll = () => ({ title: "IEP for Sam", options: [{ date: "2026-10-13", start: "15:30", end: "16:30" }, { date: "2026-10-14", start: "08:15" }], invitees: [{ name: "Ms. Cruz", email: "cruz@school.org", role: "Staff" }] });
 const staff = { id: 21, displayName: "Ms. Cruz", email: "cruz@school.org" };
 

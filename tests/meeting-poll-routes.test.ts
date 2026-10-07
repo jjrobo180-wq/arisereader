@@ -36,7 +36,7 @@ function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "
     await routes[key]({ body: {}, params: {}, headers: {}, user: { id: 7, displayName: "Ms. Rivera", email: "rivera@school.org" }, ...req }, res);
     return { code, body: payload };
   };
-  return { call, sent, texts, viaMailbox, fromNames, store, tick: (ms: number) => { clock += ms; } };
+  return { call, routes, sent, texts, viaMailbox, fromNames, store, tick: (ms: number) => { clock += ms; } };
 }
 
 const poll = () => ({
@@ -44,7 +44,7 @@ const poll = () => ({
   options: [{ date: "2026-10-13", start: "15:30", end: "16:30" }, { date: "2026-10-14", start: "08:15" }],
   invitees: [{ name: "Ms. Lee", email: "lee@example.com", role: "Parent or guardian" }, { name: "Coach", email: "coach@school.org", role: "Staff" }],
 });
-const tokenOf = (html: string) => /#\/meet\/([\w-]+)/.exec(html)![1];
+const tokenOf = (html: string) => /\/meet\/([\w-]+)/.exec(html)![1];
 
 test("creating a poll emails each person their own private link, replies go to the teacher", async () => {
   const t = setup();
@@ -56,7 +56,7 @@ test("creating a poll emails each person their own private link, replies go to t
   assert.ok(t.sent.every((s) => s.replyTo === "rivera@school.org"));
   assert.notEqual(tokenOf(t.sent[0].html), tokenOf(t.sent[1].html));
   assert.match(t.sent[0].html, /Tuesday, Oct 13 · 3:30 PM – 4:30 PM/);
-  assert.match(t.sent[0].html, /https:\/\/www\.arisereader\.com\/#\/meet\//);
+  assert.match(t.sent[0].html, /https:\/\/www\.arisereader\.com\/meet\//);
   assert.match(t.sent[0].subject, /Which times work for IEP meeting for Jordan/);
   assert.equal(r.body.poll.invitees[0].token, undefined); // the teacher's view never carries the private links
 });
@@ -228,7 +228,7 @@ test("send it yourself: nothing is sent, the teacher gets each person's own link
   assert.equal(t.sent.length + t.texts.length, 0);
   const people = made.body.poll.invitees;
   assert.equal(made.body.poll.sendVia, "self");
-  assert.ok(people.every((p: any) => /^https:\/\/www\.arisereader\.com\/#\/meet\/[\w-]{20,}$/.test(p.link) && p.emailSent === false));
+  assert.ok(people.every((p: any) => /^https:\/\/www\.arisereader\.com\/meet\/[\w-]{20,}$/.test(p.link) && p.emailSent === false));
   assert.equal(new Set(people.map((p: any) => p.link)).size, 3);
   assert.equal(people[0].phone, "+13035550142");
   // each person's link works
@@ -256,7 +256,7 @@ test("texting: people with a phone get a text (alongside email if they have one)
   assert.equal(made.body.notSent, 0);
   assert.deepEqual(t.sent.map((s) => s.to).sort(), ["coach@school.org", "lee@example.com"]);
   assert.deepEqual(t.texts.map((x) => x.to).sort(), ["+13035550142", "+13035550199"]);
-  assert.match(t.texts[0].body, /^Hi (Ms\. Lee|Dad)! Maria R\. asks: which times work for IEP meeting for Jordan\? Tap to answer \(1 minute, no account\): https:\/\/www\.arisereader\.com\/#\/meet\//);
+  assert.match(t.texts[0].body, /^Hi (Ms\. Lee|Dad)! Maria R\. asks: which times work for IEP meeting for Jordan\? Tap to answer \(1 minute, no account\): https:\/\/www\.arisereader\.com\/meet\//);
   t.sent.length = 0; t.texts.length = 0;
   await t.call("POST /api/teacher-hub/polls/:id/remind", { params: { id: made.body.poll.id } });
   assert.equal(t.texts.length, 2);
@@ -286,4 +286,19 @@ test("texting needs the site to have it, the teacher's OK, and has a daily limit
   for (let i = 0; i < 3; i++) assert.equal((await t.call("POST /api/teacher-hub/polls", { body: { ...poll(), sendText: true, textConsent: true, invitees: phones(20) } })).code, 201);
   assert.equal(t.texts.length, 60);
   assert.equal((await t.call("POST /api/teacher-hub/polls", { body: { ...poll(), sendText: true, textConsent: true, invitees: phones(2) } })).code, 429);
+});
+
+test("the link in emails and texts opens a bare page (no logo or site blurb for link previews) that forwards to the reply page", async () => {
+  const t = setup();
+  const bare: any = {}; let sent = "";
+  const res: any = { set(h: any) { Object.assign(bare, h); return res; }, type() { return res; }, send(b: string) { sent = b; return res; }, status() { return res; }, json() { return res; } };
+  const token = "A".repeat(24);
+  await (t as any).routes["GET /meet/:token"]({ params: { token } }, res);
+  assert.match(sent, /<title>Meeting times<\/title>/);
+  assert.doesNotMatch(sent, /og:image|og:title|description/i);
+  assert.ok(sent.includes(`location.replace("/#/meet/${token}")`));
+  assert.equal(bare["X-Robots-Tag"], "noindex, nofollow");
+  sent = "";
+  await (t as any).routes["GET /meet/:token"]({ params: { token: "<script>" } }, res);
+  assert.ok(sent.includes('location.replace("/")'));
 });
