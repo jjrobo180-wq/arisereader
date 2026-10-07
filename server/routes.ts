@@ -8,6 +8,8 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
+import { registerTimedCompetitionRoutes } from "./timedCompetition";
+import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
@@ -9596,6 +9598,44 @@ Important:
       console.error("[teacher-scenes] delete failed:", error?.message);
       res.status(503).json({ message: "Could not delete that Scene." });
     }
+  });
+
+  // A short competition's own leaderboard (the Fall Break Competition): only points earned between its start and its end.
+  registerTimedCompetitionRoutes(app, {
+    now: () => Date.now(),
+    loadRows: async (competition) => {
+      const { startMs, endMs } = competitionWindow(competition);
+      const from = new Date(startMs).toISOString(), to = new Date(endMs).toISOString();
+      // Supabase hands back 1,000 rows at a time, so a busy competition is read in pages.
+      const all = async (page: (lo: number, hi: number) => PromiseLike<any>) => {
+        const out: any[] = [];
+        for (let lo = 0; ; lo += 1000) {
+          const { data, error } = await page(lo, lo + 999);
+          if (error) throw new Error(error.message);
+          out.push(...(data || []));
+          if (!data || data.length < 1000) return out;
+        }
+      };
+      const [quizzes, eyeGaze, customEyeGaze, awards] = await Promise.all([
+        all((lo, hi) => supabase.from("attempts").select("user_id, book_id, points_earned, score, total, completed_at").gte("completed_at", from).lt("completed_at", to).order("id").range(lo, hi)),
+        all((lo, hi) => supabase.from("eye_gaze_attempts").select("user_id, score, total, completed_at").gte("completed_at", from).lt("completed_at", to).order("id").range(lo, hi)),
+        all((lo, hi) => supabase.from("custom_eye_gaze_attempts").select("user_id, score, total, completed_at").eq("status", "completed").gte("completed_at", from).lt("completed_at", to).order("id").range(lo, hi)),
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+          ? all((lo, hi) => getAdminSupabase().from("manual_point_awards").select("student_id, points, earned_on, created_at").gte("earned_on", competition.start.date).lte("earned_on", competition.end.date).order("id").range(lo, hi))
+          : Promise.resolve([] as any[]),
+      ]);
+      return {
+        quizzes: quizzes.map((a: any) => ({ userId: Number(a.user_id), at: a.completed_at, points: a.points_earned, score: a.score, total: a.total, bookId: a.book_id })),
+        eyeGaze: [...eyeGaze, ...customEyeGaze].map((a: any) => ({ userId: Number(a.user_id), at: a.completed_at, score: a.score, total: a.total })),
+        awards: awards.map((a: any) => ({ userId: Number(a.student_id), points: a.points, earnedOn: a.earned_on, at: a.created_at })),
+      };
+    },
+    loadStudents: async (ids) => {
+      if (!ids.length) return [];
+      const { data, error } = await supabase.from("users").select("id, username, display_name, role, is_admin, archived_at, is_eye_gaze_user").in("id", ids);
+      if (error) throw new Error(error.message);
+      return (data || []).map((u: any) => ({ id: Number(u.id), username: u.username, displayName: u.display_name, role: u.role, isAdmin: !!u.is_admin, archived: !!u.archived_at, isEyeGazeUser: !!u.is_eye_gaze_user }));
+    },
   });
 
   // A teacher or the admin emails a student's parent (who needs no account yet) about the program and how to sign up.

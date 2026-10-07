@@ -100,6 +100,7 @@ const Tutorial = lazyPage(() => import("./pages/Tutorial"));
 const LeaderboardPage = lazyPage(() => import("./pages/LeaderboardPage"));
 const StudentProgress = lazyPage(() => import("./pages/StudentProgress"));
 const Competition = lazyPage(() => import("./pages/Competition"));
+const TimedCompetition = lazyPage(() => import("./pages/TimedCompetition"));
 const Polls = lazyPage(() => import("./pages/Polls"));
 const CoursePage = lazyPage(() => import("./pages/CoursePage"));
 const ReadingAssessment = lazyPage(() => import("./pages/ReadingAssessment"));
@@ -391,6 +392,10 @@ function AppRoutes() {
           : user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
             ? <ProtectedRoute><StudentProgress /></ProtectedRoute>
             : <LeaderboardPage />}
+      </Route>
+      {/* A short competition with its own leaderboard: www.arisereader.com/#/fall-break */}
+      <Route path="/fall-break">
+        <TimedCompetition slug="fall-break" />
       </Route>
       <Route path="/competition">
         {isEyeGazeStudent ? <Redirect to="/eye-gaze-games" replace /> : <Competition />}
