@@ -7,6 +7,7 @@ import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, T
 import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
+import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability } from "./HubAvailability";
 import { FIT_WORDS, fitOption, type Fit, type FreeWindow } from "@shared/availability";
@@ -79,12 +80,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
   useEffect(() => { if (start) { setComposing(start); onStarted(); } }, [start]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function booked(poll: PollView, option: PollView["options"][number], told: number, selfSend = false) {
-    setWorkspace((prev) => {
-      const meetings = poll.hubMeetingId ? prev.meetings.map((m) => (m.id === poll.hubMeetingId ? { ...m, date: option.date } : m)) : prev.meetings;
-      const already = prev.events.some((e) => e.title === poll.title && e.date === option.date && e.start === option.start);
-      const events = already ? prev.events : [...prev.events, { id: makeId(), title: poll.title, date: option.date, start: option.start, end: option.end, location: poll.location, notes: "Time chosen with a meeting poll" }];
-      return { ...prev, meetings, events };
-    });
+    setWorkspace((prev) => bookMeeting(prev, poll.hubMeetingId, { title: poll.title, location: poll.location }, option, makeId));
     setNotice(selfSend
       ? `Booked ${option.label}. It's on your calendar. Use the window that opened to tell everyone from your own email or phone.`
       : `Booked ${option.label}. It's on your calendar${told ? ` and ${told} ${told === 1 ? "person was" : "people were"} told.` : "."}`);
@@ -165,7 +161,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [title, setTitle] = useState(initial.title);
   const [location, setLocation] = useState("");
   const [message, setMessage] = useState("");
-  const [senderName, setSenderName] = useState(workspace.profile.senderName || account.name);
+  const [senderName, setSenderName] = useState(cleanSenderName(workspace.profile.senderName || account.name));
   const [replyTo, setReplyTo] = useState(workspace.profile.replyEmail || account.email);
   const [times, setTimes] = useState([blankTime(), blankTime()]);
   const team = workspace.spedContacts.filter((c) => c.email);

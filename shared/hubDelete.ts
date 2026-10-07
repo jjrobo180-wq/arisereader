@@ -68,10 +68,15 @@ export function deleteRow(workspace: Workspace, key: keyof Workspace, rowId: str
     const scores = take(next, "gradeScores", (row) => row?.assignmentId === rowId);
     if (scores.part) { next = scores.next; parts.push(scores.part); }
   }
+  // A meeting's booked time on the calendar goes with it.
+  if (key === "meetings") {
+    const events = take(next, "events", (row) => row?.meetingId === rowId);
+    if (events.part) { next = events.next; parts.push(events.part); }
+  }
   const row = main.part.rows[0].row;
   const title = clip(titleOf(key, row));
   const what = WHAT[key] || "item";
-  const extra = parts.length > 1 ? ` and its ${parts[1].rows.length === 1 ? "score" : `${parts[1].rows.length} scores`}` : "";
+  const extra = key === "assignments" && parts.length > 1 ? ` and its ${parts[1].rows.length === 1 ? "score" : `${parts[1].rows.length} scores`}` : "";
   return { workspace: next, deleted: { label: `Deleted ${what}${title ? ` “${title}”` : ""}${extra}`, parts } };
 }
 

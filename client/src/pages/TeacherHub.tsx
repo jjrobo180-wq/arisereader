@@ -25,15 +25,21 @@ import {
   StickyNote,
   Trash2,
   Upload,
+  Flag,
+  Repeat,
   Users,
   WandSparkles,
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { PLANS, usd } from "@shared/plans";
+import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
+import { TASK_SORTS, arrangeTasks, taskCounts, toggleTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
+import { cleanSenderName } from "@shared/hubMeetings";
+import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
-  HUB_IMPORT, HUB_IMPORT_KINDS, addStudent, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
-  type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Workspace,
+  HUB_IMPORT, HUB_IMPORT_KINDS, addStudent, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
+  type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Task, type Workspace,
 } from "@shared/teacherHub";
 import { deleteRow, deleteStudentRecords, studentRecordCount, undoDelete, type Deleted } from "@shared/hubDelete";
 import { BottomStack, useToasts, type ToastAction } from "@/components/teacher-hub/HubToast";
@@ -522,7 +528,7 @@ function TeacherHubPage() {
                       {upcomingMeetings.map((m) => (
                         <button key={m.id} onClick={() => setTab("iep")} className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-3 py-3 text-left hover:bg-slate-100">
                           <div><div className="font-medium">{m.student || "Student"}</div><div className="text-xs text-slate-500">{m.type}</div></div>
-                          <div className="text-sm font-semibold text-slate-700">{m.date || "No date"}</div>
+                          <div className="text-sm font-semibold text-slate-700">{m.date ? friendlyDate(m.date, TODAY()) : "No date"}{m.time ? ` · ${clock12(m.time)}` : ""}</div>
                         </button>
                       ))}
                     </div>
@@ -534,8 +540,8 @@ function TeacherHubPage() {
                     <div className="space-y-2">
                       {dueTasks.map((task) => (
                         <label key={task.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
-                          <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => update("tasks", workspace.tasks.map((t) => t.id === task.id ? { ...t, done: !t.done } : t))} />
-                          <div className="min-w-0 flex-1"><div className="truncate font-medium">{task.title}</div><div className="text-xs text-slate-500">{task.recurring || "One-time"} {task.dueDate ? `· due ${task.dueDate}` : ""}</div></div>
+                          <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, task.id, TODAY()).tasks }))} />
+                          <div className="min-w-0 flex-1"><div className="truncate font-medium">{task.title}</div><div className="text-xs text-slate-500">{task.recurring || "One-time"}{task.dueDate ? ` · ${dueState(task.dueDate, TODAY()) === "overdue" ? "overdue, " : "due "}${friendlyDate(task.dueDate, TODAY())}` : ""}</div></div>
                         </label>
                       ))}
                     </div>
@@ -557,10 +563,10 @@ function TeacherHubPage() {
 
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
-          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} openGuide={(guideId) => { setGuideId(guideId); setTab("guide"); }} account={{ name: String((user as any)?.displayName || (user as any)?.username || ""), email: String((user as any)?.email || "") }} />}
+          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} openGuide={(guideId) => { setGuideId(guideId); setTab("guide"); }} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
-          {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
+          {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} />}
           {tab === "notes" && <Notes workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
@@ -715,12 +721,12 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
         <p className="text-sm text-slate-600">Tap “Add meeting”. A short guide walks you through the steps, from picking a time with everyone to sending the final copy. You can skip any step and come back to it.</p>
       </Card>
       <Card title="Timeline">
-        {workspace.meetings.length ? <div className="space-y-2">{[...workspace.meetings].sort((a,b)=>dateValue(a.date)-dateValue(b.date)).map((m) => (
+        {workspace.meetings.length ? <div className="space-y-2">{[...workspace.meetings].sort((a,b)=>Number(a.done)-Number(b.done)||dateValue(a.date)-dateValue(b.date)).map((m) => (
           <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 sm:items-center">
             <input type="checkbox" className="h-5 w-5 shrink-0" checked={m.done} onChange={() => setWorkspace((p) => ({ ...p, meetings: p.meetings.map((x) => x.id === m.id ? { ...x, done: !x.done } : x) }))} />
             <div className="min-w-0 flex-1">
               <div className={`font-semibold ${m.done ? "text-slate-400 line-through" : ""}`}>{m.student} · {m.type}</div>
-              <div className="mt-1 text-sm text-slate-500">{m.date || "No date"}{m.notes ? ` · ${m.notes}` : ""}</div>
+              <div className="mt-1 text-sm text-slate-500">{m.date ? `${friendlyDate(m.date, TODAY())}${m.date >= TODAY() ? ` (${relativeDays(m.date, TODAY())})` : ""}` : "No date"}{m.time ? ` · ${clock12(m.time)}` : ""}{m.room ? ` · ${m.room}` : ""}{m.notes ? ` · ${m.notes}` : ""}</div>
               <button type="button" onClick={() => setWizard({ step: firstOpen(m.plan), meetingId: m.id })} className="mt-1 mr-4 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="open-steps">{stepsDone(m.plan) ? `Steps: ${stepsDone(m.plan)} of ${STEP_COUNT} done` : "Start the steps"}</button>
               {!m.done && <button type="button" onClick={() => setPollStart({ meetingId: m.id, title: `${m.type}${m.student ? ` for ${m.student.split(" ")[0]}` : ""}` })} className="mt-1 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Find a time with everyone</button>}
             </div>
@@ -768,31 +774,111 @@ function Lessons({ workspace, setWorkspace, remove }: SectionProps) {
   );
 }
 
-function Tasks({ workspace, setWorkspace, remove, makeId }: SectionProps & { makeId: () => string }) {
-  const [form, setForm] = useState({ title: "", dueDate: "", recurring: "" });
-  function add(e: FormEvent) {
+const DUE_STYLE: Record<DueState, string> = { none: "bg-slate-100 text-slate-500", overdue: "bg-red-100 text-red-700", today: "bg-amber-100 text-amber-800", soon: "bg-sky-100 text-sky-800", later: "bg-slate-100 text-slate-600" };
+
+function DueChip({ date, today }: { date: string; today: string }) {
+  if (!date) return null;
+  const state = dueState(date, today);
+  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}</span>;
+}
+
+type TaskDraft = { id: string | null; title: string; dueDate: string; recurring: string; priority: boolean };
+
+function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps & { makeId: () => string; toast: (text: string, actions?: ToastAction[]) => void }) {
+  const today = TODAY();
+  const [filter, setFilter] = useState<TaskFilter>("open");
+  const [sort, setSort] = useState<TaskSort>("due");
+  const [search, setSearch] = useState("");
+  const [quick, setQuick] = useState("");
+  const [draft, setDraft] = useState<TaskDraft | null>(null);
+  const counts = taskCounts(workspace.tasks, today);
+  const shown = useMemo(() => arrangeTasks(workspace.tasks, filter, sort, search), [workspace.tasks, filter, sort, search]);
+
+  function quickAdd(e: FormEvent) {
     e.preventDefault();
-    if (!form.title.trim()) return;
-    setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: id(), ...form, done: false }] }));
-    setForm({ title: "", dueDate: "", recurring: "" });
+    const title = quick.trim();
+    if (!title) return;
+    setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: id(), title, dueDate: "", recurring: "", done: false }] }));
+    setQuick("");
   }
+  function toggle(task: Task) {
+    const before = workspace.tasks;
+    const result = toggleTask(before, task.id, today);
+    setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, task.id, today).tasks }));
+    if (result.rolledTo) toast(`Done. Next one is due ${friendlyDate(result.rolledTo, today)}.`, [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => (t.id === task.id ? { ...t, dueDate: task.dueDate, lastDone: task.lastDone } : t)) })) }]);
+  }
+  function save(e: FormEvent) {
+    e.preventDefault();
+    if (!draft || !draft.title.trim()) return;
+    const fields = { title: draft.title.trim(), dueDate: draft.dueDate, recurring: draft.recurring, ...(draft.priority ? { priority: "high" as const } : {}) };
+    setWorkspace((p) => ({
+      ...p,
+      tasks: draft.id
+        ? p.tasks.map((t) => { if (t.id !== draft.id) return t; const { priority: _drop, ...rest } = t; return { ...rest, ...fields }; })
+        : [...p.tasks, { id: id(), ...fields, done: false }],
+    }));
+    setDraft(null);
+  }
+  const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
+
   return (
-    <Card title="Reminders & to-dos">
-      <form onSubmit={add} className="mb-5 grid gap-3 md:grid-cols-4">
-        <Field placeholder="Task" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="md:col-span-2" required />
-        <Field type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-        <Select value={form.recurring} onChange={(e) => setForm({ ...form, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select>
-        <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add task</PrimaryButton>
-      </form>
-      {workspace.tasks.length ? <div className="space-y-2">{workspace.tasks.map((task) => (
-        <div key={task.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-          <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => t.id === task.id ? { ...t, done: !t.done } : t) }))} />
-          <div className="min-w-0 flex-1"><div className={task.done ? "text-slate-400 line-through" : "font-medium"}>{task.title}</div><div className="text-xs text-slate-500">{task.dueDate || "No due date"} · {task.recurring || "One-time"}</div></div>
-          <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
-          <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("tasks", task.id)}><Trash2 className="h-4 w-4" /></button>
+    <>
+      <Card title="Reminders & to-dos" right={<PrimaryButton onClick={() => setDraft({ id: null, title: quick, dueDate: "", recurring: "", priority: false })}><Plus className="h-4 w-4" /> New task</PrimaryButton>}>
+        <form onSubmit={quickAdd} className="flex gap-2">
+          <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} />
+          <PrimaryButton type="submit" disabled={!quick.trim()}>Add</PrimaryButton>
+        </form>
+        {(counts.overdue > 0 || counts.today > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2 text-sm" data-testid="task-alerts">
+            {counts.overdue > 0 && <span className="rounded-full bg-red-100 px-3 py-1 font-semibold text-red-700">{counts.overdue} overdue</span>}
+            {counts.today > 0 && <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-800">{counts.today} due today</span>}
+          </div>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Show">
+          <button type="button" className={chip(filter === "open")} aria-pressed={filter === "open"} onClick={() => setFilter("open")}>To do <span className="opacity-70">{counts.open}</span></button>
+          <button type="button" className={chip(filter === "done")} aria-pressed={filter === "done"} onClick={() => setFilter("done")}>Done <span className="opacity-70">{counts.done}</span></button>
+          <button type="button" className={chip(filter === "all")} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All</button>
         </div>
-      ))}</div> : <Empty>No tasks yet.</Empty>}
-    </Card>
+        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
+          <Field type="search" placeholder="Search to-dos" aria-label="Search to-dos" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Select aria-label="Sort to-dos" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)}>{TASK_SORTS.map((o) => <option key={o.id} value={o.id}>Sort: {o.label}</option>)}</Select>
+        </div>
+      </Card>
+      <Card>
+        {shown.length ? <ul className="space-y-2">{shown.map((task) => (
+          <li key={task.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3" data-testid="task-row">
+            <input type="checkbox" className="h-6 w-6 shrink-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => toggle(task)} />
+            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setDraft({ id: task.id, title: task.title, dueDate: task.dueDate, recurring: task.recurring, priority: task.priority === "high" })} aria-label={`Edit ${task.title}`}>
+              <div className={task.done ? "break-words text-slate-400 line-through" : "break-words font-medium"}>{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                {!task.done && <DueChip date={task.dueDate} today={today} />}
+                {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}</span>}
+                {!task.dueDate && !task.done && <span>No due date</span>}
+                {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
+                {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
+              </div>
+            </button>
+            <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
+            <button aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("tasks", task.id)}><Trash2 className="h-4 w-4" /></button>
+          </li>
+        ))}</ul> : <Empty>{workspace.tasks.length ? (filter === "open" ? "Nothing left to do. Nice work." : "No to-dos match.") : "No tasks yet. Type one above and press Enter."}</Empty>}
+      </Card>
+      {draft && (
+        <HubModal title={draft.id ? "Edit to-do" : "New to-do"} onClose={() => setDraft(null)} size="sm"
+          footer={<div className="flex gap-2"><PrimaryButton type="submit" onClick={() => (document.getElementById("task-form") as HTMLFormElement | null)?.requestSubmit()}>Save</PrimaryButton><GhostButton onClick={() => setDraft(null)}>Cancel</GhostButton></div>}>
+          <form id="task-form" onSubmit={save} className="grid gap-3">
+            <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required maxLength={200} /></Labeled>
+            <Labeled label="Due"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /></Labeled>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Quick due dates">
+              {[["Today", today], ["Tomorrow", addDays(today, 1)], ["Next week", addDays(today, 7)]].map(([label, value]) => <button key={label} type="button" className={chip(draft.dueDate === value)} onClick={() => setDraft({ ...draft, dueDate: value })}>{label}</button>)}
+              {draft.dueDate && <button type="button" className={chip(false)} onClick={() => setDraft({ ...draft, dueDate: "" })}>No date</button>}
+            </div>
+            <Labeled label="Repeats"><Select value={draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select></Labeled>
+            <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /> Mark as important</label>
+          </form>
+        </HubModal>
+      )}
+    </>
   );
 }
 
