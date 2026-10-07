@@ -34,7 +34,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
   const out: HubReminder[] = [];
 
   for (const event of workspace.events || []) {
-    if (event.date !== date || !event.start) continue;
+    if (event.date !== date || !event.start || event.done) continue;
     const start = toMinutes(event.start);
     if (start === null || minutes >= start || start - minutes > EVENT_HEADS_UP_MINUTES) continue;
     const key = `event:${event.id}:${event.date}:${event.start}`;

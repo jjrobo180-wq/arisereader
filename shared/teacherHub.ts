@@ -54,6 +54,8 @@ export type HubEvent = {
   calendarId?: string;
   /** Set when the event is the booked time of a meeting; the meeting owns it. */
   meetingId?: string;
+  /** The teacher checked it off: it happened. */
+  done?: boolean;
 };
 
 /** A calendar the teacher connected by its link (Google, Outlook, Apple or any calendar feed). */
@@ -567,7 +569,10 @@ export function addStudent(workspace: Workspace, input: Omit<Student, "id">, mak
 /** Puts a calendar's fresh events in place of its old ones. Events the teacher typed in are untouched. */
 export function replaceCalendarEvents(workspace: Workspace, calendar: HubCalendar, events: Omit<HubEvent, "id" | "calendarId">[], makeId: () => string): Workspace {
   const kept = workspace.events.filter((event) => event.calendarId !== calendar.id);
-  const fresh = events.slice(0, HUB_IMPORT_LIMITS.calendarEvents).map((event) => ({ id: makeId(), ...event, calendarId: calendar.id }));
+  // A fresh read hands every event a new id, so a check mark is carried over by what the event is.
+  const key = (e: Pick<HubEvent, "title" | "date" | "start">) => `${e.title}\n${e.date}\n${e.start}`;
+  const checked = new Set(workspace.events.filter((e) => e.calendarId === calendar.id && e.done).map(key));
+  const fresh = events.slice(0, HUB_IMPORT_LIMITS.calendarEvents).map((event): HubEvent => ({ id: makeId(), ...event, calendarId: calendar.id, ...(checked.has(key(event)) ? { done: true } : {}) }));
   const calendars = workspace.calendars.some((c) => c.id === calendar.id)
     ? workspace.calendars.map((c) => (c.id === calendar.id ? calendar : c))
     : [...workspace.calendars, calendar];

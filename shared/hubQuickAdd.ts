@@ -74,7 +74,8 @@ export function updateEvent(workspace: Workspace, eventId: string, form: EventEd
   if (!fields || !old || old.calendarId) return workspace;
   return {
     ...workspace,
-    events: workspace.events.map((e) => (e.id === eventId ? { ...e, ...fields } : e)),
+    // Moved to another day or time, it has not happened yet, so its check mark comes off.
+    events: workspace.events.map((e) => { if (e.id !== eventId) return e; const { done, ...rest } = e; return { ...rest, ...fields, ...(done && e.date === fields.date && e.start === fields.start ? { done } : {}) }; }),
     pins: (workspace.pins || []).map((pin) => (pin.kind === "event" && pin.refId === eventId && pin.snap ? { ...pin, snap: { title: fields.title, date: fields.date, start: fields.start } } : pin)),
   };
 }
