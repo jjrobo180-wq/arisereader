@@ -81,17 +81,15 @@ export function weeklyMinutes(plan: Pick<ServicePlan, "days" | "minutesPerWeek">
   return days.length ? days.reduce((n, d) => n + guide[d]!, 0) : Math.max(0, Number(plan.minutesPerWeek) || 0);
 }
 
-/** "Mon, Tue, Thu · 20 min each" or "60 min a week": the plan in a few words. */
-export function planText(plan: Pick<ServicePlan, "days" | "minutesPerWeek" | "start" | "end">): string {
+/** "Mon, Tue, Thu · 20 min each · Block 2" or "60 min a week": the plan in a few words. `block` is the name of its block, if it is in one. */
+export function planText(plan: Pick<ServicePlan, "days" | "minutesPerWeek">, block = ""): string {
   const guide = cleanDayGuide(plan.days);
   const days = WEEK_DAYS.filter((d) => guide[d]);
-  if (!days.length) return `${weeklyMinutes(plan)} min a week`;
+  const where = block ? ` · ${block}` : "";
+  if (!days.length) return `${weeklyMinutes(plan)} min a week${where}`;
   const amounts = days.map((d) => guide[d]!);
   const same = amounts.every((m) => m === amounts[0]);
-  const time = minutesBetween(plan.start, plan.end) !== null ? ` · ${plan.start}–${plan.end}` : "";
-  return same
-    ? `${days.join(", ")} · ${amounts[0]} min${days.length > 1 ? " each" : ""}${time}`
-    : `${days.map((d) => `${d} ${guide[d]}`).join(", ")} min${time}`;
+  return (same ? `${days.join(", ")} · ${amounts[0]} min${days.length > 1 ? " each" : ""}` : `${days.map((d) => `${d} ${guide[d]}`).join(", ")} min`) + where;
 }
 
 /**
