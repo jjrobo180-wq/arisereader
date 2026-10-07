@@ -27,6 +27,7 @@ import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
 import BookPointsDialog from "@/components/admin/BookPointsDialog";
+import BookPointsSwitch from "@/components/admin/BookPointsSwitch";
 import { ARISE_POINTS, cleanPages, pointsForBook } from "@shared/bookPoints";
 // charts are only downloaded when the Stats tab is opened
 const AdminStats = lazy(() => import("@/components/admin/AdminStats"));
@@ -3386,6 +3387,7 @@ Generate exactly 10 questions.`;
         title={`Books & covers (${books.length})`}
         actions={<Button size="sm" onClick={() => setShowAddQuiz(true)}><PlusCircle className="h-4 w-4" />Add a quiz</Button>}
       >
+        <BookPointsSwitch token={token || getTokenFromCookie()} onChanged={fetchBooks} />
         {/* Book search + sort */}
         <div className="mb-4 flex gap-2">
           <div className="flex-1 relative">

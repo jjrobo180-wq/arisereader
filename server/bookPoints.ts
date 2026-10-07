@@ -130,13 +130,21 @@ export async function setBookPointsByAdmin(store: BookPointsStore, bookId: numbe
 
 // ─── The one-time switch to A.R.I.S.E. points ───────────────────────────────
 
-/** The setting that says the library has been switched (and what the switch did). */
+/** The setting that says where the switch has got to (and what it did). */
 export const BOOK_POINTS_SYSTEM_KEY = "book_points_system";
-const SYSTEM = "arise-1";
-/** A switch that started this recently is taken to be still running somewhere. */
-const RUNNING_FOR_MS = 30 * 60_000;
+/** Raised when the switch's rules change, so every site runs the new pass once. */
+const SYSTEM = "arise-2";
+/** A running switch checks in at least this often... */
+const CHECK_IN_MS = 15_000;
+/** ...so one that has been quiet this long was cut off (the server restarted) and can be picked up again. */
+const QUIET_FOR_MS = 3 * 60_000;
 
-export type SwitchSummary = { system: string; state: "running" | "stopped" | "done"; at: string; books: number; attempts: number; students: number };
+export type SwitchSummary = {
+  system: string; state: "running" | "stopped" | "done"; at: string;
+  books: number; attempts: number; students: number;
+  /** Why it stopped, when it did. */
+  error?: string;
+};
 
 /**
  * Which books the switch changes, and to what. Only a book still carrying a
@@ -148,7 +156,9 @@ export function planSwitch(books: BookForSwitch[], setByAdmin: Record<string, nu
   const changes: { id: number; from: number; to: number }[] = [];
   for (const book of books) {
     const from = Number(book.points_value) || 0;
-    const copied = book.ar_match_status === "exact" || book.ar_match_status === "formula";
+    // Marked as matched, or simply still worth exactly the number that was copied.
+    const copied = book.ar_match_status === "exact" || book.ar_match_status === "formula"
+      || (book.ar_points !== null && book.ar_points !== "" && Number(book.ar_points) === from);
     const to = copied ? convertedPoints(book.ar_points) : null;
     if (from <= 0 || to === null || to === from || String(book.id) in setByAdmin) continue;
     changes.push({ id: Number(book.id), from, to });
@@ -156,32 +166,82 @@ export function planSwitch(books: BookForSwitch[], setByAdmin: Record<string, nu
   return changes;
 }
 
+async function savedSwitch(store: BookPointsStore): Promise<Partial<SwitchSummary>> {
+  try {
+    const saved = JSON.parse((await store.setting(BOOK_POINTS_SYSTEM_KEY)) || "{}");
+    return saved && typeof saved === "object" && saved.system === SYSTEM ? saved : {};
+  } catch { return {}; }
+}
+
+const stillRunning = (saved: Partial<SwitchSummary>, now: number) =>
+  saved.state === "running" && now - (Date.parse(String(saved.at)) || 0) < QUIET_FOR_MS;
+
+export type SwitchStatus = {
+  /** done: finished. running: at work now. waiting: not finished and not at work (it will pick up, or can be started). stopped: it hit a problem. */
+  state: "done" | "running" | "waiting" | "stopped";
+  at: string | null;
+  books: number; attempts: number; students: number;
+  /** Books still on their old points. */
+  left: number;
+  error?: string;
+};
+
+/** Where the switch stands, for the admin's Library. */
+export async function switchStatus(store: BookPointsStore, now: () => number = Date.now): Promise<SwitchStatus> {
+  const saved = await savedSwitch(store);
+  const left = planSwitch(await store.allBooks(), await adminBookPoints(store)).length;
+  const state = saved.state === "done" ? "done" : stillRunning(saved, now()) ? "running" : saved.state === "stopped" ? "stopped" : "waiting";
+  return {
+    state, at: saved.at || null, left,
+    books: Number(saved.books) || 0, attempts: Number(saved.attempts) || 0, students: Number(saved.students) || 0,
+    ...(state === "stopped" && saved.error ? { error: saved.error } : {}),
+  };
+}
+
 /**
  * Switches the whole library to A.R.I.S.E. points, once. Students who already
- * passed a book are moved to its new value. Safe to start again after a stop:
- * a book is only marked with its new value after its students are corrected.
+ * passed a book are moved to its new value.
+ *
+ * It answers null when there is nothing for this call to do: the switch has
+ * finished, or it is at work right now somewhere else. A switch that was cut
+ * off part-way (the server restarted) is picked up where it stopped; that is
+ * safe because a book is only given its new value after its students are
+ * corrected, so nobody is paid twice.
  */
 export async function switchLibraryToArisePoints(store: BookPointsStore, now: () => number = Date.now): Promise<SwitchSummary | null> {
-  let saved: Partial<SwitchSummary> = {};
-  try { saved = JSON.parse((await store.setting(BOOK_POINTS_SYSTEM_KEY)) || "{}") || {}; } catch { saved = {}; }
-  if (saved.system === SYSTEM && saved.state === "done") return null;
-  if (saved.system === SYSTEM && saved.state === "running" && now() - (Date.parse(String(saved.at)) || 0) < RUNNING_FOR_MS) return null;
+  const saved = await savedSwitch(store);
+  if (saved.state === "done" || stillRunning(saved, now())) return null;
 
-  const summary: SwitchSummary = { system: SYSTEM, state: "running", at: new Date(now()).toISOString(), books: 0, attempts: 0, students: 0 };
-  await store.saveSetting(BOOK_POINTS_SYSTEM_KEY, JSON.stringify(summary));
+  // What an earlier, cut-off run already did is kept in the count.
+  const summary: SwitchSummary = {
+    system: SYSTEM, state: "running", at: new Date(now()).toISOString(),
+    books: Number(saved.books) || 0, attempts: Number(saved.attempts) || 0, students: Number(saved.students) || 0,
+  };
+  const save = () => store.saveSetting(BOOK_POINTS_SYSTEM_KEY, JSON.stringify(summary));
+  await save();
   try {
-    return await runSwitch(store, summary, now);
-  } catch (error) {
+    return await runSwitch(store, summary, now, save);
+  } catch (error: any) {
     // Not left marked as running, so the next try starts straight away.
-    await store.saveSetting(BOOK_POINTS_SYSTEM_KEY, JSON.stringify({ ...summary, state: "stopped" })).catch(() => {});
+    summary.state = "stopped";
+    summary.error = String(error?.message || error).slice(0, 300);
+    await save().catch(() => {});
     throw error;
   }
 }
 
-async function runSwitch(store: BookPointsStore, summary: SwitchSummary, now: () => number): Promise<SwitchSummary> {
+async function runSwitch(store: BookPointsStore, summary: SwitchSummary, now: () => number, save: () => Promise<void>): Promise<SwitchSummary> {
   const changes = planSwitch(await store.allBooks(), await adminBookPoints(store));
   const earned = await store.booksWithPoints();
+  const before = summary.students;
   const students = new Set<number>();
+  let checkedIn = now();
+  const checkIn = async () => {
+    if (now() - checkedIn < CHECK_IN_MS) return;
+    checkedIn = now();
+    summary.at = new Date(checkedIn).toISOString();
+    await save();
+  };
 
   // Books students hold points for: correct the students first, then the book.
   for (const change of changes.filter((c) => earned.has(c.id))) {
@@ -192,26 +252,65 @@ async function runSwitch(store: BookPointsStore, summary: SwitchSummary, now: ()
       students.add(userId);
     }
     await store.setBookPoints(change.id, change.to);
+    summary.books += 1;
     summary.attempts += plan.attempts.length;
+    summary.students = before + students.size;
+    await checkIn();
   }
   // Everything else is only the book's own number, so those go in a few large steps.
   for (const points of ARISE_POINTS) {
     const ids = changes.filter((c) => !earned.has(c.id) && c.to === points).map((c) => c.id);
-    if (ids.length) await store.setManyBookPoints(ids, points);
+    if (!ids.length) continue;
+    await store.setManyBookPoints(ids, points);
+    summary.books += ids.length;
+    await checkIn();
   }
 
-  summary.books = changes.length;
-  summary.students = students.size;
   summary.state = "done";
   summary.at = new Date(now()).toISOString();
-  await store.saveSetting(BOOK_POINTS_SYSTEM_KEY, JSON.stringify(summary));
+  delete summary.error;
+  await save();
   return summary;
+}
+
+/**
+ * Keeps the switch going until it has finished: starts it, and when it could
+ * not finish (it is at work elsewhere, was cut off, or hit a problem) looks
+ * again a little later. Returns a function that starts a try straight away.
+ */
+export function keepSwitching(
+  store: BookPointsStore,
+  onDone: (summary: SwitchSummary) => void,
+  options: { againMs?: number; tries?: number; later?: (run: () => void, ms: number) => unknown; log?: (message: string) => void } = {},
+): () => void {
+  const againMs = options.againMs ?? 2 * 60_000;
+  const later = options.later ?? ((run, ms) => setTimeout(run, ms));
+  const log = options.log ?? ((message) => console.error(message));
+  let triesLeft = options.tries ?? 90;
+  let waiting = false;
+  const again = () => {
+    if (waiting || triesLeft <= 0) return;
+    waiting = true;
+    later(() => { waiting = false; attempt(); }, againMs);
+  };
+  const attempt = () => {
+    triesLeft -= 1;
+    void switchLibraryToArisePoints(store)
+      .then(async (summary) => {
+        if (summary) return onDone(summary);
+        if ((await savedSwitch(store)).state !== "done") again();
+      })
+      .catch((error: any) => { log(`[book-points] switch stopped: ${error?.message || error}`); again(); });
+  };
+  return attempt;
 }
 
 export type BookPointsDeps = {
   store: BookPointsStore;
   /** Forgets cached books, students and leaderboards after points move. */
   clearCaches(): void;
+  /** Starts a try at the one-time switch now (it does nothing if the switch is finished or already at work). */
+  startSwitch?(): void;
 };
 
 export function registerBookPointsRoutes(app: Express, auth: RequestHandler, admin: RequestHandler, deps: BookPointsDeps) {
@@ -226,6 +325,31 @@ export function registerBookPointsRoutes(app: Express, auth: RequestHandler, adm
     } catch (error: any) {
       console.error("[book-points] could not set points", error?.message);
       return res.status(500).json({ message: "Could not save the points. Try again in a moment." });
+    }
+  });
+
+  // Admin: where the one-time switch to A.R.I.S.E. points stands.
+  app.get("/api/admin/book-points/switch", auth, admin, async (_req: any, res) => {
+    try {
+      res.set("Cache-Control", "no-store");
+      return res.json(await switchStatus(deps.store));
+    } catch (error: any) {
+      console.error("[book-points] could not read the switch", error?.message);
+      return res.status(500).json({ message: "Could not check the books' points. Try again in a moment." });
+    }
+  });
+
+  // Admin: start (or pick up) the switch now. It carries on in the background.
+  app.post("/api/admin/book-points/switch", auth, admin, async (_req: any, res) => {
+    try {
+      deps.startSwitch?.();
+      // A moment for it to mark itself as running, so the answer says so.
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      res.set("Cache-Control", "no-store");
+      return res.json(await switchStatus(deps.store));
+    } catch (error: any) {
+      console.error("[book-points] could not start the switch", error?.message);
+      return res.status(500).json({ message: "Could not start it. Try again in a moment." });
     }
   });
 }
