@@ -728,25 +728,44 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function Meetings({ workspace, setWorkspace, remove, studentOptions, token, makeId, account }: SectionProps & { studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
   const [pollStart, setPollStart] = useState<PollStart>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ student: "", type: "Annual IEP", date: "", notes: "" });
+  useEffect(() => {
+    if (!addOpen) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setAddOpen(false); };
+    window.addEventListener("keydown", key);
+    const before = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
+  }, [addOpen]);
   function add(e: FormEvent) {
     e.preventDefault();
     setWorkspace((p) => ({ ...p, meetings: [...p.meetings, { id: id(), ...form, done: false }] }));
     setForm({ student: "", type: "Annual IEP", date: "", notes: "" });
+    setAddOpen(false);
   }
   return (
     <>
-      <Card title="IEP, reevaluation & meeting timeline">
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
-          <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
-          <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-            <option>Annual IEP</option><option>Reevaluation</option><option>Planning meeting</option><option>Parent meeting</option><option>Progress review</option><option>Other</option>
-          </Select>
-          <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>
-          <TextArea placeholder="Meeting notes / checklist" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="md:col-span-4" />
-        </form>
+      <Card title="IEP, reevaluation & meeting timeline" right={<PrimaryButton onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>}>
+        <p className="text-sm text-slate-600">Tap “Add meeting” to put an IEP, reevaluation or other meeting on your timeline.</p>
       </Card>
+      {addOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add meeting" data-testid="add-meeting-dialog" onMouseDown={(e) => { if (e.target === e.currentTarget) setAddOpen(false); }}>
+          <form onSubmit={add} className="grid max-h-[94dvh] w-full max-w-xl gap-3 overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold">Add meeting</h2>
+              <button type="button" onClick={() => setAddOpen(false)} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+            </div>
+            <Select aria-label="Student" value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required autoFocus>{studentOptions()}</Select>
+            <Select aria-label="Meeting type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <option>Annual IEP</option><option>Reevaluation</option><option>Planning meeting</option><option>Parent meeting</option><option>Progress review</option><option>Other</option>
+            </Select>
+            <Field aria-label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            <TextArea aria-label="Meeting notes" placeholder="Meeting notes / checklist" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>
+          </form>
+        </div>
+      )}
       <Card title="Timeline">
         {workspace.meetings.length ? <div className="space-y-2">{[...workspace.meetings].sort((a,b)=>dateValue(a.date)-dateValue(b.date)).map((m) => (
           <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 sm:items-center">
