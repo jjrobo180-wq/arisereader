@@ -86,3 +86,44 @@ export function openRanges(weekly: FreeWindow[], events: CalEvent[], date: strin
   }
   return ranges.filter(([a, b]) => b - a >= least).sort((x, y) => x[0] - y[0]).map(([a, b]) => ({ start: clockOf(a), end: clockOf(b) }));
 }
+
+/** One timed event placed on the day's timeline. Events that overlap sit side by side in `lanes` columns. */
+export type DayBlock<T> = { event: T; start: number; end: number; lane: number; lanes: number };
+export type DayTimeline<T> = { from: number; to: number; allDay: T[]; blocks: DayBlock<T>[] };
+
+/**
+ * One day laid out against the clock, for the timeline view. It runs over the teacher's usual day
+ * (`hours`), stretched to whole hours and to fit anything earlier or later. Times are minutes into the day.
+ * An event with no end time is drawn as an hour; a very short one is drawn as half an hour so it can be read.
+ */
+export function dayTimeline<T extends CalEvent>(events: T[], date: string, hours: { from: string; to: string }): DayTimeline<T> {
+  const todays = events.filter((e) => e.date === date);
+  const allDay = todays.filter((e) => mins(e.start) === null);
+  const timed = todays.filter((e) => mins(e.start) !== null).map((event) => {
+    const start = mins(event.start)!;
+    const end = mins(event.end);
+    return { event, start, end: Math.min(1440, Math.max(end !== null && end > start ? end : start + 60, start + 30)) };
+  }).sort((a, b) => a.start - b.start || b.end - a.end);
+
+  let from = mins(hours.from) ?? 450, to = mins(hours.to) ?? 960;
+  if (to <= from) { from = 450; to = 960; }
+  for (const t of timed) { from = Math.min(from, t.start); to = Math.max(to, t.end); }
+  from = Math.floor(from / 60) * 60;
+  to = Math.min(1440, Math.max(Math.ceil(to / 60) * 60, from + 60));
+
+  // Events that touch in time form a group; within a group each takes the first free column.
+  const blocks: DayBlock<T>[] = [];
+  let group: DayBlock<T>[] = [], laneEnds: number[] = [], groupEnd = -1;
+  const close = () => { for (const b of group) b.lanes = laneEnds.length; group = []; laneEnds = []; };
+  for (const t of timed) {
+    if (group.length && t.start >= groupEnd) close();
+    let lane = laneEnds.findIndex((end) => end <= t.start);
+    if (lane === -1) lane = laneEnds.length;
+    laneEnds[lane] = t.end;
+    groupEnd = Math.max(groupEnd, t.end);
+    const block = { ...t, lane, lanes: 1 };
+    group.push(block); blocks.push(block);
+  }
+  close();
+  return { from, to, allDay, blocks };
+}

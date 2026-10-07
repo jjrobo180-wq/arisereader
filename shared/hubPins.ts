@@ -52,7 +52,7 @@ export function resolvePins(ws: Pick<Workspace, "pins" | "tasks" | "events" | "m
       if (task) out.push({ pin, title: pin.label || task.title, detail: joined(task.dueDate ? `Due ${task.dueDate}` : "", task.recurring), done: task.done, item: { kind: "task", task } });
     } else if (pin.kind === "event") {
       const event = findEvent(ws, pin);
-      if (event) out.push({ pin, title: pin.label || event.title, detail: joined(event.date, clock(event), event.location), done: null, item: { kind: "event", event } });
+      if (event) out.push({ pin, title: pin.label || event.title, detail: joined(event.repeat ? `Repeats: ${event.repeat}` : event.date, clock(event), event.location), done: null, item: { kind: "event", event } });
     } else {
       const meeting = ws.meetings.find((m) => m.id === pin.refId);
       if (meeting) out.push({ pin, title: pin.label || joined(meeting.student, meeting.type), detail: meeting.date || "No date", done: meeting.done, item: { kind: "meeting", meeting } });

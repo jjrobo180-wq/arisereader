@@ -1,6 +1,7 @@
 // Teacher Hub reminders: what is worth a phone notification right now.
 //  - A morning summary (7:00 to noon, once a day) of what is on today.
 //  - A heads-up 15 minutes before an event that has a start time.
+import { calendarEvents } from "./hubHidden";
 import { clock12, type Workspace } from "./teacherHub";
 
 export type HubReminder = { key: string; title: string; body: string; url: string };
@@ -33,7 +34,9 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
   const { date, minutes } = localParts(nowMs, timeZone);
   const out: HubReminder[] = [];
 
-  for (const event of workspace.events || []) {
+  // Repeating events count on the days they fall on; hidden ones do not count at all.
+  const todays = calendarEvents(workspace, date, date);
+  for (const event of todays) {
     if (event.date !== date || !event.start || event.done) continue;
     const start = toMinutes(event.start);
     if (start === null || minutes >= start || start - minutes > EVENT_HEADS_UP_MINUTES) continue;
@@ -46,7 +49,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
   if (minutes >= MORNING_FROM_HOUR * 60 && minutes < MORNING_UNTIL_HOUR * 60) {
     const key = `morning:${date}`;
     if (!sent[key]) {
-      const events = (workspace.events || []).filter((e) => e.date === date);
+      const events = todays.filter((e) => e.date === date);
       const meetings = (workspace.meetings || []).filter((m) => !m.done && (m.date || "").slice(0, 10) === date);
       const tasks = (workspace.tasks || []).filter((t) => !t.done && t.dueDate && t.dueDate.slice(0, 10) <= date);
       const overdue = tasks.filter((t) => t.dueDate.slice(0, 10) < date).length;

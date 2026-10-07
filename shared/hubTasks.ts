@@ -50,22 +50,56 @@ export function nextDue(dueDate: string, recurring: string, today: string): stri
 
 export type TaskToggle = { tasks: Task[]; rolledTo: string | null };
 
-/** Checks a task off. A repeating task isn't finished: its due date moves to the next time and it stays open. */
-export function toggleTask(tasks: Task[], id: string, today: string): TaskToggle {
+/** How long a checked-off to-do is kept in view with an Undo: a day. */
+export const UNDO_TASK_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Checks a task off. A repeating task isn't finished: its due date moves to the next time and it stays open.
+ * `at` is the moment it happened (an ISO time); with it, the to-do can be offered back for a day.
+ */
+export function toggleTask(tasks: Task[], id: string, today: string, at?: string): TaskToggle {
   let rolledTo: string | null = null;
   const next = tasks.map((t) => {
     if (t.id !== id) return t;
     if (!t.done && t.recurring) {
       const due = nextDue(t.dueDate, t.recurring, today);
-      if (due) { rolledTo = due; return { ...t, dueDate: due, lastDone: today }; }
+      if (due) {
+        rolledTo = due;
+        const { rolled: _was, ...rest } = t;
+        return { ...rest, dueDate: due, lastDone: today, ...(at ? { rolled: { dueDate: t.dueDate, ...(t.lastDone ? { lastDone: t.lastDone } : {}), at } } : {}) };
+      }
     }
-    return { ...t, done: !t.done };
+    const { doneAt: _when, ...rest } = t;
+    return t.done ? { ...rest, done: false } : { ...rest, done: true, ...(at ? { doneAt: at } : {}) };
   });
   return { tasks: next, rolledTo };
 }
 
+const within = (at: string | undefined, nowMs: number) => { const t = Date.parse(at || ""); return Number.isFinite(t) && nowMs - t < UNDO_TASK_MS && t <= nowMs + 60_000; };
+
+/** Checked off in the last day (or, for a repeating to-do, moved on to its next time in the last day). Newest first. */
+export function recentlyDone(tasks: Task[], nowMs: number): Task[] {
+  const when = (t: Task) => Date.parse((t.done ? t.doneAt : t.rolled?.at) || "") || 0;
+  return tasks.filter((t) => (t.done ? within(t.doneAt, nowMs) : within(t.rolled?.at, nowMs))).sort((a, b) => when(b) - when(a));
+}
+
+/**
+ * Takes a check mark back. A finished to-do is open again; a repeating one goes back to the due date
+ * it had before it moved on (for up to a day). Anything else is left as it is.
+ */
+export function undoTask(tasks: Task[], id: string, nowMs: number): Task[] {
+  const task = tasks.find((t) => t.id === id);
+  if (!task || (!task.done && !within(task.rolled?.at, nowMs))) return tasks;
+  return tasks.map((t) => {
+    if (t.id !== id) return t;
+    if (t.done) { const { doneAt: _when, ...rest } = t; return { ...rest, done: false }; }
+    const { rolled, lastDone: _last, ...rest } = t;
+    return { ...rest, dueDate: rolled!.dueDate, ...(rolled!.lastDone ? { lastDone: rolled!.lastDone } : {}) };
+  });
+}
+
 /** The boxes of the to-do pop-up. */
-export type TaskFields = { title: string; dueDate: string; recurring: string; priority: boolean };
+export type TaskFields = { title: string; dueDate: string; recurring: string; priority: boolean; notes?: string };
 
 /**
  * Saves the to-do pop-up. A new to-do goes at the end. An edited one stays the same to-do: same place,
@@ -74,8 +108,27 @@ export type TaskFields = { title: string; dueDate: string; recurring: string; pr
 export function saveTask(tasks: Task[], id: string | null, fields: TaskFields, makeId: () => string): Task[] {
   const title = fields.title.trim().slice(0, 200).trim();
   if (!title) return tasks;
-  const changes = { title, dueDate: fields.dueDate, recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}) };
+  const notes = (fields.notes || "").trim().slice(0, 1000);
+  const changes = { title, dueDate: fields.dueDate, recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}), ...(notes ? { notes } : {}) };
   if (!id) return [...tasks, { id: makeId(), ...changes, done: false }];
   if (!tasks.some((t) => t.id === id)) return tasks;
-  return tasks.map((t) => { if (t.id !== id) return t; const { priority: _drop, ...rest } = t; return { ...rest, ...changes }; });
+  // A repeating to-do's "where it was" only makes sense while its due date and rhythm are untouched.
+  return tasks.map((t) => { if (t.id !== id) return t; const { priority: _drop, notes: _notes, rolled, ...rest } = t; return { ...rest, ...changes, ...(rolled && t.dueDate === changes.dueDate && t.recurring === changes.recurring ? { rolled } : {}) }; });
+}
+
+/** A to-do that was cleared away, with the place it had, so it can be put back. */
+export type ClearedTask = { task: Task; index: number };
+
+/** "Clear finished": every checked-off to-do taken off the list. */
+export function clearDone(tasks: Task[]): { tasks: Task[]; cleared: ClearedTask[] } {
+  const cleared = tasks.map((task, index) => ({ task, index })).filter((x) => x.task.done);
+  return cleared.length ? { tasks: tasks.filter((t) => !t.done), cleared } : { tasks, cleared };
+}
+
+/** Puts cleared to-dos back where they were (or as near as the list now allows). Ones already back are left alone. */
+export function restoreTasks(tasks: Task[], cleared: ClearedTask[]): Task[] {
+  const have = new Set(tasks.map((t) => t.id));
+  const next = [...tasks];
+  for (const { task, index } of [...cleared].sort((a, b) => a.index - b.index)) if (!have.has(task.id)) next.splice(Math.min(index, next.length), 0, task);
+  return next.length === tasks.length ? tasks : next;
 }

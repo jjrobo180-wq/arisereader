@@ -40,3 +40,6 @@
 .hub-night .bg-slate-100 [aria-selected="true"] { background-color: #26334f; color: #f1f5f9; }
 .hub-night [role="tablist"] [aria-selected="true"] { background-color: #26334f; color: #f1f5f9; box-shadow: none; }
 .hub-night [role="tablist"] { background-color: #0b1220; }
+/* Timeline blocks are solid, so the hour lines do not show through them. */
+.hub-night [data-testid="timeline-event"].bg-teal-50 { background-color: #123a41; }
+.hub-night [data-testid="timeline-event"].bg-slate-50 { background-color: #1a2540; }
