@@ -26,6 +26,8 @@ import {
   Trash2,
   Upload,
   Flag,
+  Target,
+  Timer,
   Moon,
   Sun,
   Repeat,
@@ -39,6 +41,7 @@ import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@s
 import { TASK_SORTS, arrangeTasks, taskCounts, toggleTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
 import { cleanSenderName } from "@shared/hubMeetings";
 import "@/components/teacher-hub/hubNight.css";
+import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, addStudent, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
@@ -70,6 +73,8 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "overview", label: "Home", icon: <Home className="h-4 w-4" /> },
   { id: "calendar", label: "Calendar", icon: <Calendar className="h-4 w-4" /> },
   { id: "caseload", label: "Caseload", icon: <Users className="h-4 w-4" /> },
+  { id: "goals", label: "Goals", icon: <Target className="h-4 w-4" /> },
+  { id: "minutes", label: "Minutes", icon: <Timer className="h-4 w-4" /> },
   { id: "iep", label: "IEP & Meetings", icon: <CalendarDays className="h-4 w-4" /> },
   { id: "guide", label: "IEP Guide", icon: <ListChecks className="h-4 w-4" /> },
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
@@ -572,6 +577,8 @@ function TeacherHubPage() {
 
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
+          {tab === "goals" && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
+          {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} openGuide={(guideId) => { setGuideId(guideId); setTab("guide"); }} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
