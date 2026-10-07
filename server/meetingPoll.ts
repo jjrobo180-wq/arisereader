@@ -284,7 +284,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     if (person.email) reached = await sendOneEmail(req, poll, person.email, content.subject, content.html, note);
     if (poll.send_text && deps.text && person.phone && textsSent.retryAfter(String(poll.teacher_id)) === 0) {
       textsSent.fail(String(poll.teacher_id));
-      const r = await deps.text.send(person.phone, content.sms).catch(() => ({ sent: false }));
+      const r = await deps.text.send(person.phone, content.sms).catch((error: any) => { console.error("[meeting-poll] text failed", error?.message); return { sent: false }; });
       reached = r.sent || reached;
     }
     return reached;
@@ -298,7 +298,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       html: pollInviteEmail({ guest, teacher: senderFor(req, poll), title: poll.title, location: poll.location, message: poll.message, options: poll.options, link, reminder }),
       sms: inviteSmsText({ guest, sender: senderFor(req, poll), title: poll.title, link, reminder }),
     }, note);
-    await store.markEmailed(invitee.id, sent).catch(() => {});
+    await store.markEmailed(invitee.id, sent).catch((error: any) => console.error("[meeting-poll] could not record who was reached", error?.message));
     invitee.email_sent = sent;
     return sent;
   }
@@ -497,7 +497,17 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     const address = clientAddress(req);
     const token = String(req.params.token || "");
     if (badLinks.retryAfter(address)) { res.status(429).json({ message: "Too many tries. Please wait a while and open the link from your email again." }); return null; }
-    const found = TOKEN.test(token) ? await store.byToken(token).catch(() => null) : null;
+    let found: Awaited<ReturnType<PollStore["byToken"]>> = null;
+    if (TOKEN.test(token)) {
+      try {
+        found = await store.byToken(token);
+      } catch (error: any) {
+        // A database that can't answer is not a wrong link: say so, and don't count it against this address.
+        console.error("[meeting-poll] link lookup failed", error?.message);
+        res.status(503).json({ message: "This page can't open right now. Please try the same link again in a few minutes." });
+        return null;
+      }
+    }
     if (!found) { badLinks.fail(address); res.status(404).json({ message: "This link is not working. Open the newest email about the meeting, or ask the teacher to send it again." }); return null; }
     return found;
   }

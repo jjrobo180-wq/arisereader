@@ -19,9 +19,9 @@ export type Student = {
   notes: string;
 };
 
-export type Meeting = { id: string; student: string; type: string; date: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan };
+export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
-export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean };
+export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string };
 export type NoteItem = { id: string; student: string; type: string; body: string; date: string };
 export type AriseRecord = { id: string; student: string; book: string; score: string; points: string; date: string };
 export type BehaviorEntry = { id: string; student: string; points: number; reason: string; date: string };
@@ -44,6 +44,8 @@ export type HubEvent = {
   notes: string;
   /** Set when the event came from a connected calendar; those events are replaced each time it syncs. */
   calendarId?: string;
+  /** Set when the event is the booked time of a meeting; the meeting owns it. */
+  meetingId?: string;
 };
 
 /** A calendar the teacher connected by its link (Google, Outlook, Apple or any calendar feed). */
@@ -532,6 +534,23 @@ export function updateStudent(workspace: Workspace, studentId: string, changes: 
     }
   }
   return { ok: true, workspace: next, moved };
+}
+
+export type StudentAdd =
+  | { ok: true; workspace: Workspace }
+  | { ok: false; message: string };
+
+/**
+ * Adds a student to the caseload. The name has to be new, because the other tabs file their rows
+ * under it, and the caseload never grows past the plan (`seats`; null means no limit).
+ */
+export function addStudent(workspace: Workspace, input: Omit<Student, "id">, makeId: () => string, seats: number | null): StudentAdd {
+  const name = String(input.name ?? "").replace(/\s+/g, " ").trim();
+  if (!name) return { ok: false, message: "A student needs a name." };
+  const taken = workspace.students.find((s) => fold(s.name) === fold(name));
+  if (taken) return { ok: false, message: `${taken.name} is already on your caseload.` };
+  if (seats !== null && workspace.students.length >= seats) return { ok: false, message: `Your plan covers ${seats.toLocaleString("en-US")} students, and your caseload is full.` };
+  return { ok: true, workspace: { ...workspace, students: [...workspace.students, { ...input, id: makeId(), name }] } };
 }
 
 /** Puts a calendar's fresh events in place of its old ones. Events the teacher typed in are untouched. */

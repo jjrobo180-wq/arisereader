@@ -102,6 +102,21 @@ test("wrong links get a plain refusal and are slowed down", async () => {
   assert.equal((await t.call("GET /api/meeting-poll/:token", { params: { token: "z".repeat(30) } })).code, 429);
 });
 
+test("when the database can't answer, a guest is told to try again and the link is not blamed", async () => {
+  const t = setup();
+  await t.call("POST /api/teacher-hub/polls", { body: poll() });
+  const token = tokenOf(t.sent[0].html);
+  const working = t.store.byToken.bind(t.store);
+  t.store.byToken = async () => { throw new Error("connection refused"); };
+  for (let i = 0; i < 40; i++) {
+    const r = await t.call("GET /api/meeting-poll/:token", { params: { token } });
+    assert.equal(r.code, 503);
+    assert.match(r.body.message, /try the same link again/i);
+  }
+  t.store.byToken = working;
+  assert.equal((await t.call("GET /api/meeting-poll/:token", { params: { token } })).code, 200, "40 outage tries did not lock this person out");
+});
+
 test("reminders go only to people who haven't answered, a few times a day", async () => {
   const t = setup();
   const made = await t.call("POST /api/teacher-hub/polls", { body: poll() });

@@ -29,7 +29,7 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
   const plan = cleanPlan(meeting?.plan);
   const step = Math.min(Math.max(wizard.step, 1), STEP_COUNT);
   const info = MEETING_STEPS[step - 1];
-  const [form, setForm] = useState({ student: "", type: "Annual IEP", date: "", notes: "" });
+  const [form, setForm] = useState({ student: "", type: "Annual IEP", date: "", time: "", room: "", notes: "" });
   const [added, setAdded] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -117,7 +117,11 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
               <Select aria-label="Meeting type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                 <option>Annual IEP</option><option>Reevaluation</option><option>Planning meeting</option><option>Parent meeting</option><option>Progress review</option><option>Other</option>
               </Select>
-              <Field aria-label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+              <div className="grid grid-cols-2 gap-3">
+                <Field aria-label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                <Field aria-label="Time (optional)" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+              </div>
+              <Field aria-label="Room (optional)" placeholder="Room (optional)" value={form.room} maxLength={80} onChange={(e) => setForm({ ...form, room: e.target.value })} />
               <TextArea aria-label="Meeting notes" placeholder="Meeting notes / checklist (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </form>
           )}

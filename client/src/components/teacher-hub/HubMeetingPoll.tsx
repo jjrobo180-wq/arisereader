@@ -7,6 +7,7 @@ import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, T
 import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
+import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability } from "./HubAvailability";
 import { FIT_WORDS, fitOption, type Fit, type FreeWindow } from "@shared/availability";
@@ -79,15 +80,12 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
   useEffect(() => { if (start) { setComposing(start); onStarted(); } }, [start]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function booked(poll: PollView, option: PollView["options"][number], told: number, selfSend = false) {
-    setWorkspace((prev) => {
-      const meetings = poll.hubMeetingId ? prev.meetings.map((m) => (m.id === poll.hubMeetingId ? { ...m, date: option.date } : m)) : prev.meetings;
-      const already = prev.events.some((e) => e.title === poll.title && e.date === option.date && e.start === option.start);
-      const events = already ? prev.events : [...prev.events, { id: makeId(), title: poll.title, date: option.date, start: option.start, end: option.end, location: poll.location, notes: "Time chosen with a meeting poll" }];
-      return { ...prev, meetings, events };
-    });
+    setWorkspace((prev) => bookMeeting(prev, poll.hubMeetingId, { title: poll.title, location: poll.location }, option, makeId));
     setNotice(selfSend
-      ? `Booked ${option.label}. It's on your calendar. Open the poll and use “Tell everyone the time” to send it from your own email or phone.`
+      ? `Booked ${option.label}. It's on your calendar. Use the window that opened to tell everyone from your own email or phone.`
       : `Booked ${option.label}. It's on your calendar${told ? ` and ${told} ${told === 1 ? "person was" : "people were"} told.` : "."}`);
+    // Texts and "tell them yourself" emails are sent by you, so open them right away.
+    if (selfSend || poll.invitees.some((i) => i.phone)) setSendPopup({ ...poll, status: "booked", chosenOption: option.id });
     void load();
   }
 
@@ -120,11 +118,11 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
             <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Send the links" data-testid="send-popup">
               <div className="flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
-                  <h2 className="text-lg font-bold">Send the links</h2>
+                  <h2 className="text-lg font-bold">{live.status === "booked" ? "Tell everyone the time" : "Send the links"}</h2>
                   <button type="button" onClick={() => setSendPopup(null)} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
-                  <SelfSend poll={live} token={token} senderName={live.senderName || workspace.profile.senderName || account.name} chosen={undefined} onChanged={load} setNotice={setNotice} />
+                  <SelfSend poll={live} token={token} senderName={live.senderName || workspace.profile.senderName || account.name} chosen={live.status === "booked" ? live.options.find((o) => o.id === live.chosenOption) : undefined} onChanged={load} setNotice={setNotice} />
                 </div>
                 <div className="border-t border-slate-100 px-4 py-3 sm:px-6"><PrimaryButton onClick={() => setSendPopup(null)}>Done</PrimaryButton></div>
               </div>
@@ -163,7 +161,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [title, setTitle] = useState(initial.title);
   const [location, setLocation] = useState("");
   const [message, setMessage] = useState("");
-  const [senderName, setSenderName] = useState(workspace.profile.senderName || account.name);
+  const [senderName, setSenderName] = useState(cleanSenderName(workspace.profile.senderName || account.name));
   const [replyTo, setReplyTo] = useState(workspace.profile.replyEmail || account.email);
   const [times, setTimes] = useState([blankTime(), blankTime()]);
   const team = workspace.spedContacts.filter((c) => c.email);

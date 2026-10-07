@@ -121,6 +121,7 @@ export default function HubNotifications({ token }: { token: string | null }) {
         {phase === "on" && (
           <>
             <p className="font-medium text-emerald-700">Notifications are on for this device.</p>
+            <p className="text-xs text-slate-500">Signing out turns them off here, so reminders about your students never show on a phone you've signed out of.</p>
             <div className="flex flex-wrap gap-2">
               <GhostButton onClick={sendTest}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />} Send a test</GhostButton>
               <GhostButton onClick={turnOff}><BellOff className="h-4 w-4" /> Turn off</GhostButton>

@@ -2,7 +2,8 @@
 // Teacher Hub reminders to the devices that asked for them.
 import type { Express, RequestHandler } from "express";
 import { supabase } from "./supabase";
-import { generateVapidKeys, sendWebPush, type PushMessage, type VapidKeys } from "./webPush";
+import { generateVapidKeys, isPushServiceUrl, sendWebPush, type PushMessage, type VapidKeys } from "./webPush";
+import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { dueHubReminders, HUB_REMINDER_URL } from "../shared/hubReminders";
 import { normalizeWorkspace } from "../shared/teacherHub";
 
@@ -62,32 +63,53 @@ export async function notifyUser(userId: number, message: PushMessage): Promise<
   return delivered;
 }
 
+const PAGE = 500;
+const WORKSPACE_CHUNK = 40;
+const SUBSCRIPTION_COLUMNS = "id, user_id, endpoint, p256dh, auth, time_zone, sent";
+
+/** Every saved device, a page at a time (the database hands back at most a thousand rows in one go). */
+async function allSubscriptions(): Promise<Row[]> {
+  const rows: Row[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase.from("push_subscriptions").select(SUBSCRIPTION_COLUMNS).order("id", { ascending: true }).range(from, from + PAGE - 1);
+    if (error) { console.error("[push] could not list devices", error.message); break; }
+    rows.push(...((data || []) as Row[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows;
+}
+
 /** One pass: send the Teacher Hub reminders that are due. */
 export async function sendDueHubReminders(nowMs = Date.now()): Promise<number> {
   const keys = await pushKeys();
   if (!keys) return 0;
-  const { data: subs, error } = await supabase.from("push_subscriptions").select("id, user_id, endpoint, p256dh, auth, time_zone, sent");
-  if (error || !subs?.length) return 0;
-  const rows = subs as Row[];
-  const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
-  const { data: spaces } = await supabase.from("teacher_hub_workspaces").select("teacher_id, workspace").in("teacher_id", userIds);
-  const byUser = new Map<number, any>((spaces || []).map((s: any) => [Number(s.teacher_id), normalizeWorkspace(s.workspace)]));
+  const rows = await allSubscriptions();
+  if (!rows.length) return 0;
+  const devicesOf = new Map<number, Row[]>();
+  for (const row of rows) devicesOf.set(Number(row.user_id), [...(devicesOf.get(Number(row.user_id)) || []), row]);
+  const userIds = Array.from(devicesOf.keys());
 
   let sentCount = 0;
-  for (const row of rows) {
-    const workspace = byUser.get(Number(row.user_id));
-    if (!workspace) continue;
-    const sent = row.sent || {};
-    const due = dueHubReminders(workspace, nowMs, row.time_zone || "UTC", sent);
-    if (!due.length) continue;
-    const next: Record<string, number> = {};
-    for (const [key, at] of Object.entries(sent)) if (nowMs - Number(at) < KEEP_SENT_MS) next[key] = Number(at);
-    for (const reminder of due) {
-      next[reminder.key] = nowMs; // mark first, so a slow phone service can't cause a repeat
-    }
-    await supabase.from("push_subscriptions").update({ sent: next, last_used_at: new Date(nowMs).toISOString() }).eq("id", row.id);
-    for (const reminder of due) {
-      if (await deliver(row, { title: reminder.title, body: reminder.body, url: reminder.url, tag: reminder.key }, keys)) sentCount++;
+  // A few Hubs at a time: a long list in one request is refused, and every Hub held at once is a lot to keep in memory.
+  for (let i = 0; i < userIds.length; i += WORKSPACE_CHUNK) {
+    const { data: spaces, error } = await supabase.from("teacher_hub_workspaces").select("teacher_id, workspace").in("teacher_id", userIds.slice(i, i + WORKSPACE_CHUNK));
+    if (error) { console.error("[push] could not read Hubs for reminders", error.message); continue; }
+    for (const space of spaces || []) {
+      const workspace = normalizeWorkspace((space as any).workspace);
+      for (const row of devicesOf.get(Number((space as any).teacher_id)) || []) {
+        const sent = row.sent || {};
+        const due = dueHubReminders(workspace, nowMs, row.time_zone || "UTC", sent);
+        if (!due.length) continue;
+        const next: Record<string, number> = {};
+        for (const [key, at] of Object.entries(sent)) if (nowMs - Number(at) < KEEP_SENT_MS) next[key] = Number(at);
+        for (const reminder of due) {
+          next[reminder.key] = nowMs; // mark first, so a slow phone service can't cause a repeat
+        }
+        await supabase.from("push_subscriptions").update({ sent: next, last_used_at: new Date(nowMs).toISOString() }).eq("id", row.id);
+        for (const reminder of due) {
+          if (await deliver(row, { title: reminder.title, body: reminder.body, url: reminder.url, tag: reminder.key }, keys)) sentCount++;
+        }
+      }
     }
   }
   return sentCount;
@@ -119,6 +141,8 @@ function cleanZone(value: unknown): string {
 
 export function registerPushRoutes(app: Express, authMiddleware: RequestHandler, deps: { hubGate: Gate }) {
   startHubReminderTicker();
+  // "Send a test" goes to every phone signed up; a few a quarter-hour is plenty.
+  const testSends = createAttemptLimiter({ max: 5, windowMs: 15 * 60_000 });
 
   app.get("/api/push/config", async (_req, res) => {
     const keys = await pushKeys();
@@ -130,6 +154,7 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     if (!(await deps.hubGate(req, res))) return;
     const sub = cleanSubscription(req.body);
     if (!sub) return res.status(400).json({ message: "That phone's notification details look wrong. Try turning notifications on again." });
+    if (!isPushServiceUrl(sub.endpoint)) return res.status(400).json({ message: "This browser's notification service isn't supported here. Try Chrome, Safari or Firefox." });
     try {
       const mine = await supabase.from("push_subscriptions").select("id, endpoint").eq("user_id", Number(req.user.id)).order("id", { ascending: true });
       const others = (mine.data || []).filter((r: any) => r.endpoint !== sub.endpoint);
@@ -156,6 +181,10 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
   });
 
   app.post("/api/push/test", authMiddleware, async (req: any, res) => {
+    const who = String(req.user.id);
+    const wait = testSends.retryAfter(who);
+    if (wait) return res.status(429).json({ message: `That's a lot of tests. Try again in ${waitWords(wait)}.` });
+    testSends.fail(who);
     const delivered = await notifyUser(Number(req.user.id), {
       title: "Notifications are on",
       body: "You'll get reminders from your Teacher Hub here.",
