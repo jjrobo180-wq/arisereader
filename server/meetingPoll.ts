@@ -72,9 +72,11 @@ export function createMemoryAvailabilityStore(): AvailabilityStore {
 }
 
 /** The real store: Supabase tables from migrations/meeting_polls.sql. (Loaded on first use, so tests need no database settings.) */
-const db = async () => (await import("./supabase")).supabase;
+const loadDb = async () => (await import("./supabase")).supabase;
+const db = loadDb;
 
-export function createSupabasePollStore(): PollStore {
+export function createSupabasePollStore(client?: any): PollStore {
+  const db = async () => client ?? (await loadDb());
   const fail = (error: any) => { if (error) throw error; };
   return {
     async create(poll, invitees) {
@@ -91,7 +93,12 @@ export function createSupabasePollStore(): PollStore {
         rows = await (await db()).from("meeting_poll_invitees").insert(invitees.map(({ phone: _p, ...i }) => ({ ...i, poll_id: made.data.id }))).select("*");
       }
       if (rows.error) { await (await db()).from("meeting_polls").delete().eq("id", made.data.id); throw rows.error; }
-      return { poll: { sender_name: "", reply_to: "", send_via: "site", send_text: false, ...made.data } as PollRow, invitees: rows.data as InviteeRow[] };
+      // If the newer columns are missing (their SQL has not been run yet), still hand back what the teacher chose, so this poll's send buttons work now.
+      const phones = new Map(invitees.map((i) => [i.token, i.phone]));
+      return {
+        poll: { sender_name: poll.sender_name, reply_to: poll.reply_to, send_via: poll.send_via, send_text: poll.send_text, ...made.data } as PollRow,
+        invitees: (rows.data as InviteeRow[]).map((i) => ({ ...i, phone: i.phone || phones.get(i.token) || "" })),
+      };
     },
     async list(teacherId) {
       const polls = await (await db()).from("meeting_polls").select("*").eq("teacher_id", teacherId).order("created_at", { ascending: false }).limit(40);

@@ -108,12 +108,14 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
             pollBody={(meeting, onSent) => (
               <Composer embedded box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account}
                 initial={{ meetingId: meeting.id, title: `${meeting.type}${meeting.student ? ` for ${meeting.student.split(" ")[0]}` : ""}` }}
-                onClose={() => undefined} onSent={(message, made) => { setNotice(message); if (made?.sendVia === "self") setSendPopup(made); void load(); onSent(); }} />
+                onClose={() => undefined} onSent={(message, made) => { setNotice(message); if (made) setSendPopup(made); void load(); onSent(); }} />
             )}
           />
         )}
         {sendPopup && (() => {
-          const live = polls?.find((x) => x.id === sendPopup.id) ?? sendPopup;
+          // Keep the link and phone numbers from when the poll was made (they stay even if the database is missing a column), and take the "sent" marks from the latest list.
+          const latest = polls?.find((x) => x.id === sendPopup.id);
+          const live: PollView = { ...sendPopup, status: latest?.status ?? sendPopup.status, invitees: sendPopup.invitees.map((i) => { const l = latest?.invitees.find((x) => x.id === i.id); return l ? { ...i, emailSent: l.emailSent, respondedAt: l.respondedAt } : i; }) };
           return (
             <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Send the links" data-testid="send-popup">
               <div className="flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
@@ -133,7 +135,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
           <Composer
             box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account} initial={composing}
             onClose={() => setComposing(null)}
-            onSent={(message, made) => { setComposing(null); setNotice(message); if (made?.sendVia === "self") setSendPopup(made); void load(); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
+            onSent={(message, made) => { setComposing(null); setNotice(message); if (made) setSendPopup(made); void load(); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
           />
         )}
         {polls === null && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
