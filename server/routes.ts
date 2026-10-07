@@ -3803,6 +3803,24 @@ export async function registerRoutes(
     res.status(201).json(data);
   });
 
+  // Admin: take back points that were added by hand (for example, added twice or to the wrong student).
+  app.delete("/api/admin/students/:id/manual-points/:awardId", authMiddleware, adminMiddleware, async (req, res) => {
+    const studentId = Number(req.params.id), awardId = Number(req.params.awardId);
+    if (!Number.isSafeInteger(studentId) || studentId < 1 || !Number.isSafeInteger(awardId) || awardId < 1) return res.status(400).json({ message: "Invalid award." });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Manual points are not configured on the server." });
+    // The award must be this student's, so one student's page can never remove another's points.
+    const { data, error } = await getAdminSupabase().from("manual_point_awards")
+      .delete().eq("id", awardId).eq("student_id", studentId).select("id, points");
+    if (error) return res.status(500).json({ message: "Could not remove the points." });
+    if (!data || data.length === 0) return res.status(404).json({ message: "Those points were already removed." });
+    clearCache("allUsers");
+    clearCache("leaderboard");
+    clearCache("monthlyLeaderboard");
+    clearCache("advisoryLeaderboard");
+    clearCache("session_");
+    res.json({ removed: data[0].id, points: Number(data[0].points || 0) });
+  });
+
   app.get("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req, res) => {
     const studentId = Number(req.params.id);
     if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message: "Invalid student." });
