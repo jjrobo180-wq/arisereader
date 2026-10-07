@@ -1,6 +1,7 @@
 // Teacher Hub: the Calendar tab. Events the teacher types in, events added with
 // AI or from a calendar file, and calendars connected by their link (Google,
 // Outlook, Apple or any other calendar that can be shared as a link).
+import { PinButton } from "./HubPins";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { AlertTriangle, Calendar, Link2, Loader2, MapPin, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -228,6 +229,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId 
                         )}
                         {event.notes && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500">{event.notes}</p>}
                       </div>
+                      <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="event" refId={event.id} title={event.title} makeId={makeId} />
                       {!event.calendarId && (
                         <button type="button" aria-label={`Delete ${event.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => setWorkspace((p) => ({ ...p, events: p.events.filter((x) => x.id !== event.id) }))}><Trash2 className="h-4 w-4" /></button>
                       )}

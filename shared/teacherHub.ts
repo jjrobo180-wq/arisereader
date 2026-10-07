@@ -4,6 +4,8 @@
 // The page is client/src/pages/TeacherHub.tsx. The workspace is saved as one
 // JSON object per teacher (server/teacherHub.ts).
 
+import { cleanPins, type Pin } from "./hubPins";
+
 export type Student = {
   id: string;
   name: string;
@@ -101,6 +103,8 @@ export type Workspace = {
   guides: IepGuide[];
   spedContacts: HubContact[];
   guideLinks: HubLink[];
+  /** Up to five pinned banners (see shared/hubPins.ts). */
+  pins: Pin[];
 };
 
 export function emptyWorkspace(): Workspace {
@@ -110,7 +114,7 @@ export function emptyWorkspace(): Workspace {
     visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, true])) as Record<HubTab, boolean>,
     students: [], meetings: [], lessons: [], tasks: [], notes: [], ariseRecords: [], behavior: [], attendance: [],
     assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], events: [], calendars: [],
-    guides: [], spedContacts: [], guideLinks: [],
+    guides: [], spedContacts: [], guideLinks: [], pins: [],
   };
 }
 
@@ -127,6 +131,7 @@ export function normalizeWorkspace(raw: any): Workspace {
     visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
+  out.pins = cleanPins(raw.pins);
   return out as Workspace;
 }
 
