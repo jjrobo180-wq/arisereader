@@ -2,6 +2,7 @@
 // (pushed back an hour, a day or a week), or rescheduled; and the ones that are over and were
 // never checked off are gathered up so the teacher can say what happened.
 import { clockOf, isPast, shiftDay, type Now } from "./hubCalendar";
+import { isRepeat, moveOccurrence, occurrenceOf, setOccurrenceDone } from "./hubRepeat";
 import type { HubEvent, Workspace } from "./teacherHub";
 
 export type Snooze = "hour" | "tomorrow" | "week";
@@ -46,8 +47,10 @@ const change = (workspace: Workspace, eventId: string, to: (event: HubEvent) => 
 };
 const withoutDone = (event: HubEvent): HubEvent => { const { done: _done, ...rest } = event; return rest; };
 
-/** Checks an event off as done, or takes the check mark back. Works for connected calendars' events too. */
+/** Checks an event off as done, or takes the check mark back. Works for connected calendars' events too, and for one day of a repeating event. */
 export function setEventDone(workspace: Workspace, eventId: string, done: boolean): Workspace {
+  const one = occurrenceOf(eventId);
+  if (one.date) return setOccurrenceDone(workspace, one.eventId, one.date, done);
   return change(workspace, eventId, (e) => (done ? { ...e, done: true } : withoutDone(e)));
 }
 
@@ -57,8 +60,16 @@ export function setEventsDone(workspace: Workspace, eventIds: string[]): Workspa
   return ids.size ? { ...workspace, events: workspace.events.map((e) => (ids.has(e.id) ? { ...e, done: true } : e)) } : workspace;
 }
 
-/** Moves one of the teacher's own events later. It is not done any more, and a pin on it follows. */
-export function snoozeEvent(workspace: Workspace, eventId: string, how: Snooze, now: Now): Workspace {
+/**
+ * Moves one of the teacher's own events later. It is not done any more, and a pin on it follows.
+ * For one day of a repeating event (`occurrence`), only that day moves: see `moveOccurrence`.
+ */
+export function snoozeEvent(workspace: Workspace, eventId: string, how: Snooze, now: Now, occurrence?: { event: HubEvent; makeId: () => string }): Workspace {
+  if (occurrence) {
+    const one = occurrenceOf(eventId);
+    const to = one.date && canMove(occurrence.event) ? snoozedTo(occurrence.event, how, now) : null;
+    return to ? moveOccurrence(workspace, one.eventId, one.date, to, occurrence.makeId).workspace : workspace;
+  }
   const event = workspace.events.find((e) => e.id === eventId);
   const to = event && canMove(event) ? snoozedTo(event, how, now) : null;
   if (!event || !to) return workspace;
@@ -71,11 +82,12 @@ export function snoozeEvent(workspace: Workspace, eventId: string, how: Snooze, 
 /**
  * "Did these happen?": the teacher's own events from the last two weeks that are over and were never
  * checked off, oldest first. Connected calendars are left out, so a synced timetable does not turn
- * into a wall of questions; those events can still be checked off one by one.
+ * into a wall of questions; those events can still be checked off one by one. Repeating events are
+ * left out for the same reason.
  */
 export function needsCheck<T extends Pick<HubEvent, "date" | "start" | "end" | "done" | "calendarId" | "title">>(events: T[], now: Now, days = CHECK_BACK_DAYS): T[] {
   const since = shiftDay(now.date, -days);
   return events
-    .filter((e) => !e.done && canMove(e) && e.date >= since && isPast(e, now))
+    .filter((e) => !e.done && canMove(e) && !isRepeat((e as { repeat?: unknown }).repeat) && e.date >= since && isPast(e, now))
     .sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || "") || a.title.localeCompare(b.title));
 }

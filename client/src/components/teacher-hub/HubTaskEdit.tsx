@@ -1,26 +1,28 @@
 // Teacher Hub: the pop-up that adds a to-do or changes one that is already on the list, and
 // checking to-dos off with a way back. Used by Reminders & to-dos and by the To do card on Home.
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { Undo2 } from "lucide-react";
+import { Trash2, Undo2 } from "lucide-react";
 import { addDays, friendlyDate } from "@shared/hubDates";
 import { recentlyDone, toggleTask, undoTask, type TaskFields } from "@shared/hubTasks";
 import type { Task, Workspace } from "@shared/teacherHub";
 import { localDay } from "./HubImport";
 import type { ToastAction } from "./HubToast";
-import { Field, GhostButton, Labeled, PrimaryButton, Select } from "./ui";
+import { Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
 
-export function TaskModal({ task, startTitle = "", today, onSave, onClose }: {
+export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete }: {
   /** The to-do being changed, or null for a new one. */
   task: Task | null;
   startTitle?: string;
   today: string;
   onSave: (fields: TaskFields) => void;
   onClose: () => void;
+  /** Shown as Delete when a to-do is being changed. */
+  onDelete?: () => void;
 }) {
   const [draft, setDraft] = useState<TaskFields>(() => (task
-    ? { title: task.title, dueDate: task.dueDate, recurring: task.recurring, priority: task.priority === "high" }
-    : { title: startTitle, dueDate: "", recurring: "", priority: false }));
+    ? { title: task.title, dueDate: task.dueDate, recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "" }
+    : { title: startTitle, dueDate: "", recurring: "", priority: false, notes: "" }));
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!draft.title.trim()) return;
@@ -30,7 +32,8 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose }: {
   const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
   return (
     <HubModal title={task ? "Edit to-do" : "New to-do"} onClose={onClose} size="sm"
-      footer={<div className="flex gap-2"><PrimaryButton onClick={() => save()} disabled={!draft.title.trim()}>{task ? "Save changes" : "Save"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
+      footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => save()} disabled={!draft.title.trim()}>{task ? "Save changes" : "Save"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>
+        {task && onDelete && <button type="button" onClick={() => { onDelete(); onClose(); }} className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-red-600 hover:bg-red-50" data-testid="task-delete"><Trash2 className="h-4 w-4" /> Delete</button>}</div>}>
       <form onSubmit={save} className="grid gap-3" data-testid="task-form">
         <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required maxLength={200} /></Labeled>
         <Labeled label="Due"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /></Labeled>
@@ -40,6 +43,7 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose }: {
         </div>
         <Labeled label="Repeats"><Select value={draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select></Labeled>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /> Mark as important</label>
+        <Labeled label="Notes"><TextArea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} placeholder="Details, a phone number, a link (optional)" /></Labeled>
         <button type="submit" hidden />
       </form>
     </HubModal>

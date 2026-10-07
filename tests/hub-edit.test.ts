@@ -82,6 +82,6 @@ test("the screens offer Edit on events and to-dos", () => {
   const cal = read("client/src/components/teacher-hub/HubCalendar.tsx"), page = read("client/src/pages/TeacherHub.tsx"), modal = read("client/src/components/teacher-hub/HubTaskEdit.tsx");
   for (const part of ['data-testid="event-edit"', '"edit-event-form"', "updateEvent(p, editing.event.id, changes)", "Save changes", "onEdit={setEditing}"]) assert.ok(cal.includes(part), part);
   assert.equal(cal.split("onEdit={setEditing}").length - 1, 3, "the agenda, the month's day list and the timeline");
-  for (const part of ['data-testid="task-edit"', 'data-testid="home-task-edit"', "saveTask(p.tasks, editing.id, fields, id)", "saveTask(p.tasks, homeTask, fields, id)"]) assert.ok(page.includes(part), part);
+  for (const part of ['data-testid="task-edit"', 'onEdit={(t) => setHomeTask(t.id)}', "saveTask(p.tasks, editing.id, fields, id)", "saveTask(p.tasks, homeTask, fields, id)"]) assert.ok(page.includes(part), part);
   for (const part of ['"Edit to-do"', "Save changes", "Mark as important"]) assert.ok(modal.includes(part), part);
 });

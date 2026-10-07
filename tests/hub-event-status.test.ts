@@ -112,5 +112,5 @@ test("no heads-up is sent for an event already checked off", () => {
 
 test("the calendar offers Mark done, Snooze and the check list", () => {
   const cal = read("client/src/components/teacher-hub/HubCalendar.tsx");
-  for (const part of ['data-testid="event-done"', 'data-testid="event-snooze"', 'data-testid="event-check"', 'data-testid="event-check-all"', 'data-testid="event-moved"', "Mark done", "Reschedule", "snoozeEvent(p, event.id, how, now)", "needsCheck(workspace.events, now)", "onSnooze={snooze}"]) assert.ok(cal.includes(part), part);
+  for (const part of ['data-testid="event-done"', 'data-testid="event-snooze"', 'data-testid="event-check"', 'data-testid="event-check-all"', 'data-testid="event-moved"', "Mark done", "Reschedule", "snoozeEvent(p, event.id, how, now)", "needsCheck(events, now)", "onSnooze={snooze}"]) assert.ok(cal.includes(part), part);
 });

@@ -8,6 +8,8 @@ import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
+import { addDays } from "@shared/hubDates";
+import { calendarEvents } from "@shared/hubHidden";
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from "./HubAvailability";
 import { localDay } from "./HubImport";
@@ -195,7 +197,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   useEffect(() => { api(token, "GET", "/api/teacher-hub/availability").then((d) => setWeekly(cleanWeekly(d.weekly))).catch(() => setWeekly([])); }, [token]);
 
   function suggest(free: FreeWindow[], skip: number, minutes = length) {
-    const busy = workspace.events.filter((e) => e.start && e.meetingId !== initial.meetingId).map((e) => ({ date: e.date, start: e.start, end: e.end }));
+    // Repeating events are busy on every day they fall on (looking four months ahead); hidden events are not busy.
+    const busy = calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.start && e.meetingId !== initial.meetingId).map((e) => ({ date: e.date, start: e.start, end: e.end }));
     const before = meeting?.date && meeting.date > today ? meeting.date : undefined;
     const from = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
     let found = suggestTimes(free, { from, minutes, before, busy, skip });

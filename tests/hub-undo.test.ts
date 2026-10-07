@@ -78,8 +78,8 @@ test("undo leaves everything else alone", () => {
 
 test("the screens offer the undo", () => {
   const page = read("client/src/pages/TeacherHub.tsx"), parts = read("client/src/components/teacher-hub/HubTaskEdit.tsx"), cal = read("client/src/components/teacher-hub/HubCalendar.tsx");
-  for (const part of ["onChange={() => checkTask(task)}", "<RecentlyDone tasks={workspace.tasks} onUndo={undoCheck} limit={4} />", "const toggle = taskChecker(() => workspace.tasks, setWorkspace, toast);", 'filter === "open" && !search.trim() && <RecentlyDone']) assert.ok(page.includes(part), part);
+  for (const part of ["onToggle={checkTask}", "<RecentlyDone tasks={workspace.tasks} onUndo={undoCheck} limit={4} />", "const toggle = taskChecker(() => workspace.tasks, setWorkspace, toast);", 'filter === "open" && !search.trim() && <RecentlyDone']) assert.ok(page.includes(part), part);
   for (const part of ['data-testid="recently-done"', 'data-testid="task-undo"', "Done in the last day", 'Checked off "${task.title}".', "toggleTask(p.tasks, task.id, today, at)"]) assert.ok(parts.includes(part), part);
-  for (const part of ["export const UNDO_SECONDS = 10;", 'text: `Deleted "${gone.title}".`', "window.setTimeout(() => setMoved(null), UNDO_SECONDS * 1000)"]) assert.ok(cal.includes(part), part);
+  for (const part of ["export const UNDO_SECONDS = 10;", 'gone.repeat ? `Deleted every "${gone.title}".` : `Deleted "${gone.title}".`', "window.setTimeout(() => setMoved(null), UNDO_SECONDS * 1000)"]) assert.ok(cal.includes(part), part);
   assert.ok(/toasts\.show\(text, actions, records \? 15_000 : 10_000\)/.test(page), "other deletes keep their ten-second Undo");
 });

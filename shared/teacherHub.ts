@@ -22,6 +22,8 @@ export type Student = {
 export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
 export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
+  /** Anything worth keeping with it: details, a phone number, a link. */
+  notes?: string;
   /** When it was checked off (a moment, not a day), so it can be offered back for a day. */
   doneAt?: string;
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
@@ -61,7 +63,23 @@ export type HubEvent = {
   meetingId?: string;
   /** The teacher checked it off: it happened. */
   done?: boolean;
+  /** How it repeats ("Weekly", "Monthly", ...). `date` is then its first day. See shared/hubRepeat.ts. */
+  repeat?: string;
+  /** The last day a repeating event can fall on (YYYY-MM-DD). Left out, it goes on. */
+  until?: string;
+  /** Days taken out of a repeating event. */
+  skip?: string[];
+  /** Days of a repeating event that were checked off. */
+  doneOn?: string[];
+  /** Only on a drawn day of a repeating event, never saved: the id of the event it comes from. */
+  seriesId?: string;
 };
+
+/**
+ * Hides events by what they are called, because a connected calendar hands out new ids every time it is read.
+ * With a `date` it hides the one on that day and time; without, every event with that name.
+ */
+export type HiddenRule = { id: string; title: string; date: string; start: string };
 
 /** A calendar the teacher connected by its link (Google, Outlook, Apple or any calendar feed). */
 export type HubCalendar = { id: string; name: string; url: string; syncedAt: string };
@@ -121,6 +139,8 @@ export type Workspace = {
   serviceLogs: ServiceLog[];
   events: HubEvent[];
   calendars: HubCalendar[];
+  /** Events the teacher chose not to see: on their calendar, but nothing to do with them. See shared/hubHidden.ts. */
+  hiddenEvents?: HiddenRule[];
   guides: IepGuide[];
   spedContacts: HubContact[];
   guideLinks: HubLink[];
@@ -153,6 +173,10 @@ export function normalizeWorkspace(raw: any): Workspace {
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
   out.pins = cleanPins(raw.pins);
+  out.hiddenEvents = (Array.isArray(raw.hiddenEvents) ? raw.hiddenEvents : [])
+    .filter((r: any) => r && typeof r === "object" && typeof r.id === "string" && typeof r.title === "string" && r.title.trim())
+    .map((r: any): HiddenRule => ({ id: r.id, title: r.title, date: typeof r.date === "string" ? r.date : "", start: typeof r.start === "string" ? r.start : "" }))
+    .slice(0, 200);
   return out as Workspace;
 }
 

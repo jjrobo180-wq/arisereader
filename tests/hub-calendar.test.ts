@@ -46,7 +46,7 @@ test("the agenda on Home is today's agenda and nothing else", () => {
   const page = read("client/src/pages/TeacherHub.tsx"), panel = read("client/src/components/teacher-hub/HubCalendar.tsx");
   assert.ok(page.includes('title="Your calendar" onReminderAdded={reminderAdded} agendaToday />'), "Home asks for the one-day agenda");
   assert.ok(!/<HubCalendarTab[^>]*agendaToday/.test(page) && panel.includes("makeId={makeId} onReminderAdded={onReminderAdded} />"), "the Calendar tab keeps the full agenda");
-  assert.ok(panel.includes("agendaDays(sorted, agendaToday ? today : undefined)"));
+  assert.ok(panel.includes("agendaDays(sorted, agendaToday ? agendaDay : undefined)"));
 });
 
 test("the day timeline lays the day out against the clock", () => {

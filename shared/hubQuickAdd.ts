@@ -1,5 +1,6 @@
 // Teacher Hub: the quick "add" pop-up (the + button on every screen, and Add event on the calendar).
 // One short form that adds a calendar event, a reminder in "Reminders & to-dos", or both.
+import { isRepeat } from "./hubRepeat";
 import { clock12, type HubEvent, type Task, type Workspace } from "./teacherHub";
 
 export type QuickKind = "event" | "reminder";
@@ -14,6 +15,9 @@ export type QuickForm = {
   location: string;
   /** For an event: put it in Reminders & to-dos as well, due that day. */
   alsoRemind: boolean;
+  /** For an event: how it repeats ("" for once), and the last day it can fall on ("" to go on). */
+  repeat?: string;
+  until?: string;
 };
 
 /** What the form adds: an event, a reminder (a to-do), or both. */
@@ -34,7 +38,9 @@ export function quickItems(form: QuickForm): QuickItems | null {
   if (!date) return null;
   const start = TIME.test(form.start) ? form.start : "";
   const end = start && TIME.test(form.end) ? form.end : "";
-  const event: Omit<HubEvent, "id"> = { title, date, start, end, location: form.location.trim(), notes: "" };
+  const repeat = isRepeat(form.repeat) ? form.repeat : "";
+  const until = repeat && DAY.test(form.until || "") && form.until! >= date ? form.until! : "";
+  const event: Omit<HubEvent, "id"> = { title, date, start, end, location: form.location.trim(), notes: "", ...(repeat ? { repeat } : {}), ...(until ? { until } : {}) };
   // A to-do has a day but no time, so the reminder for a timed event carries the time in its name.
   return form.alsoRemind ? { event, task: reminder(start ? `${title} (${clock12(start)})` : title) } : { event };
 }
@@ -56,7 +62,7 @@ export function quickAddedMessage(items: QuickItems): string {
 }
 
 /** The boxes of the "Edit event" pop-up. */
-export type EventEdit = { title: string; date: string; start: string; end: string; location: string; notes: string };
+export type EventEdit = { title: string; date: string; start: string; end: string; location: string; notes: string; repeat?: string; until?: string };
 
 /** An edited event tidied up, or null while it can't be saved (no name, or no day). */
 export function eventEdit(form: EventEdit): Omit<HubEvent, "id"> | null {
@@ -75,7 +81,14 @@ export function updateEvent(workspace: Workspace, eventId: string, form: EventEd
   return {
     ...workspace,
     // Moved to another day or time, it has not happened yet, so its check mark comes off.
-    events: workspace.events.map((e) => { if (e.id !== eventId) return e; const { done, ...rest } = e; return { ...rest, ...fields, ...(done && e.date === fields.date && e.start === fields.start ? { done } : {}) }; }),
+    events: workspace.events.map((e) => {
+      if (e.id !== eventId) return e;
+      // How it repeats is set fresh from the form. Its skipped and checked-off days only mean something while it still repeats from the same first day.
+      const { done, repeat: _repeat, until: _until, skip, doneOn, ...rest } = e;
+      const same = e.date === fields.date && e.start === fields.start;
+      const keeps = !!fields.repeat && e.date === fields.date;
+      return { ...rest, ...fields, ...(done && same && !fields.repeat ? { done } : {}), ...(keeps && skip?.length ? { skip } : {}), ...(keeps && doneOn?.length ? { doneOn } : {}) };
+    }),
     pins: (workspace.pins || []).map((pin) => (pin.kind === "event" && pin.refId === eventId && pin.snap ? { ...pin, snap: { title: fields.title, date: fields.date, start: fields.start } } : pin)),
   };
 }

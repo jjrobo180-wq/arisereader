@@ -38,7 +38,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
-import { TASK_SORTS, arrangeTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
+import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
 import { cleanSenderName } from "@shared/hubMeetings";
 import "@/components/teacher-hub/hubNight.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
@@ -268,6 +268,8 @@ function TeacherHubPage() {
   const undoCheck = (taskId: string) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }));
   /** The to-do being changed from the To do card on Home. */
   const [homeTask, setHomeTask] = useState<string | null>(null);
+  const [homeQuick, setHomeQuick] = useState("");
+  const openTasks = workspace.tasks.filter((t) => !t.done).length;
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
 
@@ -544,19 +546,15 @@ function TeacherHubPage() {
                   ) : <Empty>No upcoming meetings yet.</Empty>}
                 </Card>
 
-                <Card title="To do">
+                <Card title="To do" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
+                  <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, { title, dueDate: "", recurring: "", priority: false }, id) })); setHomeQuick(""); }} className="mb-3 flex gap-2" data-testid="home-task-add">
+                    <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
+                    <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
+                  </form>
                   {dueTasks.length ? (
-                    <div className="space-y-2">
-                      {dueTasks.map((task) => (
-                        <div key={task.id} className="flex items-center gap-1 rounded-xl bg-slate-50 pl-3 pr-1">
-                          <label className="flex min-w-0 flex-1 items-center gap-3 py-3">
-                            <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => checkTask(task)} />
-                            <div className="min-w-0 flex-1"><div className="truncate font-medium">{task.title}</div><div className="text-xs text-slate-500">{task.recurring || "One-time"}{task.dueDate ? ` · ${dueState(task.dueDate, TODAY()) === "overdue" ? "overdue, " : "due "}${friendlyDate(task.dueDate, TODAY())}` : ""}</div></div>
-                          </label>
-                          <button type="button" aria-label={`Edit ${task.title}`} onClick={() => setHomeTask(task.id)} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-950" data-testid="home-task-edit"><Pencil className="h-4 w-4" /></button>
-                        </div>
-                      ))}
-                    </div>
+                    <ul className="space-y-2">
+                      {dueTasks.map((task) => <TaskRow key={task.id} task={task} today={TODAY()} workspace={workspace} setWorkspace={setWorkspace} makeId={id} onToggle={checkTask} onEdit={(t) => setHomeTask(t.id)} onDelete={(t) => remove("tasks", t.id)} />)}
+                    </ul>
                   ) : <Empty>Nothing due right now.</Empty>}
                   <RecentlyDone tasks={workspace.tasks} onUndo={undoCheck} limit={4} />
                 </Card>
@@ -600,11 +598,34 @@ function TeacherHubPage() {
       )}
       {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(items) => { setWorkspace((p) => addQuickItems(p, items, id)); if (items.task) reminderAdded(items); }} />}
       {homeTask && workspace.tasks.some((t) => t.id === homeTask) && <TaskModal task={workspace.tasks.find((t) => t.id === homeTask) || null} today={TODAY()}
-        onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) }))} onClose={() => setHomeTask(null)} />}
+        onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) }))} onClose={() => setHomeTask(null)} onDelete={() => remove("tasks", homeTask)} />}
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
     </div>
+  );
+}
+
+/** One to-do, the same on every screen: check it off, tap it to change it, pin it, delete it. */
+function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete }: { task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void }) {
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-slate-200 p-3" data-testid="task-row">
+      <input type="checkbox" className="h-6 w-6 shrink-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => onToggle(task)} />
+      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onEdit(task)} aria-label={`Edit ${task.title}`} data-testid="task-edit">
+        <div className={task.done ? "break-words text-slate-400 line-through" : "break-words font-medium"}>{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
+        {task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500" data-testid="task-notes">{task.notes}</p>}
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+          {!task.done && <DueChip date={task.dueDate} today={today} />}
+          {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}</span>}
+          {!task.dueDate && !task.done && <span>No due date</span>}
+          {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
+          {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
+          <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
+        </div>
+      </button>
+      <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
+      <button type="button" aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(task)}><Trash2 className="h-4 w-4" /></button>
+    </li>
   );
 }
 
@@ -825,6 +846,13 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
     setQuick("");
   }
   const toggle = taskChecker(() => workspace.tasks, setWorkspace, toast);
+  /** Takes every finished to-do off the list, with Undo. */
+  function clearFinished() {
+    const { cleared } = clearDone(workspace.tasks);
+    if (!cleared.length) return;
+    setWorkspace((p) => ({ ...p, tasks: clearDone(p.tasks).tasks }));
+    toast(`Cleared ${cleared.length} finished ${cleared.length === 1 ? "to-do" : "to-dos"}.`, [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: restoreTasks(p.tasks, cleared) })) }]);
+  }
   const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
 
   return (
@@ -852,27 +880,15 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
       </Card>
       <Card>
         {shown.length ? <ul className="space-y-2">{shown.map((task) => (
-          <li key={task.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3" data-testid="task-row">
-            <input type="checkbox" className="h-6 w-6 shrink-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => toggle(task)} />
-            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEditing({ id: task.id })} aria-label={`Edit ${task.title}`} data-testid="task-edit">
-              <div className={task.done ? "break-words text-slate-400 line-through" : "break-words font-medium"}>{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                {!task.done && <DueChip date={task.dueDate} today={today} />}
-                {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}</span>}
-                {!task.dueDate && !task.done && <span>No due date</span>}
-                {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
-                {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
-                <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
-              </div>
-            </button>
-            <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
-            <button aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("tasks", task.id)}><Trash2 className="h-4 w-4" /></button>
-          </li>
+          <TaskRow key={task.id} task={task} today={today} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onToggle={toggle} onEdit={(t) => setEditing({ id: t.id })} onDelete={(t) => remove("tasks", t.id)} />
         ))}</ul> : <Empty>{workspace.tasks.length ? (filter === "open" ? "Nothing left to do. Nice work." : "No to-dos match.") : "No tasks yet. Type one above and press Enter."}</Empty>}
+        {filter === "done" && counts.done > 0 && !search.trim() && (
+          <div className="mt-3 text-center"><button type="button" onClick={clearFinished} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" data-testid="clear-done">Clear all {counts.done} finished</button></div>
+        )}
         {filter === "open" && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}
       </Card>
       {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today}
-        onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) }))} onClose={() => setEditing(null)} />}
+        onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) }))} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
     </>
   );
 }
