@@ -50,6 +50,7 @@ import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
+import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { raw } from "express";
@@ -9595,6 +9596,26 @@ Important:
       console.error("[teacher-scenes] delete failed:", error?.message);
       res.status(503).json({ message: "Could not delete that Scene." });
     }
+  });
+
+  // A teacher or the admin emails a student's parent (who needs no account yet) about the program and how to sign up.
+  registerParentInviteEmailRoutes(app, authMiddleware, {
+    getStudent: (id) => storage.getUser(id),
+    getSetting: (key) => storage.getSetting(key),
+    saveSetting: (key, value) => storage.upsertSetting(key, value),
+    parentCode: (studentId) => getOrCreateParentInvite(studentId),
+    linkedParentEmails: async (studentId) => {
+      const emails: string[] = [];
+      for (const parentId of await getStudentParentIds(studentId)) {
+        const parent = await storage.getUser(parentId);
+        if (parent?.role === "parent" && parent.email) emails.push(String(parent.email));
+      }
+      return emails;
+    },
+    emailConfigured,
+    sendEmail,
+    siteUrl: APP_URL,
+    now: () => Date.now(),
   });
 
   // Print-only parent invites. Teachers can print their roster; admins can print all students.

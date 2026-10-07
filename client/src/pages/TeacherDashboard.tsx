@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
 import { printParentInvites } from "@/lib/parentInvites";
+import ParentEmailInvite from "@/components/ParentEmailInvite";
 import NoProctorReview from "@/components/NoProctorReview";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import { PrizeManager } from "@/components/prizes/PrizeManager";
@@ -654,6 +655,7 @@ export default function TeacherDashboard() {
                     <ActionButton onClick={() => void copyText(student.signupUrl, "Signup link")} icon={<Copy size={16}/>}>Copy Link</ActionButton>
                     <ActionButton onClick={() => window.open(student.signupUrl, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={16}/>}>Open Signup</ActionButton>
                   </div>
+                  <div style={{marginTop:16}}><ParentEmailInvite studentId={student.id} studentName={student.displayName} /></div>
                   <div style={{marginTop:16,borderTop:"1px solid rgba(255,255,255,.09)",paddingTop:12}}>
                     <p style={styles.label}>Linked parent / guardian accounts</p>
                     {student.parents.length ? student.parents.map((parent) => <div key={parent.id} style={{...styles.rewardItem,marginTop:8}}><div><strong>{parent.displayName}</strong><p style={styles.quizMeta}>@{parent.username}{parent.email ? " · " + parent.email : ""}</p></div><span style={parent.accountApproved?styles.activeBadge:styles.inactiveBadge}>{parent.accountApproved?"Active":"Pending"}</span></div>) : <p style={styles.quizMeta}>No parent account is linked yet.</p>}

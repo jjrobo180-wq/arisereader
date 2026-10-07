@@ -1,0 +1,70 @@
+// Parent invitations sent by a teacher or the admin: the teacher types a parent's or guardian's
+// email for a student, and the site sends that person an email about the program, what a parent
+// account does, and how to sign up with the student's code. The parent needs no account first.
+//
+// What was sent is kept (per student, newest first) so staff can see who was invited and when.
+
+export const PARENT_INVITE_LOG_KEY = "parent_invite_emails";
+/** One staff member can send this many invitations in a day. A class set and then some. */
+export const STAFF_INVITES_PER_DAY = 80;
+/** The same address is not written to more than this many times in a day, whoever asks. */
+export const INVITES_PER_ADDRESS_PER_DAY = 2;
+/** How many sends are remembered for one student. */
+export const KEPT_PER_STUDENT = 8;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export type SentInvite = { email: string; sentAt: string; by: number; byName: string };
+/** Student id to what was sent for that student, newest first. */
+export type InviteLog = Record<string, SentInvite[]>;
+
+/** A typed email address tidied up (trimmed, lower case), or null when it is not one. */
+export function cleanParentEmail(value: unknown): string | null {
+  const email = String(value ?? "").trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:".]{2,}$/.test(email) ? email : null;
+}
+
+/** The saved log made safe to use, whatever was stored. */
+export function readInviteLog(raw: unknown): InviteLog {
+  let data: unknown = raw;
+  if (typeof raw === "string") { try { data = JSON.parse(raw); } catch { data = null; } }
+  const out: InviteLog = {};
+  if (!data || typeof data !== "object" || Array.isArray(data)) return out;
+  for (const [studentId, list] of Object.entries(data as Record<string, unknown>)) {
+    if (!/^\d+$/.test(studentId) || !Array.isArray(list)) continue;
+    const clean = list
+      .filter((x: any) => x && typeof x === "object" && cleanParentEmail(x.email) && Number.isFinite(Date.parse(String(x.sentAt))))
+      .map((x: any): SentInvite => ({ email: cleanParentEmail(x.email)!, sentAt: new Date(Date.parse(String(x.sentAt))).toISOString(), by: Number(x.by) || 0, byName: String(x.byName || "").slice(0, 80) }))
+      .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+      .slice(0, KEPT_PER_STUDENT);
+    if (clean.length) out[studentId] = clean;
+  }
+  return out;
+}
+
+export const invitesFor = (log: InviteLog, studentId: number): SentInvite[] => log[String(studentId)] || [];
+
+/** The log with one more send on top of that student's list. The log handed in is not changed. */
+export function recordInvite(log: InviteLog, studentId: number, invite: SentInvite): InviteLog {
+  return { ...log, [String(studentId)]: [invite, ...invitesFor(log, studentId)].slice(0, KEPT_PER_STUDENT) };
+}
+
+/** How many invitations in the last day match: sent by this person, or sent to this address. */
+export function sentInLastDay(log: InviteLog, match: { by?: number; email?: string }, nowMs: number): number {
+  let count = 0;
+  for (const list of Object.values(log)) for (const sent of list) {
+    if (nowMs - Date.parse(sent.sentAt) >= DAY_MS) continue;
+    if ((match.by !== undefined && sent.by === match.by) || (match.email !== undefined && sent.email === match.email)) count++;
+  }
+  return count;
+}
+
+/** One line per address for the screen: the latest send to it, and how many times in all. */
+export function inviteSummary(invites: SentInvite[]): { email: string; sentAt: string; byName: string; times: number }[] {
+  const seen = new Map<string, { email: string; sentAt: string; byName: string; times: number }>();
+  for (const sent of [...invites].sort((a, b) => b.sentAt.localeCompare(a.sentAt))) {
+    const had = seen.get(sent.email);
+    if (had) had.times++;
+    else seen.set(sent.email, { email: sent.email, sentAt: sent.sentAt, byName: sent.byName, times: 1 });
+  }
+  return [...seen.values()];
+}

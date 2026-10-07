@@ -1,0 +1,117 @@
+// A teacher or the admin types a parent's email for a student, and the site sends that parent an
+// email about the program, what a parent account does, and how to sign up with the student's code.
+// The parent does not need an account first. Who was invited, and when, is kept with the site's settings.
+import type { Express } from "express";
+import {
+  INVITES_PER_ADDRESS_PER_DAY, PARENT_INVITE_LOG_KEY, STAFF_INVITES_PER_DAY,
+  cleanParentEmail, inviteSummary, invitesFor, readInviteLog, recordInvite, sentInLastDay,
+} from "../shared/parentInvites";
+import { PLANS } from "../shared/plans";
+import { parentProgramEmail } from "./emailFormat";
+
+export type InviteSender = { id: number; displayName?: string | null; username?: string | null; isAdmin?: boolean; role?: string; email?: string | null; accountApproved?: boolean };
+export type InviteStudent = { id: number; displayName?: string | null; role?: string; teacherId?: number | null; isAdmin?: boolean };
+
+export type ParentInviteDeps = {
+  getStudent(id: number): Promise<InviteStudent | null | undefined>;
+  getSetting(key: string): Promise<string | null | undefined>;
+  saveSetting(key: string, value: string): Promise<unknown>;
+  /** The student's parent code, made if there is none yet ("ABCD-EF01-..."). */
+  parentCode(studentId: number): Promise<{ formattedCode: string }>;
+  /** Email addresses of the parent accounts already connected to this student. */
+  linkedParentEmails(studentId: number): Promise<string[]>;
+  emailConfigured(): boolean;
+  sendEmail(to: string, subject: string, html: string, options: { replyTo?: string; fromName?: string }): Promise<{ sent: boolean; error?: string }>;
+  siteUrl: string;
+  now(): number;
+};
+
+type Reply = { status: number; body: Record<string, unknown> };
+const no = (status: number, message: string): Reply => ({ status, body: { message } });
+
+/** The student, if this person may write to their parents: the admin for anyone, a teacher for their own roster. */
+async function reachable(deps: ParentInviteDeps, sender: InviteSender, studentId: unknown): Promise<InviteStudent | Reply> {
+  if (!sender.isAdmin && sender.role !== "teacher") return no(403, "Teacher or admin access required.");
+  if (!sender.isAdmin && sender.accountApproved === false) return no(403, "Teacher account approval required.");
+  const id = Number(studentId);
+  if (!Number.isSafeInteger(id) || id < 1) return no(400, "Choose a student first.");
+  const student = await deps.getStudent(id);
+  if (!student || student.role !== "student" || student.isAdmin || (!sender.isAdmin && student.teacherId !== sender.id)) return no(404, "That student is not on your roster.");
+  return student;
+}
+
+/** Who has been invited for this student. */
+export async function listParentInvites(deps: ParentInviteDeps, sender: InviteSender, studentId: unknown): Promise<Reply> {
+  const student = await reachable(deps, sender, studentId);
+  if ("status" in student) return student;
+  const log = readInviteLog(await deps.getSetting(PARENT_INVITE_LOG_KEY));
+  return { status: 200, body: { invites: inviteSummary(invitesFor(log, student.id)), emailReady: deps.emailConfigured() } };
+}
+
+/** Sends the invitation and remembers it. `origin` is the site's address as the sender sees it ("https://www.arisereader.com"). */
+export async function sendParentInvite(deps: ParentInviteDeps, sender: InviteSender, input: { studentId?: unknown; email?: unknown }, origin: string): Promise<Reply> {
+  const student = await reachable(deps, sender, input?.studentId);
+  if ("status" in student) return student;
+  const email = cleanParentEmail(input?.email);
+  if (!email) return no(400, "Enter the parent's or guardian's email address, like name@example.com.");
+  const studentName = String(student.displayName || "your child").trim();
+  if (!deps.emailConfigured()) return no(503, "Email isn't set up on the site yet, so the invitation could not be sent. You can print the parent letter instead.");
+
+  const linked = (await deps.linkedParentEmails(student.id)).map((e) => cleanParentEmail(e)).filter(Boolean);
+  if (linked.includes(email)) return no(409, `${email} already has a parent account connected to ${studentName}. Nothing was sent.`);
+
+  const log = readInviteLog(await deps.getSetting(PARENT_INVITE_LOG_KEY));
+  const now = deps.now();
+  // Limits keep a typo or a stuck button from filling someone's inbox, which would get all the site's mail marked as junk.
+  if (sentInLastDay(log, { email }, now) >= INVITES_PER_ADDRESS_PER_DAY) return no(429, `${email} has already been sent ${INVITES_PER_ADDRESS_PER_DAY} invitations today. Try again tomorrow, or print the parent letter.`);
+  if (sentInLastDay(log, { by: sender.id }, now) >= STAFF_INVITES_PER_DAY) return no(429, `You have sent ${STAFF_INVITES_PER_DAY} invitations today, which is the most for one day. You can send more tomorrow.`);
+
+  const senderName = String(sender.displayName || sender.username || "Your child's teacher").trim();
+  const { formattedCode } = await deps.parentCode(student.id);
+  const signupUrl = `${origin.replace(/\/+$/, "")}/#/parent-signup?code=${encodeURIComponent(formattedCode)}`;
+  const replyTo = cleanParentEmail(sender.email) || undefined;
+  const result = await deps.sendEmail(
+    email,
+    `${senderName} invited you to follow ${studentName}'s reading on A.R.I.S.E. Reader`,
+    parentProgramEmail({ studentName, senderName, signupUrl, code: formattedCode, siteUrl: deps.siteUrl, maxChildren: PLANS.parentMaxChildren }),
+    { fromName: senderName, ...(replyTo ? { replyTo } : {}) },
+  );
+  if (!result.sent) return no(503, "The invitation could not be sent just now. Nothing was sent. Please try again in a minute.");
+
+  // Read again before saving, so two invitations sent at the same moment are both kept.
+  const fresh = readInviteLog(await deps.getSetting(PARENT_INVITE_LOG_KEY));
+  const next = recordInvite(fresh, student.id, { email, sentAt: new Date(now).toISOString(), by: sender.id, byName: senderName.slice(0, 80) });
+  let remembered = true;
+  try { await deps.saveSetting(PARENT_INVITE_LOG_KEY, JSON.stringify(next)); } catch { remembered = false; }
+  return {
+    status: 200,
+    body: {
+      success: true,
+      message: `Invitation sent to ${email}.${remembered ? "" : " It was sent, but could not be added to the list below."}`,
+      invites: inviteSummary(invitesFor(remembered ? next : fresh, student.id)),
+    },
+  };
+}
+
+/** The two routes: who was invited for a student, and send an invitation. Both need a signed-in teacher or the admin. */
+export function registerParentInviteEmailRoutes(app: Express, auth: any, deps: ParentInviteDeps): void {
+  const origin = (req: any) => `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${req.get("host")}`;
+  app.get("/api/parent-invites/emails/:studentId", auth, async (req: any, res) => {
+    try {
+      const reply = await listParentInvites(deps, req.user, req.params.studentId);
+      res.set("Cache-Control", "no-store").status(reply.status).json(reply.body);
+    } catch (error: any) {
+      console.error("[parent-invite-email] list failed:", error?.message);
+      res.status(500).json({ message: "Could not load who was invited." });
+    }
+  });
+  app.post("/api/parent-invites/email", auth, async (req: any, res) => {
+    try {
+      const reply = await sendParentInvite(deps, req.user, req.body || {}, origin(req));
+      res.set("Cache-Control", "no-store").status(reply.status).json(reply.body);
+    } catch (error: any) {
+      console.error("[parent-invite-email] send failed:", error?.message);
+      res.status(500).json({ message: "The invitation could not be sent. Please try again." });
+    }
+  });
+}
