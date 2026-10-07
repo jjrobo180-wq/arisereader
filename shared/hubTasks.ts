@@ -63,3 +63,19 @@ export function toggleTask(tasks: Task[], id: string, today: string): TaskToggle
   });
   return { tasks: next, rolledTo };
 }
+
+/** The boxes of the to-do pop-up. */
+export type TaskFields = { title: string; dueDate: string; recurring: string; priority: boolean };
+
+/**
+ * Saves the to-do pop-up. A new to-do goes at the end. An edited one stays the same to-do: same place,
+ * same check mark, same "last done". Nothing changes when the name is empty or the to-do is gone.
+ */
+export function saveTask(tasks: Task[], id: string | null, fields: TaskFields, makeId: () => string): Task[] {
+  const title = fields.title.trim().slice(0, 200).trim();
+  if (!title) return tasks;
+  const changes = { title, dueDate: fields.dueDate, recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}) };
+  if (!id) return [...tasks, { id: makeId(), ...changes, done: false }];
+  if (!tasks.some((t) => t.id === id)) return tasks;
+  return tasks.map((t) => { if (t.id !== id) return t; const { priority: _drop, ...rest } = t; return { ...rest, ...changes }; });
+}
