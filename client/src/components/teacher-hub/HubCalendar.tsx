@@ -14,7 +14,7 @@ import { localDay, localZone } from "./HubImport";
 import { HubModal } from "./HubModal";
 import { MyAvailability } from "./HubAvailability";
 import type { FreeWindow } from "@shared/availability";
-import { addMonthsTo, clockOf, isPast, monthGrid, nowParts, openRanges, shiftDay, stillAhead, weekOf, type Now } from "@shared/hubCalendar";
+import { addMonthsTo, agendaDays, clockOf, isPast, monthGrid, nowParts, openRanges, shiftDay, stillAhead, weekOf, type Now } from "@shared/hubCalendar";
 import { addDays } from "@shared/hubDates";
 import { QUICK_TITLE_MAX, addQuickItems, quickItems, type QuickForm, type QuickItems, type QuickKind } from "@shared/hubQuickAdd";
 
@@ -188,8 +188,9 @@ function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete
 /**
  * The calendar with its views (agenda, week, month, open times) and Add event. Used on the Calendar tab and on Home.
  * `onReminderAdded` is told when the pop-up put something in Reminders & to-dos, which this screen does not show.
+ * `agendaToday` (Home) makes Agenda the agenda for today only; Week and Month still show what is ahead.
  */
-export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = "Calendar", onReminderAdded }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; title?: string; onReminderAdded?: (items: QuickItems) => void }) {
+export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = "Calendar", onReminderAdded, agendaToday = false }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; title?: string; onReminderAdded?: (items: QuickItems) => void; agendaToday?: boolean }) {
   const now = useNow();
   const today = now.date;
   const [view, setViewState] = useState<View>(readView);
@@ -207,15 +208,10 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
   const visible = useMemo(() => (showPast ? workspace.events : stillAhead(workspace.events, now)), [workspace.events, showPast, now]);
   const sorted = useMemo(() => [...visible].sort(byWhen), [visible]);
   const onDay = (date: string) => sorted.filter((e) => e.date === date);
-  const days = useMemo(() => {
-    const groups: { date: string; events: HubEvent[] }[] = [];
-    for (const event of sorted) {
-      if (groups[groups.length - 1]?.date === event.date) groups[groups.length - 1].events.push(event);
-      else groups.push({ date: event.date, events: [event] });
-    }
-    return groups;
-  }, [sorted]);
-  const earlier = workspace.events.length - stillAhead(workspace.events, now).length;
+  const days = useMemo(() => agendaDays(sorted, agendaToday ? today : undefined), [sorted, agendaToday, today]);
+  const oneDay = agendaToday && view === "agenda";
+  // How many are hidden because they are over: everything earlier, or just today's on the one-day agenda.
+  const earlier = workspace.events.filter((e) => (!oneDay || e.date === today) && isPast(e, now)).length;
 
   const addQuick = (items: QuickItems) => { setWorkspace((p) => addQuickItems(p, items, makeId)); if (items.task) onReminderAdded?.(items); };
   const removeEvent = (id: string) => setWorkspace((p) => ({ ...p, events: p.events.filter((x) => x.id !== id) }));
@@ -250,6 +246,11 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
                   <ul className="space-y-2">{day.events.map((event) => <EventRow key={event.id} event={event} now={now} names={names} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onDelete={removeEvent} />)}</ul>
                 </section>
               ))}
+            </div>
+          ) : agendaToday ? (
+            <div data-testid="agenda-today-empty">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(today)} · Today</h3>
+              <Empty>{earlier > 0 && !showPast ? "Nothing else on today." : "Nothing on today."} Week and Month show what is coming up.</Empty>
             </div>
           ) : <Empty>Nothing coming up. Tap Add event, connect a calendar, or use Add with AI on a screenshot of your calendar.</Empty>
         )}
