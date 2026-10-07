@@ -4,6 +4,7 @@
 // The page is client/src/pages/TeacherHub.tsx. The workspace is saved as one
 // JSON object per teacher (server/teacherHub.ts).
 
+import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
 import { cleanPins, type Pin } from "./hubPins";
 import type { StepPlan } from "./meetingSteps";
 
@@ -55,9 +56,11 @@ export type ServicePlan = {
   /** The usual time of day ("10:00" to "10:20"), used to fill in a session logged with one tap. */
   start?: string;
   end?: string;
+  /** The block (period) of the day this service usually happens in: the id of one of the teacher's blocks. */
+  block?: string;
 };
 /** Minutes actually delivered on a day. */
-export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string; /** When the session ran ("10:00" to "10:20"), if a time was given. */ start?: string; end?: string };
+export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string; /** When the session ran ("10:00" to "10:20"), if a time was given. */ start?: string; end?: string; /** The block (period) it was given in, when that was said. Without one it goes in its plan's block. */ block?: string };
 export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean };
 
 /** Something on the teacher's calendar. `start` and `end` are "HH:MM", or "" for an all-day event. */
@@ -154,6 +157,8 @@ export type Workspace = {
   calendars: HubCalendar[];
   /** Events the teacher chose not to see: on their calendar, but nothing to do with them. See shared/hubHidden.ts. */
   hiddenEvents?: HiddenRule[];
+  /** The blocks (periods) of the school day that service minutes are sectioned by. Not set means Block 1 to Block 5. See shared/hubBlocks.ts. */
+  minuteBlocks?: SchoolBlock[];
   guides: IepGuide[];
   spedContacts: HubContact[];
   guideLinks: HubLink[];
@@ -190,6 +195,8 @@ export function normalizeWorkspace(raw: any): Workspace {
     .filter((r: any) => r && typeof r === "object" && typeof r.id === "string" && typeof r.title === "string" && r.title.trim())
     .map((r: any): HiddenRule => ({ id: r.id, title: r.title, date: typeof r.date === "string" ? r.date : "", start: typeof r.start === "string" ? r.start : "" }))
     .slice(0, 200);
+  const blocks = cleanBlocks(raw.minuteBlocks);
+  if (blocks) out.minuteBlocks = blocks; else delete out.minuteBlocks;
   return out as Workspace;
 }
 

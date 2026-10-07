@@ -6,6 +6,8 @@ import { friendlyDate } from "@shared/hubDates";
 import { saveNote } from "@shared/hubNotes";
 import { dueWords, studentProfile, type ProfileDate } from "@shared/hubStudentProfile";
 import { planText } from "@shared/hubProgress";
+import { blockName, schoolBlocks } from "@shared/hubBlocks";
+import { sessionBlockName } from "@shared/hubMinutesWeek";
 import { clock12, type HubTab, type Workspace } from "@shared/teacherHub";
 import { Card, Empty, GhostButton, PrimaryButton, Select } from "./ui";
 import { NoteCard, NoteModal } from "./HubNotes";
@@ -64,6 +66,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
   onBack: () => void; onPick: (studentId: string) => void; onOpenTab: (tab: HubTab) => void; onEdit: (studentId: string) => void;
 }) {
   const profile = useMemo(() => studentProfile(workspace, studentId, today), [workspace, studentId, today]);
+  const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
   const [noting, setNoting] = useState(false);
   if (!profile) return <Card title="Student profile"><Empty>That student is no longer on your caseload.</Empty><div className="mt-3"><GhostButton onClick={onBack}><ArrowLeft className="h-4 w-4" /> Back to caseload</GhostButton></div></Card>;
   const { student: s } = profile;
@@ -114,11 +117,11 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
         <Part title="Service minutes" count={profile.services.length} tab="minutes" tabLabel="Minutes" onOpenTab={onOpenTab}>
           <Rows rows={profile.services} empty="No services set up." render={({ plan, status }) => (
             <li key={plan.id} className={row}>
-              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-900">{plan.kind} <span className="text-xs font-normal text-slate-500">· {planText(plan)}</span></span><span className="text-xs font-semibold text-slate-700">{status.thisWeek} of {status.required} min this week</span></div>
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-900">{plan.kind} <span className="text-xs font-normal text-slate-500">· {planText(plan, blockName(blocks, plan.block))}</span></span><span className="text-xs font-semibold text-slate-700">{status.thisWeek} of {status.required} min this week</span></div>
               {(status.remaining > 0 || status.owed > 0) && <div className="mt-1 text-xs text-slate-500">{status.remaining > 0 ? `${status.remaining} min left this week` : "This week is done"}{status.owed > 0 ? ` · ${status.owed} min to make up` : ""}</div>}
             </li>
           )} />
-          {profile.serviceLogs.length > 0 && <div className="mt-3"><div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Sessions logged</div><Rows rows={profile.serviceLogs} empty="" render={(l) => <li key={l.id} className={row}><span className="font-medium text-slate-900">{day(l.date)}</span>{l.start ? ` · ${clock12(l.start)}${l.end ? ` – ${clock12(l.end)}` : ""}` : ""} · {l.kind} · {l.minutes} min{l.note ? <span className="text-slate-500"> · {l.note}</span> : null}</li>} /></div>}
+          {profile.serviceLogs.length > 0 && <div className="mt-3"><div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Sessions logged</div><Rows rows={profile.serviceLogs} empty="" render={(l) => <li key={l.id} className={row}><span className="font-medium text-slate-900">{day(l.date)}</span>{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""} · {l.kind} · {l.minutes} min{l.note ? <span className="text-slate-500"> · {l.note}</span> : null}</li>} /></div>}
         </Part>
 
         <Part title="Meetings" count={profile.meetings.upcoming.length + profile.meetings.past.length} tab="iep" tabLabel="IEP & meetings" onOpenTab={onOpenTab}>

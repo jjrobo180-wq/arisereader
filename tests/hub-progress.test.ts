@@ -72,7 +72,9 @@ test("a plan can be a day guide: these days, this many minutes", () => {
   assert.equal(planFields({ student: "Jordan", kind: "Push-in", perWeek: "", days: ["Mon"], perDay: "" }), null);
   assert.equal(planFields({ student: "", kind: "Push-in", perWeek: "60", days: [], perDay: "" }), null);
   assert.equal(planFields({ student: "Jordan", kind: "Push-in", perWeek: "0", days: [], perDay: "" }), null);
-  assert.equal(planText(made!), "Mon, Tue, Thu · 20 min each · 10:00–10:20");
+  assert.equal(planText(made!), "Mon, Tue, Thu · 20 min each", "a clock time is not shown: the block stands in for it");
+  assert.equal(planText(made!, "Block 2"), "Mon, Tue, Thu · 20 min each · Block 2");
+  assert.equal(planText({ minutesPerWeek: 90 }, "Period 4"), "90 min a week · Period 4");
   assert.equal(planText({ minutesPerWeek: 30, days: { Wed: 30 } }), "Wed · 30 min");
   assert.equal(planText({ minutesPerWeek: 50, days: { Mon: 20, Wed: 30 } }), "Mon 20, Wed 30 min");
   assert.equal(planText({ minutesPerWeek: 90 }), "90 min a week");
@@ -120,7 +122,7 @@ test("the week is shown day by day, and a session on another day is a bonus, nev
   assert.deepEqual([weekly.days, weekly.extra, weekly.plannedToday, weekly.thisWeek], [[], 0, 0, 20]);
 });
 
-test("the Minutes screen offers the time, the day guide and the day-by-day week", () => {
+test("the Minutes screen offers the block, the day guide and the day-by-day week", () => {
   const screen = readFileSync(new URL("../client/src/components/teacher-hub/HubProgress.tsx", import.meta.url), "utf8");
-  for (const part of ['aria-label="From"', 'aria-label="To"', 'data-testid="plan-mode"', '"By the day"', '"By the week"', 'data-testid="minutes-days"', 'data-testid="minutes-today"', 'data-testid="minutes-other"', "never expected", "sessionLog({", "planFields({"]) assert.ok(screen.includes(part), part);
+  for (const part of ['aria-label="Block"', 'data-testid="plan-mode"', '"By the day"', '"By the week"', 'data-testid="minutes-days"', 'data-testid="minutes-today"', 'data-testid="minutes-other"', "never expected", "sessionLog({", "planFields({"]) assert.ok(screen.includes(part), part);
 });
