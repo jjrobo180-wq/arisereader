@@ -1,5 +1,5 @@
 // Type a parent's or guardian's email for a student and the site emails them what A.R.I.S.E. Reader is,
-// what a parent account does, and how to sign up with the student's code. They need no account first.
+// what a parent account does, and how to make theirs with the student's code. The parent does not have to be signed up to be emailed.
 // Used in the admin's student details and on the teacher's Parents screen.
 import { useEffect, useState, type FormEvent } from "react";
 import { Mail } from "lucide-react";
@@ -49,7 +49,7 @@ export default function ParentEmailInvite({ studentId, studentName }: { studentI
   return (
     <div className="rounded-xl border border-border p-3 text-left" data-testid="parent-email-invite">
       <h4 className="flex items-center gap-2 text-sm font-semibold"><Mail className="h-4 w-4 shrink-0" /> Email {first}'s parent</h4>
-      <p className="mt-1 text-xs text-muted-foreground">They don't need an account. They get an email that explains A.R.I.S.E. Reader, what a parent account does, and how to sign up with {first}'s code.</p>
+      <p className="mt-1 text-xs text-muted-foreground">You can email a parent who hasn't signed up. They get an email that explains A.R.I.S.E. Reader, what a parent account does, and how to make theirs with {first}'s code.</p>
       <form onSubmit={(e) => void send(email, e)} className="mt-3 flex flex-col gap-2 sm:flex-row">
         <Input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label={`Parent or guardian email for ${studentName}`} value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} data-testid="parent-email-input" />
         <Button type="submit" disabled={busy || !email.trim()} className="shrink-0" data-testid="parent-email-send">{busy ? "Sending..." : "Send invitation"}</Button>

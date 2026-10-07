@@ -6,6 +6,8 @@
 // the site controls: a whole HTML page instead of a loose fragment, and a footer
 // that names the site and says why the email was sent.
 
+import { inviteBrandHtml } from "../shared/inviteRich";
+
 /** Where the site lives. Links in emails use APP_URL when it is set, and this when it is not. */
 export const DEFAULT_SITE_URL = "https://www.arisereader.com";
 
@@ -79,10 +81,9 @@ export function parentProgramEmail(info: { studentName: string; senderName: stri
   const p = "margin:0 0 12px;line-height:1.6;color:#cbd5e1;font-size:16px;";
   const li = "margin:0 0 8px;line-height:1.55;color:#cbd5e1;font-size:16px;";
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
-  <h1 style="margin:0 0 4px;color:#c4b5fd;font-size:26px;">A.R.I.S.E. Reader</h1>
-  <p style="margin:0;color:#94a3b8;font-size:14px;">Read a book. Take a quiz. Earn points.</p>
+  ${inviteBrandHtml(info.siteUrl || DEFAULT_SITE_URL, "dark")}
   <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">You're invited to follow ${student}'s reading</h2>
-  <p style="${p}">${sender} uses A.R.I.S.E. Reader with ${student} and asked us to send you this. You don't need an account yet. This email explains what the program is and how to join.</p>
+  <p style="${p}">${sender} uses A.R.I.S.E. Reader with ${student} and asked us to send you this. ${first} already has a student account. To follow along you will need a free parent account, and this email explains how to make one.</p>
 
   <h2 style="${h2}">What it is</h2>
   <ul style="margin:0;padding-left:22px;">
@@ -125,6 +126,8 @@ export function familyInviteEmail(info: {
   /** The sender's school and name as they appear on the student sign-up page, when the sender is a teacher there. */
   schoolName?: string; teacherName?: string;
   maxChildren?: number;
+  /** The site's own address, for the logo. */
+  siteUrl?: string;
 }): string {
   const sender = esc(info.senderName || "A teacher");
   const named = String(info.childName || "").trim();
@@ -145,10 +148,9 @@ export function familyInviteEmail(info: {
       ? `On that page, choose the school and the grade, then ${strong(info.teacherName)} as the teacher.`
       : "On that page, choose the school, the grade and the teacher.") + unlisted;
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
-  <h1 style="margin:0 0 4px;color:#c4b5fd;font-size:26px;">A.R.I.S.E. Reader</h1>
-  <p style="margin:0;color:#94a3b8;font-size:14px;">Read a book. Take a quiz. Earn points.</p>
+  ${inviteBrandHtml(info.siteUrl || DEFAULT_SITE_URL, "dark")}
   <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">Your family is invited to read with us</h2>
-  <p style="${p}">${sender} invited you and ${full} to A.R.I.S.E. Reader, a reading site for students and their families. Neither of you needs an account yet. This email explains what it is and how to join. It is free for students and parents.</p>
+  <p style="${p}">${sender} invited you and ${full} to join A.R.I.S.E. Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.</p>
 
   <h2 style="${h2}">What it is</h2>
   <ul style="margin:0;padding-left:22px;">
@@ -194,7 +196,7 @@ export function parentProgramText(info: { studentName: string; senderName: strin
   const text = [
     "Hello,",
     "",
-    `I use A.R.I.S.E. Reader with ${student}, and I'd like to invite you to follow along. It is a reading site for students and their families. You don't need an account yet.`,
+    `I use A.R.I.S.E. Reader with ${student}, and I'd like to invite you to follow along. It is a reading site for students and their families. ${first} already has a student account. You will need a free parent account, which takes about two minutes to make.`,
     "",
     "WHAT IT IS",
     `- ${first} picks a book and reads it.`,
@@ -241,7 +243,7 @@ export function familyInviteText(info: {
   const text = [
     "Hello,",
     "",
-    `I'd like to invite you and ${full} to A.R.I.S.E. Reader, a reading site for students and their families. Neither of you needs an account yet. It is free for students and parents.`,
+    `I'd like to invite you and ${full} to join A.R.I.S.E. Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.`,
     "",
     "WHAT IT IS",
     `- ${Child} picks a book and reads it.`,
