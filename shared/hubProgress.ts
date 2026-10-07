@@ -47,12 +47,94 @@ export function weekStart(date: string): string {
 const delivered = (logs: ServiceLog[], plan: Pick<ServicePlan, "student" | "kind">, from: string, to: string) =>
   logs.filter((l) => l.student === plan.student && l.kind === plan.kind && l.date >= from && l.date <= to).reduce((n, l) => n + (Number(l.minutes) || 0), 0);
 
-export type ServiceStatus = { required: number; thisWeek: number; remaining: number; percent: number; owed: number };
+export const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export type WeekDay = (typeof WEEK_DAYS)[number];
+export const DAY_NAMES: Record<WeekDay, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
 
-/** This week's minutes against the plan, and how many minutes were missed in the 4 weeks before (the make-up owed). */
+const clockMinutes = (hm: unknown) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(hm || "")); return m && Number(m[1]) < 24 && Number(m[2]) < 60 ? Number(m[1]) * 60 + Number(m[2]) : null; };
+const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+/** Minutes from a start time to an end time ("10:00" to "10:20" is 20). null unless both are times and the end is later. */
+export function minutesBetween(start: unknown, end: unknown): number | null {
+  const a = clockMinutes(start), b = clockMinutes(end);
+  return a !== null && b !== null && b > a ? b - a : null;
+}
+
+/** A day guide made safe to use: known days with a whole number of minutes above zero, in week order. */
+export function cleanDayGuide(days: unknown): Partial<Record<WeekDay, number>> {
+  const out: Partial<Record<WeekDay, number>> = {};
+  if (!days || typeof days !== "object" || Array.isArray(days)) return out;
+  for (const day of WEEK_DAYS) {
+    const minutes = Math.round(Number((days as Record<string, unknown>)[day]));
+    if (Number.isFinite(minutes) && minutes > 0) out[day] = Math.min(minutes, 600);
+  }
+  return out;
+}
+
+/** The days in a plan's guide, in week order. Empty when the plan is counted by the week only. */
+export const guideDays = (plan: Pick<ServicePlan, "days">): WeekDay[] => WEEK_DAYS.filter((d) => cleanDayGuide(plan.days)[d]);
+
+/** Minutes a plan asks for in a week: its day guide added up, or the weekly number when there is no guide. */
+export function weeklyMinutes(plan: Pick<ServicePlan, "days" | "minutesPerWeek">): number {
+  const guide = cleanDayGuide(plan.days);
+  const days = WEEK_DAYS.filter((d) => guide[d]);
+  return days.length ? days.reduce((n, d) => n + guide[d]!, 0) : Math.max(0, Number(plan.minutesPerWeek) || 0);
+}
+
+/** "Mon, Tue, Thu · 20 min each" or "60 min a week": the plan in a few words. */
+export function planText(plan: Pick<ServicePlan, "days" | "minutesPerWeek" | "start" | "end">): string {
+  const guide = cleanDayGuide(plan.days);
+  const days = WEEK_DAYS.filter((d) => guide[d]);
+  if (!days.length) return `${weeklyMinutes(plan)} min a week`;
+  const amounts = days.map((d) => guide[d]!);
+  const same = amounts.every((m) => m === amounts[0]);
+  const time = minutesBetween(plan.start, plan.end) !== null ? ` · ${plan.start}–${plan.end}` : "";
+  return same
+    ? `${days.join(", ")} · ${amounts[0]} min${days.length > 1 ? " each" : ""}${time}`
+    : `${days.map((d) => `${d} ${guide[d]}`).join(", ")} min${time}`;
+}
+
+/**
+ * A session to log, tidied up, or null while it can't be logged (no student, or no minutes).
+ * Minutes come from what was typed, or from the start and end time. With a start time the session keeps
+ * its times, and the end follows the minutes (10:00 for 15 minutes ends at 10:15).
+ */
+export function sessionLog(input: { student: string; kind: string; date: string; minutes: unknown; start?: unknown; end?: unknown; note?: string }): Omit<ServiceLog, "id"> | null {
+  const typed = String(input.minutes ?? "").trim() === "" ? null : Math.round(Number(input.minutes));
+  const ranged = minutesBetween(input.start, input.end);
+  const minutes = typed !== null && Number.isFinite(typed) ? typed : ranged;
+  if (!input.student || minutes === null || minutes <= 0 || minutes > 600) return null;
+  const from = clockMinutes(input.start);
+  const times = from !== null ? { start: clock(from), end: clock(Math.min(from + minutes, 1439)) } : {};
+  return { student: input.student, date: input.date, kind: input.kind, minutes, note: String(input.note || "").trim().slice(0, 200), ...times };
+}
+
+/**
+ * One day of this week for a plan with a day guide.
+ * done: the day's minutes were delivered. made up: the day came up short, but the week's total is covered.
+ * short: the day has passed and its minutes are still missing. today / ahead: not over yet.
+ * extra: minutes on a day the guide does not ask for. They count, and the day is never expected again.
+ */
+export type DayStatus = { day: WeekDay; date: string; planned: number; done: number; state: "done" | "made up" | "short" | "today" | "ahead" | "extra" };
+
+export type ServiceStatus = {
+  required: number; thisWeek: number; remaining: number; percent: number; owed: number;
+  /** This week day by day, for a plan with a day guide: its days, and any other day with minutes. Empty without a guide. */
+  days: DayStatus[];
+  /** Minutes this week on days the guide does not ask for. */
+  extra: number;
+  /** What the guide asks for today (0 when today is not one of its days). */
+  plannedToday: number;
+};
+
+/**
+ * This week's minutes against the plan, and how many minutes were missed in the 4 weeks before (the make-up owed).
+ * A week is judged by its total: minutes given on any day count, so a session on a day outside the guide
+ * helps the week and is never held against a later week that does not have one.
+ */
 export function serviceStatus(plan: ServicePlan, logs: ServiceLog[], today: string): ServiceStatus {
   const start = weekStart(today);
-  const required = Math.max(0, Number(plan.minutesPerWeek) || 0);
+  const required = weeklyMinutes(plan);
   const thisWeek = delivered(logs, plan, start, addDays(start, 6));
   let owed = 0;
   const first = plan.since ? weekStart(plan.since) : start; // an older plan with no start day owes nothing from before
@@ -61,5 +143,37 @@ export function serviceStatus(plan: ServicePlan, logs: ServiceLog[], today: stri
     if (from < first) break;
     owed += Math.max(0, required - delivered(logs, plan, from, addDays(from, 6)));
   }
-  return { required, thisWeek, remaining: Math.max(0, required - thisWeek), percent: required ? Math.min(100, Math.round((thisWeek / required) * 100)) : 0, owed };
+  const guide = cleanDayGuide(plan.days);
+  const guided = WEEK_DAYS.some((d) => guide[d]);
+  const days: DayStatus[] = [];
+  let extra = 0, plannedToday = 0;
+  if (guided) {
+    WEEK_DAYS.forEach((day, i) => {
+      const date = addDays(start, i);
+      const planned = guide[day] || 0;
+      const done = delivered(logs, plan, date, date);
+      if (date === today) plannedToday = planned;
+      if (!planned) { if (done > 0) { extra += done; days.push({ day, date, planned: 0, done, state: "extra" }); } return; }
+      const state = done >= planned ? "done" : date > today ? "ahead" : date === today ? "today" : thisWeek >= required ? "made up" : "short";
+      days.push({ day, date, planned, done, state });
+    });
+  }
+  return { required, thisWeek, remaining: Math.max(0, required - thisWeek), percent: required ? Math.min(100, Math.round((thisWeek / required) * 100)) : 0, owed, days, extra, plannedToday };
+}
+
+/** The plan as it will be saved from the form. `days` empty means it is counted by the week. null while it can't be saved. */
+export function planFields(input: { student: string; kind: string; perWeek: unknown; days: WeekDay[]; perDay: unknown; start?: unknown; end?: unknown }): Pick<ServicePlan, "student" | "kind" | "minutesPerWeek" | "days" | "start" | "end"> | null {
+  if (!input.student) return null;
+  const days = WEEK_DAYS.filter((d) => input.days.includes(d));
+  if (!days.length) {
+    const perWeek = Math.round(Number(input.perWeek));
+    return Number.isFinite(perWeek) && perWeek > 0 && perWeek <= 3000 ? { student: input.student, kind: input.kind, minutesPerWeek: perWeek } : null;
+  }
+  const ranged = minutesBetween(input.start, input.end);
+  const typed = String(input.perDay ?? "").trim() === "" ? null : Math.round(Number(input.perDay));
+  const perDay = typed !== null && Number.isFinite(typed) ? typed : ranged;
+  if (perDay === null || perDay <= 0 || perDay > 600) return null;
+  const from = clockMinutes(input.start);
+  const guide = Object.fromEntries(days.map((d) => [d, perDay]));
+  return { student: input.student, kind: input.kind, minutesPerWeek: perDay * days.length, days: guide, ...(from !== null ? { start: clock(from), end: clock(Math.min(from + perDay, 1439)) } : {}) };
 }
