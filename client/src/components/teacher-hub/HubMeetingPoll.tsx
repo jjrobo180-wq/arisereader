@@ -55,6 +55,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
   const [notice, setNotice] = useState("");
   const [box, setBox] = useState<Box | null>(null);
   const [textAvailable, setTextAvailable] = useState(false);
+  const [sendPopup, setSendPopup] = useState<PollView | null>(null);
 
   const loadBox = useCallback(async () => {
     try { setBox(await call(token, "GET", "/api/teacher-hub/mailbox")); } catch { setBox({ connected: null, available: { google: false, microsoft: false } }); }
@@ -107,15 +108,32 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
             pollBody={(meeting, onSent) => (
               <Composer embedded box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account}
                 initial={{ meetingId: meeting.id, title: `${meeting.type}${meeting.student ? ` for ${meeting.student.split(" ")[0]}` : ""}` }}
-                onClose={() => undefined} onSent={(message) => { setNotice(message); void load(); onSent(); }} />
+                onClose={() => undefined} onSent={(message, made) => { setNotice(message); if (made?.sendVia === "self") setSendPopup(made); void load(); onSent(); }} />
             )}
           />
         )}
+        {sendPopup && (() => {
+          const live = polls?.find((x) => x.id === sendPopup.id) ?? sendPopup;
+          return (
+            <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Send the links" data-testid="send-popup">
+              <div className="flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
+                  <h2 className="text-lg font-bold">Send the links</h2>
+                  <button type="button" onClick={() => setSendPopup(null)} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
+                  <SelfSend poll={live} token={token} senderName={live.senderName || workspace.profile.senderName || account.name} chosen={undefined} onChanged={load} setNotice={setNotice} />
+                </div>
+                <div className="border-t border-slate-100 px-4 py-3 sm:px-6"><PrimaryButton onClick={() => setSendPopup(null)}>Done</PrimaryButton></div>
+              </div>
+            </div>
+          );
+        })()}
         {composing && (
           <Composer
             box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account} initial={composing}
             onClose={() => setComposing(null)}
-            onSent={(message) => { setComposing(null); setNotice(message); void load(); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
+            onSent={(message, made) => { setComposing(null); setNotice(message); if (made?.sendVia === "self") setSendPopup(made); void load(); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
           />
         )}
         {polls === null && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
@@ -129,7 +147,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
 
 export function Composer({ box, textAvailable, token, workspace, setWorkspace, account, initial, onClose, onSent, embedded = false }: {
   embedded?: boolean;
-  box: Box | null; textAvailable: boolean; token: string | null; workspace: Workspace; setWorkspace: Setter; account: { name: string; email: string }; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string) => void;
+  box: Box | null; textAvailable: boolean; token: string | null; workspace: Workspace; setWorkspace: Setter; account: { name: string; email: string }; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string, poll?: PollView) => void;
 }) {
   // A pop-up: Escape closes it, and the page behind it stays put.
   useEffect(() => {
@@ -175,7 +193,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
       // Remember the choice for next time.
       setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo } }));
       const fell = data.mailboxProblem ? " Your connected email could not send, so these went out from A.R.I.S.E. Reader instead. Reconnect your email in the box above." : "";
-      if (via === "self") return onSent("Your poll is ready. Below it, use the Email, Text or Copy buttons next to each person to send them their own link.");
+      if (via === "self") return onSent("Your poll is ready. Send each person their link from the window that just opened, or later with “Send links” on the poll.", data.poll);
       onSent((data.notSent ? `Sent, but ${data.notSent} ${data.notSent === 1 ? "email" : "emails"} did not go through. Open the poll to see who.` : `Sent to ${invitees.length} ${invitees.length === 1 ? "person" : "people"}. Their answers will show up here.`) + fell);
     } catch (e: any) { setError(e?.message || "Could not send."); }
     finally { setBusy(false); }
