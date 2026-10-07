@@ -37,7 +37,7 @@ app.use("/api/eye-gaze/my-world/upload", express.raw({
 
 // Teacher Hub: a workspace with a full caseload and connected calendars is bigger than the usual
 // request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
-app.use("/api/teacher-hub/workspace", express.json({ limit: "1mb" }));
+app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make
 // the server read 24 MB just to turn them away.
 app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));
