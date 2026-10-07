@@ -31,7 +31,7 @@ export type Task = { id: string; title: string; dueDate: string; recurring: stri
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
   rolled?: { dueDate: string; lastDone?: string; at: string };
 };
-export type NoteItem = { id: string; student: string; type: string; body: string; date: string };
+export type NoteItem = { id: string; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string };
 export type AriseRecord = { id: string; student: string; book: string; score: string; points: string; date: string };
 export type BehaviorEntry = { id: string; student: string; points: number; reason: string; date: string };
 export type AttendanceEntry = { id: string; student: string; date: string; status: "Present" | "Absent" | "Tardy" | "Excused"; className: string };
@@ -205,7 +205,7 @@ export const HUB_CHOICES = {
   recurring: ["", "Daily", "Weekly", "Monthly", "Quarterly"],
   meetingType: ["Annual IEP", "Reevaluation", "Planning meeting", "Parent meeting", "Progress review", "Other"],
   lessonSubject: ["Math", "Reading", "Writing", "Push-in", "Pull-out", "Other"],
-  noteType: ["Check-in", "Concern", "Meeting note", "Teacher note", "Progress note"],
+  noteType: ["Check-in", "Concern", "Meeting note", "Teacher note", "Progress note", "Staff meeting", "Team meeting", "Department meeting", "Training", "Committee", "General note"],
   attendance: ["Present", "Absent", "Tardy", "Excused"],
   category: ["Classwork", "Quiz", "Test", "Homework", "Project"],
   parentStatus: ["Sent", "Called", "Left voicemail", "Replied", "Acknowledged", "Needs follow-up"],
@@ -240,7 +240,7 @@ export const HUB_IMPORT = {
   },
   notes: {
     label: "Notes", tab: "notes",
-    hint: "A check-in, a concern, meeting notes or any note worth keeping. Keep the teacher's wording.",
+    hint: "A check-in, a concern, meeting notes or any note worth keeping. Keep the teacher's wording. Notes from a staff meeting, a team meeting or a training are not about one student: leave the student empty for those.",
     fields: { student: student(), type: choice("Kind", HUB_CHOICES.noteType, "Teacher note"), date: date("Date", { today: true }), body: text("Note", 4000, { required: true, long: true }) },
   },
   students: {

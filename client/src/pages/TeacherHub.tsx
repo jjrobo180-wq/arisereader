@@ -59,6 +59,8 @@ import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
+import HubNotes from "@/components/teacher-hub/HubNotes";
+import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
@@ -264,6 +266,8 @@ function TeacherHubPage() {
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
 
   const [quickEvent, setQuickEvent] = useState(false);
+  /** The student whose profile is open on the Caseload tab. It stays open while the teacher looks at another tab and comes back. */
+  const [profileStudent, setProfileStudent] = useState<string | null>(null);
   /** Checks a to-do off (or back on) and offers Undo for a few seconds. It can also be undone from "Done in the last day". */
   const checkTask = taskChecker(() => workspace.tasks, setWorkspace, (text, actions) => { toasts.show(text, actions); });
   const undoCheck = (taskId: string) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }));
@@ -574,14 +578,14 @@ function TeacherHubPage() {
           )}
 
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
-          {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
+          {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} openGuide={(guideId) => { setGuideId(guideId); setTab("guide"); }} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} />}
-          {tab === "notes" && <Notes workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
+          {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
           {tab === "attendance" && <Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} />}
@@ -648,7 +652,7 @@ type SectionProps = {
 
 const NO_DETAILS: Omit<Student, "id"> = { name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" };
 
-function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { seats: number | null }) {
+function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfileId, openTab }: SectionProps & { seats: number | null; profileId: string | null; setProfileId: (studentId: string | null) => void; openTab: (tab: HubTab) => void }) {
   const [form, setForm] = useState<Omit<Student, "id">>({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
   // The plan covers this many students; the caseload can't grow past it.
   const full = seats !== null && workspace.students.length >= seats;
@@ -685,6 +689,12 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
   // A new name is carried to the student's meetings, notes, grades and the rest; say so before it is saved.
   const preview = editing ? updateStudent(workspace, editing.id, editing.form) : null;
   const following = preview && preview.ok ? preview.moved : 0;
+
+  // One student's whole picture takes the place of the list until the teacher goes back.
+  if (profileId && workspace.students.some((s) => s.id === profileId)) {
+    return <StudentProfileView workspace={workspace} setWorkspace={setWorkspace} studentId={profileId} today={TODAY()} makeId={id} onBack={() => setProfileId(null)} onPick={setProfileId} onOpenTab={openTab}
+      onEdit={(studentId) => { const student = workspace.students.find((s) => s.id === studentId); setProfileId(null); if (student) startEdit(student); }} />;
+  }
 
   return (
     <>
@@ -748,6 +758,7 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
               <Info label="Accommodations" value={s.accommodations || "—"} />
             </div>
             {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{s.notes}</div>}
+            <button type="button" onClick={() => setProfileId(s.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-900 hover:bg-teal-100" data-testid="hub-student-profile"><Users className="h-4 w-4" /> See everything for {s.name.split(/\s+/)[0]}</button>
           </Card>
         )) : <div className="xl:col-span-2"><Empty>Add students to start your caseload.</Empty></div>}
       </div>
@@ -891,40 +902,6 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
       </Card>
       {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today}
         onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) }))} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
-    </>
-  );
-}
-
-function Notes({ workspace, setWorkspace, remove, studentOptions }: SectionProps & { studentOptions: () => ReactNode }) {
-  const [form, setForm] = useState({ student: "", type: "Check-in", body: "", date: TODAY() });
-  function add(e: FormEvent) {
-    e.preventDefault();
-    if (!form.body.trim()) return;
-    setWorkspace((p) => ({ ...p, notes: [{ id: id(), ...form }, ...p.notes] }));
-    setForm({ student: "", type: "Check-in", body: "", date: TODAY() });
-  }
-  return (
-    <>
-      <Card title="Check-ins, concerns & meeting notes">
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
-          <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })}>{studentOptions()}</Select>
-          <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}><option>Check-in</option><option>Concern</option><option>Meeting note</option><option>Teacher note</option><option>Progress note</option></Select>
-          <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add note</PrimaryButton>
-          <TextArea placeholder="Write note…" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} className="md:col-span-4" required />
-        </form>
-      </Card>
-      <Card title="Notes">
-        {workspace.notes.length ? <div className="space-y-3">{workspace.notes.map((n) => (
-          <div key={n.id} className="rounded-2xl border border-slate-200 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div><div className="font-semibold">{n.student || "General"} · {n.type}</div><div className="text-xs text-slate-500">{n.date}</div></div>
-              <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("notes", n.id)}><Trash2 className="h-4 w-4" /></button>
-            </div>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{n.body}</p>
-          </div>
-        ))}</div> : <Empty>No notes yet.</Empty>}
-      </Card>
     </>
   );
 }
