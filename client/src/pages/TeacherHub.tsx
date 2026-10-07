@@ -522,7 +522,7 @@ function TeacherHubPage() {
                 </div>
               </Card>
 
-              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} />
+              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} agendaToday />
 
               <div className="grid gap-4 xl:grid-cols-3">
                 <Card title="Upcoming IEP / reevaluation meetings">

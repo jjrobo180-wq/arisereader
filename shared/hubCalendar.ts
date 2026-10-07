@@ -28,6 +28,20 @@ export function isPast(event: CalEvent, now: Now): boolean {
 
 export const stillAhead = <T extends CalEvent>(events: T[], now: Now) => events.filter((e) => !isPast(e, now));
 
+/**
+ * The agenda: events (already in order) grouped by day. With `only`, it is that one day's agenda
+ * and nothing from any other day.
+ */
+export function agendaDays<T extends CalEvent>(sorted: T[], only?: string): { date: string; events: T[] }[] {
+  const groups: { date: string; events: T[] }[] = [];
+  for (const event of sorted) {
+    if (only && event.date !== only) continue;
+    if (groups[groups.length - 1]?.date === event.date) groups[groups.length - 1].events.push(event);
+    else groups.push({ date: event.date, events: [event] });
+  }
+  return groups;
+}
+
 /** The seven days (Sunday first) of the week holding `date`. */
 export function weekOf(date: string): string[] {
   const first = shiftDay(date, -weekdayOf(date));
