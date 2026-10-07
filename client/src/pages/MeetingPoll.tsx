@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { CalendarCheck, CheckCircle2, Loader2, MapPin } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
 
 type Answer = "yes" | "maybe" | "no";
 type Poll = {
@@ -26,6 +27,9 @@ export default function MeetingPoll() {
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const { user, token: accountToken } = useAuth();
+  const [linked, setLinked] = useState<"" | "working" | "done">("");
+  const [linkError, setLinkError] = useState("");
 
   useEffect(() => {
     let live = true;
@@ -52,6 +56,16 @@ export default function MeetingPoll() {
       else setDone(true);
     } catch { setError("Could not reach the site. Check your internet and try again."); }
     finally { setSaving(false); }
+  }
+
+  async function addToAccount() {
+    setLinked("working"); setLinkError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/meeting-poll/${encodeURIComponent(token)}/claim`, { method: "POST", headers: { Authorization: `Bearer ${accountToken}` } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { setLinkError(data.message || "Could not add this to your account."); setLinked(""); }
+      else setLinked("done");
+    } catch { setLinkError("Could not reach the site. Try again."); setLinked(""); }
   }
 
   const answered = Object.keys(answers).length;
@@ -109,6 +123,20 @@ export default function MeetingPoll() {
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />} Send my answers
                 </button>
                 {!answered && <p className="mt-2 text-center text-xs text-slate-500">Pick an answer for at least one time.</p>}
+              </>
+            )}
+          </div>
+        )}
+        {poll && user && accountToken && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm" data-testid="poll-link-account">
+            {linked === "done" ? (
+              <p className="font-medium text-emerald-800">Added. You'll find this in your Teacher Hub, under IEP &amp; Meetings. The person who invited you can now see whether you're usually free for these times, if you saved free times there.</p>
+            ) : (
+              <>
+                <p className="font-semibold">You're signed in to A.R.I.S.E.</p>
+                <p className="mt-1 text-slate-600">Add this to your account to answer from your Teacher Hub. The person who invited you will see whether you're usually free for these times, if you saved free times there. They never see your calendar.</p>
+                {linkError && <p role="alert" className="mt-2 text-rose-700">{linkError}</p>}
+                <button type="button" onClick={addToAccount} disabled={linked === "working"} className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 px-4 font-semibold hover:bg-slate-50">Add to my account</button>
               </>
             )}
           </div>

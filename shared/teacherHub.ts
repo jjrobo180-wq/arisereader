@@ -50,7 +50,7 @@ export type HubCalendar = { id: string; name: string; url: string; syncedAt: str
 
 // The IEP guide (shared/hubGuide.ts has its checklist and rules).
 /** Someone on the teacher's special education team. Every teacher keeps their own list; no names are built in. */
-export type HubContact = { id: string; name: string; role: string; email: string };
+export type HubContact = { id: string; name: string; role: string; email: string; /** Weekly free times the teacher saved for this person (shared/availability.ts). */ free?: { day: number; start: string; end: string }[] };
 /** A link the teacher uses for every IEP (a room form, a folder, a deadlines list). */
 export type HubLink = { id: string; label: string; url: string };
 export type GuideStep = { id: string; text: string; done: boolean; note: string };
