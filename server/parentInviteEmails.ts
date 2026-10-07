@@ -141,7 +141,7 @@ export async function sendFamilyInvite(deps: ParentInviteDeps, sender: InviteSen
     `${senderName} invited your family to A.R.I.S.E. Reader`,
     familyInviteEmail({
       senderName, childName: child, registerUrl: `${site}/#/register`, independentUrl: `${site}/#/register-independent`, parentSignupUrl: `${site}/#/parent-signup`,
-      ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren,
+      ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren, siteUrl: deps.siteUrl,
     }),
     { fromName: senderName, ...(replyTo ? { replyTo } : {}) },
   );
