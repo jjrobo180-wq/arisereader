@@ -24,6 +24,8 @@ export type Lesson = { id: string; title: string; subject: string; group: string
 export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
   notes?: string;
+  /** Set when the to-do was made from a saved email (see shared/hubEmails.ts). */
+  emailId?: string;
   /** When it was checked off (a moment, not a day), so it can be offered back for a day. */
   doneAt?: string;
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
@@ -45,7 +47,7 @@ export type Goal = { id: string; student: string; area: string; text: string; ba
 export type ServicePlan = { id: string; student: string; kind: string; minutesPerWeek: number; /** The day the minutes started counting, so weeks before it are never owed. */ since?: string };
 /** Minutes actually delivered on a day. */
 export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string };
-export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string };
+export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean };
 
 /** Something on the teacher's calendar. `start` and `end` are "HH:MM", or "" for an all-day event. */
 export type HubEvent = {
