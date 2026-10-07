@@ -41,6 +41,8 @@ import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
+import { adminBookPoints, registerBookPointsRoutes, rememberAdminPoints, supabaseBookPointsStore } from "./bookPoints";
+import { BOOK_POINTS_MAX, cleanBookPoints } from "../shared/bookPoints";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
@@ -5026,11 +5028,20 @@ export async function registerRoutes(
     return res.json({ band: "K-2" });
   });
 
+  // Book points the admin sets by hand (server/bookPoints.ts).
+  const bookPointsStore = supabaseBookPointsStore(supabase);
+  registerBookPointsRoutes(app, authMiddleware, adminMiddleware, {
+    store: bookPointsStore,
+    clearCaches: () => { for (const key of ["allBooks", "allUsers", "leaderboard", "monthlyLeaderboard", "advisoryLeaderboard", "eye_gaze_leaderboard", "session_"]) clearCache(key); },
+  });
+
   // Admin: Get ALL books (including those without quizzes) for management
   app.get("/api/admin/books", authMiddleware, adminMiddleware, async (_req, res) => {
     try {
       const allBooks = await storage.getAllBooks();
-      res.json(allBooks);
+      // Says which books' points the admin set, so the Library can show it.
+      const byAdmin = await adminBookPoints(bookPointsStore).catch(() => ({} as Record<string, number>));
+      res.json(allBooks.map((b: any) => ({ ...b, pointsSetByAdmin: String(b.id) in byAdmin })));
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -5053,10 +5064,21 @@ export async function registerRoutes(
       }
     }
     const derivedAgeGroup = gradeBand || "Custom";
+    // The points picked on the form are what the book is worth. Bookfinder is still
+    // asked, but only to record the book's AR details beside it.
+    const chosenPoints = cleanBookPoints(pointsValue);
+    if (pointsValue !== undefined && pointsValue !== null && pointsValue !== "" && chosenPoints === null) {
+      return res.status(400).json({ message: `Points must be a number above 0, up to ${BOOK_POINTS_MAX}.` });
+    }
     const book = await storage.createBookWithQuestions(
-      { title, author, ageGroup: derivedAgeGroup, coverUrl, description, pointsValue: 0, readUrl: readUrl || null },
+      { title, author, ageGroup: derivedAgeGroup, coverUrl, description, pointsValue: chosenPoints ?? 0, pointsSetByAdmin: chosenPoints !== null, readUrl: readUrl || null },
       quizQuestions
     );
+    if (chosenPoints !== null) {
+      // Remembered so a later Bookfinder check never replaces it.
+      try { await rememberAdminPoints(bookPointsStore, book.id, chosenPoints); }
+      catch (e: any) { console.error("[book-points] could not remember chosen points", e?.message); }
+    }
     // Save grade band if provided
     if (gradeBand && ["K-2", "3-5", "6-8", "9-12"].includes(gradeBand)) {
       try {

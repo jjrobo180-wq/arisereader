@@ -26,6 +26,7 @@ import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
+import BookPointsDialog from "@/components/admin/BookPointsDialog";
 // charts are only downloaded when the Stats tab is opened
 const AdminStats = lazy(() => import("@/components/admin/AdminStats"));
 import {
@@ -106,6 +107,9 @@ interface BookItem {
   ageGroup: string;
   coverUrl: string | null;
   pointsValue?: number;
+  /** True when the admin chose this book's points (AR BookFinder then leaves them alone). */
+  pointsSetByAdmin?: boolean;
+  arPoints?: number | null;
   readUrl?: string | null;
 }
 
@@ -201,6 +205,8 @@ export default function Admin() {
   const [coverBook, setCoverBook] = useState<BookItem | null>(null);
   const [coverUrl, setCoverUrl] = useState("");
   const [coverSuccess, setCoverSuccess] = useState("");
+  // The book whose points are being set in the Library.
+  const [pointsBook, setPointsBook] = useState<BookItem | null>(null);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const bellActionRef = useRef(-1);
   const [inboxOpen, setInboxOpen] = useState<{ userId: number; nonce: number } | null>(null);
@@ -3426,9 +3432,16 @@ Generate exactly 10 questions.`;
                       )}
                     </div>
                     <p className="text-xs font-medium text-center line-clamp-2">{b.title}</p>
+                    <button
+                      type="button" onClick={() => setPointsBook(b)} data-testid="book-points-open"
+                      aria-label={`${b.pointsValue ?? 0} points for ${b.title}. Change the points.`}
+                      className="min-h-9 rounded-lg px-2 text-xs font-semibold text-primary underline decoration-primary/40 underline-offset-4 hover:bg-muted/40"
+                    >
+                      {b.pointsValue ?? 0} pts{b.pointsSetByAdmin ? " · set by you" : ""}
+                    </button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setCoverBook(b); setCoverUrl(b.coverUrl || ""); setCoverSuccess(""); }}>
                       <ImagePlus className="w-3 h-3 mr-1" />
-                      Update
+                      Cover
                     </Button>
                   </div>
                 ))}
@@ -4925,6 +4938,8 @@ Generate exactly 10 questions.`;
         </DialogContent>
       </Dialog>
 
+      <BookPointsDialog book={pointsBook} token={token || getTokenFromCookie()} onClose={() => setPointsBook(null)} onSaved={fetchBooks} />
+
       <Dialog open={!!coverBook} onOpenChange={(open) => { if (!open) { setCoverBook(null); setCoverUrl(""); setCoverSuccess(""); } }}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
@@ -5034,6 +5049,7 @@ Generate exactly 10 questions.`;
                     <option value={20}>20 pts (Medium)</option>
                     <option value={30}>30 pts (Hard)</option>
                   </select>
+                  <p className="text-xs text-muted-foreground">Students who pass earn exactly this many points. You can change it later in the Library.</p>
                 </div>
               </div>
               {/* Grade Band Suggestion */}

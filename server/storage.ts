@@ -868,9 +868,10 @@ export class DatabaseStorage implements IStorage {
       try { arMetadata = await lookupARBook(book.title, book.author); } catch {}
     }
     const arMatched = arMetadata && (arMetadata.status === "exact" || arMetadata.status === "formula") && arMetadata.points != null;
-    // New regular book quizzes use an official AR value only when Bookfinder verifies it.
+    // The admin's number wins: a value the admin chose (pointsSetByAdmin) is what the book is worth.
+    // Otherwise new regular book quizzes use an official AR value only when Bookfinder verifies it.
     // Internal/special quizzes may explicitly opt out with skipAR.
-    const resolvedPoints = book.skipAR
+    const resolvedPoints = book.skipAR || book.pointsSetByAdmin
       ? Number(book.pointsValue || 0)
       : arMatched
         ? Number(arMetadata.points)
