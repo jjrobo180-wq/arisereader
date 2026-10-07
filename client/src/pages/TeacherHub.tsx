@@ -26,6 +26,8 @@ import {
   Trash2,
   Upload,
   Flag,
+  Moon,
+  Sun,
   Repeat,
   Users,
   WandSparkles,
@@ -36,6 +38,7 @@ import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_SORTS, arrangeTasks, taskCounts, toggleTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
 import { cleanSenderName } from "@shared/hubMeetings";
+import "@/components/teacher-hub/hubNight.css";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, addStudent, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
@@ -227,6 +230,11 @@ function TeacherHubPage() {
   // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
   const [tab, setTab] = useState<HubTab>(() => (/[?&]mailbox=/.test(window.location.search) ? "iep" : "overview"));
   const [customize, setCustomize] = useState(false);
+  // Night mode: the choice is remembered on this phone or computer.
+  const [night, setNight] = useState(() => { try { return localStorage.getItem("arise-hub-night") === "1"; } catch { return false; } });
+  function toggleNight() {
+    setNight((v) => { try { localStorage.setItem("arise-hub-night", v ? "0" : "1"); } catch { /* the choice just isn't remembered */ } return !v; });
+  }
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
   const [adding, setAdding] = useState<{ start?: "photo" | "file" } | null>(null);
   const [added, setAdded] = useState<{ words: string; tab: HubTab | null } | null>(null);
@@ -404,7 +412,7 @@ function TeacherHubPage() {
   const visibleTabs = TAB_META.filter((item) => item.id === "overview" || workspace.visibleTabs[item.id] !== false);
 
   return (
-    <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
+    <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
           <a href={user.isAdmin ? "#/admin" : "#/teacher-dashboard"} className="min-w-0 rounded-xl" aria-label={user.isAdmin ? "Back to admin" : "Back to your dashboard"} title={user.isAdmin ? "Back to admin" : "Back to your dashboard"}>
@@ -413,6 +421,7 @@ function TeacherHubPage() {
           </a>
           <div className="flex items-center gap-2">
             <SaveBadge view={view} />
+            <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
             <button type="button" onClick={() => setAdding({})} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
