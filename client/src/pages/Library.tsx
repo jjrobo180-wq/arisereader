@@ -1,3 +1,4 @@
+import BannerTap from "@/components/BannerTap";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -129,7 +130,7 @@ interface QuizResult {
 }
 
 // Module-level cache — survives component unmount/remount during navigation
-let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; quizCount?: number; studentBanner?: { text: string; bgColor: string; textColor: string; active: boolean } } = {
+let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; quizCount?: number; studentBanner?: { text: string; bgColor: string; textColor: string; active: boolean; link?: string } } = {
   books: [],
   results: [],
   announcement: "",
@@ -161,8 +162,8 @@ export default function Library() {
   const [messageText, setMessageText] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
   const [announcement, setAnnouncement] = useState(libraryCache.announcement);
-  const [studentBanner, setStudentBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>(libraryCache.studentBanner);
-  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>();
+  const [studentBanner, setStudentBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean; link?: string } | undefined>(libraryCache.studentBanner);
+  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean; link?: string } | undefined>();
   const [iAriseBookIds, setIAriseBookIds] = useState<number[]>([]);
   // library ids for the newer Read on Arise books, so their Read buttons open the reader
   const [, setReadsIdsReady] = useState(0);
@@ -1411,7 +1412,7 @@ export default function Library() {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
-          <div className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
+          <BannerTap link={studentBanner.link} cueColor={studentBanner.textColor} className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: studentBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={studentBanner.textColor} strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1420,10 +1421,10 @@ export default function Library() {
             <div className="flex-1">
               <p className="text-sm" style={{ color: studentBanner.textColor }}>{studentBanner.text}</p>
             </div>
-          </div>
+          </BannerTap>
         )}
         {(user?.role === 'teacher' || user?.isAdmin) && teacherBanner && teacherBanner.active && teacherBanner.text && (
-          <div className="mb-3 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3" style={{ backgroundColor: teacherBanner.bgColor + '20', borderColor: teacherBanner.bgColor, borderWidth: 1 }}>
+          <BannerTap link={teacherBanner.link} cueColor={teacherBanner.textColor} className="mb-3 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3" style={{ backgroundColor: teacherBanner.bgColor + '20', borderColor: teacherBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: teacherBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={teacherBanner.textColor} strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1432,7 +1433,7 @@ export default function Library() {
             <div className="flex-1">
               <p className="text-sm" style={{ color: teacherBanner.textColor }}>{teacherBanner.text}</p>
             </div>
-          </div>
+          </BannerTap>
         )}
 
         {/* Announcement banner */}
