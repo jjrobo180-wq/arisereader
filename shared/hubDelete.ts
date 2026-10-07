@@ -14,7 +14,7 @@ const WHAT: Partial<Record<keyof Workspace, string>> = {
   students: "student", meetings: "meeting", lessons: "lesson", tasks: "to-do", notes: "note",
   ariseRecords: "reading record", behavior: "behavior entry", attendance: "attendance entry",
   assignments: "assignment", gradeScores: "score", parentLogs: "contact log", schedules: "schedule block",
-  emails: "email", events: "event", guides: "IEP guide", spedContacts: "contact", guideLinks: "link",
+  emails: "email", events: "event", guides: "IEP guide", spedContacts: "contact", guideLinks: "link", goals: "goal", services: "service plan", serviceLogs: "minutes entry",
 };
 
 const clip = (value: string, max = 40) => (value.length > max ? `${value.slice(0, max - 1)}…` : value);
@@ -34,6 +34,9 @@ function titleOf(key: keyof Workspace, row: any): string {
     case "schedules": return parts(row.student, row.label);
     case "emails": return String(row.subject ?? "");
     case "guides": return parts(row.student, row.kind);
+    case "goals": return parts(row.student, row.area);
+    case "services": return parts(row.student, row.kind);
+    case "serviceLogs": return parts(row.student, row.kind, row.minutes ? `${row.minutes} min` : "");
     case "spedContacts": return String(row.name ?? "");
     case "guideLinks": return String(row.label ?? "");
     default: return "";

@@ -24,6 +24,9 @@ function hub(): Workspace {
     parentLogs: [{ id: "p1", student: "Jordan Lee", guardian: "Ms. Lee", message: "Called", status: "Called", date: "2026-10-02" }],
     schedules: [{ id: "c1", student: "Jordan Lee", day: "Monday", start: "08:00", end: "08:30", label: "Reading" }],
     guides: [{ id: "i1", student: "Jordan Lee", kind: "IEP meeting", sections: [], team: {} }],
+    goals: [{ id: "o1", student: "Jordan Lee", area: "Reading", text: "Read 60 wpm", baseline: 20, target: 60, unit: "wpm", direction: "up", startDate: "", targetDate: "", points: [] }],
+    services: [{ id: "v1", student: "Jordan Lee", kind: "Push-in", minutesPerWeek: 60 }],
+    serviceLogs: [{ id: "l1", student: "Jordan Lee", date: "2026-10-02", kind: "Push-in", minutes: 30, note: "" }],
   });
 }
 
@@ -46,7 +49,7 @@ test("a new name is carried to everything filed under the old one", () => {
   assert.ok(result.ok);
   const w = result.workspace;
   assert.equal(w.students[0].name, "Jordan Lee-Park");
-  assert.equal(result.moved, 9, "one row in each tab that names a student");
+  assert.equal(result.moved, 12, "one row in each tab that names a student");
   for (const list of STUDENT_LISTS) {
     const names = (w[list] as Array<{ student: string }>).map((row) => row.student);
     assert.ok(names.includes("Jordan Lee-Park"), list);

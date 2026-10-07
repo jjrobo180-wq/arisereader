@@ -30,6 +30,14 @@ export type Assignment = { id: string; title: string; category: string; points: 
 export type GradeScore = { id: string; assignmentId: string; student: string; score: number | null; missing: boolean; excused: boolean };
 export type ParentLog = { id: string; student: string; guardian: string; message: string; status: string; date: string };
 export type ScheduleEntry = { id: string; student: string; day: string; start: string; end: string; label: string };
+/** One reading of how a student is doing on a goal. */
+export type GoalPoint = { id: string; date: string; value: number; note: string };
+/** An IEP goal tracked over time. `up` means a higher number is better (accuracy); `down` means lower is better (outbursts a week). */
+export type Goal = { id: string; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
+/** Minutes of a service a student's IEP requires each week. */
+export type ServicePlan = { id: string; student: string; kind: string; minutesPerWeek: number; /** The day the minutes started counting, so weeks before it are never owed. */ since?: string };
+/** Minutes actually delivered on a day. */
+export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string };
 export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string };
 
 /** Something on the teacher's calendar. `start` and `end` are "HH:MM", or "" for an all-day event. */
@@ -80,7 +88,7 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "calendar", "caseload", "iep", "guide", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
+  "overview", "calendar", "caseload", "goals", "minutes", "iep", "guide", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 
@@ -101,6 +109,9 @@ export type Workspace = {
   parentLogs: ParentLog[];
   schedules: ScheduleEntry[];
   emails: EmailItem[];
+  goals: Goal[];
+  services: ServicePlan[];
+  serviceLogs: ServiceLog[];
   events: HubEvent[];
   calendars: HubCalendar[];
   guides: IepGuide[];
@@ -116,12 +127,12 @@ export function emptyWorkspace(): Workspace {
     profile: { school: "", gradeBand: "", subject: "" },
     visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, true])) as Record<HubTab, boolean>,
     students: [], meetings: [], lessons: [], tasks: [], notes: [], ariseRecords: [], behavior: [], attendance: [],
-    assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], events: [], calendars: [],
+    assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], goals: [], services: [], serviceLogs: [], events: [], calendars: [],
     guides: [], spedContacts: [], guideLinks: [], pins: [],
   };
 }
 
-const LISTS = ["students", "meetings", "lessons", "tasks", "notes", "ariseRecords", "behavior", "attendance", "assignments", "gradeScores", "parentLogs", "schedules", "emails", "events", "calendars", "guides", "spedContacts", "guideLinks"] as const;
+const LISTS = ["students", "meetings", "lessons", "tasks", "notes", "ariseRecords", "behavior", "attendance", "assignments", "gradeScores", "parentLogs", "schedules", "emails", "goals", "services", "serviceLogs", "events", "calendars", "guides", "spedContacts", "guideLinks"] as const;
 
 /** A saved workspace made safe to use: every list is a list, even in one saved before a list existed. */
 export function normalizeWorkspace(raw: any): Workspace {
@@ -497,7 +508,7 @@ export function describeHubAdded(result: Pick<HubMergeResult, "added" | "already
 // corrected on the caseload those rows have to follow it.
 
 /** The lists whose rows name a student. */
-export const STUDENT_LISTS = ["meetings", "notes", "ariseRecords", "behavior", "attendance", "gradeScores", "parentLogs", "schedules", "guides"] as const;
+export const STUDENT_LISTS = ["meetings", "notes", "ariseRecords", "behavior", "attendance", "gradeScores", "parentLogs", "schedules", "guides", "goals", "services", "serviceLogs"] as const;
 
 export type StudentChange =
   /** `moved` is how many rows in the other tabs now carry the new name. */
