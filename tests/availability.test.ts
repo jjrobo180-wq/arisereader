@@ -1,7 +1,7 @@
 // Run with: npx tsx --test tests/availability.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanWeekly, fitOption, suggestAnswers } from "../shared/availability";
+import { cleanWeekly, fitOption, suggestAnswers, suggestTimes } from "../shared/availability";
 import { createMemoryAvailabilityStore, createMemoryPollStore, registerMeetingPollRoutes } from "../server/meetingPoll";
 
 function setup() {
@@ -82,4 +82,19 @@ test("staff link a poll from their private link, answer from their account, and 
   assert.equal((await t.call("DELETE /api/teacher-hub/polls-invited/:inviteeId", { params: { inviteeId: mine[0].inviteeId } }, staff)).code, 200);
   const unlinked = (await t.call("GET /api/teacher-hub/polls", {})).body.polls[0].invitees[0];
   assert.equal(unlinked.linked, false); assert.deepEqual(unlinked.fit, {});
+});
+
+test("three times are suggested from the free times, around what is already booked", () => {
+  const weekly = [{ day: 2, start: "14:00", end: "17:00" }, { day: 4, start: "08:00", end: "12:00" }]; // Tuesday afternoons, Thursday mornings
+  const base = { from: "2026-10-07" }; // a Wednesday
+  assert.deepEqual(suggestTimes(weekly, base), [
+    { date: "2026-10-08", start: "08:00", end: "09:00" }, { date: "2026-10-13", start: "14:00", end: "15:00" }, { date: "2026-10-15", start: "08:00", end: "09:00" },
+  ]);
+  const busy = [{ date: "2026-10-13", start: "14:00", end: "15:00" }, { date: "2026-10-08", start: "08:00", end: "12:00" }];
+  assert.deepEqual(suggestTimes(weekly, { ...base, busy }).map((t) => [t.date, t.start]), [["2026-10-13", "15:00"], ["2026-10-15", "08:00"], ["2026-10-20", "14:00"]]);
+  assert.deepEqual(suggestTimes(weekly, { ...base, minutes: 90 })[1], { date: "2026-10-13", start: "14:00", end: "15:30" });
+  assert.deepEqual(suggestTimes([{ day: 2, start: "14:00", end: "14:30" }], { ...base, minutes: 60 }), [], "a window too short for the meeting offers nothing");
+  assert.deepEqual(suggestTimes([], base), []);
+  assert.equal(suggestTimes(weekly, { ...base, skip: 1 })[0].date, "2026-10-20", "a second set carries on from the first");
+  assert.deepEqual(suggestTimes(weekly, { ...base, before: "2026-10-14" }).map((t) => t.date), ["2026-10-08", "2026-10-13", "2026-10-15"], "days before the meeting come first");
 });

@@ -1,7 +1,7 @@
 // Teacher Hub: asking everyone which times work for an IEP or re-evaluation meeting.
 // The teacher offers a few times and picks the people (parents, staff, anyone else).
 // Each gets an email with their own link; answers show up here, and the teacher books a time.
-import { useCallback, useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import MeetingWizard, { type WizardState } from "./HubMeetingSteps";
 import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -9,8 +9,9 @@ import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText
 import { roleLabel } from "@shared/hubGuide";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import type { Workspace } from "@shared/teacherHub";
-import { AnswerEditor, InvitedPolls, MyAvailability } from "./HubAvailability";
-import { FIT_WORDS, fitOption, type Fit, type FreeWindow } from "@shared/availability";
+import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from "./HubAvailability";
+import { localDay } from "./HubImport";
+import { FIT_WORDS, cleanWeekly, fitOption, suggestTimes, type Fit, type FreeWindow } from "@shared/availability";
 import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
 
 type PollView = {
@@ -165,8 +166,12 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [replyTo, setReplyTo] = useState(workspace.profile.replyEmail || account.email);
   const [times, setTimes] = useState([blankTime(), blankTime()]);
   const team = workspace.spedContacts.filter((c) => c.email);
-  const [picked, setPicked] = useState<Record<string, boolean>>({});
-  const [guests, setGuests] = useState<Guest[]>([blankGuest()]);
+  // The meeting's guide already knows the parents and who is on the team: they start ticked and filled in.
+  const meeting = initial.meetingId ? workspace.meetings.find((m) => m.id === initial.meetingId) : undefined;
+  const guide = meeting ? workspace.guides.find((g) => g.student === meeting.student) : undefined;
+  const [picked, setPicked] = useState<Record<string, boolean>>(() => Object.fromEntries(Object.values(guide?.team || {}).filter((id) => team.some((c) => c.id === id)).map((id) => [id, true])));
+  const parents: Guest[] = [[guide?.parent1, guide?.parent1Phone], [guide?.parent2, guide?.parent2Phone]].filter(([n, ph]) => (n || "").trim() || (ph || "").trim()).map(([n, ph]) => ({ name: (n || "").trim(), email: "", phone: (ph || "").trim(), role: "Parent or guardian" }));
+  const [guests, setGuests] = useState<Guest[]>(parents.length ? parents : [blankGuest()]);
   const mailboxReady = !!box?.connected && !box.connected.needsReconnect;
   type Via = "self" | "mailbox" | "site";
   const [sendVia, setSendVia] = useState<Via>("self");
@@ -175,9 +180,48 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const via: Via = pickedVia ? (sendVia === "mailbox" && !mailboxReady ? "self" : sendVia) : (mailboxReady ? "mailbox" : "self");
   const [sendText, setSendText] = useState(false);
   const [textOk, setTextOk] = useState(false);
-  const [seed, setSeed] = useState(true); // the first blank row is replaced by the first role button tapped
+  const [seed, setSeed] = useState(!parents.length); // the first blank row is replaced by the first role button tapped
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  // My weekly free times: the poll's times are suggested from them.
+  const [weekly, setWeekly] = useState<FreeWindow[] | null>(null);
+  const [editWeekly, setEditWeekly] = useState(false);
+  const [savingWeekly, setSavingWeekly] = useState(false);
+  const [length, setLength] = useState(60);
+  const [round, setRound] = useState(0);
+  const [suggestNote, setSuggestNote] = useState("");
+  const today = localDay();
+  useEffect(() => { api(token, "GET", "/api/teacher-hub/availability").then((d) => setWeekly(cleanWeekly(d.weekly))).catch(() => setWeekly([])); }, [token]);
+
+  function suggest(free: FreeWindow[], skip: number, minutes = length) {
+    const busy = workspace.events.filter((e) => e.start && e.meetingId !== initial.meetingId).map((e) => ({ date: e.date, start: e.start, end: e.end }));
+    const before = meeting?.date && meeting.date > today ? meeting.date : undefined;
+    const from = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+    let found = suggestTimes(free, { from, minutes, before, busy, skip });
+    if (!found.length && skip > 0) { setRound(0); found = suggestTimes(free, { from, minutes, before, busy, skip: 0 }); }
+    if (!found.length) { setSuggestNote("None of your free times are long enough for that. Try a shorter meeting or add more free times."); return; }
+    setTimes(found.map((t) => ({ date: t.date, start: t.start, end: t.end })));
+    setSuggestNote(found.length < 3 ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your free times.` : "");
+  }
+  // The first time this opens with no times typed in, the three times are already filled in.
+  const auto = useRef(false);
+  useEffect(() => {
+    if (auto.current || !weekly?.length) return;
+    auto.current = true;
+    if (times.every((t) => !t.date && !t.start)) suggest(weekly, 0);
+  }, [weekly]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function saveWeekly() {
+    if (!weekly) return;
+    setSavingWeekly(true);
+    try {
+      const d = await api(token, "PUT", "/api/teacher-hub/availability", { weekly: cleanWeekly(weekly) });
+      const saved = cleanWeekly(d.weekly);
+      setWeekly(saved); setEditWeekly(false); auto.current = true; setRound(0);
+      if (saved.length) suggest(saved, 0);
+    } catch (e: any) { setError(e?.message || "Could not save your free times."); }
+    finally { setSavingWeekly(false); }
+  }
 
   async function send() {
     setBusy(true); setError("");
@@ -216,6 +260,31 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
 
       <div>
         <div className="mb-2 text-sm font-semibold text-slate-800">Times that could work</div>
+        <div className="mb-3 rounded-2xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950" data-testid="suggest-times">
+          {weekly === null ? <span className="text-slate-600">Looking at your free times…</span> : (!weekly.length || editWeekly) ? (
+            <div className="space-y-3">
+              <div><span className="font-semibold">{weekly.length ? "Your free times" : "Set your free times first."}</span> {weekly.length ? "" : "Then three times you are free are filled in for you."}</div>
+              <WeeklyEditor value={weekly} onChange={setWeekly} label="you are" />
+              <div className="flex flex-wrap gap-2">
+                <PrimaryButton onClick={saveWeekly} disabled={savingWeekly || !cleanWeekly(weekly).length}>{savingWeekly ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save and suggest 3 times</PrimaryButton>
+                {weekly.length > 0 && <GhostButton onClick={() => setEditWeekly(false)}>Cancel</GhostButton>}
+              </div>
+              {!weekly.length && <p className="text-xs text-slate-600">Or skip this and type your own times below.</p>}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div>Suggested from your free times, and clear of anything already on your calendar.</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select aria-label="How long is the meeting" value={length} onChange={(e) => { const m = Number(e.target.value); setLength(m); setRound(0); suggest(weekly, 0, m); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 sm:text-sm">
+                  {[30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} minutes</option>)}
+                </select>
+                <GhostButton onClick={() => { const next = round + 1; setRound(next); suggest(weekly, next); }}>Different times</GhostButton>
+                <GhostButton onClick={() => setEditWeekly(true)}>Edit my free times</GhostButton>
+              </div>
+              {suggestNote && <p className="text-xs text-amber-800" role="status">{suggestNote}</p>}
+            </div>
+          )}
+        </div>
         <div className="space-y-2">
           {times.map((t, index) => (
             <div key={index} className="grid grid-cols-[1fr_auto] items-center gap-2 sm:grid-cols-[1.4fr_1fr_1fr_auto]">
@@ -263,6 +332,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
           ))}
         </div>
         {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add your team's emails on the IEP guide tab and they'll show up here to tick.</p>}
+        {(parents.length > 0 || Object.keys(picked).length > 0) && <p className="mt-2 text-xs text-slate-500">The parents and team from this student's guide are already filled in. Change anyone you like.</p>}
       </div>
 
       <div>

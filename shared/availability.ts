@@ -47,3 +47,41 @@ export function suggestAnswers(weekly: FreeWindow[], options: PollOption[]): Rec
   }
   return out;
 }
+
+// ─── Suggesting times from my free times ────────────────────────────────────
+
+export type TimeSlot = { date: string; start: string; end: string };
+type Busy = { date: string; start: string; end?: string };
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const clock = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const nextDay = (date: string, n: number) => new Date(Date.parse(`${date}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Times to offer in a poll, taken from the weekly free times: the first open stretch of each free day,
+ * skipping anything that overlaps something already on the calendar. One time per day, so the choices are
+ * spread out. With `before` (a meeting date), days before it come first. `skip` moves on to the next set.
+ */
+export function suggestTimes(weekly: FreeWindow[], opts: { from: string; count?: number; minutes?: number; before?: string; busy?: Busy[]; skip?: number }): TimeSlot[] {
+  const free = cleanWeekly(weekly);
+  const count = opts.count ?? 3;
+  const length = Math.max(15, Math.min(480, opts.minutes ?? 60));
+  if (!free.length || Number.isNaN(Date.parse(`${opts.from}T12:00:00Z`))) return [];
+  const found: TimeSlot[] = [];
+  for (let i = 0; i < 56; i++) {
+    const date = nextDay(opts.from, i);
+    const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
+    const taken = (opts.busy || []).filter((b) => b.date === date && TIME.test(b.start || "")).map((b) => [minutes(b.start), b.end && TIME.test(b.end) && minutes(b.end) > minutes(b.start) ? minutes(b.end) : minutes(b.start) + 60] as const);
+    let slot: TimeSlot | null = null;
+    for (const w of free.filter((x) => x.day === dow)) {
+      for (let s = minutes(w.start); s + length <= minutes(w.end) && !slot; s += 15) {
+        if (!taken.some(([from, to]) => s < to && from < s + length)) slot = { date, start: clock(s), end: clock(s + length) };
+      }
+      if (slot) break;
+    }
+    if (slot) found.push(slot);
+  }
+  const ordered = opts.before ? [...found.filter((s) => s.date < opts.before!), ...found.filter((s) => s.date >= opts.before!)] : found;
+  const from = (opts.skip ?? 0) * count;
+  return ordered.slice(from, from + count);
+}
