@@ -3,7 +3,7 @@
 // Outlook, Apple or any other calendar that can be shared as a link).
 import { PinButton } from "./HubPins";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { AlarmClock, AlertTriangle, Bell, Calendar, CalendarClock, Check, ChevronLeft, ChevronRight, Link2, Loader2, MapPin, Pencil, Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { AlarmClock, AlertTriangle, Bell, Calendar, CalendarClock, Check, Clock, List as ListIcon, ChevronLeft, ChevronRight, Link2, Loader2, MapPin, Pencil, Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import {
   HUB_IMPORT_LIMITS, cleanHubImport, clock12, describeHubAdded, mergeHubImport, removeCalendar, replaceCalendarEvents,
@@ -14,7 +14,7 @@ import { localDay, localZone } from "./HubImport";
 import { HubModal } from "./HubModal";
 import { MyAvailability } from "./HubAvailability";
 import type { FreeWindow } from "@shared/availability";
-import { addMonthsTo, agendaDays, clockOf, isPast, monthGrid, nowParts, openRanges, shiftDay, stillAhead, weekOf, type Now } from "@shared/hubCalendar";
+import { addMonthsTo, agendaDays, clockOf, dayTimeline, isPast, monthGrid, nowParts, openRanges, shiftDay, stillAhead, weekOf, type Now } from "@shared/hubCalendar";
 import { addDays } from "@shared/hubDates";
 import { canMove, needsCheck, setEventDone, setEventsDone, snoozeEvent, snoozedTo, snoozesFor, type Snooze } from "@shared/hubEventStatus";
 import { QUICK_TITLE_MAX, addQuickItems, eventEdit, quickItems, updateEvent, type EventEdit, type QuickForm, type QuickItems, type QuickKind } from "@shared/hubQuickAdd";
@@ -133,6 +133,8 @@ export function AddEventModal({ onClose, onAdd, date, start, end, event, onSave,
 const VIEWS = [["agenda", "Agenda"], ["week", "Week"], ["month", "Month"], ["free", "Free time"], ["avail", "Availability"]] as const;
 type View = (typeof VIEWS)[number][0];
 const readDay = (): { from: string; to: string } => { try { const v = JSON.parse(localStorage.getItem("arise-hub-day") || ""); if (/^\d\d:\d\d$/.test(v?.from) && /^\d\d:\d\d$/.test(v?.to) && v.from < v.to) return v; } catch { /* default */ } return { from: "07:30", to: "16:00" }; };
+type DayLook = "list" | "timeline";
+const readDayLook = (): DayLook => { try { return localStorage.getItem("arise-hub-day-look") === "timeline" ? "timeline" : "list"; } catch { return "list"; } };
 const readView = (): View => { try { const v = localStorage.getItem("arise-hub-cal-view"); return VIEWS.some(([k]) => k === v) ? (v as View) : "agenda"; } catch { return "agenda"; } };
 const shortDay = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
@@ -179,6 +181,59 @@ const hostLabel = (url: string) => {
 
 /** How long the Undo for a snooze or a delete stays up. */
 export const UNDO_SECONDS = 10;
+
+const HOUR_PX = 56;
+const hourLabel = (minutes: number) => { const h = Math.floor(minutes / 60) % 24; return `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`; };
+
+/**
+ * One day against the clock: the hours down the side, each event a block as tall as it is long, a line
+ * for right now. Tap an empty hour to add something there; tap one of your own events to change it.
+ */
+function DayTimelineView({ events, date, now, hours, onAdd, onEdit }: { events: HubEvent[]; date: string; now: Now; hours: { from: string; to: string }; onAdd: (start: string, end: string) => void; onEdit: (event: HubEvent) => void }) {
+  const day = useMemo(() => dayTimeline(events, date, hours), [events, date, hours]);
+  const y = (minutes: number) => ((minutes - day.from) / 60) * HOUR_PX;
+  const slots = Array.from({ length: (day.to - day.from) / 60 }, (_, i) => day.from + i * 60);
+  const nowOn = date === now.date && now.minutes >= day.from && now.minutes <= day.to;
+  return (
+    <div data-testid="day-timeline">
+      {day.allDay.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2" data-testid="timeline-all-day">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">All day</span>
+          {day.allDay.map((e) => (canMove(e)
+            ? <button key={e.id} type="button" onClick={() => onEdit(e)} aria-label={`Edit ${e.title}`} className={`min-h-9 max-w-full break-words rounded-lg border border-teal-300 bg-teal-50 px-2.5 text-left text-xs font-semibold text-teal-950 ${e.done ? "line-through opacity-70" : ""}`}>{e.title}</button>
+            : <span key={e.id} className={`inline-flex min-h-9 max-w-full items-center break-words rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-700 ${e.done ? "line-through opacity-70" : ""}`}>{e.title}</span>))}
+        </div>
+      )}
+      <div className="relative" style={{ height: (day.to - day.from) / 60 * HOUR_PX }}>
+        {slots.map((slot) => (
+          <button key={slot} type="button" onClick={() => onAdd(clockOf(slot), clockOf(Math.min(slot + 60, 1439)))} aria-label={`Add an event at ${hourLabel(slot)}`}
+            className="absolute inset-x-0 flex items-start border-t border-slate-200 text-left hover:bg-slate-50" style={{ top: y(slot), height: HOUR_PX }}>
+            <span className="w-12 shrink-0 pt-1 text-[11px] font-semibold text-slate-500">{hourLabel(slot)}</span>
+          </button>
+        ))}
+        <div className="pointer-events-none absolute inset-y-0 left-12 right-0">
+          {day.blocks.map(({ event: e, start, end, lane, lanes }) => {
+            const over = isPast(e, now);
+            const tall = end - start >= 45;
+            const box = { top: y(start) + 1, height: Math.max(y(end) - y(start) - 2, 20), left: `${(lane / lanes) * 100}%`, width: `calc(${100 / lanes}% - 4px)` };
+            const look = `pointer-events-auto absolute overflow-hidden rounded-lg border px-2 py-1 text-left text-xs leading-4 ${canMove(e) ? "border-teal-300 bg-teal-50 text-teal-950" : "border-slate-200 bg-slate-50 text-slate-700"} ${over ? "opacity-60" : ""}`;
+            const text = (
+              <>
+                <span className={`font-semibold ${e.done ? "line-through" : ""} ${tall ? "block break-words" : ""}`}>{e.title}</span>
+                <span className={tall ? "block opacity-80" : "ml-1.5 opacity-80"}>{eventTime(e)}</span>
+              </>
+            );
+            return canMove(e)
+              ? <button key={e.id} type="button" onClick={() => onEdit(e)} aria-label={`Edit ${e.title}, ${eventTime(e)}`} className={look} style={box} data-testid="timeline-event">{text}</button>
+              : <div key={e.id} className={look} style={box} data-testid="timeline-event">{text}</div>;
+          })}
+        </div>
+        {nowOn && <div aria-hidden className="pointer-events-none absolute left-10 right-0 z-10 flex items-center" style={{ top: y(now.minutes) - 4 }} data-testid="timeline-now"><span className="h-2 w-2 rounded-full bg-red-500" /><span className="h-0.5 flex-1 bg-red-500" /></div>}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Tap an empty hour to add something there. Tap one of your events to change it.</p>
+    </div>
+  );
+}
 
 const ROW_ACTION = "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold";
 
@@ -243,6 +298,9 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
   const [dayHours, setDayHours] = useState(readDay);
   const changeDay = (patch: Partial<{ from: string; to: string }>) => setDayHours((d) => { const next = { ...d, ...patch }; try { if (next.from < next.to) localStorage.setItem("arise-hub-day", JSON.stringify(next)); } catch { /* fine */ } return next; });
   const [showPast, setShowPast] = useState(false);
+  // The one-day agenda (Home) can be a list or a timeline against the clock.
+  const [dayLook, setDayLookState] = useState<DayLook>(readDayLook);
+  const setDayLook = (v: DayLook) => { setDayLookState(v); try { localStorage.setItem("arise-hub-day-look", v); } catch { /* fine */ } };
 
   const names = useMemo(() => new Map(workspace.calendars.map((c) => [c.id, c.name])), [workspace.calendars]);
   // What is still ahead right now. Events that are over drop out by themselves as the day goes on.
@@ -253,6 +311,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
   const oneDay = agendaToday && view === "agenda";
   // How many are hidden because they are over: everything earlier, or just today's on the one-day agenda.
   const earlier = workspace.events.filter((e) => (!oneDay || e.date === today) && isPast(e, now)).length;
+  const timeline = oneDay && dayLook === "timeline";
 
   const addQuick = (items: QuickItems) => { setWorkspace((p) => addQuickItems(p, items, makeId)); if (items.task) onReminderAdded?.(items); };
   /** Deletes an event and offers it back for a few seconds, in the place it was. */
@@ -340,19 +399,32 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
           </div>
         )}
 
-        {view === "agenda" && (
+        {oneDay && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(today)} · Today</h3>
+            <div role="tablist" aria-label="Show today as" className="flex gap-1 rounded-xl bg-slate-100 p-1" data-testid="day-look">
+              {([["list", "List", ListIcon], ["timeline", "Timeline", Clock]] as const).map(([key, label, Icon]) => (
+                <button key={key} type="button" role="tab" aria-selected={dayLook === key} onClick={() => setDayLook(key)}
+                  className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${dayLook === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}><Icon className="h-3.5 w-3.5" />{label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {timeline && <DayTimelineView events={workspace.events} date={today} now={now} hours={dayHours} onAdd={(start, end) => setAdding({ date: today, start, end })} onEdit={setEditing} />}
+
+        {view === "agenda" && !timeline && (
           days.length ? (
             <div className="space-y-5">
               {days.map((day) => (
                 <section key={day.date} aria-label={dayLabel(day.date)}>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(day.date)}{day.date === today ? " · Today" : ""}</h3>
+                  {!oneDay && <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(day.date)}{day.date === today ? " · Today" : ""}</h3>}
                   <ul className="space-y-2">{day.events.map((event) => <EventRow key={event.id} event={event} now={now} names={names} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onDelete={removeEvent} onEdit={setEditing} onSnooze={snooze} />)}</ul>
                 </section>
               ))}
             </div>
           ) : agendaToday ? (
             <div data-testid="agenda-today-empty">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(today)} · Today</h3>
               <Empty>{earlier > 0 && !showPast ? "Nothing else on today." : "Nothing on today."} Week and Month show what is coming up.</Empty>
             </div>
           ) : <Empty>Nothing coming up. Tap Add event, connect a calendar, or use Add with AI on a screenshot of your calendar.</Empty>
@@ -455,7 +527,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
           </div>
         )}
 
-        {(view === "agenda" || view === "week" || view === "month") && earlier > 0 && (
+        {(view === "agenda" || view === "week" || view === "month") && !timeline && earlier > 0 && (
           <div className="mt-4 text-center"><button type="button" onClick={() => setShowPast((v) => !v)} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">{showPast ? "Hide events that are over" : `Show ${earlier} that ${earlier === 1 ? "is" : "are"} over`}</button></div>
         )}
         {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addQuick} />}
