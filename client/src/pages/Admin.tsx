@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { refreshNotifications } from "@/lib/notifications";
 import { printParentInvites } from "@/lib/parentInvites";
 import ParentEmailInvite from "@/components/ParentEmailInvite";
+import type { SiteBanner } from "@shared/banners";
 import FamilyEmailInvite from "@/components/FamilyEmailInvite";
 import { cn } from "@/lib/utils";
 import {
@@ -234,9 +235,9 @@ export default function Admin() {
   const [showAdminSortMenu, setShowAdminSortMenu] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementMsg, setAnnouncementMsg] = useState("");
-  const [studentBanner, setStudentBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
-  const [teacherBanner, setTeacherBanner] = useState({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true });
-  const [loginBanner, setLoginBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
+  const [studentBanner, setStudentBanner] = useState<SiteBanner>({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true, link: "" });
+  const [teacherBanner, setTeacherBanner] = useState<SiteBanner>({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true, link: "" });
+  const [loginBanner, setLoginBanner] = useState<SiteBanner>({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true, link: "" });
   const [bannerMsg, setBannerMsg] = useState("");
   const [donationSettings, setDonationSettings] = useState({ goalAmount: 1000, currentAmount: 0, title: "Support Our Readers", description: "Help us keep A.R.I.S.E Reader free for students", donateUrl: "", milestonesText: "", active: false });
   const [donationMsg, setDonationMsg] = useState("");
@@ -3774,6 +3775,7 @@ Generate exactly 10 questions.`;
                 onChange={(e) => setStudentBanner({ ...studentBanner, text: e.target.value })}
                 className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
               />
+              <Input value={studentBanner.link || ""} onChange={(e) => setStudentBanner({ ...studentBanner, link: e.target.value })} placeholder="Opens when tapped (optional): /fall-break" aria-label="Page to open when this banner is tapped" maxLength={200} className="bg-muted/30 border-border text-foreground text-sm" data-testid="studentBanner-link" />
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="text-xs text-muted-foreground">Bg:</label>
@@ -3798,6 +3800,7 @@ Generate exactly 10 questions.`;
                 onChange={(e) => setTeacherBanner({ ...teacherBanner, text: e.target.value })}
                 className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
               />
+              <Input value={teacherBanner.link || ""} onChange={(e) => setTeacherBanner({ ...teacherBanner, link: e.target.value })} placeholder="Opens when tapped (optional): /fall-break" aria-label="Page to open when this banner is tapped" maxLength={200} className="bg-muted/30 border-border text-foreground text-sm" data-testid="teacherBanner-link" />
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="text-xs text-muted-foreground">Bg:</label>
@@ -3832,6 +3835,7 @@ Generate exactly 10 questions.`;
                 placeholder="e.g. Site maintenance tonight at 9 PM. Expect brief downtime."
                 className="bg-muted/30 border-border text-foreground"
               />
+              <Input value={loginBanner.link || ""} onChange={(e) => setLoginBanner({ ...loginBanner, link: e.target.value })} placeholder="Opens when tapped (optional): /fall-break" aria-label="Page to open when this banner is tapped" maxLength={200} className="bg-muted/30 border-border text-foreground text-sm" data-testid="loginBanner-link" />
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">BG</span>

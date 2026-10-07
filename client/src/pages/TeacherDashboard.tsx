@@ -6,6 +6,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
 import { printParentInvites } from "@/lib/parentInvites";
 import ParentEmailInvite from "@/components/ParentEmailInvite";
+import BannerTap from "@/components/BannerTap";
 import FamilyEmailInvite from "@/components/FamilyEmailInvite";
 import NoProctorReview from "@/components/NoProctorReview";
 import PlayTimeManager from "@/components/PlayTimeManager";
@@ -52,7 +53,7 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
-  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | null>(null);
+  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean; link?: string } | null>(null);
   const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
   const [growthCheckData, setGrowthCheckData] = useState<any[]>([]);
 
@@ -676,7 +677,7 @@ export default function TeacherDashboard() {
       {tab === "pending" && (loading ? <p style={styles.muted}>Loading...</p> : <div style={styles.pendingList}>{pending.length ? pending.map((student) => <article key={student.id} style={styles.pendingCard} data-testid={`card-pending-student-${student.id}`}><div><h2 style={styles.studentName}>{name(student)}</h2><p style={styles.username}>@{student.username}</p></div><button onClick={() => void approve(student.id)} style={styles.approveButton} data-testid={`button-approve-student-${student.id}`}><Check size={18} /> Approve</button></article>) : <div style={styles.empty}>No pending students</div>}</div>)}
 
       {/* === PROCTOR TAB === */}
-      {tab === "proctor" && <div style={{ maxWidth: 600, margin: "0 auto" }}>{teacherBanner && teacherBanner.active && teacherBanner.text ? <div style={{ ...styles.bannerCard, background: teacherBanner.bgColor, color: teacherBanner.textColor }}>{teacherBanner.text}</div> : null}<div style={styles.proctorCard}><h2 style={styles.proctorTitle}><KeyRound size={22} /> Proctor Password</h2><p style={styles.proctorDesc}>Students use this password to enter proctor mode. Share it only when proctoring a quiz.</p><div style={styles.proctorDisplay}><code style={styles.proctorCode}>{proctorPassword || "Not set"}</code><button onClick={() => { if (proctorPassword) navigator.clipboard?.writeText(proctorPassword).catch(() => {}); }} style={styles.copyBtn}>Copy</button></div></div></div>}
+      {tab === "proctor" && <div style={{ maxWidth: 600, margin: "0 auto" }}>{teacherBanner && teacherBanner.active && teacherBanner.text ? <BannerTap link={teacherBanner.link} style={{ ...styles.bannerCard, display: "flex", gap: 12, alignItems: "flex-start", background: teacherBanner.bgColor, color: teacherBanner.textColor }}><span style={{ minWidth: 0 }}>{teacherBanner.text}</span></BannerTap> : null}<div style={styles.proctorCard}><h2 style={styles.proctorTitle}><KeyRound size={22} /> Proctor Password</h2><p style={styles.proctorDesc}>Students use this password to enter proctor mode. Share it only when proctoring a quiz.</p><div style={styles.proctorDisplay}><code style={styles.proctorCode}>{proctorPassword || "Not set"}</code><button onClick={() => { if (proctorPassword) navigator.clipboard?.writeText(proctorPassword).catch(() => {}); }} style={styles.copyBtn}>Copy</button></div></div></div>}
 
       {/* === GRADE CHANGES TAB === */}
       {tab === "grade-changes" && <div style={styles.pendingList}>{gradeChangeRequests.length ? gradeChangeRequests.map((req) => <div key={req.id} style={styles.pendingCard}><div><h2 style={styles.studentName}>{req.studentName}</h2><p style={styles.username}>Current: Grade {req.currentGrade} → Requested: Grade {req.requestedGrade}</p></div><div style={{ display: "flex", gap: 8 }}><button onClick={() => void handleGradeChange(req.id, "approve")} style={styles.approveButton}><Check size={16} /> Approve</button><button onClick={() => void handleGradeChange(req.id, "deny")} style={styles.rejectBtn}><X size={16} /> Deny</button></div></div>) : <div style={styles.empty}>No grade change requests</div>}</div>}

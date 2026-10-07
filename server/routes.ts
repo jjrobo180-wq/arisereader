@@ -9,6 +9,7 @@ import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
+import { withBannerLink } from "../shared/banners";
 import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
@@ -8605,8 +8606,8 @@ Important:
   // Admin: Update login banner
   app.put("/api/admin/banners/login", authMiddleware, adminMiddleware, async (req, res) => {
     try {
-      const { text, bgColor, textColor, active } = req.body;
-      const banner = { text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false };
+      const { text, bgColor, textColor, active, link } = req.body;
+      const banner = withBannerLink({ text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false }, link);
       await storage.upsertSetting('login_banner', JSON.stringify(banner));
       res.json({ success: true, banner });
     } catch (error: any) {
@@ -8668,8 +8669,8 @@ Important:
   // Admin: Update student banner
   app.put("/api/admin/banners/student", authMiddleware, adminMiddleware, async (req, res) => {
     try {
-      const { text, bgColor, textColor, active } = req.body;
-      const banner = { text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false };
+      const { text, bgColor, textColor, active, link } = req.body;
+      const banner = withBannerLink({ text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false }, link);
       await storage.upsertSetting('student_banner', JSON.stringify(banner));
       res.json({ success: true, banner });
     } catch (error: any) {
@@ -8680,8 +8681,8 @@ Important:
   // Admin: Update teacher banner
   app.put("/api/admin/banners/teacher", authMiddleware, adminMiddleware, async (req, res) => {
     try {
-      const { text, bgColor, textColor, active } = req.body;
-      const banner = { text: text || '', bgColor: bgColor || '#3b82f6', textColor: textColor || '#ffffff', active: active !== false };
+      const { text, bgColor, textColor, active, link } = req.body;
+      const banner = withBannerLink({ text: text || '', bgColor: bgColor || '#3b82f6', textColor: textColor || '#ffffff', active: active !== false }, link);
       await storage.upsertSetting('teacher_banner', JSON.stringify(banner));
       res.json({ success: true, banner });
     } catch (error: any) {
