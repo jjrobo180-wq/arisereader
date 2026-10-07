@@ -254,20 +254,20 @@ test("a switch that hits a problem says so, and finishes on the next try without
   assert.deepEqual(db.totals, { 101: 25, 102: 0, 103: 12, 104: 10 }, "Hard Luck's 7 is added once; the other book's 5 becomes 15");
 });
 
-test("a switch cut off by a restart is picked up again a few minutes later, not left for good", async () => {
+test("a switch cut off by a restart is picked up again within a minute, not left for good", async () => {
   // The server restarted three times in a row while the first switch was at work:
   // it was left marked as running with one book done and one not.
   const db = library();
   db.settings[BOOK_POINTS_SYSTEM_KEY] = JSON.stringify({ system: "arise-2", state: "running", at: "2026-10-07T04:16:00.000Z", books: 1, attempts: 1, students: 1 });
 
   // Straight after the restart it could still be at work somewhere, so it is left alone...
-  assert.equal(await switchLibraryToArisePoints(db.store, AT("04:17:00")), null);
+  assert.equal(await switchLibraryToArisePoints(db.store, AT("04:16:30")), null);
   assert.equal(db.points(HARD_LUCK), 3);
-  assert.equal((await switchStatus(db.store, AT("04:17:00"))).state, "running");
-  // ...but once it has plainly gone quiet it is picked up, and counts on from where it was.
-  assert.deepEqual(await switchStatus(db.store, AT("04:20:00")), { state: "waiting", at: "2026-10-07T04:16:00.000Z", left: 2, books: 1, attempts: 1, students: 1 });
-  const summary = await switchLibraryToArisePoints(db.store, AT("04:20:00"));
-  assert.deepEqual(summary, { system: "arise-2", state: "done", at: "2026-10-07T04:20:00.000Z", books: 3, attempts: 4, students: 3 });
+  assert.equal((await switchStatus(db.store, AT("04:16:30"))).state, "running");
+  // ...but within a minute it has plainly gone quiet, so it is picked up, and counts on from where it was.
+  assert.deepEqual(await switchStatus(db.store, AT("04:17:00")), { state: "waiting", at: "2026-10-07T04:16:00.000Z", left: 2, books: 1, attempts: 1, students: 1 });
+  const summary = await switchLibraryToArisePoints(db.store, AT("04:17:00"));
+  assert.deepEqual(summary, { system: "arise-2", state: "done", at: "2026-10-07T04:17:00.000Z", books: 3, attempts: 4, students: 3 });
   assert.equal(db.points(HARD_LUCK), 10);
 
   // A finished switch under the earlier rules does not stop this one from running once.
@@ -288,6 +288,24 @@ test("a long switch keeps checking in, so it is not mistaken for one that was cu
   db.store.setBookPoints = async (id, points) => { clock += 20_000; return setBook(id, points); }; // each book takes 20 seconds
   await switchLibraryToArisePoints(db.store, () => clock);
   assert.deepEqual(saves, ["2026-10-07T04:00:00.000Z", "2026-10-07T04:00:20.000Z", "2026-10-07T04:00:40.000Z", "2026-10-07T04:00:40.000Z"]);
+
+  // One popular book with many students: it checks in while it works through them, never going quiet for long.
+  const crowd = memoryStore({
+    books: [ar(HARD_LUCK, 3)],
+    attempts: Array.from({ length: 40 }, (_, i) => ({ id: i + 1, book_id: HARD_LUCK, user_id: 200 + i, score: 9, total: 10, points_earned: 3 })),
+    totals: {},
+  });
+  let time = Date.parse("2026-10-07T05:00:00Z");
+  const beats: number[] = [];
+  const keep = crowd.store.saveSetting;
+  crowd.store.saveSetting = async (key, value) => { if (key === BOOK_POINTS_SYSTEM_KEY) beats.push(Date.parse(JSON.parse(value).at)); return keep(key, value); };
+  const setAttempt = crowd.store.setAttemptPoints, setTotal = crowd.store.setStudentTotal;
+  crowd.store.setAttemptPoints = async (id, points) => { time += 2_000; return setAttempt(id, points); };  // every change takes 2 seconds
+  crowd.store.setStudentTotal = async (id, total) => { time += 2_000; return setTotal(id, total); };
+  await switchLibraryToArisePoints(crowd.store, () => time);
+  const gaps = beats.slice(1).map((beat, i) => beat - beats[i]);
+  assert.ok(beats.length > 20 && Math.max(...gaps) <= 6_000, `longest quiet spell was ${Math.max(...gaps)} ms`);
+  assert.deepEqual(Object.values(crowd.totals), Array(40).fill(7));
 });
 
 test("the site keeps at the switch until it is finished", async () => {

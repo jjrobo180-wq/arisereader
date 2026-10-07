@@ -134,10 +134,10 @@ export async function setBookPointsByAdmin(store: BookPointsStore, bookId: numbe
 export const BOOK_POINTS_SYSTEM_KEY = "book_points_system";
 /** Raised when the switch's rules change, so every site runs the new pass once. */
 const SYSTEM = "arise-2";
-/** A running switch checks in at least this often... */
-const CHECK_IN_MS = 15_000;
+/** A running switch checks in at least this often (after every single change it makes, if that long has passed)... */
+const CHECK_IN_MS = 5_000;
 /** ...so one that has been quiet this long was cut off (the server restarted) and can be picked up again. */
-const QUIET_FOR_MS = 3 * 60_000;
+const QUIET_FOR_MS = 45_000;
 
 export type SwitchSummary = {
   system: string; state: "running" | "stopped" | "done"; at: string;
@@ -246,10 +246,12 @@ async function runSwitch(store: BookPointsStore, summary: SwitchSummary, now: ()
   // Books students hold points for: correct the students first, then the book.
   for (const change of changes.filter((c) => earned.has(c.id))) {
     const plan = planRescore(await store.attempts(change.id), change.to, change.from);
-    for (const attempt of plan.attempts) await store.setAttemptPoints(attempt.id, attempt.points);
+    // A popular book can have many students, so it checks in along the way, not only between books.
+    for (const attempt of plan.attempts) { await store.setAttemptPoints(attempt.id, attempt.points); await checkIn(); }
     for (const [userId, difference] of plan.students) {
       await store.setStudentTotal(userId, movedTotal(await store.studentTotal(userId), difference));
       students.add(userId);
+      await checkIn();
     }
     await store.setBookPoints(change.id, change.to);
     summary.books += 1;
@@ -283,10 +285,10 @@ export function keepSwitching(
   onDone: (summary: SwitchSummary) => void,
   options: { againMs?: number; tries?: number; later?: (run: () => void, ms: number) => unknown; log?: (message: string) => void } = {},
 ): () => void {
-  const againMs = options.againMs ?? 2 * 60_000;
+  const againMs = options.againMs ?? 30_000;
   const later = options.later ?? ((run, ms) => setTimeout(run, ms));
   const log = options.log ?? ((message) => console.error(message));
-  let triesLeft = options.tries ?? 90;
+  let triesLeft = options.tries ?? 240;
   let waiting = false;
   const again = () => {
     if (waiting || triesLeft <= 0) return;

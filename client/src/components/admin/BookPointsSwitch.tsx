@@ -84,7 +84,7 @@ export default function BookPointsSwitch({ token, onChanged }: { token: string |
                 ? `${count(status.left, "book", "books")} to go. You can leave this page; it carries on.`
                 : status.state === "stopped"
                   ? `The switch stopped${status.error ? ` (${status.error})` : ""}. It tries again by itself, or you can start it now.`
-                  : "The switch picks up by itself within a couple of minutes, or you can start it now."}
+                  : "The switch picks up by itself within a minute, or you can start it now."}
             </p>
           </div>
           {!working && <Button size="sm" onClick={start} disabled={busy} className="shrink-0" data-testid="book-points-switch-start">{busy ? "Starting..." : "Switch them now"}</Button>}
