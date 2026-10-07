@@ -2,7 +2,8 @@ import { monthStartMs, nextYearMonth } from "./schoolTime";
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
-import { lookupARBook } from "./arBookfinder";
+import { lookupPages } from "./bookPages";
+import { cleanPages, pointsForBook } from "../shared/bookPoints";
 
 let bookQuizzes: any[] = [];
 
@@ -152,13 +153,6 @@ function mapBook(row: any) {
     description: row.description,
     pointsValue: Number(row.points_value ?? 0),
     readUrl: row.read_url || null,
-    arQuizNumber: row.ar_quiz_number ?? null,
-    arBookLevel: row.ar_book_level == null ? null : Number(row.ar_book_level),
-    arWordCount: row.ar_word_count ?? null,
-    arPoints: row.ar_points == null ? null : Number(row.ar_points),
-    arMatchStatus: row.ar_match_status || "unverified",
-    arSourceUrl: row.ar_source_url || null,
-    arVerifiedAt: row.ar_verified_at || null,
   };
 }
 
@@ -863,18 +857,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBookWithQuestions(book: any, quizQuestions: any[]) {
-    let arMetadata: any = null;
-    if (!book.skipAR && book.title && book.author) {
-      try { arMetadata = await lookupARBook(book.title, book.author); } catch {}
+    // A.R.I.S.E.'s own points (shared/bookPoints.ts). A value the admin chose
+    // (pointsSetByAdmin), or one the caller fixes for the site's own reads, news and
+    // lessons (keepPoints), is used as it is. Every other new book quiz is worked out
+    // from the book's length and grade band; the page count comes from the caller or,
+    // failing that, from Open Library.
+    let resolvedPoints = Number(book.pointsValue || 0);
+    if (!book.keepPoints && !book.pointsSetByAdmin) {
+      let pages = cleanPages(book.pages);
+      if (pages === null && book.title && book.author) pages = await lookupPages(book.title, book.author);
+      resolvedPoints = pointsForBook({ band: book.gradeBand || book.ageGroup, pages });
     }
-    const arMatched = arMetadata && (arMetadata.status === "exact" || arMetadata.status === "formula") && arMetadata.points != null;
-    // New regular book quizzes use an official AR value only when Bookfinder verifies it.
-    // Internal/special quizzes may explicitly opt out with skipAR.
-    const resolvedPoints = book.skipAR
-      ? Number(book.pointsValue || 0)
-      : arMatched
-        ? Number(arMetadata.points)
-        : 0;
     const { data: created, error: bookError } = await supabase
       .from("books")
       .insert({
@@ -885,13 +878,6 @@ export class DatabaseStorage implements IStorage {
         description: book.description || "",
         points_value: resolvedPoints,
         read_url: book.readUrl || null,
-        ar_quiz_number: arMetadata?.quizNumber ?? null,
-        ar_book_level: arMetadata?.bookLevel ?? null,
-        ar_word_count: arMetadata?.wordCount ?? null,
-        ar_points: arMetadata?.points ?? null,
-        ar_match_status: arMetadata?.status || "unverified",
-        ar_source_url: arMetadata?.sourceUrl ?? null,
-        ar_verified_at: arMetadata ? new Date().toISOString() : null,
       })
       .select()
       .single();

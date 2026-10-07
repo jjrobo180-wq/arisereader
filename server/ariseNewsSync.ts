@@ -31,7 +31,7 @@ export async function syncNewsBooks(store: NewsStore, articles: NewsArticle[] = 
     const existing = books.find((b) => b.title === a.title && b.author === NEWS_AUTHOR);
     if (existing) { map[a.slug] = Number(existing.id); changed = true; continue; }
     const created = await store.createBookWithQuestions(
-      { title: a.title, author: NEWS_AUTHOR, ageGroup: a.grades, coverUrl: newsCoverUrl(a), description: a.dek, pointsValue: NEWS_POINTS, readUrl: null, skipAR: true },
+      { title: a.title, author: NEWS_AUTHOR, ageGroup: a.grades, coverUrl: newsCoverUrl(a), description: a.dek, pointsValue: NEWS_POINTS, readUrl: null, keepPoints: true },
       a.questions.map((q) => ({ question: q.question, options: q.options, correct: q.correct })),
     );
     map[a.slug] = Number(created.id); changed = true;
