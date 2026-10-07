@@ -58,7 +58,8 @@ import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
-import HubCalendarTab, { byWhen, dayLabel, eventTime, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
+import HubCalendarTab, { AddEventModal, byWhen, dayLabel, eventTime, useCalendarRefresh, useNow } from "@/components/teacher-hub/HubCalendar";
+import { stillAhead } from "@shared/hubCalendar";
 import HubGuideTab from "@/components/teacher-hub/HubGuide";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 
@@ -260,10 +261,10 @@ function TeacherHubPage() {
   // Connected calendars are read again when the Hub opens.
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
 
-  const upcomingEvents = useMemo(() => {
-    const today = TODAY();
-    return workspace.events.filter((e) => e.date >= today).sort(byWhen).slice(0, 6);
-  }, [workspace.events]);
+  // "Coming up" follows the clock: an event leaves the list once it is over.
+  const now = useNow();
+  const [quickEvent, setQuickEvent] = useState(false);
+  const upcomingEvents = useMemo(() => stillAhead(workspace.events, now).sort(byWhen).slice(0, 6), [workspace.events, now]);
 
   /** Adds what the teacher checked in "Add with AI", and says what happened. */
   function addFound(items: HubImportItems) {
@@ -593,6 +594,13 @@ function TeacherHubPage() {
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
         </main>
       </div>
+      {canUseHub && loaded && !loadError && !needsPlan && (
+        <button type="button" onClick={() => setQuickEvent(true)} aria-label="Add an event" data-testid="quick-add-event"
+          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-base font-semibold text-white shadow-lg hover:bg-teal-700">
+          <Plus className="h-5 w-5" /> Event
+        </button>
+      )}
+      {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(event) => setWorkspace((p) => ({ ...p, events: [...p.events, { ...event, id: id() }] }))} />}
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
