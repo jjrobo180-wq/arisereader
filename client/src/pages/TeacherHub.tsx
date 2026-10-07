@@ -59,6 +59,7 @@ import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
+import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import HubGuideTab from "@/components/teacher-hub/HubGuide";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 
@@ -261,6 +262,8 @@ function TeacherHubPage() {
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
 
   const [quickEvent, setQuickEvent] = useState(false);
+  /** A reminder added from the pop-up lands on another screen, so say where it went. */
+  const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
 
   /** Adds what the teacher checked in "Add with AI", and says what happened. */
   function addFound(items: HubImportItems) {
@@ -519,7 +522,7 @@ function TeacherHubPage() {
                 </div>
               </Card>
 
-              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" />
+              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} />
 
               <div className="grid gap-4 xl:grid-cols-3">
                 <Card title="Upcoming IEP / reevaluation meetings">
@@ -561,7 +564,7 @@ function TeacherHubPage() {
             </>
           )}
 
-          {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} />}
+          {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
           {tab === "goals" && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
@@ -580,12 +583,12 @@ function TeacherHubPage() {
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <button type="button" onClick={() => setQuickEvent(true)} aria-label="Add an event" data-testid="quick-add-event"
+        <button type="button" onClick={() => setQuickEvent(true)} aria-label="Add an event or a reminder" data-testid="quick-add-event"
           className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-base font-semibold text-white shadow-lg hover:bg-teal-700">
           <Plus className="h-5 w-5" /> Event
         </button>
       )}
-      {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(event) => setWorkspace((p) => ({ ...p, events: [...p.events, { ...event, id: id() }] }))} />}
+      {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(items) => { setWorkspace((p) => addQuickItems(p, items, id)); if (items.task) reminderAdded(items); }} />}
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
