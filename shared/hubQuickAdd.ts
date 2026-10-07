@@ -54,3 +54,28 @@ export function quickAddedMessage(items: QuickItems): string {
   if (items.task) return "Added to Reminders & to-dos.";
   return items.event ? "Added to your calendar." : "";
 }
+
+/** The boxes of the "Edit event" pop-up. */
+export type EventEdit = { title: string; date: string; start: string; end: string; location: string; notes: string };
+
+/** An edited event tidied up, or null while it can't be saved (no name, or no day). */
+export function eventEdit(form: EventEdit): Omit<HubEvent, "id"> | null {
+  const event = quickItems({ kind: "event", alsoRemind: false, ...form })?.event;
+  return event ? { ...event, notes: form.notes.trim() } : null;
+}
+
+/**
+ * The workspace with one event changed in place: same event, same spot in the list, and a pin on it
+ * follows along. An event from a connected calendar is read again from that calendar, so it is left as it is.
+ */
+export function updateEvent(workspace: Workspace, eventId: string, form: EventEdit): Workspace {
+  const fields = eventEdit(form);
+  const old = workspace.events.find((e) => e.id === eventId);
+  if (!fields || !old || old.calendarId) return workspace;
+  return {
+    ...workspace,
+    // Moved to another day or time, it has not happened yet, so its check mark comes off.
+    events: workspace.events.map((e) => { if (e.id !== eventId) return e; const { done, ...rest } = e; return { ...rest, ...fields, ...(done && e.date === fields.date && e.start === fields.start ? { done } : {}) }; }),
+    pins: (workspace.pins || []).map((pin) => (pin.kind === "event" && pin.refId === eventId && pin.snap ? { ...pin, snap: { title: fields.title, date: fields.date, start: fields.start } } : pin)),
+  };
+}

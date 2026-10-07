@@ -3,20 +3,21 @@
 // Outlook, Apple or any other calendar that can be shared as a link).
 import { PinButton } from "./HubPins";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { AlertTriangle, Bell, Calendar, ChevronLeft, ChevronRight, Link2, Loader2, MapPin, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlarmClock, AlertTriangle, Bell, Calendar, CalendarClock, Check, ChevronLeft, ChevronRight, Link2, Loader2, MapPin, Pencil, Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import {
   HUB_IMPORT_LIMITS, cleanHubImport, clock12, describeHubAdded, mergeHubImport, removeCalendar, replaceCalendarEvents,
   type HubCalendar as ConnectedCalendar, type HubEvent, type Workspace,
 } from "@shared/teacherHub";
-import { Card, Empty, Field, GhostButton, PrimaryButton } from "./ui";
+import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
 import { localDay, localZone } from "./HubImport";
 import { HubModal } from "./HubModal";
 import { MyAvailability } from "./HubAvailability";
 import type { FreeWindow } from "@shared/availability";
 import { addMonthsTo, agendaDays, clockOf, isPast, monthGrid, nowParts, openRanges, shiftDay, stillAhead, weekOf, type Now } from "@shared/hubCalendar";
 import { addDays } from "@shared/hubDates";
-import { QUICK_TITLE_MAX, addQuickItems, quickItems, type QuickForm, type QuickItems, type QuickKind } from "@shared/hubQuickAdd";
+import { canMove, needsCheck, setEventDone, setEventsDone, snoozeEvent, snoozedTo, snoozesFor, type Snooze } from "@shared/hubEventStatus";
+import { QUICK_TITLE_MAX, addQuickItems, eventEdit, quickItems, updateEvent, type EventEdit, type QuickForm, type QuickItems, type QuickKind } from "@shared/hubQuickAdd";
 
 type SetWorkspace = Dispatch<SetStateAction<Workspace>>;
 
@@ -58,32 +59,44 @@ const QUICK_KINDS = [["event", "Event", Calendar], ["reminder", "Reminder", Bell
 /**
  * The quick "add" pop-up: a calendar event, a reminder for Reminders & to-dos, or an event with a
  * reminder for it. Used by the Calendar tab and the + button on every screen.
+ * Handed an `event`, it changes that event instead: the same boxes filled in, plus its notes.
  */
-export function AddEventModal({ onClose, onAdd, date, start, end }: { onClose: () => void; onAdd: (items: QuickItems) => void; date?: string; start?: string; end?: string }) {
+export function AddEventModal({ onClose, onAdd, date, start, end, event, onSave, onDelete, reschedule = false }: {
+  onClose: () => void; onAdd?: (items: QuickItems) => void; date?: string; start?: string; end?: string;
+  /** The event being changed. */
+  event?: HubEvent; onSave?: (changes: EventEdit) => void; onDelete?: () => void;
+  /** Opened to pick a new day and time, so the cursor starts on the day. */
+  reschedule?: boolean;
+}) {
   const today = localDay();
-  const [form, setForm] = useState<QuickForm>({ kind: "event", title: "", date: date || today, start: start || "", end: end || "", location: "", alsoRemind: false });
+  const [form, setForm] = useState<QuickForm>({ kind: "event", title: event?.title || "", date: event?.date || date || today, start: event?.start || start || "", end: event?.end || end || "", location: event?.location || "", alsoRemind: false });
+  const [notes, setNotes] = useState(event?.notes || "");
   const reminder = form.kind === "reminder";
-  const items = quickItems(form);
+  const items = event ? (eventEdit({ ...form, notes }) ? {} : null) : quickItems(form);
   // An event has to have a day, so coming back from a reminder with no date picks one again.
   const setKind = (kind: QuickKind) => setForm((f) => ({ ...f, kind, date: kind === "event" && !f.date ? date || today : f.date }));
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!items) return;
-    onAdd(items);
+    if (event) onSave?.({ title: form.title, date: form.date, start: form.start, end: form.end, location: form.location, notes });
+    else onAdd?.(items);
     onClose();
   }
   const chip = (active: boolean) => `inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
   return (
-    <HubModal title={reminder ? "Add a reminder" : "Add an event"} onClose={onClose} closeOnBackdrop
-      footer={<PrimaryButton onClick={() => save()} disabled={!items}><Plus className="h-4 w-4" /> {reminder ? "Add reminder" : form.alsoRemind ? "Add event and reminder" : "Add event"}</PrimaryButton>}>
-      <form onSubmit={save} className="space-y-3" data-testid="add-event-form">
-        <div role="tablist" aria-label="What to add" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="quick-add-kind">
+    <HubModal title={event ? (reschedule ? "Reschedule" : "Edit event") : reminder ? "Add a reminder" : "Add an event"} onClose={onClose} closeOnBackdrop={!event}
+      footer={event
+        ? <div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => save()} disabled={!items}><Check className="h-4 w-4" /> Save changes</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>
+          {onDelete && <button type="button" onClick={() => { onDelete(); onClose(); }} className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-red-600 hover:bg-red-50" data-testid="edit-event-delete"><Trash2 className="h-4 w-4" /> Delete</button>}</div>
+        : <PrimaryButton onClick={() => save()} disabled={!items}><Plus className="h-4 w-4" /> {reminder ? "Add reminder" : form.alsoRemind ? "Add event and reminder" : "Add event"}</PrimaryButton>}>
+      <form onSubmit={save} className="space-y-3" data-testid={event ? "edit-event-form" : "add-event-form"}>
+        {!event && <div role="tablist" aria-label="What to add" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="quick-add-kind">
           {QUICK_KINDS.map(([kind, label, Icon]) => (
             <button key={kind} type="button" role="tab" aria-selected={form.kind === kind} onClick={() => setKind(kind)}
               className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold ${form.kind === kind ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}><Icon className="h-4 w-4" /> {label}</button>
           ))}
-        </div>
-        <Field data-autofocus placeholder={reminder ? "What do you need to remember?" : "What is it?"} value={form.title} maxLength={QUICK_TITLE_MAX} onChange={(e) => setForm({ ...form, title: e.target.value })} required aria-label={reminder ? "Reminder" : "Event"} />
+        </div>}
+        <Field {...(reschedule ? {} : { "data-autofocus": true })} placeholder={reminder ? "What do you need to remember?" : "What is it?"} value={form.title} maxLength={QUICK_TITLE_MAX} onChange={(e) => setForm({ ...form, title: e.target.value })} required aria-label={reminder ? "Reminder" : "Event"} />
         {reminder ? (
           <>
             <label className="block text-xs font-medium text-slate-500">Due<Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label="Due" /></label>
@@ -96,17 +109,19 @@ export function AddEventModal({ onClose, onAdd, date, start, end }: { onClose: (
           </>
         ) : (
           <>
-            <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required aria-label="Date" />
+            <Field {...(reschedule ? { "data-autofocus": true } : {})} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required aria-label="Date" />
             <div className="grid grid-cols-2 gap-3">
               <label className="text-xs font-medium text-slate-500">Starts<Field type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} aria-label="Starts" /></label>
               <label className="text-xs font-medium text-slate-500">Ends<Field type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} aria-label="Ends" /></label>
             </div>
             <p className="-mt-1 text-xs text-slate-500">Leave the times empty for an all-day event.</p>
             <Field placeholder="Where (optional)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} aria-label="Where" />
-            <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700">
-              <input type="checkbox" className="h-5 w-5 shrink-0" checked={form.alsoRemind} onChange={(e) => setForm({ ...form, alsoRemind: e.target.checked })} data-testid="quick-add-also-remind" />
-              Also add it to Reminders & to-dos
-            </label>
+            {event ? <TextArea placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label="Notes" /> : (
+              <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700">
+                <input type="checkbox" className="h-5 w-5 shrink-0" checked={form.alsoRemind} onChange={(e) => setForm({ ...form, alsoRemind: e.target.checked })} data-testid="quick-add-also-remind" />
+                Also add it to Reminders & to-dos
+              </label>
+            )}
           </>
         )}
         <button type="submit" hidden />
@@ -162,25 +177,48 @@ const hostLabel = (url: string) => {
   } catch { return "Calendar"; }
 };
 
-function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete }: { event: HubEvent; now: Now; names: Map<string, string>; workspace: Workspace; setWorkspace: SetWorkspace; makeId: () => string; onDelete: (id: string) => void }) {
+const ROW_ACTION = "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold";
+
+function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete, onEdit, onSnooze }: { event: HubEvent; now: Now; names: Map<string, string>; workspace: Workspace; setWorkspace: SetWorkspace; makeId: () => string; onDelete: (id: string) => void; onEdit: (event: HubEvent) => void; onSnooze: (event: HubEvent, how: Snooze) => void }) {
   const live = happeningNow(event, now);
+  // The teacher's own events can be edited and snoozed. A connected calendar's events are changed in that calendar.
+  const own = canMove(event);
+  const [snoozing, setSnoozing] = useState(false);
   return (
-    <li className={`flex items-start gap-3 rounded-2xl border p-3 ${live ? "border-teal-500 bg-teal-50/60" : "border-slate-200"} ${isPast(event, now) ? "opacity-60" : ""}`}>
-      <div className="w-[4.75rem] shrink-0 pt-0.5 text-xs font-semibold leading-5 text-slate-700 sm:w-36">{eventTime(event)}{live && <span className="mt-1 block w-fit rounded-full bg-teal-600 px-2 text-[11px] text-white">Now</span>}</div>
-      <div className="min-w-0 flex-1">
-        <div className="break-words font-medium text-slate-900">{event.title}</div>
-        {(event.location || event.calendarId) && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-            {event.location && <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="break-words">{event.location}</span></span>}
-            {event.calendarId && <span className="rounded-full bg-teal-50 px-2 py-0.5 font-medium text-teal-800">{names.get(event.calendarId) || "Connected calendar"}</span>}
-          </div>
+    <li className={`rounded-2xl border p-3 ${live ? "border-teal-500 bg-teal-50/60" : "border-slate-200"} ${isPast(event, now) ? "opacity-60" : ""}`} data-testid="event-row">
+      <div className="flex items-start gap-3">
+        <div className="w-[4.75rem] shrink-0 pt-0.5 text-xs font-semibold leading-5 text-slate-700 sm:w-36">{eventTime(event)}{live && <span className="mt-1 block w-fit rounded-full bg-teal-600 px-2 text-[11px] text-white">Now</span>}</div>
+        <div className="min-w-0 flex-1">
+          <div className={`break-words font-medium ${event.done ? "text-slate-400 line-through" : "text-slate-900"}`}>{event.title}</div>
+          {(event.location || event.calendarId) && (
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+              {event.location && <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="break-words">{event.location}</span></span>}
+              {event.calendarId && <span className="rounded-full bg-teal-50 px-2 py-0.5 font-medium text-teal-800">{names.get(event.calendarId) || "Connected calendar"}</span>}
+            </div>
+          )}
+          {event.notes && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500">{event.notes}</p>}
+        </div>
+        <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="event" refId={event.id} title={event.title} makeId={makeId} />
+        {own && (
+          <button type="button" aria-label={`Delete ${event.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(event.id)}><Trash2 className="h-4 w-4" /></button>
         )}
-        {event.notes && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500">{event.notes}</p>}
       </div>
-      <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="event" refId={event.id} title={event.title} makeId={makeId} />
-      {!event.calendarId && (
-        <button type="button" aria-label={`Delete ${event.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(event.id)}><Trash2 className="h-4 w-4" /></button>
-      )}
+      <div className="mt-2 flex flex-wrap items-center gap-1" data-testid="event-actions">
+        {snoozing ? (
+          <>
+            <span className="mr-1 text-xs font-medium text-slate-500">Move it to</span>
+            {snoozesFor(event).map((s) => <button key={s.id} type="button" onClick={() => { setSnoozing(false); onSnooze(event, s.id); }} className={`${ROW_ACTION} border border-slate-200 bg-white text-slate-800 hover:bg-slate-50`}>{s.label}</button>)}
+            <button type="button" onClick={() => setSnoozing(false)} className={`${ROW_ACTION} text-slate-600 hover:bg-slate-100`}>Cancel</button>
+          </>
+        ) : (
+          <>
+            <button type="button" aria-pressed={!!event.done} aria-label={`${event.done ? "Done" : "Mark done"}: ${event.title}`} onClick={() => setWorkspace((p) => setEventDone(p, event.id, !event.done))} data-testid="event-done"
+              className={`${ROW_ACTION} ${event.done ? "bg-teal-50 text-teal-800" : "text-slate-600 hover:bg-slate-100"}`}><Check className="h-3.5 w-3.5" />{event.done ? "Done" : "Mark done"}</button>
+            {own && <button type="button" aria-label={`Snooze ${event.title}`} onClick={() => setSnoozing(true)} className={`${ROW_ACTION} text-slate-600 hover:bg-slate-100`} data-testid="event-snooze"><AlarmClock className="h-3.5 w-3.5" />Snooze</button>}
+            {own && <button type="button" aria-label={`Edit ${event.title}`} onClick={() => onEdit(event)} className={`${ROW_ACTION} text-slate-600 hover:bg-slate-100`} data-testid="event-edit"><Pencil className="h-3.5 w-3.5" />Edit</button>}
+          </>
+        )}
+      </div>
     </li>
   );
 }
@@ -215,6 +253,22 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
 
   const addQuick = (items: QuickItems) => { setWorkspace((p) => addQuickItems(p, items, makeId)); if (items.task) onReminderAdded?.(items); };
   const removeEvent = (id: string) => setWorkspace((p) => ({ ...p, events: p.events.filter((x) => x.id !== id) }));
+  const [editing, setEditingState] = useState<{ event: HubEvent; reschedule: boolean } | null>(null);
+  const setEditing = (event: HubEvent) => setEditingState({ event, reschedule: false });
+  // What just moved, with a way back: a snoozed event can jump off the screen (to tomorrow, say).
+  const [moved, setMoved] = useState<{ text: string; undo: () => void } | null>(null);
+  function snooze(event: HubEvent, how: Snooze) {
+    const to = snoozedTo(event, how, now);
+    if (!to) return;
+    setWorkspace((p) => snoozeEvent(p, event.id, how, now));
+    setMoved({
+      text: `Moved "${event.title}" to ${dayLabel(to.date)}${to.start ? `, ${clock12(to.start)}` : ""}.`,
+      undo: () => setWorkspace((p) => ({ ...p, events: p.events.map((e) => (e.id === event.id ? event : e)) })),
+    });
+  }
+  // The teacher's own events that are over and were never checked off.
+  const check = useMemo(() => needsCheck(workspace.events, now), [workspace.events, now]);
+  const [allChecks, setAllChecks] = useState(false);
   const move = (n: number) => setAnchor((a) => (view === "month" ? addMonthsTo(a, n) : shiftDay(a, n * 7)));
   const heading = view === "month"
     ? new Date(`${anchor.slice(0, 7)}-01T12:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })
@@ -228,6 +282,36 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
               className={`min-h-11 min-w-[5.5rem] flex-1 rounded-xl px-2 text-sm font-semibold ${view === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
           ))}
         </div>
+
+        {moved && (
+          <div role="status" className="mb-3 flex items-center gap-1 rounded-xl bg-teal-50 py-1 pl-3 pr-1 text-sm text-teal-900" data-testid="event-moved">
+            <span className="min-w-0 flex-1 break-words py-1.5">{moved.text}</span>
+            <button type="button" onClick={() => { moved.undo(); setMoved(null); }} className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm font-semibold underline underline-offset-4">Undo</button>
+            <button type="button" onClick={() => setMoved(null)} aria-label="Dismiss" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"><X className="h-4 w-4" /></button>
+          </div>
+        )}
+
+        {check.length > 0 && view !== "free" && view !== "avail" && (
+          <section aria-label="Did these happen?" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3" data-testid="event-check">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <h3 className="text-sm font-semibold text-amber-950">{check.length === 1 ? "Did this happen?" : `Did these happen? (${check.length})`}</h3>
+              {check.length > 1 && <button type="button" onClick={() => setWorkspace((p) => setEventsDone(p, check.map((e) => e.id)))} className="min-h-10 text-xs font-semibold text-amber-900 underline underline-offset-4" data-testid="event-check-all">Mark all done</button>}
+            </div>
+            <ul className="mt-2 space-y-2">
+              {(allChecks ? check : check.slice(0, 3)).map((e) => (
+                <li key={e.id} className="rounded-xl bg-white p-3">
+                  <div className="break-words font-medium text-slate-900">{e.title}</div>
+                  <div className="text-xs text-slate-500">{dayLabel(e.date)} · {eventTime(e)}</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" aria-label={`Done: ${e.title}`} onClick={() => setWorkspace((p) => setEventDone(p, e.id, true))} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800"><Check className="h-4 w-4" />Done</button>
+                    <button type="button" aria-label={`Reschedule ${e.title}`} onClick={() => setEditingState({ event: e, reschedule: true })} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"><CalendarClock className="h-4 w-4" />Reschedule</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {check.length > 3 && <button type="button" onClick={() => setAllChecks((v) => !v)} className="mt-2 min-h-10 text-xs font-semibold text-amber-900 underline underline-offset-4">{allChecks ? "Show fewer" : `Show all ${check.length}`}</button>}
+          </section>
+        )}
 
         {(view === "week" || view === "month") && (
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -243,7 +327,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
               {days.map((day) => (
                 <section key={day.date} aria-label={dayLabel(day.date)}>
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(day.date)}{day.date === today ? " · Today" : ""}</h3>
-                  <ul className="space-y-2">{day.events.map((event) => <EventRow key={event.id} event={event} now={now} names={names} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onDelete={removeEvent} />)}</ul>
+                  <ul className="space-y-2">{day.events.map((event) => <EventRow key={event.id} event={event} now={now} names={names} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onDelete={removeEvent} onEdit={setEditing} onSnooze={snooze} />)}</ul>
                 </section>
               ))}
             </div>
@@ -269,8 +353,10 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
                   {list.length ? (
                     <ul className="space-y-1">
                       {list.map((e) => (
-                        <li key={e.id} className={`rounded-lg px-2 py-1.5 text-xs ${happeningNow(e, now) ? "bg-teal-600 text-white" : "bg-slate-50 text-slate-800"}`}>
-                          <div className="font-semibold">{eventTime(e)}</div><div className="break-words">{e.title}</div>
+                        <li key={e.id} className={`rounded-lg text-xs ${happeningNow(e, now) ? "bg-teal-600 text-white" : "bg-slate-50 text-slate-800"}`}>
+                          {e.calendarId
+                            ? <div className="px-2 py-1.5"><div className="font-semibold">{eventTime(e)}</div><div className={`break-words ${e.done ? "line-through opacity-70" : ""}`}>{e.title}</div></div>
+                            : <button type="button" onClick={() => setEditing(e)} aria-label={`Edit ${e.title}`} className="block min-h-11 w-full rounded-lg px-2 py-1.5 text-left"><div className="font-semibold">{eventTime(e)}</div><div className={`break-words ${e.done ? "line-through opacity-70" : ""}`}>{e.title}</div></button>}
                         </li>
                       ))}
                     </ul>
@@ -302,7 +388,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
               <div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(picked || today)}</h3>
                 {(picked || today) >= today && <GhostButton onClick={() => setAdding({ date: picked || today })}><Plus className="h-4 w-4" /> Add here</GhostButton>}</div>
               {onDay(picked || today).length
-                ? <ul className="space-y-2">{onDay(picked || today).map((event) => <EventRow key={event.id} event={event} now={now} names={names} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onDelete={removeEvent} />)}</ul>
+                ? <ul className="space-y-2">{onDay(picked || today).map((event) => <EventRow key={event.id} event={event} now={now} names={names} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onDelete={removeEvent} onEdit={setEditing} onSnooze={snooze} />)}</ul>
                 : <Empty>{(picked || today) < today ? "That day is over." : "Nothing on this day."}</Empty>}
             </section>
           </div>
@@ -354,6 +440,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
           <div className="mt-4 text-center"><button type="button" onClick={() => setShowPast((v) => !v)} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">{showPast ? "Hide events that are over" : `Show ${earlier} that ${earlier === 1 ? "is" : "are"} over`}</button></div>
         )}
         {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addQuick} />}
+        {editing && <AddEventModal key={editing.event.id} event={editing.event} reschedule={editing.reschedule} onClose={() => setEditingState(null)} onSave={(changes) => setWorkspace((p) => updateEvent(p, editing.event.id, changes))} onDelete={() => removeEvent(editing.event.id)} />}
       </Card>
   );
 }
