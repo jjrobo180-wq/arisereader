@@ -207,7 +207,8 @@ function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
 export default function TeacherHub() {
   const { user, token, logout } = useAuth();
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
-  const [tab, setTab] = useState<HubTab>("overview");
+  // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
+  const [tab, setTab] = useState<HubTab>(() => (/[?&]mailbox=/.test(window.location.search) ? "iep" : "overview"));
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");

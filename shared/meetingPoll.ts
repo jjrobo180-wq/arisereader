@@ -14,6 +14,7 @@ export const POLL_LIMITS = {
   comment: 400,
   pollsPerDay: 20,
   emailsPerDay: 80,
+  textsPerDay: 60,
 } as const;
 
 export type PollAnswer = "yes" | "maybe" | "no";
@@ -27,14 +28,24 @@ export const INVITEE_ROLES = [
 export const QUICK_ROLES = ["Parent or guardian", "Gen ed teacher", "Social worker", "OT", "Speech (SLP)", "Psych", "Administrator", "Other"] as const;
 
 export type PollOption = { id: string; date: string; start: string; end: string };
-export type PollInvitee = { name: string; email: string; role: string };
-export type PollInput = { title: string; location: string; message: string; hubMeetingId: string; senderName: string; replyTo: string; options: PollOption[]; invitees: PollInvitee[] };
+export type PollInvitee = { name: string; email: string; phone: string; role: string };
+export type SendVia = "site" | "mailbox" | "self";
+export type PollInput = { title: string; location: string; message: string; hubMeetingId: string; senderName: string; replyTo: string; sendVia: SendVia; sendText: boolean; options: PollOption[]; invitees: PollInvitee[] };
 
 const EMAIL = /^[^\s@<>()"',;:]+@[^\s@<>()"',;:]+\.[^\s@<>()"',;:]{2,}$/;
 export const cleanEmail = (value: unknown) => {
   const email = String(value ?? "").trim().toLowerCase();
   return email.length <= 120 && EMAIL.test(email) ? email : "";
 };
+/** A phone number as +15551234567 (US numbers may be typed any usual way), or "" when it isn't one. */
+export function cleanPhone(value: unknown): string {
+  const text = String(value ?? "").trim();
+  const digits = text.replace(/\D/g, "");
+  if (text.startsWith("+")) return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : "";
+  if (digits.length === 10 && /^[2-9]/.test(digits)) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1") && /^[2-9]/.test(digits[1])) return `+${digits}`;
+  return "";
+}
 const oneLine = (value: unknown, max: number) => String(value ?? "").replace(/<[^>]*>/g, "").replace(/[\u0000-\u001f<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
 /** Checks what a teacher typed. Returns the cleaned poll, or one plain sentence saying what to fix. */
@@ -59,15 +70,31 @@ export function cleanPollInput(raw: any, today: string): { ok: true; poll: PollI
   if (options.length < 2) return { ok: false, error: "Offer at least two times so people have a choice." };
   if (options.length > POLL_LIMITS.options) return { ok: false, error: `Offer ${POLL_LIMITS.options} times or fewer.` };
 
+  const sendVia: SendVia = raw?.sendVia === "mailbox" ? "mailbox" : raw?.sendVia === "self" ? "self" : "site";
+  const sendText = sendVia !== "self" && raw?.sendText === true;
+  if (sendText && raw?.textConsent !== true) return { ok: false, error: "Please confirm these people are OK with getting a text about the meeting." };
+
   const invitees: PollInvitee[] = [];
-  const seenEmails = new Set<string>();
+  const seen = new Set<string>();
   for (const item of Array.isArray(raw?.invitees) ? raw.invitees : []) {
-    const email = cleanEmail(item?.email);
-    if (!email) return { ok: false, error: `“${oneLine(item?.email, 60) || "A blank email"}” is not a working email address.` };
-    if (seenEmails.has(email)) continue;
-    seenEmails.add(email);
+    const typedEmail = String(item?.email ?? "").trim();
+    const typedPhone = String(item?.phone ?? "").trim();
+    const typedName = oneLine(item?.name, POLL_LIMITS.name);
+    if (!typedEmail && !typedPhone && !typedName) continue; // a blank row
+    const email = typedEmail ? cleanEmail(typedEmail) : "";
+    if (typedEmail && !email) return { ok: false, error: `“${oneLine(typedEmail, 60)}” is not a working email address.` };
+    const phone = typedPhone ? cleanPhone(typedPhone) : "";
+    if (typedPhone && !phone) return { ok: false, error: `“${oneLine(typedPhone, 40)}” is not a working phone number.` };
+    if (sendVia === "self") {
+      if (!typedName && !email) return { ok: false, error: "Give each person a name, so you know who is who." };
+    } else if (!email && !(phone && sendText)) {
+      return { ok: false, error: `${typedName || "Someone"} needs an email address${sendText ? " or a phone number" : ""}.` };
+    }
+    const key = email ? `e:${email}` : phone ? `p:${phone}` : "";
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
     const role = oneLine(item?.role, POLL_LIMITS.role) || "Other";
-    invitees.push({ name: oneLine(item?.name, POLL_LIMITS.name) || email.split("@")[0], email, role });
+    invitees.push({ name: typedName || (email ? email.split("@")[0] : "Guest"), email, phone, role });
   }
   if (!invitees.length) return { ok: false, error: "Add at least one person to ask." };
   if (invitees.length > POLL_LIMITS.invitees) return { ok: false, error: `Ask ${POLL_LIMITS.invitees} people or fewer at a time.` };
@@ -80,7 +107,7 @@ export function cleanPollInput(raw: any, today: string): { ok: true; poll: PollI
 
   return {
     ok: true,
-    poll: { senderName, replyTo, title, location: oneLine(raw?.location, POLL_LIMITS.location), message: oneLine(raw?.message, POLL_LIMITS.message), hubMeetingId: oneLine(raw?.hubMeetingId, 60), options, invitees },
+    poll: { senderName, replyTo, sendVia, sendText, title, location: oneLine(raw?.location, POLL_LIMITS.location), message: oneLine(raw?.message, POLL_LIMITS.message), hubMeetingId: oneLine(raw?.hubMeetingId, 60), options, invitees },
   };
 }
 
@@ -126,4 +153,41 @@ export function tallyPoll(options: PollOption[], people: PollPerson[]): { option
     .filter(({ t }) => t.yes + t.maybe > 0)
     .sort((a, b) => a.t.no - b.t.no || b.t.yes - a.t.yes || b.t.maybe - a.t.maybe || a.index - b.index);
   return { options: tallies, best: ranked[0]?.t.id ?? null };
+}
+
+// ---- Messages a teacher can send from their own email or phone -----------------
+
+export type PollMessageInput = { guest: string; sender: string; title: string; location: string; options: Pick<PollOption, "date" | "start" | "end">[]; link: string; reminder?: boolean; note?: string };
+
+/** The email a teacher sends themselves: a subject and a body (plain text, with the person's own link). */
+export function inviteEmailText(m: PollMessageInput): { subject: string; body: string } {
+  const where = m.location ? ` (${m.location})` : "";
+  return {
+    subject: `${m.reminder ? "Reminder: " : ""}Which times work for ${m.title}?`,
+    body: [
+      `Hi ${m.guest},`, "",
+      `${m.reminder ? "Just a reminder: " : ""}I'm trying to find a time for ${m.title}${where}. These times are possible:`, "",
+      ...m.options.map((o) => `- ${describeOption(o)}`), "",
+      ...(m.note ? [m.note, ""] : []),
+      `Please tap here to tell me which times work. It takes about a minute and you don't need an account:`, m.link, "",
+      "Thank you,", m.sender,
+    ].join("\n"),
+  };
+}
+
+/** A short text message version. */
+export function inviteSmsText(m: Pick<PollMessageInput, "guest" | "sender" | "title" | "link" | "reminder">): string {
+  const title = m.title.length > 60 ? `${m.title.slice(0, 57)}...` : m.title;
+  return `${m.reminder ? "Reminder: " : ""}Hi ${m.guest}! ${m.sender} asks: which times work for ${title}? Tap to answer (1 minute, no account): ${m.link}`;
+}
+
+export function bookedEmailText(m: { guest: string; sender: string; title: string; location: string; when: string }): { subject: string; body: string } {
+  return {
+    subject: `The time is set: ${m.title}`,
+    body: [`Hi ${m.guest},`, "", `Thank you for answering. ${m.title} is set for:`, m.when + (m.location ? ` (${m.location})` : ""), "", "Thank you,", m.sender].join("\n"),
+  };
+}
+
+export function bookedSmsText(m: { guest: string; sender: string; title: string; location: string; when: string }): string {
+  return `Hi ${m.guest}! ${m.sender}: ${m.title} is set for ${m.when}${m.location ? ` (${m.location})` : ""}. Thank you!`;
 }

@@ -36,6 +36,8 @@ import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./tea
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
+import { createTextService, textConfigFromEnv } from "./textMessages";
+import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
 import { matchEarnsCoins } from "./arcadeMatches";
 import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
@@ -1165,7 +1167,17 @@ export async function registerRoutes(
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
-  registerMeetingPollRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), sendEmail, appUrl: APP_URL });
+  // A teacher can connect their own Gmail or Outlook so those emails come from their real address.
+  const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
+  let mailbox: ReturnType<typeof createMailboxService> | undefined;
+  try {
+    mailbox = createMailboxService({ store: createSupabaseMailboxStore(), config: configFromEnv(), appUrl: APP_URL, key: secretKey() });
+    registerMailboxRoutes(app, authMiddleware, { gate: hubGate, service: mailbox, appUrl: APP_URL });
+  } catch (error: any) {
+    console.warn("[mailbox] connecting a teacher's own mailbox is off:", error?.message);
+  }
+  const textConfig = textConfigFromEnv();
+  registerMeetingPollRoutes(app, authMiddleware, { gate: hubGate, sendEmail, appUrl: APP_URL, mailbox, text: textConfig ? createTextService(textConfig) : undefined });
   // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerClubPlayRoutes(app, authMiddleware);
