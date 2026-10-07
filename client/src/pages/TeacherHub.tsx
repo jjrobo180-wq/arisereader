@@ -58,8 +58,7 @@ import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
-import HubCalendarTab, { AddEventModal, byWhen, dayLabel, eventTime, useCalendarRefresh, useNow } from "@/components/teacher-hub/HubCalendar";
-import { stillAhead } from "@shared/hubCalendar";
+import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import HubGuideTab from "@/components/teacher-hub/HubGuide";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 
@@ -261,10 +260,7 @@ function TeacherHubPage() {
   // Connected calendars are read again when the Hub opens.
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
 
-  // "Coming up" follows the clock: an event leaves the list once it is over.
-  const now = useNow();
   const [quickEvent, setQuickEvent] = useState(false);
-  const upcomingEvents = useMemo(() => stillAhead(workspace.events, now).sort(byWhen).slice(0, 6), [workspace.events, now]);
 
   /** Adds what the teacher checked in "Add with AI", and says what happened. */
   function addFound(items: HubImportItems) {
@@ -523,20 +519,9 @@ function TeacherHubPage() {
                 </div>
               </Card>
 
-              <div className="grid gap-4 xl:grid-cols-3">
-                <Card title="Coming up" right={<button type="button" onClick={() => setTab("calendar")} className="min-h-11 shrink-0 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Calendar</button>}>
-                  {upcomingEvents.length ? (
-                    <div className="space-y-2">
-                      {upcomingEvents.map((event) => (
-                        <button key={event.id} onClick={() => setTab("calendar")} className="flex w-full items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-3 text-left hover:bg-slate-100">
-                          <div className="min-w-0"><div className="truncate font-medium">{event.title}</div><div className="text-xs text-slate-500">{dayLabel(event.date)}</div></div>
-                          <div className="shrink-0 text-right text-sm font-semibold text-slate-700">{eventTime(event)}</div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : <Empty>Nothing on your calendar yet.</Empty>}
-                </Card>
+              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" />
 
+              <div className="grid gap-4 xl:grid-cols-3">
                 <Card title="Upcoming IEP / reevaluation meetings">
                   {upcomingMeetings.length ? (
                     <div className="space-y-2">
