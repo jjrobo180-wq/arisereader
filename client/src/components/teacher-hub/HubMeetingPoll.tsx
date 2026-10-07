@@ -465,6 +465,26 @@ function SelfSend({ poll, token, senderName, chosen, onChanged, setNotice }: {
     try { await navigator.clipboard.writeText(text); setCopied(i.id); setTimeout(() => setCopied(""), 2000); void markSent(i); }
     catch { setNotice("Could not copy. Select the text and copy it yourself."); }
   }
+  /** Called when Email or Text is tapped. If nothing opens (a computer with no mail or messages app), copy the message and say so. */
+  function afterTap(i: PollView["invitees"][number], what: "email" | "text", message: string) {
+    let left = false;
+    const gone = () => { left = true; };
+    window.addEventListener("blur", gone, { once: true });
+    document.addEventListener("visibilitychange", gone, { once: true });
+    window.setTimeout(async () => {
+      window.removeEventListener("blur", gone);
+      document.removeEventListener("visibilitychange", gone);
+      if (left || document.visibilityState === "hidden") { void markSent(i); return; }
+      try {
+        await navigator.clipboard.writeText(message);
+        setCopied(i.id); window.setTimeout(() => setCopied(""), 2500); void markSent(i);
+        setNotice(what === "text"
+          ? `This device can't open a text. The message is copied. Paste it into your phone's messages, ClassDojo, Remind or ParentSquare${i.phone ? `, to ${i.phone}` : ""}. On your phone, the Text button opens it for you.`
+          : "This device has no email app set up. The message is copied. Paste it into your email.");
+      } catch { setNotice(`This device can't open ${what === "text" ? "a text" : "email"}. Use Copy message instead.`); }
+      window.setTimeout(() => document.querySelector('[data-testid="poll-notice"]')?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+    }, 1500);
+  }
   const link = "inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50";
   return (
     <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3" data-testid="self-send">
@@ -481,15 +501,15 @@ function SelfSend({ poll, token, senderName, chosen, onChanged, setNotice }: {
             <li key={i.id} className="rounded-xl bg-white p-2" data-testid="self-person">
               <div className="text-sm font-medium">{i.name} <span className="text-xs font-normal text-slate-500">{i.role}{i.respondedAt ? " · answered" : i.emailSent ? " · sent" : ""}</span></div>
               <div className="mt-1 flex flex-wrap gap-2">
-                {mail && <a href={mail} onClick={() => void markSent(i)} className={link}><Mail className="h-4 w-4" /> Email</a>}
-                {text && <a href={text} onClick={() => void markSent(i)} className={link}><MessageSquare className="h-4 w-4" /> Text</a>}
+                {mail && <a href={mail} onClick={() => afterTap(i, "email", `${m.email.subject}\n\n${m.email.body}`)} className={link}><Mail className="h-4 w-4" /> Email</a>}
+                {text && <a href={text} onClick={() => afterTap(i, "text", m.sms)} className={link}><MessageSquare className="h-4 w-4" /> Text</a>}
                 <button type="button" onClick={() => copy(i, m.sms)} className={link}>{copied === i.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied === i.id ? "Copied" : "Copy message"}</button>
               </div>
             </li>
           );
         })}
       </ul>
-      <p className="text-xs text-slate-500">“Copy message” is for ClassDojo, Remind, ParentSquare, Google Chat or any app you already use with a family.</p>
+      <p className="text-xs text-slate-500">Email and Text open your own apps, so they work best on your phone. “Copy message” is for ClassDojo, Remind, ParentSquare, Google Chat or any app you already use with a family.</p>
     </div>
   );
 }
