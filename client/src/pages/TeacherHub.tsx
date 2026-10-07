@@ -61,6 +61,7 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
+import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import HubGuideTab from "@/components/teacher-hub/HubGuide";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 
@@ -587,7 +588,7 @@ function TeacherHubPage() {
           {tab === "gradebook" && <Gradebook workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "parents" && <Parents workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "schedules" && <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} />}
-          {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
+          {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} />}
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (
@@ -619,6 +620,7 @@ function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdi
           {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}</span>}
           {!task.dueDate && !task.done && <span>No due date</span>}
           {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
+          {task.emailId && <span className="inline-flex items-center gap-1" data-testid="task-from-email"><Mail className="h-3.5 w-3.5" />From an email</span>}
           {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
           <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
         </div>
@@ -1116,18 +1118,40 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
   );
 }
 
-function Emails({ workspace, setWorkspace, remove }: SectionProps) {
+function Emails({ workspace, setWorkspace, remove, toast, onViewTasks }: SectionProps & { toast: (text: string, actions?: ToastAction[]) => void; onViewTasks: () => void }) {
   const [form, setForm] = useState({ from: "", subject: "", body: "", action: "", draft: "", date: TODAY() });
+  // What to do with a new email as it is saved.
+  const [also, setAlso] = useState({ todo: false, flag: false });
+  const [filter, setFilter] = useState<EmailFilter>("all");
+  const counts = emailCounts(workspace);
+  const shown = arrangeEmails(workspace, filter);
+  const added = (text: string) => toast(text, [{ label: "View", run: onViewTasks }]);
   function add(e: FormEvent) {
     e.preventDefault();
     if (!form.body.trim() && !form.subject.trim()) return;
-    setWorkspace((p) => ({ ...p, emails: [{ id: id(), ...form }, ...p.emails] }));
+    const emailId = id(), taskId = id();
+    const email = { id: emailId, ...form, ...(also.flag ? { flagged: true } : {}) };
+    setWorkspace((p) => {
+      const saved = { ...p, emails: [email, ...p.emails] };
+      return also.todo ? addEmailToTasks(saved, emailId, () => taskId).workspace : saved;
+    });
+    if (also.todo) added("Saved, and added to Reminders & to-dos.");
     setForm({ from: "", subject: "", body: "", action: "", draft: "", date: TODAY() });
+    setAlso({ todo: false, flag: false });
   }
+  /** Puts a saved email on the to-do list (once: an email already waiting there is not added again). */
+  function toTodo(emailId: string) {
+    const result = addEmailToTasks(workspace, emailId, id);
+    if (!result.added) return;
+    setWorkspace((p) => addEmailToTasks(p, emailId, () => result.taskId!).workspace);
+    added("Added to Reminders & to-dos.");
+  }
+  const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
+  const act = "inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50";
   return (
     <>
       <Card title="Email organizer">
-        <p className="mb-4 text-sm text-slate-600">Paste important school emails here, pull out the action you need to take, and keep a reply draft beside it.</p>
+        <p className="mb-4 text-sm text-slate-600">Paste important school emails here, pull out the action you need to take, and keep a reply draft beside it. Flag the ones that matter, or put them on your to-do list.</p>
         <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
           <Field placeholder="From" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
           <Field placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="md:col-span-2" />
@@ -1135,11 +1159,46 @@ function Emails({ workspace, setWorkspace, remove }: SectionProps) {
           <TextArea placeholder="Paste email here" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} className="md:col-span-2" />
           <TextArea placeholder="Action item / what I need to do" value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value })} />
           <TextArea placeholder="Reply draft" value={form.draft} onChange={(e) => setForm({ ...form, draft: e.target.value })} />
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 md:col-span-4">
+            <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700"><input type="checkbox" className="h-5 w-5 shrink-0" checked={also.todo} onChange={(e) => setAlso({ ...also, todo: e.target.checked })} data-testid="email-also-todo" /> Add it to my to-dos</label>
+            <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700"><input type="checkbox" className="h-5 w-5 shrink-0" checked={also.flag} onChange={(e) => setAlso({ ...also, flag: e.target.checked })} data-testid="email-also-flag" /> Flag it</label>
+          </div>
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Save email</PrimaryButton>
         </form>
       </Card>
       <Card title="Saved emails">
-        {workspace.emails.length ? <div className="space-y-3">{workspace.emails.map((e) => <div key={e.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-semibold">{e.subject || "Untitled email"}</div><div className="text-xs text-slate-500">{e.from || "Unknown sender"} · {e.date}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("emails", e.id)}><Trash2 className="h-4 w-4" /></button></div>{e.action && <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Action:</strong> {e.action}</div>}{e.body && <details className="mt-3 text-sm text-slate-600"><summary className="cursor-pointer font-medium text-slate-700">Original email</summary><p className="mt-2 whitespace-pre-wrap leading-6">{e.body}</p></details>}{e.draft && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><strong>Reply draft</strong><p className="mt-1 whitespace-pre-wrap">{e.draft}</p></div>}</div>)}</div> : <Empty>No emails saved yet.</Empty>}
+        {workspace.emails.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Show">
+            <button type="button" className={chip(filter === "all")} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All <span className="opacity-70">{counts.all}</span></button>
+            <button type="button" className={chip(filter === "flagged")} aria-pressed={filter === "flagged"} onClick={() => setFilter("flagged")}><Flag className="h-3.5 w-3.5" />Flagged <span className="opacity-70">{counts.flagged}</span></button>
+            <button type="button" className={chip(filter === "todo")} aria-pressed={filter === "todo"} onClick={() => setFilter("todo")}><CheckSquare className="h-3.5 w-3.5" />On my to-do list <span className="opacity-70">{counts.todo}</span></button>
+          </div>
+        )}
+        {shown.length ? (
+          <div className="space-y-3">
+            {shown.map((e) => {
+              const task = emailTask(workspace, e.id);
+              return (
+                <div key={e.id} className={`rounded-2xl border p-4 ${e.flagged ? "border-amber-300 bg-amber-50/60" : "border-slate-200"}`} data-testid="email-row">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><div className="break-words font-semibold">{e.flagged && <Flag className="mr-1 inline h-4 w-4 text-amber-600" aria-label="Flagged" />}{e.subject || "Untitled email"}</div><div className="text-xs text-slate-500">{e.from || "Unknown sender"} · {e.date}</div></div>
+                    <button type="button" aria-label={`Delete ${e.subject || "email"}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("emails", e.id)}><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                  {e.action && <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Action:</strong> {e.action}</div>}
+                  {e.body && <details className="mt-3 text-sm text-slate-600"><summary className="cursor-pointer font-medium text-slate-700">Original email</summary><p className="mt-2 whitespace-pre-wrap leading-6">{e.body}</p></details>}
+                  {e.draft && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><strong>Reply draft</strong><p className="mt-1 whitespace-pre-wrap">{e.draft}</p></div>}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button type="button" aria-pressed={!!e.flagged} aria-label={`${e.flagged ? "Take the flag off" : "Flag"} ${e.subject || "this email"}`} onClick={() => setWorkspace((p) => toggleEmailFlag(p, e.id))} className={act} data-testid="email-flag"><Flag className={`h-4 w-4 ${e.flagged ? "text-amber-600" : ""}`} />{e.flagged ? "Flagged" : "Flag"}</button>
+                    {task && !task.done
+                      ? <span className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-teal-50 px-3 text-sm font-semibold text-teal-800" data-testid="email-on-list"><CheckSquare className="h-4 w-4" />On your to-do list</span>
+                      : <button type="button" aria-label={`Add ${e.subject || "this email"} to my to-dos`} onClick={() => toTodo(e.id)} className={act} data-testid="email-to-todo"><Plus className="h-4 w-4" />{task ? "Add to my to-dos again" : "Add to my to-dos"}</button>}
+                    {task?.done && <span className="text-xs font-medium text-slate-500" data-testid="email-done">Done on your to-do list</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : <Empty>{workspace.emails.length ? (filter === "flagged" ? "No flagged emails." : "No emails are waiting on your to-do list.") : "No emails saved yet."}</Empty>}
       </Card>
     </>
   );
