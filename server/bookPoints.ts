@@ -100,14 +100,27 @@ export async function rememberAdminPoints(store: BookPointsStore, bookId: number
 /**
  * Brings quizzes already passed for a book into line with its new value, and
  * moves each student's total by the difference. Says how many changed.
+ *
+ * The book must already hold the new value. The database has a rule of its own
+ * (trigger attempts_full_points_at_70, see migrations/attempts_full_points_at_70.sql):
+ * whenever a quiz row is changed, a passed quiz is given its book's current points.
+ * A quiz changed while its book still has the old value is put straight back.
+ *
+ * A student's quiz is changed before their total, so a stop in between can
+ * leave a total short but can never pay anyone twice.
  */
-export async function rescoreBook(store: BookPointsStore, bookId: number, bookPoints: number, previousBookPoints: number): Promise<{ attempts: number; students: number }> {
-  const plan = planRescore(await store.attempts(bookId), bookPoints, previousBookPoints);
-  for (const attempt of plan.attempts) await store.setAttemptPoints(attempt.id, attempt.points);
-  for (const [userId, difference] of plan.students) {
-    await store.setStudentTotal(userId, movedTotal(await store.studentTotal(userId), difference));
+export async function rescoreBook(store: BookPointsStore, bookId: number, bookPoints: number, previousBookPoints: number, checkIn?: () => Promise<void>): Promise<{ attempts: number; students: number; studentIds: number[] }> {
+  const all = await store.attempts(bookId);
+  const plan = planRescore(all, bookPoints, previousBookPoints);
+  const before = new Map(all.map((a) => [a.id, a]));
+  for (const change of plan.attempts) {
+    const attempt = before.get(change.id)!;
+    await store.setAttemptPoints(change.id, change.points);
+    const difference = change.points - (Number(attempt.points_earned) || 0);
+    await store.setStudentTotal(attempt.user_id, movedTotal(await store.studentTotal(attempt.user_id), difference));
+    await checkIn?.();
   }
-  return { attempts: plan.attempts.length, students: plan.students.size };
+  return { attempts: plan.attempts.length, students: plan.students.size, studentIds: [...plan.students.keys()] };
 }
 
 export type SetPointsResult =
@@ -125,7 +138,7 @@ export async function setBookPointsByAdmin(store: BookPointsStore, bookId: numbe
   await rememberAdminPoints(store, bookId, points);
   await store.setBookPoints(bookId, points);
   const changed = await rescoreBook(store, bookId, points, previous);
-  return { ok: true, pointsValue: points, previous, ...changed };
+  return { ok: true, pointsValue: points, previous, attempts: changed.attempts, students: changed.students };
 }
 
 // ─── The one-time switch to A.R.I.S.E. points ───────────────────────────────
@@ -134,10 +147,10 @@ export async function setBookPointsByAdmin(store: BookPointsStore, bookId: numbe
 export const BOOK_POINTS_SYSTEM_KEY = "book_points_system";
 /** Raised when the switch's rules change, so every site runs the new pass once. */
 const SYSTEM = "arise-2";
-/** A running switch checks in at least this often... */
-const CHECK_IN_MS = 15_000;
+/** A running switch checks in at least this often (after every single change it makes, if that long has passed)... */
+const CHECK_IN_MS = 5_000;
 /** ...so one that has been quiet this long was cut off (the server restarted) and can be picked up again. */
-const QUIET_FOR_MS = 3 * 60_000;
+const QUIET_FOR_MS = 45_000;
 
 export type SwitchSummary = {
   system: string; state: "running" | "stopped" | "done"; at: string;
@@ -153,17 +166,22 @@ export type SwitchSummary = {
  * site's own reads, news and lessons keep what they have.
  */
 export function planSwitch(books: BookForSwitch[], setByAdmin: Record<string, number>): { id: number; from: number; to: number }[] {
-  const changes: { id: number; from: number; to: number }[] = [];
+  return switchedBooks(books, setByAdmin).filter((book) => book.to !== book.from);
+}
+
+/** Every book the switch is responsible for, with the value it has now and the value it should have. */
+function switchedBooks(books: BookForSwitch[], setByAdmin: Record<string, number>): { id: number; from: number; to: number }[] {
+  const out: { id: number; from: number; to: number }[] = [];
   for (const book of books) {
     const from = Number(book.points_value) || 0;
-    // Marked as matched, or simply still worth exactly the number that was copied.
+    const to = convertedPoints(book.ar_points);
+    // Marked as matched, still worth exactly the number that was copied, or already on its switched value.
     const copied = book.ar_match_status === "exact" || book.ar_match_status === "formula"
-      || (book.ar_points !== null && book.ar_points !== "" && Number(book.ar_points) === from);
-    const to = copied ? convertedPoints(book.ar_points) : null;
-    if (from <= 0 || to === null || to === from || String(book.id) in setByAdmin) continue;
-    changes.push({ id: Number(book.id), from, to });
+      || (to !== null && (Number(book.ar_points) === from || to === from));
+    if (from <= 0 || to === null || !copied || String(book.id) in setByAdmin) continue;
+    out.push({ id: Number(book.id), from, to });
   }
-  return changes;
+  return out;
 }
 
 async function savedSwitch(store: BookPointsStore): Promise<Partial<SwitchSummary>> {
@@ -231,8 +249,8 @@ export async function switchLibraryToArisePoints(store: BookPointsStore, now: ()
 }
 
 async function runSwitch(store: BookPointsStore, summary: SwitchSummary, now: () => number, save: () => Promise<void>): Promise<SwitchSummary> {
-  const changes = planSwitch(await store.allBooks(), await adminBookPoints(store));
-  const earned = await store.booksWithPoints();
+  const switched = switchedBooks(await store.allBooks(), await adminBookPoints(store));
+  const changes = switched.filter((book) => book.to !== book.from);
   const before = summary.students;
   const students = new Set<number>();
   let checkedIn = now();
@@ -243,26 +261,24 @@ async function runSwitch(store: BookPointsStore, summary: SwitchSummary, now: ()
     await save();
   };
 
-  // Books students hold points for: correct the students first, then the book.
-  for (const change of changes.filter((c) => earned.has(c.id))) {
-    const plan = planRescore(await store.attempts(change.id), change.to, change.from);
-    for (const attempt of plan.attempts) await store.setAttemptPoints(attempt.id, attempt.points);
-    for (const [userId, difference] of plan.students) {
-      await store.setStudentTotal(userId, movedTotal(await store.studentTotal(userId), difference));
-      students.add(userId);
-    }
-    await store.setBookPoints(change.id, change.to);
-    summary.books += 1;
-    summary.attempts += plan.attempts.length;
-    summary.students = before + students.size;
-    await checkIn();
-  }
-  // Everything else is only the book's own number, so those go in a few large steps.
+  // 1. The books. They go first: the database keeps a passed quiz equal to its
+  //    book's points, so a quiz can't be moved until its book has been.
   for (const points of ARISE_POINTS) {
-    const ids = changes.filter((c) => !earned.has(c.id) && c.to === points).map((c) => c.id);
+    const ids = changes.filter((c) => c.to === points).map((c) => c.id);
     if (!ids.length) continue;
     await store.setManyBookPoints(ids, points);
     summary.books += ids.length;
+    await checkIn();
+  }
+
+  // 2. The students of every switched book, including a book an earlier run moved
+  //    just before it was cut off: any quiz still holding other points is corrected.
+  const earned = await store.booksWithPoints();
+  for (const book of switched.filter((b) => earned.has(b.id))) {
+    const changed = await rescoreBook(store, book.id, book.to, book.to, checkIn);
+    for (const id of changed.studentIds) students.add(id);
+    summary.attempts += changed.attempts;
+    summary.students = before + students.size;
     await checkIn();
   }
 
@@ -283,10 +299,10 @@ export function keepSwitching(
   onDone: (summary: SwitchSummary) => void,
   options: { againMs?: number; tries?: number; later?: (run: () => void, ms: number) => unknown; log?: (message: string) => void } = {},
 ): () => void {
-  const againMs = options.againMs ?? 2 * 60_000;
+  const againMs = options.againMs ?? 30_000;
   const later = options.later ?? ((run, ms) => setTimeout(run, ms));
   const log = options.log ?? ((message) => console.error(message));
-  let triesLeft = options.tries ?? 90;
+  let triesLeft = options.tries ?? 240;
   let waiting = false;
   const again = () => {
     if (waiting || triesLeft <= 0) return;
