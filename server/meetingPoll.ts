@@ -240,7 +240,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
   const replies = createAttemptLimiter({ max: 40, windowMs: 3600_000, now });
 
   const base = deps.appUrl.replace(/\/+$/, "");
-  const linkFor = (token: string) => `${base}/#/meet/${token}`;
+  const linkFor = (token: string) => `${base}/meet/${token}`;
   const teacherName = (req: any) => String(req.user?.displayName || req.user?.display_name || req.user?.username || "Your teacher");
   const teacherEmail = (req: any) => String(req.user?.email || "").trim() || undefined;
   /** The name on the emails: what the teacher chose for this poll, else their account name. */
@@ -508,6 +508,18 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     options: poll.options.map((o) => ({ id: o.id, label: describeOption(o) })),
     chosen: poll.status === "booked" ? poll.options.filter((o) => o.id === poll.chosen_option).map((o) => describeOption(o))[0] ?? null : null,
     answers: invitee.answers || {}, comment: invitee.comment || "", answered: !!invitee.responded_at,
+  });
+
+  /**
+   * The address in the emails and texts. Phones and chat apps read this page to make a link preview, so it is
+   * a bare page (no logo, no site description) that sends the person on to the reply page.
+   * Older links, which had a # in them, still work.
+   */
+  app.get("/meet/:token", (req, res) => {
+    const token = String(req.params.token || "");
+    const to = TOKEN.test(token) ? `/#/meet/${token}` : "/";
+    res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
+    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Meeting times</title></head><body><script>location.replace(${JSON.stringify(to)});</script><noscript><a href="${to}">Open the meeting times</a></noscript></body></html>`);
   });
 
   app.get("/api/meeting-poll/:token", async (req, res) => {
