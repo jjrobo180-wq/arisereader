@@ -146,7 +146,8 @@ function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete
   );
 }
 
-export default function HubCalendarTab({ workspace, setWorkspace, token, makeId }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string }) {
+/** The calendar with its views (agenda, week, month, open times) and Add event. Used on the Calendar tab and on Home. */
+export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = "Calendar" }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; title?: string }) {
   const now = useNow();
   const today = now.date;
   const [view, setViewState] = useState<View>(readView);
@@ -154,13 +155,9 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId 
   const [anchor, setAnchor] = useState(today);
   const [picked, setPicked] = useState<string | null>(null);
   const [adding, setAdding] = useState<{ date?: string; start?: string; end?: string } | null>(null);
+  const [hint, setNotice] = useState("");
   const [weekly, setWeekly] = useState<FreeWindow[]>([]);
-  const [link, setLink] = useState("");
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [showPast, setShowPast] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const names = useMemo(() => new Map(workspace.calendars.map((c) => [c.id, c.name])), [workspace.calendars]);
   // What is still ahead right now. Events that are over drop out by themselves as the day goes on.
@@ -176,7 +173,6 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId 
     return groups;
   }, [sorted]);
   const earlier = workspace.events.length - stillAhead(workspace.events, now).length;
-  const full = workspace.calendars.length >= HUB_IMPORT_LIMITS.calendars;
 
   const addEvent = (event: Omit<HubEvent, "id">) => setWorkspace((p) => ({ ...p, events: [...p.events, { ...event, id: makeId() }] }));
   const removeEvent = (id: string) => setWorkspace((p) => ({ ...p, events: p.events.filter((x) => x.id !== id) }));
@@ -185,67 +181,8 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId 
     ? new Date(`${anchor.slice(0, 7)}-01T12:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })
     : (() => { const w = weekOf(anchor); return `${shortDay(w[0])} – ${shortDay(w[6])}`; })();
 
-  async function connect(e: FormEvent) {
-    e.preventDefault();
-    const url = link.trim();
-    if (!url || busy) return;
-    if (workspace.calendars.some((c) => c.url === url)) { setError("That calendar is already connected."); return; }
-    setBusy("connect"); setError(""); setNotice("");
-    try {
-      const fresh = await readCalendarLink(token, url);
-      const calendar: ConnectedCalendar = { id: makeId(), name: fresh.name || hostLabel(url), url, syncedAt: new Date().toISOString() };
-      setWorkspace((prev) => replaceCalendarEvents(prev, calendar, fresh.events, makeId));
-      setLink("");
-      setNotice(`${calendar.name} is connected, with ${fresh.events.length} ${fresh.events.length === 1 ? "event" : "events"}. It refreshes each time you open your Hub.`);
-    } catch (err: any) {
-      setError(err?.message || "That calendar could not be read right now.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function refresh(calendar: ConnectedCalendar) {
-    if (busy) return;
-    setBusy(calendar.id); setError(""); setNotice("");
-    try {
-      const fresh = await readCalendarLink(token, calendar.url);
-      setWorkspace((prev) => replaceCalendarEvents(prev, { ...calendar, name: calendar.name || fresh.name, syncedAt: new Date().toISOString() }, fresh.events, makeId));
-      setNotice(`${calendar.name} is up to date.`);
-    } catch (err: any) {
-      setError(err?.message || "That calendar could not be read right now.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function upload(file: File | undefined) {
-    if (!file || busy) return;
-    setBusy("file"); setError(""); setNotice("");
-    try {
-      if (file.size > HUB_IMPORT_LIMITS.fileBytes) throw new Error("That file is too large. The most this page can read is 8 MB.");
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      const response = await fetch(`${API_BASE}/api/teacher-hub/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ file: { name: file.name, data: btoa(binary) }, today, timeZone: localZone() }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || "That calendar file could not be read.");
-      const items = cleanHubImport({ events: data.items?.events }, today);
-      setNotice(describeHubAdded(mergeHubImport(workspace, items, makeId, null)));
-      setWorkspace((prev) => mergeHubImport(prev, items, makeId, null).workspace);
-    } catch (err: any) {
-      setError(err?.message || "That calendar file could not be read.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
   return (
-    <>
-      <Card title="Calendar" right={<PrimaryButton onClick={() => setAdding({ date: view === "month" && picked ? picked : undefined })}><Plus className="h-4 w-4" /> Add event</PrimaryButton>}>
+      <Card title={title} right={<PrimaryButton onClick={() => setAdding({ date: view === "month" && picked ? picked : undefined })}><Plus className="h-4 w-4" /> Add event</PrimaryButton>}>
         <div role="tablist" aria-label="Calendar view" className="mb-4 grid grid-cols-4 gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-views">
           {VIEWS.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}
@@ -330,6 +267,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId 
         {view === "open" && (
           <div className="space-y-3" data-testid="open-view">
             <MyAvailability token={token} setNotice={setNotice} onChange={setWeekly} />
+            {hint && <div className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900" role="status">{hint}</div>}
             {weekly.length === 0 ? <p className="text-sm text-slate-600">Add the times you are usually free each week above. Your open time then shows up here, with everything on your calendar taken out.</p> : (
               (() => {
                 const list = Array.from({ length: 14 }, (_, i) => shiftDay(today, i)).map((date) => ({ date, ranges: openRanges(weekly, workspace.events, date, now) })).filter((d) => d.ranges.length);
@@ -359,6 +297,80 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId 
         )}
         {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addEvent} />}
       </Card>
+  );
+}
+
+export default function HubCalendarTab({ workspace, setWorkspace, token, makeId }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string }) {
+  const [link, setLink] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const full = workspace.calendars.length >= HUB_IMPORT_LIMITS.calendars;
+  const today = localDay();
+  const names = useMemo(() => new Map(workspace.calendars.map((c) => [c.id, c.name])), [workspace.calendars]);
+
+  async function connect(e: FormEvent) {
+    e.preventDefault();
+    const url = link.trim();
+    if (!url || busy) return;
+    if (workspace.calendars.some((c) => c.url === url)) { setError("That calendar is already connected."); return; }
+    setBusy("connect"); setError(""); setNotice("");
+    try {
+      const fresh = await readCalendarLink(token, url);
+      const calendar: ConnectedCalendar = { id: makeId(), name: fresh.name || hostLabel(url), url, syncedAt: new Date().toISOString() };
+      setWorkspace((prev) => replaceCalendarEvents(prev, calendar, fresh.events, makeId));
+      setLink("");
+      setNotice(`${calendar.name} is connected, with ${fresh.events.length} ${fresh.events.length === 1 ? "event" : "events"}. It refreshes each time you open your Hub.`);
+    } catch (err: any) {
+      setError(err?.message || "That calendar could not be read right now.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function refresh(calendar: ConnectedCalendar) {
+    if (busy) return;
+    setBusy(calendar.id); setError(""); setNotice("");
+    try {
+      const fresh = await readCalendarLink(token, calendar.url);
+      setWorkspace((prev) => replaceCalendarEvents(prev, { ...calendar, name: calendar.name || fresh.name, syncedAt: new Date().toISOString() }, fresh.events, makeId));
+      setNotice(`${calendar.name} is up to date.`);
+    } catch (err: any) {
+      setError(err?.message || "That calendar could not be read right now.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function upload(file: File | undefined) {
+    if (!file || busy) return;
+    setBusy("file"); setError(""); setNotice("");
+    try {
+      if (file.size > HUB_IMPORT_LIMITS.fileBytes) throw new Error("That file is too large. The most this page can read is 8 MB.");
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      const response = await fetch(`${API_BASE}/api/teacher-hub/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ file: { name: file.name, data: btoa(binary) }, today, timeZone: localZone() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "That calendar file could not be read.");
+      const items = cleanHubImport({ events: data.items?.events }, today);
+      setNotice(describeHubAdded(mergeHubImport(workspace, items, makeId, null)));
+      setWorkspace((prev) => mergeHubImport(prev, items, makeId, null).workspace);
+    } catch (err: any) {
+      setError(err?.message || "That calendar file could not be read.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <>
+      <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={makeId} />
 
       <Card title="Connected calendars" right={<span className="shrink-0 text-xs font-medium text-slate-500">{workspace.calendars.length} of {HUB_IMPORT_LIMITS.calendars}</span>}>
         {workspace.calendars.length > 0 && (
