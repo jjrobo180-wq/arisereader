@@ -38,6 +38,8 @@ import {
 } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
+import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
+import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubCalendarTab, { byWhen, dayLabel, eventTime, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
@@ -585,7 +587,7 @@ export default function TeacherHub() {
 
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} />}
-          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} account={{ name: String((user as any)?.displayName || (user as any)?.username || ""), email: String((user as any)?.email || "") }} />}
+          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} openGuide={(guideId) => { setGuideId(guideId); setTab("guide"); }} account={{ name: String((user as any)?.displayName || (user as any)?.username || ""), email: String((user as any)?.email || "") }} />}
           {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
@@ -726,46 +728,14 @@ function Info({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div><div className="mt-1 text-slate-700">{value}</div></div>;
 }
 
-function Meetings({ workspace, setWorkspace, remove, studentOptions, token, makeId, account }: SectionProps & { studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
+function Meetings({ workspace, setWorkspace, remove, studentOptions, token, makeId, account, openGuide }: SectionProps & { studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string }; openGuide: (guideId: string) => void }) {
   const [pollStart, setPollStart] = useState<PollStart>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ student: "", type: "Annual IEP", date: "", notes: "" });
-  useEffect(() => {
-    if (!addOpen) return;
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setAddOpen(false); };
-    window.addEventListener("keydown", key);
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
-  }, [addOpen]);
-  function add(e: FormEvent) {
-    e.preventDefault();
-    setWorkspace((p) => ({ ...p, meetings: [...p.meetings, { id: id(), ...form, done: false }] }));
-    setForm({ student: "", type: "Annual IEP", date: "", notes: "" });
-    setAddOpen(false);
-  }
+  const [wizard, setWizard] = useState<WizardState | null>(null);
   return (
     <>
-      <Card title="IEP, reevaluation & meeting timeline" right={<PrimaryButton onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>}>
-        <p className="text-sm text-slate-600">Tap “Add meeting” to put an IEP, reevaluation or other meeting on your timeline.</p>
+      <Card title="IEP, reevaluation & meeting timeline" right={<PrimaryButton onClick={() => setWizard({ step: 1, meetingId: null })}><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>}>
+        <p className="text-sm text-slate-600">Tap “Add meeting”. A short guide walks you through the steps, from picking a time with everyone to sending the final copy. You can skip any step and come back to it.</p>
       </Card>
-      {addOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add meeting" data-testid="add-meeting-dialog" onMouseDown={(e) => { if (e.target === e.currentTarget) setAddOpen(false); }}>
-          <form onSubmit={add} className="grid max-h-[94dvh] w-full max-w-xl gap-3 overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold">Add meeting</h2>
-              <button type="button" onClick={() => setAddOpen(false)} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-            </div>
-            <Select aria-label="Student" value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required autoFocus>{studentOptions()}</Select>
-            <Select aria-label="Meeting type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              <option>Annual IEP</option><option>Reevaluation</option><option>Planning meeting</option><option>Parent meeting</option><option>Progress review</option><option>Other</option>
-            </Select>
-            <Field aria-label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            <TextArea aria-label="Meeting notes" placeholder="Meeting notes / checklist" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>
-          </form>
-        </div>
-      )}
       <Card title="Timeline">
         {workspace.meetings.length ? <div className="space-y-2">{[...workspace.meetings].sort((a,b)=>dateValue(a.date)-dateValue(b.date)).map((m) => (
           <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 sm:items-center">
@@ -773,6 +743,7 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
             <div className="min-w-0 flex-1">
               <div className={`font-semibold ${m.done ? "text-slate-400 line-through" : ""}`}>{m.student} · {m.type}</div>
               <div className="mt-1 text-sm text-slate-500">{m.date || "No date"}{m.notes ? ` · ${m.notes}` : ""}</div>
+              <button type="button" onClick={() => setWizard({ step: firstOpen(m.plan), meetingId: m.id })} className="mt-1 mr-4 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="open-steps">{stepsDone(m.plan) ? `Steps: ${stepsDone(m.plan)} of ${STEP_COUNT} done` : "Start the steps"}</button>
               {!m.done && <button type="button" onClick={() => setPollStart({ meetingId: m.id, title: `${m.type}${m.student ? ` for ${m.student.split(" ")[0]}` : ""}` })} className="mt-1 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Find a time with everyone</button>}
             </div>
             <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="meeting" refId={m.id} title={`${m.student} ${m.type}`} makeId={makeId} />
@@ -780,7 +751,7 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
           </div>
         ))}</div> : <Empty>No meetings added.</Empty>}
       </Card>
-      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} />
+      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} openGuide={openGuide} />
     </>
   );
 }
