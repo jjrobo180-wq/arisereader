@@ -248,6 +248,34 @@ test("files that can't be read are refused with advice, and a tiny file can't un
   assert.throws(() => hubFileText({ name: "list.txt", data: Buffer.from([80, 75, 3, 4, 0, 0, 0, 0]) }), /not plain text/);
 });
 
+test("a tiny workbook can't make the server unpack and read one big sheet thousands of times", () => {
+  // One big sheet, named by 3,000 sheet tags: all the work would be repeated 3,000 times if each tag were read in full.
+  const book = (sheet: string, tags: number) => zip({
+    "xl/workbook.xml": `<workbook xmlns:r="r"><sheets>${Array.from({ length: tags }, (_, i) => `<sheet name="S${i}" sheetId="${i + 1}" r:id="rId1"/>`).join("")}</sheets></workbook>`,
+    "xl/_rels/workbook.xml.rels": `<Relationships><Relationship Id="rId1" Type="t" Target="worksheets/sheet1.xml"/></Relationships>`,
+    "xl/worksheets/sheet1.xml": sheet,
+  });
+
+  // 7 MB with nothing written in it: nothing is ever "full", so nothing stops a repeat but reading it once.
+  const blank = `<worksheet><sheetData>${'<row r="1"><c r="A1"/></row>'.repeat(250_000)}</sheetData></worksheet>`;
+  assert.ok(blank.length > 6_000_000 && blank.length < 12_000_000, "the sheet is big, but under the size of one part");
+  let started = Date.now();
+  assert.equal(xlsxToText(book(blank, 3_000)), "");
+  assert.ok(Date.now() - started < 4_000, `an empty sheet named 3,000 times was read in ${Date.now() - started} ms`);
+
+  // 10 MB of real rows: cut off at the limit, and the first rows read normally.
+  const rows = Array.from({ length: 100_000 }, (_, i) => `<row r="${i + 1}"><c r="A${i + 1}" t="inlineStr"><is><t>Student number ${i}</t></is></c><c r="B${i + 1}"><v>${i}</v></c></row>`).join("");
+  started = Date.now();
+  const text = xlsxToText(book(`<worksheet><sheetData>${rows}</sheetData></worksheet>`, 3_000));
+  assert.ok(Date.now() - started < 4_000, `a full sheet named 3,000 times was read in ${Date.now() - started} ms`);
+  assert.ok(text.length <= 40_000, "the text stays within the limit");
+  assert.ok(text.startsWith("Sheet: S0\nStudent number 0\t0\nStudent number 1\t1\n"), "the first sheet reads normally");
+
+  // Naming the same sheet twice still gives both copies, as it did before.
+  const twice = xlsxToText(book(`<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Hello</t></is></c></row></sheetData></worksheet>`, 2));
+  assert.equal(twice, "Sheet: S0\nHello\n\nSheet: S1\nHello");
+});
+
 // ─── Calendars ──────────────────────────────────────────────────────────────
 
 const CALENDAR = [

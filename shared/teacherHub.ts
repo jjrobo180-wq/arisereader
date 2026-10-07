@@ -534,6 +534,23 @@ export function updateStudent(workspace: Workspace, studentId: string, changes: 
   return { ok: true, workspace: next, moved };
 }
 
+export type StudentAdd =
+  | { ok: true; workspace: Workspace }
+  | { ok: false; message: string };
+
+/**
+ * Adds a student to the caseload. The name has to be new, because the other tabs file their rows
+ * under it, and the caseload never grows past the plan (`seats`; null means no limit).
+ */
+export function addStudent(workspace: Workspace, input: Omit<Student, "id">, makeId: () => string, seats: number | null): StudentAdd {
+  const name = String(input.name ?? "").replace(/\s+/g, " ").trim();
+  if (!name) return { ok: false, message: "A student needs a name." };
+  const taken = workspace.students.find((s) => fold(s.name) === fold(name));
+  if (taken) return { ok: false, message: `${taken.name} is already on your caseload.` };
+  if (seats !== null && workspace.students.length >= seats) return { ok: false, message: `Your plan covers ${seats.toLocaleString("en-US")} students, and your caseload is full.` };
+  return { ok: true, workspace: { ...workspace, students: [...workspace.students, { ...input, id: makeId(), name }] } };
+}
+
 /** Puts a calendar's fresh events in place of its old ones. Events the teacher typed in are untouched. */
 export function replaceCalendarEvents(workspace: Workspace, calendar: HubCalendar, events: Omit<HubEvent, "id" | "calendarId">[], makeId: () => string): Workspace {
   const kept = workspace.events.filter((event) => event.calendarId !== calendar.id);

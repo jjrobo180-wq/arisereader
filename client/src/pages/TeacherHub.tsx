@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
   BookHeart,
@@ -30,12 +30,16 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { API_BASE } from "@/lib/queryClient";
-import { HUB_REQUIRED, PLANS, usd } from "@shared/plans";
+import { PLANS, usd } from "@shared/plans";
 import {
-  HUB_IMPORT, HUB_IMPORT_KINDS, cleanHubImport, describeHubAdded, emptyWorkspace, mergeHubImport, normalizeWorkspace, updateStudent,
+  HUB_IMPORT, HUB_IMPORT_KINDS, addStudent, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
   type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Workspace,
 } from "@shared/teacherHub";
+import { deleteRow, deleteStudentRecords, studentRecordCount, undoDelete, type Deleted } from "@shared/hubDelete";
+import { BottomStack, useToasts, type ToastAction } from "@/components/teacher-hub/HubToast";
+import { ConflictDialog, HubDataPanel, SaveBadge, SaveNotice, SizeNotice, downloadHubCopy } from "@/components/teacher-hub/HubSaveUI";
+import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
+import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
@@ -207,18 +211,16 @@ function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
 }
 
 export default function TeacherHub() {
+  const { user } = useAuth();
+  // Signing in as someone else starts with a clean page, so one teacher's Hub is never shown to the next.
+  return <TeacherHubPage key={user?.id ?? "signed-out"} />;
+}
+
+function TeacherHubPage() {
   const { user, token, logout } = useAuth();
-  const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
   // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
   const [tab, setTab] = useState<HubTab>(() => (/[?&]mailbox=/.test(window.location.search) ? "iep" : "overview"));
-  const [loaded, setLoaded] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [customize, setCustomize] = useState(false);
-  // Teacher Hub is a paid add-on: without a plan the server says so, and the page shows how to get it.
-  const [needsPlan, setNeedsPlan] = useState(false);
-  const [seats, setSeats] = useState<number | null>(null);
-  const [saveMessage, setSaveMessage] = useState("");
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
   const [adding, setAdding] = useState<{ start?: "photo" | "file" } | null>(null);
   const [added, setAdded] = useState<{ words: string; tab: HubTab | null } | null>(null);
@@ -226,63 +228,12 @@ export default function TeacherHub() {
   const [guideId, setGuideId] = useState<string | null>(null);
 
   const canUseHub = !!user && (user.role === "teacher" || user.isAdmin);
-
-  useEffect(() => {
-    if (!canUseHub || !token) return;
-    let cancelled = false;
-    setLoaded(false);
-    setLoadError("");
-    setNeedsPlan(false);
-    fetch(`${API_BASE}/api/teacher-hub/workspace`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (r) => {
-        const data = await r.json().catch(() => ({}));
-        if (r.status === 402 && data.code === HUB_REQUIRED) return { needsPlan: true };
-        if (!r.ok) throw new Error(data.message || "Could not load Teacher Hub.");
-        return data;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        if (data.needsPlan) { setNeedsPlan(true); setLoaded(true); return; }
-        setSeats(typeof data.seats === "number" ? data.seats : null);
-        setWorkspace(normalizeWorkspace(data.workspace));
-        setLoaded(true);
-        setSaveStatus("saved");
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setLoadError(err.message || "Could not load Teacher Hub.");
-        setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [canUseHub, token, user?.id]);
-
-  useEffect(() => {
-    if (!canUseHub || !token || !loaded || loadError || needsPlan) return;
-    setSaveStatus("saving");
-    const timer = window.setTimeout(() => {
-      fetch(`${API_BASE}/api/teacher-hub/workspace`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ workspace }),
-      })
-        .then(async (r) => {
-          const data = await r.json().catch(() => ({}));
-          if (r.status === 402 && data.code === HUB_REQUIRED) { setNeedsPlan(true); return; }
-          if (!r.ok) throw new Error(data.message || "Could not save Teacher Hub.");
-          setSaveStatus("saved");
-          setSaveMessage("");
-        })
-        .catch((err) => { setSaveStatus("error"); setSaveMessage(err?.message || "Could not save Teacher Hub."); });
-    }, 700);
-    return () => window.clearTimeout(timer);
-  }, [workspace, canUseHub, token, loaded, loadError, needsPlan]);
+  // Opening the Hub and keeping it saved (see useHubWorkspace).
+  const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
+  const { workspace, setWorkspace, loaded, loadError, needsPlan, seats, view, bytes } = sync;
+  const toasts = useToasts();
+  const latest = useRef(workspace);
+  latest.current = workspace;
 
   // The "added" message belongs to the screen it appeared on.
   useEffect(() => { setAdded(null); }, [tab]);
@@ -339,10 +290,34 @@ export default function TeacherHub() {
     setWorkspace((prev) => ({ ...prev, [key]: value }));
   }
 
+  /** Deletes a row and says so with an Undo button, so one wrong tap costs nothing. */
   function remove<K extends keyof Workspace>(key: K, rowId: string) {
-    const current = workspace[key];
-    if (!Array.isArray(current)) return;
-    update(key, current.filter((row: any) => row.id !== rowId) as Workspace[K]);
+    const result = deleteRow(workspace, key, rowId);
+    if (!result) return;
+    setWorkspace((prev) => deleteRow(prev, key, rowId)?.workspace ?? prev);
+    const actions: ToastAction[] = [{ label: "Undo", run: () => setWorkspace((prev) => undoDelete(prev, result.deleted)) }];
+    let text = result.deleted.label;
+    let records = 0;
+    if (key === "students") {
+      const name = String((result.deleted.parts[0].rows[0].row as Student).name);
+      records = studentRecordCount(result.workspace, name);
+      // Their notes, grades and the rest stay until the teacher says to clear them.
+      if (records) {
+        text += ` · ${records} ${records === 1 ? "record" : "records"} in your other tabs kept`;
+        actions.push({ label: records === 1 ? "Delete it too" : "Delete them too", run: () => clearStudentRecords(name, result.deleted) });
+      }
+    }
+    toasts.show(text, actions, records ? 15_000 : 10_000);
+  }
+
+  /** Clears what the other tabs kept under a deleted student's name. One Undo brings back the student and all of it. */
+  function clearStudentRecords(name: string, studentDeleted: Deleted) {
+    const result = deleteStudentRecords(latest.current, name);
+    if (!result) return;
+    setWorkspace((prev) => deleteStudentRecords(prev, name)?.workspace ?? prev);
+    const count = result.deleted.parts.reduce((total, part) => total + part.rows.length, 0);
+    const both: Deleted = { label: `Deleted ${name} and ${count} ${count === 1 ? "record" : "records"}`, parts: [...studentDeleted.parts, ...result.deleted.parts] };
+    toasts.show(both.label, [{ label: "Undo", run: () => setWorkspace((prev) => undoDelete(prev, both)) }]);
   }
 
   function studentOptions(includeAll = false) {
@@ -366,6 +341,12 @@ export default function TeacherHub() {
     anchor.download = "teacher-hub-attendance.csv";
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+
+  /** Anything still waiting is saved before the sign-out. */
+  async function signOut() {
+    await sync.flush();
+    logout();
   }
 
   if (!user) return <TeacherHubLogin />;
@@ -406,7 +387,7 @@ export default function TeacherHub() {
           <AlertTriangle className="mx-auto h-10 w-10 text-red-500" />
           <h1 className="mt-4 text-2xl font-bold text-slate-950">Teacher Hub could not open</h1>
           <p className="mt-2 text-sm text-slate-600">{loadError}</p>
-          <button className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white" onClick={() => window.location.reload()}>
+          <button className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white" onClick={sync.reload}>
             Try again
           </button>
         </div>
@@ -425,20 +406,12 @@ export default function TeacherHub() {
             <div className="truncate text-xl font-bold tracking-tight">Teacher Hub</div>
           </a>
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 sm:flex">
-              {saveStatus === "saving" ? (
-                <><Save className="h-3.5 w-3.5" /> Saving…</>
-              ) : saveStatus === "error" ? (
-                <><AlertTriangle className="h-3.5 w-3.5 text-red-500" /> Save failed</>
-              ) : (
-                <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Saved</>
-              )}
-            </div>
+            <SaveBadge view={view} />
             <button type="button" onClick={() => setAdding({})} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
-            <GhostButton onClick={() => setCustomize((v) => !v)}><Settings2 className="h-4 w-4" /> <span className="hidden sm:inline">Customize tabs</span></GhostButton>
-            <GhostButton onClick={logout}><LogOut className="h-4 w-4" /></GhostButton>
+            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize tabs and your data" aria-expanded={customize} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"><Settings2 className="h-4 w-4" /> <span className="hidden sm:inline">Customize tabs</span></button>
+            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </header>
@@ -464,13 +437,9 @@ export default function TeacherHub() {
         </aside>
 
         <main className="min-w-0 space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
+          <HubSetupBanner token={token} isAdmin={!!user.isAdmin} />
           <PinBanners workspace={workspace} setWorkspace={setWorkspace} />
-          {saveStatus === "error" && saveMessage && (
-            <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
-              <span>{saveMessage}</span>
-              <a href="#/billing" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-red-700 px-4 text-sm font-semibold text-white">Your plan</a>
-            </div>
-          )}
+          <SizeNotice bytes={bytes} onDownload={() => downloadHubCopy(workspace)} />
           {added && (
             <div className="flex flex-col gap-2 rounded-2xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950 sm:flex-row sm:items-center sm:justify-between" role="status" data-testid="hub-added">
               <span>{added.words}</span>
@@ -502,6 +471,7 @@ export default function TeacherHub() {
                   </label>
                 ))}
               </div>
+              <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
             </Card>
           )}
 
@@ -602,6 +572,8 @@ export default function TeacherHub() {
         </main>
       </div>
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
+      {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
+      <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
     </div>
   );
 }
@@ -627,11 +599,16 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
   const [form, setForm] = useState<Omit<Student, "id">>({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
   // The plan covers this many students; the caseload can't grow past it.
   const full = seats !== null && workspace.students.length >= seats;
+  // The reason a student could not be added (a name already on the caseload, say).
+  const [addError, setAddError] = useState("");
   function add(e: FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || full) return;
-    setWorkspace((p) => ({ ...p, students: [...p.students, { id: id(), ...form, name: form.name.trim() }] }));
+    if (full) return;
+    const result = addStudent(workspace, form, id, seats);
+    if (!result.ok) { setAddError(result.message); return; }
+    setWorkspace((p) => { const next = addStudent(p, form, id, seats); return next.ok ? next.workspace : p; });
     setForm({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
+    setAddError("");
   }
 
   // The student being changed and what has been typed so far. One at a time.
@@ -666,7 +643,7 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
           </div>
         )}
         <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
-          <Field placeholder="Student name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Field placeholder="Student name" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setAddError(""); }} required aria-label="Student name" aria-invalid={!!addError} />
           <Field placeholder="Grade" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
           <Field placeholder="Reading level" value={form.readingLevel} onChange={(e) => setForm({ ...form, readingLevel: e.target.value })} />
           <Field placeholder="Math level" value={form.mathLevel} onChange={(e) => setForm({ ...form, mathLevel: e.target.value })} />
@@ -675,6 +652,7 @@ function Caseload({ workspace, setWorkspace, remove, seats }: SectionProps & { s
           <Field placeholder="Accommodations" value={form.accommodations} onChange={(e) => setForm({ ...form, accommodations: e.target.value })} className="md:col-span-2" />
           <TextArea placeholder="Quick notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="md:col-span-3" />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add student</PrimaryButton>
+          {addError && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 md:col-span-4" role="alert">{addError}</div>}
         </form>
       </Card>
       <div className="grid gap-4 xl:grid-cols-2">

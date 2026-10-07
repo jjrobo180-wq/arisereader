@@ -61,10 +61,37 @@ export function encryptPush(payload: Buffer, subscription: PushSubscriptionInfo)
   return Buffer.concat([salt, size, Buffer.from([serverPublic.length]), serverPublic, body]);
 }
 
+/**
+ * The push services phones and browsers really use. A device's address is checked against this before anything is
+ * sent to it, so nobody can sign up an address of their own and have the server send requests there.
+ * (PUSH_EXTRA_HOSTS, a comma-separated list of host names, adds more.)
+ */
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/, // Chrome, Edge, Opera, Brave, Samsung Internet and the other Chromium browsers
+  /^android\.googleapis\.com$/, // older Chrome on Android
+  /(^|\.)push\.services\.mozilla\.com$/, // Firefox
+  /(^|\.)push\.apple\.com$/, // Safari, and Home Screen apps on iPhone and iPad
+  /(^|\.)notify\.windows\.com$/, // Edge on Windows
+];
+
+export function isPushServiceUrl(endpoint: string, extraHosts: string[] = (process.env.PUSH_EXTRA_HOSTS || "").split(",")): boolean {
+  try {
+    const url = new URL(endpoint);
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    if (url.port && url.port !== "443") return false;
+    const host = url.hostname.toLowerCase();
+    return PUSH_HOSTS.some((pattern) => pattern.test(host)) || extraHosts.some((extra) => extra.trim().toLowerCase() === host);
+  } catch {
+    return false;
+  }
+}
+
 export async function sendWebPush(subscription: PushSubscriptionInfo, message: PushMessage, keys: VapidKeys, fetchImpl: typeof fetch = fetch): Promise<PushResult> {
+  if (!isPushServiceUrl(subscription.endpoint)) throw new Error("That is not an address of a known push service.");
   const payload = Buffer.from(JSON.stringify(message).slice(0, 3000));
   const response = await fetchImpl(subscription.endpoint, {
     method: "POST",
+    redirect: "manual", // a push service answers directly; being sent somewhere else is never right
     headers: {
       Authorization: vapidAuthorization(subscription.endpoint, keys),
       "Content-Encoding": "aes128gcm",

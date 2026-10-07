@@ -6,6 +6,9 @@ import { inflateRawSync } from "node:zlib";
 /** The most one unpacked part of a file may be. Stops a tiny upload from unpacking into gigabytes. */
 const MAX_PART_BYTES = 12_000_000;
 const MAX_PARTS = 2_000;
+/** Sheets read from one workbook, and the most that may be unpacked from it in all. A tiny file can name the same big sheet thousands of times. */
+const MAX_SHEETS = 40;
+const MAX_TOTAL_BYTES = 40_000_000;
 
 export class HubFileError extends Error {}
 
@@ -97,7 +100,21 @@ const columnIndex = (ref: string) => {
 /** An Excel workbook as plain text: each sheet's name, then its rows with a tab between cells. */
 export function xlsxToText(file: Buffer, maxChars = 40_000): string {
   const zip = readZip(file);
-  const part = (name: string) => zip.get(name)?.().toString("utf8") || "";
+  // Each part is unpacked once, however many times it is asked for.
+  const unpacked = new Map<string, string>();
+  let total = 0;
+  const part = (name: string) => {
+    const known = unpacked.get(name);
+    if (known !== undefined) return known;
+    const open = zip.get(name);
+    if (!open) return "";
+    const data = open();
+    total += data.length;
+    if (total > MAX_TOTAL_BYTES) throw new HubFileError("That file is too large to read.");
+    const text = data.toString("utf8");
+    unpacked.set(name, text);
+    return text;
+  };
   const workbook = part("xl/workbook.xml");
   if (!workbook) throw new HubFileError("That does not look like an Excel file. Save it as .xlsx and try again.");
   const shared = [...part("xl/sharedStrings.xml").matchAll(/<si>([\s\S]*?)<\/si>|<si\/>/g)].map((m) => runs(m[1] || ""));
@@ -109,12 +126,14 @@ export function xlsxToText(file: Buffer, maxChars = 40_000): string {
   }
   const out: string[] = [];
   let used = 0;
-  const sheets = [...workbook.matchAll(/<sheet\s[^>]*>/g)];
-  for (const [index, sheet] of sheets.entries()) {
-    if (attr(sheet[0], "state") === "hidden" || attr(sheet[0], "state") === "veryHidden") continue;
-    const xml = part(targets.get(attr(sheet[0], "r:id") || "") || `xl/worksheets/sheet${index + 1}.xml`);
-    if (!xml) continue;
+  /** The rows of one worksheet part. Two sheets that name the same part read it once. */
+  const read = new Map<string, string[]>();
+  const rowsOf = (partName: string, xml: string): string[] => {
+    const known = read.get(partName);
+    if (known) return known;
     const rows: string[] = [];
+    read.set(partName, rows);
+    let rowChars = 0;
     for (const row of xml.matchAll(/<row[\s>][\s\S]*?<\/row>/g)) {
       const cells: string[] = [];
       for (const cell of row[0].matchAll(/<c\s([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
@@ -132,8 +151,19 @@ export function xlsxToText(file: Buffer, maxChars = 40_000): string {
         cells[at] = value.replace(/\s+/g, " ").trim();
       }
       const line = cells.join("\t").replace(/\t+$/, "");
-      if (line.trim()) rows.push(line);
+      if (line.trim()) { rows.push(line); rowChars += line.length + 1; }
+      // More than can be used: no need to read the rest of a huge sheet.
+      if (rowChars > maxChars) break;
     }
+    return rows;
+  };
+  const sheets = [...workbook.matchAll(/<sheet\s[^>]*>/g)].slice(0, MAX_SHEETS);
+  for (const [index, sheet] of sheets.entries()) {
+    if (attr(sheet[0], "state") === "hidden" || attr(sheet[0], "state") === "veryHidden") continue;
+    const partName = targets.get(attr(sheet[0], "r:id") || "") || `xl/worksheets/sheet${index + 1}.xml`;
+    const xml = part(partName);
+    if (!xml) continue;
+    const rows = rowsOf(partName, xml);
     if (!rows.length) continue;
     const block = `Sheet: ${decodeXml(attr(sheet[0], "name") || `Sheet ${index + 1}`)}\n${rows.join("\n")}`;
     if (used + block.length > maxChars) { out.push(block.slice(0, Math.max(0, maxChars - used))); used = maxChars; break; }

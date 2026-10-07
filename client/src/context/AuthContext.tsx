@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, Re
 import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
+import { forgetThisDevice } from "@/lib/pushDevice";
 
 interface AuthUser {
   id: number;
@@ -166,9 +167,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signal: AbortSignal.timeout(8000),
     })
       .then(res => {
-        if (!res.ok) {
+        // Only the server saying "this sign-in is no good" signs the person out. A slow connection or a server
+        // hiccup keeps the sign-in they have, so opening the app in a school with poor Wi-Fi doesn't log them out.
+        if (res.status === 401 || res.status === 403) {
           setUser(null); setToken(null); persistSession(null, null);
-        } else return res.json();
+          return null;
+        }
+        return res.ok ? res.json() : null;
       })
       .then(userData => {
         if (userData) {
@@ -177,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           persistSession(userData, sessionRef.current.token);
         }
       })
-      .catch(() => { setUser(null); setToken(null); persistSession(null, null); })
+      .catch(() => { /* offline or too slow to answer: keep the saved sign-in */ })
       .finally(() => { setIsLoading(false); setSessionValidated(true); });
   }, [persistSession, sessionValidated]);
 
@@ -255,6 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAuthenticatedNavigation();
     setAdminPreviewMode(null);
     if (sessionRef.current.token) {
+      void forgetThisDevice(sessionRef.current.token);
       fetch(`${API_BASE}/api/logout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${sessionRef.current.token}` },

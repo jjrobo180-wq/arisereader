@@ -36,6 +36,7 @@ import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./tea
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
+import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
 import { matchEarnsCoins } from "./arcadeMatches";
@@ -946,7 +947,7 @@ const proctorFails = createAttemptLimiter({ max: 8, windowMs: 15 * 60_000 });
 const parentInviteSends = createAttemptLimiter({ max: PARENT_INVITES_PER_DAY, windowMs: 24 * 60 * 60_000 });
 
 // Simple auth middleware
-async function authMiddleware(req: any, res: any, next: any) {
+export async function authMiddleware(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -1169,6 +1170,8 @@ export async function registerRoutes(
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
   // A teacher can connect their own Gmail or Outlook so those emails come from their real address.
   const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
+  // Tells the site owner when the database is missing something the Hub needs (and what to paste to fix it).
+  registerHubSetupRoutes(app, authMiddleware, { gate: hubGate });
   let mailbox: ReturnType<typeof createMailboxService> | undefined;
   try {
     mailbox = createMailboxService({ store: createSupabaseMailboxStore(), config: configFromEnv(), appUrl: APP_URL, key: secretKey() });
