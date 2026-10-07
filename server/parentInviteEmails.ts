@@ -7,7 +7,7 @@ import {
   cleanChildName, cleanParentEmail, inviteSummary, invitesFor, readInviteLog, recordInvite, sentInLastDay,
 } from "../shared/parentInvites";
 import { PLANS } from "../shared/plans";
-import { familyInviteEmail, parentProgramEmail } from "./emailFormat";
+import { familyInviteEmail, familyInviteText, parentProgramEmail, parentProgramText } from "./emailFormat";
 
 export type InviteSender = { id: number; displayName?: string | null; username?: string | null; isAdmin?: boolean; role?: string; email?: string | null; accountApproved?: boolean; school_id?: number | null };
 export type InviteStudent = { id: number; displayName?: string | null; role?: string; teacherId?: number | null; isAdmin?: boolean };
@@ -155,6 +155,35 @@ export async function sendFamilyInvite(deps: ParentInviteDeps, sender: InviteSen
   return { status: 200, body: { success: true, message: `Invitation sent to ${email}.${remembered ? "" : " It was sent, but could not be added to the list below."}`, invites: inviteSummary(mine) } };
 }
 
+/**
+ * The invitation as words to paste into the sender's own email (a personal or school address).
+ * With a student it is that student's invitation, code and link included. Without one it is the new-family invitation.
+ * Nothing is sent and nothing is added to the list of who was invited: the site can't know whether it was sent.
+ */
+export async function inviteTemplate(deps: ParentInviteDeps, sender: InviteSender, input: { studentId?: unknown; childName?: unknown }, origin: string): Promise<Reply> {
+  const site = origin.replace(/\/+$/, "");
+  if (input?.studentId !== undefined && input?.studentId !== null && input?.studentId !== "") {
+    const student = await reachable(deps, sender, input.studentId);
+    if ("status" in student) return student;
+    const { formattedCode } = await deps.parentCode(student.id);
+    const made = parentProgramText({
+      studentName: String(student.displayName || "your child").trim(), senderName: String(sender.displayName || sender.username || "Your child's teacher").trim(),
+      signupUrl: `${site}/#/parent-signup?code=${encodeURIComponent(formattedCode)}`, code: formattedCode, siteUrl: deps.siteUrl, maxChildren: PLANS.parentMaxChildren,
+    });
+    return { status: 200, body: { ...made } };
+  }
+  const denied = staff(sender);
+  if (denied) return denied;
+  const senderName = String(sender.displayName || sender.username || "A teacher").trim();
+  const teacher = sender.role === "teacher";
+  const schoolName = teacher && sender.school_id ? String((await deps.schoolName?.(Number(sender.school_id))) || "").trim() : "";
+  const made = familyInviteText({
+    senderName, childName: cleanChildName(input?.childName), registerUrl: `${site}/#/register`, independentUrl: `${site}/#/register-independent`, parentSignupUrl: `${site}/#/parent-signup`,
+    ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren,
+  });
+  return { status: 200, body: { ...made } };
+}
+
 /** The routes: who was invited (for a student, or as a new family), and send an invitation. All need a signed-in teacher or the admin. */
 export function registerParentInviteEmailRoutes(app: Express, auth: any, deps: ParentInviteDeps): void {
   const origin = (req: any) => `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${req.get("host")}`;
@@ -183,6 +212,15 @@ export function registerParentInviteEmailRoutes(app: Express, auth: any, deps: P
     } catch (error: any) {
       console.error("[parent-invite-email] family send failed:", error?.message);
       res.status(500).json({ message: "The invitation could not be sent. Please try again." });
+    }
+  });
+  app.post("/api/parent-invites/template", auth, async (req: any, res) => {
+    try {
+      const reply = await inviteTemplate(deps, req.user, req.body || {}, origin(req));
+      res.set("Cache-Control", "no-store").status(reply.status).json(reply.body);
+    } catch (error: any) {
+      console.error("[parent-invite-email] template failed:", error?.message);
+      res.status(500).json({ message: "The message could not be written. Please try again." });
     }
   });
   app.post("/api/parent-invites/email", auth, async (req: any, res) => {

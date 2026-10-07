@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import InviteCopy from "@/components/InviteCopy";
 import { loadParentInviteEmails, sendParentInviteEmail, type SentParentInvite } from "@/lib/parentInvites";
 
 const when = (at: string) => {
@@ -53,7 +54,8 @@ export default function ParentEmailInvite({ studentId, studentName }: { studentI
         <Input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label={`Parent or guardian email for ${studentName}`} value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} data-testid="parent-email-input" />
         <Button type="submit" disabled={busy || !email.trim()} className="shrink-0" data-testid="parent-email-send">{busy ? "Sending..." : "Send invitation"}</Button>
       </form>
-      {!emailReady && <p className="mt-2 text-xs text-amber-500">Email isn't set up on the site yet, so invitations can't be sent. You can print the parent letter instead.</p>}
+      <InviteCopy studentId={studentId} to={email} />
+      {!emailReady && <p className="mt-2 text-xs text-amber-500">Email isn't set up on the site yet, so the site can't send invitations. You can copy the message into your own email, or print the parent letter.</p>}
       {notice && <p role="status" className="mt-2 text-sm text-emerald-500" data-testid="parent-email-notice">{notice}</p>}
       {error && <p role="alert" className="mt-2 text-sm text-destructive" data-testid="parent-email-error">{error}</p>}
       {invites.length > 0 && (

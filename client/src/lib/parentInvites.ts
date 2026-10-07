@@ -126,3 +126,10 @@ export async function sendFamilyInviteEmail(email: string, childName: string): P
   const data = await inviteRequest('/api/parent-invites/family-email', { method: 'POST', body: JSON.stringify({ email, childName }) });
   return { message: data.message || 'Invitation sent.', invites: Array.isArray(data.invites) ? data.invites : [] };
 }
+
+/** The invitation as words to paste into your own email: a student's (with their code and link), or the new-family one. Nothing is sent. */
+export async function loadInviteTemplate(input: { studentId?: number; childName?: string }): Promise<{ subject: string; text: string }> {
+  const data = await inviteRequest('/api/parent-invites/template', { method: 'POST', body: JSON.stringify(input) });
+  if (typeof data.subject !== 'string' || typeof data.text !== 'string') throw new Error('The message could not be written. Please try again.');
+  return { subject: data.subject, text: data.text };
+}
