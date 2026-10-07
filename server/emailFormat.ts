@@ -112,3 +112,68 @@ export function parentProgramEmail(info: { studentName: string; senderName: stri
   <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${student}, you can ignore this email.</p>
 </div>`;
 }
+
+/**
+ * The email for a family whose child has no account yet: what A.R.I.S.E. Reader is, what the family
+ * gets, and how to sign up (the child first, then the parent with the child's code).
+ * Every value is escaped here, so plain text is what to pass in.
+ */
+export function familyInviteEmail(info: {
+  senderName: string; childName?: string;
+  /** Where a student signs up with a school and teacher, on their own, and where a parent signs up. */
+  registerUrl: string; independentUrl: string; parentSignupUrl: string;
+  /** The sender's school and name as they appear on the student sign-up page, when the sender is a teacher there. */
+  schoolName?: string; teacherName?: string;
+  maxChildren?: number;
+}): string {
+  const sender = esc(info.senderName || "A teacher");
+  const named = String(info.childName || "").trim();
+  // The full name once, then the first name, the way a person would write it.
+  const first = named.split(/\s+/)[0] || "";
+  const full = named ? esc(named) : "your child";
+  const child = first ? esc(first) : "your child";
+  const Child = first ? esc(first) : "Your child";
+  const h2 = "margin:28px 0 10px;color:#f8fafc;font-size:18px;";
+  const p = "margin:0 0 12px;line-height:1.6;color:#cbd5e1;font-size:16px;";
+  const li = "margin:0 0 8px;line-height:1.55;color:#cbd5e1;font-size:16px;";
+  const link = "color:#c4b5fd;";
+  const strong = (text: string) => `<strong style="color:#ffffff;">${esc(text)}</strong>`;
+  const unlisted = ` If the teacher is not in the list, tap "My teacher isn't listed" and type the name.`;
+  const pick = (info.schoolName && info.teacherName
+    ? `On that page, choose ${strong(info.schoolName)} as the school, pick the grade, then choose ${strong(info.teacherName)} as the teacher.`
+    : info.teacherName
+      ? `On that page, choose the school and the grade, then ${strong(info.teacherName)} as the teacher.`
+      : "On that page, choose the school, the grade and the teacher.") + unlisted;
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
+  <h1 style="margin:0 0 4px;color:#c4b5fd;font-size:26px;">A.R.I.S.E. Reader</h1>
+  <p style="margin:0;color:#94a3b8;font-size:14px;">Read a book. Take a quiz. Earn points.</p>
+  <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">Your family is invited to read with us</h2>
+  <p style="${p}">${sender} invited you and ${full} to A.R.I.S.E. Reader, a reading site for students and their families. Neither of you needs an account yet. This email explains what it is and how to join. It is free for students and parents.</p>
+
+  <h2 style="${h2}">What it is</h2>
+  <ul style="margin:0;padding-left:22px;">
+    <li style="${li}">${Child} picks a book and reads it.</li>
+    <li style="${li}">Then comes a short quiz on the book. A score of 70% or higher earns that book's points.</li>
+    <li style="${li}">Points add up, so the reading pays off and there is a reason to pick up the next book.</li>
+  </ul>
+
+  <h2 style="${h2}">What you get as a parent</h2>
+  <ul style="margin:0;padding-left:22px;">
+    <li style="${li}">See ${child}'s quiz history and reading growth.</li>
+    <li style="${li}">Get a private Parent Proctor Code, so quizzes and reading tests can be taken at home with you.</li>
+    <li style="${li}">Use parent controls for games and access.</li>
+    ${info.maxChildren ? `<li style="${li}">One parent account can follow up to ${Number(info.maxChildren)} children.</li>` : ""}
+  </ul>
+
+  <h2 style="${h2}">How to sign up</h2>
+  <ol style="margin:0;padding-left:22px;">
+    <li style="${li}"><strong style="color:#ffffff;">${Child} makes a student account.</strong> ${pick}</li>
+    <li style="${li}"><strong style="color:#ffffff;">${Child} logs in and opens Profile.</strong> Under "Parent Sign-Up Letter", tap "Print / View My Parent Code". That is your code.</li>
+    <li style="${li}"><strong style="color:#ffffff;">You make your parent account</strong> with that code, and you are connected right away.</li>
+  </ol>
+  <p style="margin:22px 0 10px;"><a href="${esc(info.registerUrl)}" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Step 1: Create the student account</a></p>
+  <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">Step 3, once you have the code: <a href="${esc(info.parentSignupUrl)}" style="${link}">create your parent account</a>.</p>
+  <p style="margin:0;color:#94a3b8;font-size:14px;">Not with a school on the site? ${Child} can sign up as an <a href="${esc(info.independentUrl)}" style="${link}">independent reader</a> and skip choosing a school.</p>
+  <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${sender}, you can ignore this email.</p>
+</div>`;
+}

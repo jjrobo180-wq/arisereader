@@ -9612,6 +9612,8 @@ Important:
       }
       return emails;
     },
+    parentAccountEmails: async () => (await storage.getAllUsers()).filter((u: any) => u.role === "parent" && u.email).map((u: any) => String(u.email)),
+    schoolName: async (schoolId) => (await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || null,
     emailConfigured,
     sendEmail,
     siteUrl: APP_URL,

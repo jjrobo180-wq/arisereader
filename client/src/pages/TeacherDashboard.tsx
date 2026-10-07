@@ -6,6 +6,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
 import { printParentInvites } from "@/lib/parentInvites";
 import ParentEmailInvite from "@/components/ParentEmailInvite";
+import FamilyEmailInvite from "@/components/FamilyEmailInvite";
 import NoProctorReview from "@/components/NoProctorReview";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import { PrizeManager } from "@/components/prizes/PrizeManager";
@@ -640,6 +641,7 @@ export default function TeacherDashboard() {
             <p style={styles.proctorDesc}>Give families their private code or signup link, print letters, and see which parent/guardian accounts are already connected to your students.</p>
             <button style={styles.primaryBtn} onClick={() => printLetters()}>Print parent letters for my students</button>
           </div>
+          <div style={{ marginBottom: 18 }}><FamilyEmailInvite /></div>
           {parentConnectionsLoading ? <p style={styles.muted}>Loading parent connections...</p> : (
             <div style={styles.grid}>
               {parentConnections.length ? parentConnections.map((student) => (
