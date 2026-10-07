@@ -37,6 +37,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { refreshNotifications } from "@/lib/notifications";
 import { printParentInvites } from "@/lib/parentInvites";
+import ParentEmailInvite from "@/components/ParentEmailInvite";
 import { cn } from "@/lib/utils";
 import {
   Users, KeyRound, Send, Trophy, BookOpen, Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
@@ -4730,6 +4731,7 @@ Generate exactly 10 questions.`;
               </Button>
             </div>
           )}
+          {detailStudent && <ParentEmailInvite studentId={detailStudent.id} studentName={detailStudent.displayName} />}
           {detailLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />

@@ -90,3 +90,27 @@ export async function printMyParentInvite(): Promise<void> {
     throw error;
   }
 }
+
+/** One address a student's parent invitation was emailed to: the latest send, and how many in all. */
+export type SentParentInvite = { email: string; sentAt: string; byName: string; times: number };
+
+async function inviteRequest(path: string, init: RequestInit = {}): Promise<any> {
+  const token = tokenFromCookie();
+  if (!token) throw new Error('Log in again to do that.');
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'That did not work. Please try again.');
+  return data;
+}
+
+/** Who has been emailed an invitation for this student. */
+export async function loadParentInviteEmails(studentId: number): Promise<{ invites: SentParentInvite[]; emailReady: boolean }> {
+  const data = await inviteRequest(`/api/parent-invites/emails/${studentId}`);
+  return { invites: Array.isArray(data.invites) ? data.invites : [], emailReady: data.emailReady !== false };
+}
+
+/** Emails this student's parent the program, what a parent account does, and how to sign up. They need no account first. */
+export async function sendParentInviteEmail(studentId: number, email: string): Promise<{ message: string; invites: SentParentInvite[] }> {
+  const data = await inviteRequest('/api/parent-invites/email', { method: 'POST', body: JSON.stringify({ studentId, email }) });
+  return { message: data.message || 'Invitation sent.', invites: Array.isArray(data.invites) ? data.invites : [] };
+}
