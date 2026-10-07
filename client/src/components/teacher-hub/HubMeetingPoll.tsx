@@ -2,7 +2,7 @@
 // The teacher offers a few times and picks the people (parents, staff, anyone else).
 // Each gets an email with their own link; answers show up here, and the teacher books a time.
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2 } from "lucide-react";
+import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
@@ -102,7 +102,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
           <Composer
             box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account} initial={composing}
             onClose={() => setComposing(null)}
-            onSent={(message) => { setComposing(null); setNotice(message); void load(); }}
+            onSent={(message) => { setComposing(null); setNotice(message); void load(); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
           />
         )}
         {polls === null && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
@@ -117,6 +117,14 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
 function Composer({ box, textAvailable, token, workspace, setWorkspace, account, initial, onClose, onSent }: {
   box: Box | null; textAvailable: boolean; token: string | null; workspace: Workspace; setWorkspace: Setter; account: { name: string; email: string }; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string) => void;
 }) {
+  // A pop-up: Escape closes it, and the page behind it stays put.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", key);
+    const before = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [title, setTitle] = useState(initial.title);
   const [location, setLocation] = useState("");
   const [message, setMessage] = useState("");
@@ -159,7 +167,12 @@ function Composer({ box, textAvailable, token, workspace, setWorkspace, account,
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-teal-200 bg-teal-50/40 p-4" data-testid="poll-composer">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Ask for times" data-testid="poll-dialog" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="max-h-[94dvh] w-full max-w-3xl space-y-4 overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6" data-testid="poll-composer">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Ask for times</h2>
+        <button type="button" onClick={onClose} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         <Field placeholder="Meeting name, like IEP meeting for Jordan" aria-label="Meeting name" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={POLL_LIMITS.title} />
         <Field placeholder="Where (room or video link)" aria-label="Where" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={POLL_LIMITS.location} />
@@ -270,6 +283,7 @@ function Composer({ box, textAvailable, token, workspace, setWorkspace, account,
         <PrimaryButton onClick={send} disabled={busy || (sendText && via !== "self" && !textOk)}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {via === "self" ? "Create the poll" : "Send to everyone"}</PrimaryButton>
         <GhostButton onClick={onClose}>Cancel</GhostButton>
       </div>
+    </div>
     </div>
   );
 }
