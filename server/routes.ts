@@ -40,9 +40,9 @@ import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
 import { matchEarnsCoins } from "./arcadeMatches";
-import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
-import { adminBookPoints, registerBookPointsRoutes, rememberAdminPoints, supabaseBookPointsStore } from "./bookPoints";
-import { BOOK_POINTS_MAX, cleanBookPoints } from "../shared/bookPoints";
+import { adminBookPoints, isSetByAdmin, registerBookPointsRoutes, rememberAdminPoints, supabaseBookPointsStore, switchLibraryToArisePoints } from "./bookPoints";
+import { lookupPages } from "./bookPages";
+import { ARISE_POINTS, cleanBookPoints, cleanPages, pointsForBook } from "../shared/bookPoints";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
@@ -80,12 +80,12 @@ async function readUnlistedSignups(): Promise<UnlistedSignup[]> {
   try { const parsed = JSON.parse(stored); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
 }
 
-function arPassingScore(total: number): number {
+function quizPassingScore(total: number): number {
   return Math.ceil(total * 0.70);
 }
 
-function arPointsForScore(bookPoints: number, score: number, total: number): number {
-  if (!total || score < arPassingScore(total)) return 0;
+function quizPointsForScore(bookPoints: number, score: number, total: number): number {
+  if (!total || score < quizPassingScore(total)) return 0;
   return Number(bookPoints || 0);
 }
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
@@ -194,7 +194,7 @@ Rules:
       return { error: "AI generated invalid questions" };
     }
 
-    // AR points are assigned from verified AR Bookfinder metadata when the book quiz is saved.
+    // Points are not guessed here: the book gets its A.R.I.S.E. points when the quiz is saved (shared/bookPoints.ts).
     const pointsValue = 0;
 
     // Validate and clean up questions
@@ -1283,7 +1283,7 @@ export async function registerRoutes(
     },
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     passedQuizTimes: async (studentId) => (await storage.getUserAttempts(studentId))
-      .filter((a: any) => a && a.score >= arPassingScore(a.totalQuestions || 10))
+      .filter((a: any) => a && a.score >= quizPassingScore(a.totalQuestions || 10))
       .map((a: any) => Date.parse(a.completedAt)),
     notify: async (studentId, text) => { await storage.createMessage(studentId, "system", text); },
   });
@@ -2565,7 +2565,7 @@ export async function registerRoutes(
     }
 
     if (req.adminPreview || sampleAccount) {
-      const passingScore = arPassingScore(allQuestions.length);
+      const passingScore = quizPassingScore(allQuestions.length);
       const passed = score >= passingScore;
       return res.json({
         score,
@@ -2646,7 +2646,7 @@ export async function registerRoutes(
 
     const quizResults = regularAttempts.map(a => {
       const book = bookMap.get(a.bookId);
-      const passingScore = arPassingScore(a.totalQuestions || 10);
+      const passingScore = quizPassingScore(a.totalQuestions || 10);
       const passed = a.score >= passingScore;
       return {
         bookId: a.bookId,
@@ -3332,7 +3332,7 @@ export async function registerRoutes(
 
       const passedQuizzes = attempts.filter((a: any) => {
         const total = a.totalQuestions || 10;
-        return a.score >= arPassingScore(total);
+        return a.score >= quizPassingScore(total);
       }).length;
 
       const badgeDefs = [
@@ -3638,7 +3638,7 @@ export async function registerRoutes(
 
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = arPassingScore(a.totalQuestions || 10);
+        const passingScore = quizPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -5048,7 +5048,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/admin/books", authMiddleware, adminMiddleware, async (req, res) => {
-    const { title, author, coverUrl, description, questions: quizQuestions, pointsValue, readUrl, gradeBand } = req.body;
+    const { title, author, coverUrl, description, questions: quizQuestions, pointsValue, pages, readUrl, gradeBand } = req.body;
     if (!title || !author) {
       return res.status(400).json({ message: "Title and author are required" });
     }
@@ -5064,18 +5064,19 @@ export async function registerRoutes(
       }
     }
     const derivedAgeGroup = gradeBand || "Custom";
-    // The points picked on the form are what the book is worth. Bookfinder is still
-    // asked, but only to record the book's AR details beside it.
-    const chosenPoints = cleanBookPoints(pointsValue);
-    if (pointsValue !== undefined && pointsValue !== null && pointsValue !== "" && chosenPoints === null) {
-      return res.status(400).json({ message: `Points must be a number above 0, up to ${BOOK_POINTS_MAX}.` });
+    // Points picked on the form are what the book is worth. Left on "Automatic" (nothing
+    // picked), the site works them out from the grade band and the page count.
+    const automatic = pointsValue === undefined || pointsValue === null || pointsValue === "" || pointsValue === 0 || pointsValue === "auto";
+    const chosenPoints = automatic ? null : cleanBookPoints(pointsValue);
+    if (!automatic && chosenPoints === null) {
+      return res.status(400).json({ message: `Points must be one of ${ARISE_POINTS.join(", ")}, or Automatic.` });
     }
     const book = await storage.createBookWithQuestions(
-      { title, author, ageGroup: derivedAgeGroup, coverUrl, description, pointsValue: chosenPoints ?? 0, pointsSetByAdmin: chosenPoints !== null, readUrl: readUrl || null },
+      { title, author, ageGroup: derivedAgeGroup, gradeBand, pages: cleanPages(pages), coverUrl, description, pointsValue: chosenPoints ?? 0, pointsSetByAdmin: chosenPoints !== null, readUrl: readUrl || null },
       quizQuestions
     );
     if (chosenPoints !== null) {
-      // Remembered so a later Bookfinder check never replaces it.
+      // Remembered, so the Library shows it as the admin's own choice.
       try { await rememberAdminPoints(bookPointsStore, book.id, chosenPoints); }
       catch (e: any) { console.error("[book-points] could not remember chosen points", e?.message); }
     }
@@ -5089,7 +5090,7 @@ export async function registerRoutes(
         await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
       } catch {}
     }
-    res.status(201).json({ message: "Quiz created successfully", bookId: book.id });
+    res.status(201).json({ message: "Quiz created successfully", bookId: book.id, pointsValue: book.pointsValue });
   });
 
   // Admin: update book cover
@@ -5428,16 +5429,17 @@ export async function registerRoutes(
       const userAttempts = await storage.getUserAttempts(userId);
       const completedIds = new Set(userAttempts.map(a => a.bookId));
 
-      // Map grade level to pointsValue ranges
-      // Level 2-3 = 10pts, Level 4-5 = 20pts, Level 6+ = 30pts
-      const matchPoints = currentLevel >= 6 ? 30 : currentLevel >= 4 ? 20 : 10;
-      const growPoints = nextLevel >= 6 ? 30 : nextLevel >= 4 ? 20 : 10;
+      // Map grade level to the books' points (A.R.I.S.E. points go 5 to 30 in fives)
+      // Level 2-3 = 5 or 10 pts, Level 4-5 = 15 or 20 pts, Level 6+ = 25 or 30 pts
+      const pointsAtLevel = (level: number) => level >= 6 ? [25, 30] : level >= 4 ? [15, 20] : [5, 10];
+      const matchPoints = pointsAtLevel(currentLevel);
+      const growPoints = pointsAtLevel(nextLevel);
 
       // SECTION 1: Match My Level — books at current reading level + matching favorite topics
-      let matchLevelBooks = allBooks.filter(b => b.pointsValue === matchPoints && !completedIds.has(b.id));
+      let matchLevelBooks = allBooks.filter(b => matchPoints.includes(Number(b.pointsValue)) && !completedIds.has(b.id));
 
       // SECTION 2: Grow My Score — books at next level up + matching favorite topics
-      let growScoreBooks = allBooks.filter(b => b.pointsValue === growPoints && !completedIds.has(b.id));
+      let growScoreBooks = allBooks.filter(b => growPoints.includes(Number(b.pointsValue)) && !completedIds.has(b.id));
 
       // If favorite topics exist, prioritize books that match
       if (topics.length > 0) {
@@ -5955,7 +5957,7 @@ export async function registerRoutes(
           coverUrl: pending.cover_url,
           description: `Quiz for "${pending.book_title}" by ${pending.author}`,
           pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
-          skipAR: pending.quiz_type === 'iarise',
+          keepPoints: pending.quiz_type === 'iarise',
           readUrl: null,
         }, questions);
 
@@ -6075,10 +6077,14 @@ export async function registerRoutes(
       const { error: insertError } = await supabase.from('questions').insert(questionRows);
       if (insertError) throw new Error(insertError.message);
 
-      // Refresh verified AR metadata instead of assigning AI-guessed points.
+      // A book that had no quiz had no points. Now that it has one, give it its
+      // A.R.I.S.E. points; a book that already has points keeps them.
       const refreshedBook = await storage.getBook(bookId);
-      if (refreshedBook) {
-        await verifyAndSaveARBook(bookId, refreshedBook.title, refreshedBook.author);
+      if (refreshedBook && !(Number(refreshedBook.pointsValue) > 0) && !(await isSetByAdmin(bookPointsStore, bookId))) {
+        let bands: Record<string, string> = {};
+        try { bands = JSON.parse((await storage.getSetting('book_grade_bands')) || "{}") || {}; } catch {}
+        const pages = await lookupPages(refreshedBook.title, refreshedBook.author);
+        await bookPointsStore.setBookPoints(bookId, pointsForBook({ band: bands[String(bookId)] || refreshedBook.ageGroup, pages }));
       }
 
       // Clear cache
@@ -6387,11 +6393,11 @@ export async function registerRoutes(
     const newScore = hasManualScore
       ? Math.max(0, Math.min(total, Math.round(parsedManualScore)))
       : calculatedScore;
-    const passingScore = arPassingScore(total);
+    const passingScore = quizPassingScore(total);
     const passed = newScore >= passingScore;
     const { data: book } = await supabase.from("books").select("points_value").eq("id", review.book_id).single();
     const bookPoints = Number(book?.points_value ?? 0);
-    const newPoints = arPointsForScore(bookPoints, newScore, total);
+    const newPoints = quizPointsForScore(bookPoints, newScore, total);
     const oldPoints = Number(attempt.points_earned || 0);
     const pointDiff = Math.round((newPoints - oldPoints) * 10) / 10;
     // Update the attempt
@@ -10054,7 +10060,7 @@ Important:
           ageGroup: pending.age_group, coverUrl: pending.cover_url,
           description: `Quiz for "${pending.book_title}" by ${pending.author}`,
           pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
-          skipAR: pending.quiz_type === 'iarise', readUrl: null,
+          keepPoints: pending.quiz_type === 'iarise', readUrl: null,
         }, questions);
         try {
           const rawBands = await storage.getSetting('book_grade_bands');
@@ -10226,7 +10232,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = arPassingScore(a.totalQuestions || 10);
+        const passingScore = quizPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -10316,7 +10322,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const passed = attempts
         .filter(a => {
-          const passingScore = arPassingScore(a.totalQuestions || 10);
+          const passingScore = quizPassingScore(a.totalQuestions || 10);
           return a.score >= passingScore;
         })
         .map(a => {
@@ -10524,7 +10530,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = arPassingScore(a.totalQuestions || 10);
+        const passingScore = quizPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -12602,12 +12608,6 @@ Important:
             pointsValue: 10,
             readUrl: null,
           }, pick.questions);
-          // If Bookfinder couldn't verify official points, fall back to 10 so the
-          // quiz still appears in the Library (it hides 0-point books).
-          if (!(Number(book.pointsValue ?? book.points_value) > 0)) {
-            await supabase.from("books").update({ points_value: 10 }).eq("id", book.id);
-            try { clearCache("allBooks"); } catch {}
-          }
           console.log(`Created Hispanic Heritage pick: ${pick.title}`);
         }
         saved.push({ bookId: book.id, teacher: pick.teacher });
@@ -12958,83 +12958,22 @@ Important:
     }
   });
 
-  // AR Bookfinder catalog alignment status + controlled manual batch.
-  app.get("/api/admin/ar-sync-status", authMiddleware, adminMiddleware, async (_req: any, res: any) => {
-    try {
-      const { data, error } = await supabase.from("books").select("ar_match_status");
-      if (error) throw new Error(error.message);
-      const counts: Record<string, number> = { exact: 0, formula: 0, not_found: 0, ambiguous: 0, error: 0, unverified: 0 };
-      for (const row of data || []) {
-        const key = row.ar_match_status || "unverified";
-        counts[key] = (counts[key] || 0) + 1;
-      }
-      res.json({ total: (data || []).length, counts });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.post("/api/admin/ar-sync", authMiddleware, adminMiddleware, async (req: any, res: any) => {
-    try {
-      const limit = Math.max(1, Math.min(Number(req.body?.limit || 10), 50));
-      const result = await syncUnverifiedARBooks({ limit, delayMs: 800 });
-      clearCache("allBooks");
-      res.json(result);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  // Existing catalog alignment runs in small, sequential batches after startup.
-  // It is resume-safe because completed statuses are not queried again.
-  const runBackgroundARAlignment = async () => {
-    try {
-      let batches = 0;
-      while (batches < 150) {
-        const result = await syncUnverifiedARBooks({ limit: 12, delayMs: 850 });
-        console.log("[AR catalog sync]", JSON.stringify(result));
-        clearCache("allBooks");
-        if (!result.processed) break;
-        // If Bookfinder is unavailable for an entire batch, stop instead of hammering it.
-        if (result.errors === result.processed) {
-          console.error("[AR catalog sync] Bookfinder unavailable; stopping this run safely.");
-          break;
-        }
-        batches++;
-        await new Promise(resolve => setTimeout(resolve, 2500));
-      }
-    } catch (e: any) {
-      console.error("[AR catalog sync] stopped:", e?.message || e);
-    }
-  };
-  if (process.env.AR_AUTO_SYNC === "1") {
-    setTimeout(() => void runBackgroundARAlignment(), 7000);
-  } else {
-    console.log("[AR catalog sync] automatic migration paused pending Bookfinder smoke verification.");
-  }
-
-  // Temporary startup smoke check: lookup only, does not modify any book row.
-  setTimeout(() => {
-    void lookupARBook("Frindle", "Andrew Clements")
-      .then(async result => {
-        console.log("[AR smoke test Frindle]", JSON.stringify(result));
-        await storage.upsertSetting("ar_bookfinder_smoke_result", JSON.stringify({
-          checkedAt: new Date().toISOString(),
-          title: "Frindle",
-          author: "Andrew Clements",
-          result,
-        }));
+  // The one-time switch of the library to A.R.I.S.E.'s own points (server/bookPoints.ts).
+  // It runs in the background shortly after start-up and does nothing once it has finished.
+  const switchBookPoints = (triesLeft: number) => {
+    void switchLibraryToArisePoints(bookPointsStore)
+      .then((summary) => {
+        if (!summary) return;
+        for (const key of ["allBooks", "allUsers", "leaderboard", "monthlyLeaderboard", "advisoryLeaderboard", "eye_gaze_leaderboard", "session_"]) clearCache(key);
+        console.log("[book-points] library switched to A.R.I.S.E. points", JSON.stringify(summary));
       })
-      .catch(async error => {
-        console.error("[AR smoke test Frindle] failed:", error?.message || error);
-        await storage.upsertSetting("ar_bookfinder_smoke_result", JSON.stringify({
-          checkedAt: new Date().toISOString(),
-          title: "Frindle",
-          author: "Andrew Clements",
-          error: error?.message || String(error),
-        }));
+      .catch((error: any) => {
+        console.error("[book-points] switch stopped:", error?.message || error);
+        // It picks up where it left off, here in ten minutes or at the next start.
+        if (triesLeft > 0) setTimeout(() => switchBookPoints(triesLeft - 1), 10 * 60_000);
       });
-  }, 3000);
+  };
+  setTimeout(() => switchBookPoints(3), 7000);
 
   return httpServer;
 }

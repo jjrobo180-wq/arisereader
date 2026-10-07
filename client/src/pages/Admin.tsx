@@ -27,6 +27,7 @@ import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
 import BookPointsDialog from "@/components/admin/BookPointsDialog";
+import { ARISE_POINTS, cleanPages, pointsForBook } from "@shared/bookPoints";
 // charts are only downloaded when the Stats tab is opened
 const AdminStats = lazy(() => import("@/components/admin/AdminStats"));
 import {
@@ -107,9 +108,8 @@ interface BookItem {
   ageGroup: string;
   coverUrl: string | null;
   pointsValue?: number;
-  /** True when the admin chose this book's points (AR BookFinder then leaves them alone). */
+  /** True when the admin chose this book's points; otherwise the site worked them out. */
   pointsSetByAdmin?: boolean;
-  arPoints?: number | null;
   readUrl?: string | null;
 }
 
@@ -278,7 +278,9 @@ export default function Admin() {
     author: "",
     coverUrl: "",
     description: "",
-    pointsValue: 20,
+    // 0 means Automatic: the site works the points out from the grade band and the pages.
+    pointsValue: 0,
+    pages: "",
     readUrl: "",
   });
   const [quizGradeBand, setQuizGradeBand] = useState("");
@@ -613,7 +615,8 @@ export default function Admin() {
       author: req.author || "",
       coverUrl: "",
       description: "",
-      pointsValue: 20,
+      pointsValue: 0,
+      pages: "",
       readUrl: "",
     });
     setQuestions(Array.from({ length: 10 }, () => ({ question: "", options: ["", "", "", ""], correct: "A" })));
@@ -2245,7 +2248,8 @@ Generate exactly 10 questions.`;
         headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           ...quizForm,
-          pointsValue: quizForm.pointsValue || 10,
+          pointsValue: quizForm.pointsValue || null,
+          pages: quizForm.pages.trim() || null,
           readUrl: quizForm.readUrl || null,
           gradeBand: quizGradeBand || null,
           questions: questions.map(q => ({
@@ -2272,7 +2276,7 @@ Generate exactly 10 questions.`;
         setTimeout(() => {
           setShowAddQuiz(false);
           setQuizSuccess("");
-          setQuizForm({ title: "", author: "", coverUrl: "", description: "", pointsValue: 20, readUrl: "" });
+          setQuizForm({ title: "", author: "", coverUrl: "", description: "", pointsValue: 0, pages: "", readUrl: "" });
           setQuestions(Array.from({ length: 10 }, () => ({ question: "", options: ["", "", "", ""], correct: "A" })));
         }, 2000);
         fetchBooks();
@@ -5043,14 +5047,23 @@ Generate exactly 10 questions.`;
                   <Input id="q-author" value={quizForm.author} onChange={(e) => setQuizForm({ ...quizForm, author: e.target.value })} placeholder="Author" />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="q-points">Points Value *</Label>
-                  <select id="q-points" value={quizForm.pointsValue} onChange={(e) => setQuizForm({ ...quizForm, pointsValue: parseInt(e.target.value) })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value={10}>10 pts (Easy)</option>
-                    <option value={20}>20 pts (Medium)</option>
-                    <option value={30}>30 pts (Hard)</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground">Students who pass earn exactly this many points. You can change it later in the Library.</p>
+                  <Label htmlFor="q-pages">Pages</Label>
+                  <Input id="q-pages" type="number" inputMode="numeric" min="1" step="1" value={quizForm.pages} onChange={(e) => setQuizForm({ ...quizForm, pages: e.target.value })} placeholder="Leave blank to look it up" />
                 </div>
+                <div className="space-y-1">
+                  <Label htmlFor="q-points">Points</Label>
+                  <select id="q-points" value={quizForm.pointsValue} onChange={(e) => setQuizForm({ ...quizForm, pointsValue: parseInt(e.target.value) })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value={0}>Automatic</option>
+                    {ARISE_POINTS.map((points) => <option key={points} value={points}>{points} points</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2" data-testid="q-points-note">
+                  {quizForm.pointsValue
+                    ? `Students who pass earn ${quizForm.pointsValue} points. You can change it later in the Library.`
+                    : cleanPages(quizForm.pages) !== null
+                      ? `Automatic: ${pointsForBook({ band: quizGradeBand, pages: quizForm.pages })} points, from ${cleanPages(quizForm.pages)} pages${quizGradeBand ? ` and grades ${quizGradeBand}` : ""}. You can change it later in the Library.`
+                      : "Automatic: A.R.I.S.E. works the points out (5 to 30) from the book's length and grade band. With Pages blank it looks the page count up, and goes by the grade band if it can't find one."}
+                </p>
               </div>
               {/* Grade Band Suggestion */}
               <div className="space-y-2 p-3 rounded-xl bg-muted/20 border border-border">

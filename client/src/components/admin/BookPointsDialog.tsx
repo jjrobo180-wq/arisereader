@@ -1,16 +1,14 @@
-// Admin > Library: set what a book is worth. The number the admin saves here is
-// the book's value from then on (AR BookFinder no longer changes it), and every
-// student who already passed the book's quiz is moved to the new value.
+// Admin > Library: set what a book is worth, to one of A.R.I.S.E.'s six values
+// (5 to 30). The number the admin saves here is the book's value from then on,
+// and every student who already passed the book's quiz is moved to it.
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { API_BASE } from "@/lib/queryClient";
 import { sessionToken } from "@/lib/notifications";
-import { BOOK_POINTS_MAX, cleanBookPoints } from "@shared/bookPoints";
+import { ARISE_POINTS, cleanBookPoints } from "@shared/bookPoints";
 
-export type PointsBook = { id: number; title: string; pointsValue?: number; pointsSetByAdmin?: boolean; arPoints?: number | null };
+export type PointsBook = { id: number; title: string; pointsValue?: number; pointsSetByAdmin?: boolean };
 
 type Props = {
   /** The book being changed, or null when the box is closed. */
@@ -36,17 +34,14 @@ export default function BookPointsDialog({ book, token, onClose, onSaved }: Prop
 }
 
 function PointsForm({ book, token, onClose, onSaved }: Props & { book: PointsBook }) {
-  const [value, setValue] = useState(String(book.pointsValue ?? ""));
+  const current = Number(book.pointsValue ?? 0);
+  const [points, setPoints] = useState<number | null>(cleanBookPoints(current));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
 
-  const points = cleanBookPoints(value);
-  const current = Number(book.pointsValue ?? 0);
-
   async function save() {
-    if (busy) return;
-    if (points === null) { setError(`Enter a number above 0, up to ${BOOK_POINTS_MAX}.`); return; }
+    if (busy || points === null) return;
     setBusy(true);
     setError("");
     try {
@@ -84,19 +79,20 @@ function PointsForm({ book, token, onClose, onSaved }: Props & { book: PointsBoo
       <p className="text-sm text-muted-foreground">
         Students who score 70% or higher on this book's quiz earn exactly this many points. Students who already passed it are changed to the new number too.
       </p>
-      <div className="space-y-2">
-        <Label htmlFor="book-points">Points</Label>
-        <Input
-          id="book-points" type="number" inputMode="decimal" min="0.5" max={BOOK_POINTS_MAX} step="0.5" autoFocus
-          value={value} onChange={(e) => { setValue(e.target.value); setError(""); }}
-          data-testid="book-points-input"
-        />
-        <p className="text-xs text-muted-foreground">
-          Now worth {current} {current === 1 ? "point" : "points"}
-          {book.pointsSetByAdmin ? ", set by you." : ", from AR BookFinder."}
-          {book.arPoints != null && book.pointsSetByAdmin ? ` AR lists it at ${book.arPoints}.` : ""}
-        </p>
+      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Points">
+        {ARISE_POINTS.map((value) => (
+          <button
+            key={value} type="button" aria-pressed={points === value} onClick={() => { setPoints(value); setError(""); }}
+            className={`min-h-11 rounded-lg border text-sm font-semibold transition-colors ${points === value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted/40"}`}
+          >
+            {value} points
+          </button>
+        ))}
       </div>
+      <p className="text-xs text-muted-foreground">
+        Now worth {current} {current === 1 ? "point" : "points"}
+        {book.pointsSetByAdmin ? ", set by you." : current > 0 ? ", worked out by A.R.I.S.E." : "."}
+      </p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={busy || points === null || (points === current && !!book.pointsSetByAdmin)} className="w-full" data-testid="book-points-save">
         {busy ? "Saving..." : "Save points"}

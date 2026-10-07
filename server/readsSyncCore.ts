@@ -31,7 +31,7 @@ export async function syncReadsBooks(store: ReadsStore, quizzes: ReadsQuiz[] = R
       map[q.key] = Number(existing.id); changed = true; continue;
     }
     const created = await store.createBookWithQuestions(
-      { title: q.title, author: q.author, ageGroup: q.ageGroup, coverUrl: coverFor(q.key), description: q.description, pointsValue: q.points, readUrl: null, skipAR: true },
+      { title: q.title, author: q.author, ageGroup: q.ageGroup, coverUrl: coverFor(q.key), description: q.description, pointsValue: q.points, readUrl: null, keepPoints: true },
       q.questions.map((x) => ({ question: x.question, options: x.options, correct: x.correct })),
     );
     map[q.key] = Number(created.id); changed = true;
