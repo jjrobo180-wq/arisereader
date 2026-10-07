@@ -1,10 +1,10 @@
 // Teacher Hub: IEP goal progress monitoring and service-minute tracking (push-in, pull-out and the rest).
 // The rules are in shared/hubProgress.ts.
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import { GOAL_AREAS, SERVICE_KINDS, goalProgress, serviceStatus, weekStart, withPoint, type GoalStatus } from "@shared/hubProgress";
+import { Clock, Pencil, Plus, Trash2 } from "lucide-react";
+import { DAY_NAMES, GOAL_AREAS, SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, goalProgress, guideDays, minutesBetween, planFields, planText, serviceStatus, sessionLog, weekStart, withPoint, type DayStatus, type GoalStatus, type WeekDay } from "@shared/hubProgress";
 import { friendlyDate } from "@shared/hubDates";
-import type { Goal, ServicePlan, Workspace } from "@shared/teacherHub";
+import { clock12, type Goal, type ServicePlan, type Workspace } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
 
@@ -141,8 +141,21 @@ export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Pro
   );
 }
 
-type LogDraft = { student: string; date: string; kind: string; minutes: string; note: string };
-type PlanDraft = { id: string | null; student: string; kind: string; minutes: string };
+type LogDraft = { student: string; date: string; kind: string; minutes: string; note: string; start: string; end: string };
+/** A plan being set: counted by the day (a day guide) or by the week. */
+type PlanDraft = { id: string | null; student: string; kind: string; mode: "days" | "week"; perWeek: string; days: WeekDay[]; perDay: string; start: string; end: string };
+
+const SCHOOL_DAYS: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const timeRange = (start?: string, end?: string) => (start ? `${clock12(start)}${end ? ` – ${clock12(end)}` : ""}` : "");
+const DAY_LOOK: Record<DayStatus["state"], string> = {
+  done: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  "made up": "border-emerald-200 bg-emerald-50 text-emerald-900",
+  short: "border-amber-200 bg-amber-50 text-amber-900",
+  today: "border-teal-500 bg-white text-slate-900",
+  ahead: "border-slate-200 bg-white text-slate-600",
+  extra: "border-sky-200 bg-sky-100 text-sky-800",
+};
+const dayWords = (d: DayStatus) => (d.state === "extra" ? `+${d.done} extra` : d.state === "done" ? `${d.done} done` : d.state === "made up" ? `${d.done} of ${d.planned}, made up` : d.state === "short" ? `${d.done} of ${d.planned}` : d.state === "today" ? `${d.done ? `${d.done} of ` : ""}${d.planned} today` : `${d.planned}`);
 
 export function MinutesTab({ workspace, setWorkspace, remove, makeId, today }: Props) {
   const [log, setLog] = useState<LogDraft | null>(null);
@@ -151,30 +164,56 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today }: P
   const plans = [...workspace.services].sort((a, b) => a.student.localeCompare(b.student) || a.kind.localeCompare(b.kind));
   const recent = [...workspace.serviceLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 25);
 
-  function quick(p: ServicePlan, minutes: number) {
-    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, { id: makeId(), student: p.student, date: today, kind: p.kind, minutes, note: "" }] }));
+  /** Logs minutes for today with one tap. With `usual`, the session carries the plan's usual time of day. */
+  function quick(p: ServicePlan, minutes: number, usual = false) {
+    const session = sessionLog({ student: p.student, kind: p.kind, date: today, minutes, ...(usual && p.start ? { start: p.start } : {}) });
+    if (session) setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, { id: makeId(), ...session }] }));
   }
+  /** Opens the log pop-up for one plan, with its usual time and minutes filled in. */
+  function logFor(p: ServicePlan) {
+    const guide = cleanDayGuide(p.days);
+    const usual = guideDays(p).length ? String(Object.values(guide)[0] ?? "") : "";
+    setLog({ student: p.student, date: today, kind: p.kind, minutes: usual, note: "", start: p.start || "", end: p.end || "" });
+  }
+  /** Typing a start and an end time fills in the minutes. */
+  function logTime(change: Partial<Pick<LogDraft, "start" | "end">>) {
+    setLog((now) => { if (!now) return now; const next = { ...now, ...change }; const between = minutesBetween(next.start, next.end); return between === null ? next : { ...next, minutes: String(between) }; });
+  }
+  const logReady = log ? sessionLog({ ...log, date: log.date || today }) : null;
   function saveLog(e: FormEvent) {
     e.preventDefault();
-    const minutes = log ? num(log.minutes) : null;
-    if (!log || !log.student || minutes === null || minutes <= 0) return;
-    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, { id: makeId(), student: log.student, date: log.date || today, kind: log.kind, minutes: Math.round(minutes), note: log.note.trim() }] }));
+    if (!log || !logReady) return;
+    setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, { id: makeId(), ...logReady }] }));
     setLog(null);
+  }
+  const planReady = plan && !(plan.mode === "days" && !plan.days.length) ? planFields({ student: plan.student, kind: plan.kind, perWeek: plan.perWeek, days: plan.mode === "days" ? plan.days : [], perDay: plan.perDay, start: plan.start, end: plan.end }) : null;
+  function planTime(change: Partial<Pick<PlanDraft, "start" | "end">>) {
+    setPlan((now) => { if (!now) return now; const next = { ...now, ...change }; const between = minutesBetween(next.start, next.end); return between === null ? next : { ...next, perDay: String(between) }; });
+  }
+  function editPlan(p: ServicePlan) {
+    const guide = cleanDayGuide(p.days), days = guideDays(p);
+    setPlan({ id: p.id, student: p.student, kind: p.kind, mode: days.length ? "days" : "week", perWeek: String(p.minutesPerWeek || ""), days, perDay: days.length ? String(guide[days[0]]) : "", start: p.start || "", end: p.end || "" });
   }
   function savePlan(e: FormEvent) {
     e.preventDefault();
-    const minutes = plan ? num(plan.minutes) : null;
-    if (!plan || !plan.student || minutes === null || minutes <= 0) return;
-    const fields = { student: plan.student, kind: plan.kind, minutesPerWeek: Math.round(minutes) };
-    setWorkspace((w) => ({ ...w, services: plan.id ? w.services.map((s) => (s.id === plan.id ? { ...s, ...fields, since: s.since || weekStart(today) } : s)) : [...w.services.filter((s) => !(s.student === fields.student && s.kind === fields.kind)), { id: makeId(), ...fields, since: weekStart(today) }] }));
+    if (!plan || !planReady) return;
+    // Written out whole, so a plan changed from a day guide to a weekly number does not keep its old days.
+    setWorkspace((w) => ({
+      ...w,
+      services: plan.id
+        ? w.services.map((s) => (s.id === plan.id ? { id: s.id, ...planReady, since: s.since || weekStart(today) } : s))
+        : [...w.services.filter((s) => !(s.student === planReady.student && s.kind === planReady.kind)), { id: makeId(), ...planReady, since: weekStart(today) }],
+    }));
     setPlan(null);
   }
+  const newPlan = (): PlanDraft => ({ id: null, student: "", kind: "Push-in", mode: "days", perWeek: "", days: [], perDay: "", start: "", end: "" });
+  const newLog = (): LogDraft => ({ student: "", date: today, kind: "Push-in", minutes: "", note: "", start: "", end: "" });
 
   return (
     <>
-      <Card title="Service minutes" right={<PrimaryButton onClick={() => setLog({ student: "", date: today, kind: "Push-in", minutes: "", note: "" })}><Plus className="h-4 w-4" /> Log minutes</PrimaryButton>}>
-        <p className="text-sm text-slate-600">Week of {friendlyDate(weekStart(today), today)}. Set the minutes each student's IEP requires, log what you deliver, and see what is left this week and what is owed from the weeks before.</p>
-        <div className="mt-3"><GhostButton onClick={() => setPlan({ id: null, student: "", kind: "Push-in", minutes: "" })}><Plus className="h-4 w-4" /> Set required minutes</GhostButton></div>
+      <Card title="Service minutes" right={<PrimaryButton onClick={() => setLog(newLog())}><Plus className="h-4 w-4" /> Log minutes</PrimaryButton>}>
+        <p className="text-sm text-slate-600">Week of {friendlyDate(weekStart(today), today)}. Set the minutes each student's IEP requires, by the day (Mon, Tue, Thu, 20 minutes) or by the week. Log what you deliver, with a time or just the minutes. A session on any other day counts toward the week and is never expected again.</p>
+        <div className="mt-3"><GhostButton onClick={() => setPlan(newPlan())}><Plus className="h-4 w-4" /> Set required minutes</GhostButton></div>
       </Card>
 
       {plans.length ? (
@@ -182,12 +221,21 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today }: P
           {plans.map((p) => {
             const s = serviceStatus(p, workspace.serviceLogs, today);
             return (
-              <Card key={p.id} title={`${p.student} · ${p.kind}`} right={<button type="button" aria-label={`Change minutes for ${p.student}`} className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => setPlan({ id: p.id, student: p.student, kind: p.kind, minutes: String(p.minutesPerWeek) })}><Pencil className="h-4 w-4" /></button>}>
+              <Card key={p.id} title={`${p.student} · ${p.kind}`} right={<button type="button" aria-label={`Change minutes for ${p.student}`} className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => editPlan(p)}><Pencil className="h-4 w-4" /></button>}>
+                <p className="mb-2 text-xs font-medium text-slate-500" data-testid="plan-text">{planText(p)}</p>
                 <div className="flex items-end justify-between gap-3"><div><span className="text-3xl font-bold">{s.thisWeek}</span> <span className="text-sm text-slate-500">of {s.required} min this week</span></div><span className="text-sm font-semibold text-slate-600">{s.remaining ? `${s.remaining} left` : "Done"}</span></div>
                 <div className="mt-2"><Bar percent={s.percent} label={`${p.student} minutes this week`} tone={s.remaining ? "bg-teal-600" : "bg-emerald-600"} /></div>
+                {s.days.length > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={`${p.student}: this week day by day`} data-testid="minutes-days">
+                    {s.days.map((d) => <li key={d.day} className={`rounded-lg border px-2 py-1 text-xs font-semibold ${DAY_LOOK[d.state]}`} title={DAY_NAMES[d.day]}>{d.day} <span className="font-medium">{dayWords(d)}</span></li>)}
+                  </ul>
+                )}
+                {s.extra > 0 && <p className="mt-2 text-xs text-slate-500">{s.extra} extra min this week on a day outside the guide. It counts toward the week, and that day is not expected next week.</p>}
                 {s.owed > 0 && <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="minutes-owed">{s.owed} min short over the last 4 weeks (make-up owed)</div>}
                 <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={`Log minutes for ${p.student} today`}>
+                  {s.plannedToday > 0 && s.days.some((d) => d.date === today && d.state === "today") && <button type="button" className={chipCls(true)} onClick={() => quick(p, s.plannedToday, true)} data-testid="minutes-today">+{s.plannedToday} min{p.start ? ` · ${timeRange(p.start, p.end)}` : " today"}</button>}
                   {[15, 30, 45].map((m) => <button key={m} type="button" className={chipCls(false)} onClick={() => quick(p, m)}>+{m} min</button>)}
+                  <button type="button" className={chipCls(false)} onClick={() => logFor(p)} data-testid="minutes-other"><Clock className="h-4 w-4" /> Time or other</button>
                 </div>
               </Card>
             );
@@ -198,7 +246,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today }: P
       <Card title="Recent minutes">
         {recent.length ? <ul className="space-y-2">{recent.map((l) => (
           <li key={l.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm">
-            <div className="min-w-0 flex-1"><div className="font-medium">{l.student} · {l.kind}</div><div className="text-xs text-slate-500">{friendlyDate(l.date, today)}{l.note ? ` · ${l.note}` : ""}</div></div>
+            <div className="min-w-0 flex-1"><div className="font-medium">{l.student} · {l.kind}</div><div className="text-xs text-slate-500">{friendlyDate(l.date, today)}{l.start ? ` · ${timeRange(l.start, l.end)}` : ""}{l.note ? ` · ${l.note}` : ""}</div></div>
             <strong className="shrink-0">{l.minutes} min</strong>
             <button type="button" aria-label={`Delete ${l.minutes} minutes for ${l.student}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("serviceLogs", l.id)}><Trash2 className="h-4 w-4" /></button>
           </li>
@@ -207,25 +255,52 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today }: P
 
       {log && (
         <HubModal title="Log minutes" size="sm" onClose={() => setLog(null)}
-          footer={<div className="flex gap-2"><PrimaryButton onClick={() => (document.getElementById("log-form") as HTMLFormElement | null)?.requestSubmit()}>Save</PrimaryButton><GhostButton onClick={() => setLog(null)}>Cancel</GhostButton></div>}>
-          <form id="log-form" onSubmit={saveLog} className="grid gap-3">
-            <Labeled label="Student"><Select value={log.student} onChange={(e) => setLog({ ...log, student: e.target.value })} required><option value="">Choose student</option>{names.map((n) => <option key={n}>{n}</option>)}</Select></Labeled>
-            <Labeled label="Kind"><Select value={log.kind} onChange={(e) => setLog({ ...log, kind: e.target.value })}>{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
-            <Labeled label="Minutes"><Field data-autofocus type="number" inputMode="numeric" min="1" max="600" value={log.minutes} onChange={(e) => setLog({ ...log, minutes: e.target.value })} required /></Labeled>
+          footer={<div className="flex gap-2"><PrimaryButton onClick={() => (document.getElementById("log-form") as HTMLFormElement | null)?.requestSubmit()} disabled={!logReady}>Save</PrimaryButton><GhostButton onClick={() => setLog(null)}>Cancel</GhostButton></div>}>
+          <form id="log-form" onSubmit={saveLog} className="grid gap-3" data-testid="log-form">
+            <Labeled label="Student"><Select value={log.student} onChange={(e) => setLog({ ...log, student: e.target.value })} required aria-label="Student"><option value="">Choose student</option>{[...new Set([...names, log.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}</Select></Labeled>
+            <Labeled label="Kind"><Select value={log.kind} onChange={(e) => setLog({ ...log, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
+            <div className="grid grid-cols-2 gap-3">
+              <Labeled label="From (optional)"><Field type="time" value={log.start} onChange={(e) => logTime({ start: e.target.value })} aria-label="From" /></Labeled>
+              <Labeled label="To"><Field type="time" value={log.end} onChange={(e) => logTime({ end: e.target.value })} aria-label="To" /></Labeled>
+            </div>
+            <Labeled label="Minutes"><Field data-autofocus type="number" inputMode="numeric" min="1" max="600" value={log.minutes} onChange={(e) => setLog({ ...log, minutes: e.target.value })} required aria-label="Minutes" /></Labeled>
+            <p className="-mt-2 text-xs text-slate-500">Set a time, like 10:00 to 10:20, and the minutes are worked out. Or leave the time empty and type the minutes.</p>
             <div className="flex flex-wrap gap-2">{[15, 20, 30, 45, 60].map((m) => <button key={m} type="button" className={chipCls(log.minutes === String(m))} onClick={() => setLog({ ...log, minutes: String(m) })}>{m}</button>)}</div>
-            <Labeled label="Date"><Field type="date" value={log.date} onChange={(e) => setLog({ ...log, date: e.target.value })} /></Labeled>
-            <Labeled label="Note (optional)"><Field value={log.note} onChange={(e) => setLog({ ...log, note: e.target.value })} maxLength={200} /></Labeled>
+            <Labeled label="Date"><Field type="date" value={log.date} onChange={(e) => setLog({ ...log, date: e.target.value })} aria-label="Date" /></Labeled>
+            <Labeled label="Note (optional)"><Field value={log.note} onChange={(e) => setLog({ ...log, note: e.target.value })} maxLength={200} aria-label="Note" /></Labeled>
           </form>
         </HubModal>
       )}
 
       {plan && (
         <HubModal title={plan.id ? "Change required minutes" : "Required minutes"} size="sm" onClose={() => setPlan(null)}
-          footer={<div className="flex flex-wrap gap-2"><PrimaryButton onClick={() => (document.getElementById("plan-form") as HTMLFormElement | null)?.requestSubmit()}>Save</PrimaryButton><GhostButton onClick={() => setPlan(null)}>Cancel</GhostButton>{plan.id && <button type="button" onClick={() => { remove("services", plan.id!); setPlan(null); }} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Remove</button>}</div>}>
-          <form id="plan-form" onSubmit={savePlan} className="grid gap-3">
-            <Labeled label="Student"><Select value={plan.student} onChange={(e) => setPlan({ ...plan, student: e.target.value })} required><option value="">Choose student</option>{[...new Set([...names, plan.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}</Select></Labeled>
-            <Labeled label="Kind"><Select value={plan.kind} onChange={(e) => setPlan({ ...plan, kind: e.target.value })}>{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
-            <Labeled label="Minutes each week"><Field data-autofocus type="number" inputMode="numeric" min="1" max="3000" value={plan.minutes} onChange={(e) => setPlan({ ...plan, minutes: e.target.value })} required /></Labeled>
+          footer={<div className="flex flex-wrap gap-2"><PrimaryButton onClick={() => (document.getElementById("plan-form") as HTMLFormElement | null)?.requestSubmit()} disabled={!planReady}>Save</PrimaryButton><GhostButton onClick={() => setPlan(null)}>Cancel</GhostButton>{plan.id && <button type="button" onClick={() => { remove("services", plan.id!); setPlan(null); }} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Remove</button>}</div>}>
+          <form id="plan-form" onSubmit={savePlan} className="grid gap-3" data-testid="plan-form">
+            <Labeled label="Student"><Select value={plan.student} onChange={(e) => setPlan({ ...plan, student: e.target.value })} required aria-label="Student"><option value="">Choose student</option>{[...new Set([...names, plan.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}</Select></Labeled>
+            <Labeled label="Kind"><Select value={plan.kind} onChange={(e) => setPlan({ ...plan, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
+            <div role="tablist" aria-label="How the minutes are counted" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="plan-mode">
+              {([["days", "By the day"], ["week", "By the week"]] as const).map(([mode, label]) => (
+                <button key={mode} type="button" role="tab" aria-selected={plan.mode === mode} onClick={() => setPlan({ ...plan, mode })} className={`min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold ${plan.mode === mode ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
+              ))}
+            </div>
+            {plan.mode === "days" ? (
+              <>
+                <div>
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Days</span>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Days">
+                    {SCHOOL_DAYS.map((d) => { const on = plan.days.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} className={chipCls(on)} onClick={() => setPlan({ ...plan, days: on ? plan.days.filter((x) => x !== d) : WEEK_DAYS.filter((x) => x === d || plan.days.includes(x)) })}>{d}</button>; })}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Labeled label="Usual time (optional)"><Field type="time" value={plan.start} onChange={(e) => planTime({ start: e.target.value })} aria-label="Usual start" /></Labeled>
+                  <Labeled label="To"><Field type="time" value={plan.end} onChange={(e) => planTime({ end: e.target.value })} aria-label="Usual end" /></Labeled>
+                </div>
+                <Labeled label="Minutes on each of those days"><Field type="number" inputMode="numeric" min="1" max="600" value={plan.perDay} onChange={(e) => setPlan({ ...plan, perDay: e.target.value })} aria-label="Minutes each day" /></Labeled>
+                <p className="-mt-1 text-xs text-slate-500" data-testid="plan-summary">{planReady?.days ? `${planText(planReady)}. That is ${planReady.minutesPerWeek} min a week. ` : "Pick the days, then set a time or type the minutes. "}A session on any other day still counts, and is never expected.</p>
+              </>
+            ) : (
+              <Labeled label="Minutes each week"><Field data-autofocus type="number" inputMode="numeric" min="1" max="3000" value={plan.perWeek} onChange={(e) => setPlan({ ...plan, perWeek: e.target.value })} aria-label="Minutes each week" /></Labeled>
+            )}
           </form>
         </HubModal>
       )}

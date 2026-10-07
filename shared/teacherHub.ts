@@ -44,9 +44,20 @@ export type GoalPoint = { id: string; date: string; value: number; note: string 
 /** An IEP goal tracked over time. `up` means a higher number is better (accuracy); `down` means lower is better (outbursts a week). */
 export type Goal = { id: string; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
 /** Minutes of a service a student's IEP requires each week. */
-export type ServicePlan = { id: string; student: string; kind: string; minutesPerWeek: number; /** The day the minutes started counting, so weeks before it are never owed. */ since?: string };
+export type ServicePlan = {
+  id: string; student: string; kind: string;
+  /** Minutes owed each week. With a day guide (`days`) this is the guide's total. */
+  minutesPerWeek: number;
+  /** The day the minutes started counting, so weeks before it are never owed. */
+  since?: string;
+  /** The day guide: the days this service usually happens and the minutes on each ({ Mon: 20, Tue: 20, Thu: 20 }). Other days are never expected. */
+  days?: Partial<Record<string, number>>;
+  /** The usual time of day ("10:00" to "10:20"), used to fill in a session logged with one tap. */
+  start?: string;
+  end?: string;
+};
 /** Minutes actually delivered on a day. */
-export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string };
+export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string; /** When the session ran ("10:00" to "10:20"), if a time was given. */ start?: string; end?: string };
 export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean };
 
 /** Something on the teacher's calendar. `start` and `end` are "HH:MM", or "" for an all-day event. */
