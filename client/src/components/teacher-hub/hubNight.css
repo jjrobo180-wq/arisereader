@@ -25,3 +25,18 @@
 .hub-night .border-teal-200, .hub-night .border-teal-300 { border-color: rgba(20, 184, 166, 0.4); }
 .hub-night .hover\:bg-red-50:hover { background-color: rgba(239, 68, 68, 0.18); }
 .hub-night .hover\:bg-teal-50:hover, .hub-night .hover\:bg-teal-100:hover { background-color: rgba(20, 184, 166, 0.18); }
+
+/* Colors added with the calendar, goals and minutes screens that were still too dark to read at night. */
+.hub-night .text-emerald-900, .hub-night .text-emerald-600 { color: #6ee7b7; }
+.hub-night .text-teal-600 { color: #5eead4; }
+.hub-night .text-amber-500, .hub-night .text-amber-600, .hub-night .text-amber-700 { color: #fcd34d; }
+.hub-night .text-red-500, .hub-night .text-red-600, .hub-night .text-red-950 { color: #fca5a5; }
+.hub-night .text-slate-300 { color: #64748b; }
+.hub-night .border-emerald-200, .hub-night .border-emerald-300 { border-color: rgba(52, 211, 153, 0.45); }
+.hub-night .bg-teal-50\/60 { background-color: rgba(20, 184, 166, 0.14); }
+.hub-night .bg-emerald-50 { background-color: rgba(52, 211, 153, 0.16); }
+.hub-night .bg-teal-600 { background-color: #0f766e; }
+.hub-night .bg-teal-600:hover, .hub-night .hover\:bg-teal-700:hover { background-color: #115e59; }
+.hub-night .bg-slate-100 [aria-selected="true"] { background-color: #26334f; color: #f1f5f9; }
+.hub-night [role="tablist"] [aria-selected="true"] { background-color: #26334f; color: #f1f5f9; box-shadow: none; }
+.hub-night [role="tablist"] { background-color: #0b1220; }
