@@ -77,8 +77,9 @@ export function AddEventModal({ onClose, onAdd, date, start, end }: { onClose: (
   );
 }
 
-const VIEWS = [["agenda", "Agenda"], ["week", "Week"], ["month", "Month"], ["open", "Open times"]] as const;
+const VIEWS = [["agenda", "Agenda"], ["week", "Week"], ["month", "Month"], ["free", "Free time"], ["avail", "Availability"]] as const;
 type View = (typeof VIEWS)[number][0];
+const readDay = (): { from: string; to: string } => { try { const v = JSON.parse(localStorage.getItem("arise-hub-day") || ""); if (/^\d\d:\d\d$/.test(v?.from) && /^\d\d:\d\d$/.test(v?.to) && v.from < v.to) return v; } catch { /* default */ } return { from: "07:30", to: "16:00" }; };
 const readView = (): View => { try { const v = localStorage.getItem("arise-hub-cal-view"); return VIEWS.some(([k]) => k === v) ? (v as View) : "agenda"; } catch { return "agenda"; } };
 const shortDay = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
@@ -156,7 +157,8 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
   const [picked, setPicked] = useState<string | null>(null);
   const [adding, setAdding] = useState<{ date?: string; start?: string; end?: string } | null>(null);
   const [hint, setNotice] = useState("");
-  const [weekly, setWeekly] = useState<FreeWindow[]>([]);
+  const [dayHours, setDayHours] = useState(readDay);
+  const changeDay = (patch: Partial<{ from: string; to: string }>) => setDayHours((d) => { const next = { ...d, ...patch }; try { if (next.from < next.to) localStorage.setItem("arise-hub-day", JSON.stringify(next)); } catch { /* fine */ } return next; });
   const [showPast, setShowPast] = useState(false);
 
   const names = useMemo(() => new Map(workspace.calendars.map((c) => [c.id, c.name])), [workspace.calendars]);
@@ -183,10 +185,10 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
 
   return (
       <Card title={title} right={<PrimaryButton onClick={() => setAdding({ date: view === "month" && picked ? picked : undefined })}><Plus className="h-4 w-4" /> Add event</PrimaryButton>}>
-        <div role="tablist" aria-label="Calendar view" className="mb-4 grid grid-cols-4 gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-views">
+        <div role="tablist" aria-label="Calendar view" className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-views">
           {VIEWS.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}
-              className={`min-h-11 rounded-xl px-1 text-sm font-semibold ${view === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
+              className={`min-h-11 min-w-[5.5rem] flex-1 rounded-xl px-2 text-sm font-semibold ${view === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
           ))}
         </div>
 
@@ -264,35 +266,49 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
           </div>
         )}
 
-        {view === "open" && (
-          <div className="space-y-3" data-testid="open-view">
-            <MyAvailability token={token} setNotice={setNotice} onChange={setWeekly} />
-            {hint && <div className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900" role="status">{hint}</div>}
-            {weekly.length === 0 ? <p className="text-sm text-slate-600">Add the times you are usually free each week above. Your open time then shows up here, with everything on your calendar taken out.</p> : (
-              (() => {
-                const list = Array.from({ length: 14 }, (_, i) => shiftDay(today, i)).map((date) => ({ date, ranges: openRanges(weekly, workspace.events, date, now) })).filter((d) => d.ranges.length);
-                return list.length ? (
-                  <ul className="space-y-2">
-                    {list.map((d) => (
-                      <li key={d.date} className="rounded-2xl border border-slate-200 p-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(d.date)}{d.date === today ? " · Today" : ""}</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {d.ranges.map((r) => {
-                            const to = Math.min(toMin(r.end)!, toMin(r.start)! + 60);
-                            return <button key={r.start} type="button" onClick={() => setAdding({ date: d.date, start: r.start, end: clockOf(to) })} className="min-h-11 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900">{clock12(r.start)} – {clock12(r.end)}</button>;
-                          })}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : <Empty>No open time in the next two weeks.</Empty>;
-              })()
-            )}
-            {weekly.length > 0 && <p className="text-xs text-slate-500">Tap an open time to put an event there.</p>}
+        {view === "free" && (
+          <div className="space-y-3" data-testid="free-view">
+            <p className="text-sm text-slate-600">Worked out from your calendar: the gaps in your day with everything on it taken out. Nothing to set up.</p>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+              <span>My day runs</span>
+              <Field type="time" value={dayHours.from} onChange={(e) => changeDay({ from: e.target.value })} aria-label="Day starts" className="!w-32" />
+              <span>to</span>
+              <Field type="time" value={dayHours.to} onChange={(e) => changeDay({ to: e.target.value })} aria-label="Day ends" className="!w-32" />
+            </div>
+            {(() => {
+              const workday: FreeWindow[] = [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, start: dayHours.from, end: dayHours.to }));
+              const list = Array.from({ length: 14 }, (_, i) => shiftDay(today, i))
+                .filter((date) => { const dow = new Date(`${date}T12:00:00Z`).getUTCDay(); return (dow !== 0 && dow !== 6) || workspace.events.some((e) => e.date === date && e.start); })
+                .map((date) => ({ date, ranges: openRanges(workday, workspace.events, date, now) }));
+              return list.some((d) => d.ranges.length) ? (
+                <ul className="space-y-2">
+                  {list.filter((d) => d.ranges.length).map((d) => (
+                    <li key={d.date} className="rounded-2xl border border-slate-200 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{dayLabel(d.date)}{d.date === today ? " · Today" : ""}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {d.ranges.map((r) => {
+                          const to = Math.min(toMin(r.end)!, toMin(r.start)! + 60);
+                          return <button key={r.start} type="button" onClick={() => setAdding({ date: d.date, start: r.start, end: clockOf(to) })} className="min-h-11 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900">{clock12(r.start)} – {clock12(r.end)}</button>;
+                        })}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : <Empty>No free time in the next two weeks.</Empty>;
+            })()}
+            <p className="text-xs text-slate-500">Tap a free time to put an event there. Weekends show only when something is on them.</p>
           </div>
         )}
 
-        {view !== "open" && earlier > 0 && (
+        {view === "avail" && (
+          <div className="space-y-3" data-testid="availability-view">
+            <p className="text-sm text-slate-600">Your availability is the times you offer for meetings, such as parent conferences. Set it once. When you plan a meeting, the poll's 3 suggested days and times come from here, with anything already on your calendar skipped.</p>
+            <MyAvailability token={token} setNotice={setNotice} defaultOpen />
+            {hint && <div className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900" role="status">{hint}</div>}
+          </div>
+        )}
+
+        {(view === "agenda" || view === "week" || view === "month") && earlier > 0 && (
           <div className="mt-4 text-center"><button type="button" onClick={() => setShowPast((v) => !v)} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">{showPast ? "Hide events that are over" : `Show ${earlier} that ${earlier === 1 ? "is" : "are"} over`}</button></div>
         )}
         {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addEvent} />}
