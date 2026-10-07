@@ -38,7 +38,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
-import { TASK_SORTS, arrangeTasks, saveTask, taskCounts, toggleTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
+import { TASK_SORTS, arrangeTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
 import { cleanSenderName } from "@shared/hubMeetings";
 import "@/components/teacher-hub/hubNight.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
@@ -58,7 +58,7 @@ import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
-import { TaskModal } from "@/components/teacher-hub/HubTaskEdit";
+import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import HubGuideTab from "@/components/teacher-hub/HubGuide";
@@ -263,6 +263,9 @@ function TeacherHubPage() {
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
 
   const [quickEvent, setQuickEvent] = useState(false);
+  /** Checks a to-do off (or back on) and offers Undo for a few seconds. It can also be undone from "Done in the last day". */
+  const checkTask = taskChecker(() => workspace.tasks, setWorkspace, (text, actions) => { toasts.show(text, actions); });
+  const undoCheck = (taskId: string) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }));
   /** The to-do being changed from the To do card on Home. */
   const [homeTask, setHomeTask] = useState<string | null>(null);
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
@@ -547,7 +550,7 @@ function TeacherHubPage() {
                       {dueTasks.map((task) => (
                         <div key={task.id} className="flex items-center gap-1 rounded-xl bg-slate-50 pl-3 pr-1">
                           <label className="flex min-w-0 flex-1 items-center gap-3 py-3">
-                            <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, task.id, TODAY()).tasks }))} />
+                            <input type="checkbox" className="h-5 w-5 shrink-0" checked={task.done} onChange={() => checkTask(task)} />
                             <div className="min-w-0 flex-1"><div className="truncate font-medium">{task.title}</div><div className="text-xs text-slate-500">{task.recurring || "One-time"}{task.dueDate ? ` · ${dueState(task.dueDate, TODAY()) === "overdue" ? "overdue, " : "due "}${friendlyDate(task.dueDate, TODAY())}` : ""}</div></div>
                           </label>
                           <button type="button" aria-label={`Edit ${task.title}`} onClick={() => setHomeTask(task.id)} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-950" data-testid="home-task-edit"><Pencil className="h-4 w-4" /></button>
@@ -555,6 +558,7 @@ function TeacherHubPage() {
                       ))}
                     </div>
                   ) : <Empty>Nothing due right now.</Empty>}
+                  <RecentlyDone tasks={workspace.tasks} onUndo={undoCheck} limit={4} />
                 </Card>
               </div>
 
@@ -820,12 +824,7 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
     setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: id(), title, dueDate: "", recurring: "", done: false }] }));
     setQuick("");
   }
-  function toggle(task: Task) {
-    const before = workspace.tasks;
-    const result = toggleTask(before, task.id, today);
-    setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, task.id, today).tasks }));
-    if (result.rolledTo) toast(`Done. Next one is due ${friendlyDate(result.rolledTo, today)}.`, [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => (t.id === task.id ? { ...t, dueDate: task.dueDate, lastDone: task.lastDone } : t)) })) }]);
-  }
+  const toggle = taskChecker(() => workspace.tasks, setWorkspace, toast);
   const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
 
   return (
@@ -870,6 +869,7 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
             <button aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("tasks", task.id)}><Trash2 className="h-4 w-4" /></button>
           </li>
         ))}</ul> : <Empty>{workspace.tasks.length ? (filter === "open" ? "Nothing left to do. Nice work." : "No to-dos match.") : "No tasks yet. Type one above and press Enter."}</Empty>}
+        {filter === "open" && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}
       </Card>
       {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today}
         onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) }))} onClose={() => setEditing(null)} />}

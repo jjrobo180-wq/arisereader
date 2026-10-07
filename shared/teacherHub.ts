@@ -21,7 +21,12 @@ export type Student = {
 
 export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
-export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string };
+export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
+  /** When it was checked off (a moment, not a day), so it can be offered back for a day. */
+  doneAt?: string;
+  /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
+  rolled?: { dueDate: string; lastDone?: string; at: string };
+};
 export type NoteItem = { id: string; student: string; type: string; body: string; date: string };
 export type AriseRecord = { id: string; student: string; book: string; score: string; points: string; date: string };
 export type BehaviorEntry = { id: string; student: string; points: number; reason: string; date: string };

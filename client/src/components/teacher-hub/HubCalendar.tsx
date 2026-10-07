@@ -177,6 +177,9 @@ const hostLabel = (url: string) => {
   } catch { return "Calendar"; }
 };
 
+/** How long the Undo for a snooze or a delete stays up. */
+export const UNDO_SECONDS = 10;
+
 const ROW_ACTION = "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold";
 
 function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete, onEdit, onSnooze }: { event: HubEvent; now: Now; names: Map<string, string>; workspace: Workspace; setWorkspace: SetWorkspace; makeId: () => string; onDelete: (id: string) => void; onEdit: (event: HubEvent) => void; onSnooze: (event: HubEvent, how: Snooze) => void }) {
@@ -252,11 +255,27 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
   const earlier = workspace.events.filter((e) => (!oneDay || e.date === today) && isPast(e, now)).length;
 
   const addQuick = (items: QuickItems) => { setWorkspace((p) => addQuickItems(p, items, makeId)); if (items.task) onReminderAdded?.(items); };
-  const removeEvent = (id: string) => setWorkspace((p) => ({ ...p, events: p.events.filter((x) => x.id !== id) }));
+  /** Deletes an event and offers it back for a few seconds, in the place it was. */
+  function removeEvent(id: string) {
+    const at = workspace.events.findIndex((x) => x.id === id);
+    const gone = workspace.events[at];
+    setWorkspace((p) => ({ ...p, events: p.events.filter((x) => x.id !== id) }));
+    if (!gone) return;
+    setMoved({
+      text: `Deleted "${gone.title}".`,
+      undo: () => setWorkspace((p) => (p.events.some((x) => x.id === id) ? p : { ...p, events: [...p.events.slice(0, at), gone, ...p.events.slice(at)] })),
+    });
+  }
   const [editing, setEditingState] = useState<{ event: HubEvent; reschedule: boolean } | null>(null);
   const setEditing = (event: HubEvent) => setEditingState({ event, reschedule: false });
-  // What just moved, with a way back: a snoozed event can jump off the screen (to tomorrow, say).
+  // What just moved or was deleted, with a way back for about ten seconds: a snoozed event can
+  // jump off the screen (to tomorrow, say), and a delete can be a slip of the thumb.
   const [moved, setMoved] = useState<{ text: string; undo: () => void } | null>(null);
+  useEffect(() => {
+    if (!moved) return;
+    const timer = window.setTimeout(() => setMoved(null), UNDO_SECONDS * 1000);
+    return () => window.clearTimeout(timer);
+  }, [moved]);
   function snooze(event: HubEvent, how: Snooze) {
     const to = snoozedTo(event, how, now);
     if (!to) return;

@@ -1,9 +1,12 @@
-// Teacher Hub: the pop-up that adds a to-do or changes one that is already on the list.
-// Used by Reminders & to-dos and by the To do card on Home.
-import { useState, type FormEvent } from "react";
-import { addDays } from "@shared/hubDates";
-import type { TaskFields } from "@shared/hubTasks";
-import type { Task } from "@shared/teacherHub";
+// Teacher Hub: the pop-up that adds a to-do or changes one that is already on the list, and
+// checking to-dos off with a way back. Used by Reminders & to-dos and by the To do card on Home.
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { Undo2 } from "lucide-react";
+import { addDays, friendlyDate } from "@shared/hubDates";
+import { recentlyDone, toggleTask, undoTask, type TaskFields } from "@shared/hubTasks";
+import type { Task, Workspace } from "@shared/teacherHub";
+import { localDay } from "./HubImport";
+import type { ToastAction } from "./HubToast";
 import { Field, GhostButton, Labeled, PrimaryButton, Select } from "./ui";
 import { HubModal } from "./HubModal";
 
@@ -40,5 +43,45 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose }: {
         <button type="submit" hidden />
       </form>
     </HubModal>
+  );
+}
+
+/**
+ * Checks a to-do off or back on. Checking one off shows a message with Undo for about ten seconds;
+ * after that it can still be undone for a day from "Done in the last day".
+ */
+export function taskChecker(tasksNow: () => Task[], setWorkspace: Dispatch<SetStateAction<Workspace>>, toast: (text: string, actions?: ToastAction[]) => void) {
+  return (task: Task) => {
+    const today = localDay(), at = new Date().toISOString();
+    const result = toggleTask(tasksNow(), task.id, today, at);
+    setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, task.id, today, at).tasks }));
+    if (task.done) return;
+    const undo: ToastAction[] = [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, task.id, Date.now()) })) }];
+    toast(result.rolledTo ? `Done. Next one is due ${friendlyDate(result.rolledTo, today)}.` : `Checked off "${task.title}".`, undo);
+  };
+}
+
+/** To-dos checked off in the last day, crossed out, each with Undo. Shown under the open to-dos. */
+export function RecentlyDone({ tasks, onUndo, limit }: { tasks: Task[]; onUndo: (taskId: string) => void; limit?: number }) {
+  const all = recentlyDone(tasks, Date.now());
+  const [more, setMore] = useState(false);
+  if (!all.length) return null;
+  const shown = limit && !more ? all.slice(0, limit) : all;
+  return (
+    <section className="mt-4" aria-label="Done in the last day" data-testid="recently-done">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Done in the last day</h3>
+      <ul className="space-y-2">
+        {shown.map((task) => (
+          <li key={task.id} className="flex items-center gap-2 rounded-xl border border-dashed border-slate-200 py-1 pl-3 pr-1">
+            <div className="min-w-0 flex-1 py-1.5">
+              <div className="break-words text-slate-400 line-through">{task.title}</div>
+              {!task.done && task.rolled && <div className="text-xs text-slate-500">Repeats. Next one is due {friendlyDate(task.dueDate, localDay())}.</div>}
+            </div>
+            <button type="button" aria-label={`Undo: ${task.title}`} onClick={() => onUndo(task.id)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-teal-700 hover:bg-teal-50" data-testid="task-undo"><Undo2 className="h-4 w-4" />Undo</button>
+          </li>
+        ))}
+      </ul>
+      {limit !== undefined && all.length > limit && <button type="button" onClick={() => setMore((v) => !v)} className="mt-1 min-h-10 text-xs font-semibold text-slate-600 underline underline-offset-4">{more ? "Show fewer" : `Show all ${all.length}`}</button>}
+    </section>
   );
 }
