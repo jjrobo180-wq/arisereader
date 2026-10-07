@@ -4,8 +4,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CHILD_NAME_MAX, INVITES_PER_ADDRESS_PER_DAY, KEPT_NEW_FAMILIES, KEPT_PER_STUDENT, NEW_FAMILY_KEY, PARENT_INVITE_LOG_KEY, STAFF_INVITES_PER_DAY, cleanChildName, cleanParentEmail, inviteSummary, invitesFor, readInviteLog, recordInvite, sentInLastDay } from "../shared/parentInvites";
-import { listFamilyInvites, listParentInvites, sendFamilyInvite, sendParentInvite, type InviteSender, type ParentInviteDeps } from "../server/parentInviteEmails";
-import { familyInviteEmail, parentProgramEmail } from "../server/emailFormat";
+import { inviteTemplate, listFamilyInvites, listParentInvites, sendFamilyInvite, sendParentInvite, type InviteSender, type ParentInviteDeps } from "../server/parentInviteEmails";
+import { familyInviteEmail, familyInviteText, parentProgramEmail, parentProgramText } from "../server/emailFormat";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const NOW = Date.parse("2026-10-07T16:30:00.000Z");
@@ -248,4 +248,73 @@ test("the new-family box is at the top of the admin's Students list and on the t
   for (const part of ["'/api/parent-invites/family-emails'", "'/api/parent-invites/family-email'", "JSON.stringify({ email, childName })"]) assert.ok(lib.includes(part), part);
   assert.ok(read("client/src/pages/Profile.tsx").includes("Print / View My Parent Code") && read("client/src/pages/Profile.tsx").includes("Parent Sign-Up Letter"), "the email points at the button a student really has");
   for (const part of ['data-testid="family-email-input"', 'data-testid="family-child-input"', "Invite a family that isn't signed up yet", "Nobody needs an account first.", "Send invitation", "Send again"]) assert.ok(box.includes(part), part);
+});
+
+test("the invitation can be copied into the teacher's own email, with the student's code and link in it", async () => {
+  const s = site({ configured: false });
+  const reply = await inviteTemplate(s.deps, teacher, { studentId: 5 }, ORIGIN + "/");
+  assert.equal(reply.status, 200, "it works even when the site's own email is off");
+  assert.equal(reply.body.subject, "Follow Dennis Flores's reading on A.R.I.S.E. Reader");
+  const text = String(reply.body.text);
+  for (const part of [
+    "Hello,\n\nI use A.R.I.S.E. Reader with Dennis Flores, and I'd like to invite you to follow along.", "You don't need an account yet.",
+    "WHAT IT IS\n- Dennis picks a book and reads it.", "A score of 70% or higher earns that book's points.",
+    "WHAT A PARENT ACCOUNT DOES\n- See Dennis's quiz history and reading growth.", "Parent Proctor Code", "- It is free, and one parent account can follow up to 5 children.",
+    "1. Open this link. Dennis's code is already filled in:\n   https://www.arisereader.com/#/parent-signup?code=AB12-CD34-EF56-7890-0005\n",
+    "Dennis's parent code: AB12-CD34-EF56-7890-0005", "go to www.arisereader.com/#/parent-signup and type the code", "Already have a parent account?",
+    "\n\nThank you,\nMs. Lee",
+  ]) assert.ok(text.includes(part), part);
+  assert.ok(!/<[a-z/]|&amp;|undefined|null/.test(text), "plain words, no page code");
+  assert.ok(text.endsWith("Ms. Lee"));
+  // Nothing was sent and nothing was added to the list.
+  assert.equal(s.sent.length, 0);
+  assert.deepEqual(s.log(), {});
+  // Only for a student this person can reach.
+  assert.equal((await inviteTemplate(s.deps, teacher, { studentId: 6 }, ORIGIN)).status, 404, "another teacher's student");
+  assert.equal((await inviteTemplate(s.deps, admin, { studentId: 6 }, ORIGIN)).status, 200);
+  assert.equal((await inviteTemplate(s.deps, admin, { studentId: 7 }, ORIGIN)).status, 404, "not a student");
+  assert.equal((await inviteTemplate(s.deps, admin, { studentId: "abc" }, ORIGIN)).status, 400);
+  for (const who of [{ id: 30, role: "student" }, { id: 31, role: "parent" }, { ...teacher, accountApproved: false }]) {
+    assert.equal((await inviteTemplate(s.deps, who, { studentId: 5 }, ORIGIN)).status, 403);
+    assert.equal((await inviteTemplate(s.deps, who, {}, ORIGIN)).status, 403);
+  }
+});
+
+test("the new-family invitation can be copied too", async () => {
+  const s = site();
+  const reply = await inviteTemplate(s.deps, teacher, { childName: "  Jordan   Reyes " }, ORIGIN);
+  assert.equal(reply.status, 200);
+  assert.equal(reply.body.subject, "Your family is invited to A.R.I.S.E. Reader");
+  const text = String(reply.body.text);
+  for (const part of [
+    "I'd like to invite you and Jordan Reyes to A.R.I.S.E. Reader", "Neither of you needs an account yet. It is free for students and parents.",
+    "- Jordan picks a book and reads it.", "- See Jordan's quiz history and reading growth.", "- One parent account can follow up to 5 children.",
+    "1. Jordan makes a student account here:\n   https://www.arisereader.com/#/register\n   On that page, choose Lincoln Elementary as the school, pick the grade, then choose me (Ms. Lee) as the teacher.",
+    `tap "My teacher isn't listed" and type the name.`, `2. Jordan logs in and opens Profile. Under "Parent Sign-Up Letter", tap "Print / View My Parent Code".`,
+    "3. You make your parent account with that code here:\n   https://www.arisereader.com/#/parent-signup\n",
+    "independent reader instead: https://www.arisereader.com/#/register-independent", "\n\nThank you,\nMs. Lee",
+  ]) assert.ok(text.includes(part), part);
+  // No name, from the admin: "your child", and no school or teacher is named.
+  const plain = String((await inviteTemplate(s.deps, admin, {}, ORIGIN)).body.text);
+  for (const part of ["invite you and your child to", "- Your child picks a book", "1. Your child makes a student account here:", "On that page, choose the school, the grade and the teacher.", "Thank you,\nMr. Robinson"]) assert.ok(plain.includes(part), part);
+  assert.ok(!plain.includes("Lincoln") && !/undefined|null/.test(plain));
+  assert.equal(s.sent.length, 0);
+  assert.deepEqual(s.log(), {});
+  // A name can't break the message into extra lines, and the two versions say the same steps.
+  const odd = parentProgramText({ studentName: "Maya\nTorres\t ", senderName: " Mr.  R\n", signupUrl: "https://x.example/#/parent-signup?code=A", code: "A" });
+  assert.ok(odd.text.includes("with Maya Torres, and") && odd.text.endsWith("Thank you,\nMr. R") && odd.subject === "Follow Maya Torres's reading on A.R.I.S.E. Reader");
+  const page = parentProgramEmail({ studentName: "Dennis Flores", senderName: "Ms. Lee", signupUrl: "https://x.example/s", code: "A", maxChildren: 5 });
+  const words = parentProgramText({ studentName: "Dennis Flores", senderName: "Ms. Lee", signupUrl: "https://x.example/s", code: "A", maxChildren: 5 }).text;
+  for (const shared of ["A score of 70% or higher earns that book's points.", "Dennis picks a book and reads it.", "See Dennis's quiz history and reading growth.", "Use parent controls for games and access.", "choose a username and a password", "Already have a parent account? Log in and enter the code on your dashboard to add Dennis."]) assert.ok(page.includes(shared) && words.includes(shared), shared);
+  const family = { senderName: "Ms. Lee", childName: "Jo Al", registerUrl: "https://x.example/r", independentUrl: "https://x.example/i", parentSignupUrl: "https://x.example/p" };
+  for (const shared of ["Jo picks a book and reads it.", "See Jo's quiz history and reading growth.", `Under "Parent Sign-Up Letter", tap "Print / View My Parent Code". That is your code.`, `tap "My teacher isn't listed" and type the name.`]) assert.ok(familyInviteEmail(family).includes(shared) && familyInviteText(family).text.includes(shared), shared);
+});
+
+test("both invitation boxes offer the copy, and the route needs a sign-in", () => {
+  const copy = read("client/src/components/InviteCopy.tsx"), server = read("server/parentInviteEmails.ts"), lib = read("client/src/lib/parentInvites.ts");
+  assert.ok(read("client/src/components/ParentEmailInvite.tsx").includes("<InviteCopy studentId={studentId} to={email} />"));
+  assert.ok(read("client/src/components/FamilyEmailInvite.tsx").includes("<InviteCopy childName={child} to={email} />"));
+  assert.ok(server.includes('app.post("/api/parent-invites/template", auth,'));
+  assert.ok(lib.includes("'/api/parent-invites/template'"));
+  for (const part of ['data-testid="invite-copy-open"', "Or copy the message to send from my own email", 'data-testid="invite-copy-subject"', 'data-testid="invite-copy-text"', "Copy message", "Open in my email app", "navigator.clipboard.writeText(value)", "mailto:"]) assert.ok(copy.includes(part), part);
 });

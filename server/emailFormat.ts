@@ -177,3 +177,95 @@ export function familyInviteEmail(info: {
   <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${sender}, you can ignore this email.</p>
 </div>`;
 }
+
+// ─── The same two invitations as plain text, to paste into your own email ───
+// A teacher sends these from their own address, so they are written as the teacher ("I use...").
+
+/** One line of text: no line breaks or odd characters from a name. */
+const oneLine = (value: unknown) => String(value ?? "").replace(/[\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim();
+
+export type InviteText = { subject: string; text: string };
+
+/** The invitation for the parent of a student who has an account, as text. */
+export function parentProgramText(info: { studentName: string; senderName: string; signupUrl: string; code: string; siteUrl?: string; maxChildren?: number }): InviteText {
+  const student = oneLine(info.studentName) || "your child";
+  const first = oneLine(info.studentName).split(" ")[0] || "your child";
+  const site = siteHost(info.siteUrl || DEFAULT_SITE_URL);
+  const text = [
+    "Hello,",
+    "",
+    `I use A.R.I.S.E. Reader with ${student}, and I'd like to invite you to follow along. It is a reading site for students and their families. You don't need an account yet.`,
+    "",
+    "WHAT IT IS",
+    `- ${first} picks a book and reads it.`,
+    "- Then comes a short quiz on the book. A score of 70% or higher earns that book's points.",
+    `- Points add up, so ${first} can see the reading pay off and keep going.`,
+    "",
+    "WHAT A PARENT ACCOUNT DOES",
+    `- See ${first}'s quiz history and reading growth.`,
+    `- Get a private Parent Proctor Code, so ${first} can take quizzes and reading tests at home with you.`,
+    "- Use parent controls for games and access.",
+    `- It is free${info.maxChildren ? `, and one parent account can follow up to ${Number(info.maxChildren)} children` : ""}.`,
+    "",
+    "HOW TO SIGN UP (ABOUT TWO MINUTES)",
+    `1. Open this link. ${first}'s code is already filled in:`,
+    `   ${oneLine(info.signupUrl)}`,
+    "2. Type your name, and choose a username and a password.",
+    `3. Log in. You are connected to ${first} right away.`,
+    "",
+    `${first}'s parent code: ${oneLine(info.code)}`,
+    `If the link does not work, go to ${site}/#/parent-signup and type the code.`,
+    `Already have a parent account? Log in and enter the code on your dashboard to add ${first}.`,
+    "",
+    "Thank you,",
+    oneLine(info.senderName) || "Your child's teacher",
+  ].join("\n");
+  return { subject: `Follow ${student}'s reading on A.R.I.S.E. Reader`, text };
+}
+
+/** The invitation for a family whose child has no account yet, as text. */
+export function familyInviteText(info: {
+  senderName: string; childName?: string; registerUrl: string; independentUrl: string; parentSignupUrl: string;
+  schoolName?: string; teacherName?: string; maxChildren?: number;
+}): InviteText {
+  const named = oneLine(info.childName);
+  const first = named.split(" ")[0] || "";
+  const full = named || "your child", child = first || "your child", Child = first || "Your child";
+  const school = oneLine(info.schoolName), teacher = oneLine(info.teacherName);
+  // Written by the teacher, so the teacher to pick is "me".
+  const pick = school && teacher
+    ? `On that page, choose ${school} as the school, pick the grade, then choose me (${teacher}) as the teacher.`
+    : teacher
+      ? `On that page, choose the school and the grade, then me (${teacher}) as the teacher.`
+      : "On that page, choose the school, the grade and the teacher.";
+  const text = [
+    "Hello,",
+    "",
+    `I'd like to invite you and ${full} to A.R.I.S.E. Reader, a reading site for students and their families. Neither of you needs an account yet. It is free for students and parents.`,
+    "",
+    "WHAT IT IS",
+    `- ${Child} picks a book and reads it.`,
+    "- Then comes a short quiz on the book. A score of 70% or higher earns that book's points.",
+    "- Points add up, so the reading pays off and there is a reason to pick up the next book.",
+    "",
+    "WHAT YOU GET AS A PARENT",
+    `- See ${child}'s quiz history and reading growth.`,
+    "- Get a private Parent Proctor Code, so quizzes and reading tests can be taken at home with you.",
+    "- Use parent controls for games and access.",
+    ...(info.maxChildren ? [`- One parent account can follow up to ${Number(info.maxChildren)} children.`] : []),
+    "",
+    "HOW TO SIGN UP",
+    `1. ${Child} makes a student account here:`,
+    `   ${oneLine(info.registerUrl)}`,
+    `   ${pick} If the teacher is not in the list, tap "My teacher isn't listed" and type the name.`,
+    `2. ${Child} logs in and opens Profile. Under "Parent Sign-Up Letter", tap "Print / View My Parent Code". That is your code.`,
+    "3. You make your parent account with that code here:",
+    `   ${oneLine(info.parentSignupUrl)}`,
+    "",
+    `Not with a school on the site? ${Child} can sign up as an independent reader instead: ${oneLine(info.independentUrl)}`,
+    "",
+    "Thank you,",
+    oneLine(info.senderName) || "A teacher",
+  ].join("\n");
+  return { subject: "Your family is invited to A.R.I.S.E. Reader", text };
+}
