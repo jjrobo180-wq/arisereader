@@ -109,7 +109,13 @@ export type HubEvent = {
 export type HiddenRule = { id: string; title: string; date: string; start: string };
 
 /** A calendar the teacher connected by its link (Google, Outlook, Apple or any calendar feed). */
-export type HubCalendar = { id: string; name: string; url: string; syncedAt: string };
+export type HubCalendar = {
+  id: string; name: string; url: string; syncedAt: string;
+  /** Set when it is someone else's calendar (a social worker's, another teacher's): their name. Their events are kept apart from the teacher's own. See shared/hubOthers.ts. */
+  owner?: string;
+  /** Only the times are kept from it, and not what the events are: every event is called "Busy". */
+  busyOnly?: boolean;
+};
 
 // The IEP guide (shared/hubGuide.ts has its checklist and rules).
 /** Someone on the teacher's special education team. Every teacher keeps their own list; no names are built in. */
@@ -350,8 +356,8 @@ export const HUB_IMPORT_LIMITS = {
   perDay: 60,
   /** Events kept from one connected calendar (the soonest ones), so the saved workspace stays small. */
   calendarEvents: 250,
-  /** Connected calendars. */
-  calendars: 4,
+  /** Connected calendars: the teacher's own, and other people's. */
+  calendars: 8,
   /** A connected calendar is read again when the Hub opens, if it was last read longer ago than this. */
   calendarStaleMs: 3 * 60 * 60_000,
 } as const;
@@ -636,7 +642,9 @@ export function replaceCalendarEvents(workspace: Workspace, calendar: HubCalenda
   // A fresh read hands every event a new id, so a check mark is carried over by what the event is.
   const key = (e: Pick<HubEvent, "title" | "date" | "start">) => `${e.title}\n${e.date}\n${e.start}`;
   const checked = new Set(workspace.events.filter((e) => e.calendarId === calendar.id && e.done).map(key));
-  const fresh = events.slice(0, HUB_IMPORT_LIMITS.calendarEvents).map((event): HubEvent => ({ id: makeId(), ...event, calendarId: calendar.id, ...(checked.has(key(event)) ? { done: true } : {}) }));
+  // From a calendar that is followed for its busy times only, nothing but the times is kept.
+  const read = calendar.busyOnly ? events.map((e) => ({ ...e, title: "Busy", location: "", notes: "" })) : events;
+  const fresh = read.slice(0, HUB_IMPORT_LIMITS.calendarEvents).map((event): HubEvent => ({ id: makeId(), ...event, calendarId: calendar.id, ...(checked.has(key(event)) ? { done: true } : {}) }));
   const calendars = workspace.calendars.some((c) => c.id === calendar.id)
     ? workspace.calendars.map((c) => (c.id === calendar.id ? calendar : c))
     : [...workspace.calendars, calendar];

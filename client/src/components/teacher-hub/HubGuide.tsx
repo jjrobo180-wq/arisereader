@@ -110,7 +110,7 @@ function Contacts({ workspace, setWorkspace, makeId }: Shared) {
               <Field type="email" inputMode="email" placeholder="Email (optional)" aria-label="Email" value={c.email || ""} onChange={(e) => change(c.id, { email: e.target.value })} maxLength={120} />
               <PrimaryButton onClick={() => setEditing(null)}><Check className="h-4 w-4" /> Done</PrimaryButton>
               <div className="md:col-span-full">
-                <div className="mb-2 text-sm font-medium text-slate-700">Usual free times (used to suggest meeting times)</div>
+                <div className="mb-2 text-sm font-medium text-slate-700">Availability (used to suggest meeting times)</div>
                 <WeeklyEditor value={c.free || []} onChange={(free) => change(c.id, { free })} label={c.name || "this person"} />
               </div>
             </li>

@@ -10,6 +10,7 @@ import { roleLabel } from "@shared/hubGuide";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import { addDays } from "@shared/hubDates";
 import { calendarEvents } from "@shared/hubHidden";
+import { busyPeople, othersCalendars, othersEvents } from "@shared/hubOthers";
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from "./HubAvailability";
 import { localDay } from "./HubImport";
@@ -186,7 +187,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // My weekly free times: the poll's times are suggested from them.
+  // My weekly availability: the poll's times are suggested from it.
   const [weekly, setWeekly] = useState<FreeWindow[] | null>(null);
   const [editWeekly, setEditWeekly] = useState(false);
   const [savingWeekly, setSavingWeekly] = useState(false);
@@ -196,16 +197,21 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const today = localDay();
   useEffect(() => { api(token, "GET", "/api/teacher-hub/availability").then((d) => setWeekly(cleanWeekly(d.weekly))).catch(() => setWeekly([])); }, [token]);
 
-  function suggest(free: FreeWindow[], skip: number, minutes = length) {
+  // The people whose calendars are followed (a social worker, another teacher): times are suggested when they are not busy either.
+  const people = othersCalendars(workspace);
+  const [skipPeople, setSkipPeople] = useState<string[]>([]);
+  const theirEvents = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !skipPeople.includes(c.id)).map((c) => c.id));
+  function suggest(free: FreeWindow[], skip: number, minutes = length, without = skipPeople) {
     // Repeating events are busy on every day they fall on (looking four months ahead); hidden events are not busy.
-    const busy = calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.start && e.meetingId !== initial.meetingId).map((e) => ({ date: e.date, start: e.start, end: e.end }));
+    const theirs = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !without.includes(c.id)).map((c) => c.id));
+    const busy = [...calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.meetingId !== initial.meetingId), ...theirs].filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }));
     const before = meeting?.date && meeting.date > today ? meeting.date : undefined;
     const from = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
     let found = suggestTimes(free, { from, minutes, before, busy, skip });
     if (!found.length && skip > 0) { setRound(0); found = suggestTimes(free, { from, minutes, before, busy, skip: 0 }); }
-    if (!found.length) { setSuggestNote("None of your free times are long enough for that. Try a shorter meeting or add more free times."); return; }
+    if (!found.length) { setSuggestNote("None of your available times are long enough for that. Try a shorter meeting or add more availability."); return; }
     setTimes(found.map((t) => ({ date: t.date, start: t.start, end: t.end })));
-    setSuggestNote(found.length < 3 ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your free times.` : "");
+    setSuggestNote(found.length < 3 ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your availability.` : "");
   }
   // The first time this opens with no times typed in, the three times are already filled in.
   const auto = useRef(false);
@@ -222,7 +228,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
       const saved = cleanWeekly(d.weekly);
       setWeekly(saved); setEditWeekly(false); auto.current = true; setRound(0);
       if (saved.length) suggest(saved, 0);
-    } catch (e: any) { setError(e?.message || "Could not save your free times."); }
+    } catch (e: any) { setError(e?.message || "Could not save your availability."); }
     finally { setSavingWeekly(false); }
   }
 
@@ -264,10 +270,10 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
       <div>
         <div className="mb-2 text-sm font-semibold text-slate-800">Times that could work</div>
         <div className="mb-3 rounded-2xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950" data-testid="suggest-times">
-          {weekly === null ? <span className="text-slate-600">Looking at your free times…</span> : (!weekly.length || editWeekly) ? (
+          {weekly === null ? <span className="text-slate-600">Looking at your availability…</span> : (!weekly.length || editWeekly) ? (
             <div className="space-y-3">
-              <div><span className="font-semibold">{weekly.length ? "Your free times" : "Set your free times first."}</span> {weekly.length ? "" : "Then three times you are free are filled in for you."}</div>
-              <WeeklyEditor value={weekly} onChange={setWeekly} label="you are" />
+              <div><span className="font-semibold">{weekly.length ? "Your availability" : "Set your availability first."}</span> {weekly.length ? "" : "Then three times you are available are filled in for you."}</div>
+              <WeeklyEditor value={weekly} onChange={setWeekly} label="you" />
               <div className="flex flex-wrap gap-2">
                 <PrimaryButton onClick={saveWeekly} disabled={savingWeekly || !cleanWeekly(weekly).length}>{savingWeekly ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save and suggest 3 times</PrimaryButton>
                 {weekly.length > 0 && <GhostButton onClick={() => setEditWeekly(false)}>Cancel</GhostButton>}
@@ -276,13 +282,23 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             </div>
           ) : (
             <div className="space-y-2">
-              <div>Suggested from your free times, and clear of anything already on your calendar.</div>
+              <div>Suggested from your availability, and clear of anything already on your calendar{people.length > skipPeople.length ? " and on the calendars you follow" : ""}.</div>
+              {people.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Also keep clear of" data-testid="poll-clear-of">
+                  <span className="font-semibold">Also keep clear of:</span>
+                  {people.map((c) => { const on = !skipPeople.includes(c.id); return (
+                    <label key={c.id} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-900">
+                      <input type="checkbox" className="h-5 w-5" checked={on} onChange={() => { const next = on ? [...skipPeople, c.id] : skipPeople.filter((x) => x !== c.id); setSkipPeople(next); setRound(0); suggest(weekly, 0, length, next); }} /> {c.name}
+                    </label>
+                  ); })}
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <select aria-label="How long is the meeting" value={length} onChange={(e) => { const m = Number(e.target.value); setLength(m); setRound(0); suggest(weekly, 0, m); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 sm:text-sm">
                   {[30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} minutes</option>)}
                 </select>
                 <GhostButton onClick={() => { const next = round + 1; setRound(next); suggest(weekly, next); }}>Different times</GhostButton>
-                <GhostButton onClick={() => setEditWeekly(true)}>Edit my free times</GhostButton>
+                <GhostButton onClick={() => setEditWeekly(true)}>Edit my availability</GhostButton>
               </div>
               {suggestNote && <p className="text-xs text-amber-800" role="status">{suggestNote}</p>}
             </div>
@@ -297,6 +313,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
                 <Field type="time" aria-label={`Start ${index + 1}`} value={t.start} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, start: e.target.value } : x)))} />
                 <Field type="time" aria-label={`End ${index + 1} (optional)`} value={t.end} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, end: e.target.value } : x)))} />
               </div>
+              {/* A time that was typed in by hand may land on someone's busy time: say whose. */}
+              {busyPeople(theirEvents, t).length > 0 && <p className="col-span-full text-xs font-medium text-amber-800" role="status" data-testid="poll-busy-people">{busyPeople(theirEvents, t).join(" and ")} {busyPeople(theirEvents, t).length > 1 ? "are" : "is"} busy then.</p>}
             </div>
           ))}
         </div>
@@ -421,7 +439,7 @@ function PollCard({ poll, token, senderName, contacts, onBooked, onChanged, setN
     setPicking(null);
     onBooked(poll, option, r.told, !!r.selfSend);
   });
-  /** How free someone usually is: from their own account if they linked one, else from the free times saved on your team list. */
+  /** How available someone usually is: from their own account if they linked one, else from the availability saved on your team list. */
   const fitFor = (i: PollView["invitees"][number], optionId: string): Fit => {
     if (i.fit?.[optionId]) return i.fit[optionId];
     const saved = i.email ? contacts.find((c) => c.email && c.email.toLowerCase() === i.email.toLowerCase())?.free : undefined;

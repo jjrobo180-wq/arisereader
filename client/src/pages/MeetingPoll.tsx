@@ -130,11 +130,11 @@ export default function MeetingPoll() {
         {poll && user && accountToken && (
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm" data-testid="poll-link-account">
             {linked === "done" ? (
-              <p className="font-medium text-emerald-800">Added. You'll find this in your Teacher Hub, under IEP &amp; Meetings. The person who invited you can now see whether you're usually free for these times, if you saved free times there.</p>
+              <p className="font-medium text-emerald-800">Added. You'll find this in your Teacher Hub, under IEP &amp; Meetings. The person who invited you can now see whether you're usually available for these times, if you saved your availability there.</p>
             ) : (
               <>
                 <p className="font-semibold">You're signed in to A.R.I.S.E.</p>
-                <p className="mt-1 text-slate-600">Add this to your account to answer from your Teacher Hub. The person who invited you will see whether you're usually free for these times, if you saved free times there. They never see your calendar.</p>
+                <p className="mt-1 text-slate-600">Add this to your account to answer from your Teacher Hub. The person who invited you will see whether you're usually available for these times, if you saved your availability there. They never see your calendar.</p>
                 {linkError && <p role="alert" className="mt-2 text-rose-700">{linkError}</p>}
                 <button type="button" onClick={addToAccount} disabled={linked === "working"} className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 px-4 font-semibold hover:bg-slate-50">Add to my account</button>
               </>
