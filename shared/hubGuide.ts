@@ -207,6 +207,11 @@ export function removeContact(workspace: Workspace, contactId: string): Workspac
   return {
     ...workspace,
     spedContacts: workspace.spedContacts.filter((c) => c.id !== contactId),
+    students: workspace.students.map((student) => {
+      const team = student.team || {};
+      if (!Object.values(team).includes(contactId)) return student;
+      return { ...student, team: Object.fromEntries(Object.entries(team).filter(([, id]) => id !== contactId)) };
+    }),
     guides: workspace.guides.map((g) => {
       const team = g.team || {};
       if (!Object.values(team).includes(contactId)) return g;
