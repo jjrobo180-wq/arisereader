@@ -40,7 +40,7 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
-import { registerPushRoutes } from "./pushNotifications";
+import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
@@ -1218,7 +1218,12 @@ export async function registerRoutes(
     console.warn("[mailbox] connecting a teacher's own mailbox is off:", error?.message);
   }
   const textConfig = textConfigFromEnv();
-  registerMeetingPollRoutes(app, authMiddleware, { gate: hubGate, sendEmail, appUrl: APP_URL, mailbox, text: textConfig ? createTextService(textConfig) : undefined });
+  registerMeetingPollRoutes(app, authMiddleware, {
+    gate: hubGate, sendEmail, appUrl: APP_URL, mailbox,
+    teacher: {
+      contact: async (id) => { const u: any = await storage.getUser(id); const email = String(u?.email || "").trim(); return email ? { email, name: String(u?.displayName || u?.username || "") } : null; },
+      notify: (id, message) => notifyUser(id, message),
+    }, text: textConfig ? createTextService(textConfig) : undefined });
   // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerClubPlayRoutes(app, authMiddleware);
