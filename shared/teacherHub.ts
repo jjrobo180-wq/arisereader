@@ -9,6 +9,15 @@ import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
 import type { StepPlan } from "./meetingSteps";
 
+/** Optional specialists and staff a student may need for IEP meetings. */
+export const STUDENT_MEETING_ROLES = [
+  { id: "socialWorker", label: "Social worker" },
+  { id: "ot", label: "Occupational therapist (OT)" },
+  { id: "nurse", label: "Nurse" },
+  { id: "slp", label: "Speech-language pathologist (SLP)" },
+  { id: "genEd", label: "Assigned general education teacher" },
+] as const;
+
 export type Student = {
   id: string;
   name: string;
@@ -625,7 +634,7 @@ export function updateStudent(workspace: Workspace, studentId: string, changes: 
   }
   // Student caseload assignments also appear in that student's existing IEP guides.
   // Keep unrelated guide roles (leader, psych, coordinator) unchanged.
-  const meetingRoles = ["socialWorker", "ot", "nurse", "slp", "genEd"];
+  const meetingRoles = STUDENT_MEETING_ROLES.map((role) => role.id);
   if (meetingRoles.some((role) => (current.team?.[role] || "") !== (changes.team?.[role] || ""))) {
     next.guides = next.guides.map((guide) => fold(guide.student) === fold(name)
       ? { ...guide, team: { ...(guide.team || {}), ...Object.fromEntries(meetingRoles.map((role) => [role, changes.team?.[role] || ""])) } }
