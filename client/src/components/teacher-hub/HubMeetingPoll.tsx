@@ -11,6 +11,7 @@ import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import { addDays } from "@shared/hubDates";
 import { calendarEvents } from "@shared/hubHidden";
 import { busyPeople, othersCalendars, othersEvents } from "@shared/hubOthers";
+import { deadlineLabel, deadlineWords, meetingDeadline } from "@shared/meetingDeadline";
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from "./HubAvailability";
 import { localDay } from "./HubImport";
@@ -197,6 +198,9 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const today = localDay();
   useEffect(() => { api(token, "GET", "/api/teacher-hub/availability").then((d) => setWeekly(cleanWeekly(d.weekly))).catch(() => setWeekly([])); }, [token]);
 
+  // The meeting's IEP deadline (from step 1 or the student's caseload date): times are suggested before it.
+  const deadline = meeting ? meetingDeadline(workspace, meeting) : "";
+  const deadlineName = meeting && deadlineLabel(meeting.type).startsWith("Reevaluation") ? "reevaluation deadline" : "IEP deadline";
   // The people whose calendars are followed (a social worker, another teacher): times are suggested when they are not busy either.
   const people = othersCalendars(workspace);
   const [skipPeople, setSkipPeople] = useState<string[]>([]);
@@ -207,11 +211,20 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
     const busy = [...calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.meetingId !== initial.meetingId), ...theirs].filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }));
     const before = meeting?.date && meeting.date > today ? meeting.date : undefined;
     const from = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
-    let found = suggestTimes(free, { from, minutes, before, busy, skip });
-    if (!found.length && skip > 0) { setRound(0); found = suggestTimes(free, { from, minutes, before, busy, skip: 0 }); }
-    if (!found.length) { setSuggestNote("None of your available times are long enough for that. Try a shorter meeting or add more availability."); return; }
+    // The IEP deadline: only times before it are suggested.
+    const until = deadline && deadline > from ? deadline : undefined;
+    let found = suggestTimes(free, { from, minutes, before, busy, skip, until });
+    if (!found.length && skip > 0) { setRound(0); found = suggestTimes(free, { from, minutes, before, busy, skip: 0, until }); }
+    if (!found.length) {
+      setSuggestNote(until
+        ? `None of your available times before the ${deadlineName} (${deadlineWords(deadline)}) are open long enough. Try a shorter meeting, add more availability, or type times below.`
+        : "None of your available times are long enough for that. Try a shorter meeting or add more availability.");
+      return;
+    }
     setTimes(found.map((t) => ({ date: t.date, start: t.start, end: t.end })));
-    setSuggestNote(found.length < 3 ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your availability.` : "");
+    // A deadline that is today, tomorrow or already gone: the soonest times are offered instead.
+    const late = deadline && !until ? `The ${deadlineName} (${deadlineWords(deadline)}) is ${deadline < today ? "past" : "too close"}, so these are the soonest open times. ` : "";
+    setSuggestNote(late + (found.length < 3 ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your availability${until ? ` before the ${deadlineName}` : ""}.` : ""));
   }
   // The first time this opens with no times typed in, the three times are already filled in.
   const auto = useRef(false);
@@ -282,7 +295,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             </div>
           ) : (
             <div className="space-y-2">
-              <div>Suggested from your availability, and clear of anything already on your calendar{people.length > skipPeople.length ? " and on the calendars you follow" : ""}.</div>
+              <div data-testid="suggest-why">Suggested from your availability{deadline && deadline > today ? <>, <b>before the {deadlineName} ({deadlineWords(deadline)})</b></> : ""}, and clear of anything already on your calendar{people.length > skipPeople.length ? " and on the calendars you follow" : ""}.</div>
               {people.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Also keep clear of" data-testid="poll-clear-of">
                   <span className="font-semibold">Also keep clear of:</span>
@@ -315,6 +328,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
               </div>
               {/* A time that was typed in by hand may land on someone's busy time: say whose. */}
               {busyPeople(theirEvents, t).length > 0 && <p className="col-span-full text-xs font-medium text-amber-800" role="status" data-testid="poll-busy-people">{busyPeople(theirEvents, t).join(" and ")} {busyPeople(theirEvents, t).length > 1 ? "are" : "is"} busy then.</p>}
+              {deadline && t.date && t.date >= deadline && <p className={`col-span-full text-xs font-medium ${t.date > deadline ? "text-red-700" : "text-amber-800"}`} role="status" data-testid="poll-after-deadline">This is {t.date === deadline ? "on" : "after"} the {deadlineName} ({deadlineWords(deadline)}).</p>}
             </div>
           ))}
         </div>
@@ -352,7 +366,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             <button key={role} type="button" onClick={() => { setGuests((prev) => [...(seed && prev.length === 1 && !prev[0].name && !prev[0].email ? [] : prev), blankGuest(role)]); setSeed(false); }} className="min-h-11 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ {role}</button>
           ))}
         </div>
-        {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add your team's emails on the IEP guide tab and they'll show up here to tick.</p>}
+        {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add your team's emails under IEP & Meetings → IEP Guide and they'll show up here to tick.</p>}
         {(parents.length > 0 || Object.keys(picked).length > 0) && <p className="mt-2 text-xs text-slate-500">The parents and team from this student's guide are already filled in. Change anyone you like.</p>}
       </div>
 

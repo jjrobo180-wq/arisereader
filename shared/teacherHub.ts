@@ -21,7 +21,9 @@ export type Student = {
   notes: string;
 };
 
-export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan };
+export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
+  /** YYYY-MM-DD: the IEP (or reevaluation) deadline the meeting has to happen before (shared/meetingDeadline.ts). */
+  deadline?: string };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
 export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
@@ -287,7 +289,7 @@ export const HUB_IMPORT = {
     hint: "A student to add to the caseload, for example a row of a class list or roster.",
     fields: {
       name: text("Name", 80, { required: true }), grade: text("Grade", 20), readingLevel: text("Reading level", 40), mathLevel: text("Math level", 40),
-      iepDate: date("IEP date"), reevalDate: date("Reevaluation date"), accommodations: text("Accommodations", 600, { long: true }), notes: text("Notes", 1000, { long: true }),
+      iepDate: date("IEP deadline"), reevalDate: date("Reevaluation deadline"), accommodations: text("Accommodations", 600, { long: true }), notes: text("Notes", 1000, { long: true }),
     },
   },
   lessons: {

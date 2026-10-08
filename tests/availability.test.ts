@@ -97,4 +97,9 @@ test("three times are suggested from the free times, around what is already book
   assert.deepEqual(suggestTimes([], base), []);
   assert.equal(suggestTimes(weekly, { ...base, skip: 1 })[0].date, "2026-10-20", "a second set carries on from the first");
   assert.deepEqual(suggestTimes(weekly, { ...base, before: "2026-10-14" }).map((t) => t.date), ["2026-10-08", "2026-10-13", "2026-10-15"], "days before the meeting come first");
+  // An IEP deadline: only days before it, never on or after it.
+  assert.deepEqual(suggestTimes(weekly, { ...base, until: "2026-10-15" }).map((t) => t.date), ["2026-10-08", "2026-10-13"], "nothing on or after the deadline");
+  assert.deepEqual(suggestTimes(weekly, { ...base, until: "2026-10-08" }), [], "a deadline before the first open day offers nothing");
+  assert.deepEqual(suggestTimes(weekly, { ...base, until: "2026-12-31" }).map((t) => t.date), ["2026-10-08", "2026-10-13", "2026-10-15"], "a far deadline changes nothing");
+  assert.deepEqual(suggestTimes(weekly, { ...base, until: "2026-10-16", skip: 1 }), [], "no second set past the deadline");
 });
