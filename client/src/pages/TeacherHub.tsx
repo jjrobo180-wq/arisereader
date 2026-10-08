@@ -754,7 +754,7 @@ function StudentExtraFields({ details, onDetailsChange, workspace, setWorkspace,
               <Labeled label="Email (optional)"><Field type="email" aria-label="New team member email" value={staff.email} onChange={(e) => setStaff({ ...staff, email: e.target.value })} maxLength={120} placeholder="For meeting invitations" /></Labeled>
             </div>
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-            <GhostButton type="button" onClick={addTeamMember}><Plus className="h-4 w-4" /> Save person & assign</GhostButton>
+            <GhostButton onClick={addTeamMember}><Plus className="h-4 w-4" /> Save person & assign</GhostButton>
           </div>
         )}
       </div>
