@@ -10,6 +10,7 @@ import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { withBannerLink } from "../shared/banners";
+import { INVITE_PRIZES_KEY, readInvitePrizes } from "../shared/invitePrizes";
 import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
@@ -9653,6 +9654,7 @@ Important:
       }
       return emails;
     },
+    invitePrizes: async () => readInvitePrizes(await storage.getSetting(INVITE_PRIZES_KEY)),
     parentAccountEmails: async () => (await storage.getAllUsers()).filter((u: any) => u.role === "parent" && u.email).map((u: any) => String(u.email)),
     schoolName: async (schoolId) => (await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || null,
     emailConfigured,

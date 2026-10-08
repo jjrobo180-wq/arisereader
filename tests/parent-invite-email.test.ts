@@ -240,12 +240,12 @@ test("the child's name is tidied, shown as text, and the new-family list stays a
 test("the new-family box is at the top of the admin's Students list and on the teacher's Parents screen", () => {
   const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/pages/TeacherDashboard.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/FamilyEmailInvite.tsx"), server = read("server/parentInviteEmails.ts"), lib = read("client/src/lib/parentInvites.ts");
   const students = adminPage.slice(adminPage.indexOf('id="students"'));
-  assert.ok(students.indexOf("<FamilyEmailInvite />") > 0 && students.indexOf("<FamilyEmailInvite />") < students.indexOf('<div className="mb-4 space-y-2">'));
+  assert.ok(students.indexOf("<FamilyEmailInvite />") > 0 && students.indexOf("<FamilyEmailInvite />") < students.indexOf('<div className="relative min-w-0 flex-1">'), "above the search box");
   const parents = teacherPage.slice(teacherPage.indexOf('tab === "parents"'));
   assert.ok(parents.indexOf("<FamilyEmailInvite />") > 0 && parents.indexOf("<FamilyEmailInvite />") < parents.indexOf("parentConnectionsLoading ?"));
   for (const part of ['app.get("/api/parent-invites/family-emails", auth,', 'app.post("/api/parent-invites/family-email", auth,']) assert.ok(server.includes(part), part);
   for (const part of ["parentAccountEmails: async () =>", "schoolName: async (schoolId"]) assert.ok(routes.includes(part), part);
-  for (const part of ["'/api/parent-invites/family-emails'", "'/api/parent-invites/family-email'", "JSON.stringify({ email, childName })"]) assert.ok(lib.includes(part), part);
+  for (const part of ["'/api/parent-invites/family-emails'", "'/api/parent-invites/family-email'", "JSON.stringify({ email, childName, note })"]) assert.ok(lib.includes(part), part);
   assert.ok(read("client/src/pages/Profile.tsx").includes("Print / View My Parent Code") && read("client/src/pages/Profile.tsx").includes("Parent Sign-Up Letter"), "the email points at the button a student really has");
   for (const part of ['data-testid="family-email-input"', 'data-testid="family-child-input"', "Invite a family that isn't signed up yet", "You can send it before either of them has signed up.", "Send invitation", "Send again"]) assert.ok(box.includes(part), part);
 });
@@ -312,8 +312,8 @@ test("the new-family invitation can be copied too", async () => {
 
 test("both invitation boxes offer the copy, and the route needs a sign-in", () => {
   const copy = read("client/src/components/InviteCopy.tsx"), server = read("server/parentInviteEmails.ts"), lib = read("client/src/lib/parentInvites.ts");
-  assert.ok(read("client/src/components/ParentEmailInvite.tsx").includes("<InviteCopy studentId={studentId} to={email} />"));
-  assert.ok(read("client/src/components/FamilyEmailInvite.tsx").includes("<InviteCopy childName={child} to={email} />"));
+  assert.ok(read("client/src/components/ParentEmailInvite.tsx").includes("<InviteCopy studentId={studentId} note={note} to={email} />"));
+  assert.ok(read("client/src/components/FamilyEmailInvite.tsx").includes("<InviteCopy childName={child} note={note} to={email} />"));
   assert.ok(server.includes('app.post("/api/parent-invites/template", auth,'));
   assert.ok(lib.includes("'/api/parent-invites/template'"));
   for (const part of ['data-testid="invite-copy-open"', "Or copy the message to send from my own email", 'data-testid="invite-copy-subject"', 'data-testid="invite-copy-text"', "Copy with logo and pictures", "Copy words only", 'data-testid="invite-copy-preview"', "richInviteHtml(text, window.location.origin)", "Open in my email app", "navigator.clipboard.writeText(value)", "mailto:"]) assert.ok(copy.includes(part), part);

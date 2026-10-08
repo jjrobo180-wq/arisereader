@@ -81,3 +81,9 @@ export function inviteSummary(invites: SentInvite[]): { email: string; sentAt: s
   }
   return [...seen.values()];
 }
+
+export const INVITE_NOTE_MAX = 600;
+/** Something the sender wants to add in their own words, tidied: line breaks kept, odd characters and long gaps taken out, not too long. */
+export function cleanInviteNote(value: unknown): string {
+  return String(value ?? "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f<>]/g, " ").split("\n").map((line) => line.replace(/[ \t]+/g, " ").trim()).join("\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, INVITE_NOTE_MAX).trim();
+}

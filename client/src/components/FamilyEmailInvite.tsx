@@ -19,6 +19,7 @@ const SHOWN = 5;
 export default function FamilyEmailInvite() {
   const [email, setEmail] = useState("");
   const [child, setChild] = useState("");
+  const [note, setNote] = useState("");
   const [invites, setInvites] = useState<SentParentInvite[]>([]);
   const [emailReady, setEmailReady] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -38,10 +39,10 @@ export default function FamilyEmailInvite() {
     if (!address || busy) return;
     setBusy(true); setNotice(""); setError("");
     try {
-      const result = await sendFamilyInviteEmail(address, name.trim());
+      const result = await sendFamilyInviteEmail(address, name.trim(), note.trim());
       setInvites(result.invites);
       setNotice(result.message);
-      setEmail(""); setChild("");
+      setEmail(""); setChild(""); setNote("");
     } catch (err: any) {
       setError(err?.message || "The invitation could not be sent.");
     } finally {
@@ -56,10 +57,12 @@ export default function FamilyEmailInvite() {
       <p className="mt-1 text-xs text-muted-foreground">For a child who has no account. The parent gets an email that explains A.R.I.S.E. Reader and how to sign up: first the child's student account, then their own parent account. You can send it before either of them has signed up.</p>
       <form onSubmit={(e) => void send(email, child, e)} className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
         <Input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label="Parent or guardian email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} data-testid="family-email-input" />
-        <Input type="text" autoComplete="off" placeholder="Child's name (optional)" aria-label="Child's name (optional)" value={child} onChange={(e) => setChild(e.target.value)} maxLength={60} data-testid="family-child-input" />
+        <Input type="text" autoComplete="off" placeholder="Child's name" aria-label="Child's name (optional)" value={child} onChange={(e) => setChild(e.target.value)} maxLength={60} data-testid="family-child-input" />
         <Button type="submit" disabled={busy || !email.trim()} className="shrink-0" data-testid="family-email-send">{busy ? "Sending..." : "Send invitation"}</Button>
       </form>
-      <InviteCopy childName={child} to={email} />
+      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={600} placeholder="Anything to add in your own words (optional), like: We'd love to have your family reading with us this fall!" aria-label="Anything to add to the invitation" className="mt-2 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" data-testid="family-email-note" />
+      <p className="mt-1 text-xs text-muted-foreground">Type the child's name and anything to add. Both go into the email the site sends and into the message you copy.</p>
+      <InviteCopy childName={child} note={note} to={email} />
       {!emailReady && <p className="mt-2 text-xs text-amber-500">Email isn't set up on the site yet, so the site can't send invitations. You can copy the message into your own email.</p>}
       {notice && <p role="status" className="mt-2 text-sm text-emerald-500" data-testid="family-email-notice">{notice}</p>}
       {error && <p role="alert" className="mt-2 text-sm text-destructive" data-testid="family-email-error">{error}</p>}

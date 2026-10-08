@@ -4,8 +4,9 @@
 import type { Express } from "express";
 import {
   INVITES_PER_ADDRESS_PER_DAY, NEW_FAMILY_KEY, PARENT_INVITE_LOG_KEY, STAFF_INVITES_PER_DAY,
-  cleanChildName, cleanParentEmail, inviteSummary, invitesFor, readInviteLog, recordInvite, sentInLastDay,
+  cleanChildName, cleanInviteNote, cleanParentEmail, inviteSummary, invitesFor, readInviteLog, recordInvite, sentInLastDay,
 } from "../shared/parentInvites";
+import { DEFAULT_INVITE_PRIZES, INVITE_PRIZES_KEY, cleanPrizeLines, competitionLines, invitePrizeLines, readInvitePrizes } from "../shared/invitePrizes";
 import { PLANS } from "../shared/plans";
 import { familyInviteEmail, familyInviteText, parentProgramEmail, parentProgramText } from "./emailFormat";
 
@@ -22,6 +23,8 @@ export type ParentInviteDeps = {
   linkedParentEmails(studentId: number): Promise<string[]>;
   /** Email addresses that already have a parent account (for an invitation to a family that is new to the site). */
   parentAccountEmails?(): Promise<string[]>;
+  /** The prize lines the admin set for invitations. Left out, the built-in ones are used. */
+  invitePrizes?(): Promise<string[]>;
   /** The name of a school on the site, for a teacher's invitation. */
   schoolName?(schoolId: number): Promise<string | null | undefined>;
   emailConfigured(): boolean;
@@ -31,6 +34,12 @@ export type ParentInviteDeps = {
 };
 
 type Reply = { status: number; body: Record<string, unknown> };
+/** The "Prizes and competitions" lines for an invitation written right now: the admin's prizes, then the competitions that are on. */
+async function prizesNow(deps: ParentInviteDeps, site: string): Promise<string[]> {
+  let saved = DEFAULT_INVITE_PRIZES;
+  try { saved = (await deps.invitePrizes?.()) ?? DEFAULT_INVITE_PRIZES; } catch { /* the built-in ones will do */ }
+  return invitePrizeLines(saved, deps.now(), site);
+}
 const no = (status: number, message: string): Reply => ({ status, body: { message } });
 
 /** The student, if this person may write to their parents: the admin for anyone, a teacher for their own roster. */
@@ -53,7 +62,7 @@ export async function listParentInvites(deps: ParentInviteDeps, sender: InviteSe
 }
 
 /** Sends the invitation and remembers it. `origin` is the site's address as the sender sees it ("https://www.arisereader.com"). */
-export async function sendParentInvite(deps: ParentInviteDeps, sender: InviteSender, input: { studentId?: unknown; email?: unknown }, origin: string): Promise<Reply> {
+export async function sendParentInvite(deps: ParentInviteDeps, sender: InviteSender, input: { studentId?: unknown; email?: unknown; note?: unknown }, origin: string): Promise<Reply> {
   const student = await reachable(deps, sender, input?.studentId);
   if ("status" in student) return student;
   const email = cleanParentEmail(input?.email);
@@ -77,7 +86,7 @@ export async function sendParentInvite(deps: ParentInviteDeps, sender: InviteSen
   const result = await deps.sendEmail(
     email,
     `${senderName} invited you to follow ${studentName}'s reading on A.R.I.S.E. Reader`,
-    parentProgramEmail({ studentName, senderName, signupUrl, code: formattedCode, siteUrl: deps.siteUrl, maxChildren: PLANS.parentMaxChildren }),
+    parentProgramEmail({ studentName, senderName, signupUrl, code: formattedCode, siteUrl: deps.siteUrl, maxChildren: PLANS.parentMaxChildren, prizes: await prizesNow(deps, origin.replace(/\/+$/, "")), note: cleanInviteNote(input?.note) }),
     { fromName: senderName, ...(replyTo ? { replyTo } : {}) },
   );
   if (!result.sent) return no(503, "The invitation could not be sent just now. Nothing was sent. Please try again in a minute.");
@@ -116,7 +125,7 @@ export async function listFamilyInvites(deps: ParentInviteDeps, sender: InviteSe
  * Invites a family whose child has no account yet: one email about the program and how the child, then
  * the parent, signs up. From a teacher it names the teacher and school to pick on the student sign-up page.
  */
-export async function sendFamilyInvite(deps: ParentInviteDeps, sender: InviteSender, input: { email?: unknown; childName?: unknown }, origin: string): Promise<Reply> {
+export async function sendFamilyInvite(deps: ParentInviteDeps, sender: InviteSender, input: { email?: unknown; childName?: unknown; note?: unknown }, origin: string): Promise<Reply> {
   const denied = staff(sender);
   if (denied) return denied;
   const email = cleanParentEmail(input?.email);
@@ -141,7 +150,7 @@ export async function sendFamilyInvite(deps: ParentInviteDeps, sender: InviteSen
     `${senderName} invited your family to A.R.I.S.E. Reader`,
     familyInviteEmail({
       senderName, childName: child, registerUrl: `${site}/#/register`, independentUrl: `${site}/#/register-independent`, parentSignupUrl: `${site}/#/parent-signup`,
-      ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren, siteUrl: deps.siteUrl,
+      ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren, siteUrl: deps.siteUrl, prizes: await prizesNow(deps, site), note: cleanInviteNote(input?.note),
     }),
     { fromName: senderName, ...(replyTo ? { replyTo } : {}) },
   );
@@ -160,15 +169,16 @@ export async function sendFamilyInvite(deps: ParentInviteDeps, sender: InviteSen
  * With a student it is that student's invitation, code and link included. Without one it is the new-family invitation.
  * Nothing is sent and nothing is added to the list of who was invited: the site can't know whether it was sent.
  */
-export async function inviteTemplate(deps: ParentInviteDeps, sender: InviteSender, input: { studentId?: unknown; childName?: unknown }, origin: string): Promise<Reply> {
+export async function inviteTemplate(deps: ParentInviteDeps, sender: InviteSender, input: { studentId?: unknown; childName?: unknown; note?: unknown }, origin: string): Promise<Reply> {
   const site = origin.replace(/\/+$/, "");
+  const note = cleanInviteNote(input?.note);
   if (input?.studentId !== undefined && input?.studentId !== null && input?.studentId !== "") {
     const student = await reachable(deps, sender, input.studentId);
     if ("status" in student) return student;
     const { formattedCode } = await deps.parentCode(student.id);
     const made = parentProgramText({
       studentName: String(student.displayName || "your child").trim(), senderName: String(sender.displayName || sender.username || "Your child's teacher").trim(),
-      signupUrl: `${site}/#/parent-signup?code=${encodeURIComponent(formattedCode)}`, code: formattedCode, siteUrl: deps.siteUrl, maxChildren: PLANS.parentMaxChildren,
+      signupUrl: `${site}/#/parent-signup?code=${encodeURIComponent(formattedCode)}`, code: formattedCode, siteUrl: deps.siteUrl, maxChildren: PLANS.parentMaxChildren, prizes: await prizesNow(deps, site), note,
     });
     return { status: 200, body: { ...made } };
   }
@@ -179,9 +189,24 @@ export async function inviteTemplate(deps: ParentInviteDeps, sender: InviteSende
   const schoolName = teacher && sender.school_id ? String((await deps.schoolName?.(Number(sender.school_id))) || "").trim() : "";
   const made = familyInviteText({
     senderName, childName: cleanChildName(input?.childName), registerUrl: `${site}/#/register`, independentUrl: `${site}/#/register-independent`, parentSignupUrl: `${site}/#/parent-signup`,
-    ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren,
+    ...(teacher ? { teacherName: senderName } : {}), ...(schoolName ? { schoolName } : {}), maxChildren: PLANS.parentMaxChildren, prizes: await prizesNow(deps, site), note,
   });
   return { status: 200, body: { ...made } };
+}
+
+/** The prize lines invitations mention, for the admin to see and change. `automatic` are the competitions on right now, which add themselves. */
+export async function getInvitePrizes(deps: ParentInviteDeps, sender: InviteSender, origin: string): Promise<Reply> {
+  if (!sender.isAdmin) return no(403, "Admin access required.");
+  const lines = (await deps.invitePrizes?.()) ?? [...DEFAULT_INVITE_PRIZES];
+  return { status: 200, body: { lines, defaults: DEFAULT_INVITE_PRIZES, automatic: competitionLines(deps.now(), origin.replace(/\/+$/, "")) } };
+}
+
+/** Saves the prize lines (one per line of text, or a list). An empty list means invitations mention no prizes of the admin's. */
+export async function saveInvitePrizes(deps: ParentInviteDeps, sender: InviteSender, input: { lines?: unknown }, origin: string): Promise<Reply> {
+  if (!sender.isAdmin) return no(403, "Admin access required.");
+  const lines = cleanPrizeLines(input?.lines);
+  await deps.saveSetting(INVITE_PRIZES_KEY, JSON.stringify({ lines }));
+  return { status: 200, body: { success: true, message: "Saved. New invitations will use these.", lines: readInvitePrizes(JSON.stringify({ lines })), defaults: DEFAULT_INVITE_PRIZES, automatic: competitionLines(deps.now(), origin.replace(/\/+$/, "")) } };
 }
 
 /** The routes: who was invited (for a student, or as a new family), and send an invitation. All need a signed-in teacher or the admin. */
@@ -212,6 +237,24 @@ export function registerParentInviteEmailRoutes(app: Express, auth: any, deps: P
     } catch (error: any) {
       console.error("[parent-invite-email] family send failed:", error?.message);
       res.status(500).json({ message: "The invitation could not be sent. Please try again." });
+    }
+  });
+  app.get("/api/parent-invites/prizes", auth, async (req: any, res) => {
+    try {
+      const reply = await getInvitePrizes(deps, req.user, origin(req));
+      res.set("Cache-Control", "no-store").status(reply.status).json(reply.body);
+    } catch (error: any) {
+      console.error("[parent-invite-email] prizes failed:", error?.message);
+      res.status(500).json({ message: "Could not load the prizes." });
+    }
+  });
+  app.put("/api/parent-invites/prizes", auth, async (req: any, res) => {
+    try {
+      const reply = await saveInvitePrizes(deps, req.user, req.body || {}, origin(req));
+      res.set("Cache-Control", "no-store").status(reply.status).json(reply.body);
+    } catch (error: any) {
+      console.error("[parent-invite-email] save prizes failed:", error?.message);
+      res.status(500).json({ message: "The prizes could not be saved. Please try again." });
     }
   });
   app.post("/api/parent-invites/template", auth, async (req: any, res) => {
