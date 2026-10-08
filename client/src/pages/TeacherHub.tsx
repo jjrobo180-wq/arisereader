@@ -702,10 +702,10 @@ function StudentExtraFields({ details, onDetailsChange, workspace, setWorkspace,
   const [error, setError] = useState("");
 
   function addTeamMember() {
-    const name = staff.name.replace(/\\s+/g, " ").trim();
+    const name = staff.name.replace(/\s+/g, " ").trim();
     const email = staff.email.trim();
     if (!name) { setError("Enter the staff member's name."); return; }
-    if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { setError("Enter a valid email address or leave it blank."); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Enter a valid email address or leave it blank."); return; }
     const existing = workspace.spedContacts.find((c) => c.role === staff.role && c.name.toLowerCase() === name.toLowerCase());
     if (!existing && workspace.spedContacts.length >= GUIDE_LIMITS.contacts) { setError("Your staff contact list is full. Remove an unused contact in the IEP Guide first."); return; }
     const contactId = existing?.id || id();
