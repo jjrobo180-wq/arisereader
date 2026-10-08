@@ -135,7 +135,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
               {m.notes && <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-xs text-slate-500">{m.notes}</p>}
             </li>
           )} />
-          {profile.guides.length > 0 && <div className="mt-3 space-y-1">{profile.guides.map(({ guide, done, total }) => <button key={guide.id} type="button" onClick={() => onOpenTab("guide")} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 text-left text-sm"><span className="font-medium text-slate-900">{guide.kind} checklist</span><span className="text-xs font-semibold text-slate-600">{done} of {total} steps</span></button>)}</div>}
+          {profile.guides.length > 0 && <div className="mt-3 space-y-1">{profile.guides.map(({ guide, done, total }) => <button key={guide.id} type="button" onClick={() => onOpenTab("iep")} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 text-left text-sm"><span className="font-medium text-slate-900">{guide.kind} checklist</span><span className="text-xs font-semibold text-slate-600">{done} of {total} steps</span></button>)}</div>}
         </Part>
 
         <Part title="Notes" count={profile.notes.length} tab="notes" tabLabel="Notes" onOpenTab={onOpenTab}>

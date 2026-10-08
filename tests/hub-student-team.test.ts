@@ -245,7 +245,8 @@ test("the screens: one save, nothing hidden behind a second button", () => {
   const night = read("client/src/components/teacher-hub/hubNight.css");
   for (const bg of new Set([...fields.matchAll(/\bbg-[a-z]+-\d+(?:\/\d+)?/g)].map((m) => m[0]))) assert.ok(night.includes("." + bg.replace("/", "\\/")), `${bg} has a night color`);
   assert.ok(profile.includes("<StudentTeamSummary workspace={workspace} student={s.name} emails />"));
-  assert.ok(guidePage.includes("assignGuideRole(p, guide.id, role.id, contactId)") && guidePage.includes("newGuideFor(workspace, form.student, form.kind, makeId)"));
-  assert.ok(steps.includes("newGuideFor(workspace, meeting.student"));
+  assert.ok(guidePage.includes("assignGuideRole(p, guide.id, role.id, contactId)"));
+  // the guide starts with the meeting, inside the steps, with the student's own team already on it
+  assert.ok(steps.includes("newGuideFor(next, form.student, kind, makeId)") && steps.includes("newGuideFor(p, meeting.student, kind, makeId)"));
   assert.ok(poll.includes("meetingPeople(workspace, meeting.student)"));
 });

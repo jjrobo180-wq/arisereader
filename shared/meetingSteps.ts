@@ -5,11 +5,11 @@ export type StepPlan = { done: number[]; skipped: number[] };
 export const STEP_COUNT = 10;
 
 export const MEETING_STEPS: readonly { n: number; title: string; short: string }[] = [
-  { n: 1, title: "Add the meeting", short: "Add" },
+  { n: 1, title: "Add the meeting and who is coming", short: "Add" },
   { n: 2, title: "Find a time that works for everyone", short: "Find a time" },
   { n: 3, title: "See who answered and book the time", short: "Book it" },
   { n: 4, title: "Tell everyone the final time", short: "Tell everyone" },
-  { n: 5, title: "Start the guide", short: "Guide" },
+  { n: 5, title: "Work through the checklist", short: "Checklist" },
   { n: 6, title: "Gather data and work samples", short: "Gather" },
   { n: 7, title: "Draft the goals and reports", short: "Draft" },
   { n: 8, title: "Send the drafts to parents and the team", short: "Send drafts" },

@@ -159,13 +159,15 @@ export type IepGuide = {
   parent1Phone: string;
   parent2: string;
   parent2Phone: string;
+  parent1Email?: string;
+  parent2Email?: string;
   /** Who is assigned to this student: a role's id to the id of one of the teacher's saved contacts. */
   team: Record<string, string>;
   sections: GuideSection[];
 };
 
 export const HUB_TABS = [
-  "overview", "calendar", "caseload", "goals", "minutes", "iep", "guide", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
+  "overview", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 

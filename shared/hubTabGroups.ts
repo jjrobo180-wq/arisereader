@@ -1,5 +1,4 @@
-// Teacher Hub: tabs that belong together share one place in the menu (IEP meetings and the
-// IEP guide, goals and minutes, tasks and notes...). Inside, a row of buttons switches
+// Teacher Hub: tabs that belong together share one place in the menu (goals and minutes, tasks and notes...). Inside, a row of buttons switches
 // between them. The tabs themselves (and "Customize tabs") are unchanged, so a link to
 // "tasks" still opens Tasks, now inside "Tasks & Notes".
 import type { HubTab } from "./teacherHub";
@@ -10,7 +9,7 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "home", label: "Home", tabs: ["overview"] },
   { id: "calendar", label: "Calendar & Schedules", tabs: ["calendar", "schedules"] },
   { id: "caseload", label: "Caseload", tabs: ["caseload"] },
-  { id: "iep", label: "IEP & Meetings", tabs: ["iep", "guide"] },
+  { id: "iep", label: "IEP & Meetings", tabs: ["iep"] },
   { id: "progress", label: "Goals & Minutes", tabs: ["goals", "minutes"] },
   { id: "tasks", label: "Tasks & Notes", tabs: ["tasks", "notes"] },
   { id: "classroom", label: "Lessons & Grades", tabs: ["lessons", "gradebook"] },
@@ -22,7 +21,7 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   calendar: "Calendar", schedules: "Student schedules",
-  iep: "Meetings", guide: "IEP Guide",
+  iep: "Meetings",
   goals: "Goals", minutes: "Minutes",
   tasks: "Tasks", notes: "Notes",
   lessons: "Lessons", gradebook: "Gradebook",
