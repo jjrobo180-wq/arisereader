@@ -36,7 +36,7 @@ function titleOf(key: keyof Workspace, row: any): string {
     case "guides": return parts(row.student, row.kind);
     case "goals": return parts(row.student, row.area);
     case "services": return parts(row.student, row.kind);
-    case "serviceLogs": return parts(row.student, row.kind, row.minutes ? `${row.minutes} min` : "");
+    case "serviceLogs": return parts(row.student, row.kind, row.notMet ? "did not meet" : row.minutes ? `${row.minutes} min` : "");
     case "spedContacts": return String(row.name ?? "");
     case "guideLinks": return String(row.label ?? "");
     default: return "";

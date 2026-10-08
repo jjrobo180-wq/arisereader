@@ -28,7 +28,7 @@ export function localZone(): string {
 }
 
 /** A photo made small enough to send: at most 1,800 pixels on its long side, saved as a JPEG. */
-async function shrinkImage(file: File): Promise<string> {
+export async function shrinkImage(file: File): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {

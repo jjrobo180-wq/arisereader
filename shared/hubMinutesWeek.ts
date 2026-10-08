@@ -12,8 +12,12 @@ import type { ServiceLog, ServicePlan } from "./teacherHub";
  * today: due today. planned: due on a day still to come. missed: the day has passed and the minutes are still missing.
  * made up: the day came up short, but the week's total was covered on other days.
  * any day: a plan counted by the week, with minutes still to give this week. It can be given on any day.
+ * not met: the teacher said the session did not happen, and why. It is not waiting to be logged any more.
  */
-export type BlockState = "logged" | "extra" | "today" | "planned" | "missed" | "made up" | "any day";
+export type BlockState = "logged" | "extra" | "today" | "planned" | "missed" | "made up" | "any day" | "not met";
+
+/** Why a session did not happen, to pick with one tap. Any other reason can be typed. */
+export const NOT_MET_REASONS = ["Student absent", "No school", "Busy with meetings", "I was out", "Testing or assembly"] as const;
 
 /** One student in a cell: a session that was logged, or minutes a plan asks for that are not logged yet. */
 export type MinutesItem = {
@@ -36,8 +40,8 @@ export type MinutesDay = {
   planned: number; done: number;
   /** One cell for each row of the week, in the same order. */
   cells: MinutesCell[];
-  /** short: something was missed. today / ahead: something is still due. done: minutes were given and nothing is missing. empty: nothing here. */
-  state: "done" | "short" | "today" | "ahead" | "empty";
+  /** short: something was missed. today / ahead: something is still due. done: minutes were given and nothing is missing. not met: nothing was given, and the teacher said why. empty: nothing here. */
+  state: "done" | "short" | "today" | "ahead" | "not met" | "empty";
 };
 
 /** A plan counted by the week that is in no block: it has no place in the grid, so it is shown under it. */
@@ -55,6 +59,8 @@ export type MinutesWeek = {
 };
 
 const canLog = (state: BlockState) => state === "today" || state === "missed";
+/** Still waiting for minutes, so it can be marked "did not meet". */
+export const canSkip = (state: BlockState) => state === "today" || state === "missed" || state === "planned" || state === "any day";
 const mine = (log: ServiceLog, plan: ServicePlan) => log.student === plan.student && log.kind === plan.kind;
 const total = (logs: ServiceLog[]) => logs.reduce((n, l) => n + (Number(l.minutes) || 0), 0);
 
@@ -82,7 +88,7 @@ export function minutesWeek(plans: ServicePlan[], logs: ServiceLog[], blocks: Sc
       const plan = plans.find((p) => mine(l, p));
       // Extra: the student has a day guide for this service, and this is not one of its days.
       const outside = !!plan && guided(plan) && !guides.get(plan.id)![day];
-      return { key: `log:${l.id}`, student: l.student, kind: l.kind, date, block: logBlock(l, plan), minutes: Number(l.minutes) || 0, state: outside ? "extra" : "logged", logId: l.id, ...(l.note ? { note: l.note } : {}), ...(plan ? { planId: plan.id } : {}) };
+      return { key: `log:${l.id}`, student: l.student, kind: l.kind, date, block: logBlock(l, plan), minutes: l.notMet ? 0 : Number(l.minutes) || 0, state: l.notMet ? "not met" : outside ? "extra" : "logged", logId: l.id, ...(l.note ? { note: l.note } : {}), ...(plan ? { planId: plan.id } : {}) };
     });
     let planned = 0;
     for (const p of active) {
@@ -98,7 +104,8 @@ export function minutesWeek(plans: ServicePlan[], logs: ServiceLog[], blocks: Sc
       if (!ask) continue;
       planned += ask;
       const left = ask - total(dayLogs.filter((l) => mine(l, p)));
-      if (left <= 0) continue;
+      // The teacher said this one did not happen: it is answered, and not asked for again.
+      if (left <= 0 || dayLogs.some((l) => l.notMet && mine(l, p))) continue;
       const state: BlockState = date > today ? "planned" : date === today ? "today" : given >= weeklyMinutes(p) ? "made up" : "missed";
       items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state, planId: p.id });
     }
@@ -113,7 +120,7 @@ export function minutesWeek(plans: ServicePlan[], logs: ServiceLog[], blocks: Sc
       return { key: `${date}:${row.id}`, id: row.id, items: list, todo: list.filter((x) => canLog(x.state)).length, done: list.filter((x) => x.logId).reduce((n, x) => n + x.minutes, 0) };
     });
     const has = (s: BlockState) => items.some((x) => x.state === s);
-    const state: MinutesDay["state"] = has("missed") ? "short" : has("today") ? "today" : has("planned") ? "ahead" : items.some((x) => x.logId || x.state === "made up") ? "done" : "empty";
+    const state: MinutesDay["state"] = has("missed") ? "short" : has("today") ? "today" : has("planned") ? "ahead" : items.some((x) => (x.logId && x.state !== "not met") || x.state === "made up") ? "done" : has("not met") ? "not met" : "empty";
     return { day, date, planned, done, cells, state };
   });
 
@@ -133,6 +140,21 @@ export function blockLogs(items: MinutesItem[]): Omit<ServiceLog, "id">[] {
   });
 }
 
+/**
+ * "Did not meet", for the sessions that are still waiting: one record for each, with no minutes and the reason as its note.
+ * Each stays in its block. Nothing is made for a session that was already given.
+ */
+export function notMetLogs(items: Pick<MinutesItem, "student" | "kind" | "date" | "block" | "state">[], reason: string): Omit<ServiceLog, "id">[] {
+  const note = String(reason || "").replace(/\s+/g, " ").trim().slice(0, 200);
+  const seen = new Set<string>();
+  return items.filter((x) => x.student && canSkip(x.state)).flatMap((x) => {
+    const key = `${x.student}\n${x.kind}\n${x.date}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ student: x.student, date: x.date, kind: x.kind, minutes: 0, note, notMet: true as const, ...(x.block ? { block: x.block } : {}) }];
+  });
+}
+
 /** The name of the block a logged session is in: the one it was logged in, or else its plan's. "" when it is in none. */
 export function sessionBlockName(log: ServiceLog, plans: ServicePlan[], blocks: SchoolBlock[]): string {
   const name = (id: string | undefined) => (id && blocks.find((b) => b.id === id)?.name) || "";
@@ -147,8 +169,9 @@ export function openDay(week: MinutesWeek, today: string): string {
 /** A logged session changed in place. The list handed in is not changed. Nothing changes while the new session can't be saved. */
 export function updateLog(logs: ServiceLog[], id: string, session: Omit<ServiceLog, "id"> | null): ServiceLog[] {
   if (!session) return logs;
-  // The old block is dropped first, so a session changed to "no block" does not keep it. So is a clock time from before blocks took its place.
-  return logs.map((l) => { if (l.id !== id) return l; const { start: _start, end: _end, block: _block, ...rest } = l; return { ...rest, ...session }; });
+  // The old block is dropped first, so a session changed to "no block" does not keep it. So is a clock time from before blocks took its place,
+  // and "did not meet", so a day that was met after all becomes an ordinary session.
+  return logs.map((l) => { if (l.id !== id) return l; const { start: _start, end: _end, block: _block, notMet: _notMet, ...rest } = l; return { ...rest, ...session }; });
 }
 
 /** The plans with one of them moved to a block ("" takes it out of its block). The list handed in is not changed. */

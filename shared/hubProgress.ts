@@ -112,8 +112,9 @@ export function sessionLog(input: { student: string; kind: string; date: string;
  * done: the day's minutes were delivered. made up: the day came up short, but the week's total is covered.
  * short: the day has passed and its minutes are still missing. today / ahead: not over yet.
  * extra: minutes on a day the guide does not ask for. They count, and the day is never expected again.
+ * not met: the teacher said the session did not happen (and why), so it is not waiting to be logged.
  */
-export type DayStatus = { day: WeekDay; date: string; planned: number; done: number; state: "done" | "made up" | "short" | "today" | "ahead" | "extra" };
+export type DayStatus = { day: WeekDay; date: string; planned: number; done: number; state: "done" | "made up" | "short" | "today" | "ahead" | "extra" | "not met" };
 
 export type ServiceStatus = {
   required: number; thisWeek: number; remaining: number; percent: number; owed: number;
@@ -152,7 +153,8 @@ export function serviceStatus(plan: ServicePlan, logs: ServiceLog[], today: stri
       const done = delivered(logs, plan, date, date);
       if (date === today) plannedToday = planned;
       if (!planned) { if (done > 0) { extra += done; days.push({ day, date, planned: 0, done, state: "extra" }); } return; }
-      const state = done >= planned ? "done" : date > today ? "ahead" : date === today ? "today" : thisWeek >= required ? "made up" : "short";
+      const skipped = logs.some((l) => l.notMet && l.student === plan.student && l.kind === plan.kind && l.date === date);
+      const state = done >= planned ? "done" : skipped ? "not met" : date > today ? "ahead" : date === today ? "today" : thisWeek >= required ? "made up" : "short";
       days.push({ day, date, planned, done, state });
     });
   }
