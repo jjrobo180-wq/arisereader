@@ -67,6 +67,7 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
+import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
 import HubPollBell from "@/components/teacher-hub/HubPollBell";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
@@ -279,6 +280,8 @@ function TeacherHubPage() {
 
   // Connected calendars are read again when the Hub opens.
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
+  // Reminders sent from the Apple Reminders app (by an iPhone Shortcut) become to-dos.
+  const checkApple = useAppleInbox(loaded && !loadError && !needsPlan && canUseHub, token, TODAY, workspace, setWorkspace, id, (text) => { toasts.show(text, []); });
   // Work emails forwarded to the teacher's Hub address land in Emails, flagged, and on the to-do list.
   useHubInbox(loaded && !loadError && !needsPlan && canUseHub, token, workspace, setWorkspace, id, TODAY, (n) => toasts.show(n === 1 ? "A forwarded email was added to your to-do list." : `${n} forwarded emails were added to your to-do list.`, [{ label: "View", run: () => setTab("tasks") }]));
 
@@ -635,7 +638,7 @@ function TeacherHubPage() {
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
-          {tab === "tasks" && <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} />}
+          {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
