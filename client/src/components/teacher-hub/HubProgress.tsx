@@ -9,9 +9,9 @@ import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextAr
 import { HubModal } from "./HubModal";
 import { BlocksModal, MinutesWeekView, type LogStart } from "./HubMinutesWeek";
 import { NOT_MET_REASONS, blockLogs, notMetLogs, sessionBlockName, setPlanBlock, updateLog, type MinutesItem } from "@shared/hubMinutesWeek";
-import { blockName, schoolBlocks } from "@shared/hubBlocks";
-import { BulkMinutesModal, MinutesPick, type BulkStart } from "./HubMinutesBulk";
-import { QUICK_MINUTES, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
+import { blockName, cleanPart, cleanTeacher, placeText, schoolBlocks } from "@shared/hubBlocks";
+import { BulkMinutesModal, ClassFields, MinutesPick, knownTeachers, type BulkStart } from "./HubMinutesBulk";
+import { PUSH_IN, QUICK_MINUTES, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
 
 type Setter = Dispatch<SetStateAction<Workspace>>;
 type Props = { workspace: Workspace; setWorkspace: Setter; remove: (key: keyof Workspace, id: string) => void; makeId: () => string; today: string };
@@ -163,7 +163,7 @@ type LogDraft = {
 type MinutesLook = "week" | "students";
 const readLook = (): MinutesLook => { try { return localStorage.getItem("arise-hub-minutes-look") === "students" ? "students" : "week"; } catch { return "week"; } };
 /** A plan being set: counted by the day (a day guide) or by the week. */
-type PlanDraft = { /** A name is being typed, for a student who is not on the list. */ other?: boolean; id: string | null; student: string; kind: string; mode: "days" | "week"; perWeek: string; days: WeekDay[]; perDay: string; /** The block this service is in ("" for none). */ block: string };
+type PlanDraft = { /** A name is being typed, for a student who is not on the list. */ other?: boolean; id: string | null; student: string; kind: string; mode: "days" | "week"; perWeek: string; days: WeekDay[]; perDay: string; /** The block this service is in ("" for none). */ block: string; /** The half of the block ("" for the whole block), and whose class is pushed in to. */ part: string; teacher: string };
 
 /** The choice in a list of students that opens a box to type a name that is not on the list. */
 const OTHER_NAME = "__another_name__";
@@ -266,12 +266,14 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
   const planReady = plan && !(plan.mode === "days" && !plan.days.length) ? planFields({ student: knownName(plan.student, names), kind: plan.kind, perWeek: plan.perWeek, days: plan.mode === "days" ? plan.days : [], perDay: plan.perDay }) : null;
   function editPlan(p: ServicePlan) {
     const guide = cleanDayGuide(p.days), days = guideDays(p);
-    setPlan({ id: p.id, student: p.student, kind: p.kind, mode: days.length ? "days" : "week", perWeek: String(p.minutesPerWeek || ""), days, perDay: days.length ? String(guide[days[0]]) : "", block: p.block && blocks.some((b) => b.id === p.block) ? p.block : "" });
+    setPlan({ id: p.id, student: p.student, kind: p.kind, mode: days.length ? "days" : "week", perWeek: String(p.minutesPerWeek || ""), days, perDay: days.length ? String(guide[days[0]]) : "", block: p.block && blocks.some((b) => b.id === p.block) ? p.block : "", part: cleanPart(p.part) || "", teacher: cleanTeacher(p.teacher) });
   }
+  /** Where the plan being set is, as it will be saved: a half needs a block, and a class is for push-in. */
+  const planPlace = plan ? { ...(plan.block ? { block: plan.block } : {}), ...(plan.block && cleanPart(plan.part) ? { part: cleanPart(plan.part) } : {}), ...(plan.kind === PUSH_IN && cleanTeacher(plan.teacher) ? { teacher: cleanTeacher(plan.teacher) } : {}) } : {};
   function savePlan(e: FormEvent) {
     e.preventDefault();
     if (!plan || !planReady) return;
-    const fields = { ...planReady, ...(plan.block ? { block: plan.block } : {}) };
+    const fields = { ...planReady, ...planPlace };
     // Written out whole, so a plan changed from a day guide to a weekly number does not keep its old days.
     setWorkspace((w) => ({
       ...w,
@@ -281,7 +283,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
     }));
     setPlan(null);
   }
-  const newPlan = (): PlanDraft => ({ id: null, student: "", kind: "Push-in", mode: "days", perWeek: "", days: [], perDay: "", block: "" });
+  const newPlan = (): PlanDraft => ({ id: null, student: "", kind: "Push-in", mode: "days", perWeek: "", days: [], perDay: "", block: "", part: "", teacher: "" });
   const newLog = (): LogDraft => ({ student: "", date: today, kind: "Push-in", minutes: "", note: "", block: "", notMet: false, scope: "one" });
 
   return (
@@ -311,7 +313,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
             const s = serviceStatus(p, workspace.serviceLogs, today);
             return (
               <Card key={p.id} title={`${p.student} · ${p.kind}`} right={<button type="button" aria-label={`Change minutes for ${p.student}`} className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => editPlan(p)}><Pencil className="h-4 w-4" /></button>}>
-                <p className="mb-2 text-xs font-medium text-slate-500" data-testid="plan-text">{planText(p, blockName(blocks, p.block))}</p>
+                <p className="mb-2 text-xs font-medium text-slate-500" data-testid="plan-text">{planText(p, placeText(blocks, p))}</p>
                 <div className="flex items-end justify-between gap-3"><div><span className="text-3xl font-bold">{s.thisWeek}</span> <span className="text-sm text-slate-500">of {s.required} min this week</span></div><span className="text-sm font-semibold text-slate-600">{s.remaining ? `${s.remaining} left` : "Done"}</span></div>
                 <div className="mt-2"><Bar percent={s.percent} label={`${p.student} minutes this week`} tone={s.remaining ? "bg-teal-600" : "bg-emerald-600"} /></div>
                 {s.days.length > 0 && (
@@ -393,6 +395,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
             {plan.other && <Labeled label="Student's name"><Field value={plan.student} onChange={(e) => setPlan({ ...plan, student: e.target.value })} maxLength={80} autoCapitalize="words" placeholder="Type the name" aria-label="Student's name" data-testid="plan-other-name" /></Labeled>}
             <Labeled label="Kind"><Select value={plan.kind} onChange={(e) => setPlan({ ...plan, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
             <Labeled label="Block"><Select value={plan.block} onChange={(e) => setPlan({ ...plan, block: e.target.value })} aria-label="Block"><option value="">No block</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
+            <ClassFields hasBlock={!!plan.block} pushIn={plan.kind === PUSH_IN} part={plan.part} teacher={plan.teacher} known={knownTeachers(workspace)} onChange={(changes) => setPlan({ ...plan, ...changes })} />
             <div role="tablist" aria-label="How the minutes are counted" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="plan-mode">
               {([["days", "By the day"], ["week", "By the week"]] as const).map(([mode, label]) => (
                 <button key={mode} type="button" role="tab" aria-selected={plan.mode === mode} onClick={() => setPlan({ ...plan, mode })} className={`min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold ${plan.mode === mode ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
@@ -407,7 +410,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
                   </div>
                 </div>
                 <Labeled label="Minutes on each of those days"><Field type="number" inputMode="numeric" min="1" max="600" value={plan.perDay} onChange={(e) => setPlan({ ...plan, perDay: e.target.value })} aria-label="Minutes each day" /></Labeled>
-                <p className="-mt-1 text-xs text-slate-500" data-testid="plan-summary">{planReady?.days ? `${planText(planReady, blockName(blocks, plan.block))}. That is ${planReady.minutesPerWeek} min a week. ` : "Pick the days, then type the minutes. "}A session on any other day still counts, and is never expected.{optional.length ? ` ${optional.map((d) => DAY_NAMES[d]).join(" and ")} ${optional.length > 1 ? "are" : "is"} optional, so ${optional.length > 1 ? "they are" : "it is"} not a day to pick.` : ""}</p>
+                <p className="-mt-1 text-xs text-slate-500" data-testid="plan-summary">{planReady?.days ? `${planText(planReady, placeText(blocks, planPlace))}. That is ${planReady.minutesPerWeek} min a week. ` : "Pick the days, then type the minutes. "}A session on any other day still counts, and is never expected.{optional.length ? ` ${optional.map((d) => DAY_NAMES[d]).join(" and ")} ${optional.length > 1 ? "are" : "is"} optional, so ${optional.length > 1 ? "they are" : "it is"} not a day to pick.` : ""}</p>
               </>
             ) : (
               <Labeled label="Minutes each week"><Field data-autofocus type="number" inputMode="numeric" min="1" max="3000" value={plan.perWeek} onChange={(e) => setPlan({ ...plan, perWeek: e.target.value })} aria-label="Minutes each week" /></Labeled>
