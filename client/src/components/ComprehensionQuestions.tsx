@@ -1,6 +1,6 @@
-// The written reading comprehension part of a book quiz: three questions about the book,
-// for up to 10 extra points that the student's teacher gives. Only shown when a parent or
-// teacher typed the proctor code (never on a no-proctor camera quiz).
+// The written reading comprehension part at the end of a book quiz: three questions about
+// the book, for up to 10 extra points that the student's teacher gives. Shown with a
+// parent or teacher proctor code and on camera (no-proctor) quizzes.
 import { useEffect, useState } from "react";
 import { PenLine, Square, Volume2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -89,7 +89,7 @@ export function ComprehensionPreview() {
     <Card className="mt-4 shadow-md" data-testid="comprehension-preview">
       <CardContent className="p-4">
         <p className="font-semibold"><PenLine className="mr-1 inline h-4 w-4 text-emerald-500" /> Reading comprehension · up to {COMPREHENSION.bonusPoints} extra points</p>
-        <p className="mt-1 text-sm text-muted-foreground">Students who take this quiz with a parent or teacher proctor code can also answer these in writing. Not on no-proctor camera quizzes. You grade them under Reading comprehension on your dashboard.</p>
+        <p className="mt-1 text-sm text-muted-foreground">At the end of the quiz, students can also answer these in writing, with a proctor code or on their own with the camera on. You grade them under Reading Comprehension on your dashboard.</p>
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">
           {COMPREHENSION_PROMPTS.map((p) => <li key={p.id}>{p.text}</li>)}
         </ol>

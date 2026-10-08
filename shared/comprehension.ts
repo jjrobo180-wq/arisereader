@@ -1,7 +1,7 @@
-// Reading comprehension: three short written answers a student can add to any book quiz
-// for up to 10 extra points. Only when a parent or teacher entered the proctor code
-// (never on a no-proctor camera quiz). The student's teacher reads and grades them;
-// students without a teacher are graded by the admin.
+// Reading comprehension: three short written answers a student can add at the end of any
+// book quiz for up to 10 extra points, whether a parent or teacher typed the proctor code
+// or the student took it on their own with the camera on. The student's teacher reads and
+// grades them; students without a teacher are graded by the admin.
 
 export const COMPREHENSION = {
   /** Most extra points a teacher can give. */
@@ -27,9 +27,19 @@ export type ComprehensionAnswers = Record<PromptId, string>;
 
 export const EMPTY_ANSWERS: ComprehensionAnswers = { retell: "", problem: "", lesson: "" };
 
-/** Who proctored: only a parent or teacher who typed the proctor code allows comprehension. */
+/** How the quiz was watched: a parent or teacher proctor code, or the camera. Previews and sample accounts have neither. */
 export function allowsComprehension(proctorType: string | null | undefined): boolean {
-  return proctorType === "parent" || proctorType === "teacher";
+  return proctorType === "parent" || proctorType === "teacher" || proctorType === "camera";
+}
+
+/** The small note on each book quiz cover. */
+export const COVER_NOTE = `${COMPREHENSION.bonusPoints} extra credit points for doing the writing comprehension at the end`;
+
+/** Who watched, for the teacher's list. */
+export function proctorLabel(type: string | null | undefined, name: string | null | undefined): string {
+  if (type === "camera") return "On their own (camera on)";
+  if (type === "parent") return `Parent: ${name || "Parent / Guardian"}`;
+  return `Teacher / staff: ${name || "Teacher"}`;
 }
 
 const tidy = (value: unknown) => (typeof value === "string" ? value.replace(/\r\n?/g, "\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim() : "");

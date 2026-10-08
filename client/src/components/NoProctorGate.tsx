@@ -116,12 +116,12 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
         {view === "choose" && (
           <>
             <h1>How do you want to take this quiz?</h1>
+            <p className="np-bonus"><b>NEW!</b> Either way, you can write about the book at the end for up to {COMPREHENSION.bonusPoints} extra points.</p>
             <div className="np-options">
               <button type="button" className="np-option" onClick={() => setView("code")}>
                 <span className="np-option-icon"><KeyRound /></span>
                 <b>With a proctor</b>
                 <span>A parent or teacher types their proctor code.</span>
-                <em className="np-bonus">Write about the book for up to {COMPREHENSION.bonusPoints} extra points</em>
               </button>
               <button type="button" className="np-option np-option-camera" onClick={() => setView("camera")}>
                 <span className="np-option-icon"><Camera /></span>
@@ -135,7 +135,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
         {view === "code" && (
           <>
             <h1>Enter the proctor code</h1>
-            <p className="np-lead">Ask your linked parent or guardian, or a teacher, to type their private proctor code. With a proctor you can also write about the book for up to {COMPREHENSION.bonusPoints} extra points.</p>
+            <p className="np-lead">Ask your linked parent or guardian, or a teacher, to type their private proctor code.</p>
             {proctorError && <p className="np-error" role="alert">{proctorError}</p>}
             <input
               type="password"
@@ -176,7 +176,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
                 <li><ShieldCheck /><span>Stay on this screen until you turn the quiz in. Leaving once gets a warning. Leaving again turns the quiz in with the answers you have.</span></li>
                 <li><ClipboardX /><span>Copy and paste are turned off.</span></li>
                 <li><Users /><span>Your teacher, your parent and the site admin can see the pictures. They're deleted after 30 days.</span></li>
-                <li><PenLine /><span>Writing about the book for up to {COMPREHENSION.bonusPoints} extra points is only with a proctor code, not on your own.</span></li>
+                <li><PenLine /><span>At the end you can write about the book for up to {COMPREHENSION.bonusPoints} extra points.</span></li>
               </ul>
             </div>
             {error && <p className="np-error" role="alert">{error}</p>}

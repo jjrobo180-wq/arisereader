@@ -1481,7 +1481,7 @@ export async function registerRoutes(
     getParentStudentIds,
     setAttemptPoints: (attemptId, points) => storage.setAttemptPoints(attemptId, points),
   });
-  // Reading comprehension: written answers sent with a proctored book quiz, graded by the
+  // Reading comprehension: written answers sent at the end of a book quiz, graded by the
   // student's teacher for up to 10 extra points. See server/comprehension.ts.
   const comprehension = registerComprehensionRoutes(app, authMiddleware, {
     db: getAdminSupabase,
@@ -2635,7 +2635,7 @@ export async function registerRoutes(
         console.error("[no-proctor] finish", error?.message);
       }
     }
-    // Written comprehension answers count only when a parent or teacher typed the proctor code.
+    // Written comprehension answers: with a proctor code or a camera quiz (not previews or sample accounts).
     const comprehensionSent = await comprehension.saveFromQuiz({
       student: req.user,
       bookId,
