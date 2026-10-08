@@ -5,6 +5,7 @@
 // JSON object per teacher (server/teacherHub.ts).
 
 import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
+import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
 import type { StepPlan } from "./meetingSteps";
 
@@ -162,6 +163,8 @@ export type Workspace = {
   hiddenEvents?: HiddenRule[];
   /** The blocks (periods) of the school day that service minutes are sectioned by. Not set means Block 1 to Block 5. See shared/hubBlocks.ts. */
   minuteBlocks?: SchoolBlock[];
+  /** The school days that are optional: nothing is due on them, they are only for extra minutes. Not set means Wednesday. See shared/hubProgress.ts. */
+  minuteOptionalDays?: string[];
   guides: IepGuide[];
   spedContacts: HubContact[];
   guideLinks: HubLink[];
@@ -200,6 +203,8 @@ export function normalizeWorkspace(raw: any): Workspace {
     .slice(0, 200);
   const blocks = cleanBlocks(raw.minuteBlocks);
   if (blocks) out.minuteBlocks = blocks; else delete out.minuteBlocks;
+  const optional = cleanOptionalDays(raw.minuteOptionalDays);
+  if (optional) out.minuteOptionalDays = optional; else delete out.minuteOptionalDays;
   return out as Workspace;
 }
 

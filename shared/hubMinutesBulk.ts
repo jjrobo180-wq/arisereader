@@ -3,8 +3,7 @@
 // for each of them, or sets the minutes each of them needs every week. The pop-up is
 // client/src/components/teacher-hub/HubMinutesBulk.tsx; the screenshot is read in server/teacherHubImport.ts.
 import { BLOCK_NAME_MAX, blockName, type SchoolBlock } from "./hubBlocks";
-import { daysBetween } from "./hubDates";
-import { SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, guideDays, planFields, planText, sessionLog, weekStart, type WeekDay } from "./hubProgress";
+import { SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, countedPlan, guideDays, meetingDays, planFields, planText, sessionLog, weekDayOf, weekStart, type WeekDay } from "./hubProgress";
 import type { ServiceLog, ServicePlan } from "./teacherHub";
 
 /** The minutes that take one tap. Anything else is typed in the "Other" box. */
@@ -13,11 +12,40 @@ export const QUICK_MINUTES = [20, 30, 60] as const;
 /** plan: the students are in the block every week, with the minutes they need. log: minutes given on one day only. */
 export type BulkMode = "log" | "plan";
 
-/** The school day a date falls on, as the days to start with when students are added to a block from that day. None for a weekend. */
-export function schoolDay(date: string): WeekDay[] {
-  const at = daysBetween(weekStart(date), date);
-  const day = at === null ? undefined : WEEK_DAYS[at];
-  return day && day !== "Sat" && day !== "Sun" ? [day] : [];
+/**
+ * The meeting day a date falls on, as the days to start with when students are added to a block from that day.
+ * None for a weekend or an optional day: students are not put on those every week, minutes are only logged on them.
+ */
+export function schoolDay(date: string, optional: WeekDay[] = []): WeekDay[] {
+  const day = weekDayOf(date);
+  return day && meetingDays(optional).includes(day) ? [day] : [];
+}
+
+/** A name as it is kept: single spaces, no space at the ends, and not too long. */
+export const cleanName = (name: unknown): string => String(name ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+
+/**
+ * A typed name as it is used: the spelling already on the list when it is the same name in other capitals,
+ * or else the name as typed. A name typed all in small letters gets a capital on each word ("mia cruz" is Mia Cruz).
+ */
+export function knownName(typed: unknown, names: string[]): string {
+  const name = cleanName(typed);
+  const known = names.find((n) => n.toLowerCase() === name.toLowerCase());
+  if (known) return known;
+  return name === name.toLowerCase() ? name.replace(/(^|[\s-])(\p{L})/gu, (_all, before: string, letter: string) => before + letter.toUpperCase()) : name;
+}
+
+/**
+ * The names to tick from: the caseload, anyone who already has minutes, and names the teacher typed.
+ * A student does not have to be on the caseload to be given minutes. No name twice (whatever its capitals), in A to Z order.
+ */
+export function minuteNames(workspace: { students: { name: string }[]; services: { student: string }[]; serviceLogs: { student: string }[] }, typed: string[] = []): string[] {
+  const seen = new Map<string, string>();
+  for (const raw of [...workspace.students.map((s) => s.name), ...workspace.services.map((s) => s.student), ...workspace.serviceLogs.map((s) => s.student), ...typed]) {
+    const name = cleanName(raw);
+    if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
 /** What every ticked student gets, unless a student has something of their own. */
@@ -114,13 +142,15 @@ export function joinsPlan(old: Pick<ServicePlan, "days" | "block"> | undefined, 
  * The required minutes with these set. Anyone new gets them counting from this week. A student who already
  * has minutes for the same kind of service keeps the day they started counting, and has the new days added
  * (see joinsPlan) or the new minutes put in place of the old. The list handed in is not changed.
+ * `optional` are the teacher's optional days.
  */
-export function withPlans(services: ServicePlan[], plans: PlanFields[], makeId: () => string, today: string): ServicePlan[] {
+export function withPlans(services: ServicePlan[], plans: PlanFields[], makeId: () => string, today: string, optional: WeekDay[] = []): ServicePlan[] {
   let out = services;
   for (const fields of plans) {
     const at = out.findIndex((s) => s.student === fields.student && s.kind === fields.kind);
     if (at < 0) { out = [...out, { id: makeId(), ...fields, since: weekStart(today) }]; continue; }
-    const old = out[at];
+    // What was there is taken as it counts: a day that is optional now is not carried along.
+    const old = countedPlan(out[at], optional);
     let next = fields;
     if (joinsPlan(old, fields)) {
       const both = { ...cleanDayGuide(old.days), ...cleanDayGuide(fields.days) };
@@ -278,35 +308,40 @@ export function matchBlock(text: string, blocks: SchoolBlock[]): string {
 export type ReadPlaced = {
   /** The students to tick, each with what the screenshot said about them. */
   picks: BulkPicks;
-  /** Names that are not on the caseload. */
+  /** The ticked names that are new: not on the caseload, and not given minutes before. They are ticked as they were read, for the teacher to check. */
   unknown: string[];
   /** The screenshot says something about the week (days, or a weekly total), so it may be a schedule to set and not one day to log. */
   weekly: boolean;
 };
 
 /**
- * What a read screenshot ticks. A student in the screenshot twice is taken from the row in the block that
- * is already chosen, or else from the first row. Minutes are written the way the pop-up counts them:
- * for one day, or for the whole week when a student has no days.
+ * What a read screenshot ticks. A name that is not one of `students` is ticked as it was read, since a student
+ * does not have to be on the caseload. A student in the screenshot twice is taken from the row in the block
+ * that is already chosen, or else from the first row. Minutes are written the way the pop-up counts them:
+ * for one day, or for the whole week when a student has no days. Optional days are never among a student's days.
  */
-export function placeRead(rows: ReadRow[], common: BulkCommon, students: string[], blocks: SchoolBlock[]): ReadPlaced {
+export function placeRead(rows: ReadRow[], common: BulkCommon, students: string[], blocks: SchoolBlock[], optional: WeekDay[] = []): ReadPlaced {
   const picks: BulkPicks = {};
   const unknown: string[] = [];
   const where = new Map<string, string>();
   for (const row of rows) {
-    const student = matchStudent(row.student, students);
-    if (!student) { if (!unknown.some((n) => n.toLowerCase() === row.student.toLowerCase())) unknown.push(row.student); continue; }
+    const read = cleanName(row.student);
+    const student = matchStudent(read, students) || unknown.find((n) => n.toLowerCase() === read.toLowerCase()) || read;
+    if (!student) continue;
+    if (!students.includes(student) && !unknown.includes(student)) unknown.push(student);
     const block = matchBlock(row.block, blocks);
     // Already found: only a row in the chosen block takes its place.
     if (picks[student] && !(common.block && block === common.block && where.get(student) !== common.block)) continue;
     where.set(student, block);
-    const days = row.days.length ? row.days : undefined;
+    const kept = row.days.filter((d) => !optional.includes(d));
+    const days = kept.length ? kept : undefined;
     let minutes: number | null = row.minutes;
     if (common.mode === "plan") {
       const count = (days ?? common.days).length;
-      minutes = count ? row.minutes ?? (row.weekly ? Math.round(row.weekly / count) : null) : row.weekly ?? row.minutes;
+      // A weekly total is split over the days it was written for, even when one of them is optional now.
+      minutes = count ? row.minutes ?? (row.weekly ? Math.round(row.weekly / (days ? row.days.length : count)) : null) : row.weekly ?? row.minutes;
     }
     picks[student] = { ...(minutes ? { minutes: String(minutes) } : {}), ...(block ? { block } : {}), ...(row.kind ? { kind: row.kind } : {}), ...(days ? { days } : {}) };
   }
-  return { picks, unknown: unknown.slice(0, 20), weekly: rows.some((r) => r.days.length > 0 || r.weekly !== null) };
+  return { picks, unknown: unknown.slice(0, READ_ROWS_MAX), weekly: rows.some((r) => r.days.length > 0 || r.weekly !== null) };
 }

@@ -1,17 +1,19 @@
 // Teacher Hub: several students added to a block at once (they stay every week), a screenshot read into
-// the students to tick, minutes picked with one tap, and "did not meet" with a reason.
+// the students to tick, minutes picked with one tap, "did not meet" with a reason, optional days
+// (Wednesday) that are only for extra minutes, and names typed for students who are not on the caseload.
 // Run with: npx tsx --test tests/hub-minutes-bulk.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { defaultBlocks } from "../shared/hubBlocks";
 import {
-  QUICK_MINUTES, READ_ROWS_MAX, bulkLine, bulkResult, cleanDays, cleanKind, cleanReadRows, joinsPlan, lineText, matchBlock, matchStudent, placeRead, savedText, schoolDay, usualKind, withPlans,
+  QUICK_MINUTES, READ_ROWS_MAX, bulkLine, bulkResult, cleanDays, cleanKind, cleanName, cleanReadRows, joinsPlan, knownName, lineText, matchBlock, matchStudent, minuteNames, placeRead, savedText, schoolDay, usualKind, withPlans,
   type BulkCommon, type ReadRow,
 } from "../shared/hubMinutesBulk";
 import { NOT_MET_REASONS, blockLogs, canSkip, minutesWeek, notMetLogs, updateLog, type MinutesWeek } from "../shared/hubMinutesWeek";
-import { serviceStatus } from "../shared/hubProgress";
-import { HUB_IMPORT_LIMITS, type ServiceLog, type ServicePlan } from "../shared/teacherHub";
+import { DEFAULT_OPTIONAL_DAYS, cleanOptionalDays, countedPlan, meetingDays, optionalDays, planText, serviceStatus, weekDayOf } from "../shared/hubProgress";
+import { studentProfile } from "../shared/hubStudentProfile";
+import { HUB_IMPORT_LIMITS, normalizeWorkspace, type ServiceLog, type ServicePlan } from "../shared/teacherHub";
 import { hubMinutesPrompt, registerTeacherHubImportRoutes, type AiRequest } from "../server/teacherHubImport";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -246,9 +248,11 @@ test("a read screenshot ticks the students it found, each with what it said abou
     "Sam Ortiz": { block: "b4", kind: "Pull-out", days: ["Wed", "Fri"] },
     "Maya Torres": {},
     "Ava Kim": { minutes: "15" },
+    "Zed Park": { minutes: "20", block: "b1", kind: "Push-in" },
   }, "the first row for a student is the one used, and a block that is not the teacher's is left out");
-  assert.deepEqual([day.unknown, day.weekly], [["Zed Park"], true]);
+  assert.deepEqual([day.unknown, day.weekly], [["Zed Park"], true], "a name that is not on the caseload is ticked as it was read, once, and pointed out");
   assert.deepEqual(bulkResult(log({ block: "", minutes: "" }), day.picks, CASELOAD, PLANS, BLOCKS, TODAY).missing, ["Maya Torres", "Sam Ortiz"], "the ones the screenshot gave no minutes for still need them");
+  assert.deepEqual(bulkResult(log({ block: "", minutes: "" }), day.picks, minuteNames({ students: CASELOAD.map((name) => ({ name })), services: [], serviceLogs: [] }, day.unknown), PLANS, BLOCKS, TODAY).logs.map((l) => `${l.student} ${l.minutes} ${l.block || ""}`), ["Ava Kim 15 ", "Jordan Lee 20 b2", "Zed Park 20 b1"], "and saved with the rest once it is on the list");
   // Opened in Block 2: a student who is in the screenshot twice is taken from the Block 2 row.
   assert.deepEqual(placeRead(rows, log(), CASELOAD, BLOCKS).picks["Sam Ortiz"], { minutes: "10", block: "b2", kind: "Consult" });
   // Every week: minutes for each day, worked out from the weekly total when that is all there is.
@@ -258,6 +262,7 @@ test("a read screenshot ticks the students it found, each with what it said abou
     "Sam Ortiz": { minutes: "30", block: "b4", kind: "Pull-out", days: ["Wed", "Fri"] },
     "Maya Torres": { minutes: "90" },
     "Ava Kim": { minutes: "15" },
+    "Zed Park": { minutes: "20", block: "b1", kind: "Push-in" },
   });
   assert.deepEqual(bulkResult(plan({ block: "", days: [], minutes: "" }), week.picks, CASELOAD, [], BLOCKS, TODAY).plans, [
     { student: "Ava Kim", kind: "Push-in", minutesPerWeek: 15 },
@@ -270,8 +275,81 @@ test("a read screenshot ticks the students it found, each with what it said abou
   // A roster with names only: everyone is ticked, and nothing about the week is claimed.
   const roster = placeRead([{ student: "Dennis", block: "", kind: "", minutes: null, weekly: null, days: [] }, { student: "Jordan Lee", block: "", kind: "", minutes: null, weekly: null, days: [] }], log(), CASELOAD, BLOCKS);
   assert.deepEqual(roster, { picks: { "Dennis Flores": {}, "Jordan Lee": {} }, unknown: [], weekly: false });
+  // Wednesday is optional: it is never one of a student's days, and a weekly total is still split over the days it was written for.
+  const wed = placeRead([rows[1], { student: "Ava Kim", block: "", kind: "", minutes: null, weekly: 90, days: ["Mon", "Wed", "Fri"] }, { student: "Dennis", block: "", kind: "", minutes: 25, weekly: null, days: ["Wed"] }], plan({ block: "", days: [], minutes: "" }), CASELOAD, BLOCKS, ["Wed"]);
+  assert.deepEqual(wed.picks, { "Sam Ortiz": { minutes: "30", block: "b4", kind: "Pull-out", days: ["Fri"] }, "Ava Kim": { minutes: "30", days: ["Mon", "Fri"] }, "Dennis Flores": { minutes: "25" } });
   assert.deepEqual(bulkResult(log(), roster.picks, CASELOAD, PLANS, BLOCKS, TODAY).logs.map((l) => `${l.student} ${l.minutes} ${l.block}`), ["Dennis Flores 30 b2", "Jordan Lee 30 b2"]);
   assert.deepEqual(placeRead([], log(), CASELOAD, BLOCKS), { picks: {}, unknown: [], weekly: false });
+});
+
+// ─── Optional days ──────────────────────────────────────────────────────────
+
+test("Wednesday is optional: nothing is due on it, it is not a day to pick, and what is given on it is extra", () => {
+  assert.deepEqual([DEFAULT_OPTIONAL_DAYS, optionalDays({}), optionalDays({ minuteOptionalDays: "junk" }), meetingDays(["Wed"])], [["Wed"], ["Wed"], ["Wed"], ["Mon", "Tue", "Thu", "Fri"]]);
+  assert.deepEqual([optionalDays({ minuteOptionalDays: [] }), optionalDays({ minuteOptionalDays: ["Fri", "Mon", "Sat", 7, "Fri"] })], [[], ["Mon", "Fri"]], "a teacher's own choice is kept, and none at all is a choice too");
+  assert.deepEqual([cleanOptionalDays(undefined), cleanOptionalDays(null), cleanOptionalDays(["Wed"])], [null, null, ["Wed"]]);
+  assert.deepEqual([weekDayOf("2026-10-05"), weekDayOf(TODAY), weekDayOf("2026-10-11"), weekDayOf("soon")], ["Mon", "Wed", "Sun", null]);
+  // It is saved with the workspace, and a workspace without it stays without (so it follows the default).
+  assert.deepEqual(normalizeWorkspace({ minuteOptionalDays: ["Wed", "Fri", "x"] }).minuteOptionalDays, ["Wed", "Fri"]);
+  assert.deepEqual(normalizeWorkspace({ minuteOptionalDays: [] }).minuteOptionalDays, []);
+  assert.equal("minuteOptionalDays" in normalizeWorkspace({}), false);
+
+  // A plan as it counts. Nothing that was saved is changed.
+  const ava: ServicePlan = { id: "a", student: "Ava Kim", kind: "Push-in", minutesPerWeek: 90, since: "2026-09-07", days: { Mon: 30, Wed: 30, Fri: 30 }, block: "b2" };
+  const ben: ServicePlan = { id: "b", student: "Ben Cole", kind: "Push-in", minutesPerWeek: 30, since: "2026-09-07", days: { Wed: 30 }, block: "b2" }; // added on a Wednesday, before Wednesday was optional
+  const counted = countedPlan(ava, ["Wed"]);
+  assert.deepEqual([counted.days, counted.minutesPerWeek, counted.id, counted.block, planText(counted, "Block 2")], [{ Mon: 30, Fri: 30 }, 60, "a", "b2", "Mon, Fri · 30 min each · Block 2"]);
+  assert.deepEqual(ava.days, { Mon: 30, Wed: 30, Fri: 30 });
+  assert.deepEqual([countedPlan(ben, ["Wed"]), planText(countedPlan(ben, ["Wed"]))], [{ id: "b", student: "Ben Cole", kind: "Push-in", minutesPerWeek: 30, since: "2026-09-07", block: "b2" }, "30 min a week"], "a student who was only on Wednesdays keeps their minutes, counted by the week, and stays in the block");
+  assert.equal(countedPlan(jordan, ["Wed"]), jordan, "a plan with no optional day is left as it is");
+  assert.equal(countedPlan(ava, []), ava);
+
+  // The week: Wednesday asks for nothing. It is there with what was given on it, marked extra.
+  const logs: ServiceLog[] = [{ id: "w1", student: "Ava Kim", date: TODAY, kind: "Push-in", minutes: 25, note: "", block: "b2" }, { id: "w2", student: "Zed Park", date: TODAY, kind: "Other", minutes: 10, note: "", block: "b3" }];
+  const week = minutesWeek([ava, ben, sam], logs, BLOCKS, TODAY, TODAY, ["Wed"]);
+  const lines = week.days.map((d) => `${d.day}${d.optional ? " optional" : ""} ${d.done}/${d.planned} ${d.state} | ${d.cells.flatMap((c) => c.items.map((x) => `${x.student} ${x.minutes} ${x.state}`)).join(", ")}`);
+  assert.deepEqual(lines, [
+    "Mon 0/30 short | Ava Kim 30 missed, Ben Cole 30 any day",
+    "Tue 0/0 empty | Ben Cole 30 any day",
+    "Wed optional 35/0 done | Ava Kim 25 extra, Zed Park 10 extra",
+    "Thu 0/0 empty | Ben Cole 30 any day",
+    "Fri 0/60 ahead | Ava Kim 30 planned, Ben Cole 30 any day, Sam Ortiz 30 planned",
+  ], "Sam's Wednesday is not asked for either, and nobody is listed on Wednesday unless they met");
+  assert.deepEqual([week.planned, week.done], [60 + 30 + 30, 35], "the week asks for the meeting days only, and extra minutes count toward it");
+  assert.deepEqual(blockLogs(week.days[2].cells.flatMap((c) => c.items)), [], "nothing on Wednesday is waiting to be logged");
+  assert.equal(minutesWeek([ava], [], BLOCKS, TODAY, TODAY, ["Wed"]).days[2].state, "empty");
+  // Without optional days it is as it always was.
+  assert.equal(minutesWeek([ava, ben], [], BLOCKS, TODAY, TODAY).days[2].cells[1].items.map((x) => `${x.student} ${x.state}`).join(", "), "Ava Kim today, Ben Cole today");
+  assert.ok(minutesWeek([ava], [], BLOCKS, TODAY, TODAY).days.every((d) => d.optional === false));
+  // The by-student card and the student's profile count it the same way.
+  const card = serviceStatus(countedPlan(ava, ["Wed"]), logs, TODAY);
+  assert.deepEqual([card.required, card.thisWeek, card.extra, card.days.map((d) => `${d.day} ${d.state}`)], [60, 25, 25, ["Mon short", "Wed extra", "Fri ahead"]]);
+  const profile = studentProfile(normalizeWorkspace({ students: [{ id: "s1", name: "Ava Kim" }], services: [ava], serviceLogs: logs }), "s1", TODAY)!;
+  assert.deepEqual([profile.services[0].plan.days, profile.services[0].status.required], [{ Mon: 30, Fri: 30 }, 60]);
+
+  // Adding from a block: a meeting day is where "every week" starts; an optional day (or a weekend) has no day to start from, so minutes are logged there.
+  assert.deepEqual([schoolDay("2026-10-05", ["Wed"]), schoolDay(TODAY, ["Wed"]), schoolDay(TODAY, []), schoolDay("2026-10-10", ["Wed"])], [["Mon"], [], ["Wed"], []]);
+  // A student who is added to their block on another day keeps their meeting days, and the old Wednesday is not carried along.
+  const added = withPlans([ava, ben], [{ student: "Ava Kim", kind: "Push-in", minutesPerWeek: 30, days: { Tue: 30 }, block: "b2" }, { student: "Ben Cole", kind: "Push-in", minutesPerWeek: 40, days: { Mon: 20, Thu: 20 }, block: "b2" }], makeId, TODAY, ["Wed"]);
+  assert.deepEqual(added.map((p) => [p.id, p.days, p.minutesPerWeek, p.since]), [["a", { Mon: 30, Tue: 30, Fri: 30 }, 90, "2026-09-07"], ["b", { Mon: 20, Thu: 20 }, 40, "2026-09-07"]]);
+});
+
+// ─── Names that are not on the caseload ─────────────────────────────────────
+
+test("a student does not have to be on the caseload: a name can be typed, and is on the list from then on", () => {
+  const workspace = { students: [{ name: "Jordan Lee" }, { name: " Ava  Kim " }, { name: "" }], services: [{ student: "Zed Park" }, { student: "Jordan Lee" }], serviceLogs: [{ student: "liam stone" }, { student: "Zed Park" }] };
+  assert.deepEqual(minuteNames(workspace), ["Ava Kim", "Jordan Lee", "liam stone", "Zed Park"], "the caseload, and anyone who was given minutes before");
+  assert.deepEqual(minuteNames(workspace, ["  Mia   Cruz ", "JORDAN LEE", "", "Liam Stone"]), ["Ava Kim", "Jordan Lee", "liam stone", "Mia Cruz", "Zed Park"], "a typed name is added once, whatever its capitals");
+  assert.deepEqual([cleanName("  Mia   Cruz \n"), cleanName(null), cleanName("x".repeat(200)).length], ["Mia Cruz", "", 80]);
+  assert.deepEqual([knownName(" jordan  lee ", ["Jordan Lee"]), knownName("Mia Cruz", ["Jordan Lee"]), knownName("   ", ["Jordan Lee"])], ["Jordan Lee", "Mia Cruz", ""], "a name that is already there keeps its spelling");
+  assert.deepEqual(["mia cruz", "ana-maría o'neil", "McKay", "de la Cruz", "LEO"].map((n) => knownName(n, [])), ["Mia Cruz", "Ana-María O'neil", "McKay", "de la Cruz", "LEO"], "a name typed all in small letters gets its capitals; any other is kept as typed");
+  // A typed name is put in a block and logged like anyone else, and shows on the week.
+  const names = minuteNames({ students: CASELOAD.map((name) => ({ name })), services: [], serviceLogs: [] }, ["Mia Cruz"]);
+  const set = bulkResult(plan(), { "Mia Cruz": {}, "Jordan Lee": {} }, names, PLANS, BLOCKS, TODAY);
+  assert.deepEqual(set.plans.map((p) => p.student), ["Jordan Lee", "Mia Cruz"]);
+  const services = withPlans(PLANS, set.plans, makeId, TODAY);
+  assert.ok(minutesWeek(services, [], BLOCKS, "2026-10-05", TODAY).days[0].cells[1].items.some((x) => x.student === "Mia Cruz" && x.state === "missed"));
+  assert.deepEqual(bulkResult(log(), { "Mia Cruz": { minutes: "15" } }, names, PLANS, BLOCKS, TODAY).logs, [{ student: "Mia Cruz", date: TODAY, kind: "Push-in", minutes: 15, note: "", block: "b2" }]);
 });
 
 // ─── The server route ───────────────────────────────────────────────────────
@@ -371,10 +449,15 @@ test("the Minutes screen adds several students to a block, takes minutes with on
   const page = read("client/src/pages/TeacherHub.tsx"), server = read("server/teacherHubImport.ts"), index = read("server/index.ts");
   for (const part of [
     "<BulkMinutesModal workspace={workspace} today={today} token={token} start={bulk} onSave={saveBulk}",
-    // Add in a block opens on "every week", starting from the day that was tapped.
-    'onAdd={(from) => (from.student ? logFrom(from) : setBulk({ mode: "plan", date: from.date, block: from.block || "", days: schoolDay(from.date) }))}',
+    // Add in a block opens on "every week", starting from the day that was tapped. On an optional day it logs the minutes that were given.
+    "onAdd={addFrom}", "const days = schoolDay(from.date, optional);", 'setBulk({ mode: days.length ? "plan" : "log", date: from.date, block: from.block || "", days })',
+    // A student's days and minutes can be changed from the block grid, and Wednesday is not a day to pick.
+    "onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }}", "workspace.services.map((p) => countedPlan(p, optional))", "{meeting.map((d) => { const on = plan.days.includes(d);",
+    "<BlocksModal blocks={blocks} optional={optional}", "minuteBlocks: next, minuteOptionalDays: days", "withPlans(w.services, result.plans, makeId, today, optional)",
+    // A name that is not on the list can be typed.
+    "minuteNames(workspace)", "<option value={OTHER_NAME}>Another name…</option>", 'data-testid="plan-other-name"', "knownName(plan.student, names)",
     'setBulk({ mode: "log", date: today, block: "" })', 'setBulk({ mode: "plan", date: today, block: "" })', "Add several students",
-    "withPlans(w.services, result.plans, makeId, today)", "savedText(result)", 'data-testid="minutes-saved"',
+    "savedText(result)", 'data-testid="minutes-saved"',
     "<MinutesPick value={log.minutes}", "QUICK_MINUTES.map((m) =>",
     'data-testid="log-met"', '[false, "Met"], [true, "Did not meet"]', 'data-testid="log-why"', "NOT_MET_REASONS.map((reason) =>", 'aria-label="Another reason"', 'data-testid="log-who"',
     "notMetLogs(", "updateLog(w.serviceLogs, id, notMet[0])", 'l.notMet ? "Did not meet" : `${l.minutes} min`', 'd.state === "not met" ? "did not meet"',
@@ -383,15 +466,19 @@ test("the Minutes screen adds several students to a block, takes minutes with on
   assert.ok(page.includes("today={TODAY()} token={token} />"), "the Minutes tab can ask for a screenshot to be read");
   for (const part of [
     'data-testid="bulk-mode"', '["plan", "Every week"], ["log", "Just this day"]', "Repeats every week on", 'data-testid="bulk-every-day"', "You do not add them again.",
+    "{meeting.map((d) => { const on = common.days.includes(d);", 'data-testid="bulk-optional"', "so these minutes count as extra", "minuteNames(workspace, typed)",
+    'data-testid="bulk-type-name"', 'data-testid="bulk-add-name"', "Someone not on the list", 'data-testid="bulk-typed"', "placed.unknown", "New names, not on your caseload",
     'data-testid="bulk-students"', 'type="checkbox"', 'data-testid="bulk-all"', 'data-testid="bulk-in-block"',
     'data-testid="bulk-own-minutes"', 'data-testid="bulk-photo"', 'accept="image/*"', "/api/teacher-hub/import/minutes", "Authorization: `Bearer ${token}`", "shrinkImage(file)",
-    "cleanReadRows(data.rows)", "placeRead(rows, latest.current, names, blocks)", "bulkResult(common, picks, names, plans, blocks, today)", "onPaste={onPaste}",
+    "cleanReadRows(data.rows)", "placeRead(rows, latest.current, names, blocks, optional)", "bulkResult(common, picks, names, plans, blocks, today)", "onPaste={onPaste}",
     'data-testid="minutes-pick"', 'placeholder="Other"', 'aria-label="Other minutes"', "QUICK_MINUTES.map((m) =>", "Their usual block", "Their usual kind", "already {already} min this day",
     'joinsPlan(now, fields) ? "Added to" : "Takes the place of"',
   ]) assert.ok(bulk.includes(part), part);
   assert.ok(bulk.includes("sent to an AI service (OpenAI) to be read"), "the teacher is told where a screenshot goes");
   assert.ok(!bulk.includes('type="time"'), "a block takes the place of a clock time here too");
-  for (const part of ['data-testid="minutes-not-met"', "Didn't meet", 'data-testid="minutes-other-amount"', "onAdd({ ...start, notMet: true, others })", '"not met": "Did not meet"', "canSkip(x.state)", "they stay every week"]) assert.ok(week.includes(part), part);
+  for (const part of ['data-testid="minutes-not-met"', "Didn't meet", 'data-testid="minutes-other-amount"', "onAdd({ ...start, notMet: true, others })", '"not met": "Did not meet"', "canSkip(x.state)", "they stay every week",
+    'data-testid="minutes-change"', "onPlan(item.planId!)", '"Add if you met"', "d.optional ? (d.done ? `Optional · ${d.done} min extra` : \"Optional · extra only\")", 'data-testid="minutes-optional-note"', 'data-testid="blocks-meeting-days"', "onSave(ready, SCHOOL_DAYS.filter((d) => free.includes(d)))"]) assert.ok(week.includes(part), part);
+  assert.ok(!bulk.includes("SCHOOL_DAYS") && !screen.includes("SCHOOL_DAYS"), "the days to pick are the meeting days, never every school day");
   for (const [file, part] of [["client/src/components/teacher-hub/HubStudentProfile.tsx", 'l.notMet ? "did not meet"'], ["shared/hubDelete.ts", 'row.notMet ? "did not meet"']]) assert.ok(read(file).includes(part), part);
   // The read is under the address that is checked for a sign-in before a big upload is taken in, and nothing sent is logged.
   assert.ok(index.includes('app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));'));

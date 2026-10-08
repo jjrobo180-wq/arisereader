@@ -5,15 +5,15 @@
 // saved until the teacher has checked it.
 // The rules are in shared/hubMinutesBulk.ts.
 import { useId, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
-import { ImagePlus, Loader2, Settings2, Users } from "lucide-react";
+import { ImagePlus, Loader2, Plus, Settings2, Users } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { blockName, schoolBlocks } from "@shared/hubBlocks";
-import { DAY_NAMES, SERVICE_KINDS, WEEK_DAYS, planText, type WeekDay } from "@shared/hubProgress";
+import { DAY_NAMES, SERVICE_KINDS, WEEK_DAYS, countedPlan, meetingDays, optionalDays, planText, weekDayOf, type WeekDay } from "@shared/hubProgress";
 import {
-  QUICK_MINUTES, bulkLine, bulkResult, cleanReadRows, joinsPlan, linePlan, lineText, placeRead,
+  QUICK_MINUTES, bulkLine, bulkResult, cleanName, cleanReadRows, joinsPlan, knownName, linePlan, lineText, minuteNames, placeRead,
   type BulkCommon, type BulkMode, type BulkPick, type BulkPicks, type BulkResult, type ReadRow,
 } from "@shared/hubMinutesBulk";
-import { HUB_IMPORT_LIMITS, type Workspace } from "@shared/teacherHub";
+import { HUB_IMPORT_LIMITS, type ServicePlan, type Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, Labeled, PrimaryButton, Select } from "./ui";
 import { HubModal } from "./HubModal";
 import { shrinkImage } from "./HubImport";
@@ -21,7 +21,6 @@ import { shrinkImage } from "./HubImport";
 /** What the pop-up opens with: the day and block that were tapped, which of the two jobs it starts on, and the days to start with for "every week". */
 export type BulkStart = { mode: BulkMode; date: string; block: string; days?: WeekDay[] };
 
-const SCHOOL_DAYS: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const IMAGE_NAME = /\.(png|jpe?g|webp|gif|heic|heif|bmp)$/i;
 const chip = (on: boolean) => `inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
 const small = "inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border px-2.5 text-xs font-semibold";
@@ -57,9 +56,17 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
   onClose: () => void;
 }) {
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
-  const plans = workspace.services;
-  const names = useMemo(() => [...new Set(workspace.students.map((s) => s.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [workspace.students]);
-  const [common, setCommon] = useState<BulkCommon>(() => ({ mode: start.mode, date: start.date || today, block: blocks.some((b) => b.id === start.block) ? start.block : "", kind: start.mode === "plan" ? SERVICE_KINDS[0] : "", minutes: "", days: SCHOOL_DAYS.filter((d) => (start.days || []).includes(d)), note: "" }));
+  /** The optional days (Wednesday unless the teacher chose others) are not days a student can be put on every week. */
+  const optional = useMemo(() => optionalDays(workspace), [workspace.minuteOptionalDays]);
+  const meeting = useMemo(() => meetingDays(optional), [optional]);
+  // Each plan as it counts: an optional day asks for nothing.
+  const plans = useMemo(() => workspace.services.map((p) => countedPlan(p, optional)), [workspace.services, optional]);
+  /** Names that were typed here, or read from a screenshot, for students who are not on the caseload. */
+  const [typed, setTyped] = useState<string[]>([]);
+  const [newName, setNewName] = useState("");
+  const names = useMemo(() => minuteNames(workspace, typed), [workspace.students, workspace.services, workspace.serviceLogs, typed]);
+  const onCaseload = useMemo(() => new Set(workspace.students.map((s) => cleanName(s.name).toLowerCase())), [workspace.students]);
+  const [common, setCommon] = useState<BulkCommon>(() => ({ mode: start.mode, date: start.date || today, block: blocks.some((b) => b.id === start.block) ? start.block : "", kind: start.mode === "plan" ? SERVICE_KINDS[0] : "", minutes: "", days: meetingDays(optionalDays(workspace)).filter((d) => (start.days || []).includes(d)), note: "" }));
   const [picks, setPicks] = useState<BulkPicks>({});
   /** The student whose own block, kind and days are open to change. */
   const [open, setOpen] = useState<string | null>(null);
@@ -99,7 +106,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
     const next: BulkCommon = { ...common, mode, kind: mode === "plan" && !common.kind ? SERVICE_KINDS[0] : common.kind };
     setCommon(next);
     // A screenshot counts minutes by the day or by the week, so its students are counted again the new way.
-    if (read) setPicks((prev) => { const placed = placeRead(read.rows, next, names, blocks).picks; const out = { ...prev }; for (const n of Object.keys(placed)) if (out[n]) out[n] = placed[n]; return out; });
+    if (read) setPicks((prev) => { const placed = placeRead(read.rows, next, names, blocks, optional).picks; const out = { ...prev }; for (const n of Object.keys(placed)) if (out[n]) out[n] = placed[n]; return out; });
   }
 
   async function readPhotos(list: FileList | File[] | null) {
@@ -121,7 +128,9 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || (response.status === 413 ? "That is too large to read at once. Try one screenshot at a time." : "That could not be read right now. Try again in a moment."));
       const rows = cleanReadRows(data.rows);
-      const placed = placeRead(rows, latest.current, names, blocks);
+      const placed = placeRead(rows, latest.current, names, blocks, optional);
+      // A name that is not on the list is ticked as it was read: a student does not have to be on the caseload.
+      if (placed.unknown.length) setTyped((list) => [...list, ...placed.unknown]);
       setPicks((prev) => ({ ...prev, ...placed.picks }));
       setRead({ rows, found: Object.keys(placed.picks).length, unknown: placed.unknown, weekly: placed.weekly });
       setFind("");
@@ -130,6 +139,15 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
     } finally {
       setReading(false);
     }
+  }
+  /** A name typed for a student who is not on the list: it is added to the list and ticked. A name that is already there is just ticked. */
+  function addName() {
+    const name = knownName(newName, names);
+    if (!name) return;
+    if (!names.includes(name)) setTyped((list) => [...list, name]);
+    tick([name], true);
+    setNewName("");
+    setFind("");
   }
   function onPaste(e: ClipboardEvent<HTMLDivElement>) {
     // A copied screenshot arrives as a file. Words pasted into a box are left alone.
@@ -144,6 +162,8 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
     void readPhotos(e.dataTransfer?.files || null);
   }
 
+  /** The day being logged, when it is an optional day: its minutes are extra. */
+  const extraDay = optional.find((d) => d === weekDayOf(common.date));
   const minutesLabel = !plan ? "Minutes for each student" : common.days.length ? "Minutes on each of those days" : "Minutes each week";
   const saveLabel = !chosen.length ? (plan ? "Add students" : "Log minutes") : plan ? `Add ${people(chosen.length)}` : `Log for ${people(chosen.length)}`;
   const title = !plan ? "Log minutes" : blockName(blocks, common.block) ? `Add students to ${blockName(blocks, common.block)}` : "Add students to a block";
@@ -159,7 +179,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
               <button key={mode} type="button" role="tab" aria-selected={common.mode === mode} onClick={() => setMode(mode)} className={`min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold ${common.mode === mode ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
             ))}
           </div>
-          <p className="mt-1.5 text-xs text-slate-500">{plan ? "The students you tick stay in this block every week, on the days you pick. You do not add them again." : "Logs the minutes you gave on this one day, for every student you tick. It does not repeat."}</p>
+          <p className="mt-1.5 text-xs text-slate-500">{plan ? "The students you tick stay in this block every week, on the days you pick. You do not add them again." : "Logs the minutes you gave on this one day, for every student you tick. It does not repeat."}{!plan && extraDay ? ` ${DAY_NAMES[extraDay]} is optional, so these minutes count as extra.` : ""}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -173,12 +193,13 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
           <div>
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Repeats every week on</span>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Days for everyone">
-              {SCHOOL_DAYS.map((d) => { const on = common.days.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} className={chip(on)} onClick={() => set({ days: on ? common.days.filter((x) => x !== d) : WEEK_DAYS.filter((x) => x === d || common.days.includes(x)) })}>{d}</button>; })}
+              {meeting.map((d) => { const on = common.days.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} className={chip(on)} onClick={() => set({ days: on ? common.days.filter((x) => x !== d) : WEEK_DAYS.filter((x) => x === d || common.days.includes(x)) })}>{d}</button>; })}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              {common.days.length < SCHOOL_DAYS.length && <button type="button" className={smallBtn} onClick={() => set({ days: [...SCHOOL_DAYS] })} data-testid="bulk-every-day">Every school day</button>}
+              {common.days.length < meeting.length && <button type="button" className={smallBtn} onClick={() => set({ days: [...meeting] })} data-testid="bulk-every-day">Every meeting day</button>}
               <span>{common.days.length ? "" : "With no days picked, the minutes are for the whole week and can be given on any day."}</span>
             </div>
+            {optional.length > 0 && <p className="mt-1.5 text-xs text-sky-800" data-testid="bulk-optional">{optional.map((d) => DAY_NAMES[d]).join(" and ")} {optional.length > 1 ? "are" : "is"} optional, so {optional.length > 1 ? "they are" : "it is"} not listed. If you met on {optional.length > 1 ? "one of those days" : `a ${DAY_NAMES[optional[0]]}`}, tap “Add if you met” on that day and the minutes count as extra.</p>}
           </div>
         )}
 
@@ -198,26 +219,29 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
           {error && <div className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</div>}
           {read && !reading && (
             <div className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900" role="status" data-testid="bulk-read">
-              {read.found ? `${people(read.found)} ticked from your screenshot. Check them, then save.` : read.unknown.length ? "Nobody in that screenshot is on your caseload." : "No students were found in that screenshot. Try a clearer one, or tick the students yourself."}
-              {read.unknown.length > 0 && <span className="mt-1 block text-xs">Not on your caseload: {read.unknown.join(", ")}. Add them on the Caseload tab to include them.</span>}
+              {read.found ? `${people(read.found)} ticked from your screenshot. Check them, then save.` : "No students were found in that screenshot. Try a clearer one, or tick the students yourself."}
+              {read.unknown.length > 0 && <span className="mt-1 block text-xs">New names, not on your caseload: {read.unknown.join(", ")}. They are ticked too. Untick any that were read wrong.</span>}
               {read.weekly && !plan && read.found > 0 && <span className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">This looks like a weekly schedule. <button type="button" className={smallBtn} onClick={() => setMode("plan")} data-testid="bulk-read-weekly">Set it for every week</button></span>}
             </div>
           )}
 
-          {names.length ? (
-            <>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {names.length > 8 && <div className="min-w-0 flex-1 basis-40"><Field value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a student" aria-label="Find a student" /></div>}
-                <button type="button" className={smallBtn} onClick={() => tick(shown, true)} data-testid="bulk-all">Tick all</button>
-                {chosen.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(names, false)}>Clear</button>}
-                {inBlock.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(inBlock, true)} data-testid="bulk-in-block"><Users className="h-3.5 w-3.5" /> {blockName(blocks, common.block)}'s students ({inBlock.length})</button>}
-              </div>
-              <ul className="mt-2 divide-y divide-slate-100 rounded-2xl border border-slate-200" aria-label="Students" data-testid="bulk-students">
-                {shown.map((name) => <StudentRow key={name} name={name} common={common} pick={picks[name]} missing={result.missing.includes(name)} open={open === name} workspace={workspace} onTick={(on) => { tick([name], on); if (!on && open === name) setOpen(null); }} onOwn={(changes) => own(name, changes)} onOpen={() => setOpen(open === name ? null : name)} />)}
-                {!shown.length && <li className="px-3 py-4 text-center text-sm text-slate-500">No student by that name.</li>}
-              </ul>
-            </>
-          ) : <p className="mt-2 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-500">Add your students on the Caseload tab first. Then you can tick them here.</p>}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {names.length > 8 && <div className="min-w-0 flex-1 basis-40"><Field value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a student" aria-label="Find a student" /></div>}
+            {names.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(shown, true)} data-testid="bulk-all">Tick all</button>}
+            {chosen.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(names, false)}>Clear</button>}
+            {inBlock.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(inBlock, true)} data-testid="bulk-in-block"><Users className="h-3.5 w-3.5" /> {blockName(blocks, common.block)}'s students ({inBlock.length})</button>}
+          </div>
+          {names.length > 0 && (
+            <ul className="mt-2 divide-y divide-slate-100 rounded-2xl border border-slate-200" aria-label="Students" data-testid="bulk-students">
+              {shown.map((name) => <StudentRow key={name} name={name} common={common} pick={picks[name]} missing={result.missing.includes(name)} open={open === name} workspace={workspace} plans={plans} meeting={meeting} listed={onCaseload.has(name.toLowerCase())} onTick={(on) => { tick([name], on); if (!on && open === name) setOpen(null); }} onOwn={(changes) => own(name, changes)} onOpen={() => setOpen(open === name ? null : name)} />)}
+              {!shown.length && <li className="px-3 py-4 text-center text-sm text-slate-500">No student by that name. You can type the name below.</li>}
+            </ul>
+          )}
+          {/* Anyone can be given minutes: a student who is not on the caseload is typed in here. */}
+          <div className="mt-2 flex items-end gap-2" data-testid="bulk-type-name">
+            <label className="block min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Someone not on the list</span><Field value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addName(); } }} maxLength={80} autoCapitalize="words" placeholder="Type a name" aria-label="Type a name that is not on the list" /></label>
+            <button type="button" onClick={addName} disabled={!cleanName(newName)} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:min-h-10" data-testid="bulk-add-name"><Plus className="h-4 w-4" /> Add name</button>
+          </div>
           <p className="mt-2 text-xs leading-5 text-slate-500">A screenshot is sent to an AI service (OpenAI) to be read, along with your students' names so they can be matched. A.R.I.S.E. does not keep it. Leave out anything you are not allowed to share. You can also copy a screenshot and paste it here.</p>
         </div>
       </div>
@@ -226,12 +250,15 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
 }
 
 /** One student in the list: a box to tick, and once ticked, what will be saved for them and a minutes box of their own. */
-function StudentRow({ name, common, pick, missing, open, workspace, onTick, onOwn, onOpen }: {
+function StudentRow({ name, common, pick, missing, open, workspace, plans, meeting, listed, onTick, onOwn, onOpen }: {
   name: string; common: BulkCommon; pick: BulkPick | undefined; missing: boolean; open: boolean; workspace: Workspace;
+  /** The plans as they count, and the days a student can be put on. */
+  plans: ServicePlan[]; meeting: WeekDay[];
+  /** On the caseload. A name that is not was typed, or read from a screenshot. */
+  listed: boolean;
   onTick: (on: boolean) => void; onOwn: (changes: Partial<BulkPick>) => void; onOpen: () => void;
 }) {
   const blocks = schoolBlocks(workspace);
-  const plans = workspace.services;
   const plan = common.mode === "plan";
   const mine = plans.filter((p) => p.student === name);
   const line = pick ? bulkLine(common, name, pick, plans, blocks) : null;
@@ -248,7 +275,7 @@ function StudentRow({ name, common, pick, missing, open, workspace, onTick, onOw
       <div className="flex items-center gap-3 px-3 py-2">
         <input id={id} type="checkbox" className="h-5 w-5 shrink-0" checked={!!pick} onChange={(e) => onTick(e.target.checked)} />
         <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer py-1">
-          <span className="block break-words text-sm font-semibold text-slate-900">{name}</span>
+          <span className="block break-words text-sm font-semibold text-slate-900">{name}{!listed && <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-slate-600" data-testid="bulk-typed">Not on caseload</span>}</span>
           {line
             ? <span className="block text-xs text-slate-600" data-testid="bulk-line">{missing ? <span className="font-semibold text-amber-700">Needs minutes</span> : lineText(common, line, plans, blocks)}{already > 0 ? <span className="text-amber-700"> · already {already} min this day</span> : null}</span>
             : usual ? <span className="block text-xs text-slate-500">Usually {usual}</span> : null}
@@ -268,7 +295,7 @@ function StudentRow({ name, common, pick, missing, open, workspace, onTick, onOw
           <Select value={pick.kind || ""} onChange={(e) => onOwn({ kind: e.target.value })} aria-label={`Kind for ${name}`}><option value="">Same kind</option>{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select>
           {plan && (
             <div className="col-span-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={`Days for ${name}`}>
-              {SCHOOL_DAYS.map((d) => { const on = days.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} className={on ? smallOn : smallBtn} onClick={() => onOwn({ days: on ? days.filter((x) => x !== d) : WEEK_DAYS.filter((x) => x === d || days.includes(x)) })}>{d}</button>; })}
+              {meeting.map((d) => { const on = days.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} className={on ? smallOn : smallBtn} onClick={() => onOwn({ days: on ? days.filter((x) => x !== d) : WEEK_DAYS.filter((x) => x === d || days.includes(x)) })}>{d}</button>; })}
               {pick.days && <button type="button" className="min-h-9 px-1 text-xs font-semibold text-slate-600 underline" onClick={() => onOwn({ days: undefined })}>Same days as everyone</button>}
             </div>
           )}

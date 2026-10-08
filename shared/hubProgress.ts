@@ -71,6 +71,47 @@ export function cleanDayGuide(days: unknown): Partial<Record<WeekDay, number>> {
   return out;
 }
 
+// ─── Meeting days and optional days ─────────────────────────────────────────
+//
+// Some days of the school week are optional for a teacher: nothing is due on them, and they are only for
+// extra minutes. An optional day is never offered when a student's days are picked, never asks for
+// minutes, and is still on the calendar so minutes that were given on it can be added.
+
+export const SCHOOL_DAYS: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+/** The optional days of a teacher who has not chosen their own: Wednesday. */
+export const DEFAULT_OPTIONAL_DAYS: WeekDay[] = ["Wed"];
+
+/** Saved optional days made safe to use: school days only, in week order. null when none were saved (an empty list is "no optional days"). */
+export function cleanOptionalDays(raw: unknown): WeekDay[] | null {
+  return Array.isArray(raw) ? SCHOOL_DAYS.filter((d) => raw.includes(d)) : null;
+}
+
+/** This teacher's optional days: the ones they chose, or Wednesday. */
+export const optionalDays = (workspace: { minuteOptionalDays?: unknown }): WeekDay[] => cleanOptionalDays(workspace.minuteOptionalDays) ?? DEFAULT_OPTIONAL_DAYS;
+
+/** The days students can be due on: the school days that are not optional. */
+export const meetingDays = (optional: WeekDay[]): WeekDay[] => SCHOOL_DAYS.filter((d) => !optional.includes(d));
+
+/** The day of the week a date falls on. null when it is not a date. */
+export function weekDayOf(date: string): WeekDay | null {
+  const at = daysBetween(weekStart(date), date);
+  return at === null ? null : WEEK_DAYS[at] ?? null;
+}
+
+/**
+ * A plan as it counts: its optional days ask for nothing. A plan that was only on optional days keeps
+ * its minutes and is counted by the week, so the student does not drop out of sight. Nothing saved is
+ * changed, and a plan with no optional day comes back as it is.
+ */
+export function countedPlan<T extends Pick<ServicePlan, "days" | "minutesPerWeek">>(plan: T, optional: WeekDay[]): T {
+  const guide = cleanDayGuide(plan.days);
+  if (!optional.some((d) => guide[d])) return plan;
+  const kept = WEEK_DAYS.filter((d) => guide[d] && !optional.includes(d));
+  const { days: _days, ...rest } = plan;
+  if (!kept.length) return { ...rest, minutesPerWeek: WEEK_DAYS.reduce((n, d) => n + (guide[d] || 0), 0) } as T;
+  return { ...rest, days: Object.fromEntries(kept.map((d) => [d, guide[d]!])), minutesPerWeek: kept.reduce((n, d) => n + guide[d]!, 0) } as T;
+}
+
 /** The days in a plan's guide, in week order. Empty when the plan is counted by the week only. */
 export const guideDays = (plan: Pick<ServicePlan, "days">): WeekDay[] => WEEK_DAYS.filter((d) => cleanDayGuide(plan.days)[d]);
 

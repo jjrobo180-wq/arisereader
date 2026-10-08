@@ -4,7 +4,7 @@
 // and from each plan's block and day guide.
 import { addDays } from "./hubDates";
 import type { SchoolBlock } from "./hubBlocks";
-import { WEEK_DAYS, cleanDayGuide, sessionLog, weekStart, weeklyMinutes, type WeekDay } from "./hubProgress";
+import { WEEK_DAYS, cleanDayGuide, countedPlan, sessionLog, weekStart, weeklyMinutes, type WeekDay } from "./hubProgress";
 import type { ServiceLog, ServicePlan } from "./teacherHub";
 
 /**
@@ -36,6 +36,8 @@ export type MinutesCell = { key: string; id: string; items: MinutesItem[]; /** H
 
 export type MinutesDay = {
   day: WeekDay; date: string;
+  /** An optional day: nothing is due on it. Minutes given on it are extra, and can be added. */
+  optional: boolean;
   /** Minutes the day guides ask for on this day, and minutes logged on it. */
   planned: number; done: number;
   /** One cell for each row of the week, in the same order. */
@@ -68,8 +70,10 @@ const total = (logs: ServiceLog[]) => logs.reduce((n, l) => n + (Number(l.minute
  * One week of service minutes by block. `weekOf` is any day in the week to show.
  * Monday to Friday are always there; Saturday and Sunday only when something is on them.
  * A plan asks for nothing in the weeks before it started counting, the same as the make-up owed.
+ * Nothing is due on an optional day (`optional`): it is in the week with whatever was given on it, marked extra.
  */
-export function minutesWeek(plans: ServicePlan[], logs: ServiceLog[], blocks: SchoolBlock[], weekOf: string, today: string): MinutesWeek {
+export function minutesWeek(saved: ServicePlan[], logs: ServiceLog[], blocks: SchoolBlock[], weekOf: string, today: string, optional: WeekDay[] = []): MinutesWeek {
+  const plans = saved.map((p) => countedPlan(p, optional));
   const start = weekStart(weekOf), end = addDays(start, 6), thisWeek = weekStart(today);
   const inWeek = logs.filter((l) => l.date >= start && l.date <= end);
   const active = plans.filter((p) => start >= (p.since ? weekStart(p.since) : thisWeek));
@@ -86,8 +90,8 @@ export function minutesWeek(plans: ServicePlan[], logs: ServiceLog[], blocks: Sc
     const dayLogs = inWeek.filter((l) => l.date === date);
     const items: MinutesItem[] = dayLogs.map((l) => {
       const plan = plans.find((p) => mine(l, p));
-      // Extra: the student has a day guide for this service, and this is not one of its days.
-      const outside = !!plan && guided(plan) && !guides.get(plan.id)![day];
+      // Extra: the student has a day guide for this service, and this is not one of its days. Anything on an optional day is extra.
+      const outside = optional.includes(day) || (!!plan && guided(plan) && !guides.get(plan.id)![day]);
       return { key: `log:${l.id}`, student: l.student, kind: l.kind, date, block: logBlock(l, plan), minutes: l.notMet ? 0 : Number(l.minutes) || 0, state: l.notMet ? "not met" : outside ? "extra" : "logged", logId: l.id, ...(l.note ? { note: l.note } : {}), ...(plan ? { planId: plan.id } : {}) };
     });
     let planned = 0;
@@ -97,7 +101,7 @@ export function minutesWeek(plans: ServicePlan[], logs: ServiceLog[], blocks: Sc
       if (!guided(p)) {
         // Counted by the week: it sits in its block every school day until the week's minutes are given.
         const left = weeklyMinutes(p) - given;
-        if (block && i < 5 && left > 0 && !dayLogs.some((l) => mine(l, p))) items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state: "any day", planId: p.id });
+        if (block && i < 5 && !optional.includes(day) && left > 0 && !dayLogs.some((l) => mine(l, p))) items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state: "any day", planId: p.id });
         continue;
       }
       const ask = guides.get(p.id)![day] || 0;
@@ -109,19 +113,19 @@ export function minutesWeek(plans: ServicePlan[], logs: ServiceLog[], blocks: Sc
       const state: BlockState = date > today ? "planned" : date === today ? "today" : given >= weeklyMinutes(p) ? "made up" : "missed";
       items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state, planId: p.id });
     }
-    return { day, date, planned, done: total(dayLogs), items, show: i < 5 || items.length > 0 };
+    return { day, date, optional: optional.includes(day), planned, done: total(dayLogs), items, show: i < 5 || items.length > 0 };
   }).filter((d) => d.show);
 
   const rows: SchoolBlock[] = [...blocks, ...(built.some((d) => d.items.some((x) => !x.block)) ? [{ id: "", name: "No block" }] : [])];
   const order = (a: MinutesItem, b: MinutesItem) => a.student.localeCompare(b.student) || a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key);
-  const days: MinutesDay[] = built.map(({ day, date, planned, done, items }) => {
+  const days: MinutesDay[] = built.map(({ day, date, optional: free, planned, done, items }) => {
     const cells = rows.map((row): MinutesCell => {
       const list = items.filter((x) => x.block === row.id).sort(order);
       return { key: `${date}:${row.id}`, id: row.id, items: list, todo: list.filter((x) => canLog(x.state)).length, done: list.filter((x) => x.logId).reduce((n, x) => n + x.minutes, 0) };
     });
     const has = (s: BlockState) => items.some((x) => x.state === s);
     const state: MinutesDay["state"] = has("missed") ? "short" : has("today") ? "today" : has("planned") ? "ahead" : items.some((x) => (x.logId && x.state !== "not met") || x.state === "made up") ? "done" : has("not met") ? "not met" : "empty";
-    return { day, date, planned, done, cells, state };
+    return { day, date, optional: free, planned, done, cells, state };
   });
 
   const anyDay: AnyDayPlan[] = active.filter((p) => !guided(p) && !planBlock(p)).map((p) => {
