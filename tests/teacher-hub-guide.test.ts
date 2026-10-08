@@ -170,9 +170,8 @@ test("the messages fill in from the guide, and say what is still missing", () =>
 test("a Hub saved before the guide existed still opens, and a renamed student keeps their guide", () => {
   const old = normalizeWorkspace({ students: [{ id: "s1", name: "Jordan Lee" }], visibleTabs: { email: false } });
   assert.deepEqual([old.guides, old.spedContacts, old.guideLinks], [[], [], []]);
-  assert.equal(old.visibleTabs.guide, true, "the new tab shows without the teacher turning it on");
   assert.equal(old.visibleTabs.email, false);
-  assert.ok((HUB_TABS as readonly string[]).includes("guide"));
+  assert.ok(!(HUB_TABS as readonly string[]).includes("guide"), "the guide has no tab of its own: it is part of the meeting steps");
   assert.deepEqual(sectionsOf({ sections: undefined as any }), [], "a guide saved without its parts does not break the page");
 
   const hub: Workspace = { ...old, guides: [newGuide("Jordan Lee", "IEP meeting", makeId)] };
@@ -181,10 +180,10 @@ test("a Hub saved before the guide existed still opens, and a renamed student ke
   assert.equal(renamed.workspace.guides[0].student, "Jordan Lee-Park");
 });
 
-test("the IEP Guide tab is on the Hub page", () => {
-  const page = read("client/src/pages/TeacherHub.tsx"), tab = read("client/src/components/teacher-hub/HubGuide.tsx");
-  assert.ok(page.includes('{ id: "guide", label: "IEP Guide"'));
-  assert.ok(page.includes('{tab === "guide" && <HubGuideTab '));
-  for (const part of ['data-testid="hub-guide-start"', 'data-testid="hub-guide-step"', 'data-testid="hub-guide-team"', 'data-testid="hub-contact-form"', "window.confirm(", 'rel="noopener noreferrer"']) assert.ok(tab.includes(part), part);
-  assert.ok(!/dangerouslySetInnerHTML/.test(tab), "notes and names are shown as text, never as HTML");
+test("the guide is part of the meeting steps, on one screen", () => {
+  const page = read("client/src/pages/TeacherHub.tsx"), guide = read("client/src/components/teacher-hub/HubGuide.tsx"), steps = read("client/src/components/teacher-hub/HubMeetingSteps.tsx");
+  assert.ok(!page.includes('id: "guide"') && !page.includes("HubGuideTab"), "no separate IEP Guide tab");
+  assert.ok(steps.includes("<GuideDetails ") && steps.includes("<GuideChecklist "), "step 1 holds the team and details, step 5 the checklist");
+  for (const part of ['data-testid="hub-guide-step"', 'data-testid="hub-guide-team"', 'data-testid="hub-contact-form"', 'rel="noopener noreferrer"']) assert.ok(guide.includes(part), part);
+  assert.ok(!/dangerouslySetInnerHTML/.test(guide), "notes and names are shown as text, never as HTML");
 });
