@@ -121,7 +121,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
               {(status.remaining > 0 || status.owed > 0) && <div className="mt-1 text-xs text-slate-500">{status.remaining > 0 ? `${status.remaining} min left this week` : "This week is done"}{status.owed > 0 ? ` · ${status.owed} min to make up` : ""}</div>}
             </li>
           )} />
-          {profile.serviceLogs.length > 0 && <div className="mt-3"><div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Sessions logged</div><Rows rows={profile.serviceLogs} empty="" render={(l) => <li key={l.id} className={row}><span className="font-medium text-slate-900">{day(l.date)}</span>{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""} · {l.kind} · {l.minutes} min{l.note ? <span className="text-slate-500"> · {l.note}</span> : null}</li>} /></div>}
+          {profile.serviceLogs.length > 0 && <div className="mt-3"><div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Sessions logged</div><Rows rows={profile.serviceLogs} empty="" render={(l) => <li key={l.id} className={row}><span className="font-medium text-slate-900">{day(l.date)}</span>{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""} · {l.kind} · {l.notMet ? "did not meet" : `${l.minutes} min`}{l.note ? <span className="text-slate-500"> · {l.note}</span> : null}</li>} /></div>}
         </Part>
 
         <Part title="Meetings" count={profile.meetings.upcoming.length + profile.meetings.past.length} tab="iep" tabLabel="IEP & meetings" onOpenTab={onOpenTab}>

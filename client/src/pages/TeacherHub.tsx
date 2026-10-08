@@ -580,7 +580,7 @@ function TeacherHubPage() {
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
-          {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
+          {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} openGuide={(guideId) => { setGuideId(guideId); setTab("guide"); }} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "guide" && <HubGuideTab workspace={workspace} setWorkspace={setWorkspace} makeId={id} sender={{ name: user.displayName, school: workspace.profile.school }} openId={guideId} setOpenId={setGuideId} />}
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}

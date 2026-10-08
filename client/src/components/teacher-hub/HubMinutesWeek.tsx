@@ -7,13 +7,19 @@ import { Check, ChevronLeft, ChevronRight, Plus, Settings2, Trash2 } from "lucid
 import { addDays } from "@shared/hubDates";
 import { BLOCKS_MAX, BLOCK_NAME_MAX, cleanBlocks, schoolBlocks, type SchoolBlock } from "@shared/hubBlocks";
 import { DAY_NAMES } from "@shared/hubProgress";
-import { minutesWeek, monthDay, openDay, type BlockState, type MinutesCell, type MinutesDay, type MinutesItem } from "@shared/hubMinutesWeek";
+import { canSkip, minutesWeek, monthDay, openDay, type BlockState, type MinutesCell, type MinutesDay, type MinutesItem } from "@shared/hubMinutesWeek";
 import type { Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton } from "./ui";
 import { HubModal } from "./HubModal";
 
 /** What the log pop-up opens with when it is opened from the grid. */
-export type LogStart = { student?: string; kind?: string; date: string; minutes?: number; block?: string };
+export type LogStart = {
+  student?: string; kind?: string; date: string; minutes?: number; block?: string;
+  /** Open on "Did not meet", to say why. */
+  notMet?: boolean;
+  /** Who else is still waiting in the same block, and on the same day, so one reason (no school) can be given to all of them. */
+  others?: { block: MinutesItem[]; day: MinutesItem[] };
+};
 
 const ITEM_LOOK: Record<BlockState, string> = {
   logged: "border-emerald-200 bg-emerald-50 text-emerald-900",
@@ -23,10 +29,11 @@ const ITEM_LOOK: Record<BlockState, string> = {
   missed: "border-amber-200 bg-amber-50 text-amber-900",
   "made up": "border-slate-200 bg-slate-50 text-slate-600",
   "any day": "border-slate-200 bg-white text-slate-700",
+  "not met": "border-slate-200 bg-slate-100 text-slate-600",
 };
-const ITEM_WORD: Record<BlockState, string> = { logged: "Done", extra: "Extra", today: "Due today", planned: "Planned", missed: "Missed", "made up": "Made up", "any day": "Any day this week" };
-const DOT: Record<MinutesDay["state"], string> = { done: "bg-emerald-600", short: "bg-amber-500", today: "bg-teal-600", ahead: "bg-slate-300", empty: "bg-transparent" };
-const DAY_WORD: Record<MinutesDay["state"], string> = { done: "all given", short: "minutes missed", today: "due today", ahead: "planned", empty: "nothing planned" };
+const ITEM_WORD: Record<BlockState, string> = { logged: "Done", extra: "Extra", today: "Due today", planned: "Planned", missed: "Missed", "made up": "Made up", "any day": "Any day this week", "not met": "Did not meet" };
+const DOT: Record<MinutesDay["state"], string> = { done: "bg-emerald-600", short: "bg-amber-500", today: "bg-teal-600", ahead: "bg-slate-300", "not met": "bg-slate-400", empty: "bg-transparent" };
+const DAY_WORD: Record<MinutesDay["state"], string> = { done: "all given", short: "minutes missed", today: "due today", ahead: "planned", "not met": "did not meet", empty: "nothing planned" };
 // A narrow first column for the block names, then one column for each day.
 const COLS: Record<number, string> = { 5: "lg:grid-cols-[6.5rem_repeat(5,minmax(0,1fr))]", 6: "lg:grid-cols-[6.5rem_repeat(6,minmax(0,1fr))]", 7: "lg:grid-cols-[6.5rem_repeat(7,minmax(0,1fr))]" };
 const navBtn = "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50";
@@ -37,19 +44,20 @@ type Handlers = {
   onLog: (items: MinutesItem[]) => void;
   /** Open a logged session to change it. */
   onEdit: (logId: string) => void;
-  /** Open the log pop-up, filled in with what is known. */
+  /** With a student it opens the log pop-up for that student (other minutes, or did not meet); without, the pop-up that adds several students to that block. */
   onAdd: (start: LogStart) => void;
   /** Put a student's plan in a block. */
   onMove: (planId: string, block: string) => void;
 };
 
-function Item({ item, today, blocks, onLog, onEdit, onAdd, onMove }: { item: MinutesItem; today: string; blocks: SchoolBlock[] } & Handlers) {
+function Item({ item, today, blocks, others, onLog, onEdit, onAdd, onMove }: { item: MinutesItem; today: string; blocks: SchoolBlock[]; /** Who else is still waiting in this block and on this day. */ others: NonNullable<LogStart["others"]> } & Handlers) {
   const given = !!item.logId;
+  const notMet = item.state === "not met";
   const body = (
     <>
       <span className="block break-words text-sm font-semibold leading-snug">{item.student}</span>
-      <span className="block text-xs">{item.state === "any day" ? `${item.minutes} min left` : `${item.minutes} min`} · {item.kind}</span>
-      <span className="mt-0.5 block text-xs font-semibold">{given && <Check className="mr-0.5 inline h-3.5 w-3.5" aria-hidden />}{ITEM_WORD[item.state]}{item.note ? <span className="font-normal"> · {item.note}</span> : null}</span>
+      <span className="block text-xs">{notMet ? item.kind : `${item.state === "any day" ? `${item.minutes} min left` : `${item.minutes} min`} · ${item.kind}`}</span>
+      <span className="mt-0.5 block text-xs font-semibold">{given && !notMet && <Check className="mr-0.5 inline h-3.5 w-3.5" aria-hidden />}{ITEM_WORD[item.state]}{item.note ? <span className="font-normal"> · {item.note}</span> : null}</span>
     </>
   );
   const box = `rounded-xl border px-2.5 py-2 text-left ${ITEM_LOOK[item.state]}`;
@@ -60,13 +68,17 @@ function Item({ item, today, blocks, onLog, onEdit, onAdd, onMove }: { item: Min
       {blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
     </select>
   ) : null;
-  if (given) return <li data-testid="minutes-item" data-state={item.state}><button type="button" className={`${box} block w-full hover:brightness-95`} onClick={() => onEdit(item.logId!)} aria-label={`${item.student}, ${item.minutes} minutes, ${ITEM_WORD[item.state].toLowerCase()}. Change`}>{body}</button>{move}</li>;
+  if (given) return <li data-testid="minutes-item" data-state={item.state}><button type="button" className={`${box} block w-full hover:brightness-95`} onClick={() => onEdit(item.logId!)} aria-label={notMet ? `${item.student}, did not meet${item.note ? `, ${item.note}` : ""}. Change` : `${item.student}, ${item.minutes} minutes, ${ITEM_WORD[item.state].toLowerCase()}. Change`}>{body}</button>{move}</li>;
   const oneTap = item.state === "today" || item.state === "missed";
+  const start: LogStart = { student: item.student, kind: item.kind, date: item.date, block: item.block };
+  /** "Did not meet", with a reason: for this student, or for everyone still waiting in the block or on the day. */
+  const skip = <button type="button" className={smallBtn} onClick={() => onAdd({ ...start, notMet: true, others })} aria-label={`${item.student} did not meet`} data-testid="minutes-not-met">Didn't meet</button>;
   return (
     <li className={box} data-testid="minutes-item" data-state={item.state}>
       {body}
       {oneTap && <button type="button" className="mt-1.5 inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-slate-950 px-2 text-xs font-semibold text-white hover:bg-slate-800" onClick={() => onLog([item])} aria-label={`Log ${item.minutes} minutes for ${item.student}`}>Log {item.minutes} min</button>}
-      {item.state === "any day" && item.date <= today && <button type="button" className={`${smallBtn} mt-1.5 w-full`} onClick={() => onAdd({ student: item.student, kind: item.kind, date: item.date, block: item.block })} aria-label={`Log minutes for ${item.student}`}>Log minutes</button>}
+      {oneTap && <div className="mt-1 grid grid-cols-2 gap-1"><button type="button" className={smallBtn} onClick={() => onAdd(start)} aria-label={`Other minutes for ${item.student}`} data-testid="minutes-other-amount">Other</button>{skip}</div>}
+      {item.state === "any day" && item.date <= today && <div className="mt-1.5 grid grid-cols-2 gap-1"><button type="button" className={smallBtn} onClick={() => onAdd(start)} aria-label={`Log minutes for ${item.student}`}>Log</button>{skip}</div>}
       {move}
     </li>
   );
@@ -74,11 +86,12 @@ function Item({ item, today, blocks, onLog, onEdit, onAdd, onMove }: { item: Min
 
 function Cell({ cell, day, row, shown, today, blocks, ...handlers }: { cell: MinutesCell; day: MinutesDay; row: SchoolBlock; shown: boolean; today: string; blocks: SchoolBlock[] } & Handlers) {
   const where = `${row.name}, ${DAY_NAMES[day.day]}, ${monthDay(day.date)}`;
+  const others = { block: cell.items.filter((x) => canSkip(x.state)), day: day.cells.flatMap((c) => c.items).filter((x) => canSkip(x.state)) };
   return (
     <div className={`min-w-0 rounded-xl border p-1.5 ${day.date === today ? "border-teal-200 bg-teal-50/60" : "border-slate-200 bg-slate-50"} ${shown ? "" : "hidden lg:block"}`} role="group" aria-label={where} data-testid="minutes-cell" data-date={day.date} data-block={row.id}>
       {cell.todo > 1 && <button type="button" className={`${smallBtn} mb-1.5 w-full`} onClick={() => handlers.onLog(cell.items)} data-testid="minutes-log-all">Log all {cell.todo}</button>}
-      {cell.items.length > 0 && <ul className="space-y-1.5">{cell.items.map((item) => <Item key={item.key} item={item} today={today} blocks={blocks} {...handlers} />)}</ul>}
-      <button type="button" className={`inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 ${cell.items.length ? "mt-1" : ""}`} onClick={() => handlers.onAdd({ date: day.date, block: row.id })} aria-label={`Add minutes in ${where}`} data-testid="minutes-add"><Plus className="h-3.5 w-3.5" /> Add</button>
+      {cell.items.length > 0 && <ul className="space-y-1.5">{cell.items.map((item) => <Item key={item.key} item={item} today={today} blocks={blocks} others={others} {...handlers} />)}</ul>}
+      <button type="button" className={`inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 ${cell.items.length ? "mt-1" : ""}`} onClick={() => handlers.onAdd({ date: day.date, block: row.id })} aria-label={`Add students in ${where}`} data-testid="minutes-add"><Plus className="h-3.5 w-3.5" /> Add</button>
     </div>
   );
 }
@@ -160,7 +173,7 @@ export function MinutesWeekView({ workspace, today, onBlocks, ...handlers }: { w
           </ul>
         </div>
       )}
-      <p className="mt-3 text-xs text-slate-500">Each day starts fresh with the students due in each block. Forgot a day? Go back to it and add the minutes, or tap a finished session to change it.</p>
+      <p className="mt-3 text-xs text-slate-500">Each day starts fresh with the students due in each block. Tap Add in a block to put several students in it at once (or tick them from a screenshot): they stay every week. For each one, log the minutes or say they didn't meet and why. Forgot a day? Go back to it and add the minutes, or tap a finished session to change it.</p>
     </section>
   );
 }
