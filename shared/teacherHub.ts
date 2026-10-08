@@ -39,6 +39,8 @@ export type Lesson = { id: string; title: string; subject: string; group: string
 export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
   notes?: string;
+  /** Set when the to-do came from the Apple Reminders app (see shared/appleReminders.ts): which reminder it is. */
+  appleId?: string;
   /** Set when the to-do was made from a saved email (see shared/hubEmails.ts). */
   emailId?: string;
   /** When it was checked off (a moment, not a day), so it can be offered back for a day. */

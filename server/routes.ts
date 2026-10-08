@@ -42,6 +42,7 @@ import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./tea
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
+import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
@@ -59,7 +60,7 @@ import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEm
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "node:crypto";
-import { raw } from "express";
+import { raw, text as expressText } from "express";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -1224,6 +1225,8 @@ export async function registerRoutes(
       contact: async (id) => { const u: any = await storage.getUser(id); const email = String(u?.email || "").trim(); return email ? { email, name: String(u?.displayName || u?.username || "") } : null; },
       notify: (id, message) => notifyUser(id, message),
     }, text: textConfig ? createTextService(textConfig) : undefined });
+  // Reminders from the Apple Reminders app (an iPhone Shortcut sends them), one way into the Hub.
+  registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
   // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerClubPlayRoutes(app, authMiddleware);
