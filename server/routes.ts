@@ -9,6 +9,7 @@ import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
+import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
 import { INVITE_PRIZES_KEY, readInvitePrizes } from "../shared/invitePrizes";
 import { competitionWindow } from "../shared/timedCompetitions";
@@ -1180,6 +1181,22 @@ export async function registerRoutes(
   const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
   // Tells the site owner when the database is missing something the Hub needs (and what to paste to fix it).
   registerHubSetupRoutes(app, authMiddleware, { gate: hubGate });
+  // Teacher Hub: work emails forwarded to a teacher's private address land in their Hub, flagged and on the to-do list.
+  registerHubInboxRoutes(app, authMiddleware, {
+    gate: hubGate,
+    getSetting: (key) => storage.getSetting(key),
+    saveSetting: (key, value) => storage.upsertSetting(key, value),
+    accountEmail: async (teacherId) => (await storage.getUser(teacherId))?.email || null,
+    fetchReceived: async (emailId) => {
+      // The same account that sends the site's email reads what it received.
+      const url = `${PROXY_URL && PROXY_TOKEN && !RESEND_API_KEY ? PROXY_URL : "https://api.resend.com"}/emails/receiving/${encodeURIComponent(emailId)}`;
+      const headers: Record<string, string> = RESEND_API_KEY ? { Authorization: `Bearer ${RESEND_API_KEY}` } : { "x-api-key": PROXY_TOKEN };
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+      if (!response.ok) { console.error(`[hub-inbox] could not fetch email ${emailId}: ${response.status}`); return null; }
+      return await response.json();
+    },
+    now: () => Date.now(),
+  });
   let mailbox: ReturnType<typeof createMailboxService> | undefined;
   try {
     mailbox = createMailboxService({ store: createSupabaseMailboxStore(), config: configFromEnv(), appUrl: APP_URL, key: secretKey() });
