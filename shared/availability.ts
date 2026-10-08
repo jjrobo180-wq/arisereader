@@ -36,7 +36,8 @@ export function fitOption(weekly: FreeWindow[], option: Pick<PollOption, "date" 
   return today.some((w) => minutes(w.start) < to && minutes(w.end) > from) ? "partly" : "busy";
 }
 
-export const FIT_WORDS: Record<Exclude<Fit, "unknown">, string> = { free: "Usually free", partly: "Partly free", busy: "Usually busy" };
+/** How someone's weekly availability fits a time, in the words the page uses. */
+export const FIT_WORDS: Record<Exclude<Fit, "unknown">, string> = { free: "Usually available", partly: "Partly available", busy: "Usually busy" };
 
 /** A starting set of answers from the weekly times: free is yes, partly free is maybe, busy is no. */
 export function suggestAnswers(weekly: FreeWindow[], options: PollOption[]): Record<string, PollAnswer> {

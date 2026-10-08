@@ -438,7 +438,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
   app.get("/api/teacher-hub/availability", authMiddleware, async (req: any, res) => {
     res.set("Cache-Control", "no-store");
     try { res.json({ weekly: await availability.get(Number(req.user.id)) }); }
-    catch (error: any) { console.error("[availability] read failed", error?.message); res.status(500).json({ message: "Could not load your free times." }); }
+    catch (error: any) { console.error("[availability] read failed", error?.message); res.status(500).json({ message: "Could not load your availability." }); }
   });
 
   app.put("/api/teacher-hub/availability", authMiddleware, async (req: any, res) => {
@@ -446,7 +446,7 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       const weekly = cleanWeekly(req.body?.weekly);
       await availability.set(Number(req.user.id), weekly);
       res.json({ weekly });
-    } catch (error: any) { console.error("[availability] save failed", error?.message); res.status(500).json({ message: "Could not save your free times." }); }
+    } catch (error: any) { console.error("[availability] save failed", error?.message); res.status(500).json({ message: "Could not save your availability." }); }
   });
 
   const invitedView = ({ poll, invitee }: { poll: PollRow; invitee: InviteeRow }) => ({

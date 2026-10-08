@@ -56,8 +56,8 @@ export const SETUP_ITEMS: SetupItem[] = [
     ],
   },
   {
-    id: "availability", what: "Staff free times, and adding a poll to a staff member's own account", needed: false,
-    effect: "Free times can't be saved, and staff can't add a poll to their account.",
+    id: "availability", what: "Staff availability, and adding a poll to a staff member's own account", needed: false,
+    effect: "Availability can't be saved, and staff can't add a poll to their account.",
     files: ["hub_availability.sql"],
     probes: [
       { table: "hub_availability", columns: ["user_id", "weekly", "updated_at"] },

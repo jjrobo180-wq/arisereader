@@ -13,6 +13,8 @@ import { Card, Empty, Field, GhostButton, PrimaryButton, Select, TextArea } from
 import { localDay, localZone } from "./HubImport";
 import { HubModal } from "./HubModal";
 import { MyAvailability } from "./HubAvailability";
+import { AskForCalendar, OthersSchedule } from "./HubOthersCalendars";
+import { OWNER_NAME_MAX, cleanOwner } from "@shared/hubOthers";
 import type { FreeWindow } from "@shared/availability";
 import { addMonthsTo, agendaDays, clockOf, dayTimeline, isPast, monthGrid, nowParts, openRanges, shiftDay, stillAhead, weekOf, type Now } from "@shared/hubCalendar";
 import { addDays } from "@shared/hubDates";
@@ -636,6 +638,11 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
 
 export default function HubCalendarTab({ workspace, setWorkspace, token, makeId, onReminderAdded }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; onReminderAdded?: (items: QuickItems) => void }) {
   const [link, setLink] = useState("");
+  /** Whose calendar is being connected: the teacher's own, or someone else's (a social worker's, another teacher's). */
+  const [whose, setWhose] = useState<"mine" | "other">("mine");
+  const [owner, setOwner] = useState("");
+  /** For someone else's calendar: keep only when they are busy, and not what their events are. */
+  const [busyOnly, setBusyOnly] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -649,13 +656,21 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
     const url = link.trim();
     if (!url || busy) return;
     if (workspace.calendars.some((c) => c.url === url)) { setError("That calendar is already connected."); return; }
+    const theirs = whose === "other" ? cleanOwner(owner) : "";
+    if (whose === "other" && !theirs) { setError("Type whose calendar it is, like Ms. Rivera."); return; }
     setBusy("connect"); setError(""); setNotice("");
     try {
       const fresh = await readCalendarLink(token, url);
-      const calendar: ConnectedCalendar = { id: makeId(), name: fresh.name || hostLabel(url), url, syncedAt: new Date().toISOString() };
+      // Someone else's calendar goes by their name, and its events are kept apart from the teacher's own.
+      const calendar: ConnectedCalendar = theirs
+        ? { id: makeId(), name: theirs, url, syncedAt: new Date().toISOString(), owner: theirs, ...(busyOnly ? { busyOnly: true } : {}) }
+        : { id: makeId(), name: fresh.name || hostLabel(url), url, syncedAt: new Date().toISOString() };
       setWorkspace((prev) => replaceCalendarEvents(prev, calendar, fresh.events, makeId));
-      setLink("");
-      setNotice(`${calendar.name} is connected, with ${fresh.events.length} ${fresh.events.length === 1 ? "event" : "events"}. It refreshes each time you open your Hub.`);
+      setLink(""); setOwner("");
+      const count = `${fresh.events.length} ${fresh.events.length === 1 ? "event" : "events"}`;
+      setNotice(theirs
+        ? `${theirs}'s calendar is connected, with ${count}. It is not put on your calendar: it is under “Other people's calendars”, and meeting times are suggested around it. It refreshes each time you open your Hub.`
+        : `${calendar.name} is connected, with ${count}. It refreshes each time you open your Hub.`);
     } catch (err: any) {
       setError(err?.message || "That calendar could not be read right now.");
     } finally {
@@ -706,6 +721,8 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
     <>
       <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={makeId} onReminderAdded={onReminderAdded} />
 
+      <OthersSchedule workspace={workspace} today={today} />
+
       <Card title="Connected calendars" right={<span className="shrink-0 text-xs font-medium text-slate-500">{workspace.calendars.length} of {HUB_IMPORT_LIMITS.calendars}</span>}>
         {workspace.calendars.length > 0 && (
           <ul className="mb-4 space-y-2">
@@ -713,8 +730,8 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
               <li key={c.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
                 <Calendar className="h-5 w-5 shrink-0 text-teal-600" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-slate-900">{c.name}</div>
-                  <div className="text-xs text-slate-500">{workspace.events.filter((e) => e.calendarId === c.id).length} events · refreshed {new Date(c.syncedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
+                  <div className="truncate font-medium text-slate-900">{c.name}{c.owner ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-slate-600">Someone else's</span> : null}</div>
+                  <div className="text-xs text-slate-500">{workspace.events.filter((e) => e.calendarId === c.id).length} events{c.busyOnly ? " · busy times only" : ""} · refreshed {new Date(c.syncedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
                 </div>
                 <button type="button" onClick={() => void refresh(c)} disabled={!!busy} aria-label={`Refresh ${c.name}`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 disabled:opacity-40">
                   {busy === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -724,8 +741,20 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
             ))}
           </ul>
         )}
+        <div role="tablist" aria-label="Whose calendar is it" className="mb-3 flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-whose">
+          {([["mine", "My calendar"], ["other", "Someone else's"]] as const).map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={whose === value} onClick={() => { setWhose(value); setError(""); }} className={`min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold ${whose === value ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
+          ))}
+        </div>
+        {whose === "other" && (
+          <div className="mb-3 space-y-3" data-testid="calendar-other">
+            <p className="text-sm text-slate-600">Follow the calendar of someone you plan meetings with, like a social worker, a psychologist or another teacher. You see when they are busy, and meeting times are suggested around it. Their events are never put on your own calendar.</p>
+            <Field placeholder="Whose is it? Like Ms. Rivera, social worker" value={owner} onChange={(e) => setOwner(e.target.value)} maxLength={OWNER_NAME_MAX} autoCapitalize="words" disabled={full} aria-label="Whose calendar it is" data-testid="calendar-owner" />
+            <label className="flex min-h-11 items-start gap-3 text-sm text-slate-700"><input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={busyOnly} onChange={(e) => setBusyOnly(e.target.checked)} data-testid="calendar-busy-only" /><span>Only keep when they are busy, not what their events are. <span className="text-slate-500">Each one shows as “Busy”. Their calendar may name students or families.</span></span></label>
+          </div>
+        )}
         <form onSubmit={connect} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-          <Field type="url" inputMode="url" placeholder="Paste your calendar's link (it ends in .ics)" value={link} onChange={(e) => setLink(e.target.value)} disabled={full} aria-label="Calendar link" data-testid="hub-calendar-link" />
+          <Field type="url" inputMode="url" placeholder={whose === "other" ? "Paste their calendar's link (it ends in .ics)" : "Paste your calendar's link (it ends in .ics)"} value={link} onChange={(e) => setLink(e.target.value)} disabled={full} aria-label="Calendar link" data-testid="hub-calendar-link" />
           <PrimaryButton type="submit" disabled={!link.trim() || !!busy || full}>
             {busy === "connect" ? <><Loader2 className="h-4 w-4 animate-spin" /> Connecting…</> : <><Link2 className="h-4 w-4" /> Connect</>}
           </PrimaryButton>
@@ -746,6 +775,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
             <p className="text-slate-600">The link lets your Hub read your calendar. It can't change it. If your school has turned sharing off, export your calendar as a file and use "Upload a calendar file" instead.</p>
           </div>
         </details>
+        <AskForCalendar sender={workspace.profile.senderName || ""} />
       </Card>
     </>
   );

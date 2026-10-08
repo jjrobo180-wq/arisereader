@@ -1,8 +1,9 @@
 // Teacher Hub calendar: hiding events that are on the teacher's calendar but are not theirs to go to
 // (a family calendar's "Ari: parallel play" that someone else takes her to). A hidden event is not
 // shown, does not count as busy, and sends no reminder. Nothing is deleted: it can be shown again.
+import { isOthers } from "./hubOthers";
 import { expandEvents } from "./hubRepeat";
-import type { HiddenRule, HubEvent, Workspace } from "./teacherHub";
+import type { HiddenRule, HubCalendar, HubEvent, Workspace } from "./teacherHub";
 
 const fold = (text: string) => String(text || "").trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -15,11 +16,14 @@ export function isHidden(event: Pick<HubEvent, "title" | "date" | "start">, rule
 }
 
 /**
- * The events to draw and to plan around between two days: repeating events worked out day by day,
- * hidden ones left out. Use this everywhere the calendar is read.
+ * The teacher's own events to draw and to plan around between two days: repeating events worked out day
+ * by day, hidden ones left out. Use this everywhere the calendar is read. Events on other people's
+ * calendars are never in it (shared/hubOthers.ts has those): they are not the teacher's to go to.
  */
-export function calendarEvents(workspace: Pick<Workspace, "events" | "hiddenEvents">, from: string, to: string): HubEvent[] {
-  const all = expandEvents(workspace.events || [], from, to);
+export function calendarEvents(workspace: Pick<Workspace, "events" | "hiddenEvents"> & { calendars?: HubCalendar[] }, from: string, to: string): HubEvent[] {
+  const theirs = new Set((workspace.calendars || []).filter(isOthers).map((c) => c.id));
+  const mine = theirs.size ? (workspace.events || []).filter((e) => !e.calendarId || !theirs.has(e.calendarId)) : workspace.events || [];
+  const all = expandEvents(mine, from, to);
   const rules = workspace.hiddenEvents;
   return rules?.length ? all.filter((e) => !isHidden(e, rules)) : all;
 }

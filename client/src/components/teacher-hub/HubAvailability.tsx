@@ -1,4 +1,5 @@
-// Teacher Hub: weekly free times, answering a poll for someone, and the polls other people invited you to.
+// Teacher Hub: weekly availability (the times someone can usually meet), answering a poll for someone, and the polls other people invited you to.
+// The page says "availability" everywhere. In the code and the saved data the same times are still called free windows.
 import { useCallback, useEffect, useState } from "react";
 import { Check, Loader2, Plus, Trash2, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -15,12 +16,16 @@ export async function api(token: string | null, method: string, path: string, bo
 
 const field = "min-h-11 rounded-xl border border-slate-200 bg-white px-2 text-base outline-none focus:border-slate-400 sm:text-sm";
 
-/** Rows of "day, from, to". Used for your own times and for a person on your team. */
+/** What a teacher is told, in small letters, wherever availability is added. */
+export const AVAILABILITY_TIP = "Choose your planning block, and avoid Wednesdays if possible.";
+
+/** Rows of "day, from, to". Used for your own availability and for a person on your team. `label` is who it is for: "you", or a person's name. */
 export function WeeklyEditor({ value, onChange, label }: { value: FreeWindow[]; onChange: (next: FreeWindow[]) => void; label: string }) {
   const set = (i: number, patch: Partial<FreeWindow>) => onChange(value.map((w, k) => (k === i ? { ...w, ...patch } : w)));
   return (
     <div className="space-y-2" data-testid="weekly-editor">
-      {value.length === 0 && <p className="text-sm text-slate-500">No free times yet. Add the times {label} is usually free.</p>}
+      {value.length === 0 && <p className="text-sm text-slate-500">No availability yet. Add the times {label === "you" ? "you are" : `${label} is`} usually available.</p>}
+      <p className="text-xs text-slate-500" data-testid="availability-tip">{label === "you" ? AVAILABILITY_TIP : AVAILABILITY_TIP.replace("your", "their")}</p>
       {value.map((w, i) => (
         <div key={i} className="flex flex-wrap items-center gap-2">
           <select aria-label={`Day ${i + 1}`} className={field} value={w.day} onChange={(e) => set(i, { day: Number(e.target.value) })}>
@@ -29,15 +34,15 @@ export function WeeklyEditor({ value, onChange, label }: { value: FreeWindow[]; 
           <input aria-label={`From ${i + 1}`} type="time" className={field} value={w.start} onChange={(e) => set(i, { start: e.target.value })} />
           <span className="text-sm text-slate-500">to</span>
           <input aria-label={`To ${i + 1}`} type="time" className={field} value={w.end} onChange={(e) => set(i, { end: e.target.value })} />
-          <button type="button" aria-label={`Remove free time ${i + 1}`} onClick={() => onChange(value.filter((_, k) => k !== i))} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+          <button type="button" aria-label={`Remove time ${i + 1}`} onClick={() => onChange(value.filter((_, k) => k !== i))} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
         </div>
       ))}
-      {value.length < AVAILABILITY_LIMIT && <GhostButton onClick={() => onChange([...value, { day: 1, start: "08:00", end: "12:00" }])}><Plus className="h-4 w-4" /> Add free time</GhostButton>}
+      {value.length < AVAILABILITY_LIMIT && <GhostButton onClick={() => onChange([...value, { day: 1, start: "08:00", end: "12:00" }])}><Plus className="h-4 w-4" /> Add a time</GhostButton>}
     </div>
   );
 }
 
-/** My own weekly free times, saved to my account. People who linked a poll to their account share these with the person who invited them. */
+/** My own weekly availability, saved to my account. People who linked a poll to their account share these with the person who invited them. */
 export function MyAvailability({ token, setNotice, onChange, defaultOpen = false }: { token: string | null; setNotice: (text: string) => void; onChange?: (weekly: FreeWindow[]) => void; defaultOpen?: boolean }) {
   const [weekly, setWeekly] = useState<FreeWindow[] | null>(null);
   const [saved, setSaved] = useState("[]");
@@ -48,20 +53,20 @@ export function MyAvailability({ token, setNotice, onChange, defaultOpen = false
   const dirty = JSON.stringify(weekly) !== saved;
   async function save() {
     setBusy(true);
-    try { const d = await api(token, "PUT", "/api/teacher-hub/availability", { weekly: cleanWeekly(weekly) }); setWeekly(d.weekly); setSaved(JSON.stringify(d.weekly)); onChange?.(d.weekly); setNotice("Your free times are saved."); }
-    catch (e: any) { setNotice(e?.message || "Could not save your free times."); } finally { setBusy(false); }
+    try { const d = await api(token, "PUT", "/api/teacher-hub/availability", { weekly: cleanWeekly(weekly) }); setWeekly(d.weekly); setSaved(JSON.stringify(d.weekly)); onChange?.(d.weekly); setNotice("Your availability is saved."); }
+    catch (e: any) { setNotice(e?.message || "Could not save your availability."); } finally { setBusy(false); }
   }
   return (
     <div className="rounded-2xl border border-slate-200 p-3 text-sm" data-testid="my-availability">
       <div className="flex items-center justify-between gap-2">
-        <div><span className="font-semibold">My free times</span> <span className="text-slate-500">{weekly.length ? `${weekly.length} saved` : "none saved"}</span></div>
+        <div><span className="font-semibold">My availability</span> <span className="text-slate-500">{weekly.length ? `${weekly.length} saved` : "none saved"}</span></div>
         <GhostButton onClick={() => setOpen(!open)}>{open ? "Close" : weekly.length ? "Edit" : "Add"}</GhostButton>
       </div>
       {open && (
         <div className="mt-3 space-y-3">
-          <p className="text-slate-600">The times you are usually free each week. When someone who invites you opens their link while signed in and adds the poll to their account, they can see whether you're usually free for each time offered. They never see your calendar.</p>
-          <WeeklyEditor value={weekly} onChange={setWeekly} label="you are" />
-          <PrimaryButton onClick={save} disabled={busy || !dirty}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save my free times</PrimaryButton>
+          <p className="text-slate-600">The times you can usually meet each week. When someone who invites you opens their link while signed in and adds the poll to their account, they can see whether you're usually available for each time offered. They never see your calendar.</p>
+          <WeeklyEditor value={weekly} onChange={setWeekly} label="you" />
+          <PrimaryButton onClick={save} disabled={busy || !dirty}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save my availability</PrimaryButton>
         </div>
       )}
     </div>
@@ -76,7 +81,7 @@ const CHOICES: { value: PollAnswer; label: string; on: string }[] = [
 
 export type OptionLite = { id: string; date: string; start: string; end: string; label: string };
 
-/** Pick Works / Maybe / Can't for each time. Can start from weekly free times. */
+/** Pick Works / Maybe / Can't for each time. Can start from weekly availability. */
 export function AnswerEditor({ options, answers, comment, weekly, fit, saveLabel, busy, onSave, onCancel }: {
   options: OptionLite[]; answers: Record<string, PollAnswer>; comment: string; weekly?: FreeWindow[]; fit?: Record<string, Fit>; saveLabel: string; busy: boolean;
   onSave: (answers: Record<string, PollAnswer>, comment: string) => void; onCancel?: () => void;
@@ -88,7 +93,7 @@ export function AnswerEditor({ options, answers, comment, weekly, fit, saveLabel
   return (
     <div className="space-y-3" data-testid="answer-editor">
       {weekly && weekly.length > 0 && Object.keys(filled).length > 0 && (
-        <GhostButton onClick={() => setMine({ ...mine, ...filled })}>Fill in from free times</GhostButton>
+        <GhostButton onClick={() => setMine({ ...mine, ...filled })}>Fill in from my availability</GhostButton>
       )}
       {options.map((o) => (
         <div key={o.id}>
