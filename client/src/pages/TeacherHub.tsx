@@ -67,6 +67,7 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
+import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
 import HubPollBell from "@/components/teacher-hub/HubPollBell";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
@@ -565,20 +566,8 @@ function TeacherHubPage() {
 
           {tab === "overview" && (
             <>
-              <div className="rounded-3xl bg-slate-950 p-5 text-white sm:p-6 md:rounded-[2rem] md:p-8">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-400">Welcome back, {user.displayName.split(" ")[0]}</p>
-                    <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Your teacher workspace</h1>
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Everything here saves to your account automatically.</p>
-                  </div>
-                  <div className="grid w-full grid-cols-3 gap-2 text-center lg:w-auto">
-                    <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.students.length}</div><div className="text-[11px] text-slate-300">Students</div></div>
-                    <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.tasks.filter((t) => !t.done).length}</div><div className="text-[11px] text-slate-300">Open tasks</div></div>
-                    <div className="rounded-2xl bg-white/10 px-2 py-3 sm:px-4"><div className="text-2xl font-bold">{workspace.meetings.filter((m) => !m.done).length}</div><div className="text-[11px] text-slate-300">Meetings</div></div>
-                  </div>
-                </div>
-              </div>
+              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={user.displayName.split(" ")[0]}
+                stats={[{ label: "Students", value: workspace.students.length }, { label: "Open tasks", value: workspace.tasks.filter((t) => !t.done).length }, { label: "Meetings", value: workspace.meetings.filter((m) => !m.done).length }]} />
 
               <Card title="Add things fast">
                 <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
