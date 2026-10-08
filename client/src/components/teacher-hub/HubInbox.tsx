@@ -87,7 +87,7 @@ export function ForwardingCard({ token, isAdmin }: { token: string | null; isAdm
             <div className="space-y-2" data-testid="hub-forwarding-setup">
               <p>Set this up once for the whole site. Then every Hub teacher gets their own forwarding address.</p>
               <ol className="list-decimal space-y-1 pl-5 text-slate-600">
-                <li>Open <a className="font-semibold text-teal-700 underline" href="https://resend.com/emails" target="_blank" rel="noreferrer">resend.com/emails</a>, choose the <b>Receiving</b> tab, then the ⋯ button and <b>Receiving address</b>. Copy the part after the @ (it looks like abc123.resend.app).</li>
+                <li>Open <a className="font-semibold text-teal-700 underline" href="https://resend.com/emails" target="_blank" rel="noreferrer">resend.com/emails</a>, choose the <b>Receiving</b> tab, then the ⋯ button and <b>Receiving address</b>. Copy it and paste it below. It looks like &lt;anything&gt;@abc123.resend.app, and pasting all of it is fine.</li>
                 <li>Open <a className="font-semibold text-teal-700 underline" href="https://resend.com/webhooks" target="_blank" rel="noreferrer">resend.com/webhooks</a>, add a webhook for <b>email.received</b> with this address: <code className="break-all rounded bg-slate-100 px-1">{window.location.origin}/api/hub-inbox/webhook</code>. Copy its signing secret (it starts with whsec_).</li>
                 <li>Paste both here and save.</li>
               </ol>

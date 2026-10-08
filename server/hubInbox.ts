@@ -31,7 +31,8 @@ const DOMAIN = /^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}
 export function readConfig(raw: unknown): InboxConfig {
   let data: any = raw;
   if (typeof raw === "string") { try { data = JSON.parse(raw); } catch { data = null; } }
-  const domain = String(data?.domain || "").trim().toLowerCase().replace(/^@/, "");
+  // Resend shows the receiving address as "<anything>@abc123.resend.app": whatever was pasted, the domain is the part after the last "@".
+  const domain = String(data?.domain || "").trim().toLowerCase().replace(/^mailto:/, "").split("@").pop()!.replace(/[<>\s"'/]+/g, "").replace(/\.+$/, "");
   const secret = String(data?.secret || "").trim();
   return { domain: DOMAIN.test(domain) ? domain : "", secret: /^whsec_[A-Za-z0-9+/=]{16,}$/.test(secret) ? secret : "" };
 }

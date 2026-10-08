@@ -52,6 +52,8 @@ test("addresses: a private token on the site's receiving domain", () => {
   assert.deepEqual(cleanSenders(" Me@School.org, me@gmail.com;  me@school.org nope "), ["me@school.org", "me@gmail.com"]);
   assert.deepEqual(readConfig({ domain: " @ABC123.Resend.App ", secret: SECRET }), { domain: DOMAIN, secret: SECRET });
   assert.deepEqual(readConfig({ domain: "not a domain", secret: "nope" }), { domain: "", secret: "" });
+  assert.equal(readConfig({ domain: "<anything>@xaaelkeana.resend.app", secret: SECRET }).domain, "xaaelkeana.resend.app");
+  assert.equal(readConfig({ domain: "mailto:hi@ABC123.resend.app.", secret: SECRET }).domain, "abc123.resend.app");
 });
 
 test("the email is tidied: forwarding marks off the subject, words from HTML, the original sender found", () => {
