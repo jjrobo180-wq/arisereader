@@ -67,6 +67,7 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
+import HubPollBell from "@/components/teacher-hub/HubPollBell";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
@@ -475,6 +476,7 @@ function TeacherHubPage() {
           </a>
           <div className="flex items-center gap-2">
             <SaveBadge view={view} />
+            <HubPollBell token={token} userId={user?.id} enabled={canUseHub && loaded && !loadError && !needsPlan} onOpenMeetings={() => setTab("iep")} />
             <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
             <button type="button" onClick={() => setAdding({})} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>

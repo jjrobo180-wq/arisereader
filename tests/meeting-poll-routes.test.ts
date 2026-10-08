@@ -5,7 +5,7 @@ import { createMemoryPollStore, pollBookedEmail, pollInviteEmail, registerMeetin
 
 type Sent = { to: string; subject: string; html: string; replyTo?: string };
 
-function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "revoked" | "none"; text?: boolean } = {}) {
+function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "revoked" | "none"; text?: boolean; teacher?: boolean } = {}) {
   const routes: Record<string, Function> = {};
   const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
   const app: any = { get: add("GET"), post: add("POST"), put: add("PUT"), delete: add("DELETE") };
@@ -15,6 +15,8 @@ function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "
   const store = createMemoryPollStore();
   const viaMailbox: { to: string; subject: string; fromName?: string }[] = [];
   const texts: { to: string; body: string }[] = [];
+  const pushes: { id: number; title: string; body: string }[] = [];
+  const teacher = opts.teacher ? { contact: async () => ({ email: "rivera@school.org", name: "Ms. Rivera" }), notify: async (id: number, m: any) => { pushes.push({ id, title: m.title, body: m.body }); return 1; } } : undefined;
   const text = opts.text ? { send: async (to: string, body: string) => { texts.push({ to, body }); return { sent: true }; } } : undefined;
   const mailbox = opts.mailbox ? {
     status: async () => (opts.mailbox === "none" ? null : { email: "maria@school.org", needsReconnect: false }),
@@ -28,7 +30,7 @@ function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "
       sent.push({ to, subject, html, replyTo: options?.replyTo });
       return { sent: true };
     },
-    appUrl: "https://www.arisereader.com/", store, now: () => clock, mailbox, text,
+    appUrl: "https://www.arisereader.com/", store, now: () => clock, mailbox, text, teacher,
   });
   const call = async (key: string, req: any) => {
     let code = 200; let payload: any;
@@ -36,7 +38,7 @@ function setup(opts: { allow?: boolean; failEmailTo?: string; mailbox?: "ok" | "
     await routes[key]({ body: {}, params: {}, headers: {}, user: { id: 7, displayName: "Ms. Rivera", email: "rivera@school.org" }, ...req }, res);
     return { code, body: payload };
   };
-  return { call, routes, sent, texts, viaMailbox, fromNames, store, tick: (ms: number) => { clock += ms; } };
+  return { call, routes, sent, texts, pushes, viaMailbox, fromNames, store, tick: (ms: number) => { clock += ms; } };
 }
 
 const poll = () => ({
@@ -316,4 +318,25 @@ test("the link in emails and texts opens a bare page (no logo or site blurb for 
   sent = "";
   await (t as any).routes["GET /meet/:token"]({ params: { token: "<script>" } }, res);
   assert.ok(sent.includes('location.replace("/")'));
+});
+
+test("the teacher is emailed and notified when a person answers, with one email per person", async () => {
+  const t = setup({ teacher: true });
+  await t.call("POST /api/teacher-hub/polls", { body: poll() });
+  const mails = () => t.sent.filter((s) => s.to === "rivera@school.org");
+  const token = tokenOf(t.sent.find((s) => s.to === "lee@example.com")!.html);
+  const idle = () => new Promise((r) => setTimeout(r, 25));
+  await t.call("POST /api/meeting-poll/:token", { params: { token }, body: { answers: { o1: "yes", o2: "no" }, comment: "Mornings are hard." } });
+  await idle();
+  assert.equal(mails().length, 1);
+  assert.match(mails()[0].html, /Ms\. Lee answered your poll/);
+  assert.match(mails()[0].html, /1 of 2 people have answered/);
+  assert.match(mails()[0].html, /Mornings are hard/);
+  assert.equal(t.pushes.length, 1);
+  assert.equal(t.pushes[0].id, 7);
+  // Changing an answer pushes again but doesn't send a second email.
+  await t.call("POST /api/meeting-poll/:token", { params: { token }, body: { answers: { o1: "maybe" } } });
+  await idle();
+  assert.equal(mails().length, 1);
+  assert.equal(t.pushes.length, 2);
 });
