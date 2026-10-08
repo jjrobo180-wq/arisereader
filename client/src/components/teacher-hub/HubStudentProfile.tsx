@@ -8,7 +8,7 @@ import { dueWords, studentProfile, type ProfileDate } from "@shared/hubStudentPr
 import { planText } from "@shared/hubProgress";
 import { placeText, schoolBlocks } from "@shared/hubBlocks";
 import { sessionBlockName } from "@shared/hubMinutesWeek";
-import { clock12, type HubTab, type Workspace } from "@shared/teacherHub";
+import { STUDENT_MEETING_ROLES, clock12, type HubTab, type Workspace } from "@shared/teacherHub";
 import { Card, Empty, GhostButton, PrimaryButton, Select } from "./ui";
 import { NoteCard, NoteModal } from "./HubNotes";
 
@@ -92,6 +92,8 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
         <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Fact label="Grade" value={s.grade} />
           <Fact label="Reading level" value={s.readingLevel} />
+          {s.disability1 && <Fact label="Disability 1" value={s.disability1} />}
+          {s.disability2 && <Fact label="Disability 2" value={s.disability2} />}
           <Fact label="Math level" value={s.mathLevel} />
           <Fact label="Behavior points" value={profile.behavior.entries.length ? String(profile.behavior.total) : ""} />
           <DateFact label="IEP deadline" when={profile.iep} today={today} />
@@ -99,6 +101,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           <Fact label="Grade average" value={profile.grades.average === null ? "" : `${profile.grades.average}%`} />
           <Fact label="Attendance" value={profile.attendance.entries.length ? `${a.Present} present · ${a.Absent} absent · ${a.Tardy} tardy` : ""} />
         </div>
+        {STUDENT_MEETING_ROLES.some((role) => s.team?.[role.id]) && <section className="mt-3" aria-label="Assigned meeting team"><h3 className="mb-2 text-sm font-semibold text-slate-800">IEP meeting team</h3><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">{STUDENT_MEETING_ROLES.map((role) => { const person = workspace.spedContacts.find((c) => c.id === s.team?.[role.id]); return person ? <div key={role.id} className="rounded-xl bg-slate-50 p-3 text-sm"><div className="text-xs font-semibold uppercase text-slate-500">{role.label}</div><div className="mt-1 font-medium text-slate-900">{person.name}</div>{person.email && <a href={"mailto:" + person.email} className="block break-all text-xs text-teal-800 underline">{person.email}</a>}</div> : null; })}</div></section>}
         {s.accommodations && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Accommodations</div><p className="mt-1 whitespace-pre-wrap break-words text-slate-800">{s.accommodations}</p></div>}
         {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Quick notes</div><p className="mt-1 whitespace-pre-wrap break-words text-slate-800">{s.notes}</p></div>}
       </Card>
