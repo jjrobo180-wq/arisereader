@@ -33,3 +33,37 @@ export const schoolBlocks = (workspace: { minuteBlocks?: SchoolBlock[] }): Schoo
 
 /** A block's name ("" when the block is not one of the teacher's). */
 export const blockName = (blocks: SchoolBlock[], id: string | undefined): string => (id && blocks.find((b) => b.id === id)?.name) || "";
+
+// ─── Halves of a block, and whose class it is ───────────────────────────────
+//
+// In one block a teacher may push in to two classes: the first half with one teacher and the second half
+// with another. A service can say which half of its block it is in, and whose class it is. Both are
+// optional: a teacher who does not split a block never sees a half.
+
+/** The half of a block a service is in. Not set means the whole block. */
+export type BlockPart = "first" | "second";
+export const BLOCK_PARTS: BlockPart[] = ["first", "second"];
+export const PART_NAMES: Record<BlockPart, string> = { first: "1st half", second: "2nd half" };
+export const TEACHER_NAME_MAX = 60;
+
+/** A saved half made safe to use: "first" or "second", or nothing. */
+export const cleanPart = (value: unknown): BlockPart | undefined => (value === "first" || value === "second" ? value : undefined);
+/** The name of the teacher whose class it is, as it is kept: single spaces, not too long, and capitals on a name typed all in small letters ("ms. lee" is Ms. Lee). */
+export const cleanTeacher = (value: unknown): string => {
+  const name = (typeof value === "string" ? value : "").replace(/\s+/g, " ").trim().slice(0, TEACHER_NAME_MAX);
+  return name === name.toLowerCase() ? name.replace(/(^|[\s-])(\p{L})/gu, (_all, before: string, letter: string) => before + letter.toUpperCase()) : name;
+};
+
+/** "1st half · Ms. Lee": the half of the block and whose class it is. "" for the whole block with no class named. */
+export function groupText(where: { part?: unknown; teacher?: unknown }): string {
+  const part = cleanPart(where.part);
+  return [part ? PART_NAMES[part] : "", cleanTeacher(where.teacher)].filter(Boolean).join(" · ");
+}
+
+/** "Block 2 · 1st half · Ms. Lee": where a service is, in a few words. "" when it is in no block and no class. */
+export function placeText(blocks: SchoolBlock[], where: { block?: string; part?: unknown; teacher?: unknown }): string {
+  return [blockName(blocks, where.block), groupText(where)].filter(Boolean).join(" · ");
+}
+
+/** Sorts the halves of a block in the order of the day: the whole block, then the first half, then the second. */
+export const partRank = (part: unknown): number => (part === "first" ? 1 : part === "second" ? 2 : 0);

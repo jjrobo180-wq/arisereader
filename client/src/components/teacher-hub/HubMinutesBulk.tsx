@@ -5,12 +5,12 @@
 // saved until the teacher has checked it.
 // The rules are in shared/hubMinutesBulk.ts.
 import { useId, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
-import { ImagePlus, Loader2, Plus, Settings2, Users } from "lucide-react";
+import { Check, ImagePlus, Loader2, Plus, Settings2, Users } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
-import { blockName, schoolBlocks } from "@shared/hubBlocks";
+import { BLOCK_PARTS, PART_NAMES, TEACHER_NAME_MAX, blockName, cleanTeacher, placeText, schoolBlocks } from "@shared/hubBlocks";
 import { DAY_NAMES, SERVICE_KINDS, WEEK_DAYS, countedPlan, meetingDays, optionalDays, planText, weekDayOf, type WeekDay } from "@shared/hubProgress";
 import {
-  QUICK_MINUTES, bulkLine, bulkResult, cleanName, cleanReadRows, joinsPlan, knownName, linePlan, lineText, minuteNames, placeRead,
+  PUSH_IN, QUICK_MINUTES, blockGroups, bulkLine, bulkResult, cleanName, cleanReadRows, joinsPlan, knownName, linePlan, lineText, minuteNames, placeRead,
   type BulkCommon, type BulkMode, type BulkPick, type BulkPicks, type BulkResult, type ReadRow,
 } from "@shared/hubMinutesBulk";
 import { HUB_IMPORT_LIMITS, type ServicePlan, type Workspace } from "@shared/teacherHub";
@@ -49,6 +49,46 @@ export function MinutesPick({ value, onChange, label = "Minutes", max = 600 }: {
   );
 }
 
+/** The teachers whose classes were named before, to pick with one tap. */
+export function knownTeachers(workspace: Pick<Workspace, "services" | "serviceLogs">): string[] {
+  return [...new Set([...workspace.services, ...workspace.serviceLogs].map((x) => cleanTeacher(x.teacher)).filter(Boolean))].sort((a, b) => a.localeCompare(b)).slice(0, 8);
+}
+
+/**
+ * Where in the block, and whose class: for a teacher who goes to two classes in one block (the first half with one
+ * teacher, the second half with another). The half is only asked for a block, and the class only for push-in.
+ */
+export function ClassFields({ hasBlock, pushIn, part, teacher, known, usual = false, onChange }: {
+  hasBlock: boolean; pushIn: boolean; part: string; teacher: string;
+  /** For minutes logged on one day: left alone, each student stays in their usual half and class. */
+  usual?: boolean;
+  /** Teachers named before. */
+  known: string[];
+  onChange: (changes: { part?: string; teacher?: string }) => void;
+}) {
+  if (!hasBlock && !pushIn) return null;
+  return (
+    <div className="grid gap-3" data-testid="class-fields">
+      {hasBlock && (
+        <div>
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Part of the block</span>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Part of the block" data-testid="block-part">
+            <button type="button" aria-pressed={!part} className={chip(!part)} onClick={() => onChange({ part: "" })}>{usual ? "Their usual" : "Whole block"}</button>
+            {BLOCK_PARTS.map((value) => <button key={value} type="button" aria-pressed={part === value} className={chip(part === value)} onClick={() => onChange({ part: value })}>{PART_NAMES[value]}</button>)}
+          </div>
+          <p className="mt-1.5 text-xs text-slate-500">{usual ? "Left as it is, each student stays in their usual half and class." : "Pick a half only if you go to two classes in this block."}</p>
+        </div>
+      )}
+      {pushIn && (
+        <div>
+          <Labeled label="Whose class are you pushing in to?"><Field value={teacher} onChange={(e) => onChange({ teacher: e.target.value })} maxLength={TEACHER_NAME_MAX} autoCapitalize="words" placeholder={usual ? "Their usual class, or a teacher's name" : "The teacher's name, like Ms. Lee"} aria-label="Whose class are you pushing in to" data-testid="class-teacher" /></Labeled>
+          {known.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Teachers you named before">{known.map((name) => <button key={name} type="button" aria-pressed={cleanTeacher(teacher) === name} className={cleanTeacher(teacher) === name ? smallOn : smallBtn} onClick={() => onChange({ teacher: name })}>{name}</button>)}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BulkMinutesModal({ workspace, today, token, start, onSave, onClose }: {
   workspace: Workspace; today: string; token: string | null; start: BulkStart;
   /** Saves what was ticked. */
@@ -66,7 +106,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
   const [newName, setNewName] = useState("");
   const names = useMemo(() => minuteNames(workspace, typed), [workspace.students, workspace.services, workspace.serviceLogs, typed]);
   const onCaseload = useMemo(() => new Set(workspace.students.map((s) => cleanName(s.name).toLowerCase())), [workspace.students]);
-  const [common, setCommon] = useState<BulkCommon>(() => ({ mode: start.mode, date: start.date || today, block: blocks.some((b) => b.id === start.block) ? start.block : "", kind: start.mode === "plan" ? SERVICE_KINDS[0] : "", minutes: "", days: meetingDays(optionalDays(workspace)).filter((d) => (start.days || []).includes(d)), note: "" }));
+  const [common, setCommon] = useState<BulkCommon>(() => ({ mode: start.mode, date: start.date || today, block: blocks.some((b) => b.id === start.block) ? start.block : "", kind: start.mode === "plan" ? SERVICE_KINDS[0] : "", part: "", teacher: "", minutes: "", days: meetingDays(optionalDays(workspace)).filter((d) => (start.days || []).includes(d)), note: "" }));
   const [picks, setPicks] = useState<BulkPicks>({});
   /** The student whose own block, kind and days are open to change. */
   const [open, setOpen] = useState<string | null>(null);
@@ -87,6 +127,10 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
   const shown = find.trim() ? names.filter((n) => n.toLowerCase().includes(find.trim().toLowerCase())) : names;
   /** The students whose minutes are already set in the block that is chosen. */
   const inBlock = common.block ? names.filter((n) => plans.some((p) => p.student === n && p.block === common.block)) : [];
+  /** The same students class by class, when the block is split into halves or has more than one teacher. */
+  const groups = useMemo(() => blockGroups(plans, common.block, names), [plans, common.block, names]);
+  const usualDone = inBlock.length > 0 && inBlock.every((n) => picks[n]);
+  const teachers = useMemo(() => knownTeachers(workspace), [workspace.services, workspace.serviceLogs]);
 
   const set = (changes: Partial<BulkCommon>) => setCommon((c) => ({ ...c, ...changes }));
   const tick = (list: string[], on: boolean) => setPicks((prev) => {
@@ -182,12 +226,32 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
           <p className="mt-1.5 text-xs text-slate-500">{plan ? "The students you tick stay in this block every week, on the days you pick. You do not add them again." : "Logs the minutes you gave on this one day, for every student you tick. It does not repeat."}{!plan && extraDay ? ` ${DAY_NAMES[extraDay]} is optional, so these minutes count as extra.` : ""}</p>
         </div>
 
+        {/* Logging a day in a block: the students who usually meet in it are one big tap away, before anything else. */}
+        {!plan && inBlock.length > 0 && (
+          <div className="rounded-2xl border-2 border-teal-600 bg-teal-50 p-2.5" data-testid="bulk-usual">
+            <button type="button" onClick={() => tick(inBlock, true)} aria-pressed={usualDone} className="flex min-h-16 w-full items-center gap-3 rounded-xl bg-teal-600 px-4 py-3 text-left text-white shadow-sm hover:bg-teal-700" data-testid="bulk-in-block">
+              {usualDone ? <Check className="h-7 w-7 shrink-0" /> : <Users className="h-7 w-7 shrink-0" />}
+              <span>
+                <span className="block text-base font-bold leading-snug">{usualDone ? `${people(inBlock.length)} ticked` : `Tick the ${people(inBlock.length)} who usually meet in ${blockName(blocks, common.block)}`}</span>
+                <span className="block text-xs font-medium text-white/90">{usualDone ? "Untick anyone who was not there, in the list below." : "One tap. Then untick anyone who was not there."}</span>
+              </span>
+            </button>
+            {(groups.length > 1 || !!groups[0]?.label) && (
+              <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="One class at a time" data-testid="bulk-usual-groups">
+                {groups.map((g) => { const on = g.students.every((n) => picks[n]); return <button key={g.label || "whole"} type="button" aria-pressed={on} onClick={() => tick(g.students, !on)} className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl border-2 px-3 text-sm font-semibold ${on ? "border-teal-600 bg-teal-600 text-white" : "border-teal-600 bg-white text-teal-800 hover:bg-teal-100"}`}>{on && <Check className="h-4 w-4" />}{g.label || "Whole block"} ({g.students.length})</button>; })}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           {!plan && <Labeled label="Date"><Field type="date" value={common.date} onChange={(e) => set({ date: e.target.value })} aria-label="Date" /></Labeled>}
           <Labeled label="Block"><Select value={common.block} onChange={(e) => set({ block: e.target.value })} aria-label="Block for everyone"><option value="">{plan ? "No block" : "Their usual block"}</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
           <Labeled label="Kind"><Select value={common.kind} onChange={(e) => set({ kind: e.target.value })} aria-label="Kind for everyone">{!plan && <option value="">Their usual kind</option>}{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
           {!plan && <Labeled label="Note (optional)"><Field value={common.note} onChange={(e) => set({ note: e.target.value })} maxLength={200} aria-label="Note" /></Labeled>}
         </div>
+
+        <ClassFields hasBlock={!!common.block} pushIn={!common.kind || common.kind === PUSH_IN} part={common.part || ""} teacher={common.teacher || ""} known={teachers} usual={!plan} onChange={set} />
 
         {plan && (
           <div>
@@ -229,7 +293,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
             {names.length > 8 && <div className="min-w-0 flex-1 basis-40"><Field value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a student" aria-label="Find a student" /></div>}
             {names.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(shown, true)} data-testid="bulk-all">Tick all</button>}
             {chosen.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(names, false)}>Clear</button>}
-            {inBlock.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(inBlock, true)} data-testid="bulk-in-block"><Users className="h-3.5 w-3.5" /> {blockName(blocks, common.block)}'s students ({inBlock.length})</button>}
+            {plan && inBlock.length > 0 && <button type="button" className={smallBtn} onClick={() => tick(inBlock, true)} data-testid="bulk-in-block-small"><Users className="h-3.5 w-3.5" /> {blockName(blocks, common.block)}'s students ({inBlock.length})</button>}
           </div>
           {names.length > 0 && (
             <ul className="mt-2 divide-y divide-slate-100 rounded-2xl border border-slate-200" aria-label="Students" data-testid="bulk-students">
@@ -266,7 +330,7 @@ function StudentRow({ name, common, pick, missing, open, workspace, plans, meeti
   const already = line && !plan ? workspace.serviceLogs.filter((l) => l.student === name && l.kind === line.kind && l.date === common.date).reduce((n, l) => n + (Number(l.minutes) || 0), 0) : 0;
   const now = line && plan ? mine.find((p) => p.kind === line.kind) : undefined;
   const fields = line && plan ? linePlan(line) : null;
-  const usual = [...new Set(mine.map((p) => blockName(blocks, p.block)).filter(Boolean))].join(", ");
+  const usual = [...new Set(mine.map((p) => placeText(blocks, p)).filter(Boolean))].join(", ");
   const days = pick?.days ?? common.days;
   const id = useId();
 
@@ -279,7 +343,7 @@ function StudentRow({ name, common, pick, missing, open, workspace, plans, meeti
           {line
             ? <span className="block text-xs text-slate-600" data-testid="bulk-line">{missing ? <span className="font-semibold text-amber-700">Needs minutes</span> : lineText(common, line, plans, blocks)}{already > 0 ? <span className="text-amber-700"> · already {already} min this day</span> : null}</span>
             : usual ? <span className="block text-xs text-slate-500">Usually {usual}</span> : null}
-          {now && <span className="block text-xs text-slate-500" data-testid="bulk-now">{fields && joinsPlan(now, fields) ? "Added to" : "Takes the place of"}: {planText(now, blockName(blocks, now.block))}</span>}
+          {now && <span className="block text-xs text-slate-500" data-testid="bulk-now">{fields && joinsPlan(now, fields) ? "Added to" : "Takes the place of"}: {planText(now, placeText(blocks, now))}</span>}
         </label>
         {pick && (
           <>

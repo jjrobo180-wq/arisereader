@@ -3,7 +3,7 @@
 // block on that day, and the ones due in it. What a cell holds comes from the sessions that were logged
 // and from each plan's block and day guide.
 import { addDays } from "./hubDates";
-import type { SchoolBlock } from "./hubBlocks";
+import { cleanPart, cleanTeacher, partRank, type BlockPart, type SchoolBlock } from "./hubBlocks";
 import { WEEK_DAYS, cleanDayGuide, countedPlan, sessionLog, weekStart, weeklyMinutes, type WeekDay } from "./hubProgress";
 import type { ServiceLog, ServicePlan } from "./teacherHub";
 
@@ -29,6 +29,8 @@ export type MinutesItem = {
   logId?: string; note?: string;
   /** The plan it belongs to, when the student has one for this service. */
   planId?: string;
+  /** The half of the block it is in, and whose class it is, when the service (or the session) says so. Students are grouped by them inside a block. */
+  part?: BlockPart; teacher?: string;
 };
 
 /** One block on one day. `id` is "" for the students that are in no block. */
@@ -85,6 +87,12 @@ export function minutesWeek(saved: ServicePlan[], logs: ServiceLog[], blocks: Sc
   /** A session's block: the one it was logged in, or else its plan's. */
   const logBlock = (l: ServiceLog, p: ServicePlan | undefined) => (l.block && known.has(l.block) ? l.block : planBlock(p));
 
+  /** The half of the block and the class: the session's own, or else its plan's. Left out when there is none. */
+  const group = (own: { part?: string; teacher?: string } | undefined, p: ServicePlan | undefined): Pick<MinutesItem, "part" | "teacher"> => {
+    const part = cleanPart(own?.part) ?? cleanPart(p?.part), teacher = cleanTeacher(own?.teacher) || cleanTeacher(p?.teacher);
+    return { ...(part ? { part } : {}), ...(teacher ? { teacher } : {}) };
+  };
+
   const built = WEEK_DAYS.map((day, i) => {
     const date = addDays(start, i);
     const dayLogs = inWeek.filter((l) => l.date === date);
@@ -92,7 +100,7 @@ export function minutesWeek(saved: ServicePlan[], logs: ServiceLog[], blocks: Sc
       const plan = plans.find((p) => mine(l, p));
       // Extra: the student has a day guide for this service, and this is not one of its days. Anything on an optional day is extra.
       const outside = optional.includes(day) || (!!plan && guided(plan) && !guides.get(plan.id)![day]);
-      return { key: `log:${l.id}`, student: l.student, kind: l.kind, date, block: logBlock(l, plan), minutes: l.notMet ? 0 : Number(l.minutes) || 0, state: l.notMet ? "not met" : outside ? "extra" : "logged", logId: l.id, ...(l.note ? { note: l.note } : {}), ...(plan ? { planId: plan.id } : {}) };
+      return { key: `log:${l.id}`, student: l.student, kind: l.kind, date, block: logBlock(l, plan), minutes: l.notMet ? 0 : Number(l.minutes) || 0, state: l.notMet ? "not met" : outside ? "extra" : "logged", logId: l.id, ...(l.note ? { note: l.note } : {}), ...(plan ? { planId: plan.id } : {}), ...group(l, plan) };
     });
     let planned = 0;
     for (const p of active) {
@@ -101,7 +109,7 @@ export function minutesWeek(saved: ServicePlan[], logs: ServiceLog[], blocks: Sc
       if (!guided(p)) {
         // Counted by the week: it sits in its block every school day until the week's minutes are given.
         const left = weeklyMinutes(p) - given;
-        if (block && i < 5 && !optional.includes(day) && left > 0 && !dayLogs.some((l) => mine(l, p))) items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state: "any day", planId: p.id });
+        if (block && i < 5 && !optional.includes(day) && left > 0 && !dayLogs.some((l) => mine(l, p))) items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state: "any day", planId: p.id, ...group(undefined, p) });
         continue;
       }
       const ask = guides.get(p.id)![day] || 0;
@@ -111,13 +119,14 @@ export function minutesWeek(saved: ServicePlan[], logs: ServiceLog[], blocks: Sc
       // The teacher said this one did not happen: it is answered, and not asked for again.
       if (left <= 0 || dayLogs.some((l) => l.notMet && mine(l, p))) continue;
       const state: BlockState = date > today ? "planned" : date === today ? "today" : given >= weeklyMinutes(p) ? "made up" : "missed";
-      items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state, planId: p.id });
+      items.push({ key: `plan:${p.id}:${date}`, student: p.student, kind: p.kind, date, block, minutes: left, state, planId: p.id, ...group(undefined, p) });
     }
     return { day, date, optional: optional.includes(day), planned, done: total(dayLogs), items, show: i < 5 || items.length > 0 };
   }).filter((d) => d.show);
 
   const rows: SchoolBlock[] = [...blocks, ...(built.some((d) => d.items.some((x) => !x.block)) ? [{ id: "", name: "No block" }] : [])];
-  const order = (a: MinutesItem, b: MinutesItem) => a.student.localeCompare(b.student) || a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key);
+  // Inside a block: the whole block first, then the first half, then the second, each class together, and the students A to Z.
+  const order = (a: MinutesItem, b: MinutesItem) => partRank(a.part) - partRank(b.part) || (a.teacher || "").localeCompare(b.teacher || "") || a.student.localeCompare(b.student) || a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key);
   const days: MinutesDay[] = built.map(({ day, date, optional: free, planned, done, items }) => {
     const cells = rows.map((row): MinutesCell => {
       const list = items.filter((x) => x.block === row.id).sort(order);
@@ -140,7 +149,7 @@ export function minutesWeek(saved: ServicePlan[], logs: ServiceLog[], blocks: Sc
 export function blockLogs(items: MinutesItem[]): Omit<ServiceLog, "id">[] {
   return items.filter((x) => canLog(x.state)).flatMap((x) => {
     const session = sessionLog({ student: x.student, kind: x.kind, date: x.date, minutes: x.minutes });
-    return session ? [{ ...session, ...(x.block ? { block: x.block } : {}) }] : [];
+    return session ? [{ ...session, ...(x.block ? { block: x.block } : {}), ...(x.part ? { part: x.part } : {}), ...(x.teacher ? { teacher: x.teacher } : {}) }] : [];
   });
 }
 
@@ -148,14 +157,14 @@ export function blockLogs(items: MinutesItem[]): Omit<ServiceLog, "id">[] {
  * "Did not meet", for the sessions that are still waiting: one record for each, with no minutes and the reason as its note.
  * Each stays in its block. Nothing is made for a session that was already given.
  */
-export function notMetLogs(items: Pick<MinutesItem, "student" | "kind" | "date" | "block" | "state">[], reason: string): Omit<ServiceLog, "id">[] {
+export function notMetLogs(items: Pick<MinutesItem, "student" | "kind" | "date" | "block" | "state" | "part" | "teacher">[], reason: string): Omit<ServiceLog, "id">[] {
   const note = String(reason || "").replace(/\s+/g, " ").trim().slice(0, 200);
   const seen = new Set<string>();
   return items.filter((x) => x.student && canSkip(x.state)).flatMap((x) => {
     const key = `${x.student}\n${x.kind}\n${x.date}`;
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ student: x.student, date: x.date, kind: x.kind, minutes: 0, note, notMet: true as const, ...(x.block ? { block: x.block } : {}) }];
+    return [{ student: x.student, date: x.date, kind: x.kind, minutes: 0, note, notMet: true as const, ...(x.block ? { block: x.block } : {}), ...(x.part ? { part: x.part } : {}), ...(x.teacher ? { teacher: x.teacher } : {}) }];
   });
 }
 

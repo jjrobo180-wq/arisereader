@@ -2,10 +2,10 @@
 // A row for each block and a column for each day; on a phone, one day at a time with its blocks stacked.
 // It opens on today, and any earlier day can be opened to add or fix what was forgotten.
 // The rules are in shared/hubMinutesWeek.ts and shared/hubBlocks.ts.
-import { useMemo, useState, type FormEvent } from "react";
+import { Fragment, useMemo, useState, type FormEvent } from "react";
 import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
 import { addDays } from "@shared/hubDates";
-import { BLOCKS_MAX, BLOCK_NAME_MAX, cleanBlocks, schoolBlocks, type SchoolBlock } from "@shared/hubBlocks";
+import { BLOCKS_MAX, BLOCK_NAME_MAX, cleanBlocks, groupText, schoolBlocks, type SchoolBlock } from "@shared/hubBlocks";
 import { DAY_NAMES, SCHOOL_DAYS, optionalDays, type WeekDay } from "@shared/hubProgress";
 import { canSkip, minutesWeek, monthDay, openDay, type BlockState, type MinutesCell, type MinutesDay, type MinutesItem } from "@shared/hubMinutesWeek";
 import type { Workspace } from "@shared/teacherHub";
@@ -94,7 +94,20 @@ function Cell({ cell, day, row, shown, today, blocks, ...handlers }: { cell: Min
   return (
     <div className={`min-w-0 rounded-xl border p-1.5 ${day.date === today ? "border-teal-200 bg-teal-50/60" : "border-slate-200 bg-slate-50"} ${shown ? "" : "hidden lg:block"}`} role="group" aria-label={where} data-testid="minutes-cell" data-date={day.date} data-block={row.id}>
       {cell.todo > 1 && <button type="button" className={`${smallBtn} mb-1.5 w-full`} onClick={() => handlers.onLog(cell.items)} data-testid="minutes-log-all">Log all {cell.todo}</button>}
-      {cell.items.length > 0 && <ul className="space-y-1.5">{cell.items.map((item) => <Item key={item.key} item={item} today={today} blocks={blocks} others={others} {...handlers} />)}</ul>}
+      {cell.items.length > 0 && (
+        <ul className="space-y-1.5">
+          {cell.items.map((item, i) => {
+            // A block that is split is shown class by class: a heading wherever the half of the block or the teacher changes.
+            const group = groupText(item);
+            return (
+              <Fragment key={item.key}>
+                {group && group !== (i ? groupText(cell.items[i - 1]) : "") && <li className={`px-1 text-[11px] font-bold uppercase tracking-wide text-slate-600 ${i ? "pt-1.5" : ""}`} data-testid="minutes-group">{group}</li>}
+                <Item item={item} today={today} blocks={blocks} others={others} {...handlers} />
+              </Fragment>
+            );
+          })}
+        </ul>
+      )}
       <button type="button" className={`inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 ${cell.items.length ? "mt-1" : ""}`} onClick={() => handlers.onAdd({ date: day.date, block: row.id })} aria-label={day.optional ? `Add minutes you gave in ${where}` : `Add students in ${where}`} data-testid="minutes-add"><Plus className="h-3.5 w-3.5" /> {day.optional ? "Add if you met" : "Add"}</button>
     </div>
   );

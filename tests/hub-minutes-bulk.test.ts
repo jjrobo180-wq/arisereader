@@ -1,13 +1,14 @@
 // Teacher Hub: several students added to a block at once (they stay every week), a screenshot read into
 // the students to tick, minutes picked with one tap, "did not meet" with a reason, optional days
-// (Wednesday) that are only for extra minutes, and names typed for students who are not on the caseload.
+// (Wednesday) that are only for extra minutes, names typed for students who are not on the caseload,
+// and a block split into halves with the teacher whose class is pushed in to.
 // Run with: npx tsx --test tests/hub-minutes-bulk.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { defaultBlocks } from "../shared/hubBlocks";
+import { cleanPart, cleanTeacher, defaultBlocks, groupText, partRank, placeText } from "../shared/hubBlocks";
 import {
-  QUICK_MINUTES, READ_ROWS_MAX, bulkLine, bulkResult, cleanDays, cleanKind, cleanName, cleanReadRows, joinsPlan, knownName, lineText, matchBlock, matchStudent, minuteNames, placeRead, savedText, schoolDay, usualKind, withPlans,
+  PUSH_IN, QUICK_MINUTES, READ_ROWS_MAX, blockGroups, bulkLine, bulkResult, cleanDays, cleanKind, cleanName, cleanReadRows, joinsPlan, knownName, lineText, matchBlock, matchStudent, minuteNames, placeRead, savedText, schoolDay, usualKind, withPlans,
   type BulkCommon, type ReadRow,
 } from "../shared/hubMinutesBulk";
 import { NOT_MET_REASONS, blockLogs, canSkip, minutesWeek, notMetLogs, updateLog, type MinutesWeek } from "../shared/hubMinutesWeek";
@@ -352,6 +353,75 @@ test("a student does not have to be on the caseload: a name can be typed, and is
   assert.deepEqual(bulkResult(log(), { "Mia Cruz": { minutes: "15" } }, names, PLANS, BLOCKS, TODAY).logs, [{ student: "Mia Cruz", date: TODAY, kind: "Push-in", minutes: 15, note: "", block: "b2" }]);
 });
 
+// ─── Halves of a block, and whose class it is ───────────────────────────────
+
+test("a block can be split into halves, each with the teacher whose class is pushed in to", () => {
+  assert.deepEqual([cleanPart("first"), cleanPart("second"), cleanPart("third"), cleanPart(""), cleanPart(undefined), cleanPart(1)], ["first", "second", undefined, undefined, undefined, undefined]);
+  assert.deepEqual([cleanTeacher("  Ms.   Lee "), cleanTeacher(null), cleanTeacher(7), cleanTeacher("x".repeat(200)).length], ["Ms. Lee", "", "", 60]);
+  assert.deepEqual(["mrs. patel", "mr. de la cruz-vega", "McKay", "LEE"].map(cleanTeacher), ["Mrs. Patel", "Mr. De La Cruz-Vega", "McKay", "LEE"], "a name typed all in small letters gets its capitals");
+  assert.deepEqual([groupText({ part: "first", teacher: "Ms. Lee" }), groupText({ part: "second" }), groupText({ teacher: " Mr. Diaz " }), groupText({}), groupText({ part: "whole" })], ["1st half · Ms. Lee", "2nd half", "Mr. Diaz", "", ""]);
+  assert.deepEqual([placeText(BLOCKS, { block: "b1", part: "first", teacher: "Ms. Lee" }), placeText(BLOCKS, { block: "b1" }), placeText(BLOCKS, { teacher: "Ms. Lee" }), placeText(BLOCKS, {})], ["Block 1 · 1st half · Ms. Lee", "Block 1", "Ms. Lee", ""]);
+  assert.deepEqual([partRank(undefined), partRank("first"), partRank("second")], [0, 1, 2]);
+  assert.equal(PUSH_IN, "Push-in");
+
+  // Adding students to the first half of Block 1, in Ms. Lee's class.
+  const lee = plan({ block: "b1", part: "first", teacher: "  Ms.  Lee ", days: ["Mon", "Tue"], minutes: "30" });
+  const set = bulkResult(lee, { "Ava Kim": {}, "Dennis Flores": {}, "Maya Torres": { kind: "Pull-out" } }, CASELOAD, [], BLOCKS, TODAY);
+  assert.deepEqual(set.plans, [
+    { student: "Ava Kim", kind: "Push-in", minutesPerWeek: 60, days: { Mon: 30, Tue: 30 }, block: "b1", part: "first", teacher: "Ms. Lee" },
+    { student: "Dennis Flores", kind: "Push-in", minutesPerWeek: 60, days: { Mon: 30, Tue: 30 }, block: "b1", part: "first", teacher: "Ms. Lee" },
+    { student: "Maya Torres", kind: "Pull-out", minutesPerWeek: 60, days: { Mon: 30, Tue: 30 }, block: "b1", part: "first" },
+  ], "a class is somewhere to push in: a pull-out keeps the half and no teacher");
+  assert.equal(lineText(lee, bulkLine(lee, "Ava Kim", {}, [], BLOCKS), [], BLOCKS), "Mon, Tue · 30 min each · Block 1 · 1st half · Ms. Lee · Push-in");
+  // A half is a half of a block: with no block there is none. A plan that says nothing has neither.
+  assert.deepEqual(bulkResult(plan({ block: "", part: "second", teacher: "Mr. Diaz" }), { "Ava Kim": {} }, CASELOAD, [], BLOCKS, TODAY).plans, [{ student: "Ava Kim", kind: "Push-in", minutesPerWeek: 40, days: { Mon: 20, Wed: 20 }, teacher: "Mr. Diaz" }]);
+  assert.deepEqual(bulkLine(plan({ part: "", teacher: "" }), "Ava Kim", {}, [], BLOCKS), { student: "Ava Kim", block: "b2", kind: "Push-in", days: ["Mon", "Wed"], minutes: "20" });
+  assert.deepEqual(bulkLine(plan({ part: "junk" }), "Ava Kim", {}, [], BLOCKS), { student: "Ava Kim", block: "b2", kind: "Push-in", days: ["Mon", "Wed"], minutes: "20" });
+
+  // The second half of the same block is another class. Gus is in the whole block with no class named.
+  const diaz = bulkResult(plan({ block: "b1", part: "second", teacher: "Mr. Diaz", days: ["Mon", "Tue"], minutes: "20" }), { "Jordan Lee": {}, "Sam Ortiz": {} }, CASELOAD, [], BLOCKS, TODAY);
+  const gus: ServicePlan = { id: "g", student: "Gus Hale", kind: "Push-in", minutesPerWeek: 30, since: "2026-09-07", days: { Mon: 15, Tue: 15 }, block: "b1" };
+  const services = withPlans([gus], [...diaz.plans, ...set.plans], makeId, "2026-09-07");
+  const cell = (week: MinutesWeek, day: number) => week.days[day].cells[0].items.map((x) => `${groupText(x) || "whole block"}: ${x.student} ${x.minutes} ${x.state}`);
+  const week = minutesWeek(services, [], BLOCKS, "2026-10-06", "2026-10-06");
+  assert.deepEqual(cell(week, 1), [
+    "whole block: Gus Hale 15 today",
+    "1st half: Maya Torres 30 today", "1st half · Ms. Lee: Ava Kim 30 today", "1st half · Ms. Lee: Dennis Flores 30 today",
+    "2nd half · Mr. Diaz: Jordan Lee 20 today", "2nd half · Mr. Diaz: Sam Ortiz 20 today",
+  ], "inside the block: the whole block, then the first half, then the second, each class together");
+  assert.deepEqual([week.days[1].cells[0].items[2].part, week.days[1].cells[0].items[2].teacher, "part" in week.days[1].cells[0].items[0], "teacher" in week.days[1].cells[0].items[0]], ["first", "Ms. Lee", false, false]);
+
+  // One tap logs each student in their half and class, and "did not meet" keeps them too.
+  const tapped = blockLogs([week.days[1].cells[0].items[0], week.days[1].cells[0].items[2]]);
+  assert.deepEqual(tapped, [{ student: "Gus Hale", date: "2026-10-06", kind: "Push-in", minutes: 15, note: "", block: "b1" }, { student: "Ava Kim", date: "2026-10-06", kind: "Push-in", minutes: 30, note: "", block: "b1", part: "first", teacher: "Ms. Lee" }]);
+  assert.deepEqual(notMetLogs([week.days[1].cells[0].items[4]], "Student absent"), [{ student: "Jordan Lee", date: "2026-10-06", kind: "Push-in", minutes: 0, note: "Student absent", notMet: true, block: "b1", part: "second", teacher: "Mr. Diaz" }]);
+  // A session with no half or class of its own follows its plan; one that has its own keeps it (a day in another class).
+  const logs: ServiceLog[] = [
+    { id: "x1", student: "Ava Kim", date: "2026-10-07", kind: "Push-in", minutes: 30, note: "", block: "b1" },
+    { id: "x2", student: "Jordan Lee", date: "2026-10-07", kind: "Push-in", minutes: 20, note: "", block: "b1", part: "first", teacher: "Ms. Lee" },
+  ];
+  assert.deepEqual(cell(minutesWeek(services, logs, BLOCKS, "2026-10-07", "2026-10-07", ["Wed"]), 2), ["1st half · Ms. Lee: Ava Kim 30 extra", "1st half · Ms. Lee: Jordan Lee 20 extra"]);
+  // Logged for one day from the pop-up: the half and class that were chosen are kept; left alone, nothing is written and the plan's are used.
+  assert.deepEqual(bulkResult(log({ block: "b1", part: "second", teacher: "Mr. Diaz", minutes: "25" }), { "Ava Kim": {} }, CASELOAD, services, BLOCKS, TODAY).logs, [{ student: "Ava Kim", date: TODAY, kind: "Push-in", minutes: 25, note: "", block: "b1", part: "second", teacher: "Mr. Diaz" }]);
+  assert.deepEqual(bulkResult(log({ block: "b1", minutes: "25" }), { "Ava Kim": {} }, CASELOAD, services, BLOCKS, TODAY).logs, [{ student: "Ava Kim", date: TODAY, kind: "Push-in", minutes: 25, note: "", block: "b1" }]);
+  assert.equal(lineText(log({ block: "b1" }), bulkLine(log({ block: "b1" }), "Ava Kim", {}, services, BLOCKS), services, BLOCKS), "Push-in · Block 1 · 1st half · Ms. Lee", "the line says where the session will show");
+  assert.equal(lineText(log({ block: "" }), bulkLine(log({ block: "" }), "Jordan Lee", {}, services, BLOCKS), services, BLOCKS), "Push-in · Block 1 · 2nd half · Mr. Diaz");
+
+  // Who usually meets in the block, class by class, for one tap.
+  assert.deepEqual(blockGroups(services, "b1", CASELOAD), [
+    { label: "1st half", students: ["Maya Torres"] },
+    { label: "1st half · Ms. Lee", students: ["Ava Kim", "Dennis Flores"] },
+    { label: "2nd half · Mr. Diaz", students: ["Jordan Lee", "Sam Ortiz"] },
+  ], "only names that are on the list: Gus is not on this caseload");
+  assert.deepEqual(blockGroups(services, "b1", [...CASELOAD, "Gus Hale"])[0], { label: "", students: ["Gus Hale"] });
+  assert.deepEqual([blockGroups(services, "b3", CASELOAD), blockGroups(services, "", CASELOAD)], [[], []]);
+  // Added to the same block on another day: the half and the class stay, unless new ones are given.
+  const more = withPlans(services, [{ student: "Ava Kim", kind: "Push-in", minutesPerWeek: 30, days: { Thu: 30 }, block: "b1" }, { student: "Jordan Lee", kind: "Push-in", minutesPerWeek: 20, days: { Thu: 20 }, block: "b1", part: "first", teacher: "Ms. Lee" }], makeId, TODAY);
+  const of = (name: string) => more.find((p) => p.student === name)!;
+  assert.deepEqual([of("Ava Kim").days, of("Ava Kim").part, of("Ava Kim").teacher], [{ Mon: 30, Tue: 30, Thu: 30 }, "first", "Ms. Lee"]);
+  assert.deepEqual([of("Jordan Lee").days, of("Jordan Lee").part, of("Jordan Lee").teacher], [{ Mon: 20, Tue: 20, Thu: 20 }, "first", "Ms. Lee"]);
+});
+
 // ─── The server route ───────────────────────────────────────────────────────
 
 const NOW = Date.parse("2026-10-07T16:00:00Z");
@@ -479,7 +549,14 @@ test("the Minutes screen adds several students to a block, takes minutes with on
   for (const part of ['data-testid="minutes-not-met"', "Didn't meet", 'data-testid="minutes-other-amount"', "onAdd({ ...start, notMet: true, others })", '"not met": "Did not meet"', "canSkip(x.state)", "they stay every week",
     'data-testid="minutes-change"', "onPlan(item.planId!)", '"Add if you met"', "d.optional ? (d.done ? `Optional · ${d.done} min extra` : \"Optional · extra only\")", 'data-testid="minutes-optional-note"', 'data-testid="blocks-meeting-days"', "onSave(ready, SCHOOL_DAYS.filter((d) => free.includes(d)))"]) assert.ok(week.includes(part), part);
   assert.ok(!bulk.includes("SCHOOL_DAYS") && !screen.includes("SCHOOL_DAYS"), "the days to pick are the meeting days, never every school day");
-  for (const [file, part] of [["client/src/components/teacher-hub/HubStudentProfile.tsx", 'l.notMet ? "did not meet"'], ["shared/hubDelete.ts", 'row.notMet ? "did not meet"']]) assert.ok(read(file).includes(part), part);
+  for (const [file, part] of [["client/src/components/teacher-hub/HubStudentProfile.tsx", 'l.notMet ? "did not meet"'], ["shared/hubDelete.ts", 'row.notMet ? "did not meet"'], ["client/src/components/teacher-hub/HubStudentProfile.tsx", "planText(plan, placeText(blocks, plan))"]]) assert.ok(read(file).includes(part), part);
+  // A block split into halves, and whose class: asked when students are added and when a student's minutes are changed, and shown class by class.
+  for (const part of ['data-testid="class-fields"', 'data-testid="block-part"', "Whole block", "Their usual", "usual={!plan}", "PART_NAMES[value]", "Whose class are you pushing in to?", 'data-testid="class-teacher"', "pushIn={!common.kind || common.kind === PUSH_IN}", "hasBlock={!!common.block}"]) assert.ok(bulk.includes(part), part);
+  for (const part of ["<ClassFields hasBlock={!!plan.block} pushIn={plan.kind === PUSH_IN}", "const fields = { ...planReady, ...planPlace };", "planText(p, placeText(blocks, p))"]) assert.ok(screen.includes(part), part);
+  for (const part of ['data-testid="minutes-group"', "groupText(item)"]) assert.ok(week.includes(part), part);
+  // Logging a day in a block: the students who usually meet in it are one big tap, at the top of the pop-up.
+  for (const part of ['data-testid="bulk-usual"', "who usually meet in ${blockName(blocks, common.block)}", "min-h-16 w-full", "bg-teal-600", 'data-testid="bulk-usual-groups"', "blockGroups(plans, common.block, names)"]) assert.ok(bulk.includes(part), part);
+  assert.ok(bulk.indexOf('data-testid="bulk-usual"') < bulk.indexOf('aria-label="Block for everyone"'), "before the boxes to fill in");
   // The read is under the address that is checked for a sign-in before a big upload is taken in, and nothing sent is logged.
   assert.ok(index.includes('app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));'));
   assert.ok(server.includes('app.post("/api/teacher-hub/import/minutes", authMiddleware, async'));

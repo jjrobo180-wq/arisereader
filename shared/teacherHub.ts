@@ -59,11 +59,18 @@ export type ServicePlan = {
   end?: string;
   /** The block (period) of the day this service usually happens in: the id of one of the teacher's blocks. */
   block?: string;
+  /** The half of the block it is in ("first" or "second"), for a teacher who goes to two classes in one block. Not set means the whole block. */
+  part?: string;
+  /** Whose class it is: the teacher the service is pushed in to. */
+  teacher?: string;
 };
 /** Minutes actually delivered on a day. */
 export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string; /** When the session ran ("10:00" to "10:20"), if a time was given. */ start?: string; end?: string; /** The block (period) it was given in, when that was said. Without one it goes in its plan's block. */ block?: string;
   /** The session did not happen: `minutes` is 0, and `note` says why (student absent, no school, busy with meetings). */
   notMet?: boolean;
+  /** The half of the block it was given in, and whose class it was, when that was said. Without them it follows its plan. */
+  part?: string;
+  teacher?: string;
 };
 export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean };
 

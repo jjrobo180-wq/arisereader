@@ -2,7 +2,7 @@
 // The teacher ticks the students (or a screenshot is read and ticks them), and one save logs a session
 // for each of them, or sets the minutes each of them needs every week. The pop-up is
 // client/src/components/teacher-hub/HubMinutesBulk.tsx; the screenshot is read in server/teacherHubImport.ts.
-import { BLOCK_NAME_MAX, blockName, type SchoolBlock } from "./hubBlocks";
+import { BLOCK_NAME_MAX, blockName, cleanPart, cleanTeacher, groupText, partRank, placeText, type BlockPart, type SchoolBlock } from "./hubBlocks";
 import { SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, countedPlan, guideDays, meetingDays, planFields, planText, sessionLog, weekDayOf, weekStart, type WeekDay } from "./hubProgress";
 import type { ServiceLog, ServicePlan } from "./teacherHub";
 
@@ -61,6 +61,10 @@ export type BulkCommon = {
   /** The days of the week (plan). None means the minutes are for the whole week. */
   days: WeekDay[];
   note: string;
+  /** The half of the block ("first" or "second"), for a teacher who goes to two classes in one block. "" is the whole block. It needs a block. */
+  part?: string;
+  /** Whose class is pushed in to. It is kept for push-in only. */
+  teacher?: string;
 };
 
 /** A ticked student. Anything set here is that student's own, and is used in place of what everyone else gets. */
@@ -69,9 +73,12 @@ export type BulkPick = { minutes?: string; block?: string; kind?: string; days?:
 export type BulkPicks = Record<string, BulkPick>;
 
 /** One ticked student with everything worked out: what will be saved for them. */
-export type BulkLine = { student: string; block: string; kind: string; days: WeekDay[]; minutes: string };
+export type BulkLine = { student: string; block: string; kind: string; days: WeekDay[]; minutes: string; /** The half of the block and whose class, when they were given. */ part?: BlockPart; teacher?: string };
 
-export type PlanFields = Pick<ServicePlan, "student" | "kind" | "minutesPerWeek" | "days" | "block">;
+export type PlanFields = Pick<ServicePlan, "student" | "kind" | "minutesPerWeek" | "days" | "block" | "part" | "teacher">;
+
+/** The kind of service that is given inside another teacher's class. */
+export const PUSH_IN: string = SERVICE_KINDS[0];
 
 const DEFAULT_KIND: string = SERVICE_KINDS[0];
 const orderOf = (kind: string) => { const i = (SERVICE_KINDS as readonly string[]).indexOf(kind); return i < 0 ? SERVICE_KINDS.length : i; };
@@ -91,8 +98,14 @@ export function bulkLine(common: BulkCommon, student: string, pick: BulkPick, pl
   const block = known(pick.block) || known(common.block);
   const kind = pick.kind || common.kind || (common.mode === "log" ? usualKind(student, block, plans) : DEFAULT_KIND);
   const days = common.mode === "plan" ? WEEK_DAYS.filter((d) => (pick.days ?? common.days).includes(d)) : [];
-  return { student, block, kind, days, minutes: String(pick.minutes ?? "").trim() || String(common.minutes ?? "").trim() };
+  // A half is a half of a block, and a class is somewhere to push in: neither is kept without those.
+  const part = block ? cleanPart(common.part) : undefined;
+  const teacher = kind === PUSH_IN ? cleanTeacher(common.teacher) : "";
+  return { student, block, kind, days, minutes: String(pick.minutes ?? "").trim() || String(common.minutes ?? "").trim(), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}) };
 }
+
+/** The half of the block and the class, as they are saved with a plan or a session. Nothing when there is neither. */
+const place = (line: Pick<BulkLine, "part" | "teacher">): { part?: BlockPart; teacher?: string } => ({ ...(line.part ? { part: line.part } : {}), ...(line.teacher ? { teacher: line.teacher } : {}) });
 
 export type BulkResult = {
   /** The sessions to log (log), in the order of the students handed in. */
@@ -106,7 +119,7 @@ export type BulkResult = {
 /** The required minutes one ticked student's line sets. null while they have no minutes. */
 export function linePlan(line: BulkLine): PlanFields | null {
   const fields = planFields({ student: line.student, kind: line.kind, perWeek: line.minutes, days: line.days, perDay: line.minutes });
-  return fields ? { student: fields.student, kind: fields.kind, minutesPerWeek: fields.minutesPerWeek, ...(fields.days ? { days: fields.days } : {}), ...(line.block ? { block: line.block } : {}) } : null;
+  return fields ? { student: fields.student, kind: fields.kind, minutesPerWeek: fields.minutesPerWeek, ...(fields.days ? { days: fields.days } : {}), ...(line.block ? { block: line.block } : {}), ...place(line) } : null;
 }
 
 /** Everything one save does. Only students in `students` (the caseload) are saved. */
@@ -119,7 +132,7 @@ export function bulkResult(common: BulkCommon, picks: BulkPicks, students: strin
     if (common.mode === "log") {
       const session = sessionLog({ student, kind: line.kind, date: common.date || today, minutes: line.minutes, note: common.note });
       if (!session) { out.missing.push(student); continue; }
-      out.logs.push({ ...session, ...(line.block ? { block: line.block } : {}) });
+      out.logs.push({ ...session, ...(line.block ? { block: line.block } : {}), ...place(line) });
     } else {
       const fields = linePlan(line);
       if (!fields) { out.missing.push(student); continue; }
@@ -155,7 +168,9 @@ export function withPlans(services: ServicePlan[], plans: PlanFields[], makeId: 
     if (joinsPlan(old, fields)) {
       const both = { ...cleanDayGuide(old.days), ...cleanDayGuide(fields.days) };
       const days = Object.fromEntries(WEEK_DAYS.filter((d) => both[d]).map((d) => [d, both[d]!]));
-      next = { ...fields, days, minutesPerWeek: Object.values(days).reduce((n, m) => n + m, 0) };
+      // The half and the class stay as they were, unless new ones were given.
+      const part = cleanPart(fields.part) ?? cleanPart(old.part), teacher = cleanTeacher(fields.teacher) || cleanTeacher(old.teacher);
+      next = { ...fields, days, minutesPerWeek: Object.values(days).reduce((n, m) => n + m, 0), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}) };
     }
     // Written out whole, so minutes changed from a day guide to a weekly number do not keep their old days.
     out = out.map((s, i) => (i === at ? { id: s.id, ...next, since: s.since || weekStart(today) } : s));
@@ -166,12 +181,34 @@ export function withPlans(services: ServicePlan[], plans: PlanFields[], makeId: 
 /** "Push-in · Block 2" or "Mon, Tue · 20 min each · Block 2 · Push-in": a ticked student's line in a few words. "" while they have no minutes. */
 export function lineText(common: BulkCommon, line: BulkLine, plans: ServicePlan[], blocks: SchoolBlock[]): string {
   if (common.mode === "log") {
-    // With no block of its own, a session goes in the block of the service it counts toward.
-    const where = blockName(blocks, line.block) || blockName(blocks, plans.find((p) => p.student === line.student && p.kind === line.kind)?.block) || "No block";
-    return `${line.kind} · ${where}`;
+    // With no block, half or class of its own, a session goes where the service it counts toward is.
+    const usual = plans.find((p) => p.student === line.student && p.kind === line.kind);
+    const where = [blockName(blocks, line.block) || blockName(blocks, usual?.block), groupText(line) || groupText(usual || {})].filter(Boolean).join(" · ");
+    return `${line.kind} · ${where || "No block"}`;
   }
   const fields = linePlan(line);
-  return fields ? `${planText(fields, blockName(blocks, line.block))} · ${line.kind}` : "";
+  return fields ? `${planText(fields, placeText(blocks, line))} · ${line.kind}` : "";
+}
+
+/** The students who usually meet in a block, one group for each half and class. */
+export type BlockGroup = { /** "1st half · Ms. Lee", or "" for the students in the whole block with no class named. */ label: string; students: string[] };
+
+/**
+ * Who usually meets in a block, to tick with one tap: the students whose required minutes are in it, grouped by
+ * the half of the block and the class, in the order of the day. Only names on the list (`names`) are in it.
+ */
+export function blockGroups(plans: ServicePlan[], block: string, names: string[]): BlockGroup[] {
+  if (!block) return [];
+  const groups = new Map<string, { rank: number; teacher: string; students: Set<string> }>();
+  for (const p of plans) {
+    if (p.block !== block || !names.includes(p.student)) continue;
+    const label = groupText(p);
+    if (!groups.has(label)) groups.set(label, { rank: partRank(cleanPart(p.part)), teacher: cleanTeacher(p.teacher), students: new Set() });
+    groups.get(label)!.students.add(p.student);
+  }
+  return [...groups.entries()]
+    .sort(([, a], [, b]) => a.rank - b.rank || a.teacher.localeCompare(b.teacher))
+    .map(([label, g]) => ({ label, students: [...g.students].sort((a, b) => a.localeCompare(b)) }));
 }
 
 /** "Logged 30 min for 4 students." or "Added 4 students for every week. …": what a save did. */

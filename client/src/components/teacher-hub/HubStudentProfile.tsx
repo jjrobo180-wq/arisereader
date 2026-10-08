@@ -6,7 +6,7 @@ import { friendlyDate } from "@shared/hubDates";
 import { saveNote } from "@shared/hubNotes";
 import { dueWords, studentProfile, type ProfileDate } from "@shared/hubStudentProfile";
 import { planText } from "@shared/hubProgress";
-import { blockName, schoolBlocks } from "@shared/hubBlocks";
+import { placeText, schoolBlocks } from "@shared/hubBlocks";
 import { sessionBlockName } from "@shared/hubMinutesWeek";
 import { clock12, type HubTab, type Workspace } from "@shared/teacherHub";
 import { Card, Empty, GhostButton, PrimaryButton, Select } from "./ui";
@@ -117,7 +117,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
         <Part title="Service minutes" count={profile.services.length} tab="minutes" tabLabel="Minutes" onOpenTab={onOpenTab}>
           <Rows rows={profile.services} empty="No services set up." render={({ plan, status }) => (
             <li key={plan.id} className={row}>
-              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-900">{plan.kind} <span className="text-xs font-normal text-slate-500">· {planText(plan, blockName(blocks, plan.block))}</span></span><span className="text-xs font-semibold text-slate-700">{status.thisWeek} of {status.required} min this week</span></div>
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-900">{plan.kind} <span className="text-xs font-normal text-slate-500">· {planText(plan, placeText(blocks, plan))}</span></span><span className="text-xs font-semibold text-slate-700">{status.thisWeek} of {status.required} min this week</span></div>
               {(status.remaining > 0 || status.owed > 0) && <div className="mt-1 text-xs text-slate-500">{status.remaining > 0 ? `${status.remaining} min left this week` : "This week is done"}{status.owed > 0 ? ` · ${status.owed} min to make up` : ""}</div>}
             </li>
           )} />
