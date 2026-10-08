@@ -40,6 +40,7 @@ import { printParentInvites } from "@/lib/parentInvites";
 import ParentEmailInvite from "@/components/ParentEmailInvite";
 import type { SiteBanner } from "@shared/banners";
 import FamilyEmailInvite from "@/components/FamilyEmailInvite";
+import InvitePrizesEditor from "@/components/InvitePrizesEditor";
 import { cn } from "@/lib/utils";
 import {
   Users, KeyRound, Send, Trophy, BookOpen, Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
@@ -3067,7 +3068,7 @@ Generate exactly 10 questions.`;
         title={`Students (${students.length})`}
         actions={<Button variant="outline" size="sm" onClick={() => printParentInvites().catch(e => window.alert(e.message))}><Printer className="h-4 w-4" />Print all parent letters</Button>}
       >
-        <div className="mb-4"><FamilyEmailInvite /></div>
+        <div className="mb-4 space-y-2"><FamilyEmailInvite /><InvitePrizesEditor /></div>
         <div className="mb-4 space-y-2">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">

@@ -15,6 +15,7 @@ const when = (at: string) => {
 
 export default function ParentEmailInvite({ studentId, studentName }: { studentId: number; studentName: string }) {
   const [email, setEmail] = useState("");
+  const [note, setNote] = useState("");
   const [invites, setInvites] = useState<SentParentInvite[]>([]);
   const [emailReady, setEmailReady] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -24,7 +25,7 @@ export default function ParentEmailInvite({ studentId, studentName }: { studentI
 
   useEffect(() => {
     let current = true;
-    setInvites([]); setNotice(""); setError(""); setEmail("");
+    setInvites([]); setNotice(""); setError(""); setEmail(""); setNote("");
     loadParentInviteEmails(studentId).then((data) => { if (current) { setInvites(data.invites); setEmailReady(data.emailReady); } }).catch(() => { /* the list is a nicety; sending still works */ });
     return () => { current = false; };
   }, [studentId]);
@@ -35,7 +36,7 @@ export default function ParentEmailInvite({ studentId, studentName }: { studentI
     if (!address || busy) return;
     setBusy(true); setNotice(""); setError("");
     try {
-      const result = await sendParentInviteEmail(studentId, address);
+      const result = await sendParentInviteEmail(studentId, address, note.trim());
       setInvites(result.invites);
       setNotice(result.message);
       setEmail("");
@@ -54,7 +55,9 @@ export default function ParentEmailInvite({ studentId, studentName }: { studentI
         <Input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label={`Parent or guardian email for ${studentName}`} value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} data-testid="parent-email-input" />
         <Button type="submit" disabled={busy || !email.trim()} className="shrink-0" data-testid="parent-email-send">{busy ? "Sending..." : "Send invitation"}</Button>
       </form>
-      <InviteCopy studentId={studentId} to={email} />
+      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={600} placeholder={`Anything to add in your own words (optional), like: ${first} did great on the last quiz!`} aria-label={`Anything to add to ${studentName}'s invitation`} className="mt-2 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" data-testid="parent-email-note" />
+      <p className="mt-1 text-xs text-muted-foreground">What you type here goes into the email the site sends and into the message you copy.</p>
+      <InviteCopy studentId={studentId} note={note} to={email} />
       {!emailReady && <p className="mt-2 text-xs text-amber-500">Email isn't set up on the site yet, so the site can't send invitations. You can copy the message into your own email, or print the parent letter.</p>}
       {notice && <p role="status" className="mt-2 text-sm text-emerald-500" data-testid="parent-email-notice">{notice}</p>}
       {error && <p role="alert" className="mt-2 text-sm text-destructive" data-testid="parent-email-error">{error}</p>}

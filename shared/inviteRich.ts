@@ -13,6 +13,9 @@ export const INVITE_PICTURES = [
   { picture: "⭐", label: "Earn points" },
 ] as const;
 
+/** The three pictures as one line of plain words, so a message pasted as words only still has them. */
+export const PICTURE_LINE = INVITE_PICTURES.map((p) => `${p.picture} ${p.label}`).join("   ");
+
 /** Where the logo lives on the site. Email apps load it from there. */
 export const logoUrl = (siteUrl: string) => `${siteUrl.replace(/\/+$/, "")}/icon-192.png`;
 
@@ -35,20 +38,22 @@ export function inviteBrandHtml(siteUrl: string, look: Look = "light"): string {
 
 const LINK = /(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+)/g;
 /** One line of words made safe for a page, with its web addresses turned into links. */
-function inline(line: string): string {
+export function inviteInlineHtml(line: string, linkColor = "#6d28d9"): string {
   return line.split(LINK).map((part, i) => {
     if (i % 2 === 0) return escapeHtml(part);
     // A full stop or comma after an address is the sentence's, not the address's.
     const tail = /[.,;:!?)]+$/.exec(part)?.[0] || "";
     const address = tail ? part.slice(0, -tail.length) : part;
     const href = /^https?:\/\//i.test(address) ? address : `https://${address}`;
-    return `<a href="${escapeHtml(href)}" style="color:#6d28d9;">${escapeHtml(address)}</a>${escapeHtml(tail)}`;
+    return `<a href="${escapeHtml(href)}" style="color:${linkColor};">${escapeHtml(address)}</a>${escapeHtml(tail)}`;
   }).join("");
 }
+const inline = (line: string) => inviteInlineHtml(line);
 
 /** "WHAT IT IS" is a heading: a short line with letters and no small ones. */
 const isHeading = (line: string) => line.length <= 60 && /[A-Z]{3}/.test(line) && !/[a-z]/.test(line) && !/^(- |\d+\. )/.test(line) && !/https?:\/\/|www\./i.test(line);
-const headingWords = (line: string) => line.charAt(0) + line.slice(1).toLowerCase();
+/** "🏆 PRIZES AND COMPETITIONS" to "🏆 Prizes and competitions": small letters, with the first letter kept big. */
+const headingWords = (line: string) => line.toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
 /** The words laid out: capital-letter lines as headings, "- " lines as a list, "1." lines as numbered steps, the rest as paragraphs. */
 export function inviteWordsHtml(text: string): string {
@@ -62,6 +67,8 @@ export function inviteWordsHtml(text: string): string {
   for (const raw of String(text ?? "").replace(/\r\n?/g, "\n").split("\n")) {
     const line = raw.trim();
     if (!line) { closeList(); closePara(); continue; }
+    // The row of pictures is already drawn on top, so its line of words is not repeated.
+    if (line === PICTURE_LINE) continue;
     const bullet = /^- (.*)$/.exec(line), step = /^\d+\. (.*)$/.exec(line);
     if (bullet || step) {
       const kind = bullet ? "ul" : "ol";

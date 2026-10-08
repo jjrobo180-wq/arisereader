@@ -14,17 +14,20 @@ export function mailtoLink(to: string, subject: string, text: string): string {
   return `mailto:${encodeURIComponent(address)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text.replace(/\r?\n/g, "\r\n"))}`;
 }
 
-export default function InviteCopy({ studentId, childName = "", to = "" }: {
+export default function InviteCopy({ studentId, childName = "", note = "", to = "" }: {
   /** The student whose invitation it is. Left out for a family that is new to the site. */
   studentId?: number;
   /** For a new family: the child's name typed so far. */
   childName?: string;
+  /** Anything the sender typed to add in their own words. */
+  note?: string;
   /** The parent's address typed so far, to fill in "To" when the email app is opened. */
   to?: string;
 }) {
-  // The message goes with one student (or one child's name). Change either and it is written again.
-  const key = `${studentId ?? "family"}|${childName.trim()}`;
-  const [made, setMade] = useState<{ key: string; subject: string } | null>(null);
+  // The message is written for one student (or one family), with the name and note as they were then.
+  const who = `${studentId ?? "family"}`;
+  const key = `${who}|${childName.trim()}|${note.trim()}`;
+  const [made, setMade] = useState<{ who: string; key: string; subject: string } | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -36,14 +39,17 @@ export default function InviteCopy({ studentId, childName = "", to = "" }: {
   // Kept as one object while the words are the same, so the preview is not redrawn (which would drop a selection made in it).
   const previewHtml = useMemo(() => ({ __html: rich }), [rich]);
   const id = useId();
-  const shown = made && made.key === key ? made : null;
+  // Another student closes it. A changed name or note leaves it open, with an offer to write it again:
+  // writing it again by itself would throw away anything changed by hand in the box.
+  const shown = made && made.who === who ? made : null;
+  const stale = !!shown && shown.key !== key;
 
   async function write() {
     if (busy) return;
     setBusy(true); setNotice(""); setError("");
     try {
-      const template = await loadInviteTemplate(studentId ? { studentId } : { childName: childName.trim() });
-      setMade({ key, subject: template.subject });
+      const template = await loadInviteTemplate(studentId ? { studentId, note: note.trim() } : { childName: childName.trim(), note: note.trim() });
+      setMade({ who, key, subject: template.subject });
       setText(template.text);
     } catch (err: any) {
       setError(err?.message || "The message could not be written.");
@@ -100,6 +106,12 @@ export default function InviteCopy({ studentId, childName = "", to = "" }: {
   return (
     <div className="mt-3 rounded-lg bg-muted/30 p-3" data-testid="invite-copy">
       <p className="text-xs text-muted-foreground">Paste this into an email from any address. {studentId ? "The student's code and sign-up link are in it. " : ""}You can change the words first. The site sends nothing, so it won't show in the list of who was invited.</p>
+      {stale && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground" role="status" data-testid="invite-copy-stale">
+          <span className="min-w-0 flex-1">You changed the name or what to add. The message below is the earlier one.</span>
+          <Button type="button" size="sm" disabled={busy} onClick={() => void write()} data-testid="invite-copy-update">{busy ? "Writing it..." : "Write it again"}</Button>
+        </div>
+      )}
       <label className="mt-3 block text-xs font-semibold text-muted-foreground" htmlFor={`${id}-subject`}>Subject</label>
       <div className="mt-1 flex gap-2">
         <Input id={`${id}-subject`} readOnly value={shown.subject} onFocus={(e) => e.currentTarget.select()} data-testid="invite-copy-subject" />
@@ -113,7 +125,7 @@ export default function InviteCopy({ studentId, childName = "", to = "" }: {
         <Button asChild variant="outline"><a href={mailtoLink(to, shown.subject, text)} data-testid="invite-copy-mailto">Open in my email app</a></Button>
         <button type="button" onClick={() => { setMade(null); setNotice(""); setError(""); }} className="min-h-9 text-xs font-semibold text-muted-foreground underline underline-offset-4">Close</button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">"Open in my email app" carries the words only. If it opens with part of the message missing, copy and paste instead.</p>
+      <p className="mt-2 text-xs text-muted-foreground">"Open in my email app" carries the words only. If it opens with part of the message missing, copy and paste instead. Phone email apps and texting often paste words only too; the small pictures drawn with symbols still come through.</p>
       <div className="mt-3 text-xs font-semibold text-muted-foreground">How it looks with the logo and pictures</div>
       {/* Our own words and layout, made safe in shared/inviteRich.ts. White, the way an email is. */}
       <div ref={preview} className="mt-1 max-h-96 overflow-y-auto rounded-md border border-input bg-white p-3" data-testid="invite-copy-preview" dangerouslySetInnerHTML={previewHtml} />
