@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";
-import { addInboxItems, addressOf, senderLabel, cleanBody, cleanSenders, cleanSubject, htmlToText, inboxAddress, newInboxToken, originalSender, readInbox, tokenFor, INBOX_BODY_MAX, type InboxItem } from "../shared/hubInbox";
+import { addInboxItems, fillInboxItem, inboxTaskNotes, markEmailRead, readForward, schoolTime, addressOf, senderLabel, cleanBody, cleanSenders, cleanSubject, htmlToText, inboxAddress, newInboxToken, originalSender, readInbox, tokenFor, INBOX_BODY_MAX, type InboxItem } from "../shared/hubInbox";
 import { INBOX_CONFIG_KEY, INBOX_TOKENS_KEY, inboxItemsKey, inboxSendersKey, newAddress, readConfig, receiveWebhook, registerHubInboxRoutes, verifyWebhook, type HubInboxDeps, type ReceivedEmail } from "../server/hubInbox";
 import { normalizeWorkspace } from "../shared/teacherHub";
 
@@ -103,7 +103,7 @@ test("an email forwarded from the teacher's own address is kept for their Hub, w
   const body = event();
   const r = await receiveWebhook(s.deps, sign(body), body);
   assert.deepEqual(r, { status: 200, kept: 1, note: "kept" });
-  assert.deepEqual(s.items(), [{ id: "fwd-em_1", from: "Ana Rivera", subject: "IEP meeting Friday", body: FORWARDED, receivedAt: new Date(NOW).toISOString() }]);
+  assert.deepEqual(s.items(), [{ id: "fwd-em_1", from: "Ana Rivera", subject: "IEP meeting Friday", body: FORWARDED, receivedAt: new Date(NOW).toISOString(), sent: "Wed, Oct 7", message: "Can you bring Dennis's progress data to Friday's IEP meeting?" }]);
   // The email service sends the same call again: nothing doubles.
   assert.equal((await receiveWebhook(s.deps, sign(body, NOW, "msg_2"), body)).kept, 0);
   assert.equal(s.items().length, 1);
@@ -212,4 +212,39 @@ test("reading the email: the setup's API key is used, and a failure says why so 
   const r = await receiveWebhook(f.deps, sign(body), body);
   assert.equal(r.status, 502);
   assert.match(r.note, /could not fetch the email: site key 401 restricted_api_key/);
+});
+
+const OWN = ["jermaine.robinson@scienceandtech.org", "jjrobo180@gmail.com"];
+test("reading a forward: the person who wrote it, when, and just their message", () => {
+  const outlookTwice = "Jermaine Robinson (He/Him)\nE: jermaine.robinson@scienceandtech.org\n\n________________________________\nFrom: Jermaine Robinson <Jermaine.Robinson@scienceandtech.org>\nSent: Thursday, October 8, 2026 11:12 AM\nTo: hub-jzj7funqfr@x.resend.app <hub-jzj7funqfr@x.resend.app>\nSubject: Fw: A Task\n\nJermaine Robinson (He/Him)\n\n________________________________\nFrom: Workday for DSST Public Schools <dsstpublicschools@myworkday.com>\nSent: Thursday, October 8, 2026 9:57 AM\nTo: Jermaine Robinson <Jermaine.Robinson@scienceandtech.org>\nSubject: A Task Awaits You in Workday\n\nPlease log into Workday to review.\n\nBusiness Process: trainings";
+  assert.deepEqual(readForward(outlookTwice, OWN), { sender: "Workday for DSST Public Schools <dsstpublicschools@myworkday.com>", sent: "Thursday, October 8, 2026 9:57 AM", message: "Please log into Workday to review.\n\nBusiness Process: trainings" }, "a forward of a forward finds who wrote it");
+  const gmail = "---------- Forwarded message ---------\nFrom: Rewards Team <\nrewards@info.example.com>\nDate: Thu, Oct 8, 2026 at 10:22 AM\nSubject: Bank Holiday\nTo: <jjrobo180@gmail.com>\n\n[image: Rewards]\n\nMonday is a bank holiday.";
+  assert.deepEqual(readForward(gmail, OWN), { sender: "Rewards Team <rewards@info.example.com>", sent: "Thu, Oct 8, 2026 at 10:22 AM", message: "Monday is a bank holiday." }, "Gmail's broken From line is joined");
+  const reply = "Hi All,\n\nI updated the IEP.\n\nKristen\n\nFrom: Jermaine Robinson <Jermaine.Robinson@scienceandtech.org>\nSent: Wednesday, October 7, 2026 1:48 PM\nTo: a@b.com; c@d.com\nSubject: Nolan's IEP\n\nHere is the draft.";
+  assert.deepEqual(readForward(reply, OWN), { sender: null, sent: null, message: "Hi All,\n\nI updated the IEP.\n\nKristen" }, "a reply sent on: the newest message, not the older one quoted under it");
+  assert.deepEqual(readForward("Just words.", OWN), { sender: null, sent: null, message: "Just words." });
+});
+
+test("a forwarded email shows when it was sent, its message on the to-do, and New until opened", () => {
+  assert.equal(schoolTime("2026-10-08T15:57:00Z"), "Thu, Oct 8, 2026, 9:57 AM");
+  assert.equal(inboxTaskNotes("Workday", "Thursday 9:57 AM", "Please log in.\n\nThanks"), "From Workday · Sent Thursday 9:57 AM\n\nPlease log in.\nThanks");
+  const item: InboxItem = { id: "fwd-w", from: "Workday", subject: "A Task", body: "whole email", message: "Please log in.", sent: "Thursday 9:57 AM", receivedAt: "2026-10-08T16:00:00Z" };
+  const { workspace } = addInboxItems(normalizeWorkspace({}), [item], () => "t1", "2026-10-08");
+  assert.deepEqual([workspace.emails[0].sent, workspace.emails[0].message, workspace.emails[0].unread, workspace.emails[0].body], ["Thursday 9:57 AM", "Please log in.", true, "whole email"]);
+  assert.equal(workspace.tasks[0].notes, "From Workday · Sent Thursday 9:57 AM\n\nPlease log in.");
+  const read = markEmailRead(workspace, "fwd-w");
+  assert.equal(read.emails[0].unread, undefined);
+  assert.equal(markEmailRead(read, "fwd-w"), read, "already read: nothing changes");
+});
+
+test("emails that came in before this get their sender, time and message filled in", () => {
+  const old: InboxItem = { id: "fwd-o", from: "Jermaine Robinson", subject: "A Task", receivedAt: "2026-10-08T17:42:35Z", body: "Sig\n\n________________________________\nFrom: Workday <wd@myworkday.com>\nSent: Thursday, October 8, 2026 9:57 AM\nSubject: A Task\n\nPlease log in." };
+  const filled = fillInboxItem(old, OWN);
+  assert.deepEqual([filled.from, filled.sent, filled.message], ["Workday", "Thursday, October 8, 2026 9:57 AM", "Please log in."]);
+  // Already in the Hub without them: the email and its open to-do are filled in, nothing is added twice.
+  let ws = normalizeWorkspace({ emails: [{ id: "fwd-o", from: "Jermaine Robinson", subject: "A Task", body: old.body, action: "", draft: "", date: "2026-10-08", flagged: true }], tasks: [{ id: "t", title: "Reply", dueDate: "2026-10-08", recurring: "", done: false, emailId: "fwd-o", notes: "old" }] });
+  const r = addInboxItems(ws, [filled], () => "x", "2026-10-08");
+  assert.equal(r.added, 0);
+  assert.deepEqual([r.workspace.emails.length, r.workspace.emails[0].from, r.workspace.emails[0].sent, r.workspace.tasks.length], [1, "Workday", "Thursday, October 8, 2026 9:57 AM", 1]);
+  assert.match(r.workspace.tasks[0].notes!, /^From Workday · Sent Thursday, October 8, 2026 9:57 AM\n\nPlease log in\.$/);
 });

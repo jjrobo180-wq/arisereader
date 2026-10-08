@@ -1,7 +1,7 @@
 // Teacher Hub: emails forwarded in. The open Hub picks up what arrived at the teacher's forwarding address
 // and adds each one to Emails, flagged, and to the to-do list. The Emails tab shows the address.
 // The rules are in shared/hubInbox.ts; the server side is server/hubInbox.ts.
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Copy, Inbox, RefreshCw } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { addInboxItems, type InboxItem } from "@shared/hubInbox";
@@ -134,4 +134,39 @@ export function ForwardingCard({ token, isAdmin }: { token: string | null; isAdm
       </div>
     </Card>
   );
+}
+
+/** Asks the Hub to show one saved email (from a to-do's "Open email"). */
+export const OPEN_EMAIL_EVENT = "hub-open-email";
+export const openHubEmail = (emailId: string) => window.dispatchEvent(new CustomEvent(OPEN_EMAIL_EVENT, { detail: emailId }));
+
+/**
+ * An email's words with its web addresses as links. Outlook writes a link as "Click here<https://…>":
+ * that becomes "Click here" linked to the address.
+ */
+export function EmailWords({ text, className = "" }: { text: string; className?: string }) {
+  const parts: ReactNode[] = [];
+  const pattern = /<(https?:\/\/[^\s<>]+)>|(https?:\/\/[^\s<>"]+)/g;
+  let last = 0, m: RegExpExecArray | null, n = 0;
+  const link = (href: string, label: string) => <a key={n++} href={href} target="_blank" rel="noopener noreferrer" className="break-words font-medium text-teal-700 underline">{label}</a>;
+  while ((m = pattern.exec(text))) {
+    let before = text.slice(last, m.index);
+    if (m[1]) {
+      // "Click here<https://…>": the words just before it on that line (up to 80 letters) become the link.
+      const onLine = before.slice(before.lastIndexOf("\n") + 1);
+      let label = /\S$/.test(onLine) ? onLine.trim() : "";
+      if (label.length > 80) label = /\S+$/.exec(onLine)?.[0] || "";
+      // The line ends with the label, so taking its length off the end leaves the rest.
+      if (label) before = before.slice(0, before.length - label.length);
+      parts.push(before, link(m[1], label || m[1]));
+    } else {
+      const raw = m[2];
+      const tail = /[.,;:!?)]+$/.exec(raw)?.[0] || "";
+      const href = tail ? raw.slice(0, -tail.length) : raw;
+      parts.push(before, link(href, href), tail);
+    }
+    last = m.index + m[0].length;
+  }
+  parts.push(text.slice(last));
+  return <p className={`whitespace-pre-wrap break-words ${className}`} data-testid="email-words">{parts}</p>;
 }

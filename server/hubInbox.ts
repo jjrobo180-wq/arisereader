@@ -6,7 +6,7 @@
 // that teacher's Hub to pick up.
 import type { Express, RequestHandler } from "express";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { addressOf, cleanBody, senderLabel, cleanSenders, cleanSubject, inboxAddress, newInboxToken, originalSender, readInbox, tokenFor, type InboxItem } from "../shared/hubInbox";
+import { addressOf, cleanBody, senderLabel, cleanSenders, cleanSubject, inboxAddress, newInboxToken, fillInboxItem, readForward, readInbox, schoolTime, tokenFor, type InboxItem } from "../shared/hubInbox";
 
 export const INBOX_CONFIG_KEY = "hub_inbox_config";
 export const INBOX_TOKENS_KEY = "hub_inbox_tokens";
@@ -15,7 +15,7 @@ export const inboxSendersKey = (teacherId: number) => `hub_inbox_senders_${teach
 
 /** apiKey: a Resend key allowed to read received emails ("Full access"). Without it, the site's own email key is used. */
 export type InboxConfig = { domain: string; secret: string; apiKey?: string };
-export type ReceivedEmail = { from?: string; subject?: string; text?: string | null; html?: string | null; authentication?: { spf?: string; dkim?: string; dmarc?: string } | null };
+export type ReceivedEmail = { from?: string; subject?: string; created_at?: string; text?: string | null; html?: string | null; authentication?: { spf?: string; dkim?: string; dmarc?: string } | null };
 
 export type HubInboxDeps = {
   getSetting(key: string): Promise<string | null | undefined>;
@@ -130,7 +130,12 @@ export async function receiveWebhook(deps: HubInboxDeps, headers: Record<string,
     // A sender that fails the email checks may be someone pretending to be the teacher.
     if (String(mail.authentication?.dmarc || "").toLowerCase() === "fail") continue;
     const body = cleanBody(mail.text, mail.html);
-    const item: InboxItem = { id: `fwd-${emailId}`, from: senderLabel(originalSender(body) || mail.from || data.from || from), subject: cleanSubject(mail.subject ?? data.subject), body, receivedAt: new Date(deps.now()).toISOString() };
+    const fwd = readForward(body, [from, ...allowed.senders]);
+    const receivedAt = new Date(deps.now()).toISOString();
+    const item: InboxItem = {
+      id: `fwd-${emailId}`, from: senderLabel(fwd.sender || mail.from || data.from || from), subject: cleanSubject(mail.subject ?? data.subject), body, receivedAt,
+      sent: fwd.sent || schoolTime(String(mail.created_at || data.created_at || receivedAt)), message: fwd.message,
+    };
     const list = readInbox(await deps.getSetting(inboxItemsKey(teacherId)));
     if (list.some((x) => x.id === item.id)) continue;
     await deps.saveSetting(inboxItemsKey(teacherId), JSON.stringify(readInbox(JSON.stringify([item, ...list]))));
@@ -162,7 +167,8 @@ export function registerHubInboxRoutes(app: Express, auth: RequestHandler, deps:
       const config = readConfig(await deps.getSetting(INBOX_CONFIG_KEY));
       const token = tokenOf(await readTokens(deps), teacherId);
       const allowed = await readSenders(deps, teacherId);
-      const waiting = readInbox(await deps.getSetting(inboxItemsKey(teacherId))).filter((x) => !x.taken);
+      const own = [...allowed.senders, addressOf(await deps.accountEmail(teacherId))].filter(Boolean);
+      const waiting = readInbox(await deps.getSetting(inboxItemsKey(teacherId))).filter((x) => !x.taken).map((x) => fillInboxItem(x, own));
       res.set("Cache-Control", "no-store").json({ ready: !!(config.domain && config.secret), address: config.domain && token ? inboxAddress(token, config.domain) : null, ...allowed, waiting });
     } catch (error) { fail(res, error); }
   });
