@@ -3,7 +3,7 @@
 // grades, schedule, reading records) gathered in one place, newest first.
 import { daysBetween } from "./hubDates";
 import { guideProgress } from "./hubGuide";
-import { goalProgress, serviceStatus, type GoalStatus, type ServiceStatus } from "./hubProgress";
+import { countedPlan, goalProgress, optionalDays, serviceStatus, type GoalStatus, type ServiceStatus } from "./hubProgress";
 import type {
   AriseRecord, Assignment, AttendanceEntry, BehaviorEntry, Goal, IepGuide, Meeting, NoteItem, ParentLog, ScheduleEntry, ServiceLog, ServicePlan, Student, Workspace,
 } from "./teacherHub";
@@ -62,7 +62,9 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
 
   const schedule = [...mine(workspace.schedules)].sort((a, b) => (DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day)) || String(a.start).localeCompare(String(b.start)));
   const goals = mine(workspace.goals).map((goal) => { const p = goalProgress(goal, today); return { goal, latest: p.latest, percent: p.percent, status: p.status }; });
-  const services = mine(workspace.services).map((plan) => ({ plan, status: serviceStatus(plan, workspace.serviceLogs || [], today) }));
+  // Each plan as it counts: an optional day asks for nothing.
+  const optional = optionalDays(workspace);
+  const services = mine(workspace.services).map((saved) => countedPlan(saved, optional)).map((plan) => ({ plan, status: serviceStatus(plan, workspace.serviceLogs || [], today) }));
   const guides = mine(workspace.guides).map((guide) => ({ guide, ...guideProgress(guide) }));
   const notes = newest(mine(workspace.notes));
   const parentLogs = newest(mine(workspace.parentLogs));
