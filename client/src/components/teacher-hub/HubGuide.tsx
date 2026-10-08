@@ -355,7 +355,14 @@ function GuideView({ guide, workspace, setWorkspace, makeId, sender, onBack }: S
             return (
               <div key={role.id} className="min-w-0">
                 <Labeled label={role.label}>
-                  <Select value={chosen ? chosen.id : ""} onChange={(e) => change((g) => ({ ...g, team: { ...(g.team || {}), [role.id]: e.target.value } }))}>
+                  <Select value={chosen ? chosen.id : ""} onChange={(e) => {
+                     const contactId = e.target.value;
+                     setWorkspace((p) => ({
+                       ...p,
+                       guides: p.guides.map((g) => g.id === guide.id ? { ...g, team: { ...(g.team || {}), [role.id]: contactId } } : g),
+                       students: p.students.map((s) => s.name === guide.student ? { ...s, team: { ...(s.team || {}), [role.id]: contactId } } : s),
+                     }));
+                   }}>
                     <option value="">Not assigned</option>
                     {first.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     {rest.length > 0 && <optgroup label="Other people">{rest.map((c) => <option key={c.id} value={c.id}>{c.name} ({roleLabel(c.role)})</option>)}</optgroup>}
@@ -450,7 +457,9 @@ export default function HubGuideTab({ workspace, setWorkspace, makeId, sender, o
   function start(e: FormEvent) {
     e.preventDefault();
     if (!form.student || full) return;
-    const guide = newGuide(form.student, form.kind, makeId);
+    // Reuse the team assigned on the caseload; teachers can still adjust it in the guide.
+    const assigned = workspace.students.find((s) => s.name === form.student)?.team || {};
+    const guide = { ...newGuide(form.student, form.kind, makeId), team: { ...assigned } };
     setWorkspace((p) => ({ ...p, guides: [...p.guides, guide] }));
     setForm({ student: "", kind: form.kind });
     setOpenId(guide.id);
