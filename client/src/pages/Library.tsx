@@ -15,6 +15,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 import BookAccessLinks from "@/components/BookAccessLinks";
+import ExtraCreditTag from "@/components/ExtraCreditTag";
 import { EngagementHub } from "@/components/EngagementHub";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
 import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
@@ -2019,6 +2020,7 @@ export default function Library() {
                         >
                           <div className="h-1.5 w-full" style={{ background: accent }} />
                           <div className="relative aspect-[2/3] overflow-hidden bg-black/30">
+                            {!isDone && <ExtraCreditTag />}
                             {book.coverUrl ? (
                               <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
                             ) : (
@@ -2130,6 +2132,7 @@ export default function Library() {
                     const isDone=completedIds.has(book.id);
                     return <Card key={book.id} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden border-orange-400/20 bg-[#160d20] text-white transition-all duration-200 hover:-translate-y-1 hover:border-orange-300/50 hover:shadow-[0_12px_40px_rgba(249,115,22,.16)] sm:w-[180px]" style={{scrollSnapAlign:"start"}} onClick={()=>navigate(`/quiz/${book.id}`)}>
                       <div className="relative aspect-[2/3] overflow-hidden bg-[#261337]">
+                        {!isDone&&<ExtraCreditTag/>}
                         {book.coverUrl?<img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy"/>:<div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-950 to-orange-950 p-4 text-center"><span className="font-black">{book.title}</span></div>}
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#100716] to-transparent"/>
                         {isDone&&<div className="absolute right-2 top-2 rounded-full bg-emerald-500 px-2 py-1 text-xs font-black text-white shadow">✓ Done</div>}
@@ -2181,6 +2184,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2255,6 +2259,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2300,6 +2305,7 @@ export default function Library() {
                         onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {existingQuiz && !isDone && <ExtraCreditTag />}
                           {sbook.coverUrl ? (
                             <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2361,6 +2367,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2406,6 +2413,7 @@ export default function Library() {
                         onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {existingQuiz && !isDone && <ExtraCreditTag />}
                           {sbook.coverUrl ? (
                             <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2464,6 +2472,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2519,6 +2528,7 @@ export default function Library() {
                       data-testid={`card-book-${book.id}`}
                     >
                       <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                        {!isDone && <ExtraCreditTag />}
                         {book.coverUrl ? (
                           <img
                             src={`${API_BASE}/api/book-cover/${book.id}`}
@@ -2625,6 +2635,7 @@ export default function Library() {
                     onClick={() => navigate(`/quiz/${book.id}`)}
                   >
                     <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                      {!isDone && <ExtraCreditTag />}
                       {book.coverUrl ? (
                         <img
                           src={`${API_BASE}/api/book-cover/${book.id}`}

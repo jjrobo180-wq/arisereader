@@ -44,8 +44,15 @@ interface Book {
 /** Per question: when it was first answered (ms after the start) and how many times the answer changed. */
 type AnswerTimes = Record<string, { first: number; changes: number }>;
 /** A no-proctor try saved on this device, so a reload or an accidental close can pick it up again. */
-type SavedTry = { token: string; userId: number; answers: Record<string, string>; answerTimes: AnswerTimes; leaves: number };
-type ResumeInfo = { token: string; leaves: number; startedAt: number; snapshotEveryMs: number; leavesBeforeTurnIn: number; answers: Record<string, string>; answerTimes: AnswerTimes };
+type SavedTry = { token: string; userId: number; answers: Record<string, string>; answerTimes: AnswerTimes; leaves: number; comprehension?: ComprehensionAnswers };
+type ResumeInfo = { token: string; leaves: number; startedAt: number; snapshotEveryMs: number; leavesBeforeTurnIn: number; answers: Record<string, string>; answerTimes: AnswerTimes; comprehension?: ComprehensionAnswers };
+
+/** Written answers saved with a camera try, so a reload keeps them. */
+function savedWriting(raw: unknown): ComprehensionAnswers | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  return { retell: String(r.retell ?? ""), problem: String(r.problem ?? ""), lesson: String(r.lesson ?? "") };
+}
 
 function readSavedTry(key: string, userId: number | undefined): SavedTry | null {
   try {
@@ -57,6 +64,7 @@ function readSavedTry(key: string, userId: number | undefined): SavedTry | null 
       answers: saved.answers && typeof saved.answers === "object" ? saved.answers : {},
       answerTimes: saved.answerTimes && typeof saved.answerTimes === "object" ? saved.answerTimes : {},
       leaves: Number(saved.leaves) || 0,
+      comprehension: savedWriting(saved.comprehension),
     };
   } catch {
     return null;
@@ -86,7 +94,7 @@ export default function Quiz() {
   const [proctorLoading, setProctorLoading] = useState(false);
   const [proctorSessionToken, setProctorSessionToken] = useState("");
   const [proctorIdentity, setProctorIdentity] = useState<{ type: "parent" | "teacher"; name: string } | null>(null);
-  // Written comprehension answers (only with a proctor code, never on a camera quiz).
+  // Written comprehension answers at the end (with a proctor code or on a camera quiz).
   const [comprehension, setComprehension] = useState<ComprehensionAnswers>(EMPTY_ANSWERS);
   const [showReviewRequest, setShowReviewRequest] = useState(false);
   const [reviewReason, setReviewReason] = useState("");
@@ -108,6 +116,7 @@ export default function Quiz() {
   const monitorRef = useRef<NoProctorMonitor | null>(null);
   const answersRef = useRef<Record<string, string>>({});
   const answerTimesRef = useRef<AnswerTimes>({});
+  const comprehensionRef = useRef<ComprehensionAnswers>(EMPTY_ANSWERS);
   const clockStartRef = useRef(0);
   const submittedRef = useRef(false);
   const pendingTurnInRef = useRef<{ body: string; auto: boolean; events: MonitorEvent[] } | null>(null);
@@ -229,6 +238,7 @@ export default function Quiz() {
             leavesBeforeTurnIn: Number(data.leavesBeforeTurnIn) || 2,
             answers: saved.answers,
             answerTimes: saved.answerTimes,
+            comprehension: saved.comprehension,
           });
         } else if (data || res.status === 404) {
           clearSavedTry(savedKey);
@@ -251,6 +261,7 @@ export default function Quiz() {
       answers: answersRef.current,
       answerTimes: answerTimesRef.current,
       leaves: monitorRef.current?.leaves ?? 0,
+      comprehension: comprehensionRef.current,
       ...patch,
     });
   };
@@ -272,6 +283,12 @@ export default function Quiz() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers]);
 
+  useEffect(() => {
+    comprehensionRef.current = comprehension;
+    saveTry();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprehension]);
+
   // What happens when the student leaves the quiz and comes back. Kept in refs so
   // the monitor (created once) always calls the current version.
   const onLeaveRef = useRef<(leaves: number) => void>(() => {});
@@ -289,7 +306,9 @@ export default function Quiz() {
   const startCameraQuiz = (session: CameraSession) => {
     const restored = session.resumed && resume?.token === session.token ? resume : null;
     const startAnswers = restored?.answers ?? {};
+    const startWriting = restored?.comprehension ?? EMPTY_ANSWERS;
     answersRef.current = startAnswers;
+    comprehensionRef.current = startWriting;
     answerTimesRef.current = restored?.answerTimes ?? {};
     clockStartRef.current = session.startedAt;
     submittedRef.current = false;
@@ -308,10 +327,11 @@ export default function Quiz() {
     monitor.start(session.resumed ? "resumed" : "start");
     if (session.resumed) monitor.note("resumed");
     setAnswers(startAnswers);
+    setComprehension(startWriting);
     setLeaves(session.leaves);
     setCamera(session);
     if (user?.id && !monitor.preview) {
-      writeSavedTry(savedKey, { token: session.token, userId: user.id, answers: startAnswers, answerTimes: answerTimesRef.current, leaves: session.leaves });
+      writeSavedTry(savedKey, { token: session.token, userId: user.id, answers: startAnswers, answerTimes: answerTimesRef.current, leaves: session.leaves, comprehension: startWriting });
     }
   };
 
@@ -391,7 +411,7 @@ export default function Quiz() {
    * Turns in a no-proctor quiz: by the student (auto = false), or automatically
    * after the second leave. `from` is a saved try being turned in after a reload.
    */
-  const turnIn = (auto: boolean, from?: { token: string; answers: Record<string, string>; answerTimes: AnswerTimes }) => {
+  const turnIn = (auto: boolean, from?: { token: string; answers: Record<string, string>; answerTimes: AnswerTimes; comprehension?: ComprehensionAnswers }) => {
     const sessionToken = from?.token ?? camera?.token;
     if (submittedRef.current || !sessionToken) return;
     submittedRef.current = true;
@@ -400,6 +420,8 @@ export default function Quiz() {
     if (!auto) monitor?.snap("end");
     // Built right away (this can run while the page is closing); the queued log goes along.
     const events = monitor?.drain() ?? [];
+    // Written answers go along only when all three are done (an automatic turn-in may cut them short).
+    const writing = from?.comprehension ?? comprehensionRef.current;
     pendingTurnInRef.current = {
       auto,
       events,
@@ -409,6 +431,7 @@ export default function Quiz() {
         autoSubmitted: auto,
         answerTimes: from?.answerTimes ?? answerTimesRef.current,
         integrityEvents: events,
+        ...(comprehensionState(writing) === "ready" ? { comprehension: writing } : {}),
       }),
     };
     return deliverTurnIn();
@@ -417,7 +440,7 @@ export default function Quiz() {
   // A saved try that already used up its leaves (the page was closed a second time) is turned in.
   useEffect(() => {
     if (resume && resume.leaves >= resume.leavesBeforeTurnIn && !result && !alreadyTaken) {
-      void turnIn(true, { token: resume.token, answers: resume.answers, answerTimes: resume.answerTimes });
+      void turnIn(true, { token: resume.token, answers: resume.answers, answerTimes: resume.answerTimes, comprehension: resume.comprehension });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resume]);
@@ -514,7 +537,8 @@ export default function Quiz() {
   };
 
   const allAnswered = questions.every(q => answers[String(q.id)]);
-  const offerComprehension = proctorVerified && !camera;
+  // With a proctor code or on a camera quiz (not for previews or sample accounts).
+  const offerComprehension = proctorVerified || !!camera;
   const writing = offerComprehension ? comprehensionState(comprehension) : "empty";
 
   const handleSubmit = async () => {

@@ -4,8 +4,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  COMPREHENSION, COMPREHENSION_PROMPTS, allowsComprehension, awardReason, cleanComprehension, cleanNote, cleanPoints,
-  comprehensionState, earnedOn, gradedMessage, shortAnswers,
+  COMPREHENSION, COMPREHENSION_PROMPTS, COVER_NOTE, allowsComprehension, awardReason, cleanComprehension, cleanNote, cleanPoints,
+  comprehensionState, earnedOn, gradedMessage, proctorLabel, shortAnswers,
 } from "../shared/comprehension";
 import { registerComprehensionRoutes } from "../server/comprehension";
 import { fakeSupabase } from "./helpers/fakeSupabase";
@@ -28,11 +28,16 @@ test("three questions, and the student either skips them or answers all three", 
   assert.equal(cleanComprehension({ ...full, problem: "x".repeat(5000) })!.problem.length, COMPREHENSION.maxChars);
 });
 
-test("only a parent or teacher proctor code allows it, never the camera", () => {
+test("a proctor code or the camera allows it; previews and sample accounts don't", () => {
   assert.equal(allowsComprehension("parent"), true);
   assert.equal(allowsComprehension("teacher"), true);
-  assert.equal(allowsComprehension("camera"), false);
+  assert.equal(allowsComprehension("camera"), true);
   assert.equal(allowsComprehension(null), false);
+  assert.equal(allowsComprehension("paper"), false);
+  assert.equal(proctorLabel("camera", "No proctor (camera)"), "On their own (camera on)");
+  assert.equal(proctorLabel("parent", "Mom"), "Parent: Mom");
+  assert.equal(proctorLabel("teacher", ""), "Teacher / staff: Teacher");
+  assert.equal(COVER_NOTE, "10 extra credit points for doing the writing comprehension at the end");
 });
 
 test("points are a whole number from 0 to 10", () => {
@@ -124,8 +129,10 @@ test("saved with a parent or teacher proctor, and the student's teacher is told"
   assert.equal(db.tables.notifications[1].user_id, 99);
 });
 
-test("never saved from a camera quiz, half-done answers, or answers already graded", async () => {
-  assert.equal(await send(1, 5, { type: "camera", name: "No proctor (camera)" }), "not allowed");
+test("saved from a camera quiz too; never from a preview, half-done answers, or answers already graded", async () => {
+  assert.equal(await send(2, 6, { type: "camera", name: "No proctor (camera)" }), "sent");
+  assert.equal(db.tables.comprehension_responses[0].proctor_type, "camera");
+  db.tables.comprehension_responses.length = 0;
   assert.equal(await send(1, 5, null), "not allowed");
   assert.equal(await send(1, 5, { type: "parent" }, { ...full, lesson: "" }), "incomplete");
   assert.equal(await send(1, 5, { type: "parent" }, null), null, "skipping it is fine");

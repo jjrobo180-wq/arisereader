@@ -1,10 +1,10 @@
-// Reading comprehension: the written answers a student sends with a book quiz when a
-// parent or teacher typed the proctor code, and the page where teachers grade them.
+// Reading comprehension: the written answers a student sends at the end of a book quiz
+// (with a proctor code or with the camera on), and the page where teachers grade them.
 // Rules shared with the pages are in shared/comprehension.ts.
 import type { Express, RequestHandler } from "express";
 import {
   COMPREHENSION_PROMPTS, allowsComprehension, awardReason, cleanComprehension, cleanNote, cleanPoints,
-  comprehensionState, earnedOn, gradedMessage, submittedNotice,
+  comprehensionState, earnedOn, gradedMessage, proctorLabel, submittedNotice,
 } from "../shared/comprehension";
 
 const TABLE = "comprehension_responses";
@@ -102,7 +102,7 @@ export function registerComprehensionRoutes(app: Express, authMiddleware: Reques
     coverUrl: n.book.get(Number(r.book_id))?.coverUrl || null,
     quiz: r.attempt_id ? scores.get(Number(r.attempt_id)) || null : null,
     answers: COMPREHENSION_PROMPTS.map((p) => ({ id: p.id, label: p.label, question: p.text, answer: String(r.answers?.[p.id] || "") })),
-    proctor: r.proctor_type === "parent" ? `Parent: ${r.proctor_name || "Parent / Guardian"}` : `Teacher / staff: ${r.proctor_name || "Teacher"}`,
+    proctor: proctorLabel(r.proctor_type, r.proctor_name),
     status: r.status === "graded" ? "graded" : "pending",
     points: r.points == null ? null : Number(r.points),
     note: String(r.teacher_note || ""),

@@ -1,4 +1,4 @@
-// Grading reading comprehension: the written answers students sent with a proctored
+// Grading reading comprehension: the written answers students sent at the end of a
 // book quiz. Teachers see their own students; the admin sees everyone (and grades
 // students who have no teacher). 0 to 10 extra points, plus an optional note.
 import { useEffect, useState } from "react";
@@ -77,7 +77,7 @@ export default function ComprehensionReview({ title = "Reading comprehension", o
       <div className="cr-head">
         <div>
           <h2 id="cr-title"><PenLine /> {title}</h2>
-          <p>Written answers students sent with a book quiz taken with a proctor code. Give 0 to {COMPREHENSION.bonusPoints} extra points. The student gets a message with the points and your note.</p>
+          <p>Written answers students sent at the end of a book quiz. Give 0 to {COMPREHENSION.bonusPoints} extra points. The student gets a message with the points and your note.</p>
         </div>
         <div className="cr-tabs" role="tablist" aria-label="Which answers to show">
           <button type="button" role="tab" aria-selected={view === "pending"} className={view === "pending" ? "on" : ""} onClick={() => { setNotice(""); setView("pending"); }}>
@@ -93,7 +93,7 @@ export default function ComprehensionReview({ title = "Reading comprehension", o
       {items && !items.length && !error && (
         <p className="cr-empty">
           {view === "pending"
-            ? "Nothing to grade. When a student takes a book quiz with a proctor code and writes about the book, it shows up here."
+            ? "Nothing to grade. When a student writes about the book at the end of a quiz, it shows up here."
             : "Nothing graded yet."}
         </p>
       )}
