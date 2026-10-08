@@ -19,6 +19,11 @@ export type Student = {
   readingLevel: string;
   mathLevel: string;
   notes: string;
+  /** Optional IEP eligibility categories, as recorded by the school. */
+  disability1?: string;
+  disability2?: string;
+  /** Assigned meeting staff: role -> saved Sped team contact ID. */
+  team?: Record<string, string>;
 };
 
 export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
@@ -289,7 +294,7 @@ export const HUB_IMPORT = {
     hint: "A student to add to the caseload, for example a row of a class list or roster.",
     fields: {
       name: text("Name", 80, { required: true }), grade: text("Grade", 20), readingLevel: text("Reading level", 40), mathLevel: text("Math level", 40),
-      iepDate: date("IEP deadline"), reevalDate: date("Reevaluation deadline"), accommodations: text("Accommodations", 600, { long: true }), notes: text("Notes", 1000, { long: true }),
+      iepDate: date("IEP deadline"), reevalDate: date("Reevaluation deadline"), disability1: text("Primary disability", 120), disability2: text("Secondary disability", 120), accommodations: text("Accommodations", 600, { long: true }), notes: text("Notes", 1000, { long: true }),
     },
   },
   lessons: {
@@ -617,6 +622,14 @@ export function updateStudent(workspace: Workspace, studentId: string, changes: 
         return { ...row, student: name };
       });
     }
+  }
+  // Student caseload assignments also appear in that student's existing IEP guides.
+  // Keep unrelated guide roles (leader, psych, coordinator) unchanged.
+  const meetingRoles = ["socialWorker", "ot", "nurse", "slp", "genEd"];
+  if (meetingRoles.some((role) => (current.team?.[role] || "") !== (changes.team?.[role] || ""))) {
+    next.guides = next.guides.map((guide) => fold(guide.student) === fold(name)
+      ? { ...guide, team: { ...(guide.team || {}), ...Object.fromEntries(meetingRoles.map((role) => [role, changes.team?.[role] || ""])) } }
+      : guide);
   }
   return { ok: true, workspace: next, moved };
 }
