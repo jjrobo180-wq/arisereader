@@ -31,6 +31,10 @@ export function serveStatic(app: Express) {
     if (/\.[a-z0-9]{2,5}$/i.test(req.path) && !req.path.endsWith(".html")) {
       return res.status(404).type("text/plain").send("Not found");
     }
+    // Unknown direct URLs are app routes or invalid URLs, not independent public pages.
+    // Keep those pages out of search indexes; the homepage and static marketing pages
+    // are served above and remain indexable.
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
