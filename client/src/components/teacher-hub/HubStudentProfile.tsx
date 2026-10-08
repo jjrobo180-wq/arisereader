@@ -94,8 +94,8 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           <Fact label="Reading level" value={s.readingLevel} />
           <Fact label="Math level" value={s.mathLevel} />
           <Fact label="Behavior points" value={profile.behavior.entries.length ? String(profile.behavior.total) : ""} />
-          <DateFact label="IEP date" when={profile.iep} today={today} />
-          <DateFact label="Reevaluation" when={profile.reeval} today={today} />
+          <DateFact label="IEP deadline" when={profile.iep} today={today} />
+          <DateFact label="Reevaluation deadline" when={profile.reeval} today={today} />
           <Fact label="Grade average" value={profile.grades.average === null ? "" : `${profile.grades.average}%`} />
           <Fact label="Attendance" value={profile.attendance.entries.length ? `${a.Present} present · ${a.Absent} absent · ${a.Tardy} tardy` : ""} />
         </div>

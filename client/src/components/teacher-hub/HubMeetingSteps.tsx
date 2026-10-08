@@ -1,9 +1,11 @@
 // Teacher Hub: the ten-step guide for getting an IEP or re-evaluation meeting done.
-// Step 1 adds the meeting, step 2 finds a time for everyone. Any step can be skipped and
-// come back to; the progress is kept on the meeting.
+// Step 1 adds the meeting with its IEP deadline (filled in from the student's caseload
+// date), step 2 finds a time for everyone before that deadline. Any step can be skipped
+// and come back to; the progress is kept on the meeting.
 import { useEffect, useState, type FormEvent, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, Check, ChevronRight, Plus, SkipForward, Undo2, X } from "lucide-react";
 import { MEETING_STEPS, STEP_COUNT, cleanPlan, emptyPlan, markDone, markSkipped, stepState } from "@shared/meetingSteps";
+import { addMeetingWithDeadline, deadlineLabel, deadlineWords, meetingDeadline, savesToStudent, studentDeadline } from "@shared/meetingDeadline";
 import { newGuide } from "@shared/hubGuide";
 import type { Meeting, Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
@@ -29,7 +31,14 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
   const plan = cleanPlan(meeting?.plan);
   const step = Math.min(Math.max(wizard.step, 1), STEP_COUNT);
   const info = MEETING_STEPS[step - 1];
-  const [form, setForm] = useState({ student: "", type: "Annual IEP", date: "", time: "", room: "", notes: "" });
+  const [form, setForm] = useState({ student: "", type: "Annual IEP", deadline: "", date: "", time: "", room: "", notes: "" });
+  // The deadline fills in from the student's caseload date until the teacher types their own.
+  const [typedDeadline, setTypedDeadline] = useState(false);
+  const [knowTime, setKnowTime] = useState(false);
+  const saved = studentDeadline(workspace, form.student, form.type);
+  useEffect(() => {
+    if (!typedDeadline) setForm((f) => ({ ...f, deadline: studentDeadline(workspace, f.student, f.type) }));
+  }, [form.student, form.type]); // eslint-disable-line react-hooks/exhaustive-deps
   const [added, setAdded] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -51,12 +60,12 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
   function addMeeting(e: FormEvent) {
     e.preventDefault();
     const id = makeId();
-    setWorkspace((p) => ({ ...p, meetings: [...p.meetings, { id, ...form, done: false, plan: markDone(emptyPlan(), 1) }] }));
+    setWorkspace((p) => addMeetingWithDeadline(p, knowTime ? form : { ...form, date: "", time: "" }, id, markDone(emptyPlan(), 1)));
     setWizard({ step: 2, meetingId: id });
   }
   function addTodo(title: string) {
     if (!meeting) return;
-    setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: `${title}: ${meeting.student}`, dueDate: meeting.date, recurring: "", done: false }] }));
+    setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: `${title}: ${meeting.student}`, dueDate: meeting.date || meetingDeadline(p, meeting), recurring: "", done: false }] }));
     setAdded((a) => ({ ...a, [step]: true }));
   }
   const guide = meeting ? workspace.guides.find((g) => g.student === meeting.student) : undefined;
@@ -98,7 +107,7 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
             })}
           </ol>
           <h2 className="mt-2 text-lg font-bold leading-snug sm:text-xl">{info.title}</h2>
-          {meeting && <p className="text-xs text-slate-500">{meeting.student} · {meeting.type}{meeting.date ? ` · ${meeting.date}` : ""}</p>}
+          {meeting && <p className="text-xs text-slate-500">{meeting.student} · {meeting.type}{meetingDeadline(workspace, meeting) ? ` · Deadline ${deadlineWords(meetingDeadline(workspace, meeting))}` : ""}{meeting.date ? ` · Meeting ${meeting.date}` : ""}</p>}
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
@@ -117,10 +126,23 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
               <Select aria-label="Meeting type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                 <option>Annual IEP</option><option>Reevaluation</option><option>Planning meeting</option><option>Parent meeting</option><option>Progress review</option><option>Other</option>
               </Select>
-              <div className="grid grid-cols-2 gap-3">
-                <Field aria-label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-                <Field aria-label="Time (optional)" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
-              </div>
+              <label className="block text-sm font-semibold text-slate-800">
+                {deadlineLabel(form.type)}
+                <Field aria-label={deadlineLabel(form.type)} type="date" value={form.deadline} className="mt-1 w-full" data-testid="wizard-deadline"
+                  onChange={(e) => { setTypedDeadline(true); setForm({ ...form, deadline: e.target.value }); }} />
+                <span className="mt-1 block text-xs font-normal text-slate-500" data-testid="wizard-deadline-note">
+                  {form.deadline && saved === form.deadline ? `Filled in from ${form.student.split(" ")[0]}'s caseload. ` : ""}
+                  Step 2 finds times before this date.{form.deadline && savesToStudent(form.type) && form.student && saved !== form.deadline ? ` It is saved to ${form.student.split(" ")[0]}'s caseload too.` : ""}
+                </span>
+              </label>
+              {knowTime ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field aria-label="Meeting date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                  <Field aria-label="Meeting time (optional)" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+                </div>
+              ) : (
+                <button type="button" onClick={() => setKnowTime(true)} className="min-h-11 justify-self-start text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Already have a meeting date and time?</button>
+              )}
               <Field aria-label="Room (optional)" placeholder="Room (optional)" value={form.room} maxLength={80} onChange={(e) => setForm({ ...form, room: e.target.value })} />
               <TextArea aria-label="Meeting notes" placeholder="Meeting notes / checklist (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </form>

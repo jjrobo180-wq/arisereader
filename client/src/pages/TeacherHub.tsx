@@ -40,6 +40,8 @@ import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
 import { cleanSenderName } from "@shared/hubMeetings";
+import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
+import { HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
 import "@/components/teacher-hub/hubNight.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import { HubModal } from "@/components/teacher-hub/HubModal";
@@ -93,6 +95,15 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "schedules", label: "Schedules", icon: <Clock3 className="h-4 w-4" /> },
   { id: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
 ];
+
+/** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
+const GROUP_ICON: Record<HubGroupId, ReactNode> = {
+  home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />, caseload: <Users className="h-4 w-4" />,
+  iep: <CalendarDays className="h-4 w-4" />, progress: <Target className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
+  classroom: <BookOpen className="h-4 w-4" />, behavior: <Sparkles className="h-4 w-4" />, family: <MessageSquare className="h-4 w-4" />,
+  arise: <BookHeart className="h-4 w-4" />,
+};
+const tabIcon = (tab: HubTab) => TAB_META.find((t) => t.id === tab)?.icon;
 
 function dateValue(date: string) {
   const t = Date.parse(date);
@@ -248,6 +259,9 @@ function TeacherHubPage() {
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
   const [adding, setAdding] = useState<{ start?: "photo" | "file" } | null>(null);
   const [added, setAdded] = useState<{ words: string; tab: HubTab | null } | null>(null);
+  // The tab used last in each group, so tapping the group opens it again.
+  const [lastInGroup, setLastInGroup] = useState<Partial<Record<HubGroupId, HubTab>>>({});
+  useEffect(() => { setLastInGroup((prev) => (prev[groupOf(tab).id] === tab ? prev : { ...prev, [groupOf(tab).id]: tab })); }, [tab]);
   // The IEP guide that is open. It is kept here so it is still open after a look at another tab.
   const [guideId, setGuideId] = useState<string | null>(null);
 
@@ -427,7 +441,9 @@ function TeacherHubPage() {
     );
   }
 
-  const visibleTabs = TAB_META.filter((item) => item.id === "overview" || workspace.visibleTabs[item.id] !== false);
+  const menu = visibleGroups(workspace.visibleTabs);
+  const group = groupOf(tab);
+  const subTabs = groupTabs(group.id, workspace.visibleTabs);
 
   return (
     <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
@@ -456,14 +472,16 @@ function TeacherHubPage() {
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
             </div>
-            {visibleTabs.map((item) => (
+            {menu.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setTab(item.id)}
-                className={`flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition md:w-full ${tab === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
+                onClick={() => setTab(openGroup(item.id, workspace.visibleTabs, lastInGroup))}
+                aria-current={group.id === item.id ? "page" : undefined}
+                data-testid={`hub-menu-${item.id}`}
+                className={`flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition md:w-full ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
               >
-                {item.icon}
-                <span>{item.label}</span>
+                {GROUP_ICON[item.id]}
+                <span className="whitespace-nowrap md:whitespace-normal">{groupLabel(item.id, workspace.visibleTabs)}</span>
               </button>
             ))}
           </div>
@@ -488,24 +506,40 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
-              <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records.</p>
+              <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu.</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {TAB_META.filter((item) => item.id !== "overview").map((item) => (
-                  <label key={item.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 text-sm">
-                    <span className="flex items-center gap-2">{item.icon}{item.label}</span>
-                    <input
-                      type="checkbox" className="h-5 w-5 shrink-0"
-                      checked={workspace.visibleTabs[item.id] !== false}
-                      onChange={(e) => setWorkspace((prev) => ({
-                        ...prev,
-                        visibleTabs: { ...prev.visibleTabs, [item.id]: e.target.checked },
-                      }))}
-                    />
-                  </label>
+                {HUB_GROUPS.filter((g) => g.id !== "home").map((g) => (
+                  <div key={g.id} className="rounded-xl border border-slate-200 p-2" data-testid={`customize-${g.id}`}>
+                    {g.tabs.length > 1 && <div className="flex items-center gap-2 px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{GROUP_ICON[g.id]}{g.label}</div>}
+                    {g.tabs.map((t) => (
+                      <label key={t} className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-sm">
+                        <span className="flex items-center gap-2">{g.tabs.length > 1 ? tabIcon(t) : GROUP_ICON[g.id]}{g.tabs.length > 1 ? SUB_LABELS[t] : g.label}</span>
+                        <input
+                          type="checkbox" className="h-5 w-5 shrink-0"
+                          checked={workspace.visibleTabs[t] !== false}
+                          onChange={(e) => setWorkspace((prev) => ({
+                            ...prev,
+                            visibleTabs: { ...prev.visibleTabs, [t]: e.target.checked },
+                          }))}
+                        />
+                      </label>
+                    ))}
+                  </div>
                 ))}
               </div>
               <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
             </Card>
+          )}
+
+          {subTabs.length > 1 && (
+            <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={group.label} data-testid="hub-subtabs">
+              {subTabs.map((t) => (
+                <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} data-testid={`hub-subtab-${t}`}
+                  className={`flex min-h-11 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition ${tab === t ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}>
+                  {tabIcon(t)} {SUB_LABELS[t] ?? t}
+                </button>
+              ))}
+            </div>
           )}
 
           {tab === "overview" && (
@@ -710,8 +744,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           <Field placeholder="Grade" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
           <Field placeholder="Reading level" value={form.readingLevel} onChange={(e) => setForm({ ...form, readingLevel: e.target.value })} />
           <Field placeholder="Math level" value={form.mathLevel} onChange={(e) => setForm({ ...form, mathLevel: e.target.value })} />
-          <Field type="date" title="IEP date" value={form.iepDate} onChange={(e) => setForm({ ...form, iepDate: e.target.value })} />
-          <Field type="date" title="Reevaluation date" value={form.reevalDate} onChange={(e) => setForm({ ...form, reevalDate: e.target.value })} />
+          <Labeled label="IEP deadline"><Field type="date" value={form.iepDate} onChange={(e) => setForm({ ...form, iepDate: e.target.value })} /></Labeled>
+          <Labeled label="Reevaluation deadline"><Field type="date" value={form.reevalDate} onChange={(e) => setForm({ ...form, reevalDate: e.target.value })} /></Labeled>
           <Field placeholder="Accommodations" value={form.accommodations} onChange={(e) => setForm({ ...form, accommodations: e.target.value })} className="md:col-span-2" />
           <TextArea placeholder="Quick notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="md:col-span-3" />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add student</PrimaryButton>
@@ -726,8 +760,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               <Labeled label="Grade"><Field value={editing.form.grade} onChange={(e) => typed({ grade: e.target.value })} /></Labeled>
               <Labeled label="Reading level"><Field value={editing.form.readingLevel} onChange={(e) => typed({ readingLevel: e.target.value })} /></Labeled>
               <Labeled label="Math level"><Field value={editing.form.mathLevel} onChange={(e) => typed({ mathLevel: e.target.value })} /></Labeled>
-              <Labeled label="IEP date"><Field type="date" value={editing.form.iepDate} onChange={(e) => typed({ iepDate: e.target.value })} /></Labeled>
-              <Labeled label="Reevaluation date"><Field type="date" value={editing.form.reevalDate} onChange={(e) => typed({ reevalDate: e.target.value })} /></Labeled>
+              <Labeled label="IEP deadline"><Field type="date" value={editing.form.iepDate} onChange={(e) => typed({ iepDate: e.target.value })} /></Labeled>
+              <Labeled label="Reevaluation deadline"><Field type="date" value={editing.form.reevalDate} onChange={(e) => typed({ reevalDate: e.target.value })} /></Labeled>
               <Labeled label="Accommodations" className="sm:col-span-2"><Field value={editing.form.accommodations} onChange={(e) => typed({ accommodations: e.target.value })} /></Labeled>
               <Labeled label="Quick notes" className="sm:col-span-2"><TextArea value={editing.form.notes} onChange={(e) => typed({ notes: e.target.value })} /></Labeled>
               {following > 0 && (
@@ -753,8 +787,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               <Info label="Grade" value={s.grade || "—"} />
               <Info label="Reading" value={s.readingLevel || "—"} />
               <Info label="Math" value={s.mathLevel || "—"} />
-              <Info label="IEP" value={s.iepDate || "—"} />
-              <Info label="Reevaluation" value={s.reevalDate || "—"} />
+              <Info label="IEP deadline" value={s.iepDate || "—"} />
+              <Info label="Reeval deadline" value={s.reevalDate || "—"} />
               <Info label="Accommodations" value={s.accommodations || "—"} />
             </div>
             {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{s.notes}</div>}
@@ -784,7 +818,8 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
             <input type="checkbox" className="h-5 w-5 shrink-0" checked={m.done} onChange={() => setWorkspace((p) => ({ ...p, meetings: p.meetings.map((x) => x.id === m.id ? { ...x, done: !x.done } : x) }))} />
             <div className="min-w-0 flex-1">
               <div className={`font-semibold ${m.done ? "text-slate-400 line-through" : ""}`}>{m.student} · {m.type}</div>
-              <div className="mt-1 text-sm text-slate-500">{m.date ? `${friendlyDate(m.date, TODAY())}${m.date >= TODAY() ? ` (${relativeDays(m.date, TODAY())})` : ""}` : "No date"}{m.time ? ` · ${clock12(m.time)}` : ""}{m.room ? ` · ${m.room}` : ""}{m.notes ? ` · ${m.notes}` : ""}</div>
+              <div className="mt-1 text-sm text-slate-500">{m.date ? `${friendlyDate(m.date, TODAY())}${m.date >= TODAY() ? ` (${relativeDays(m.date, TODAY())})` : ""}` : "No meeting date yet"}{m.time ? ` · ${clock12(m.time)}` : ""}{m.room ? ` · ${m.room}` : ""}{m.notes ? ` · ${m.notes}` : ""}</div>
+              {meetingDeadline(workspace, m) && <div className="mt-0.5 text-xs font-medium text-slate-600" data-testid="meeting-deadline">{deadlineLabel(m.type).replace(/ date$/, "")}: {friendlyDate(meetingDeadline(workspace, m), TODAY())}{!m.done && meetingDeadline(workspace, m) >= TODAY() ? ` (${relativeDays(meetingDeadline(workspace, m), TODAY())})` : ""}</div>}
               <button type="button" onClick={() => setWizard({ step: firstOpen(m.plan), meetingId: m.id })} className="mt-1 mr-4 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="open-steps">{stepsDone(m.plan) ? `Steps: ${stepsDone(m.plan)} of ${STEP_COUNT} done` : "Start the steps"}</button>
               {!m.done && <button type="button" onClick={() => setPollStart({ meetingId: m.id, title: `${m.type}${m.student ? ` for ${m.student.split(" ")[0]}` : ""}` })} className="mt-1 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Find a time with everyone</button>}
             </div>

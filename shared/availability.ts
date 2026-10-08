@@ -61,9 +61,10 @@ const nextDay = (date: string, n: number) => new Date(Date.parse(`${date}T12:00:
 /**
  * Times to offer in a poll, taken from the weekly free times: the first open stretch of each free day,
  * skipping anything that overlaps something already on the calendar. One time per day, so the choices are
- * spread out. With `before` (a meeting date), days before it come first. `skip` moves on to the next set.
+ * spread out. With `before` (a meeting date), days before it come first. With `until` (an IEP deadline),
+ * only days before it are offered. `skip` moves on to the next set.
  */
-export function suggestTimes(weekly: FreeWindow[], opts: { from: string; count?: number; minutes?: number; before?: string; busy?: Busy[]; skip?: number }): TimeSlot[] {
+export function suggestTimes(weekly: FreeWindow[], opts: { from: string; count?: number; minutes?: number; before?: string; busy?: Busy[]; skip?: number; until?: string }): TimeSlot[] {
   const free = cleanWeekly(weekly);
   const count = opts.count ?? 3;
   const length = Math.max(15, Math.min(480, opts.minutes ?? 60));
@@ -82,7 +83,8 @@ export function suggestTimes(weekly: FreeWindow[], opts: { from: string; count?:
     }
     if (slot) found.push(slot);
   }
-  const ordered = opts.before ? [...found.filter((s) => s.date < opts.before!), ...found.filter((s) => s.date >= opts.before!)] : found;
+  const open = opts.until ? found.filter((s) => s.date < opts.until!) : found;
+  const ordered = opts.before ? [...open.filter((s) => s.date < opts.before!), ...open.filter((s) => s.date >= opts.before!)] : open;
   const from = (opts.skip ?? 0) * count;
   return ordered.slice(from, from + count);
 }
