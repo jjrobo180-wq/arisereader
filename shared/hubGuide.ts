@@ -207,10 +207,11 @@ export function removeContact(workspace: Workspace, contactId: string): Workspac
   return {
     ...workspace,
     spedContacts: workspace.spedContacts.filter((c) => c.id !== contactId),
-    students: workspace.students.map((student) => {
-      const team = student.team || {};
-      if (!Object.values(team).includes(contactId)) return student;
-      return { ...student, team: Object.fromEntries(Object.entries(team).filter(([, id]) => id !== contactId)) };
+    // A student's own team (shared/hubStudentTeam.ts) loses them too.
+    students: workspace.students.map((s) => {
+      const team = s.team || {};
+      if (!Object.values(team).includes(contactId)) return s;
+      return { ...s, team: Object.fromEntries(Object.entries(team).filter(([, id]) => id !== contactId)) };
     }),
     guides: workspace.guides.map((g) => {
       const team = g.team || {};

@@ -6,7 +6,7 @@ import { useEffect, useState, type FormEvent, type ReactNode, type Dispatch, typ
 import { ArrowLeft, Check, ChevronRight, Plus, SkipForward, Undo2, X } from "lucide-react";
 import { MEETING_STEPS, STEP_COUNT, cleanPlan, emptyPlan, markDone, markSkipped, stepState } from "@shared/meetingSteps";
 import { addMeetingWithDeadline, deadlineLabel, deadlineWords, meetingDeadline, savesToStudent, studentDeadline } from "@shared/meetingDeadline";
-import { newGuide } from "@shared/hubGuide";
+import { newGuideFor } from "@shared/hubStudentTeam";
 import type { Meeting, Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
 
@@ -71,7 +71,7 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
   const guide = meeting ? workspace.guides.find((g) => g.student === meeting.student) : undefined;
   function startGuide() {
     if (!meeting) return;
-    const g = newGuide(meeting.student, /reeval/i.test(meeting.type) ? "Re-evaluation" : "IEP meeting", makeId);
+    const g = newGuideFor(workspace, meeting.student, /reeval/i.test(meeting.type) ? "Re-evaluation" : "IEP meeting", makeId);
     setWorkspace((p) => ({ ...p, guides: [...p.guides, g], meetings: p.meetings.map((m) => (m.id === meeting.id ? { ...m, plan: markDone(cleanPlan(m.plan), 5) } : m)) }));
     setWizard(null); openGuide(g.id);
   }
