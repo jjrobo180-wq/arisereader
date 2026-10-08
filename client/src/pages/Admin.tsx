@@ -42,6 +42,7 @@ import ParentEmailInvite from "@/components/ParentEmailInvite";
 import type { SiteBanner } from "@shared/banners";
 import FamilyEmailInvite from "@/components/FamilyEmailInvite";
 import InvitePrizesEditor from "@/components/InvitePrizesEditor";
+import FamilyEmailSettings from "@/components/FamilyEmailSettings";
 import { cn } from "@/lib/utils";
 import {
   Users, KeyRound, Send, Trophy, BookOpen, Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
@@ -148,7 +149,7 @@ interface QuestionForm {
 
 type AdminTab = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
-type SettingsSection = "alerts" | "banners" | "club" | "ai" | "extras" | "security";
+type SettingsSection = "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
 const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
 const TAB_STORAGE = "arise_admin_tab";
 
@@ -3740,6 +3741,7 @@ Generate exactly 10 questions.`;
         options={[
           { value: "alerts", label: "Notifications", icon: BellRing },
           { value: "banners", label: "Banners", icon: Megaphone },
+          { value: "family-emails", label: "Family emails", icon: Mail },
           { value: "club", label: "Club & play time", icon: Gamepad2 },
           { value: "ai", label: "AI quizzes", icon: Brain },
           { value: "extras", label: "Competition & extras", icon: Trophy },
@@ -3858,6 +3860,11 @@ Generate exactly 10 questions.`;
               </div>
             </div>
           </div>
+        </AdminSection>
+      )}
+      {settingsSection === "family-emails" && (
+        <AdminSection id="family-emails" icon={Mail} tone="violet" title="Automatic family emails" description="Weekly progress updates and friendly reading reminders to parents. You turn them on and off.">
+          <FamilyEmailSettings />
         </AdminSection>
       )}
       {settingsSection === "club" && (
