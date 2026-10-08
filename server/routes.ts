@@ -35,6 +35,7 @@ import { registerReadsRoutes } from "./readsSync";
 import { registerBuildWorldRoutes } from "./buildWorld";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
+import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
@@ -1480,6 +1481,21 @@ export async function registerRoutes(
     getParentStudentIds,
     setAttemptPoints: (attemptId, points) => storage.setAttemptPoints(attemptId, points),
   });
+  // Reading comprehension: written answers sent with a proctored book quiz, graded by the
+  // student's teacher for up to 10 extra points. See server/comprehension.ts.
+  const comprehension = registerComprehensionRoutes(app, authMiddleware, {
+    db: getAdminSupabase,
+    getTeacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((student: any) => Number(student.id)),
+    clearPointCaches: () => {
+      clearCache("allUsers"); clearCache("leaderboard"); clearCache("monthlyLeaderboard"); clearCache("advisoryLeaderboard"); clearCache("session_");
+    },
+    messageStudent: (studentId, text) => storage.createMessage(studentId, "teacher", text),
+    adminIds: async () => {
+      const { data, error } = await supabase.from("users").select("id").eq("is_admin", true).is("archived_at", null);
+      if (error) throw new Error(error.message);
+      return (data || []).map((row: any) => Number(row.id)).filter((id: number) => id > 0);
+    },
+  });
   // Seed data on startup
   await seedData();
   await storage.seedEyeGazeQuizzes();
@@ -2619,6 +2635,15 @@ export async function registerRoutes(
         console.error("[no-proctor] finish", error?.message);
       }
     }
+    // Written comprehension answers count only when a parent or teacher typed the proctor code.
+    const comprehensionSent = await comprehension.saveFromQuiz({
+      student: req.user,
+      bookId,
+      bookTitle: book?.title || "",
+      attemptId: attempt.id ?? null,
+      proctor: verifiedProctor,
+      raw: req.body.comprehension,
+    });
     void alertQuizTaken("quiz_completed", req.user, {
       title: book?.title || "a book",
       score,
@@ -2639,6 +2664,7 @@ export async function registerRoutes(
       studentName: req.user.displayName,
       attemptId: attempt.id,
       integrity,
+      comprehension: comprehensionSent,
     });
   });
 
@@ -10981,6 +11007,7 @@ Important:
       // keeps one row from blocking another (review requests point at attempts).
       const tables = [
         { table: "quiz_review_requests", column: "user_id" },
+        { table: "comprehension_responses", column: "student_id" },
         { table: "manual_point_awards", column: "student_id" },
         { table: "attempts", column: "user_id" },
         { table: "live_players", column: "user_id" },

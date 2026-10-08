@@ -20,6 +20,7 @@ import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
 import SchoolUsListMatch from "@/components/SchoolUsListMatch";
 import NoProctorReview from "@/components/NoProctorReview";
+import ComprehensionReview from "@/components/ComprehensionReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import AdminPlans from "@/components/AdminPlans";
 import PlayTimeManager from "@/components/PlayTimeManager";
@@ -3034,6 +3035,9 @@ Generate exactly 10 questions.`;
 
       <div id="camera-quizzes" className="min-w-0 scroll-mt-32 lg:scroll-mt-20">
         <NoProctorReview />
+      </div>
+      <div id="reading-comprehension" className="min-w-0 scroll-mt-32 lg:scroll-mt-20">
+        <ComprehensionReview title="Reading comprehension (all students)" />
       </div>
     </div>
   );
