@@ -113,6 +113,8 @@ export default function Login() {
       <a href="/for-teachers/" className="hover:text-cyan-300 hover:underline">For teachers</a>
       <a href="/for-parents/" className="hover:text-cyan-300 hover:underline">For parents</a>
       <a href="/reading-rewards/" className="hover:text-cyan-300 hover:underline">Reading rewards</a>
+        <a href="/special-education-reading/" className="hover:text-cyan-300 hover:underline">Inclusive reading</a>
+        <a href="/teacher-workspace/" className="hover:text-cyan-300 hover:underline">Teacher workspace</a>
     </nav>
   </div>;
 }
