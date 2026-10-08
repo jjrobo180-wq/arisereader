@@ -143,10 +143,23 @@
   font-weight: 700;
 }
 
-.np-option > span:last-child {
+.np-option > span:last-of-type {
   color: var(--np-muted-fg);
   font-size: 0.93rem;
   line-height: 1.4;
+}
+
+/* "+10 extra points" on the proctor choice: written comprehension is only with a proctor. */
+.np-bonus {
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: hsl(142 70% 45% / 0.16);
+  color: hsl(142 70% 72%);
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .np-option-icon {

@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { speakCharacterAI, stopSpeaking as stopAiSpeaking } from "@/lib/tts";
 import NoProctorGate, { type CameraSession } from "@/components/NoProctorGate";
+import ComprehensionQuestions, { ComprehensionPreview } from "@/components/ComprehensionQuestions";
+import { COMPREHENSION, EMPTY_ANSWERS, comprehensionState, type ComprehensionAnswers } from "@shared/comprehension";
 import { AutoTurnInNote, CameraBubble, CameraOffDialog, LeaveWarning, OnYourOwnStrip, StopDialog, TurningIn } from "@/components/NoProctorParts";
 import { CAMERA_CONSTRAINTS, NoProctorMonitor, cameraErrorMessage, canUseCamera, type MonitorEvent } from "@/lib/noProctorMonitor";
 
@@ -84,6 +86,8 @@ export default function Quiz() {
   const [proctorLoading, setProctorLoading] = useState(false);
   const [proctorSessionToken, setProctorSessionToken] = useState("");
   const [proctorIdentity, setProctorIdentity] = useState<{ type: "parent" | "teacher"; name: string } | null>(null);
+  // Written comprehension answers (only with a proctor code, never on a camera quiz).
+  const [comprehension, setComprehension] = useState<ComprehensionAnswers>(EMPTY_ANSWERS);
   const [showReviewRequest, setShowReviewRequest] = useState(false);
   const [reviewReason, setReviewReason] = useState("");
   const [speakingQId, setSpeakingQId] = useState<number | null>(null);
@@ -510,6 +514,8 @@ export default function Quiz() {
   };
 
   const allAnswered = questions.every(q => answers[String(q.id)]);
+  const offerComprehension = proctorVerified && !camera;
+  const writing = offerComprehension ? comprehensionState(comprehension) : "empty";
 
   const handleSubmit = async () => {
     if (!token || !id) return;
@@ -518,7 +524,7 @@ export default function Quiz() {
       const res = await fetch(`${API_BASE}/api/books/${id}/quiz`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ answers, proctorSessionToken }),
+        body: JSON.stringify({ answers, proctorSessionToken, ...(writing === "ready" ? { comprehension } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -567,6 +573,7 @@ export default function Quiz() {
               </Card>
             ))}
           </div>
+          <ComprehensionPreview />
           <Button variant="ghost" className="mt-4" onClick={() => navigate("/library")}>
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Library
@@ -663,6 +670,7 @@ export default function Quiz() {
             <h2 className="text-2xl font-bold mb-2">{passed ? "Passed!" : "Not Passed"}</h2>
             <p className="text-muted-foreground mb-6">{book?.title}</p>
             {(turnedInAuto || result.integrity?.autoSubmitted) && <AutoTurnInNote />}
+            {result.comprehension && <ComprehensionSent status={result.comprehension} />}
             <div className={`rounded-2xl p-6 mb-6 ${
               passed ? "bg-primary text-white" : "bg-muted text-muted-foreground"
             }`}>
@@ -926,17 +934,24 @@ export default function Quiz() {
           ))}
         </div>
 
+        {offerComprehension && (
+          <ComprehensionQuestions value={comprehension} onChange={setComprehension} startNumber={questions.length + 1} />
+        )}
+
         {/* Submit (extra room at the bottom so the camera picture doesn't cover it) */}
         <div className={camera ? "mt-6 pb-48" : "mt-6 pb-12"}>
           {submitError && <p className="text-sm text-red-400 mb-3 text-center" role="alert">{submitError}</p>}
+          {writing === "incomplete" && allAnswered && (
+            <p className="text-sm text-amber-500 mb-3 text-center" role="status">Finish all 3 written answers, or clear them to skip the extra points.</p>
+          )}
           <Button
             onClick={camera ? () => void turnIn(false) : handleSubmit}
-            disabled={!allAnswered || submitting}
+            disabled={!allAnswered || submitting || writing === "incomplete"}
             className="w-full"
             size="lg"
             data-testid="button-submit-quiz"
           >
-            {submitting ? "Submitting..." : allAnswered ? "Submit Quiz" : `Answer all questions (${Object.keys(answers).length}/${questions.length})`}
+            {submitting ? "Submitting..." : !allAnswered ? `Answer all questions (${Object.keys(answers).length}/${questions.length})` : writing === "incomplete" ? "Finish the written answers" : writing === "ready" ? "Submit Quiz and written answers" : "Submit Quiz"}
           </Button>
         </div>
       </main>
@@ -950,6 +965,25 @@ export default function Quiz() {
       )}
       {confirmStop && !autoTurnIn && <StopDialog onKeepGoing={() => setConfirmStop(false)} onStop={stopCameraQuiz} />}
       {autoTurnIn && <TurningIn failed={autoTurnIn === "failed"} onRetry={() => void deliverTurnIn()} />}
+    </div>
+  );
+}
+
+/** On the result screen: what happened to the written comprehension answers. */
+function ComprehensionSent({ status }: { status: string }) {
+  const sent = status === "sent";
+  const text = sent
+    ? `Your written answers were sent to your teacher. They can give you up to ${COMPREHENSION.bonusPoints} extra points, and you'll get a message when they're graded.`
+    : status === "already graded"
+      ? "Your teacher already graded your written answers for this book."
+      : status === "failed"
+        ? "Your quiz is saved, but your written answers could not be sent. Tell your teacher."
+        : "";
+  if (!text) return null;
+  return (
+    <div className={`mb-6 rounded-xl border p-3 text-left text-sm ${sent ? "border-emerald-500/40 bg-emerald-500/10" : "border-amber-500/40 bg-amber-500/10"}`} role="status" data-testid="comprehension-status">
+      <p className="font-semibold">Reading comprehension</p>
+      <p className="mt-0.5 text-muted-foreground">{text}</p>
     </div>
   );
 }

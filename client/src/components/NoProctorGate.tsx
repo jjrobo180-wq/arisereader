@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, Clock3, KeyRound, ClipboardX, ShieldCheck, Users, RotateCcw } from "lucide-react";
+import { ArrowLeft, Camera, Clock3, KeyRound, ClipboardX, ShieldCheck, Users, RotateCcw, PenLine } from "lucide-react";
+import { COMPREHENSION } from "@shared/comprehension";
 import { API_BASE } from "@/lib/queryClient";
 import { CAMERA_CONSTRAINTS, cameraErrorMessage, canUseCamera } from "@/lib/noProctorMonitor";
 import "./noproctor.css";
@@ -120,6 +121,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
                 <span className="np-option-icon"><KeyRound /></span>
                 <b>With a proctor</b>
                 <span>A parent or teacher types their proctor code.</span>
+                <em className="np-bonus">Write about the book for up to {COMPREHENSION.bonusPoints} extra points</em>
               </button>
               <button type="button" className="np-option np-option-camera" onClick={() => setView("camera")}>
                 <span className="np-option-icon"><Camera /></span>
@@ -133,7 +135,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
         {view === "code" && (
           <>
             <h1>Enter the proctor code</h1>
-            <p className="np-lead">Ask your linked parent or guardian, or a teacher, to type their private proctor code.</p>
+            <p className="np-lead">Ask your linked parent or guardian, or a teacher, to type their private proctor code. With a proctor you can also write about the book for up to {COMPREHENSION.bonusPoints} extra points.</p>
             {proctorError && <p className="np-error" role="alert">{proctorError}</p>}
             <input
               type="password"
@@ -174,6 +176,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
                 <li><ShieldCheck /><span>Stay on this screen until you turn the quiz in. Leaving once gets a warning. Leaving again turns the quiz in with the answers you have.</span></li>
                 <li><ClipboardX /><span>Copy and paste are turned off.</span></li>
                 <li><Users /><span>Your teacher, your parent and the site admin can see the pictures. They're deleted after 30 days.</span></li>
+                <li><PenLine /><span>Writing about the book for up to {COMPREHENSION.bonusPoints} extra points is only with a proctor code, not on your own.</span></li>
               </ul>
             </div>
             {error && <p className="np-error" role="alert">{error}</p>}

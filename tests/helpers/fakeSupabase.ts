@@ -1,5 +1,5 @@
 // A small pretend Supabase for tests: tables kept in memory, the same chained calls the
-// server makes (select, eq, lt, order, limit, insert, update, upsert, delete), and the
+// server makes (select, eq, lt, in, order, limit, insert, update, upsert, delete), and the
 // errors the real one gives for a table or column the database doesn't have.
 type Row = Record<string, any>;
 
@@ -10,6 +10,8 @@ export type FakeOptions = {
   missingColumns?: Record<string, string[]>;
   /** The columns that make a row unique, per table. */
   keys?: Record<string, string[]>;
+  /** Tables whose new rows get the next number as their id, like an identity column. */
+  autoIds?: string[];
 };
 
 export function fakeSupabase(seed: Record<string, Row[]> = {}, options: FakeOptions = {}) {
@@ -33,7 +35,7 @@ export function fakeSupabase(seed: Record<string, Row[]> = {}, options: FakeOpti
     let mode: "many" | "maybe" | "single" = "many";
 
     const rowsOf = () => (tables[table] ||= []);
-    const matches = (row: Row) => filters.every(([kind, column, value]) => (kind === "eq" ? same(row[column], value) : kind === "lt" ? row[column] < value : true));
+    const matches = (row: Row) => filters.every(([kind, column, value]) => (kind === "eq" ? same(row[column], value) : kind === "lt" ? row[column] < value : kind === "in" ? (value as any[]).some((v) => same(row[column], v)) : true));
     const keyOf = () => options.keys?.[table] || ["id"];
 
     function run(): { data: any; error: any } {
@@ -50,7 +52,11 @@ export function fakeSupabase(seed: Record<string, Row[]> = {}, options: FakeOpti
         for (const item of list) {
           if (rows.some((row) => keyOf().every((k) => same(row[k], item[k])) && keyOf().every((k) => item[k] !== undefined))) return { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint" } };
         }
-        for (const item of list) { rows.push({ ...item }); out.push({ ...item }); }
+        for (const item of list) {
+          const row = { ...item };
+          if (row.id === undefined && options.autoIds?.includes(table)) row.id = rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
+          rows.push(row); out.push({ ...row });
+        }
       }
       if (op === "update") {
         for (const row of rows) if (matches(row)) { Object.assign(row, values); out.push({ ...row }); }
@@ -83,6 +89,7 @@ export function fakeSupabase(seed: Record<string, Row[]> = {}, options: FakeOpti
       delete() { op = "delete"; return builder; },
       eq(column: string, value: any) { filters.push(["eq", column, value]); return builder; },
       lt(column: string, value: any) { filters.push(["lt", column, value]); return builder; },
+      in(column: string, value: any[]) { filters.push(["in", column, value]); return builder; },
       order(column: string, o: any = {}) { ordering = { column, ascending: o.ascending !== false }; return builder; },
       limit(n: number) { max = n; return builder; },
       maybeSingle() { mode = "maybe"; return builder; },
