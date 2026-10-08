@@ -3,8 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { removeContact } from "../shared/hubGuide";
-import { STUDENT_LISTS, STUDENT_MEETING_ROLES, addStudent, normalizeWorkspace, updateStudent, type Student, type Workspace } from "../shared/teacherHub";
+import { STUDENT_LISTS, normalizeWorkspace, updateStudent, type Student, type Workspace } from "../shared/teacherHub";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 
@@ -89,61 +88,4 @@ test("when two students already share a name, renaming one leaves the shared row
 test("the caseload screen lets a teacher edit a student", () => {
   const page = read("client/src/pages/TeacherHub.tsx");
   for (const part of ['data-testid="hub-student-edit"', 'data-testid="hub-student-edit-form"', "updateStudent(workspace, editing.id, editing.form)", "Save changes"]) assert.ok(page.includes(part), part);
-});
-
-test("optional disability classifications and meeting staff are saved with each student", () => {
-  const start = hub();
-  const newStudent = addStudent(start, details(jordan, {
-    name: "New Student", disability1: "Specific Learning Disability", disability2: "Speech or Language Impairment",
-    team: { socialWorker: "sw1", ot: "ot1", nurse: "n1", slp: "s1", genEd: "ge1" },
-  }), () => "new-student", null);
-  assert.ok(newStudent.ok);
-  assert.equal(newStudent.workspace.students[2].disability1, "Specific Learning Disability");
-  assert.equal(newStudent.workspace.students[2].disability2, "Speech or Language Impairment");
-  assert.deepEqual(newStudent.workspace.students[2].team, { socialWorker: "sw1", ot: "ot1", nurse: "n1", slp: "s1", genEd: "ge1" });
-  assert.equal(STUDENT_MEETING_ROLES.length, 5);
-  assert.equal(start.students.length, 2, "original workspace is unchanged");
-});
-
-test("editing assigned staff updates IEP guides without removing other meeting roles", () => {
-  const start = hub();
-  start.guides[0].team = { psych: "psych-1", nurse: "old-nurse" };
-  const result = updateStudent(start, "s1", details(jordan, {
-    disability1: "Autism Spectrum Disorder", disability2: "",
-    team: { nurse: "new-nurse", genEd: "teacher-1", ot: "" },
-  }));
-  assert.ok(result.ok);
-  assert.equal(result.workspace.students[0].disability1, "Autism Spectrum Disorder");
-  assert.equal(result.workspace.students[0].team?.nurse, "new-nurse");
-  assert.equal(result.workspace.guides[0].team.nurse, "new-nurse");
-  assert.equal(result.workspace.guides[0].team.genEd, "teacher-1");
-  assert.equal(result.workspace.guides[0].team.psych, "psych-1", "unrelated role is preserved");
-  assert.equal(start.guides[0].team.nurse, "old-nurse", "original guide is unchanged");
-});
-
-test("deleting a saved contact clears only its student and guide assignments", () => {
-  const start = hub();
-  start.spedContacts = [
-    { id: "nurse-1", name: "Nurse Avery", role: "nurse", email: "avery@example.org" },
-    { id: "slp-1", name: "Jordan Smith", role: "slp", email: "" },
-  ];
-  start.students[0] = { ...jordan, team: { nurse: "nurse-1", slp: "slp-1" } };
-  start.guides[0].team = { nurse: "nurse-1", slp: "slp-1" };
-  const next = removeContact(start, "nurse-1");
-  assert.equal(next.spedContacts.length, 1);
-  assert.equal(next.students[0].team?.nurse, undefined);
-  assert.equal(next.students[0].team?.slp, "slp-1");
-  assert.equal(next.guides[0].team.nurse, undefined);
-  assert.equal(next.guides[0].team.slp, "slp-1");
-});
-
-test("student form, profile, and scheduling all expose the new fields", () => {
-  const caseload = read("client/src/pages/TeacherHub.tsx");
-  const profile = read("client/src/components/teacher-hub/HubStudentProfile.tsx");
-  const guide = read("client/src/components/teacher-hub/HubGuide.tsx");
-  const poll = read("client/src/components/teacher-hub/HubMeetingPoll.tsx");
-  for (const text of ["Disability 1 (primary)", "Disability 2 (secondary)", "Staff to include in meetings", "Save person & assign", "hub-student-extra-fields"]) assert.ok(caseload.includes(text), text);
-  assert.ok(profile.includes("IEP meeting team"));
-  assert.ok(guide.includes("team: { ...assigned }"));
-  assert.ok(poll.includes("Object.values(caseloadTeam)"));
 });

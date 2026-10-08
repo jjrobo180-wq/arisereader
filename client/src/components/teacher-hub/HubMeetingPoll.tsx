@@ -7,6 +7,7 @@ import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, T
 import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
 import { roleLabel } from "@shared/hubGuide";
+import { meetingPeople } from "@shared/hubStudentTeam";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import { addDays } from "@shared/hubDates";
 import { calendarEvents } from "@shared/hubHidden";
@@ -173,14 +174,12 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   // The meeting's guide already knows the parents and who is on the team: they start ticked and filled in.
   const meeting = initial.meetingId ? workspace.meetings.find((m) => m.id === initial.meetingId) : undefined;
   const guide = meeting ? workspace.guides.find((g) => g.student === meeting.student) : undefined;
-  const caseloadTeam = workspace.students.find((s) => s.name === meeting?.student)?.team || {};
-  // Invite the student's assigned team even when they have not started an IEP guide yet.
-  const [picked, setPicked] = useState<Record<string, boolean>>(() => Object.fromEntries(
-    [...Object.values(caseloadTeam), ...Object.values(guide?.team || {})]
-      .filter((id) => team.some((c) => c.id === id))
-      .map((id) => [id, true])
-  ));
-  const parents: Guest[] = [[guide?.parent1, guide?.parent1Phone], [guide?.parent2, guide?.parent2Phone]].filter(([n, ph]) => (n || "").trim() || (ph || "").trim()).map(([n, ph]) => ({ name: (n || "").trim(), email: "", phone: (ph || "").trim(), role: "Parent or guardian" }));
+  // The student's team (from the Caseload, with or without a guide) and anyone else on the guide start ticked.
+  const asked = meeting ? meetingPeople(workspace, meeting.student) : [];
+  const [picked, setPicked] = useState<Record<string, boolean>>(() => Object.fromEntries(asked.filter(({ person }) => team.some((c) => c.id === person.id)).map(({ person }) => [person.id, true])));
+  // Someone on the team with no email saved yet gets a row of their own, so the email can be typed here.
+  const noEmail: Guest[] = asked.filter(({ person }) => !team.some((c) => c.id === person.id)).map(({ person, role }) => ({ name: person.name, email: "", phone: "", role: roleLabel(role) }));
+  const parents: Guest[] = [...[[guide?.parent1, guide?.parent1Phone], [guide?.parent2, guide?.parent2Phone]].filter(([n, ph]) => (n || "").trim() || (ph || "").trim()).map(([n, ph]) => ({ name: (n || "").trim(), email: "", phone: (ph || "").trim(), role: "Parent or guardian" })), ...noEmail];
   const [guests, setGuests] = useState<Guest[]>(parents.length ? parents : [blankGuest()]);
   const mailboxReady = !!box?.connected && !box.connected.needsReconnect;
   type Via = "self" | "mailbox" | "site";
@@ -372,8 +371,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             <button key={role} type="button" onClick={() => { setGuests((prev) => [...(seed && prev.length === 1 && !prev[0].name && !prev[0].email ? [] : prev), blankGuest(role)]); setSeed(false); }} className="min-h-11 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ {role}</button>
           ))}
         </div>
-        {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add your team's emails under IEP & Meetings → IEP Guide and they'll show up here to tick.</p>}
-        {(parents.length > 0 || Object.keys(picked).length > 0) && <p className="mt-2 text-xs text-slate-500">The parents and team from this student's guide are already filled in. Change anyone you like.</p>}
+        {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add each student's team on the Caseload (press Edit on a student), with emails, and they'll be picked here for you.</p>}
+        {(parents.length > 0 || Object.keys(picked).length > 0) && <p className="mt-2 text-xs text-slate-500">This student's parents and team are already filled in. Change anyone you like.</p>}
       </div>
 
       <div>

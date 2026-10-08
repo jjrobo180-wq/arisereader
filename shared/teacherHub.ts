@@ -9,14 +9,8 @@ import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
 import type { StepPlan } from "./meetingSteps";
 
-/** Optional specialists and staff a student may need for IEP meetings. */
-export const STUDENT_MEETING_ROLES = [
-  { id: "socialWorker", label: "Social worker" },
-  { id: "ot", label: "Occupational therapist (OT)" },
-  { id: "nurse", label: "Nurse" },
-  { id: "slp", label: "Speech-language pathologist (SLP)" },
-  { id: "genEd", label: "Assigned general education teacher" },
-] as const;
+/** The longest a disability can be typed. */
+export const DISABILITY_MAX = 120;
 
 export type Student = {
   id: string;
@@ -28,10 +22,13 @@ export type Student = {
   readingLevel: string;
   mathLevel: string;
   notes: string;
-  /** Optional IEP eligibility categories, as recorded by the school. */
+  /** The disabilities on the student's IEP: the first one, and a second if there is one. */
   disability1?: string;
   disability2?: string;
-  /** Assigned meeting staff: role -> saved Sped team contact ID. */
+  /**
+   * The student's own team: a role (social worker, OT, nurse, speech pathologist, gen ed teacher)
+   * to the id of one of the teacher's saved contacts. See shared/hubStudentTeam.ts.
+   */
   team?: Record<string, string>;
 };
 
@@ -300,10 +297,10 @@ export const HUB_IMPORT = {
   },
   students: {
     label: "Caseload", tab: "caseload",
-    hint: "A student to add to the caseload, for example a row of a class list or roster.",
+    hint: "A student to add to the caseload, for example a row of a class list or roster. disability1 is the student's first (primary) disability and disability2 the second, only when they are given.",
     fields: {
       name: text("Name", 80, { required: true }), grade: text("Grade", 20), readingLevel: text("Reading level", 40), mathLevel: text("Math level", 40),
-      iepDate: date("IEP deadline"), reevalDate: date("Reevaluation deadline"), disability1: text("Primary disability", 120), disability2: text("Secondary disability", 120), accommodations: text("Accommodations", 600, { long: true }), notes: text("Notes", 1000, { long: true }),
+      iepDate: date("IEP deadline"), reevalDate: date("Reevaluation deadline"), disability1: text("Disability 1", DISABILITY_MAX), disability2: text("Disability 2", DISABILITY_MAX), accommodations: text("Accommodations", 600, { long: true }), notes: text("Notes", 1000, { long: true }),
     },
   },
   lessons: {
@@ -482,7 +479,7 @@ export function describeHubItem(kind: HubImportKind, item: HubImportItem): { tit
     case "events": return { title: s("title"), detail: joined(s("date"), clock || "All day", s("location")) };
     case "meetings": return { title: joined(s("student") || "No student yet", s("type")), detail: joined(s("date") || "No date", s("notes")) };
     case "notes": return { title: s("body"), detail: joined(s("student") || "General", s("type"), s("date")) };
-    case "students": return { title: s("name"), detail: joined(s("grade") && `Grade ${s("grade")}`, s("iepDate") && `IEP ${s("iepDate")}`, s("reevalDate") && `Reevaluation ${s("reevalDate")}`, s("accommodations")) };
+    case "students": return { title: s("name"), detail: joined(s("grade") && `Grade ${s("grade")}`, s("iepDate") && `IEP ${s("iepDate")}`, s("reevalDate") && `Reevaluation ${s("reevalDate")}`, s("disability1"), s("disability2"), s("accommodations")) };
     case "lessons": return { title: s("title"), detail: joined(s("subject"), s("group"), s("date"), s("objective")) };
     case "schedules": return { title: joined(s("student"), s("label") || "Schedule block"), detail: joined(s("day"), clock) };
     case "parentLogs": return { title: s("message"), detail: joined(s("student") || "General", s("guardian"), s("status"), s("date")) };
@@ -543,7 +540,7 @@ export function mergeHubImport(workspace: Workspace, items: HubImportItems, make
     added[kind] = (added[kind] || 0) + fresh.length;
   };
 
-  add("students", "students", items.students, (r) => fold(r.name), (i) => i);
+  add("students", "students", items.students, (r) => fold(r.name), (i) => ({ ...i, ...cleanDisabilities(i.disability1, i.disability2) }));
   add("tasks", "tasks", items.tasks, (r) => fold(r.title, r.dueDate), (i) => ({ ...i, done: false }));
   add("events", "events", items.events, (r) => fold(r.title, r.date, r.start), (i) => i);
   add("meetings", "meetings", items.meetings, (r) => fold(r.student, r.type, r.date), (i) => ({ ...i, done: false }));
@@ -591,6 +588,18 @@ export function describeHubAdded(result: Pick<HubMergeResult, "added" | "already
 }
 
 // ─── Changing a student ─────────────────────────────────────────────────────
+
+/**
+ * A student's two disabilities, tidied. A student with only one has it as disability 1,
+ * and the same thing typed twice is kept once.
+ */
+export function cleanDisabilities(first: unknown, second: unknown): { disability1: string; disability2: string } {
+  const tidy = (value: unknown) => (value === null || value === undefined || typeof value === "object" ? "" : String(value)).replace(/\s+/g, " ").trim().slice(0, DISABILITY_MAX);
+  const a = tidy(first), b = tidy(second);
+  if (!a) return { disability1: b, disability2: "" };
+  return { disability1: a, disability2: fold(a) === fold(b) ? "" : b };
+}
+
 //
 // Every other tab files its rows under a student's name, so when a name is
 // corrected on the caseload those rows have to follow it.
@@ -631,14 +640,6 @@ export function updateStudent(workspace: Workspace, studentId: string, changes: 
         return { ...row, student: name };
       });
     }
-  }
-  // Student caseload assignments also appear in that student's existing IEP guides.
-  // Keep unrelated guide roles (leader, psych, coordinator) unchanged.
-  const meetingRoles = STUDENT_MEETING_ROLES.map((role) => role.id);
-  if (meetingRoles.some((role) => (current.team?.[role] || "") !== (changes.team?.[role] || ""))) {
-    next.guides = next.guides.map((guide) => fold(guide.student) === fold(name)
-      ? { ...guide, team: { ...(guide.team || {}), ...Object.fromEntries(meetingRoles.map((role) => [role, changes.team?.[role] || ""])) } }
-      : guide);
   }
   return { ok: true, workspace: next, moved };
 }
