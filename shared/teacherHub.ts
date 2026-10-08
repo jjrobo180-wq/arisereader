@@ -7,6 +7,7 @@
 import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
 import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
+import { cleanBanner } from "./hubBanner";
 import type { StepPlan } from "./meetingSteps";
 
 /** The longest a disability can be typed. */
@@ -173,7 +174,7 @@ export type HubTab = (typeof HUB_TABS)[number];
 
 export type Workspace = {
   version: number;
-  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string };
+  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
   students: Student[];
   meetings: Meeting[];
@@ -226,7 +227,7 @@ export function normalizeWorkspace(raw: any): Workspace {
   const out: any = {
     ...base,
     ...raw,
-    profile: { ...base.profile, ...(raw.profile || {}) },
+    profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}) },
     visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
