@@ -173,7 +173,13 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   // The meeting's guide already knows the parents and who is on the team: they start ticked and filled in.
   const meeting = initial.meetingId ? workspace.meetings.find((m) => m.id === initial.meetingId) : undefined;
   const guide = meeting ? workspace.guides.find((g) => g.student === meeting.student) : undefined;
-  const [picked, setPicked] = useState<Record<string, boolean>>(() => Object.fromEntries(Object.values(guide?.team || {}).filter((id) => team.some((c) => c.id === id)).map((id) => [id, true])));
+  const caseloadTeam = workspace.students.find((s) => s.name === meeting?.student)?.team || {};
+  // Invite the student's assigned team even when they have not started an IEP guide yet.
+  const [picked, setPicked] = useState<Record<string, boolean>>(() => Object.fromEntries(
+    [...Object.values(caseloadTeam), ...Object.values(guide?.team || {})]
+      .filter((id) => team.some((c) => c.id === id))
+      .map((id) => [id, true])
+  ));
   const parents: Guest[] = [[guide?.parent1, guide?.parent1Phone], [guide?.parent2, guide?.parent2Phone]].filter(([n, ph]) => (n || "").trim() || (ph || "").trim()).map(([n, ph]) => ({ name: (n || "").trim(), email: "", phone: (ph || "").trim(), role: "Parent or guardian" }));
   const [guests, setGuests] = useState<Guest[]>(parents.length ? parents : [blankGuest()]);
   const mailboxReady = !!box?.connected && !box.connected.needsReconnect;
