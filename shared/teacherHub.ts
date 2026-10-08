@@ -85,7 +85,13 @@ export type ServiceLog = { id: string; student: string; date: string; kind: stri
   part?: string;
   teacher?: string;
 };
-export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean };
+export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean;
+  /** For a forwarded email: when it was first sent, as written ("Thursday, October 8, 2026 9:57 AM"). */
+  sent?: string;
+  /** For a forwarded email: the message itself, without the forwarding notes. `body` keeps the whole email. */
+  message?: string;
+  /** A forwarded email not opened yet: shown as New. */
+  unread?: boolean };
 
 /** Something on the teacher's calendar. `start` and `end` are "HH:MM", or "" for an all-day event. */
 export type HubEvent = {

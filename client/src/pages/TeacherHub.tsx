@@ -1,4 +1,5 @@
-import { ForwardingCard, useHubInbox } from "@/components/teacher-hub/HubInbox";
+import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
+import { markEmailRead } from "@shared/hubInbox";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -283,6 +284,20 @@ function TeacherHubPage() {
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
   // Work emails forwarded to the teacher's Hub address land in Emails, flagged, and on the to-do list.
   useHubInbox(loaded && !loadError && !needsPlan && canUseHub, token, workspace, setWorkspace, id, TODAY, (n) => toasts.show(n === 1 ? "A forwarded email was added to your to-do list." : `${n} forwarded emails were added to your to-do list.`, [{ label: "View", run: () => setTab("tasks") }]));
+
+  // "Open email" on a to-do: go to Emails with that email open, and it is no longer new.
+  const [openEmailId, setOpenEmailId] = useState<string | null>(null);
+  useEffect(() => {
+    const open = (event: Event) => {
+      const emailId = String((event as CustomEvent).detail || "");
+      if (!emailId) return;
+      setWorkspace((p) => markEmailRead(p, emailId));
+      setOpenEmailId(emailId);
+      setTab("email");
+    };
+    window.addEventListener(OPEN_EMAIL_EVENT, open);
+    return () => window.removeEventListener(OPEN_EMAIL_EVENT, open);
+  }, []);
 
   const [quickEvent, setQuickEvent] = useState(false);
   /** The student whose profile is open on the Caseload tab. It stays open while the teacher looks at another tab and comes back. */
@@ -632,7 +647,7 @@ function TeacherHubPage() {
           {tab === "parents" && <Parents workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "schedules" && <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} />}
           {tab === "email" && <ForwardingCard token={token} isAdmin={!!user?.isAdmin} />}
-          {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} />}
+          {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (
@@ -653,12 +668,18 @@ function TeacherHubPage() {
 
 /** One to-do, the same on every screen: check it off, tap it to change it, pin it, delete it. */
 function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete }: { task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void }) {
+  const email = task.emailId ? workspace.emails.find((e) => e.id === task.emailId) : undefined;
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-slate-200 p-3" data-testid="task-row">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 p-3" data-testid="task-row">
       <input type="checkbox" className="h-6 w-6 shrink-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => onToggle(task)} />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onEdit(task)} aria-label={`Edit ${task.title}`} data-testid="task-edit">
-        <div className={task.done ? "break-words text-slate-400 line-through" : "break-words font-medium"}>{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
-        {task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500" data-testid="task-notes">{task.notes}</p>}
+        <div className={task.done ? "break-words text-slate-400 line-through" : "break-words font-medium"}>{email?.unread && !task.done && <NewChip />}{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
+        {email?.message && !task.done ? (
+          <>
+            <p className="mt-0.5 break-words text-xs font-medium text-slate-600" data-testid="task-email-from">{[email.from && `From ${email.from}`, email.sent && `Sent ${email.sent}`].filter(Boolean).join(" · ")}</p>
+            <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap break-words text-xs text-slate-500" data-testid="task-email-message">{email.message.replace(/<https?:\/\/[^\s<>]+>/g, "").replace(/\n{2,}/g, "\n").trim()}</p>
+          </>
+        ) : task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500" data-testid="task-notes">{task.notes}</p>}
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
           {!task.done && <DueChip date={task.dueDate} today={today} />}
           {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}</span>}
@@ -671,8 +692,18 @@ function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdi
       </button>
       <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
       <button type="button" aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(task)}><Trash2 className="h-4 w-4" /></button>
+      {email && (
+        <div className="basis-full pl-9">
+          <button type="button" onClick={() => openHubEmail(email.id)} aria-label={`Open the email: ${email.subject || task.title}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-800 hover:bg-teal-100" data-testid="task-open-email"><Mail className="h-4 w-4" />Open the email</button>
+        </div>
+      )}
     </li>
   );
+}
+
+/** Marks a forwarded email that hasn't been opened yet. */
+function NewChip() {
+  return <span className="mr-1.5 inline-flex items-center rounded-full bg-teal-600 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-wide text-white" data-testid="email-new">New</span>;
 }
 
 function QuickAdd({ icon, title, detail, onClick }: { icon: ReactNode; title: string; detail: string; onClick: () => void }) {
@@ -1162,7 +1193,13 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
   );
 }
 
-function Emails({ workspace, setWorkspace, remove, toast, onViewTasks }: SectionProps & { toast: (text: string, actions?: ToastAction[]) => void; onViewTasks: () => void }) {
+function Emails({ workspace, setWorkspace, remove, toast, onViewTasks, openId }: SectionProps & { toast: (text: string, actions?: ToastAction[]) => void; onViewTasks: () => void; openId?: string | null }) {
+  // The email opened from a to-do is shown and scrolled to.
+  useEffect(() => {
+    if (!openId) return;
+    const timer = window.setTimeout(() => document.querySelector(`[data-email-id="${CSS.escape(openId)}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    return () => window.clearTimeout(timer);
+  }, [openId]);
   const [form, setForm] = useState({ from: "", subject: "", body: "", action: "", draft: "", date: TODAY() });
   // What to do with a new email as it is saved.
   const [also, setAlso] = useState({ todo: false, flag: false });
@@ -1223,13 +1260,21 @@ function Emails({ workspace, setWorkspace, remove, toast, onViewTasks }: Section
             {shown.map((e) => {
               const task = emailTask(workspace, e.id);
               return (
-                <div key={e.id} className={`rounded-2xl border p-4 ${e.flagged ? "border-amber-300 bg-amber-50/60" : "border-slate-200"}`} data-testid="email-row">
+                <div key={e.id} className={`scroll-mt-24 rounded-2xl border p-4 ${openId === e.id ? "border-teal-400 ring-2 ring-teal-200" : e.flagged ? "border-amber-300 bg-amber-50/60" : "border-slate-200"}`} data-testid="email-row" data-email-id={e.id}>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0"><div className="break-words font-semibold">{e.flagged && <Flag className="mr-1 inline h-4 w-4 text-amber-600" aria-label="Flagged" />}{e.subject || "Untitled email"}</div><div className="text-xs text-slate-500">{e.from || "Unknown sender"} · {e.date}</div></div>
+                    <div className="min-w-0"><div className="break-words font-semibold">{e.unread && <NewChip />}{e.flagged && <Flag className="mr-1 inline h-4 w-4 text-amber-600" aria-label="Flagged" />}{e.subject || "Untitled email"}</div><div className="text-xs text-slate-500">{e.from || "Unknown sender"} · {e.sent ? <>Sent {e.sent}</> : e.date}</div></div>
                     <button type="button" aria-label={`Delete ${e.subject || "email"}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("emails", e.id)}><Trash2 className="h-4 w-4" /></button>
                   </div>
                   {e.action && <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Action:</strong> {e.action}</div>}
-                  {e.body && <details className="mt-3 text-sm text-slate-600"><summary className="cursor-pointer font-medium text-slate-700">Original email</summary><p className="mt-2 whitespace-pre-wrap leading-6">{e.body}</p></details>}
+                  {e.message ? (
+                    <>
+                      <details className="mt-3 text-sm text-slate-700" open={openId === e.id} onToggle={(ev) => { if ((ev.currentTarget as HTMLDetailsElement).open && e.unread) setWorkspace((p) => markEmailRead(p, e.id)); }} data-testid="email-message">
+                        <summary className="cursor-pointer font-medium text-slate-700">Message</summary>
+                        <EmailWords text={e.message} className="mt-2 leading-6" />
+                      </details>
+                      {e.body && e.body !== e.message && <details className="mt-2 text-sm text-slate-600"><summary className="cursor-pointer font-medium text-slate-500">Whole email, with the forwarding notes</summary><EmailWords text={e.body} className="mt-2 leading-6" /></details>}
+                    </>
+                  ) : e.body && <details className="mt-3 text-sm text-slate-600" open={openId === e.id} onToggle={(ev) => { if ((ev.currentTarget as HTMLDetailsElement).open && e.unread) setWorkspace((p) => markEmailRead(p, e.id)); }}><summary className="cursor-pointer font-medium text-slate-700">Original email</summary><EmailWords text={e.body} className="mt-2 leading-6" /></details>}
                   {e.draft && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><strong>Reply draft</strong><p className="mt-1 whitespace-pre-wrap">{e.draft}</p></div>}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button type="button" aria-pressed={!!e.flagged} aria-label={`${e.flagged ? "Take the flag off" : "Flag"} ${e.subject || "this email"}`} onClick={() => setWorkspace((p) => toggleEmailFlag(p, e.id))} className={act} data-testid="email-flag"><Flag className={`h-4 w-4 ${e.flagged ? "text-amber-600" : ""}`} />{e.flagged ? "Flagged" : "Flag"}</button>
