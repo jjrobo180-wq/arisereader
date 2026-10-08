@@ -1187,13 +1187,26 @@ export async function registerRoutes(
     getSetting: (key) => storage.getSetting(key),
     saveSetting: (key, value) => storage.upsertSetting(key, value),
     accountEmail: async (teacherId) => (await storage.getUser(teacherId))?.email || null,
-    fetchReceived: async (emailId) => {
-      // The same account that sends the site's email reads what it received.
-      const url = `${PROXY_URL && PROXY_TOKEN && !RESEND_API_KEY ? PROXY_URL : "https://api.resend.com"}/emails/receiving/${encodeURIComponent(emailId)}`;
-      const headers: Record<string, string> = RESEND_API_KEY ? { Authorization: `Bearer ${RESEND_API_KEY}` } : { "x-api-key": PROXY_TOKEN };
-      const response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
-      if (!response.ok) { console.error(`[hub-inbox] could not fetch email ${emailId}: ${response.status}`); return null; }
-      return await response.json();
+    fetchReceived: async (emailId, apiKey) => {
+      // Reading received email needs a Resend key with "Full access". Try the key saved in the Hub setup
+      // first, then the site's own email key, then the email proxy, and report why each one failed.
+      const path = `/emails/receiving/${encodeURIComponent(emailId)}`;
+      const routes: { name: string; url: string; headers: Record<string, string> }[] = [];
+      if (apiKey) routes.push({ name: "setup key", url: `https://api.resend.com${path}`, headers: { Authorization: `Bearer ${apiKey}` } });
+      if (RESEND_API_KEY && RESEND_API_KEY !== apiKey) routes.push({ name: "site key", url: `https://api.resend.com${path}`, headers: { Authorization: `Bearer ${RESEND_API_KEY}` } });
+      if (PROXY_URL && PROXY_TOKEN) routes.push({ name: "proxy", url: `${PROXY_URL}${path}`, headers: { "x-api-key": PROXY_TOKEN } });
+      if (!routes.length) throw new Error("no Resend API key on the site");
+      const reasons: string[] = [];
+      for (const route of routes) {
+        try {
+          const response = await fetch(route.url, { headers: route.headers, signal: AbortSignal.timeout(15000) });
+          if (response.ok) return await response.json();
+          const text = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 120);
+          reasons.push(`${route.name} ${response.status}${text ? ` ${text}` : ""}`);
+        } catch (error: any) { reasons.push(`${route.name} ${error?.message || "failed"}`); }
+      }
+      console.error(`[hub-inbox] could not fetch email ${emailId}: ${reasons.join("; ")}`);
+      throw new Error(reasons.join("; "));
     },
     now: () => Date.now(),
   });

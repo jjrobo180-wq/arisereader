@@ -63,7 +63,7 @@ export function ForwardingCard({ token, isAdmin }: { token: string | null; isAdm
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [setup, setSetup] = useState({ domain: "", secret: "" });
+  const [setup, setSetup] = useState({ domain: "", secret: "", apiKey: "" });
 
   const load = async () => {
     const data: InboxView = await call(token, "/api/teacher-hub/inbox");
@@ -87,13 +87,15 @@ export function ForwardingCard({ token, isAdmin }: { token: string | null; isAdm
             <div className="space-y-2" data-testid="hub-forwarding-setup">
               <p>Set this up once for the whole site. Then every Hub teacher gets their own forwarding address.</p>
               <ol className="list-decimal space-y-1 pl-5 text-slate-600">
-                <li>Open <a className="font-semibold text-teal-700 underline" href="https://resend.com/emails" target="_blank" rel="noreferrer">resend.com/emails</a>, choose the <b>Receiving</b> tab, then the ⋯ button and <b>Receiving address</b>. Copy the part after the @ (it looks like abc123.resend.app).</li>
+                <li>Open <a className="font-semibold text-teal-700 underline" href="https://resend.com/emails" target="_blank" rel="noreferrer">resend.com/emails</a>, choose the <b>Receiving</b> tab, then the ⋯ button and <b>Receiving address</b>. Copy it and paste it below. It looks like &lt;anything&gt;@abc123.resend.app, and pasting all of it is fine.</li>
                 <li>Open <a className="font-semibold text-teal-700 underline" href="https://resend.com/webhooks" target="_blank" rel="noreferrer">resend.com/webhooks</a>, add a webhook for <b>email.received</b> with this address: <code className="break-all rounded bg-slate-100 px-1">{window.location.origin}/api/hub-inbox/webhook</code>. Copy its signing secret (it starts with whsec_).</li>
-                <li>Paste both here and save.</li>
+                <li>Open <a className="font-semibold text-teal-700 underline" href="https://resend.com/api-keys" target="_blank" rel="noreferrer">resend.com/api-keys</a>, choose <b>Create API key</b>, set Permission to <b>Full access</b>, and copy it (it starts with re_). The site needs it to read the emails it receives.</li>
+                <li>Paste all three here and save.</li>
               </ol>
               <Field value={setup.domain} onChange={(e) => setSetup({ ...setup, domain: e.target.value })} placeholder="abc123.resend.app" aria-label="Receiving domain" />
               <Field value={setup.secret} onChange={(e) => setSetup({ ...setup, secret: e.target.value })} placeholder="whsec_..." aria-label="Webhook signing secret" type="password" autoComplete="off" />
-              <PrimaryButton disabled={busy || !setup.domain.trim() || !setup.secret.trim()} onClick={() => void run(async () => { const r = await call(token, "/api/admin/hub-inbox", { method: "PUT", body: JSON.stringify(setup) }); await load(); return r.message || "Saved."; })}>Save setup</PrimaryButton>
+              <Field value={setup.apiKey} onChange={(e) => setSetup({ ...setup, apiKey: e.target.value })} placeholder="re_... (Full access)" aria-label="Resend API key" type="password" autoComplete="off" />
+              <PrimaryButton disabled={busy || !setup.domain.trim() || !setup.secret.trim()} onClick={() => void run(async () => { const r = await call(token, "/api/admin/hub-inbox", { method: "PUT", body: JSON.stringify(setup) }); setSetup({ domain: "", secret: "", apiKey: "" }); await load(); return r.message || "Saved."; })}>Save setup</PrimaryButton>
             </div>
           ) : <p>Forwarding isn't set up on the site yet. Ask the site's admin to turn it on.</p>
         ) : (
@@ -115,6 +117,16 @@ export function ForwardingCard({ token, isAdmin }: { token: string | null; isAdm
               <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={anyone} onChange={(e) => setAnyone(e.target.checked)} className="h-4 w-4" /> Accept from anyone (for an automatic forwarding rule, which keeps the original sender)</label>
               <div className="mt-2"><GhostButton onClick={() => void run(async () => { const r = await call(token, "/api/teacher-hub/inbox/senders", { method: "PUT", body: JSON.stringify({ senders, anyone }) }); setSenders(r.senders.join(", ")); setAnyone(r.anyone); return "Saved."; })}>Save</GhostButton></div>
             </div>
+            {isAdmin && (
+              <details className="rounded-xl border border-slate-200 p-3" data-testid="hub-forwarding-admin">
+                <summary className="cursor-pointer font-semibold text-slate-700">Site setup (admin)</summary>
+                <p className="mt-2 text-slate-600">If forwarded emails reach Resend but not the Hub, the site needs a Resend key that can read received email. Make one at <a className="font-semibold text-teal-700 underline" href="https://resend.com/api-keys" target="_blank" rel="noreferrer">resend.com/api-keys</a> with Permission set to <b>Full access</b>, paste it here and save. Emails Resend is still retrying will then come in.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Field value={setup.apiKey} onChange={(e) => setSetup({ ...setup, apiKey: e.target.value })} placeholder="re_... (Full access)" aria-label="Resend API key" type="password" autoComplete="off" />
+                  <GhostButton onClick={() => { if (!setup.apiKey.trim()) return; void run(async () => { const r = await call(token, "/api/admin/hub-inbox", { method: "PUT", body: JSON.stringify({ apiKey: setup.apiKey }) }); setSetup({ domain: "", secret: "", apiKey: "" }); return r.apiKeySet ? "Key saved." : (r.message || "Saved."); }); }}>Save key</GhostButton>
+                </div>
+              </details>
+            )}
           </>
         )}
         {notice && <p role="status" className="text-emerald-700" data-testid="hub-forwarding-notice">{notice}</p>}
