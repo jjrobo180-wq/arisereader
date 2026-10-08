@@ -46,7 +46,7 @@ import "@/components/teacher-hub/hubNight.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
-  HUB_IMPORT, HUB_IMPORT_KINDS, addStudent, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
+  HUB_IMPORT, HUB_IMPORT_KINDS, STUDENT_MEETING_ROLES, addStudent, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
   type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Task, type Workspace,
 } from "@shared/teacherHub";
 import { deleteRow, deleteStudentRecords, studentRecordCount, undoDelete, type Deleted } from "@shared/hubDelete";
@@ -58,6 +58,7 @@ import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextAr
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
+import { GUIDE_LIMITS, contactsFor, roleLabel } from "@shared/hubGuide";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
@@ -684,10 +685,85 @@ type SectionProps = {
   remove: <K extends keyof Workspace>(key: K, rowId: string) => void;
 };
 
-const NO_DETAILS: Omit<Student, "id"> = { name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" };
+const NO_DETAILS: Omit<Student, "id"> = { name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "", disability1: "", disability2: "", team: {} };
+
+/** Optional student eligibility categories and staff. Contacts are saved once and reused in IEP guides and meeting polls. */
+function StudentExtraFields({ details, onDetailsChange, workspace, setWorkspace, className = "", initiallyOpen = false }: {
+  details: Omit<Student, "id">;
+  onDetailsChange: (change: Partial<Omit<Student, "id">>) => void;
+  workspace: Workspace;
+  setWorkspace: React.Dispatch<React.SetStateAction<Workspace>>;
+  className?: string;
+  initiallyOpen?: boolean;
+}) {
+  const team = details.team || {};
+  const [addingStaff, setAddingStaff] = useState(false);
+  const [staff, setStaff] = useState({ role: "socialWorker", name: "", email: "" });
+  const [error, setError] = useState("");
+
+  function addTeamMember() {
+    const name = staff.name.replace(/\\s+/g, " ").trim();
+    const email = staff.email.trim();
+    if (!name) { setError("Enter the staff member's name."); return; }
+    if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { setError("Enter a valid email address or leave it blank."); return; }
+    const existing = workspace.spedContacts.find((c) => c.role === staff.role && c.name.toLowerCase() === name.toLowerCase());
+    if (!existing && workspace.spedContacts.length >= GUIDE_LIMITS.contacts) { setError("Your staff contact list is full. Remove an unused contact in the IEP Guide first."); return; }
+    const contactId = existing?.id || id();
+    if (!existing) setWorkspace((p) => ({ ...p, spedContacts: [...p.spedContacts, { id: contactId, name, role: staff.role, email }] }));
+    onDetailsChange({ team: { ...team, [staff.role]: contactId } });
+    setStaff({ role: staff.role, name: "", email: "" });
+    setError("");
+    setAddingStaff(false);
+  }
+
+  return (
+    <details defaultOpen={initiallyOpen} className={"col-span-full rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:p-4 " + className} data-testid="hub-student-extra-fields">
+      <summary className="cursor-pointer font-semibold text-slate-800">Disabilities & IEP meeting team <span className="text-xs font-normal text-slate-500">(optional)</span></summary>
+      <div className="mt-4 space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Labeled label="Disability 1 (primary)"><Field value={details.disability1 || ""} onChange={(e) => onDetailsChange({ disability1: e.target.value })} placeholder="As listed on the IEP" maxLength={120} /></Labeled>
+          <Labeled label="Disability 2 (secondary)"><Field value={details.disability2 || ""} onChange={(e) => onDetailsChange({ disability2: e.target.value })} placeholder="Leave blank if none" maxLength={120} /></Labeled>
+        </div>
+        <div>
+          <div className="mb-2 text-sm font-semibold text-slate-800">Staff to include in meetings</div>
+          <p className="mb-3 text-xs text-slate-500">Choose existing contacts or add new people below. Leave roles blank when they do not apply.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {STUDENT_MEETING_ROLES.map((role) => {
+              const { first, rest } = contactsFor(role.id, workspace.spedContacts);
+              const chosen = workspace.spedContacts.find((c) => c.id === team[role.id]);
+              return (
+                <Labeled key={role.id} label={role.label}>
+                  <Select value={chosen?.id || ""} onChange={(e) => onDetailsChange({ team: { ...team, [role.id]: e.target.value } })}>
+                    <option value="">Not assigned</option>
+                    {first.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {rest.length > 0 && <optgroup label="Other saved staff">{rest.map((c) => <option key={c.id} value={c.id}>{c.name} ({roleLabel(c.role)})</option>)}</optgroup>}
+                  </Select>
+                </Labeled>
+              );
+            })}
+          </div>
+        </div>
+        <button type="button" className="min-h-11 text-sm font-semibold text-teal-800 underline underline-offset-4" onClick={() => { setAddingStaff((v) => !v); setError(""); }}>
+          {addingStaff ? "Cancel adding staff" : "+ Add a team member"}
+        </button>
+        {addingStaff && (
+          <div className="space-y-3 rounded-xl border border-teal-100 bg-white p-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Labeled label="Role"><Select aria-label="New team member role" value={staff.role} onChange={(e) => setStaff({ ...staff, role: e.target.value })}>{STUDENT_MEETING_ROLES.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</Select></Labeled>
+              <Labeled label="Name"><Field aria-label="New team member name" value={staff.name} onChange={(e) => setStaff({ ...staff, name: e.target.value })} maxLength={80} placeholder="Staff member name" /></Labeled>
+              <Labeled label="Email (optional)"><Field type="email" aria-label="New team member email" value={staff.email} onChange={(e) => setStaff({ ...staff, email: e.target.value })} maxLength={120} placeholder="For meeting invitations" /></Labeled>
+            </div>
+            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+            <GhostButton type="button" onClick={addTeamMember}><Plus className="h-4 w-4" /> Save person & assign</GhostButton>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
 
 function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfileId, openTab }: SectionProps & { seats: number | null; profileId: string | null; setProfileId: (studentId: string | null) => void; openTab: (tab: HubTab) => void }) {
-  const [form, setForm] = useState<Omit<Student, "id">>({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
+  const [form, setForm] = useState<Omit<Student, "id">>({ ...NO_DETAILS });
   // The plan covers this many students; the caseload can't grow past it.
   const full = seats !== null && workspace.students.length >= seats;
   // The reason a student could not be added (a name already on the caseload, say).
@@ -698,7 +774,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
     const result = addStudent(workspace, form, id, seats);
     if (!result.ok) { setAddError(result.message); return; }
     setWorkspace((p) => { const next = addStudent(p, form, id, seats); return next.ok ? next.workspace : p; });
-    setForm({ name: "", grade: "", accommodations: "", iepDate: "", reevalDate: "", readingLevel: "", mathLevel: "", notes: "" });
+    setForm({ ...NO_DETAILS });
     setAddError("");
   }
 
@@ -747,6 +823,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           <Labeled label="IEP deadline"><Field type="date" value={form.iepDate} onChange={(e) => setForm({ ...form, iepDate: e.target.value })} /></Labeled>
           <Labeled label="Reevaluation deadline"><Field type="date" value={form.reevalDate} onChange={(e) => setForm({ ...form, reevalDate: e.target.value })} /></Labeled>
           <Field placeholder="Accommodations" value={form.accommodations} onChange={(e) => setForm({ ...form, accommodations: e.target.value })} className="md:col-span-2" />
+          <StudentExtraFields details={form} onDetailsChange={(change) => setForm((p) => ({ ...p, ...change }))} workspace={workspace} setWorkspace={setWorkspace} />
           <TextArea placeholder="Quick notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="md:col-span-3" />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add student</PrimaryButton>
           {addError && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 md:col-span-4" role="alert">{addError}</div>}
@@ -763,6 +840,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               <Labeled label="IEP deadline"><Field type="date" value={editing.form.iepDate} onChange={(e) => typed({ iepDate: e.target.value })} /></Labeled>
               <Labeled label="Reevaluation deadline"><Field type="date" value={editing.form.reevalDate} onChange={(e) => typed({ reevalDate: e.target.value })} /></Labeled>
               <Labeled label="Accommodations" className="sm:col-span-2"><Field value={editing.form.accommodations} onChange={(e) => typed({ accommodations: e.target.value })} /></Labeled>
+              <StudentExtraFields details={editing.form} onDetailsChange={typed} workspace={workspace} setWorkspace={setWorkspace} initiallyOpen />
               <Labeled label="Quick notes" className="sm:col-span-2"><TextArea value={editing.form.notes} onChange={(e) => typed({ notes: e.target.value })} /></Labeled>
               {following > 0 && (
                 <p className="text-sm text-slate-600 sm:col-span-2">
@@ -790,7 +868,10 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               <Info label="IEP deadline" value={s.iepDate || "—"} />
               <Info label="Reeval deadline" value={s.reevalDate || "—"} />
               <Info label="Accommodations" value={s.accommodations || "—"} />
+              {s.disability1 && <Info label="Disability 1" value={s.disability1} />}
+              {s.disability2 && <Info label="Disability 2" value={s.disability2} />}
             </div>
+            {STUDENT_MEETING_ROLES.some((role) => s.team?.[role.id]) && <div className="mt-3 rounded-xl bg-teal-50 p-3 text-sm text-slate-700"><span className="font-semibold">Meeting team:</span> {STUDENT_MEETING_ROLES.map((role) => { const person = workspace.spedContacts.find((c) => c.id === s.team?.[role.id]); return person ? role.label + ": " + person.name : ""; }).filter(Boolean).join(" · ") || "No assigned contacts"}</div>}
             {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{s.notes}</div>}
             <button type="button" onClick={() => setProfileId(s.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-900 hover:bg-teal-100" data-testid="hub-student-profile"><Users className="h-4 w-4" /> See everything for {s.name.split(/\s+/)[0]}</button>
           </Card>
