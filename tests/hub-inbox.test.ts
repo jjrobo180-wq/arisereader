@@ -177,7 +177,7 @@ test("the routes: a new address replaces the old, the senders save, taken emails
   // The admin's setup: checked, and the secret is never sent back.
   assert.equal((await call("GET /api/admin/hub-inbox", teacher)).status, 403);
   const admin = { user: { id: 1, isAdmin: true } };
-  assert.deepEqual((await call("GET /api/admin/hub-inbox", admin)).body, { domain: DOMAIN, secretSet: true });
+  assert.deepEqual((await call("GET /api/admin/hub-inbox", admin)).body, { domain: DOMAIN, secretSet: true, apiKeySet: false });
   assert.equal((await call("PUT /api/admin/hub-inbox", { ...admin, body: { domain: "nope", secret: "" } })).status, 400);
   assert.equal((await call("PUT /api/admin/hub-inbox", { ...admin, body: { domain: "", secret: "abc" } })).status, 400);
   const changed = await call("PUT /api/admin/hub-inbox", { ...admin, body: { domain: "xyz789.resend.app", secret: "" } });
@@ -194,4 +194,22 @@ test("the pieces are connected", () => {
   for (const part of ["registerHubInboxRoutes(app, authMiddleware, {", "gate: hubGate,", "/emails/receiving/${encodeURIComponent(emailId)}"]) assert.ok(routes.includes(part), part);
   for (const part of ["https://resend.com/emails", "https://resend.com/webhooks", "/api/hub-inbox/webhook", "Get my forwarding address", "Accept forwards from", "INBOX_CHECK_MS"]) assert.ok(box.includes(part), part);
   assert.ok(read("server/index.ts").includes("req.rawBody = buf;"), "the webhook can check the signature on the exact bytes sent");
+});
+
+test("reading the email: the setup's API key is used, and a failure says why so it can be fixed", async () => {
+  const key = "re_FullAccess_123456";
+  assert.equal(readConfig({ domain: DOMAIN, secret: SECRET, apiKey: key }).apiKey, key);
+  assert.equal(readConfig({ domain: DOMAIN, secret: SECRET, apiKey: "nope" }).apiKey, undefined);
+  const s = site({ config: { domain: DOMAIN, secret: SECRET, apiKey: key } });
+  let usedKey: string | undefined;
+  const real = s.deps.fetchReceived;
+  s.deps.fetchReceived = async (id, apiKey) => { usedKey = apiKey; return real(id, apiKey); };
+  const body = JSON.stringify({ type: "email.received", data: { email_id: "e-key", to: [`hub-k7m2p9q4rs@${DOMAIN}`], from: "jrobinson@school.org", subject: "Fwd: hi" } });
+  assert.equal((await receiveWebhook(s.deps, sign(body), body)).kept, 1);
+  assert.equal(usedKey, key);
+  const f = site();
+  f.deps.fetchReceived = async () => { throw new Error("site key 401 restricted_api_key"); };
+  const r = await receiveWebhook(f.deps, sign(body), body);
+  assert.equal(r.status, 502);
+  assert.match(r.note, /could not fetch the email: site key 401 restricted_api_key/);
 });

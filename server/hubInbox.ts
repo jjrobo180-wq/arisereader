@@ -13,14 +13,15 @@ export const INBOX_TOKENS_KEY = "hub_inbox_tokens";
 export const inboxItemsKey = (teacherId: number) => `hub_inbox_items_${teacherId}`;
 export const inboxSendersKey = (teacherId: number) => `hub_inbox_senders_${teacherId}`;
 
-export type InboxConfig = { domain: string; secret: string };
+/** apiKey: a Resend key allowed to read received emails ("Full access"). Without it, the site's own email key is used. */
+export type InboxConfig = { domain: string; secret: string; apiKey?: string };
 export type ReceivedEmail = { from?: string; subject?: string; text?: string | null; html?: string | null; authentication?: { spf?: string; dkim?: string; dmarc?: string } | null };
 
 export type HubInboxDeps = {
   getSetting(key: string): Promise<string | null | undefined>;
   saveSetting(key: string, value: string): Promise<unknown>;
-  /** The email's words, from the email service (the webhook only says that an email came). */
-  fetchReceived(emailId: string): Promise<ReceivedEmail | null>;
+  /** The email's words, from the email service (the webhook only says that an email came). Throws with the reason when it can't. */
+  fetchReceived(emailId: string, apiKey?: string): Promise<ReceivedEmail | null>;
   /** A teacher's account email, the first sender they accept. */
   accountEmail(teacherId: number): Promise<string | null>;
   now(): number;
@@ -28,13 +29,15 @@ export type HubInboxDeps = {
 };
 
 const DOMAIN = /^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+const API_KEY = /^re_[A-Za-z0-9_-]{10,200}$/;
 export function readConfig(raw: unknown): InboxConfig {
   let data: any = raw;
   if (typeof raw === "string") { try { data = JSON.parse(raw); } catch { data = null; } }
   // Resend shows the receiving address as "<anything>@abc123.resend.app": whatever was pasted, the domain is the part after the last "@".
   const domain = String(data?.domain || "").trim().toLowerCase().replace(/^mailto:/, "").split("@").pop()!.replace(/[<>\s"'/]+/g, "").replace(/\.+$/, "");
   const secret = String(data?.secret || "").trim();
-  return { domain: DOMAIN.test(domain) ? domain : "", secret: /^whsec_[A-Za-z0-9+/=]{16,}$/.test(secret) ? secret : "" };
+  const apiKey = String(data?.apiKey || "").trim();
+  return { domain: DOMAIN.test(domain) ? domain : "", secret: /^whsec_[A-Za-z0-9+/=]{16,}$/.test(secret) ? secret : "", ...(API_KEY.test(apiKey) ? { apiKey } : {}) };
 }
 
 // ─── Is the call really from the email service? ────────────────────────────
@@ -118,8 +121,12 @@ export async function receiveWebhook(deps: HubInboxDeps, headers: Record<string,
   for (const teacherId of teachers) {
     const allowed = await readSenders(deps, teacherId);
     if (!allowed.anyone && !allowed.senders.includes(from)) continue;
-    mail = mail ?? (await deps.fetchReceived(emailId));
-    if (!mail) return { status: 502, kept, note: "could not fetch the email" }; // the email service will try again
+    if (!mail) {
+      let why = "";
+      try { mail = await deps.fetchReceived(emailId, config.apiKey); } catch (error: any) { why = String(error?.message || "").slice(0, 300); }
+      // The email service will try again, so once the reason is fixed the email still arrives.
+      if (!mail) return { status: 502, kept, note: `could not fetch the email${why ? `: ${why}` : ""}` };
+    }
     // A sender that fails the email checks may be someone pretending to be the teacher.
     if (String(mail.authentication?.dmarc || "").toLowerCase() === "fail") continue;
     const body = cleanBody(mail.text, mail.html);
@@ -196,19 +203,21 @@ export function registerHubInboxRoutes(app: Express, auth: RequestHandler, deps:
     if (!req.user?.isAdmin) return res.status(403).json({ message: "Admin access required." });
     try {
       const config = readConfig(await deps.getSetting(INBOX_CONFIG_KEY));
-      res.set("Cache-Control", "no-store").json({ domain: config.domain, secretSet: !!config.secret });
+      res.set("Cache-Control", "no-store").json({ domain: config.domain, secretSet: !!config.secret, apiKeySet: !!config.apiKey });
     } catch (error) { fail(res, error); }
   });
   app.put("/api/admin/hub-inbox", auth, async (req: any, res) => {
     if (!req.user?.isAdmin) return res.status(403).json({ message: "Admin access required." });
     try {
       const old = readConfig(await deps.getSetting(INBOX_CONFIG_KEY));
-      const typed = readConfig({ domain: req.body?.domain, secret: req.body?.secret });
+      const typed = readConfig({ domain: req.body?.domain, secret: req.body?.secret, apiKey: req.body?.apiKey });
       if (String(req.body?.domain || "").trim() && !typed.domain) return res.status(400).json({ message: "That doesn't look like a domain. It looks like abc123.resend.app." });
       if (String(req.body?.secret || "").trim() && !typed.secret) return res.status(400).json({ message: "That doesn't look like a webhook signing secret. It starts with whsec_." });
-      const next = { domain: typed.domain || old.domain, secret: typed.secret || old.secret };
+      if (String(req.body?.apiKey || "").trim() && !typed.apiKey) return res.status(400).json({ message: "That doesn't look like a Resend API key. It starts with re_." });
+      const apiKey = typed.apiKey || old.apiKey;
+      const next = { domain: typed.domain || old.domain, secret: typed.secret || old.secret, ...(apiKey ? { apiKey } : {}) };
       await deps.saveSetting(INBOX_CONFIG_KEY, JSON.stringify(next));
-      res.json({ domain: next.domain, secretSet: !!next.secret, message: next.domain && next.secret ? "Saved. Teachers can now get their forwarding address in the Hub." : "Saved." });
+      res.json({ domain: next.domain, secretSet: !!next.secret, apiKeySet: !!apiKey, message: next.domain && next.secret ? "Saved. Teachers can now get their forwarding address in the Hub." : "Saved." });
     } catch (error) { fail(res, error); }
   });
 }
