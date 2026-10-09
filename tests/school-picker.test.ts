@@ -387,6 +387,8 @@ test("a school added at sign-up is never free just because of its name", async (
     countTeacherStudents: async () => 10, countSchoolStudents: async () => 10,
     schoolName: async (id) => schools.find((s) => s.id === id)?.name ?? "",
     freeByNameAllowed: async (id) => !(await picker.addedAtSignup(id)),
+    // a fixed day after these teachers' free month, so the school's name is the only thing that could make it free
+    now: () => Date.parse("2026-12-01T18:00:00Z"),
   });
   assert.equal((await plans.entitlement(teachers[60])).premium, true, "a CGMS teacher");
   assert.equal((await plans.entitlement(teachers[61])).premium, false, "a teacher at a school that only has CGMS in its name");

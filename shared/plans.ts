@@ -3,7 +3,9 @@
 // Free is for students and their parents. Premium is for teachers and
 // schools, and their students get the Premium extras through them.
 // Teacher Hub is a separate add-on for teachers and schools, sold at the same
-// prices as Premium. Nobody gets it free: no free year, no free school.
+// prices as Premium. It is not part of the free year or a free school.
+// Every teacher gets one free month of both: Premium (the teacher account, with
+// Arise Math) and Teacher Hub.
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
@@ -48,6 +50,13 @@ export const PLANS = {
   grandfatherUntil: "2027-07-01T06:00:00.000Z",
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
   graceDays: 3,
+  /**
+   * Every teacher's first month is free: Premium (the teacher account, with Arise
+   * Math) and Teacher Hub. The month starts when the account is made. For a
+   * teacher who already had an account when the free month began, it starts
+   * here instead: 8:36 pm on October 8, 2026, Mountain time.
+   */
+  freeMonthFrom: "2026-10-09T02:36:00.000Z",
 } as const;
 
 export const usd = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString("en-US")}` : `$${(cents / 100).toFixed(2)}`);
@@ -118,16 +127,48 @@ export function grantLive(grant: PlanGrant | null | undefined, now = Date.now())
   return now < end + PLANS.graceDays * 86_400_000;
 }
 
+/** A sign-up date as a time. NaN when there is none on record, or it can't be read. */
+function signedUpAt(createdAt: unknown): number {
+  if (createdAt === null || createdAt === undefined || createdAt === "") return NaN;
+  return createdAt instanceof Date ? createdAt.getTime() : typeof createdAt === "number" ? createdAt : Date.parse(String(createdAt));
+}
+
 /**
  * Signed up before the cutoff, and the free year has not run out.
  * An account with no sign-up date on record is an old one, so it counts.
  */
 export function grandfathered(createdAt: unknown, now = Date.now()): boolean {
   if (now >= Date.parse(PLANS.grandfatherUntil)) return false;
-  if (createdAt === null || createdAt === undefined || createdAt === "") return true;
-  const t = createdAt instanceof Date ? createdAt.getTime() : typeof createdAt === "number" ? createdAt : Date.parse(String(createdAt));
+  const t = signedUpAt(createdAt);
   if (!Number.isFinite(t)) return true;
   return t < Date.parse(PLANS.grandfatherBefore);
+}
+
+/** The same time of day one calendar month later. January 31 gives the last day of February. */
+export function monthAfter(ms: number): number {
+  const d = new Date(ms);
+  const dayOfMonth = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(dayOfMonth, lastDay));
+  return d.getTime();
+}
+
+/**
+ * When a teacher's free month ends (ISO): one month after they made their account.
+ * An account that was already there when the free month began, or has no sign-up
+ * date on record, counts from `freeMonthFrom`.
+ */
+export function freeMonthEnd(createdAt: unknown): string {
+  const from = Date.parse(PLANS.freeMonthFrom);
+  const t = signedUpAt(createdAt);
+  return new Date(monthAfter(Number.isFinite(t) && t > from ? t : from)).toISOString();
+}
+
+/** Is this teacher still in their free month? */
+export function inFreeMonth(createdAt: unknown, now = Date.now()): boolean {
+  return now >= Date.parse(PLANS.freeMonthFrom) && now < Date.parse(freeMonthEnd(createdAt));
 }
 
 /**
@@ -185,7 +226,8 @@ export type PlanVia =
   | "teacher-plan"   // this teacher's own plan
   | "school-plan"    // a teacher whose school has a plan
   | "class"          // a student whose teacher has Premium
-  | "grandfathered"; // signed up before October 1, 2026
+  | "grandfathered"  // signed up before October 1, 2026
+  | "free-month";    // a teacher's first month
 
 export type Entitlement = {
   premium: boolean;
@@ -219,6 +261,8 @@ function teacherEntitlement(teacher: PlanPerson, own: PlanGrant | null | undefin
   if (grantLive(own, now)) return yes("teacher-plan", own);
   if (grantLive(school, now)) return yes("school-plan", school);
   if (grandfathered(teacher.createdAt, now)) return yes("grandfathered", null, PLANS.grandfatherUntil);
+  // The free month comes last: a plan or the free year outlasts it.
+  if (inFreeMonth(teacher.createdAt, now)) return yes("free-month", null, freeMonthEnd(teacher.createdAt));
   return NONE;
 }
 
@@ -257,13 +301,14 @@ export function parentCanLink(linkedCount: number, opts: { enforced: boolean; pr
 
 // ─── Teacher Hub ─────────────────────────────────────────────────────────────
 
-export type HubVia = "admin" | "hub-teacher-plan" | "hub-school-plan";
+export type HubVia = "admin" | "hub-teacher-plan" | "hub-school-plan" | "free-month";
 export type HubAccess = { access: boolean; via: HubVia | null; seats: number | null; endsAt: string | null };
 
 /**
- * Can this person open Teacher Hub? Only with a Teacher Hub plan of their own or
- * their school's, or as the site admin. Unlike Premium it does not depend on plan
- * rules being on, and there is no free year, free school or sample account.
+ * Can this person open Teacher Hub? With a Teacher Hub plan of their own or their
+ * school's, during a teacher's free month, or as the site admin. Unlike Premium it
+ * does not depend on plan rules being on, and there is no free year, free school
+ * or sample account.
  */
 export function hubAccessFor(person: PlanPerson | null | undefined, facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
   const none: HubAccess = { access: false, via: null, seats: null, endsAt: null };
@@ -274,6 +319,8 @@ export function hubAccessFor(person: PlanPerson | null | undefined, facts: { now
   const own = facts.teacherGrant, school = facts.schoolGrant;
   if (grantLive(own, now) && own!.kind === "hub_teacher") return { access: true, via: "hub-teacher-plan", seats: own!.seats, endsAt: own!.endsAt };
   if (grantLive(school, now) && school!.kind === "hub_school" && !school!.free) return { access: true, via: "hub-school-plan", seats: school!.seats, endsAt: school!.endsAt };
+  // The free month has no student limit.
+  if (inFreeMonth(person.createdAt, now)) return { access: true, via: "free-month", seats: null, endsAt: freeMonthEnd(person.createdAt) };
   return none;
 }
 

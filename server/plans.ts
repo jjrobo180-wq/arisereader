@@ -6,8 +6,12 @@
 // through Stripe.
 //
 // Teacher Hub is a separate add-on with its own plans ("hub_teacher" and
-// "hub_school"), bought the same way. It is always paid: plan rules, the free
-// year and always-free schools don't apply to it.
+// "hub_school"), bought the same way. Plan rules, the free year and always-free
+// schools don't apply to it.
+//
+// Every teacher's first month is free, for Premium and Teacher Hub alike (see
+// freeMonthFrom in shared/plans.ts). Nothing is stored for it: it is worked out
+// from the day the account was made.
 //
 // Two switches keep a live site safe:
 //   - Plan rules do nothing until the admin turns them on (setting "plans_enforced").
@@ -19,7 +23,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, grantLive, hubAccessFor, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, socialAccessFor,
+  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, freeMonthEnd, grantLive, hubAccessFor, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, socialAccessFor,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
 } from "../shared/plans";
@@ -412,7 +416,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const current = async (kind: PlanKind, id: number | null | undefined): Promise<PlanGrant | null> => {
     const ownerId = posInt(id);
     if (!ownerId) return null;
-    // An always-free school is free for Premium only. Teacher Hub is always paid.
+    // An always-free school is free for Premium only, not for Teacher Hub.
     if (kind === "school" && (await isFreeSchool(ownerId))) return freeGrant(ownerId);
     let g = await readGrant(kind, ownerId);
     try {
@@ -618,6 +622,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       };
       if (user.role === "teacher" && !user.isAdmin) {
         const schoolId = schoolOf(user);
+        // When this teacher's free month ends, or ended.
+        body.freeMonthEndsAt = freeMonthEnd(user.createdAt);
         body.students = await deps.countTeacherStudents(user.id);
         body.teacherPlan = grantView(await readGrant("teacher", user.id));
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
@@ -916,6 +922,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         enforced: await enforced(), plans: rows, freeSchools,
         stripe: { keySet: !!key, keyPreview: mask(key), keyFromHosting: !!deps.envStripeKey?.(), webhookSet: !!secret, webhookPreview: mask(secret), webhookFromHosting: !!deps.envWebhookSecret?.() },
         grandfather: { before: PLANS.grandfatherBefore, until: PLANS.grandfatherUntil },
+        freeMonth: { from: PLANS.freeMonthFrom, existingUntil: freeMonthEnd(null) },
       });
     } catch (e) { fail(res, e, "admin plans"); }
   });

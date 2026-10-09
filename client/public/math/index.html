@@ -593,6 +593,7 @@ function landingHTML(){
         <button class="btn outline" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button>
         <button class="btn outline" data-act="go" data-v="/teacher-signup">${svg('school')}I’m a teacher</button>
         <p class="muted small">Arise Math uses your A.R.I.S.E. Reader account. Already have one? <a href="/" data-act="signin">Log in</a>.</p>
+        <p class="muted small">Teachers: your first month is free.</p>
       </div></div>
     <div class="land-art"><div class="cover"></div><div class="inner"><h3>Skills for every grade</h3><div class="stack" style="gap:10px;margin-top:12px">
       ${['k2','g35','g68','g912'].map(b=>`<div><span class="eyebrow">Grades ${bandLabel(b)}</span><div class="row" style="gap:6px;margin-top:4px">${CAT.bands[b].skills.map(id=>`<span class="chip cl" style="--c:${cc(SK(id).c)}">${esc(SK(id).name)}</span>`).join('')}</div></div>`).join('')}

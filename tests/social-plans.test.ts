@@ -13,9 +13,11 @@ const USERS: Record<number, any> = {
   72: { id: 72, displayName: "Leo Park", role: "student", teacherId: 50, school_id: 3 },
 };
 const CHILDREN: Record<number, number[]> = { 70: [71] };
+// A fixed day after this teacher's free month, so the tests read the same on any date.
+const NOW = Date.parse("2026-12-01T18:00:00Z");
 const paidSession = (kind: string, ownerId: number, buyerId: number) => ({
   id: "cs_test_paid", status: "complete", payment_status: "paid", metadata: { kind, ownerId: String(ownerId), buyerId: String(buyerId) },
-  subscription: { id: "sub_soc", status: "active", customer: "cus_9", metadata: { kind, ownerId: String(ownerId), buyerId: String(buyerId) }, items: { data: [{ id: "si_9", quantity: 1, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400 }] } },
+  subscription: { id: "sub_soc", status: "active", customer: "cus_9", metadata: { kind, ownerId: String(ownerId), buyerId: String(buyerId) }, items: { data: [{ id: "si_9", quantity: 1, current_period_end: Math.floor(NOW / 1000) + 30 * 86400 }] } },
 });
 
 function setup(opts: { enforced?: boolean; payment?: boolean; session?: any } = {}) {
@@ -48,6 +50,7 @@ function setup(opts: { enforced?: boolean; payment?: boolean; session?: any } = 
     schoolName: async () => "Lincoln Middle",
     envStripeKey: () => (opts.payment === false ? "" : "sk_test_abcdefghijk"),
     fetch: fetchStub,
+    now: () => NOW,
   });
   const call = async (method: string, path: string, who: number, body: any = {}) => {
     const req: any = { headers: { authorization: String(who), origin: "https://www.arisereader.com" }, body, originalUrl: path };
