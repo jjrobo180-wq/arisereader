@@ -3,7 +3,7 @@
 // The choices are saved with the account (family.notify), so they apply on every device.
 import { useAuth } from "@/context/AuthContext";
 import type { ReactNode } from "react";
-import { Bell, Droplet, Dumbbell, Minus, Moon, Newspaper, Plus, Receipt, Scale, SmilePlus, Sun, Sunset, Timer, Utensils } from "lucide-react";
+import { Bell, CalendarHeart, Droplet, Dumbbell, Pill, Minus, Moon, Newspaper, Plus, Receipt, Scale, SmilePlus, Sun, Sunset, Timer, Utensils } from "lucide-react";
 import { MEALS, isOn, type Meal } from "@shared/familyHub";
 import { NEWS_TOPICS } from "@shared/todoNews";
 import { HEADS_UP_CHOICES, NEWS_MAX, WATER_MAX, dailyEstimate, defaultNotify, spreadTimes, type NotifyPrefs, type Weekday } from "@shared/todoNotify";
@@ -25,6 +25,8 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
   const waterGoal = member ? goalsFor(family.health, member).water : 8;
   const healthOn = isOn("health", family);
   const moodOn = isOn("mood", family);
+  const pillsOn = isOn("pills", family);
+  const cycleOn = isOn("cycle", family);
   const weekday = new Date(`${today}T12:00:00`).getDay();
   const perDay = dailyEstimate(prefs, weekday);
 
@@ -115,6 +117,20 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
         </Row>}
       </ul>
     </Panel> : <Panel eyebrow="Food & fitness" title="Healthy habits"><p className="text-sm text-slate-500">Turn on Food & fitness in Family & settings to get water, meal, workout and weigh-in reminders.</p></Panel>}
+
+    {(pillsOn || cycleOn) && <Panel eyebrow="Health" title="Pills and cycle">
+      <ul className="divide-y divide-slate-100">
+        {pillsOn && <Row icon={<Pill size={18} />} tint="bg-violet-50 text-violet-600" title="Pill reminders" detail="At each dose time, until it's marked taken or skipped"
+          on={prefs.pills.on} onChange={(on) => set((p) => ({ ...p, pills: { ...p.pills, on } }))}>
+          <Check on={prefs.pills.loud} label="Remind me even during quiet hours" onChange={(loud) => set((p) => ({ ...p, pills: { ...p.pills, loud } }))} />
+          <Check on={prefs.pills.refill} label="Tell me when a pill is running low" onChange={(refill) => set((p) => ({ ...p, pills: { ...p.pills, refill } }))} />
+        </Row>}
+        {cycleOn && <Row icon={<CalendarHeart size={18} />} tint="bg-rose-50 text-rose-600" title="Period heads-up" detail="A morning note before a period is expected"
+          on={prefs.period.on} onChange={(on) => set((p) => ({ ...p, period: { ...p.period, on } }))}>
+          <Field label="How many days before"><Stepper value={prefs.period.daysBefore} min={1} max={7} unit="day" onChange={(daysBefore) => set((p) => ({ ...p, period: { ...p.period, daysBefore } }))} /></Field>
+        </Row>}
+      </ul>
+    </Panel>}
 
     <Panel eyebrow="Do not disturb" title="Quiet hours">
       <ul className="divide-y divide-slate-100">

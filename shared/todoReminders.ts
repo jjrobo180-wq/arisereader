@@ -13,6 +13,8 @@ import { localParts, MORNING_UNTIL_HOUR, type HubReminder } from "./hubReminders
 import { pollOpen } from "./todoShare";
 import { inQuiet, spreadTimes, toMinutes as clockMinutes, SEND_WINDOW_MINUTES, type Weekday } from "./todoNotify";
 import { caloriesLeft, dayTotals, goalsFor, healthPeople, ME_ID } from "./familyHealth";
+import { dosesOn, needsRefill } from "./pills";
+import { cycleSummary } from "./familyCycle";
 
 export const TODO_REMINDER_URL = "/#/lifehub";
 export type TodoReminder = HubReminder & { news?: { topic: string; place: string; index: number } };
@@ -39,7 +41,19 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
   const prefs = family.notify;
   const { date, minutes } = localParts(nowMs, timeZone);
   const out: TodoReminder[] = [];
-  if (inQuiet(prefs, minutes)) return out;
+  const nameOf = (memberId: string) => family.members.find((m) => m.id === memberId)?.name || "";
+  const quiet = inQuiet(prefs, minutes);
+  // Pills: a reminder at each dose time not yet taken or skipped. These can come through quiet hours.
+  if (prefs.pills.on && isOn("pills", family) && (!quiet || prefs.pills.loud)) {
+    for (const dose of dosesOn(family, date)) {
+      const at = clockMinutes(dose.time);
+      const key = `todo:pill:${dose.id}`;
+      if (dose.status || sent[key] || minutes < at || minutes >= at + SEND_WINDOW_MINUTES) continue;
+      const who = nameOf(dose.pill.memberId);
+      out.push({ key, title: `Time for ${dose.pill.name} 💊`, body: [dose.pill.dose, who ? `for ${who}` : "", `at ${clock12(dose.time)}`].filter(Boolean).join(" · ") + ". Tap to mark it taken.", url: TODO_REMINDER_URL });
+    }
+  }
+  if (quiet) return out;
   const soon = (hm: string) => {
     const start = toMinutes(hm);
     return prefs.headsUp.on && start !== null && minutes < start && start - minutes <= prefs.headsUp.minutes;
@@ -87,6 +101,26 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
           polls.length ? `Vote closes today: ${polls[0].question}` : "",
         ].filter(Boolean).join(" ");
         out.push({ key, title: "Today in Arise LifeHub", body: [bits.length ? `${bits.join(", ")}.` : "", extra].filter(Boolean).join(" "), url: TODO_REMINDER_URL });
+      }
+    }
+    // Pills running low, once a day in the morning.
+    if (prefs.pills.on && prefs.pills.refill && isOn("pills", family)) {
+      for (const p of family.pills) {
+        const key = `todo:refill:${p.id}:${date}`;
+        if (!needsRefill(p) || sent[key]) continue;
+        const who = nameOf(p.memberId);
+        out.push({ key, title: `Refill ${p.name} soon`, body: `${p.supply} left${who ? ` for ${who}` : ""}. Time to order more.`, url: TODO_REMINDER_URL });
+      }
+    }
+    // A heads-up a few days before an expected period, for each person who tracks theirs.
+    if (prefs.period.on && isOn("cycle", family)) {
+      for (const memberId of [...new Set(family.cycleLogs.map((l) => l.memberId))]) {
+        const s = cycleSummary(family.cycleLogs, memberId, date);
+        if (!s.nextStart || s.late || s.onPeriod || s.daysUntil !== prefs.period.daysBefore) continue;
+        const key = `todo:period:${memberId}:${s.nextStart}`;
+        if (sent[key]) continue;
+        const who = nameOf(memberId);
+        out.push({ key, title: who ? `${who}'s period may start in ${s.daysUntil} days` : `Your period may start in ${s.daysUntil} days`, body: "Pack supplies and plan for cramps. Tap to see the cycle tracker.", url: TODO_REMINDER_URL });
       }
     }
     // Tomorrow's unpaid bills, so there's a day to pay them (autopay ones look after themselves).

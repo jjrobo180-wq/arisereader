@@ -1,6 +1,6 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Apple, CalendarDays, Check, Droplets, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
+import { Apple, CalendarDays, Check, Droplets, Pill, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
 import { MEMBER_COLORS, TOGGLEABLE, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
@@ -13,7 +13,8 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   calendar: { label: "Calendar", detail: "Shared family calendars", icon: <CalendarDays size={17} /> },
   behavior: { label: "Behavior", detail: "Kid behavior tracker and rewards", icon: <Smile size={17} /> },
   goals: { label: "Goals", detail: "Personal and family goals with progress", icon: <Target size={17} /> },
-  cycle: { label: "Cycle", detail: "Period and cycle tracker", icon: <Droplets size={17} /> },
+  cycle: { label: "Cycle", detail: "Period and cycle tracker, daily insights and tips", icon: <Droplets size={17} /> },
+  pills: { label: "Pills", detail: "Pill and vitamin reminders for the family", icon: <Pill size={17} /> },
   mood: { label: "Mood", detail: "Daily mood check-in and patterns", icon: <SmilePlus size={17} /> },
   news: { label: "News", detail: "Today's headlines and local news", icon: <Newspaper size={17} /> },
   notifications: { label: "Notifications", detail: "Choose your reminders and how many", icon: null },

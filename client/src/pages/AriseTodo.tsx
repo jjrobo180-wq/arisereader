@@ -8,7 +8,7 @@ import {
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
-  CalendarRange, Smile, Vote, Bell, BookOpen, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
+  CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
 } from "lucide-react";
 import { cleanFamily, emptyFamily, isCurrentFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
@@ -23,6 +23,8 @@ import Notes from "@/components/family-hub/Notes";
 import Health from "@/components/family-hub/Health";
 import Goals from "@/components/family-hub/Goals";
 import Cycle from "@/components/family-hub/Cycle";
+import Pills from "@/components/family-hub/Pills";
+import { dosesOn } from "@shared/pills";
 import Mood from "@/components/family-hub/Mood";
 import News from "@/components/family-hub/News";
 import NotificationSettings from "@/components/family-hub/NotificationSettings";
@@ -145,10 +147,10 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen,
+  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
 };
-const SECTION_ORDER: FamilySection[] = ["home", "reader", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"];
+const SECTION_ORDER: FamilySection[] = ["home", "reader", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -403,7 +405,9 @@ export default function AriseTodo() {
   const sections = SECTION_ORDER.filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const trial = useLifeHubTrial();
   const shown: FamilySection = sections.includes(section) ? section : "home";
-  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : 0;
+  // Doses still to take today show on the Pills tab.
+  const pillsDue = dosesOn(family, currentDay).filter((d) => !d.status).length;
+  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue : 0;
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
@@ -414,6 +418,7 @@ export default function AriseTodo() {
     : shown === "health" ? <Health {...common} />
     : shown === "goals" ? <Goals {...common} />
     : shown === "cycle" ? <Cycle {...common} />
+    : shown === "pills" ? <Pills {...common} />
     : shown === "mood" ? <Mood {...common} />
     : shown === "news" ? <News {...common} />
     : shown === "notifications" ? <NotificationSettings {...common} />

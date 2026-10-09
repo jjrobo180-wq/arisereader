@@ -4,10 +4,10 @@
 
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news"];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news"];
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
 export type Chore = { id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number };
@@ -60,7 +60,20 @@ export const emptyHealth = (): Health => ({ profiles: {}, goals: {}, food: [], e
 /* Cycle tracker */
 export type Flow = "none" | "spotting" | "light" | "medium" | "heavy";
 export const FLOWS: Flow[] = ["spotting", "light", "medium", "heavy"];
-export type CycleLog = { id: string; memberId: string; date: string; flow: Flow; symptoms: string[]; note: string };
+export type Discharge = "" | "dry" | "sticky" | "creamy" | "watery" | "eggwhite" | "spotting" | "unusual";
+export type Energy = "" | "low" | "ok" | "high";
+export type OvTest = "" | "negative" | "positive";
+/** One day of the cycle tracker. `pain` 0–3 (none to severe), `temp` basal body temperature in °F (0 = not taken). */
+export type CycleLog = { id: string; memberId: string; date: string; flow: Flow; symptoms: string[]; note: string; discharge?: Discharge; pain?: number; energy?: Energy; temp?: number; ovTest?: OvTest };
+export const DISCHARGES: Discharge[] = ["dry", "sticky", "creamy", "watery", "eggwhite", "spotting", "unusual"];
+/** Is there anything logged on this day besides "no flow"? */
+export const cycleLogUsed = (l: CycleLog) => l.flow !== "none" || l.symptoms.length > 0 || !!l.note.trim() || !!l.discharge || !!l.pain || !!l.energy || !!l.temp || !!l.ovTest;
+
+/* Pill reminders */
+export type Pill = { id: string; memberId: string; name: string; dose: string; times: string[]; days: number[]; start: string; end: string; supply: number | null; perDose: number; refillAt: number; notes: string; color: string; active: boolean };
+/** One scheduled dose that was taken or skipped (id = pillId:date:time). */
+export type PillDose = { id: string; pillId: string; date: string; time: string; status: "taken" | "skipped"; at: string };
+export const PILL_COLORS = ["#7566e8", "#e0566b", "#36b6a5", "#f59e72", "#619ee6", "#e5b04f"];
 /* Mood tracker */
 export type MoodEntry = { id: string; memberId: string; date: string; mood: number; tags: string[]; note: string };
 /* Goals */
@@ -97,6 +110,8 @@ export type Family = {
   notes: Note[];
   health: Health;
   cycleLogs: CycleLog[];
+  pills: Pill[];
+  pillDoses: PillDose[];
   moods: MoodEntry[];
   goals: Goal[];
   news: NewsPrefs;
@@ -131,7 +146,7 @@ export const emptyFamily = (): Family => ({
   members: [], sections: {}, layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
-  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
+  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
   notify: defaultNotify(),
 });
 
@@ -171,7 +186,7 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
   return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -292,7 +307,28 @@ export function cleanFamily(input: unknown): Family {
       const date = day(r.date);
       const symptoms = Array.isArray(r.symptoms) ? [...new Set(r.symptoms.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 30)))].slice(0, 20) as string[] : [];
       const flow = oneOf(r.flow, ["none", "spotting", "light", "medium", "heavy"] as const, "none");
-      return date && r.memberId && (flow !== "none" || symptoms.length || str(r.note, 300).trim()) ? { id: id(r.id), memberId: id(r.memberId), date, flow, symptoms, note: str(r.note, 300) } : null;
+      const log: CycleLog = { id: id(r.id), memberId: id(r.memberId), date, flow, symptoms, note: str(r.note, 300) };
+      const discharge = oneOf(r.discharge, ["", ...DISCHARGES] as const, "");
+      if (discharge) log.discharge = discharge;
+      const pain = int(r.pain, 0, 3, 0); if (pain) log.pain = pain;
+      const energy = oneOf(r.energy, ["", "low", "ok", "high"] as const, ""); if (energy) log.energy = energy;
+      const temp = num(r.temp, 0, 110, 0); if (temp >= 90) log.temp = temp;
+      const ovTest = oneOf(r.ovTest, ["", "negative", "positive"] as const, ""); if (ovTest) log.ovTest = ovTest;
+      return date && r.memberId && cycleLogUsed(log) ? log : null;
+    }, true),
+    pills: rows(raw.pills, LIMITS.pills, (r) => {
+      const name = str(r.name, 60).trim();
+      const times = Array.isArray(r.times) ? [...new Set(r.times.map(clock).filter(Boolean))].sort().slice(0, 8) as string[] : [];
+      const days = Array.isArray(r.days) ? [...new Set(r.days.filter((d: unknown) => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6))].sort() as number[] : [0, 1, 2, 3, 4, 5, 6];
+      const supply = r.supply === null || r.supply === undefined || r.supply === "" ? null : int(r.supply, 0, 10000, 0);
+      return name && r.memberId ? {
+        id: id(r.id), memberId: id(r.memberId), name, dose: str(r.dose, 60), times: times.length ? times : ["08:00"], days: days.length ? days : [0, 1, 2, 3, 4, 5, 6],
+        start: day(r.start), end: day(r.end), supply, perDose: int(r.perDose, 1, 20, 1), refillAt: int(r.refillAt, 0, 1000, 7), notes: str(r.notes, 300), color: color(r.color, PILL_COLORS[0]), active: bool(r.active, true),
+      } : null;
+    }),
+    pillDoses: rows(raw.pillDoses, LIMITS.pillDoses, (r) => {
+      const date = day(r.date), time = clock(r.time);
+      return date && time && r.pillId ? { id: id(r.id), pillId: id(r.pillId), date, time, status: oneOf(r.status, ["taken", "skipped"] as const, "taken"), at: str(r.at, 40) } : null;
     }, true),
     moods: rows(raw.moods, LIMITS.moods, (r) => {
       const date = day(r.date);
@@ -472,7 +508,7 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "moods", "goals"];
+  const arrays = ["members", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
     && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
