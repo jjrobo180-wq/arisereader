@@ -46,3 +46,14 @@ test("after a trial: WorkHub and LifeHub keep only the A.R.I.S.E. Reader tools, 
   const life = read("client/src/pages/AriseTodo.tsx");
   assert.match(life, /<HubTrialNote trial=\{trial\} which="life"/);
 });
+
+test("the A.R.I.S.E. Reader screens take the hub's look (light in day mode, their own dark look at night)", () => {
+  const reader = read("client/src/components/teacher-hub/HubReader.tsx");
+  assert.match(reader, /<HubReaderScope which="work" night=\{night\}>/);
+  assert.match(reader, /<TeacherDashboard embedded night=\{night\} \/>/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /<HubReaderScope which="life" night=\{night\}><ParentDashboard embedded \/>/);
+  const dash = read("client/src/pages/TeacherDashboard.tsx");
+  assert.match(dash, /const styles = hubLook \? hubStyles : darkStyles;/);
+  const css = read("client/src/components/hubReader.css");
+  assert.match(css, /\.hub-reader \.arise-page-bg \{ background: transparent; \}/);
+});

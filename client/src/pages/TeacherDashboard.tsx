@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy, PenLine } from "lucide-react";
 import AddonsCard from "@/components/AddonsCard";
 import { useAuth } from "@/context/AuthContext";
@@ -41,7 +41,10 @@ type ClubClosingSchedule = { enabled: boolean; start: string; end: string; days:
 type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "camera-quizzes" | "comprehension" | "grade-changes" | "growth-check" | "club-controls" | "prizes";
 
 /** The teacher's A.R.I.S.E. Reader tools. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader tab, without its own page header. */
-export default function TeacherDashboard({ embedded = false }: { embedded?: boolean } = {}) {
+export default function TeacherDashboard({ embedded = false, night = false }: { embedded?: boolean; night?: boolean } = {}) {
+  // Inside WorkHub (day mode) the tools take WorkHub's light look; otherwise the site's dark look.
+  const hubLook = embedded && !night;
+  const styles = hubLook ? hubStyles : darkStyles;
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [tab, setTab] = useState<Tab>(() => {
@@ -411,9 +414,10 @@ export default function TeacherDashboard({ embedded = false }: { embedded?: bool
 
   if (!user || !authorized) return null;
   const bell = <NotificationBell refreshKey={bellRefreshKey} onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} />;
-  return <main style={embedded ? { ...styles.page, minHeight: 0, borderRadius: 24, padding: "18px clamp(12px, 3vw, 32px) 32px" } : styles.page} data-testid={embedded ? "workhub-reader-dashboard" : undefined}>
-    {embedded ? <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, maxWidth: 1200, margin: "0 auto" }}><h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em" }}>Teacher tools</h2>{bell}</div> : <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>{bell}<button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>}
-    {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={embedded ? { ...styles.content, marginTop: 18 } : styles.content}>
+  const quick = (dark: React.CSSProperties, main = false): React.CSSProperties => hubLook ? (main ? styles.quickBtnMain : styles.quickBtn) : { ...styles.primaryBtn, width: "100%", marginTop: 0, ...dark };
+  return <StyleContext.Provider value={styles}><main style={hubLook ? styles.page : embedded ? { ...styles.page, minHeight: 0, borderRadius: 24, padding: "18px clamp(12px, 3vw, 32px) 32px" } : styles.page} data-testid={embedded ? "workhub-reader-dashboard" : undefined}>
+    {embedded ? <div style={hubLook ? styles.hubHead : { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, maxWidth: 1200, margin: "0 auto" }}><h2 style={{ margin: 0, fontSize: hubLook ? 18 : 22, fontWeight: hubLook ? 700 : 900, letterSpacing: "-0.02em" }}>Teacher tools</h2>{bell}</div> : <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>{bell}<button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>}
+    {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={embedded && !hubLook ? { ...styles.content, marginTop: 18 } : styles.content}>
       <button onClick={() => navigate("/teacher-arise-2")} style={styles.arise2Banner} data-testid="button-teacher-arise-2">
         <span style={styles.arise2Icon}><Sparkles size={20} /></span>
         <span style={{ flex: 1, minWidth: 0 }}>
@@ -424,17 +428,17 @@ export default function TeacherDashboard({ embedded = false }: { embedded?: bool
         <ChevronRight size={22} style={{ flexShrink: 0, opacity: 0.75 }} />
       </button>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 18 }}>
-        <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0 }}>Host a live quiz</button>
-        <button onClick={() => navigate("/study")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#173b33" }} data-testid="button-teacher-study">
+        <button onClick={() => navigate("/live-quiz")} style={quick({}, true)}>Host a live quiz</button>
+        <button onClick={() => navigate("/study")} style={quick({ background: "#173b33" })} data-testid="button-teacher-study">
           <GraduationCap size={18} /> Study Squad sets
         </button>
-        <button onClick={() => navigate("/leaderboard")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#b45309 0%,#d97706 50%,#f59e0b 100%)" }} data-testid="button-teacher-leaderboard">
+        <button onClick={() => navigate("/leaderboard")} style={quick({ background: "linear-gradient(90deg,#b45309 0%,#d97706 50%,#f59e0b 100%)" })} data-testid="button-teacher-leaderboard">
           <Trophy size={18} /> Leaderboard
         </button>
-        <button onClick={() => navigate("/teacher-scenes")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" }} data-testid="button-teacher-scenes">
+        <button onClick={() => navigate("/teacher-scenes")} style={quick({ background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" })} data-testid="button-teacher-scenes">
           <BookOpen size={18} /> Scenes
         </button>
-        {!user.isAdmin && <button onClick={() => navigate("/billing")} style={{ ...styles.subtleButton, width: "100%", justifyContent: "center" }} data-testid="button-teacher-plan">
+        {!user.isAdmin && <button onClick={() => navigate("/billing")} style={hubLook ? styles.quickBtn : { ...styles.subtleButton, width: "100%", justifyContent: "center" }} data-testid="button-teacher-plan">
           Your plan
         </button>}
       </div>
@@ -658,7 +662,7 @@ export default function TeacherDashboard({ embedded = false }: { embedded?: bool
                 <article key={student.id} style={styles.card}>
                   <div style={styles.cardHead}>
                     <div><h2 style={styles.studentName}>{student.displayName}</h2><p style={styles.username}>@{student.username}</p></div>
-                    <span style={{...styles.pendingBadge,background:student.parents.length?"hsl(145 70% 45% / .16)":"hsl(38 90% 50% / .16)",color:student.parents.length?"hsl(145 65% 62%)":"hsl(38 95% 68%)"}}>{student.parents.length ? student.parents.length + " LINKED" : "NOT LINKED"}</span>
+                    <span style={hubLook ? {...styles.pendingBadge,background:student.parents.length?"#dcfce7":"#fef3c7",color:student.parents.length?"#166534":"#92400e"} : {...styles.pendingBadge,background:student.parents.length?"hsl(145 70% 45% / .16)":"hsl(38 90% 50% / .16)",color:student.parents.length?"hsl(145 65% 62%)":"hsl(38 95% 68%)"}}>{student.parents.length ? student.parents.length + " LINKED" : "NOT LINKED"}</span>
                   </div>
                   <label style={styles.label}>Parent code</label>
                   <div style={styles.proctorDisplay}><code style={{...styles.proctorCode,fontSize:18}}>{student.code}</code><button onClick={() => void copyText(student.code, "Parent code")} style={styles.copyBtn}><Copy size={15}/> Copy</button></div>
@@ -714,7 +718,7 @@ export default function TeacherDashboard({ embedded = false }: { embedded?: bool
               <p style={{...styles.label,marginTop:12}}>Days this closing window starts</p>
               <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:12}}>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day,index)=>{
                 const active=clubClosing.days.includes(index);
-                return <button type="button" key={day} onClick={()=>setClubClosing(v=>({...v,days:active?v.days.filter(d=>d!==index):[...v.days,index].sort((a,b)=>a-b)}))} style={{...styles.copyBtn,background:active?"#7c3aed":"#171326",color:"#fff"}}>{day}</button>;
+                return <button type="button" key={day} onClick={()=>setClubClosing(v=>({...v,days:active?v.days.filter(d=>d!==index):[...v.days,index].sort((a,b)=>a-b)}))} style={hubLook ? {...styles.copyBtn,background:active?"#0f172a":"#fff",color:active?"#fff":"#334155"} : {...styles.copyBtn,background:active?"#7c3aed":"#171326",color:"#fff"}}>{day}</button>;
               })}</div>
               <button disabled={clubClosingSaving} onClick={()=>void saveClubClosing()} style={styles.primaryBtn}>{clubClosingSaving?"Saving...":"Save class closing hours"}</button>
               <p style={styles.quizMeta}>Times use Mountain Time. If the closing time is later than the reopening time, the window runs overnight.</p>
@@ -731,7 +735,7 @@ export default function TeacherDashboard({ embedded = false }: { embedded?: bool
                       <h2 style={styles.studentName}>{student.display_name || student.username}</h2>
                       <p style={styles.username}>@{student.username}</p>
                     </div>
-                    <span style={{...styles.pendingBadge,background:control.locked?"hsl(0 75% 50% / .18)":"hsl(145 70% 45% / .16)",color:control.locked?"hsl(0 85% 68%)":"hsl(145 65% 62%)"}}>
+                    <span style={hubLook ? {...styles.pendingBadge,background:control.locked?"#fee2e2":"#dcfce7",color:control.locked?"#b91c1c":"#166534"} : {...styles.pendingBadge,background:control.locked?"hsl(0 75% 50% / .18)":"hsl(145 70% 45% / .16)",color:control.locked?"hsl(0 85% 68%)":"hsl(145 65% 62%)"}}>
                       {control.locked?"LOCKED":"OPEN"}
                     </span>
                   </div>
@@ -789,13 +793,13 @@ export default function TeacherDashboard({ embedded = false }: { embedded?: bool
       {tab === "prizes" && <div style={{ maxWidth: 900, margin: "0 auto" }}><PrizeManager token={getTokenFromCookie()} role="teacher" /></div>}
       {tab === "growth-check" && <div style={{ maxWidth: 900, margin: "0 auto" }}>{growthCheckData.length ? growthCheckData.map((attempt: any) => <div key={attempt.id} style={styles.pendingCard}><div><h2 style={styles.studentName}>{attempt.studentName || "Student"}</h2><p style={styles.username}>Score: {attempt.score}/{attempt.totalQuestions} | WCPM: {attempt.wcpm || "N/A"}</p></div></div>) : <div style={styles.empty}>No growth check data yet.</div>}</div>}
     </section>}
-  </main>;
+  </main></StyleContext.Provider>;
 }
 
-function TabButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) { return <button role="tab" aria-selected={active} onClick={onClick} style={{ ...styles.tab, ...(active ? styles.activeTab : {}) }} data-testid={`tab-${active ? "active" : "inactive"}`}>{icon}{children}</button>; }
-function ActionButton({ onClick, icon, children }: { onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) { return <button onClick={onClick} style={styles.actionButton}>{icon}{children}</button>; }
+function TabButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) { const styles = useContext(StyleContext); return <button role="tab" aria-selected={active} onClick={onClick} style={{ ...styles.tab, ...(active ? styles.activeTab : {}) }} data-testid={`tab-${active ? "active" : "inactive"}`}>{icon}{children}</button>; }
+function ActionButton({ onClick, icon, children }: { onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) { const styles = useContext(StyleContext); return <button onClick={onClick} style={styles.actionButton}>{icon}{children}</button>; }
 
-const styles: Record<string, React.CSSProperties> = {
+const darkStyles: Record<string, React.CSSProperties> = {
   arise2Banner: { display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", background: "linear-gradient(110deg, rgba(124,58,237,.30), rgba(192,38,211,.18) 55%, rgba(6,182,212,.20))", border: "1px solid rgba(196,181,253,.30)", borderRadius: 18, color: "#fff", cursor: "pointer", padding: "16px 18px", marginBottom: 14, boxShadow: "0 16px 40px rgba(124,58,237,.18)" },
   arise2Icon: { display: "grid", placeItems: "center", width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: "linear-gradient(135deg,#8b5cf6,#d946ef,#22d3ee)" },
   arise2Eyebrow: { display: "block", fontSize: 11, fontWeight: 900, letterSpacing: ".2em", textTransform: "uppercase", color: "#a5f3fc" },
@@ -866,3 +870,73 @@ const styles: Record<string, React.CSSProperties> = {
   activeBadge: { display: "inline-block", marginTop: 4, padding: "2px 8px", borderRadius: 4, background: "hsl(142 100% 40% / 0.15)", color: "hsl(142 100% 60%)", fontSize: 11, fontWeight: 700 },
   inactiveBadge: { display: "inline-block", marginTop: 4, padding: "2px 8px", borderRadius: 4, background: "hsl(0 0% 50% / 0.15)", color: "hsl(0 0% 60%)", fontSize: 11, fontWeight: 700 },
 };
+
+/* Inside Arise WorkHub the Reader tools take WorkHub's look: white cards with light borders,
+   slate text, a row of pill tabs and slate buttons (night mode keeps the dark look above). */
+const INK = "#0f172a", SOFT = "#475569", FAINT = "#64748b", LINE = "#e2e8f0", PANEL = "#ffffff", WASH = "#f8fafc";
+const cardLook: React.CSSProperties = { background: PANEL, border: `1px solid ${LINE}`, borderRadius: 16, boxShadow: "0 1px 2px rgba(15,23,42,.05)" };
+const hubStyles: Record<string, React.CSSProperties> = {
+  ...darkStyles,
+  page: { color: INK, fontFamily: "inherit", padding: 0, background: "transparent" },
+  hubHead: { ...cardLook, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px" },
+  content: { margin: "16px 0 0" },
+  arise2Banner: { ...cardLook, display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", padding: 16, color: INK, cursor: "pointer", marginBottom: 16 },
+  arise2Icon: { display: "grid", placeItems: "center", width: 44, height: 44, flexShrink: 0, borderRadius: 12, background: "#f0fdfa", color: "#0f766e" },
+  arise2Eyebrow: { display: "block", fontSize: 12, fontWeight: 700, color: "#0f766e" },
+  arise2Title: { display: "block", fontSize: 16, fontWeight: 700, marginTop: 2, color: INK },
+  arise2Sub: { display: "block", fontSize: 14, color: SOFT, marginTop: 2 },
+  quickBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", minHeight: 44, borderRadius: 12, border: `1px solid ${LINE}`, background: PANEL, color: "#334155", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "8px 14px" },
+  quickBtnMain: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", minHeight: 44, borderRadius: 12, border: 0, background: INK, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "8px 14px" },
+  subtleButton: { display: "inline-flex", alignItems: "center", gap: 8, width: "fit-content", color: SOFT, background: "transparent", border: 0, cursor: "pointer", fontSize: 14, fontWeight: 600, padding: 8 },
+  tabs: { ...cardLook, display: "flex", flexWrap: "nowrap", overflowX: "auto", gap: 4, padding: 4, marginBottom: 16, scrollbarWidth: "none" },
+  tab: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, flexShrink: 0, minHeight: 44, whiteSpace: "nowrap", background: "transparent", color: SOFT, border: 0, borderRadius: 12, cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "0 16px" },
+  activeTab: { background: INK, color: "#fff" },
+  card: { ...cardLook, display: "grid", gap: 16, padding: 18 },
+  studentName: { fontSize: 17, margin: 0, color: INK, fontWeight: 700 },
+  username: { margin: "4px 0 0", color: FAINT, fontSize: 14 },
+  teacherLabel: { margin: "4px 0 0", color: "#0f766e", fontSize: 13, fontWeight: 600 },
+  pendingBadge: { display: "inline-block", marginTop: 6, padding: "2px 8px", borderRadius: 999, background: "#fef3c7", color: "#92400e", fontSize: 12, fontWeight: 700 },
+  stats: { display: "flex", justifyContent: "space-between", gap: 12, color: SOFT, fontSize: 14 },
+  actionButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 40, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, color: "#334155", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "6px 10px" },
+  empty: { gridColumn: "1 / -1", textAlign: "center", color: FAINT, padding: 32, fontSize: 15, ...cardLook, borderStyle: "dashed" },
+  muted: { color: FAINT, textAlign: "center", padding: 32 },
+  error: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: 16, color: "#b91c1c", textAlign: "center" },
+  notice: { ...cardLook, maxWidth: 600, margin: "16px auto", background: "#fffbeb", borderColor: "#fde68a", padding: 20, textAlign: "center", color: "#92400e" },
+  pendingCard: { ...cardLook, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: 16, flexWrap: "wrap" },
+  approveButton: { display: "inline-flex", alignItems: "center", gap: 8, background: "#0f766e", border: 0, borderRadius: 12, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "10px 16px", minHeight: 44 },
+  approveBtn: { display: "inline-flex", alignItems: "center", gap: 8, background: "#0f766e", border: 0, borderRadius: 10, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "8px 14px", minHeight: 40 },
+  rejectBtn: { display: "inline-flex", alignItems: "center", gap: 8, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, color: "#b91c1c", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "8px 14px", minHeight: 40 },
+  proctorCard: { ...cardLook, padding: 20 },
+  proctorTitle: { display: "flex", alignItems: "center", gap: 10, margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: INK },
+  proctorDesc: { color: SOFT, fontSize: 14, margin: "0 0 16px" },
+  proctorCode: { fontSize: 26, fontWeight: 800, letterSpacing: 2, background: WASH, padding: "10px 18px", borderRadius: 12, color: "#0f766e", border: `1px solid ${LINE}` },
+  copyBtn: { background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, color: "#334155", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "10px 16px", minHeight: 44 },
+  sectionTitle: { display: "flex", alignItems: "center", gap: 8, fontSize: 17, fontWeight: 700, color: INK, margin: "0 0 12px" },
+  quizCard: { ...cardLook, padding: 16 },
+  quizTitle: { fontSize: 16, margin: 0, color: INK, fontWeight: 700 },
+  quizMeta: { fontSize: 13, color: FAINT, margin: "2px 0" },
+  searchBox: { ...cardLook, flex: 1, minWidth: 200, display: "flex", alignItems: "center", padding: "0 12px", borderRadius: 12 },
+  searchIcon: { color: "#94a3b8", flexShrink: 0 },
+  searchInput: { flex: 1, background: "transparent", border: 0, color: INK, fontSize: 15, padding: "11px 8px", outline: "none" },
+  filterSelect: { ...cardLook, borderRadius: 12, color: INK, fontSize: 14, padding: "10px 12px", cursor: "pointer", minHeight: 44 },
+  successBanner: { display: "flex", alignItems: "center", gap: 8, background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 12, padding: 12, marginBottom: 16, color: "#115e59", fontWeight: 600 },
+  errorBanner: { display: "flex", alignItems: "center", gap: 8, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: 12, marginBottom: 16, color: "#b91c1c", fontWeight: 600 },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 },
+  modal: { background: PANEL, border: `1px solid ${LINE}`, borderRadius: 20, padding: 22, maxWidth: 500, width: "100%", maxHeight: "85vh", overflowY: "auto", color: INK, boxShadow: "0 20px 50px rgba(15,23,42,.2)" },
+  modalTitle: { fontSize: 18, margin: 0, color: INK, fontWeight: 700 },
+  closeBtn: { background: "transparent", border: 0, color: FAINT, cursor: "pointer", padding: 4 },
+  modalStudent: { fontSize: 14, color: SOFT, marginBottom: 8 },
+  label: { fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 4 },
+  input: { width: "100%", background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, color: INK, fontSize: 15, padding: "10px 12px", outline: "none", boxSizing: "border-box", minHeight: 44 },
+  textarea: { width: "100%", background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, color: INK, fontSize: 15, padding: "10px 12px", outline: "none", minHeight: 60, resize: "vertical", boxSizing: "border-box" },
+  primaryBtn: { ...darkStyles.primaryBtn, background: INK, borderRadius: 12, boxShadow: "none", fontWeight: 600, minHeight: 44 },
+  subSectionTitle: { fontSize: 14, fontWeight: 700, color: "#334155", margin: "16px 0 8px" },
+  rewardItem: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, background: WASH, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, marginBottom: 8, color: INK },
+  deleteBtn: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, color: "#b91c1c", cursor: "pointer", padding: "6px 8px", flexShrink: 0 },
+  activeBadge: { display: "inline-block", marginTop: 4, padding: "2px 8px", borderRadius: 999, background: "#ccfbf1", color: "#115e59", fontSize: 11, fontWeight: 700 },
+  inactiveBadge: { display: "inline-block", marginTop: 4, padding: "2px 8px", borderRadius: 999, background: "#f1f5f9", color: FAINT, fontSize: 11, fontWeight: 700 },
+  bannerCard: { padding: "12px 16px", borderRadius: 12, marginBottom: 16, fontSize: 15, fontWeight: 600 },
+};
+
+/** The look the tab and action buttons use (set by the dashboard). */
+const StyleContext = createContext<Record<string, React.CSSProperties>>(darkStyles);
