@@ -1,0 +1,1079 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Arise Social: a safe career-discovery network where K–12 students, parents, and teachers explore every path after school, from trades and the military to college.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.ico">
+<title>Arise Social</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Layout: professional-network shell — profile card left · feed center · "pros to follow" right; icon nav on top, tab bar on phones.
+   Light-first, soft rounded cards, Arise indigo for actions, sunrise gradient only on profile covers. */
+:root{
+  --bg:#f2f1f6; --card:#ffffff; --card-2:#f6f5fa; --line:#e4e2ec; --line-2:#cfccdc;
+  --fg:#1a1828; --muted:#64617a; --faint:#8d8aa3;
+  --primary:#3f3bd6; --primary-ink:#ffffff; --primary-soft:#ebeaff; --primary-text:#3431c4;
+  --sun:#f29a14; --coral:#ef5a45; --leaf:#1e9e62; --sky:#1f8fd6;
+  --build:#f29a14; --serve:#5867f0; --teach:#8b5cf6; --heal:#ef5a45; --help:#e0559d;
+  --create:#12a594; --tech:#1f8fd6; --nature:#2f9e57; --fly:#c9a20c;
+  --cover-a:#2b2a8f; --cover-b:#6d4fd8; --cover-c:#f29a14;
+  --shadow:0 0 0 1px rgba(26,24,40,.06), 0 2px 4px rgba(26,24,40,.05);
+  --shadow-lg:0 24px 60px rgba(26,24,40,.22);
+  --font:"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
+  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
+  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
+  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
+  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
+  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
+  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
+  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
+  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
+  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
+  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;line-height:1.2;text-wrap:balance;letter-spacing:-.015em}
+h1{font-size:clamp(1.45rem,3vw,1.75rem);font-weight:800}
+h2{font-size:1.2rem;font-weight:700}
+h3{font-size:1rem;font-weight:700}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--primary-text)}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:10px}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+.eyebrow{font-size:.74rem;font-weight:700;color:var(--muted)}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- demo strip + top bar ---------- */
+.demo{background:var(--fg);color:var(--bg)}
+.demo-in{max-width:1180px;margin:0 auto;padding:6px 16px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:.76rem;font-weight:600}
+.demo-in > span:first-child{opacity:.7;margin-right:auto}
+.demo .ctl{display:flex;align-items:center;gap:6px}
+.seg{display:flex;gap:2px;background:color-mix(in oklab,var(--bg) 14%,transparent);border-radius:999px;padding:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:inherit;opacity:.75;padding:3px 10px;border-radius:999px;font-weight:700;font-size:.74rem}
+.seg button[aria-pressed="true"]{background:var(--bg);color:var(--fg);opacity:1}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--card);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:12px;height:56px}
+.logo{width:36px;height:36px;flex:none;border-radius:9px;display:block}
+.wordmark{font-weight:800;font-size:1.05rem;letter-spacing:-.02em;white-space:nowrap}
+.wordmark b{color:var(--primary-text);font-weight:800}
+.search{position:relative;flex:0 1 260px;min-width:0}
+@media (max-width:1000px){.wordmark{display:none}}
+.search input[type=text]{width:100%;border:0;background:var(--card-2);border-radius:999px;padding:8px 14px 8px 36px;outline:1px solid transparent}
+.search input[type=text]:focus{outline:2px solid var(--primary);outline-offset:-1px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+.topnav{display:flex;margin-left:auto;height:100%}
+.topnav button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:76px;padding:0 6px;color:var(--muted);font-size:.72rem;font-weight:600;position:relative;height:100%}
+.topnav button svg{width:22px;height:22px}
+.topnav button:hover{color:var(--fg)}
+.topnav button[aria-current="page"]{color:var(--fg)}
+.topnav button[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:var(--fg)}
+.topnav .dot{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;height:16px;border-radius:999px;background:var(--coral);color:#fff;font-size:.62rem;display:grid;place-items:center;padding:0 4px;font-weight:800}
+.me{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:var(--muted);padding-left:12px;border-left:1px solid var(--line);height:36px;justify-content:center}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:22px;max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:22px 48px}
+.left,.rail{display:flex;flex-direction:column;gap:12px;align-self:start;position:sticky;top:calc(env(safe-area-inset-top,0px) + 72px)}
+main{min-width:0;display:flex;flex-direction:column;gap:12px}
+.bottom{display:none}
+@media (max-width:1100px){ .app{grid-template-columns:220px minmax(0,1fr)} .rail{display:none} .topnav button{min-width:64px} }
+@media (max-width:860px){ .search{display:none} }
+@media (max-width:780px){
+  .app{grid-template-columns:minmax(0,1fr);padding-block:12px 100px}
+  .left{display:none}
+  .topnav,.me{display:none}
+  .search{display:block;flex:1}
+  .bottom{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around}
+  .bottom button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.66rem;font-weight:600;color:var(--muted);padding:4px 2px;min-width:0;flex:1;position:relative}
+  .bottom button svg{width:22px;height:22px}
+  .bottom button[aria-current="page"]{color:var(--fg)}
+  .bottom .dot{position:absolute;top:2px;left:calc(50% + 6px);width:8px;height:8px;border-radius:50%;background:var(--coral)}
+}
+
+/* ---------- primitives ---------- */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}
+.card.flush{padding:0;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:12px}
+.grid{display:grid;gap:12px}
+.two{grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+.divider{height:1px;background:var(--line);margin:0 -16px}
+.btn{border-radius:999px;padding:6px 16px;font-weight:700;font-size:.86rem;background:transparent;color:var(--muted);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-height:34px}
+.btn:hover{background:var(--card-2);color:var(--fg);border-color:var(--fg)}
+.btn.primary{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.outline{color:var(--primary-text);border-color:var(--primary)}
+.btn.outline:hover{background:var(--primary-soft)}
+.btn.ghost{border-color:transparent}
+.btn.ok{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:16px;height:16px}
+.btn.sm{padding:4px 12px;min-height:30px;font-size:.8rem}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px;font-size:.8rem;font-weight:600;background:transparent;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+button.chip:hover{background:var(--card-2);color:var(--fg)}
+.chip.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.chip.tag{border:0;background:var(--card-2);color:var(--muted);padding:3px 10px;font-size:.74rem}
+.chip.cl{border:0;background:color-mix(in oklab,var(--c) 14%,var(--card));color:color-mix(in oklab,var(--c) 70%,var(--fg))}
+.pill-ok{border:0;background:color-mix(in oklab,var(--leaf) 16%,var(--card));color:color-mix(in oklab,var(--leaf) 75%,var(--fg))}
+.pill-wait{border:0;background:color-mix(in oklab,var(--sun) 18%,var(--card));color:color-mix(in oklab,var(--sun) 55%,var(--fg))}
+.verified{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;flex:none;border-radius:50%;background:var(--primary);color:var(--primary-ink)}
+.verified svg{width:11px;height:11px;stroke-width:3.2}
+.av{border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;background:var(--c);width:48px;height:48px;font-size:.95rem}
+.av.sm{width:36px;height:36px;font-size:.78rem}
+.av.lg{width:72px;height:72px;font-size:1.4rem;border:3px solid var(--card)}
+.av.xl{width:128px;height:128px;font-size:2.4rem;border:4px solid var(--card)}
+.ico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;background:color-mix(in oklab,var(--c) 15%,var(--card));color:color-mix(in oklab,var(--c) 80%,var(--fg))}
+.ico svg{width:22px;height:22px}
+.ico.sm{width:34px;height:34px}.ico.sm svg{width:17px;height:17px}
+.ico.lg{width:72px;height:72px;border:3px solid var(--card)}.ico.lg svg{width:32px;height:32px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+input[type=text],input[type=date],select,textarea{background:var(--card);border:1px solid var(--line-2);border-radius:12px;padding:9px 12px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:transparent}
+textarea{resize:vertical;min-height:72px}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.8rem;color:var(--muted)}
+.bar{height:8px;border-radius:999px;background:var(--card-2);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--primary)}
+.bar.sun>i{background:var(--sun)}
+.cover{height:64px;background:
+  radial-gradient(34px 34px at 93% 125%, color-mix(in oklab,var(--cover-c) 95%,#fff) 0 60%, transparent 62%),
+  linear-gradient(115deg,var(--cover-a) 0%,var(--cover-b) 55%,var(--cover-c) 120%)}
+.cover.tall{height:150px;background:
+  radial-gradient(90px 90px at 80% 125%, color-mix(in oklab,var(--cover-c) 95%,#fff) 0 60%, transparent 62%),
+  linear-gradient(115deg,var(--cover-a) 0%,var(--cover-b) 55%,var(--cover-c) 120%)}
+
+/* ---------- left profile card ---------- */
+.mini{text-align:center}
+.mini .av{margin:-36px auto 0}
+.mini .who{padding:8px 16px 14px}
+.mini .who b{display:block;font-size:1.05rem}
+.mini .who > span{display:block;font-size:.8rem;color:var(--muted);margin-top:2px}
+.mini .kv{display:flex;justify-content:space-between;padding:8px 16px;font-size:.8rem;font-weight:600;color:var(--muted)}
+.mini .kv b{color:var(--primary-text)}
+.mini .kv:hover{background:var(--card-2)}
+.mini-goal{padding:10px 16px 14px;text-align:left;border-top:1px solid var(--line)}
+.mini-goal .row{justify-content:space-between;font-size:.8rem;font-weight:600;margin-bottom:6px}
+.side-list{display:flex;flex-direction:column;gap:2px}
+.side-list button{display:flex;align-items:center;gap:10px;border:0;background:transparent;padding:6px 8px;border-radius:10px;text-align:left;font-weight:600;font-size:.86rem}
+.side-list button:hover{background:var(--card-2)}
+
+/* ---------- feed ---------- */
+.composer .start{display:flex;gap:10px;align-items:center}
+.composer .pillinput{flex:1;border:1px solid var(--line-2);border-radius:999px;padding:12px 16px;color:var(--muted);font-weight:600;background:transparent;text-align:left}
+.composer .pillinput:hover{background:var(--card-2)}
+.composer .opts{display:flex;justify-content:space-around;margin-top:8px;flex-wrap:wrap}
+.composer .opts button{border:0;background:transparent;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;font-weight:600;font-size:.86rem;color:var(--muted)}
+.composer .opts button:hover{background:var(--card-2)}
+.composer .opts svg{width:20px;height:20px}
+.composer .expand{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.sortline{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted);overflow-x:auto;scrollbar-width:none;padding:2px 0}
+.sortline .chip{flex:none}
+.sortline::before{content:"";flex:1 0 24px;height:1px;background:var(--line-2)}
+.post{padding:0}
+.post-head{display:flex;gap:10px;align-items:flex-start;padding:14px 16px 0}
+.post-head .who{min-width:0;flex:1}
+.post-head .who b{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.92rem}
+.post-head .who .hl{font-size:.76rem;color:var(--muted);display:block;line-height:1.3}
+.post-head .who .tm{font-size:.74rem;color:var(--faint);display:flex;gap:4px;align-items:center}
+.post-head .who .tm svg{width:12px;height:12px}
+.post .body{padding:10px 16px 0;font-size:.94rem;white-space:pre-wrap}
+.proof{margin:12px 16px 0;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.proof .band{height:56px;background:linear-gradient(115deg,var(--c),color-mix(in oklab,var(--c) 35%,var(--card)))}
+.proof .info{display:flex;gap:12px;align-items:center;padding:0 14px 12px}
+.proof .ico{margin-top:-22px;border:3px solid var(--card)}
+.proof .info div:last-child{padding-top:8px}
+.proof b{display:block;font-size:.96rem}
+.proof span{font-size:.76rem;color:var(--muted)}
+.counts{display:flex;justify-content:space-between;align-items:center;padding:10px 16px 8px;font-size:.76rem;color:var(--muted)}
+.counts .bub{display:inline-flex}
+.counts .bub i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--card);margin-left:-4px;display:grid;place-items:center}
+.counts .bub i:first-child{margin-left:0}
+.actions-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);margin:0 12px;padding:4px 0}
+.react{border:0;background:transparent;border-radius:10px;padding:10px 4px;font-weight:700;font-size:.82rem;display:flex;gap:6px;align-items:center;justify-content:center;color:var(--muted)}
+.react svg{width:18px;height:18px}
+.react:hover{background:var(--card-2);color:var(--fg)}
+.react[aria-pressed="true"]{color:var(--primary-text)}
+.post.pending{outline:1.5px dashed var(--line-2)}
+.post .pendbar{margin:12px 16px 14px;padding:8px 12px;border-radius:10px;font-size:.8rem;font-weight:600}
+.safety{display:flex;gap:10px;align-items:center;font-size:.8rem;color:var(--muted);padding:10px 14px;border-radius:12px;background:var(--card);box-shadow:var(--shadow)}
+.safety svg{width:18px;height:18px;color:var(--leaf);flex:none}
+.follow-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0}
+.follow-row .who{min-width:0;flex:1}
+.follow-row .who b{font-size:.88rem;display:flex;gap:5px;align-items:center}
+.follow-row .who > span{font-size:.76rem;color:var(--muted);display:block;line-height:1.3;margin-bottom:6px}
+
+/* ---------- explore ---------- */
+.spin{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center}
+.spin-window{font-weight:800;font-size:clamp(1.4rem,3.4vw,1.9rem);letter-spacing:-.02em;min-height:1.3em;margin-top:2px}
+.spin-window.rolling{color:var(--muted)}
+.careers{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.ccard{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;text-align:center;border:0;padding:0;position:relative;transition:box-shadow .15s}
+.ccard:hover{box-shadow:0 0 0 1px var(--line-2),0 6px 18px rgba(26,24,40,.10)}
+.ccard .band{height:58px;background:linear-gradient(115deg,var(--c),color-mix(in oklab,var(--c) 35%,var(--card)))}
+.ccard .ico{margin:-36px auto 0;width:72px;height:72px;border:3px solid var(--card);background:color-mix(in oklab,var(--c) 15%,var(--card))}
+.ccard .ico svg{width:30px;height:30px}
+.ccard .in{padding:8px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ccard h3{font-size:.98rem}
+.ccard p{font-size:.78rem;color:var(--muted);line-height:1.35}
+.ccard .tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:auto;padding-top:6px}
+.ccard .stamped{position:absolute;top:8px;right:8px;background:var(--card);color:var(--leaf);border-radius:999px;font-size:.66rem;font-weight:800;padding:2px 8px 2px 6px;display:flex;gap:3px;align-items:center}
+.ccard .stamped svg{width:12px;height:12px;stroke-width:3}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+
+/* ---------- modal ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,9,20,.6);z-index:60;display:grid;place-items:center;padding:16px}
+.modal{background:var(--card);border-radius:18px;max-width:640px;width:100%;max-height:min(88vh,860px);overflow:auto;box-shadow:var(--shadow-lg)}
+.modal .band{height:110px;background:linear-gradient(115deg,var(--c),color-mix(in oklab,var(--c) 35%,var(--card)));position:relative}
+.modal-top{position:relative;z-index:1;padding:0 22px 4px;display:flex;flex-direction:column;gap:4px}
+.modal-top .ico.lg{margin-top:-40px;width:84px;height:84px}
+.modal-top h2{font-size:1.5rem;font-weight:800}
+.modal-body{padding:12px 22px 24px;display:flex;flex-direction:column;gap:18px}
+.x{position:absolute;top:12px;right:12px;border:0;background:rgba(255,255,255,.88);border-radius:50%;width:36px;height:36px;display:grid;place-items:center;color:#1a1828}
+.x svg{width:18px;height:18px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.fact{background:var(--card-2);border-radius:12px;padding:10px 12px}
+.fact b{display:block;font-size:.92rem}
+.fact span{font-size:.72rem;font-weight:700;color:var(--muted)}
+.startnow{display:grid;gap:4px}
+.startnow div{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;font-size:.86rem;align-items:baseline;padding:8px 12px;border-radius:12px;color:var(--muted)}
+.startnow div b{font-size:.76rem}
+.startnow div.me{background:var(--primary-soft);color:var(--fg)}
+.startnow div.me b{color:var(--primary-text)}
+
+/* ---------- quests ---------- */
+.quests{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.quest{display:flex;flex-direction:column;gap:10px}
+.quest .steps{display:flex;flex-direction:column;gap:2px}
+.step{display:flex;gap:10px;align-items:flex-start;border:0;background:transparent;border-radius:10px;padding:7px 6px;text-align:left;font-size:.86rem;color:var(--fg)}
+.step:hover{background:var(--card-2)}
+.step .box{width:20px;height:20px;border-radius:50%;border:2px solid var(--line-2);flex:none;display:grid;place-items:center;margin-top:1px}
+.step[aria-pressed="true"] .box{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.step[aria-pressed="true"] > span:last-child{color:var(--muted)}
+.step .box svg{width:12px;height:12px;stroke-width:3}
+.xp{font-size:.74rem;font-weight:800;color:color-mix(in oklab,var(--sun) 60%,var(--fg));background:color-mix(in oklab,var(--sun) 18%,var(--card));border-radius:999px;padding:2px 10px}
+
+/* ---------- events ---------- */
+.event{display:grid;grid-template-columns:60px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.event:last-child{border-bottom:0;padding-bottom:0}
+.event:first-of-type{padding-top:0}
+.date{text-align:center;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);align-self:start;background:var(--card)}
+.date .m{font-size:.66rem;font-weight:800;letter-spacing:.06em;background:var(--coral);color:#fff;padding:2px 0}
+.date .d{font-weight:800;font-size:1.45rem;line-height:1.2}
+.date .w{font-size:.66rem;color:var(--muted);font-weight:700;padding-bottom:4px}
+.event h3{font-size:.98rem}
+.event .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.event .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.seats{font-size:.76rem;color:var(--muted)}
+
+/* ---------- profile page ---------- */
+.prof .head{padding:0 22px 18px;position:relative}
+.prof .av.xl{margin-top:-72px}
+.prof h1{margin-top:8px}
+.prof .hl{font-size:.98rem;margin-top:2px}
+.prof .loc{font-size:.82rem;color:var(--muted);margin-top:4px}
+.prof .loc a{font-weight:700;text-decoration:none}
+.open-to{margin-top:14px;background:var(--card-2);border-radius:12px;padding:12px 14px;max-width:420px}
+.open-to b{font-size:.86rem;display:block}
+.open-to span{font-size:.82rem;color:var(--muted)}
+.list-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.list-item:last-child{border-bottom:0;padding-bottom:0}
+.list-item:first-child{padding-top:0}
+.list-item b{display:block;font-size:.92rem}
+.list-item span{font-size:.8rem;color:var(--muted);display:block}
+.stamps{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.stamp{border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;border:1px dashed var(--line-2);color:var(--faint);font-size:.74rem;font-weight:600;padding:12px 8px;background:transparent;line-height:1.2}
+.stamp .ico{width:38px;height:38px}
+.stamp .ico svg{width:18px;height:18px}
+.stamp.got{border:1px solid var(--line);color:var(--fg);background:var(--card)}
+.stamp:not(.got) .ico{background:var(--card-2);color:var(--faint)}
+.badges{display:flex;gap:8px;flex-wrap:wrap}
+.badge{display:flex;gap:8px;align-items:center;border-radius:999px;padding:6px 12px 6px 6px;font-weight:700;font-size:.8rem;background:var(--card-2)}
+.badge i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:color-mix(in oklab,var(--sun) 22%,var(--card));color:color-mix(in oklab,var(--sun) 60%,var(--fg))}
+.badge svg{width:14px;height:14px}
+.badge.locked{opacity:.45}
+.badge.locked i{background:var(--line);color:var(--muted)}
+
+/* ---------- paths ---------- */
+.table-wrap{overflow-x:auto;margin:0 -16px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:.86rem}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;font-weight:700;color:var(--muted);background:var(--card-2)}
+tr:last-child td{border-bottom:0}
+.road{display:flex;flex-direction:column}
+.road-g{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;position:relative;padding-bottom:10px}
+.road-g::before{content:"";position:absolute;left:21px;top:44px;bottom:0;width:2px;background:var(--line)}
+.road-g:last-child::before{display:none}
+.road-g .gnum{width:44px;height:44px;border-radius:50%;background:var(--card-2);display:grid;place-items:center;font-weight:800;font-size:.8rem;position:relative;z-index:1;color:var(--muted)}
+.road-g.now .gnum{background:var(--primary);color:var(--primary-ink)}
+.road-g .items{display:flex;flex-direction:column;padding-top:4px}
+.sch{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.sch:last-child{border-bottom:0;padding-bottom:0}
+.sch b{font-size:.9rem;display:block}
+
+/* ---------- parent / teacher ---------- */
+.kv2{display:flex;justify-content:space-between;gap:10px;font-size:.88rem;padding:9px 0;border-bottom:1px solid var(--line)}
+.kv2:last-child{border-bottom:0}
+.setting{display:flex;flex-direction:column;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}
+.setting:first-child{padding-top:0}
+.setting:last-child{border-bottom:0;padding-bottom:0}
+.toggle{width:44px;height:26px;border-radius:99px;border:0;background:var(--line-2);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.toggle[aria-pressed="true"]{background:var(--leaf)}
+.toggle[aria-pressed="true"]::after{left:21px}
+.cbars{display:flex;flex-direction:column;gap:10px}
+.cbar{display:grid;grid-template-columns:118px minmax(0,1fr) 22px;gap:10px;align-items:center;font-size:.8rem;font-weight:600}
+.cbar .tnum{text-align:right;color:var(--muted)}
+.cbar .bar>i{background:var(--c)}
+.starter{padding:12px 14px;border-radius:12px;background:var(--card-2);font-size:.9rem}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:14px}
+.statgrid div{background:var(--card-2);border-radius:12px;padding:10px 12px}
+.statgrid b{display:block;font-size:1.3rem;font-weight:800}
+.statgrid span{font-size:.74rem;color:var(--muted);font-weight:600}
+
+/* ---------- toast / confetti ---------- */
+.toast{position:fixed;left:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:600;font-size:.86rem;z-index:80;box-shadow:var(--shadow-lg);max-width:calc(100% - 32px)}
+@media (max-width:780px){.toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:90}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+</style>
+</head>
+<body>
+<div class="demo"><div class="demo-in">
+  <span>Arise Social preview · <a href="https://www.arisereader.com/" style="color:inherit">A.R.I.S.E. Reader</a></span>
+  <div class="ctl">View as <div class="seg" id="roleSeg" role="group" aria-label="View as"></div></div>
+  <div class="ctl">Grades <div class="seg" id="bandSeg" role="group" aria-label="Grade band"></div></div>
+</div></div>
+<header class="top"><div class="top-in">
+  <svg class="logo" viewBox="0 0 40 40" aria-label="Arise Social">
+    <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2a8f"/><stop offset="1" stop-color="#6d4fd8"/></linearGradient>
+    <linearGradient id="sg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef5a45"/><stop offset="1" stop-color="#ffb23f"/></linearGradient></defs>
+    <rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+  </svg>
+  <span class="wordmark">Arise <b>Social</b></span>
+  <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="q" placeholder="Search careers" aria-label="Search careers"></label>
+  <nav class="topnav" id="nav" aria-label="Sections"></nav>
+  <div class="me" id="me"></div>
+</div></header>
+
+<div class="app">
+  <aside class="left" id="left"></aside>
+  <main id="main"></main>
+  <aside class="rail" id="rail"></aside>
+</div>
+<nav class="bottom" id="bottom" aria-label="Sections"></nav>
+<div id="modalRoot"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+/* ================= ICONS ================= */
+const I = {
+  build:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  serve:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  teach:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M8 7h7"/><path d="M8 11h5"/>',
+  heal:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/><path d="M7 12h3l1.5-3 2 5 1.5-2H17"/>',
+  help:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 14.5c3 0 6 1.8 6 5.5"/>',
+  create:'<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.6-1.7 0-1.4-1.2-1.6-1.2-2.8 0-1 .8-1.5 1.8-1.5H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+  tech:'<path d="M8 8l-4 4 4 4"/><path d="M16 8l4 4-4 4"/><path d="M14 5l-4 14"/>',
+  nature:'<path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15"/><path d="M5 19l7-7"/>',
+  fly:'<path d="M12 15l-3-3c1.5-5 5-8 10-8 0 5-3 8.5-8 10z"/><path d="M9 12l-4 1 2-4 4-1"/><path d="M12 15l-1 4 4-2 1-4"/><circle cx="15" cy="9" r="1.5"/>',
+  feed:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
+  explore:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  quest:'<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  event:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>',
+  passport:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  paths:'<path d="M6 21V11a4 4 0 0 1 4-4h8"/><path d="M15 4l3 3-3 3"/><path d="M6 11a4 4 0 0 0-4-4"/>',
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  shield:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/>',
+  check:'<path d="M5 12l5 5 9-10"/>',
+  inbox:'<path d="M3 13h5l1.5 3h5l1.5-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/>',
+  class:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M14 15.3c.6-.2 1.3-.3 2-.3 3.3 0 6 2 6 5"/>',
+  heart:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  book:'<path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/>',
+  plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
+  x:'<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.3c2.1.7 3.5 2.6 3.5 5.7"/>',
+  fist:'<path d="M7 11V7a1.5 1.5 0 0 1 3 0v3"/><path d="M10 10V6a1.5 1.5 0 0 1 3 0v4"/><path d="M13 10V7a1.5 1.5 0 0 1 3 0v4"/><path d="M16 11V9a1.5 1.5 0 0 1 3 0v4c0 4.4-3 8-7 8-3 0-5-2-6-4l-1.5-3a1.5 1.5 0 0 1 2.6-1.5L7 14"/>',
+  same:'<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
+  ask:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/>',
+  bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>'
+};
+const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= DATA ================= */
+const BANDS = {
+  k2:  {label:'K–2',  crew:'Explorers',   kid:{name:'Ava M.',    first:'Ava',    grade:'Grade 1',  school:'Maple Elementary'}, teacher:'Mr. Okafor',  parent:'Dana M.'},
+  g35: {label:'3–5',  crew:'Builders',    kid:{name:'Mateo R.',  first:'Mateo',  grade:'Grade 4',  school:'Maple Elementary'}, teacher:'Ms. Chen',    parent:'Luis R.'},
+  g68: {label:'6–8',  crew:'Trailblazers',kid:{name:'Jaylen W.', first:'Jaylen', grade:'Grade 7',  school:'Lincoln Middle'},   teacher:'Ms. Rivera',  parent:'Keisha W.'},
+  g912:{label:'9–12', crew:'Launchers',   kid:{name:'Priya S.',  first:'Priya',  grade:'Grade 11', school:'Eastview High'},    teacher:'Mr. Delgado', parent:'Anand S.'}
+};
+const BAND_KEYS = ['k2','g35','g68','g912'];
+const young = b => b==='k2' || b==='g35';
+
+const CLUSTERS = {
+  build: {name:'Build & Fix',      start:{k2:'Help a grown-up fix something at home and hand them the tools.', g35:'Take apart an old toy or radio (with permission) and name the parts.', g68:'Try shop, robotics, or a maker club. Fix one small thing a month.', g912:'Take a CTE or trades class, look up pre-apprenticeship programs, and join SkillsUSA.'}},
+  serve: {name:'Protect & Serve',  start:{k2:'Learn your address and how to call 911 in an emergency.', g35:'Join scouts or a team where you practice teamwork and first aid.', g68:'Build fitness habits, try a leadership role, and read about each military branch.', g912:'Visit JROTC, talk to a recruiter with a parent, and try a practice ASVAB.'}},
+  teach: {name:'Teach & Lead',     start:{k2:'Teach a stuffed animal (or a sibling) something you learned today.', g35:'Be a reading buddy for a younger kid.', g68:'Tutor a classmate or help coach a younger team.', g912:'Look into Educators Rising, dual-enrollment education classes, and summer camp counselor jobs.'}},
+  heal:  {name:'Heal & Care',      start:{k2:'Practice washing hands the doctor way: 20 seconds.', g35:'Learn basic first aid and how the heart pumps.', g68:'Take a health science elective or a youth CPR class.', g912:'Earn CPR/First Aid, look at HOSA, and ask about CNA or EMT courses for teens.'}},
+  help:  {name:'Help People',      start:{k2:'Notice when a friend is sad and ask how you can help.', g35:'Help with a food or coat drive at school.', g68:'Volunteer with a community group once a month.', g912:'Take psychology or sociology, and volunteer somewhere that serves families.'}},
+  create:{name:'Create',           start:{k2:'Draw, build, or cook something new every week.', g35:'Make a comic, a short video, or a recipe card.', g68:'Start a portfolio folder with your best work.', g912:'Take art, culinary, or media classes and post work to your school portfolio.'}},
+  tech:  {name:'Code & Tech',      start:{k2:'Play unplugged coding games (follow-the-arrows).', g35:'Try block coding and build a tiny game.', g68:'Join a coding or cyber club and finish one real project.', g912:'Take AP CS or a CTE IT pathway, try CyberPatriot, and build projects you can show.'}},
+  nature:{name:'Grow & Explore',   start:{k2:'Plant a seed and check on it every day.', g35:'Keep a nature journal of animals and plants near you.', g68:'Join a garden club, 4-H, or FFA.', g912:'Take ag science or biology, and look for park or farm summer jobs.'}},
+  fly:   {name:'Engineer & Fly',   start:{k2:'Build the tallest tower you can from cups or blocks.', g35:'Build and test paper airplanes. Which flies farthest?', g68:'Try a bridge challenge, rocketry, or a STEM club.', g912:'Take physics and math, and look at Civil Air Patrol or an aviation maintenance program.'}}
+};
+const CL_KEYS = Object.keys(CLUSTERS);
+
+// pay: approx U.S. median annual wage in $k (BLS OEWS May 2024). Placeholders for the prototype.
+const CAREERS = [
+  {id:'plumber', name:'Plumber', c:'build', soc:'47-2152', pay:63, paths:['Apprenticeship','License'], train:'4–5 yr apprenticeship, paid', kid:'Plumbers make sure clean water comes in and dirty water goes out.', teen:'Install and repair the pipes, fixtures, and water heaters in homes and buildings. High demand, and you get paid while you train.', tools:['Pipe wrench','PEX crimper','Camera snake']},
+  {id:'electrician', name:'Electrician', c:'build', soc:'47-2111', pay:62, paths:['Apprenticeship','License'], train:'4–5 yr apprenticeship, paid', kid:'Electricians bring power to lights, plugs, and machines safely.', teen:'Wire new buildings, troubleshoot circuits, and install solar panels and EV chargers. Math and problem-solving every day.', tools:['Multimeter','Wire strippers','Conduit bender']},
+  {id:'autotech', name:'Auto Technician', c:'build', soc:'49-3023', pay:50, paths:['Trade school','On the job'], train:'6 mo–2 yr program + certifications', kid:'Auto techs find out what is wrong with a car and fix it.', teen:'Diagnose engines, brakes, and electrical systems, including hybrids and EVs, using scan tools and computers.', tools:['OBD-II scanner','Torque wrench','Lift']},
+  {id:'welder', name:'Welder', c:'build', soc:'51-4121', pay:52, paths:['Trade school','Apprenticeship'], train:'Months to 2 yr + certifications', kid:'Welders join metal together with super-hot light.', teen:'Fuse metal for bridges, ships, pipelines, and art. Certified welders can travel for high-paying jobs.', tools:['MIG welder','Auto-dark helmet','Angle grinder']},
+  {id:'hvac', name:'HVAC Technician', c:'build', soc:'49-9021', pay:60, paths:['Trade school','Apprenticeship'], train:'6 mo–2 yr + EPA certification', kid:'HVAC techs keep buildings warm in winter and cool in summer.', teen:'Install and repair heating, cooling, and ventilation systems, including heat pumps that save energy.', tools:['Gauge manifold','Leak detector','Thermostat']},
+  {id:'carpenter', name:'Carpenter', c:'build', soc:'47-2031', pay:59, paths:['Apprenticeship','On the job'], train:'3–4 yr apprenticeship, paid', kid:'Carpenters build houses, stairs, and cabinets out of wood.', teen:'Frame buildings, build forms for concrete, and finish trim. Many carpenters go on to run their own business.', tools:['Framing square','Circular saw','Chalk line']},
+  {id:'military', name:'Military Service Member', c:'serve', soc:'55-0000', pay:null, paths:['Military'], train:'Basic training + job school (weeks to months)', kid:'Soldiers, sailors, airmen, Marines, and Guardians protect our country.', teen:'The Army, Navy, Air Force, Marines, Coast Guard, and Space Force have hundreds of jobs, from mechanic to medic to cyber. You get paid training, and programs like the GI Bill can help pay for college.', tools:['Teamwork','Fitness','Your job specialty']},
+  {id:'firefighter', name:'Firefighter', c:'serve', soc:'33-2011', pay:60, paths:['On the job','Certificate'], train:'Fire academy + EMT certification', kid:'Firefighters put out fires and help people in emergencies.', teen:'Respond to fires, car crashes, and medical calls. Most departments also want EMT certification.', tools:['Hose & nozzle','SCBA air pack','Thermal camera']},
+  {id:'teacher', name:'Elementary Teacher', c:'teach', soc:'25-2021', pay:64, paths:['4-year','License'], train:'Bachelor’s degree + state license', kid:'Teachers help kids learn to read, count, and discover new things.', teen:'Plan lessons, figure out how each kid learns best, and lead a classroom. Many states have grants for future teachers.', tools:['Lesson plans','Read-alouds','Classroom tech']},
+  {id:'counselor', name:'School Counselor', c:'teach', soc:'21-1012', pay:65, paths:['4-year','License'], train:'Master’s degree + license', kid:'School counselors help kids with feelings, friends, and big choices.', teen:'Help students plan classes, apply for college or careers, and get support when life is hard.', tools:['Listening','Planning tools','Scholarship lists']},
+  {id:'librarian', name:'Librarian', c:'teach', soc:'25-4022', pay:65, paths:['4-year'], train:'Master’s in library science', kid:'Librarians help you find the perfect book.', teen:'Run reading programs, teach research skills, and manage digital collections. Readers welcome.', tools:['Catalog systems','Story time','Research databases']},
+  {id:'nurse', name:'Registered Nurse', c:'heal', soc:'29-1141', pay:94, paths:['2-year','4-year','License'], train:'2–4 yr nursing degree + NCLEX exam', kid:'Nurses take care of people when they are sick or hurt.', teen:'Check on patients, give medicine, and work with doctors. You can start with a 2-year degree and specialize later.', tools:['Stethoscope','Patient chart','IV pump']},
+  {id:'emt', name:'EMT / Paramedic', c:'heal', soc:'29-2042', pay:42, paths:['Certificate'], train:'EMT: weeks to months; Paramedic: 1–2 yr', kid:'EMTs ride in ambulances and help people fast.', teen:'Give emergency care on the scene and on the way to the hospital. Some high schools offer EMT classes for seniors.', tools:['Defibrillator','Trauma kit','Radio']},
+  {id:'hygienist', name:'Dental Hygienist', c:'heal', soc:'29-1292', pay:94, paths:['2-year','License'], train:'Associate degree + license', kid:'Dental hygienists clean teeth and teach you to brush.', teen:'Clean teeth, take X-rays, and spot problems early. Strong pay with a 2-year degree.', tools:['Scaler','X-ray sensor','Ultrasonic cleaner']},
+  {id:'vettech', name:'Vet Technician', c:'heal', soc:'29-2056', pay:46, paths:['2-year'], train:'Associate degree + credential', kid:'Vet techs help animal doctors take care of pets.', teen:'Assist veterinarians with exams, surgery, and lab tests for animals of every size.', tools:['Microscope','Pet scale','Vaccines']},
+  {id:'socialworker', name:'Social Worker', c:'help', soc:'21-1021', pay:59, paths:['4-year','License'], train:'Bachelor’s; Master’s for clinical work', kid:'Social workers help families get what they need to be safe and happy.', teen:'Connect kids and families with food, housing, health care, and support. Every day is about people.', tools:['Case notes','Community resources','Listening']},
+  {id:'stylist', name:'Hair Stylist', c:'create', soc:'39-5012', pay:36, paths:['Trade school','License'], train:'Cosmetology program (~1 yr) + license', kid:'Stylists cut, color, and style hair.', teen:'Build a client list, learn color chemistry, and many stylists own their own salon or chair.', tools:['Shears','Color bowl','Booking app']},
+  {id:'designer', name:'Graphic Designer', c:'create', soc:'27-1024', pay:61, paths:['4-year','Certificate'], train:'Portfolio + degree or certificate', kid:'Designers make posters, logos, and the pictures on boxes.', teen:'Design brands, apps, packaging, and social posts. Your portfolio matters as much as your diploma.', tools:['Sketchbook','Design software','Color & type']},
+  {id:'chef', name:'Chef', c:'create', soc:'35-1011', pay:61, paths:['On the job','Trade school'], train:'Kitchen experience; culinary school optional', kid:'Chefs invent recipes and cook for lots of people.', teen:'Run a kitchen, create menus, and lead a team. Start as a line cook and work your way up.', tools:['Chef’s knife','Mise en place','Plating']},
+  {id:'softdev', name:'Software Developer', c:'tech', soc:'15-1252', pay:133, paths:['4-year','Certificate'], train:'Degree, bootcamp, or self-taught + projects', kid:'Software developers write the instructions that make apps and games work.', teen:'Build apps, websites, and systems. Projects you build in high school can start your portfolio.', tools:['Code editor','Git','Testing']},
+  {id:'cyber', name:'Cybersecurity Analyst', c:'tech', soc:'15-1212', pay:125, paths:['4-year','Military','Certificate'], train:'Degree or certifications (e.g., Security+)', kid:'Cyber heroes keep computers and secrets safe from hackers.', teen:'Protect networks, investigate attacks, and test defenses. The military trains many cyber specialists.', tools:['Firewall','Network scanner','Logs']},
+  {id:'farmer', name:'Farmer / Rancher', c:'nature', soc:'11-9013', pay:null, paths:['On the job','4-year'], train:'Hands-on experience; ag degree helps', kid:'Farmers grow the food we eat and raise animals.', teen:'Manage crops, animals, equipment, and a business. Drones and sensors are changing how farms work.', tools:['Tractor','Soil tests','Drones']},
+  {id:'ranger', name:'Park Ranger', c:'nature', soc:'19-1031', pay:null, paths:['4-year','On the job'], train:'Degree in natural resources; seasonal jobs first', kid:'Park rangers protect forests and help visitors explore.', teen:'Lead hikes, protect wildlife, and keep parks safe. Many start with summer seasonal jobs.', tools:['Map & compass','Radio','Field guide']},
+  {id:'engineer', name:'Civil Engineer', c:'fly', soc:'17-2051', pay:99, paths:['4-year','License'], train:'Bachelor’s in engineering + PE license', kid:'Engineers design bridges, roads, and water systems.', teen:'Plan the roads, bridges, and water systems a city runs on, using math, physics, and design software.', tools:['CAD software','Survey data','Load calcs']},
+  {id:'aviationmech', name:'Aircraft Mechanic', c:'fly', soc:'49-3011', pay:78, paths:['Trade school','Military'], train:'18–24 mo FAA-approved school', kid:'Aircraft mechanics fix airplanes so they fly safely.', teen:'Inspect and repair engines and systems on planes and helicopters. FAA certification is your ticket.', tools:['Borescope','Torque wrench','Maintenance manual']},
+  {id:'pilot', name:'Airline Pilot', c:'fly', soc:'53-2011', pay:220, paths:['Certificate','4-year','Military'], train:'Flight school + 1,500 flight hours', kid:'Pilots fly airplanes full of people around the world.', teen:'Fly passenger or cargo jets. Many pilots start in the military or flight school and build hours as instructors.', tools:['Flight deck','Weather briefs','Checklists']}
+];
+const C = id => CAREERS.find(c => c.id===id);
+
+const QUESTS = {
+  k2:[
+    {id:'k2a', c:'build', title:'Pipe Detective', xp:20, steps:['Find 3 places water comes out at home','Ask a grown-up where the water goes after','Draw one pipe you found']},
+    {id:'k2b', c:'help',  title:'Helper Hero Drawing', xp:15, steps:['Pick a helper in your town','Draw them at work','Tell a grown-up what they do']},
+    {id:'k2c', c:'fly',   title:'Tallest Tower', xp:20, steps:['Gather 20 cups or blocks','Build as tall as you can','Try again with a wider bottom']},
+    {id:'k2d', c:'teach', title:'Read & Earn', xp:25, steps:['Open A.R.I.S.E. Reader','Read a book about a job','Pass the quiz'], reader:true}
+  ],
+  g35:[
+    {id:'g35a', c:'build', title:'Tool Safari', xp:25, steps:['Open a toolbox with an adult','Name 5 tools','Say what each one does']},
+    {id:'g35b', c:'help',  title:'Interview a Grown-Up', xp:30, steps:['Pick an adult you know','Ask: What do you do all day?','Ask: How did you learn your job?','Share one surprise with your class']},
+    {id:'g35c', c:'build', title:'Car Check (with an adult)', xp:25, steps:['Find the tire pressure sticker in the door','Check one tire with a gauge','Write the number down']},
+    {id:'g35d', c:'teach', title:'Read & Earn', xp:30, steps:['Open A.R.I.S.E. Reader','Read a career book','Pass the quiz'], reader:true}
+  ],
+  g68:[
+    {id:'g68a', c:'build', title:'Fix One Thing', xp:40, steps:['Find something small that is broken (squeaky hinge, loose screw)','Watch one how-to with an adult','Fix it and post a before/after']},
+    {id:'g68b', c:'build', title:'Paycheck Challenge', xp:40, steps:['Pick two careers from Explore','Look up typical pay','Make a one-month budget for each']},
+    {id:'g68c', c:'tech',  title:'Visit a CTE Class', xp:35, steps:['Find a CTE, robotics, or shop class at your school','Ask the teacher one question','Rate it: would you take it?']},
+    {id:'g68d', c:'serve', title:'Shadow a Pro (virtual)', xp:30, steps:['Watch a Pro Spotlight in Explore','Write down 3 facts','Ask the pro a question']}
+  ],
+  g912:[
+    {id:'g912a', c:'build', title:'Find an Apprenticeship', xp:50, steps:['Search apprenticeship.gov for your area','Pick one program','Write down how to apply and the deadline']},
+    {id:'g912b', c:'help',  title:'Draft Your Resume', xp:50, steps:['List jobs, volunteering, and activities','Add 3 skills with proof','Get feedback from a teacher']},
+    {id:'g912c', c:'teach', title:'Compare Two Paths', xp:45, steps:['Pick two paths from Paths','Compare time, cost, and pay','Talk it over with a parent']},
+    {id:'g912d', c:'serve', title:'Meet a Recruiter or Counselor', xp:40, steps:['Book a meeting (bring a parent if you want)','Ask 3 questions from your list','Write your next step']}
+  ]
+};
+
+const SEED_POSTS = {
+  k2:[
+    {id:'p1', who:'Mr. Okafor', role:'teacher', scope:'class', ago:'1h', text:'Our class planted bean seeds today! Who can guess how many days until they sprout?', c:'nature', r:{cool:14,me:9,teach:2,wow:6}},
+    {id:'p2', who:'Leo T.', role:'kid', scope:'class', ago:'3h', proof:{q:'Tallest Tower', c:'fly'}, text:'My tower was 24 cups tall!', r:{cool:11,me:4,teach:3,wow:8}},
+    {id:'p3', who:'Officer Grant', role:'pro', scope:'school', ago:'1d', pro:'Firefighter · Station 4', text:'Thanks for the drawings, Maple Elementary! They are on our fire station wall now.', c:'serve', r:{cool:22,me:10,teach:1,wow:15}}
+  ],
+  g35:[
+    {id:'p1', who:'Ms. Chen', role:'teacher', scope:'class', ago:'2h', text:'Great Tool Safari pictures this week. Friday we have a carpenter coming to build birdhouses with us!', c:'build', r:{cool:18,me:12,teach:2,wow:7}},
+    {id:'p2', who:'Zoe K.', role:'kid', scope:'class', ago:'5h', proof:{q:'Interview a Grown-Up', c:'help'}, text:'My aunt is a nurse. She said the hardest part is night shifts but the best part is helping babies.', r:{cool:9,me:5,teach:4,wow:10}},
+    {id:'p3', who:'Sam P.', role:'kid', scope:'class', ago:'1d', proof:{q:'Car Check', c:'build'}, text:'Our tire needed 35 PSI and it had 31! We filled it up.', r:{cool:7,me:3,teach:6,wow:4}}
+  ],
+  g68:[
+    {id:'p1', who:'Marcus J.', role:'pro', scope:'school', ago:'40m', pro:'Master Plumber · 18 yrs', text:'Asked: “Do plumbers need math?” Yes. Every day I figure out pipe slope, water pressure, and how to price a job. If you like puzzles, you would like plumbing.', c:'build', r:{cool:31,me:12,teach:9,wow:14}},
+    {id:'p2', who:'Destiny A.', role:'kid', scope:'class', ago:'2h', proof:{q:'Fix One Thing', c:'build'}, text:'Fixed the wobbly leg on our kitchen table. Just needed a longer screw lol', r:{cool:16,me:8,teach:5,wow:3}},
+    {id:'p3', who:'Ms. Rivera', role:'teacher', scope:'class', ago:'4h', text:'Reminder: Thursday is our virtual visit with Sgt. Morales from Air Force aircraft maintenance. Bring one question!', c:'fly', r:{cool:12,me:6,teach:0,wow:2}},
+    {id:'p4', who:'Kenji L.', role:'kid', scope:'class', ago:'1d', proof:{q:'Paycheck Challenge', c:'build'}, text:'Electrician vs graphic designer: pretty close on pay, but the electrician gets paid during training. Did not know that.', r:{cool:10,me:4,teach:7,wow:9}}
+  ],
+  g912:[
+    {id:'p1', who:'Mr. Delgado', role:'teacher', scope:'class', ago:'1h', text:'Family FAFSA Night is next week. Even if you are going to an apprenticeship, filing can unlock aid for certificate programs too.', c:'teach', r:{cool:15,me:7,teach:3,wow:2}},
+    {id:'p2', who:'Alexis R.', role:'kid', scope:'school', ago:'3h', proof:{q:'Find an Apprenticeship', c:'build'}, text:'Applied to the IBEW electrical apprenticeship! Aptitude test is in December. Studying algebra again lol', r:{cool:28,me:9,teach:6,wow:19}},
+    {id:'p3', who:'Dr. Imani Brooks', role:'pro', scope:'school', ago:'1d', pro:'ER Nurse → Nurse Practitioner', text:'I started as a CNA at 17. You do not have to know your whole path. Just pick the next step.', c:'heal', r:{cool:40,me:22,teach:5,wow:17}},
+    {id:'p4', who:'Jordan T.', role:'kid', scope:'class', ago:'2d', proof:{q:'Meet a Recruiter', c:'serve'}, text:'Talked to a Navy recruiter with my mom. Nuclear field sounds intense but they pay for all of it.', r:{cool:13,me:5,teach:4,wow:11}}
+  ]
+};
+const STICKERS = [['cool','Respect'],['me','Same'],['teach','How?'],['wow','Big']];
+
+const EVENTS = [
+  {id:'e1', bands:['k2','g35'], title:'Build-a-Birdhouse with a Carpenter', host:'Ms. Chen + Tony R., Carpenters Local 55', hostType:'pro', date:'2026-10-16', time:'1:00 PM', fmt:'In class', seats:28, going:21, c:'build'},
+  {id:'e2', bands:['k2','g35'], title:'Fire Station Field Trip', host:'Mr. Okafor', hostType:'teacher', date:'2026-10-23', time:'9:30 AM', fmt:'Field trip', seats:40, going:33, c:'serve'},
+  {id:'e3', bands:['g68'], title:'Virtual Visit: Air Force Aircraft Maintenance', host:'Ms. Rivera + SSgt. Morales', hostType:'pro', date:'2026-10-15', time:'10:15 AM', fmt:'Live video', seats:120, going:87, c:'fly'},
+  {id:'e4', bands:['g68','g912'], title:'Robotics & Cyber Club Open House', host:'Mr. Patel, CTE Teacher', hostType:'teacher', date:'2026-10-20', time:'3:30 PM', fmt:'After school', seats:60, going:41, c:'tech'},
+  {id:'e5', bands:['g912'], title:'Family FAFSA Night', host:'Mr. Delgado, School Counselor', hostType:'teacher', date:'2026-10-14', time:'6:00 PM', fmt:'Families · In person', seats:150, going:96, c:'teach'},
+  {id:'e6', bands:['g912'], title:'Trades Signing Day Prep: Apprenticeship Applications', host:'Denver Building Trades + Mr. Delgado', hostType:'pro', date:'2026-10-28', time:'4:00 PM', fmt:'Workshop', seats:50, going:38, c:'build'},
+  {id:'e7', bands:['g912','g68'], title:'Scrubs Day: Hospital Careers Tour', host:'HOSA Chapter + Denver Health volunteers', hostType:'pro', date:'2026-11-06', time:'8:30 AM', fmt:'Field trip', seats:30, going:29, c:'heal'},
+  {id:'e8', bands:['k2','g35','g68','g912'], title:'Career Day: 30 Grown-Ups, 30 Jobs', host:'Arise Social + PTA', hostType:'teacher', date:'2026-11-13', time:'9:00 AM', fmt:'Whole school', seats:400, going:212, c:'help'}
+];
+
+const SCHOLARSHIPS = [
+  {name:'Pell Grant (via FAFSA)', for:'College, community college, and many certificate programs', type:'Federal grant', url:'https://studentaid.gov'},
+  {name:'mikeroweWORKS Work Ethic Scholarship', for:'Students entering skilled trades training', type:'Trades', url:'https://mikeroweworks.org'},
+  {name:'ROTC Scholarships', for:'Students planning to become military officers through college', type:'Military', url:'https://www.todaysmilitary.com'},
+  {name:'Coca-Cola Scholars', for:'High school seniors who lead and serve', type:'Merit / service', url:'https://www.coca-colascholarsfoundation.org'},
+  {name:'The Gates Scholarship', for:'Pell-eligible minority high school seniors', type:'Need-based', url:'https://www.thegatesscholarship.org'},
+  {name:'QuestBridge National College Match', for:'High-achieving students from low-income families', type:'Need-based', url:'https://www.questbridge.org'},
+  {name:'Jack Kent Cooke College Scholarship', for:'High-achieving seniors with financial need', type:'Need-based', url:'https://www.jkcf.org'}
+];
+
+const ROAD = [
+  {g:6,  items:['Try 3 clubs or electives','Collect 10 passport stamps']},
+  {g:7,  items:['Take a career interest quiz','Talk to 3 adults about their jobs']},
+  {g:8,  items:['Choose high school classes on purpose (CTE, honors, JROTC)','Visit a CTE center or career academy']},
+  {g:9,  items:['Make a 4-year class plan with your counselor','Start a brag sheet of activities and awards']},
+  {g:10, items:['Job shadow or volunteer','Ask about dual enrollment and certifications']},
+  {g:11, items:['Take the SAT/ACT, ASVAB, or an apprenticeship aptitude test','Visit colleges, trade schools, or recruiters','Start a scholarship list']},
+  {g:12, items:['File the FAFSA (opens each fall)','Apply: college, apprenticeship, or enlistment','Compare offers and choose your launch']}
+];
+
+const LEVELS = ['Curious','Explorer','Tinkerer','Apprentice','Pro','Mentor','Legend'];
+const BADGES = [
+  {id:'first', name:'First Quest', test:s=>Object.values(s.quests).some(q=>q.done)},
+  {id:'stamps5', name:'5 Collected', test:s=>s.stamps.length>=5},
+  {id:'clusters', name:'4 Clusters', test:s=>new Set(s.stamps.map(id=>C(id).c)).size>=4},
+  {id:'event', name:'Showed Up', test:s=>Object.values(s.rsvp).includes('going')},
+  {id:'streak7', name:'7-Day Streak', test:s=>s.streak>=7},
+  {id:'poster', name:'Shared a Win', test:s=>s.myPosts.length>0}
+];
+
+
+
+const PROS = [
+  {id:'pr1', name:'Marcus J.', hl:'Master Plumber · 18 years · Denver', c:'build', bands:['g35','g68','g912']},
+  {id:'pr2', name:'Dr. Imani Brooks', hl:'ER Nurse → Nurse Practitioner', c:'heal', bands:['g68','g912']},
+  {id:'pr3', name:'SSgt. Elena Morales', hl:'U.S. Air Force · Aircraft Maintenance', c:'fly', bands:['g68','g912']},
+  {id:'pr4', name:'Tony R.', hl:'Carpenter · Carpenters Local 55', c:'build', bands:['k2','g35','g68']},
+  {id:'pr5', name:'Officer Grant', hl:'Firefighter · Station 4', c:'serve', bands:['k2','g35']},
+  {id:'pr6', name:'Rina K.', hl:'Software Developer · Started at a bootcamp', c:'tech', bands:['g68','g912']},
+  {id:'pr7', name:'Ms. Alvarez', hl:'Vet Technician · Animal Hospital', c:'heal', bands:['k2','g35']}
+];
+
+/* ================= STATE ================= */
+const today = new Date('2026-10-08T12:00:00').toDateString();
+const KEY = 'arise-social-v1';
+const fresh = () => ({
+  role:'kid', band:'g68', tab:'feed', xp:340, streak:6, lastActive:'yesterday',
+  daily:{date:today, xp:0}, stamps:['plumber','nurse','softdev'], saved:['electrician'],
+  quests:{}, rsvp:{}, reacts:{}, myPosts:[], pending:[], spun:null, filterC:'all', filterP:'all', feedScope:'all',
+  road:{}, settings:{scope:'class', ask:true, limit:45, weekly:true}, hosted:[], follows:['pr1'], composeOpen:false, q:''
+});
+let S;
+try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)||'{}')); } catch(e){ S = fresh(); }
+if (S.daily.date !== today) S.daily = {date:today, xp:0};
+S.composeOpen = false; S.q = '';
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+
+const B = () => BANDS[S.band];
+const level = () => Math.floor(S.xp/120);
+const DAILY_GOAL = 60;
+
+function addXP(n, why){
+  if (S.lastActive !== today){ S.streak += 1; S.lastActive = today; }
+  S.xp += n; S.daily.xp += n;
+  toast(`+${n} XP · ${why}`);
+  if (S.daily.xp >= DAILY_GOAL && S.daily.xp - n < DAILY_GOAL) setTimeout(()=>toast('Daily goal reached. Now go try it for real.'), 1700);
+}
+
+/* ================= NAV ================= */
+const TABS = {
+  kid: b => [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(b)?[]:[['paths','Paths','paths']]).concat([['passport','Profile','passport']]),
+  parent: () => [['overview','Home','home'],['explore','Explore','explore'],['events','Events','event'],['paths','Paths','paths'],['safety','Safety','shield']],
+  teacher: () => [['class','My Class','class'],['approvals','Approvals','inbox'],['events','Events','event'],['explore','Explore','explore']]
+};
+function tabs(){ return TABS[S.role](S.band); }
+function badgeFor(id){
+  if (id==='approvals') return S.pending.filter(p=>p.band===S.band).length;
+  if (id==='overview') return Object.values(S.rsvp).filter(v=>v==='requested').length;
+  return 0;
+}
+function meName(){ return S.role==='kid'?B().kid.name:S.role==='parent'?B().parent:B().teacher; }
+function renderChrome(){
+  const roles=[['kid','Kid'],['parent','Parent'],['teacher','Teacher']];
+  document.getElementById('roleSeg').innerHTML = roles.map(([k,l])=>`<button data-act="role" data-v="${k}" aria-pressed="${S.role===k}">${l}</button>`).join('');
+  document.getElementById('bandSeg').innerHTML = BAND_KEYS.map(k=>`<button data-act="band" data-v="${k}" aria-pressed="${S.band===k}">${BANDS[k].label}</button>`).join('');
+  const t = tabs();
+  if (!t.find(x=>x[0]===S.tab)) S.tab = t[0][0];
+  document.getElementById('nav').innerHTML = t.map(([id,l,ic])=>{const n=badgeFor(id);return `<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${n?`<span class="dot">${n}</span>`:''}</button>`}).join('');
+  document.getElementById('me').innerHTML = `${av(meName(),'xs')}<span>Me</span>`;
+  document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
+}
+
+/* ================= SHARED BITS ================= */
+const cc = k => `var(--${k})`;
+const avColor = name => { const cs=['primary','coral','teach','tech','nature','help','create','serve']; let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))%997; return cs[h%cs.length]; };
+const initials = n => n.split(/\s+/).filter(Boolean).map(w=>w[0]).join('').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase();
+const av = (n, size) => `<div class="av ${size||''}" style="--c:${cc(avColor(n))}${size==='xs'?';width:26px;height:26px;font-size:.6rem':''}">${esc(initials(n))}</div>`;
+const ico = (k, size) => `<div class="ico ${size||''}" style="--c:${cc(k)}">${svg(k)}</div>`;
+const tick = `<span class="verified" title="Verified">${svg('check')}</span>`;
+const fmtDate = d => { const x=new Date(d+'T12:00:00'); return {m:x.toLocaleString('en-US',{month:'short'}).toUpperCase(), d:x.getDate(), w:x.toLocaleString('en-US',{weekday:'short'})}; };
+function topClusters(n){
+  const m={}; [...S.stamps,...S.saved].forEach(id=>{const c=C(id).c; m[c]=(m[c]||0)+1;});
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>CLUSTERS[x[0]].name);
+}
+function kidHeadline(){ const t=topClusters(2); return `${B().kid.grade} at ${B().kid.school}${t.length?` · Into ${t.join(' and ')}`:''}`; }
+
+/* ================= LEFT + RIGHT COLUMNS ================= */
+function leftHTML(){
+  if (S.role==='teacher'){
+    const pend = S.pending.filter(p=>p.band===S.band).length;
+    return `<div class="card flush mini"><div class="cover"></div>${av(B().teacher,'lg')}
+      <div class="who"><b>${esc(B().teacher)} ${tick}</b><span>Teacher · ${esc(B().kid.school)} · Grades ${B().label}</span></div>
+      <div class="divider" style="margin:0"></div>
+      <button class="kv" data-act="tab" data-v="approvals" style="border:0;background:transparent;width:100%"><span>Waiting for approval</span><b>${pend}</b></button>
+      <div class="kv"><span>Students</span><b>24</b></div>
+      <div class="kv" style="padding-bottom:14px"><span>Events hosted</span><b>${eventList().filter(e=>e.mine).length+3}</b></div></div>`;
+  }
+  const k=B().kid, into=S.xp%120;
+  const kidCard = `<div class="card flush mini"><div class="cover"></div>${av(k.name,'lg')}
+    <div class="who"><b>${esc(k.name)}</b><span>${esc(kidHeadline())}</span></div>
+    <div class="divider" style="margin:0"></div>
+    <button class="kv" data-act="tab" data-v="passport" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Careers collected</span><b class="tnum">${S.stamps.length}</b></button>
+    <div class="kv"><span>Day streak</span><b class="tnum">${S.streak}</b></div>
+    <div class="kv" style="padding-bottom:12px"><span>Level ${level()+1} · ${LEVELS[Math.min(level(),LEVELS.length-1)]}</span><b class="tnum">${into}/120</b></div>
+    <div class="mini-goal"><div class="row"><span>Today’s goal</span><span class="tnum muted">${S.daily.xp}/${DAILY_GOAL} XP</span></div><div class="bar sun"><i style="width:${Math.min(100,S.daily.xp/DAILY_GOAL*100)}%"></i></div></div></div>`;
+  const savedCard = `<div class="card"><div class="card-h" style="margin-bottom:8px"><h3 style="font-size:.88rem">Saved careers</h3><span class="muted small tnum">${S.saved.length}</span></div>
+    <div class="side-list">${S.saved.map(id=>`<button data-act="open" data-id="${id}">${ico(C(id).c,'sm')}${esc(C(id).name)}</button>`).join('') || '<span class="muted small">Tap Save on any career.</span>'}</div></div>`;
+  if (S.role==='parent') return `<div class="eyebrow" style="padding:0 4px">${esc(B().parent)}’s family</div>` + kidCard + savedCard;
+  return kidCard + savedCard;
+}
+function proRow(p){
+  const on = S.follows.includes(p.id);
+  return `<div class="follow-row">${av(p.name,'sm')}<div class="who"><b>${esc(p.name)} ${tick}</b><span>${esc(p.hl)}</span>
+    <button class="btn sm ${on?'':'outline'}" data-act="follow" data-id="${p.id}">${on?svg('check')+'Following':svg('plus')+'Follow'}</button></div></div>`;
+}
+function railHTML(){
+  const pros = PROS.filter(p=>p.bands.includes(S.band)).slice(0,3);
+  const up = eventList()[0];
+  let html = `<div class="card"><div class="card-h" style="margin-bottom:4px"><h3 style="font-size:.95rem">Pros to follow</h3></div>
+    ${pros.map(proRow).join('')}<p class="muted small" style="margin-top:6px">Every pro is background-checked. Pros post publicly and can’t message kids.</p></div>`;
+  if (up){ const d=fmtDate(up.date); html += `<div class="card"><h3 style="font-size:.95rem;margin-bottom:10px">Next up</h3>
+    <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><div class="date" style="width:52px;flex:none"><div class="m">${d.m}</div><div class="d">${d.d}</div><div class="w">${d.w}</div></div>
+    <div style="min-width:0"><b style="font-size:.88rem;display:block;line-height:1.3">${esc(up.title)}</b><span class="muted small">${up.time} · ${esc(up.fmt)}</span></div></div>
+    <button class="btn sm" style="margin-top:12px" data-act="tab" data-v="events">See all events</button></div>`; }
+  html += `<div class="card"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${ico('teach','sm')}<div><b style="font-size:.86rem">From A.R.I.S.E. Reader</b><p class="muted small">Books about jobs count double this week. Finish one and the quest completes itself.</p></div></div></div>`;
+  return html;
+}
+
+/* ================= FEED ================= */
+const RX = {cool:'fist', me:'same', teach:'ask', wow:'bolt'};
+const RXC = {cool:'var(--primary)', me:'var(--sun)', teach:'var(--leaf)', wow:'var(--coral)'};
+function postHTML(p){
+  const isPro = p.role==='pro', isT = p.role==='teacher';
+  const hl = isPro ? esc(p.pro) : isT ? `Teacher · ${esc(B().kid.school)}` : `${B().kid.grade} · ${p.scope==='school'?esc(B().kid.school):esc(B().teacher)+'’s class'}`;
+  const proObj = isPro ? PROS.find(x=>x.name===p.who) : null;
+  const followBtn = proObj && S.role==='kid' && !S.follows.includes(proObj.id) ? `<button class="btn sm ghost" style="color:var(--primary-text)" data-act="follow" data-id="${proObj.id}">${svg('plus')}Follow</button>` : '';
+  const proof = p.proof ? `<div class="proof" style="--c:${cc(p.proof.c)}"><div class="band"></div><div class="info">${ico(p.proof.c)}<div><b>Quest cleared: ${esc(p.proof.q)}</b><span>${CLUSTERS[p.proof.c].name}</span></div></div></div>` : '';
+  const counts = p.r || {};
+  const mine = S.reacts[p.id];
+  const total = STICKERS.reduce((t,[k])=>t+(counts[k]||0)+(mine===k?1:0),0);
+  const top = STICKERS.map(([k])=>[k,(counts[k]||0)+(mine===k?1:0)]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const bubbles = top.map(([k])=>`<i style="background:${RXC[k]};color:#fff">${svg(RX[k],'style="width:9px;height:9px;stroke-width:3"')}</i>`).join('');
+  const pending = p.status==='pending';
+  return `<article class="card post ${pending?'pending':''}">
+    <div class="post-head">${av(p.who)}<div class="who"><b>${esc(p.who)} ${isPro||isT?tick:''}</b><span class="hl">${hl}</span><span class="tm">${p.ago} · ${svg(p.scope==='school'?'globe':'users')}</span></div>${followBtn}</div>
+    ${p.text?`<p class="body">${esc(p.text)}</p>`:''}
+    ${proof}
+    ${pending?`<div class="pendbar pill-wait">Only you can see this until ${esc(B().teacher)} approves it.</div>`:
+    `<div class="counts"><span class="row" style="gap:6px"><span class="bub">${bubbles}</span><span class="tnum">${total?total:'Be the first to react'}</span></span><span>${S.role==='kid'?'Class space':''}</span></div>
+    <div class="actions-bar">${STICKERS.map(([k,l])=>`<button class="react" data-act="react" data-id="${p.id}" data-v="${k}" aria-pressed="${mine===k}">${svg(RX[k])}<span>${l}</span></button>`).join('')}</div>`}
+  </article>`;
+}
+function composer(){
+  const k = B().kid;
+  const head = `<div class="start">${av(k.name)}<button class="pillinput" data-act="compose">${young(S.band)?'Share something with your class':'Post a win, a question, or something you tried'}</button></div>`;
+  if (!S.composeOpen){
+    return `<div class="card composer">${head}
+      <div class="opts"><button data-act="compose">${svg('quest','style="color:var(--sun)"')}Quest win</button><button data-act="tab" data-v="explore">${svg('explore','style="color:var(--primary)"')}Career</button><button data-act="compose">${svg('image','style="color:var(--leaf)"')}Photo</button></div></div>`;
+  }
+  const done = QUESTS[S.band].filter(q=>S.quests[q.id]?.done);
+  if (young(S.band)){
+    return `<div class="card composer">${head}<div class="expand">
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        <label class="f">Pick a sentence<select id="cStart"><option>I want to be a</option><option>I learned something cool about a</option><option>Today I pretended to be a</option></select></label>
+        <label class="f">Pick a job<select id="cCareer">${CAREERS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
+      </div>
+      <div class="row" style="justify-content:space-between"><span class="muted small">${esc(B().teacher)} checks posts before your class sees them.</span><div class="row"><button class="btn ghost" data-act="compose">Cancel</button><button class="btn primary" data-act="post">Post</button></div></div></div></div>`;
+  }
+  return `<div class="card composer">${head}<div class="expand">
+    <textarea id="cText" maxlength="280" placeholder="What did you try? What surprised you?"></textarea>
+    <label class="f">Attach a finished quest<select id="cQuest"><option value="">None</option>${done.map(q=>`<option value="${q.id}">${esc(q.title)}</option>`).join('')}</select></label>
+    <div class="row" style="justify-content:space-between"><span class="muted small">${done.length?'':'Finish a quest to attach it. '}Teacher-approved · first name and last initial only</span><div class="row"><button class="btn ghost" data-act="compose">Cancel</button><button class="btn primary" data-act="post">Post</button></div></div></div></div>`;
+}
+function viewFeed(){
+  const scopes=[['all','Everything'],['class','My class'],['school','My school'],['pro','Pros']];
+  let posts = [...S.myPosts.filter(p=>p.band===S.band).slice().reverse(), ...S.pending.filter(p=>p.band===S.band && p.author==='kid' && p.kind==='post').slice().reverse().map(p=>({...p,status:'pending'})), ...SEED_POSTS[S.band]];
+  if (S.feedScope==='pro') posts = posts.filter(p=>p.role==='pro');
+  else if (S.feedScope!=='all') posts = posts.filter(p=>p.scope===S.feedScope && p.role!=='pro');
+  return composer() +
+    `<div class="safety">${svg('shield')}<span>Your class space. Only classmates, teachers, and verified pros can see it. No private messages, ever.</span></div>
+     <div class="sortline"><span>Show:</span>${scopes.map(([k,l])=>`<button class="chip ${S.feedScope===k?'on':''}" data-act="scope" data-v="${k}">${l}</button>`).join('')}</div>
+     ${posts.map(postHTML).join('') || '<div class="card empty">Nothing here yet.</div>'}`;
+}
+
+/* ================= EXPLORE ================= */
+function viewExplore(){
+  const pathsAll = ['Apprenticeship','Trade school','Military','2-year','4-year','Certificate','On the job'];
+  const q = S.q.trim().toLowerCase();
+  let list = CAREERS.filter(c => (S.filterC==='all'||c.c===S.filterC) && (S.filterP==='all'||c.paths.includes(S.filterP)) && (!q || (c.name+' '+CLUSTERS[c.c].name).toLowerCase().includes(q)));
+  const spunToday = S.spun && S.spun.date===today;
+  return `<div class="card spin"><div><span class="eyebrow">Career of the Day</span><div class="spin-window" id="spinWin">${spunToday?esc(C(S.spun.id).name):'Spin to find today’s career'}</div>
+      <p class="muted small">${spunToday?'Open it, read up, and add it to your collection. New spin tomorrow.':'+10 XP for your first spin each day.'}</p></div>
+      <button class="btn primary" data-act="${spunToday?'open':'spin'}" ${spunToday?`data-id="${S.spun.id}"`:''}>${spunToday?'Open':'Spin'}</button></div>
+    <div class="card stack">
+      <div><h2>Every path counts</h2><p class="muted small" style="margin-top:2px">${CAREERS.length} careers in this preview. College is one path; here are the rest too.${q?` Showing results for “${esc(S.q)}”.`:''}</p></div>
+      <div class="filters"><button class="chip ${S.filterC==='all'?'on':''}" data-act="fc" data-v="all">All areas</button>${CL_KEYS.map(k=>`<button class="chip ${S.filterC===k?'on':''}" data-act="fc" data-v="${k}">${CLUSTERS[k].name}</button>`).join('')}</div>
+      ${young(S.band)?'':`<div class="filters"><span class="eyebrow" style="align-self:center;margin-right:4px">How you get there:</span><button class="chip ${S.filterP==='all'?'on':''}" data-act="fp" data-v="all">Any</button>${pathsAll.map(p=>`<button class="chip ${S.filterP===p?'on':''}" data-act="fp" data-v="${p}">${p}</button>`).join('')}</div>`}
+    </div>
+    <div class="grid careers">${list.map(c=>`<button class="ccard" data-act="open" data-id="${c.id}" style="--c:${cc(c.c)}">
+      ${S.stamps.includes(c.id)?`<span class="stamped">${svg('check')}Collected</span>`:''}
+      <div class="band"></div><div class="ico">${svg(c.c)}</div>
+      <div class="in"><h3>${esc(c.name)}</h3><p>${esc(young(S.band)?c.kid:(c.teen.match(/^[^.]*\./)||[c.teen])[0])}</p>
+      <div class="tags">${c.paths.slice(0,2).map(p=>`<span class="chip tag">${p}</span>`).join('')}</div></div></button>`).join('') || '<div class="card empty" style="grid-column:1/-1">No careers match. Try “All areas” or “Any”.</div>'}</div>`;
+}
+function careerModal(id){
+  const c = C(id), cl = CLUSTERS[c.c], yb = young(S.band);
+  const bandOrder = [['k2','K–2'],['g35','3–5'],['g68','6–8'],['g912','9–12']];
+  const saved = S.saved.includes(id);
+  const pro = PROS.find(p=>p.c===c.c);
+  return `<div class="scrim" data-act="close"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt" data-stop style="--c:${cc(c.c)}">
+    <div class="band"><button class="x" data-act="close" aria-label="Close">${svg('x')}</button></div>
+    <div class="modal-top">${ico(c.c,'lg')}<h2 id="mt">${esc(c.name)}</h2><span class="muted small">${cl.name}${yb?'':` · SOC ${c.soc}`}</span></div>
+    <div class="modal-body">
+      <div class="row">
+        ${S.role==='kid'?(S.stamps.includes(id)?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}In your collection</span>`:`<button class="btn primary" data-act="stamp" data-id="${id}">${svg('plus')}Add to collection · +10 XP</button>`):''}
+        <button class="btn ${saved?'':'outline'}" data-act="save" data-id="${id}">${svg('heart')}${saved?'Saved':'Save'}</button>
+        <button class="btn ghost" data-act="reader">${svg('book')}Books about this job</button>
+      </div>
+      <p style="font-size:1rem">${esc(yb?c.kid:c.teen)}</p>
+      <div class="facts">
+        <div class="fact"><span>Training</span><b>${esc(c.train)}</b></div>
+        ${yb?'':`<div class="fact"><span>Typical pay</span><b>${c.pay?`About $${c.pay}k a year`:'Varies a lot'}</b></div>`}
+        <div class="fact"><span>Ways in</span><b>${c.paths.join(' · ')}</b></div>
+      </div>
+      <div><h3 style="font-size:.9rem;margin-bottom:8px">Tools you’d use</h3><div class="row" style="gap:6px">${c.tools.map(t=>`<span class="chip tag">${esc(t)}</span>`).join('')}</div></div>
+      <div><h3 style="font-size:.9rem;margin-bottom:6px">Start now</h3><div class="startnow">${bandOrder.map(([k,l])=>`<div class="${k===S.band?'me':''}"><b>${l}</b><span>${esc(cl.start[k])}</span></div>`).join('')}</div></div>
+      ${pro && !yb ? `<div class="card" style="box-shadow:0 0 0 1px var(--line)">${proRow(pro)}</div>`:''}
+      ${!yb && S.role==='kid'?`<div class="stack" style="gap:8px"><h3 style="font-size:.9rem">Ask a verified ${esc(c.name.toLowerCase())}</h3><div class="row" style="flex-wrap:nowrap"><input type="text" id="askQ" maxlength="140" placeholder="Do you need to be good at math?"><button class="btn primary" data-act="ask" data-id="${id}">Ask</button></div><span class="muted small">Your teacher checks questions first. Pros answer in public, never in private.</span></div>`:''}
+      ${yb?'':`<p class="muted" style="font-size:.74rem">Pay is an approximate U.S. median from the Bureau of Labor Statistics and will be live-linked at launch.</p>`}
+    </div></div></div>`;
+}
+
+/* ================= QUESTS ================= */
+function viewQuests(){
+  const qs = QUESTS[S.band];
+  const doneN = qs.filter(q=>S.quests[q.id]?.done).length;
+  return `<div class="card"><div class="card-h" style="margin:0"><div><h2>This week’s quests</h2><p class="muted small" style="margin-top:2px">Real things you do off the screen. Check off the steps, then share it with your class.</p></div><span class="chip tag tnum">${doneN}/${qs.length} done</span></div></div>
+  <div class="grid quests">${qs.map(q=>{
+    const st = S.quests[q.id] || {steps:q.steps.map(()=>false), done:false};
+    const all = st.steps.every(Boolean);
+    return `<div class="card quest">
+      <div class="row" style="flex-wrap:nowrap">${ico(q.c,'sm')}<div style="min-width:0;flex:1"><h3>${esc(q.title)}</h3><span class="muted small">${CLUSTERS[q.c].name}</span></div><span class="xp">+${q.xp} XP</span></div>
+      <div class="steps">${q.steps.map((s,i)=>`<button class="step" data-act="step" data-id="${q.id}" data-i="${i}" aria-pressed="${!!st.steps[i]}" ${st.done?'disabled':''}><span class="box">${st.steps[i]?svg('check'):''}</span><span>${esc(s)}</span></button>`).join('')}</div>
+      <div class="row">${st.done?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}Complete</span>${young(S.band)?'':`<button class="btn outline sm" data-act="sharequest" data-id="${q.id}">Share it</button>`}`
+        : `${q.reader?`<button class="btn sm" data-act="reader">${svg('book')}Open Reader</button>`:''}<button class="btn primary sm" data-act="complete" data-id="${q.id}" ${all?'':'disabled'}>Complete quest</button>`}</div>
+    </div>`}).join('')}</div>`;
+}
+
+/* ================= EVENTS ================= */
+function eventList(){
+  const own = S.hosted.filter(e=>e.bands.includes(S.band));
+  return [...own, ...EVENTS.filter(e=>e.bands.includes(S.band))].sort((a,b)=>a.date.localeCompare(b.date));
+}
+function viewEvents(){
+  const evs = eventList();
+  const host = S.role==='teacher' ? `<div class="card stack"><h2>Host an event</h2>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+      <label class="f">Title<input type="text" id="evT" placeholder="Shadow a Welder Day"></label>
+      <label class="f">Date<input type="date" id="evD" value="2026-11-02"></label>
+      <label class="f">Career area<select id="evC">${CL_KEYS.map(k=>`<option value="${k}">${CLUSTERS[k].name}</option>`).join('')}</select></label>
+      <label class="f">Format<select id="evF"><option>In class</option><option>Live video</option><option>Field trip</option><option>Families · In person</option></select></label>
+    </div><div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="host">${svg('plus')}Publish to grades ${B().label}</button></div></div>` : '';
+  return `${host}<div class="card"><div class="card-h"><div><h2>Events</h2><p class="muted small" style="margin-top:2px">Hosted by verified teachers, counselors, and background-checked pros.</p></div></div>
+    ${evs.map(e=>{
+      const d = fmtDate(e.date), st = S.rsvp[e.id], going = e.going + (st==='going'?1:0), full = going>=e.seats && st!=='going';
+      let action='';
+      if (S.role==='kid'){
+        if (young(S.band)) action = st==='going'?`<span class="chip pill-ok">You’re going</span>`:st==='requested'?`<span class="chip pill-wait">Asked my grown-up</span>`:`<button class="btn outline sm" data-act="rsvp" data-id="${e.id}">Ask my grown-up</button>`;
+        else action = st==='going'?`<button class="btn ok sm" data-act="rsvp" data-id="${e.id}">${svg('check')}Attending</button>`:`<button class="btn outline sm" data-act="rsvp" data-id="${e.id}" ${full?'disabled':''}>${full?'Full':'Attend'}</button>`;
+      } else if (S.role==='parent'){
+        action = st==='requested'?`<button class="btn primary sm" data-act="approve-rsvp" data-id="${e.id}">Approve ${esc(B().kid.first)}’s request</button>`:st==='going'?`<span class="chip pill-ok">${esc(B().kid.first)} is going</span>`:`<button class="btn outline sm" data-act="rsvp-parent" data-id="${e.id}">Sign ${esc(B().kid.first)} up</button>`;
+      } else action = e.mine?`<span class="chip pill-ok">You’re hosting</span>`:`<button class="btn outline sm" data-act="assign">Share with class</button>`;
+      return `<div class="event"><div class="date"><div class="m">${d.m}</div><div class="d">${d.d}</div><div class="w">${d.w}</div></div>
+        <div style="min-width:0"><h3>${esc(e.title)}</h3><p class="muted small" style="margin-top:2px;display:flex;gap:5px;align-items:center;flex-wrap:wrap">${esc(e.host)} ${tick}</p>
+        <div class="meta"><span class="chip tag">${e.time}</span><span class="chip tag">${esc(e.fmt)}</span><span class="chip cl" style="--c:${cc(e.c)}">${CLUSTERS[e.c].name}</span></div>
+        <div class="actions">${action}<span class="seats tnum">${going} of ${e.seats} spots taken</span></div></div></div>`;
+    }).join('')}</div>`;
+}
+
+/* ================= PROFILE ================= */
+function viewPassport(){
+  const k = B().kid, yb = young(S.band);
+  const byC = CL_KEYS.map(x=>({k:x, n:S.stamps.filter(id=>C(id).c===x).length})).sort((a,b)=>b.n-a.n);
+  const max = Math.max(1, ...byC.map(x=>x.n));
+  const done = Object.entries(S.quests).filter(([id,q])=>q.done).map(([id])=>Object.values(QUESTS).flat().find(q=>q.id===id)).filter(Boolean);
+  const top = topClusters(2);
+  return `<div class="card flush prof"><div class="cover tall"></div><div class="head">${av(k.name,'xl')}
+      <h1>${esc(k.name)}</h1><p class="hl">${esc(kidHeadline())}</p>
+      <p class="loc">${esc(B().crew)} · Level ${level()+1} ${LEVELS[Math.min(level(),LEVELS.length-1)]} · <a href="#" data-act="tab" data-v="passport">${S.follows.length} following</a></p>
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="tab" data-v="explore">${svg('plus')}Add careers</button><button class="btn outline" data-act="shareprof">Share with family</button></div>
+      ${yb?'':`<div class="open-to"><b>Open to</b><span>${top.length?`Job shadows and summer programs in ${top.join(' and ')}`:'Job shadows, summer programs, and club invites'}</span></div>`}
+    </div></div>
+    <div class="card"><h2 style="margin-bottom:10px">About</h2><p>${top.length?`Exploring ${top.join(' and ').toLowerCase()} so far. ${S.streak}-day streak, ${S.xp} XP, and ${S.stamps.length} careers collected.`:'Just getting started.'}</p></div>
+    <div class="card"><div class="card-h"><h2>Collection</h2><span class="muted small tnum">${S.stamps.length} of ${CAREERS.length}</span></div>
+      <div class="stamps">${CAREERS.map(c=>{const got=S.stamps.includes(c.id);return `<button class="stamp ${got?'got':''}" data-act="open" data-id="${c.id}"><div class="ico" style="--c:${cc(c.c)}">${svg(got?c.c:'lock')}</div><span>${esc(c.name)}</span></button>`}).join('')}</div></div>
+    <div class="card"><h2 style="margin-bottom:12px">Quests completed</h2>${done.length?done.map(q=>`<div class="list-item">${ico(q.c,'sm')}<div><b>${esc(q.title)}</b><span>${CLUSTERS[q.c].name} · +${q.xp} XP</span></div></div>`).join(''):`<p class="muted">No quests finished yet. <a href="#" data-act="tab" data-v="quests">Start one</a>.</p>`}</div>
+    <div class="grid two">
+      <div class="card"><h2 style="margin-bottom:12px">Interests</h2><div class="cbars">${byC.slice(0,5).map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${CLUSTERS[x.k].name}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div></div>
+      <div class="card"><h2 style="margin-bottom:12px">Badges</h2><div class="badges">${BADGES.map(b=>`<div class="badge ${b.test(S)?'':'locked'}"><i>${svg(b.test(S)?'star':'lock')}</i>${b.name}</div>`).join('')}</div></div>
+    </div>`;
+}
+
+/* ================= PATHS ================= */
+function viewPaths(){
+  const g = parseInt(B().kid.grade.replace(/\D/g,''),10);
+  const rows = [
+    ['4-year college','4 years','~$11.6k/yr tuition (public, in-state)','Some, through work-study','Teacher, engineer, nurse (BSN)'],
+    ['Community college','2 years','~$4k/yr tuition','Often, part-time','Nurse (ADN), dental hygienist, vet tech'],
+    ['Apprenticeship','3–5 years','Usually little or none','Yes, paid from day one','Electrician, plumber, carpenter'],
+    ['Military','4+ year commitment','None; you are paid','Yes, plus training','Mechanic, medic, cyber, pilot'],
+    ['Trade / certificate','Weeks to 2 years','Varies widely','Sometimes','Welder, HVAC, EMT, stylist'],
+    ['Start working','Right away','None','Yes','Line cook, farm hand, retail management']
+  ];
+  return `<div class="card"><h2>Six ways to launch</h2><p class="muted small" style="margin:2px 0 12px">None of these is the “backup plan.” Compare them side by side.</p>
+  <div class="table-wrap"><table><thead><tr><th>Path</th><th>Time</th><th>Cost</th><th>Earn while you learn?</th><th>Examples</th></tr></thead>
+  <tbody>${rows.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td class="muted">${r[4]}</td></tr>`).join('')}</tbody></table></div>
+  <p class="muted" style="font-size:.74rem;margin-top:10px">Tuition figures are approximate national averages (College Board, 2024–25). Confirm locally.</p></div>
+  <div class="grid two">
+    <div class="card"><h2 style="margin-bottom:12px">Your roadmap</h2><div class="road">${(S.role==='parent'?ROAD:ROAD.filter(r=>r.g>=Math.max(6,g-1))).map(r=>`<div class="road-g ${r.g===g?'now':''}"><span class="gnum">${r.g}</span><div class="items">${r.items.map((it,i)=>{const key=r.g+'-'+i, on=!!S.road[key];return `<button class="step" data-act="road" data-v="${key}" aria-pressed="${on}"><span class="box">${on?svg('check'):''}</span><span>${esc(it)}</span></button>`}).join('')}</div></div>`).join('')}</div></div>
+    <div class="card"><h2>Scholarships and aid</h2><p class="muted small" style="margin:2px 0 6px">Deadlines change every year, so check each program’s site.</p>
+      <div>${SCHOLARSHIPS.map(s=>`<div class="sch">${ico('star','sm').replace('--c:var(--star)','--c:var(--sun)')}<div style="min-width:0"><b>${esc(s.name)}</b><span class="muted small">${esc(s.for)}</span></div><a class="btn outline sm" href="${s.url}" target="_blank" rel="noopener">Visit</a></div>`).join('')}</div></div>
+  </div>`;
+}
+
+/* ================= PARENT ================= */
+function viewOverview(){
+  const k = B().kid;
+  const reqs = Object.entries(S.rsvp).filter(([id,v])=>v==='requested').map(([id])=>[...EVENTS,...S.hosted].find(e=>e.id===id)).filter(Boolean);
+  const byC = CL_KEYS.map(x=>({k:x, n:S.stamps.filter(id=>C(id).c===x).length + S.saved.filter(id=>C(id).c===x).length})).sort((a,b)=>b.n-a.n).slice(0,4);
+  const max = Math.max(1,...byC.map(x=>x.n));
+  const last = C(S.stamps[S.stamps.length-1]||'plumber');
+  const starters = [
+    `“You added ${last.name} to your collection. What part of that job sounded fun, and what sounded hard?”`,
+    `“If you could shadow any grown-up for one day, who would it be?”`,
+    young(S.band)?`“What do you want to build, fix, or help with when you grow up?”`:`“Which path in the comparison surprised you most?”`
+  ];
+  return `<div class="card"><span class="eyebrow">${esc(k.first)}’s week</span><h1 style="margin-top:4px">${esc(k.first)} explored ${S.stamps.length} careers and kept a ${S.streak}-day streak.</h1>
+    <div class="statgrid"><div><b class="tnum">${S.xp}</b><span>Total XP</span></div><div><b class="tnum">${Object.values(S.quests).filter(q=>q.done).length}</b><span>Quests done</span></div><div><b class="tnum">${S.daily.xp}</b><span>XP today</span></div><div><b>${S.settings.limit} min</b><span>Daily limit</span></div></div></div>
+  ${reqs.length?`<div class="card stack" style="box-shadow:0 0 0 2px var(--sun)"><h3>Needs your OK</h3>${reqs.map(e=>`<div class="row" style="justify-content:space-between"><span>${esc(k.first)} wants to go to <b>${esc(e.title)}</b></span><button class="btn primary sm" data-act="approve-rsvp" data-id="${e.id}">Approve</button></div>`).join('')}</div>`:''}
+  <div class="grid two">
+    <div class="card"><h2 style="margin-bottom:12px">Where ${esc(k.first)} is leaning</h2><div class="cbars">${byC.map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${CLUSTERS[x.k].name}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div><p class="muted small" style="margin-top:10px">Based on careers collected and saved.</p></div>
+    <div class="card stack"><h2>Dinner-table starters</h2>${starters.map(s=>`<div class="starter">${esc(s)}</div>`).join('')}</div>
+  </div>
+  <div class="card"><h2 style="margin-bottom:8px">Coming up for grades ${B().label}</h2>${eventList().slice(0,3).map(e=>{const d=fmtDate(e.date);return `<div class="kv2"><span>${esc(e.title)}</span><span class="muted tnum">${d.m} ${d.d}</span></div>`}).join('')}<button class="btn sm" data-act="tab" data-v="events" style="margin-top:10px">All events</button></div>`;
+}
+function viewSafety(){
+  const s = S.settings, k = B().kid;
+  const opt = (key, vals) => `<div class="filters">${vals.map(([v,l])=>`<button class="chip ${s[key]==v?'on':''}" data-act="set" data-k="${key}" data-v="${v}">${l}</button>`).join('')}</div>`;
+  return `<div class="card"><h2 style="margin-bottom:14px">${esc(k.first)}’s privacy and safety</h2>
+    <div class="setting"><b>Who can see ${esc(k.first)}’s posts</b>${opt('scope',[['class','Class only'],['grade','Whole grade'],['school','Whole school']])}</div>
+    <div class="setting"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><b>Ask-a-Pro questions</b><p class="muted small">Teacher-checked and answered publicly. Never private.</p></div><button class="toggle" data-act="toggle" data-k="ask" aria-pressed="${s.ask}" aria-label="Ask-a-Pro questions"></button></div></div>
+    <div class="setting"><b>Daily time limit</b>${opt('limit',[[30,'30 min'],[45,'45 min'],[60,'60 min']])}<p class="muted small">When time is up, Arise Social suggests an off-screen quest instead.</p></div>
+    <div class="setting"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><b>Weekly summary email</b><p class="muted small">Quests, careers, and conversation starters every Sunday.</p></div><button class="toggle" data-act="toggle" data-k="weekly" aria-pressed="${s.weekly}" aria-label="Weekly summary email"></button></div></div>
+  </div>
+  <div class="card"><h2 style="margin-bottom:10px">Always on</h2>
+    ${['No private messages between kids, or between kids and adults','Every adult is a verified teacher or background-checked pro','Kids show first name and last initial only','A teacher approves posts and questions first','No ads, and kids’ data is never sold','Parent approval required for accounts under 13 (COPPA)'].map(t=>`<div class="list-item" style="align-items:center">${svg('check','style="width:18px;height:18px;color:var(--leaf);flex:none"')}<span style="color:var(--fg);font-size:.9rem">${t}</span></div>`).join('')}
+  </div>`;
+}
+
+/* ================= TEACHER ================= */
+function viewClass(){
+  const pend = S.pending.filter(p=>p.band===S.band).length;
+  const counts = CL_KEYS.map((k,i)=>({k,n:[14,6,9,11,5,8,12,4,7][i]})).sort((a,b)=>b.n-a.n);
+  const max = counts[0].n;
+  return `<div class="card"><span class="eyebrow">${esc(B().kid.school)} · Grades ${B().label}</span><h1 style="margin-top:4px">24 students, 61 quests done this week</h1>
+    <div class="statgrid"><div><b class="tnum">21</b><span>Active this week</span></div><div><b class="tnum">${pend}</b><span>Waiting for you</span></div><div><b class="tnum">${eventList().length}</b><span>Upcoming events</span></div></div>
+    ${pend?`<button class="btn primary" style="margin-top:14px" data-act="tab" data-v="approvals">Review ${pend} item${pend>1?'s':''}</button>`:''}</div>
+  <div class="grid two">
+    <div class="card"><h2 style="margin-bottom:12px">What your class is exploring</h2><div class="cbars">${counts.slice(0,6).map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${CLUSTERS[x.k].name}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div><p class="muted small" style="margin-top:10px">Sample class data. Use it to pick your next guest speaker.</p></div>
+    <div class="card"><h2 style="margin-bottom:8px">Assign a quest</h2>${QUESTS[S.band].map(q=>`<div class="list-item" style="align-items:center">${ico(q.c,'sm')}<b style="flex:1;min-width:0">${esc(q.title)}</b><button class="btn outline sm" data-act="assign">Assign</button></div>`).join('')}</div>
+  </div>`;
+}
+function viewApprovals(){
+  const list = S.pending.filter(p=>p.band===S.band);
+  return `<div class="card"><h2>Approvals</h2><p class="muted small" style="margin-top:2px">Kids’ posts and questions for pros land here first. Try it: switch to Kid, post a win, then come back.</p></div>
+  ${list.length?list.map(p=>`<div class="card stack"><div class="post-head" style="padding:0">${av(p.who)}<div class="who"><b>${esc(p.who)}</b><span class="hl">${p.kind==='question'?`Question for a verified ${esc(C(p.careerId).name.toLowerCase())}`:'Post to class'} · just now</span></div></div>
+    ${p.text?`<p>${esc(p.text)}</p>`:''}${p.proof?`<span class="chip cl" style="--c:${cc(p.proof.c)};align-self:flex-start">Quest: ${esc(p.proof.q)}</span>`:''}
+    <div class="row"><button class="btn ok sm" data-act="approve" data-id="${p.id}">${svg('check')}Approve</button><button class="btn sm" data-act="reject" data-id="${p.id}">Send back</button></div></div>`).join('')
+  : `<div class="card empty">You’re all caught up.</div>`}`;
+}
+
+const VIEWS = {feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, passport:viewPassport, paths:viewPaths, overview:viewOverview, safety:viewSafety, class:viewClass, approvals:viewApprovals};
+
+function render(){
+  renderChrome();
+  document.getElementById('main').innerHTML = VIEWS[S.tab]();
+  document.getElementById('left').innerHTML = leftHTML();
+  document.getElementById('rail').innerHTML = railHTML();
+  save();
+}
+
+/* ================= ACTIONS ================= */
+let modalId = null;
+function openModal(id){ modalId=id; document.getElementById('modalRoot').innerHTML = careerModal(id); document.querySelector('.modal .x')?.focus(); }
+function closeModal(){ modalId=null; document.getElementById('modalRoot').innerHTML=''; }
+function refreshModal(){ if(modalId) document.getElementById('modalRoot').innerHTML = careerModal(modalId); }
+let toastT;
+function toast(msg){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; document.body.appendChild(t);
+  clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2600);
+}
+const uid = () => 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+document.getElementById('q').addEventListener('input', e=>{
+  S.q = e.target.value; if (S.tab!=='explore'){ S.tab='explore'; render(); e.target.focus(); }
+  else document.getElementById('main').innerHTML = viewExplore();
+});
+
+document.addEventListener('click', e=>{
+  const el = e.target.closest('[data-act]'); if(!el) return;
+  if (el.dataset.act==='close' && e.target.closest('[data-stop]') && !e.target.closest('.x')) return;
+  if (el.tagName==='A') e.preventDefault();
+  const a = el.dataset.act, v = el.dataset.v, id = el.dataset.id;
+  switch(a){
+    case 'role': S.role=v; S.tab=tabs()[0][0]; S.composeOpen=false; render(); window.scrollTo(0,0); break;
+    case 'band': S.band=v; S.composeOpen=false; render(); break;
+    case 'tab': S.tab=v; closeModal(); render(); window.scrollTo(0,0); break;
+    case 'scope': S.feedScope=v; render(); break;
+    case 'fc': S.filterC=v; render(); break;
+    case 'fp': S.filterP=v; render(); break;
+    case 'open': openModal(id); break;
+    case 'close': closeModal(); break;
+    case 'compose': S.composeOpen=!S.composeOpen; render(); if(S.composeOpen) (document.getElementById('cText')||document.getElementById('cStart'))?.focus(); break;
+    case 'follow': S.follows = S.follows.includes(id)?S.follows.filter(x=>x!==id):[...S.follows,id]; toast(S.follows.includes(id)?`Following ${PROS.find(p=>p.id===id).name}`:'Unfollowed'); refreshModal(); render(); break;
+    case 'stamp': if(!S.stamps.includes(id)){ S.stamps.push(id); addXP(10,'Added to collection'); burst(); } refreshModal(); render(); break;
+    case 'save': S.saved = S.saved.includes(id)?S.saved.filter(x=>x!==id):[...S.saved,id]; toast(S.saved.includes(id)?'Saved':'Removed from saved'); refreshModal(); render(); break;
+    case 'reader': toast('Opens A.R.I.S.E. Reader’s career book shelf'); break;
+    case 'shareprof': toast(`${B().kid.first}’s profile shared with family`); break;
+    case 'ask': {
+      const q = document.getElementById('askQ'); const t=(q?.value||'').trim();
+      if(!S.settings.ask){ toast('A parent turned off Ask-a-Pro'); break; }
+      if(!t){ toast('Type a question first'); q?.focus(); break; }
+      S.pending.push({id:uid(), band:S.band, author:'kid', kind:'question', careerId:id, who:B().kid.name, role:'kid', scope:'class', ago:'just now', text:t, r:{}});
+      q.value=''; toast(`Sent to ${B().teacher} to check`); save(); break;
+    }
+    case 'spin': spin(); break;
+    case 'react': if(S.role!=='kid'){ toast('Reactions are for students in this preview'); break; } S.reacts[id] = S.reacts[id]===v ? undefined : v; render(); break;
+    case 'post': {
+      let text='', proof=null;
+      if (young(S.band)){ const c=C(document.getElementById('cCareer').value); text=`${document.getElementById('cStart').value} ${c.name.toLowerCase()}!`; }
+      else {
+        text=(document.getElementById('cText').value||'').trim(); const qid=document.getElementById('cQuest').value;
+        if(qid){ const q=QUESTS[S.band].find(x=>x.id===qid); proof={q:q.title, c:q.c}; }
+        if(!text && !proof){ toast('Write something or attach a quest'); break; }
+      }
+      S.pending.push({id:uid(), band:S.band, author:'kid', kind:'post', who:B().kid.name, role:'kid', scope:S.settings.scope==='class'?'class':'school', ago:'just now', text, proof, r:{}});
+      S.composeOpen=false; toast(`Sent to ${B().teacher} for a quick check`); render(); break;
+    }
+    case 'sharequest': {
+      const q=QUESTS[S.band].find(x=>x.id===id);
+      S.pending.push({id:uid(), band:S.band, author:'kid', kind:'post', who:B().kid.name, role:'kid', scope:'class', ago:'just now', text:'', proof:{q:q.title,c:q.c}, r:{}});
+      toast(`Sent to ${B().teacher} for a quick check`); S.tab='feed'; render(); window.scrollTo(0,0); break;
+    }
+    case 'step': {
+      const q=QUESTS[S.band].find(x=>x.id===id); const st=S.quests[id]||{steps:q.steps.map(()=>false),done:false};
+      st.steps[+el.dataset.i]=!st.steps[+el.dataset.i]; S.quests[id]=st; render(); break;
+    }
+    case 'complete': {
+      const q=QUESTS[S.band].find(x=>x.id===id); const st=S.quests[id]; if(!st||!st.steps.every(Boolean)) break;
+      st.done=true; addXP(q.xp, q.title); burst(); render(); break;
+    }
+    case 'rsvp': {
+      if (young(S.band)){ S.rsvp[id]='requested'; toast('Sent to your grown-up'); }
+      else { S.rsvp[id] = S.rsvp[id]==='going'?undefined:'going'; if(S.rsvp[id]==='going') addXP(15,'Signed up for an event'); }
+      render(); break;
+    }
+    case 'approve-rsvp': S.rsvp[id]='going'; toast(`${B().kid.first} is going`); render(); break;
+    case 'rsvp-parent': S.rsvp[id]='going'; toast(`${B().kid.first} is signed up`); render(); break;
+    case 'host': {
+      const t=document.getElementById('evT').value.trim(); if(!t){ toast('Add a title first'); document.getElementById('evT').focus(); break; }
+      S.hosted.push({id:uid(), bands:[S.band], title:t, host:B().teacher, hostType:'teacher', date:document.getElementById('evD').value||'2026-11-02', time:'10:00 AM', fmt:document.getElementById('evF').value, seats:30, going:0, c:document.getElementById('evC').value, mine:true});
+      toast('Published. Families get a notice.'); render(); break;
+    }
+    case 'approve': {
+      const i=S.pending.findIndex(p=>p.id===id); if(i<0) break; const p=S.pending.splice(i,1)[0];
+      if(p.kind==='post') S.myPosts.push({...p, ago:'just now', status:'live'});
+      toast(p.kind==='post'?'Approved. It’s live in the class space.':'Sent to a verified pro to answer'); render(); break;
+    }
+    case 'reject': S.pending=S.pending.filter(p=>p.id!==id); toast('Sent back with a note'); render(); break;
+    case 'assign': toast('Shared with your class'); break;
+    case 'road': S.road[v]=!S.road[v]; render(); break;
+    case 'set': S.settings[el.dataset.k] = isNaN(+v)?v:+v; render(); break;
+    case 'toggle': S.settings[el.dataset.k] = !S.settings[el.dataset.k]; render(); break;
+  }
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalId) closeModal(); });
+
+function spin(){
+  const win=document.getElementById('spinWin'); const btn=document.querySelector('[data-act="spin"]'); if(!win||!btn) return;
+  btn.disabled=true; win.classList.add('rolling');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const pick = CAREERS[Math.floor(Math.random()*CAREERS.length)];
+  let n=0, total=reduce?1:18;
+  const tick=()=>{ n++; win.textContent = n<total ? CAREERS[Math.floor(Math.random()*CAREERS.length)].name : pick.name;
+    if(n<total) setTimeout(tick, 40+n*9); else { win.classList.remove('rolling'); S.spun={date:today,id:pick.id}; addXP(10,'Daily spin'); render(); openModal(pick.id); } };
+  tick();
+}
+
+function burst(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=document.getElementById('confetti'), ctx=cv.getContext('2d'); cv.width=innerWidth; cv.height=innerHeight;
+  const cols=['#3f3bd6','#6d4fd8','#ffb23f','#ef5a45','#1e9e62'];
+  const ps=Array.from({length:70},()=>({x:innerWidth/2,y:innerHeight*0.45,vx:(Math.random()-.5)*14,vy:-Math.random()*12-4,s:Math.random()*6+4,c:cols[Math.floor(Math.random()*cols.length)],r:Math.random()*6,vr:(Math.random()-.5)*.3}));
+  let f=0; (function loop(){ ctx.clearRect(0,0,cv.width,cv.height); ps.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(0,0,p.s/2,0,Math.PI*2);ctx.fill();ctx.restore();}); if(++f<80) requestAnimationFrame(loop); else ctx.clearRect(0,0,cv.width,cv.height); })();
+}
+
+render();
+</script>
+
+</body>
+</html>
