@@ -2,10 +2,10 @@
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
-export const FAMILY_SECTIONS = ["home", "tasks", "chores", "calendar", "behavior", "polls", "trips", "money", "notes", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "chores", "calendar", "behavior", "health", "polls", "trips", "money", "notes", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["chores", "calendar", "behavior", "polls", "trips", "money", "notes"];
+export const TOGGLEABLE: readonly FamilySection[] = ["chores", "calendar", "behavior", "health", "polls", "trips", "money", "notes"];
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
 export type Chore = { id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number };
@@ -34,6 +34,18 @@ export type Bill = { id: string; name: string; amount: number; dueDay: number; c
 export type BudgetCategory = { id: string; name: string; limit: number };
 export type Expense = { id: string; categoryId: string; amount: number; date: string; note: string };
 export type Note = { id: string; title: string; body: string; color: string; pinned: boolean; updatedAt: string };
+/* Food & fitness. Adults get calories, macros and weight; kids get healthy habits only. */
+export type Meal = "breakfast" | "lunch" | "dinner" | "snacks";
+export const MEALS: Meal[] = ["breakfast", "lunch", "dinner", "snacks"];
+export type FoodEntry = { id: string; memberId: string; date: string; meal: Meal; name: string; servings: number; calories: number; protein: number; carbs: number; fat: number };
+export type ExerciseEntry = { id: string; memberId: string; date: string; name: string; minutes: number; calories: number };
+export type DayEntry = { id: string; memberId: string; date: string; water: number; steps: number; fruitVeg: number };
+export type WeightEntry = { id: string; memberId: string; date: string; weight: number };
+export type SavedFood = { id: string; name: string; serving: string; calories: number; protein: number; carbs: number; fat: number };
+export type HealthGoals = { calories: number; proteinPct: number; carbsPct: number; fatPct: number; water: number; steps: number; goalWeight: number; activeMinutes: number; fruitVeg: number };
+export type Health = { goals: Record<string, HealthGoals>; food: FoodEntry[]; exercise: ExerciseEntry[]; days: DayEntry[]; weights: WeightEntry[]; foods: SavedFood[] };
+export const emptyHealth = (): Health => ({ goals: {}, food: [], exercise: [], days: [], weights: [], foods: [] });
+
 export type Layers = { tasks: boolean; bills: boolean; trips: boolean; chores: boolean };
 
 export type Family = {
@@ -55,6 +67,7 @@ export type Family = {
   expenses: Expense[];
   income: number;
   notes: Note[];
+  health: Health;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -84,7 +97,7 @@ export const emptyFamily = (): Family => ({
   members: [], sections: {}, layers: { tasks: true, bills: true, trips: true, chores: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
-  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [],
+  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(),
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -106,23 +119,24 @@ const clock = (v: unknown) => (typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\
 const color = (v: unknown, fallback: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : fallback);
 const oneOf = <T extends string>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
 const id = (v: unknown) => str(v, 100);
-/** Keeps the first `max` rows that clean up with an id, without repeating an id. */
-function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Record<string, any>) => T | null): T[] {
+/** Keeps up to `max` rows that clean up with an id, without repeating an id: the first ones,
+ *  or for logs (`newest`) the most recent ones, since logs grow at the end. */
+function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Record<string, any>) => T | null, newest = false): T[] {
   if (!Array.isArray(v)) return [];
   const seen = new Set<string>();
   const out: T[] = [];
-  for (const raw of v) {
-    if (out.length >= max) break;
+  for (const raw of newest ? v.slice(-max * 2) : v) {
+    if (!newest && out.length >= max) break;
     const r = obj(raw);
     const row = r && clean(r);
     if (!row || !row.id || seen.has(row.id)) continue;
     seen.add(row.id);
     out.push(row);
   }
-  return out;
+  return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -165,11 +179,11 @@ export function cleanFamily(input: unknown): Family {
     choreDone: rows(raw.choreDone, LIMITS.choreDone, (r) => {
       const date = day(r.date);
       return date && r.choreId ? { id: id(r.id), choreId: id(r.choreId), date, memberId: id(r.memberId), points: int(r.points, 0, 100) } : null;
-    }),
+    }, true),
     behavior: rows(raw.behavior, LIMITS.behavior, (r) => {
       const date = day(r.date);
       return date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, points: int(r.points, -100, 100), note: str(r.note, 200) } : null;
-    }),
+    }, true),
     rewards: Array.isArray(raw.rewards)
       ? rows(raw.rewards, LIMITS.rewards, (r) => {
         const title = str(r.title, 80).trim();
@@ -179,7 +193,7 @@ export function cleanFamily(input: unknown): Family {
     redemptions: rows(raw.redemptions, LIMITS.redemptions, (r) => {
       const date = day(r.date);
       return date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), title: str(r.title, 80), cost: int(r.cost, 0, 10_000), date } : null;
-    }),
+    }, true),
     calendars,
     events: rows(raw.events, LIMITS.events, (r) => {
       const title = str(r.title, 120).trim();
@@ -231,12 +245,54 @@ export function cleanFamily(input: unknown): Family {
     expenses: rows(raw.expenses, LIMITS.expenses, (r) => {
       const date = day(r.date);
       return date ? { id: id(r.id), categoryId: id(r.categoryId), amount: num(r.amount, 0, 10_000_000), date, note: str(r.note, 120) } : null;
-    }),
+    }, true),
     income: num(raw.income, 0, 100_000_000),
     notes: rows(raw.notes, LIMITS.notes, (r) => {
       const title = str(r.title, 120);
       const body = str(r.body, 5000);
       return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40) } : null;
+    }),
+    health: cleanHealth(raw.health),
+  };
+}
+
+export function cleanHealth(input: unknown): Health {
+  const raw = obj(input);
+  if (!raw) return emptyHealth();
+  const goals: Record<string, HealthGoals> = {};
+  for (const [memberId, g] of Object.entries(obj(raw.goals) || {}).slice(0, LIMITS.members)) {
+    const r = obj(g);
+    if (!r || !memberId || memberId.length > 100) continue;
+    goals[memberId] = {
+      calories: int(r.calories, 0, 10000, 2000), proteinPct: int(r.proteinPct, 0, 100, 20), carbsPct: int(r.carbsPct, 0, 100, 50), fatPct: int(r.fatPct, 0, 100, 30),
+      water: int(r.water, 0, 40, 8), steps: int(r.steps, 0, 100000, 8000), goalWeight: num(r.goalWeight, 0, 1500), activeMinutes: int(r.activeMinutes, 0, 600, 60), fruitVeg: int(r.fruitVeg, 0, 20, 5),
+    };
+  }
+  const nutrition = (r: Record<string, any>) => ({ calories: num(r.calories, 0, 20000), protein: num(r.protein, 0, 2000), carbs: num(r.carbs, 0, 2000), fat: num(r.fat, 0, 2000) });
+  return {
+    goals,
+    food: rows(raw.food, LIMITS.food, (r) => {
+      const name = str(r.name, 100).trim();
+      const date = day(r.date);
+      return name && date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, meal: oneOf(r.meal, MEALS, "snacks"), name, servings: num(r.servings, 0.01, 100, 1), ...nutrition(r) } : null;
+    }, true),
+    exercise: rows(raw.exercise, LIMITS.exercise, (r) => {
+      const name = str(r.name, 80).trim();
+      const date = day(r.date);
+      return name && date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, name, minutes: int(r.minutes, 0, 1440), calories: int(r.calories, 0, 10000) } : null;
+    }, true),
+    days: rows(raw.days, LIMITS.days, (r) => {
+      const date = day(r.date);
+      return date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, water: int(r.water, 0, 40), steps: int(r.steps, 0, 200000), fruitVeg: int(r.fruitVeg, 0, 30) } : null;
+    }, true),
+    weights: rows(raw.weights, LIMITS.weights, (r) => {
+      const date = day(r.date);
+      const weight = num(r.weight, 0, 1500);
+      return date && r.memberId && weight > 0 ? { id: id(r.id), memberId: id(r.memberId), date, weight } : null;
+    }, true),
+    foods: rows(raw.foods, LIMITS.foods, (r) => {
+      const name = str(r.name, 100).trim();
+      return name ? { id: id(r.id), name, serving: str(r.serving, 60), ...nutrition(r) } : null;
     }),
   };
 }
