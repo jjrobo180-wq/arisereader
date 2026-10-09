@@ -1,4 +1,4 @@
-// Teacher Hub meeting polls: emailing the people who need to be at an IEP or re-evaluation
+// Arise WorkHub meeting polls: emailing the people who need to be at an IEP or re-evaluation
 // meeting, collecting which times work, and booking the time the teacher picks.
 //
 // Everyone invited gets their own private link (no account needed). The page behind it
@@ -220,7 +220,7 @@ export function pollResponseEmail(p: { teacher: string; guest: string; title: st
   <ul style="margin:12px 0;padding-left:20px;color:#e2e8f0;font-size:15px;line-height:1.8;">${p.rows.map((r) => `<li>${esc(r.label)}: <b style="color:${r.answer ? ANSWER_COLORS[r.answer] : "#94a3b8"}">${r.answer ? ANSWER_WORDS[r.answer] : "No answer"}</b></li>`).join("")}</ul>
   ${p.comment ? `<p style="line-height:1.6;color:#cbd5e1;font-size:15px;border-left:3px solid #7c3aed;padding-left:12px;">${esc(p.comment)}</p>` : ""}
   ${p.best ? `<p style="color:#e2e8f0;font-size:15px;">Best time so far: <b>${esc(p.best)}</b></p>` : ""}
-  <p style="margin:24px 0;"><a href="${esc(p.link)}" style="${BUTTON}">Open my Teacher Hub</a></p>
+  <p style="margin:24px 0;"><a href="${esc(p.link)}" style="${BUTTON}">Open my Arise WorkHub</a></p>
 </div>`;
 }
 
@@ -301,13 +301,13 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       const rows = row.poll.options.map((o) => ({ label: describeOption(o), answer: person.answers?.[o.id] }));
       const yes = rows.filter((r) => r.answer === "yes").length;
       const body = `${person.name}: ${yes ? `${yes} ${yes === 1 ? "time works" : "times work"}` : "no times work"}. ${answered} of ${row.invitees.length} answered.`;
-      await deps.teacher?.notify(teacherId, { title: `${person.name} answered ${row.poll.title}`, body, url: "/#/teacher-hub", tag: `poll-${row.poll.id}` });
+      await deps.teacher?.notify(teacherId, { title: `${person.name} answered ${row.poll.title}`, body, url: "/#/workhub", tag: `poll-${row.poll.id}` });
       if (first && deps.teacher) {
         const who = await deps.teacher.contact(teacherId);
         if (who?.email) {
           await deps.sendEmail(who.email, `${person.name} answered: ${row.poll.title}`, pollResponseEmail({
             teacher: who.name || "there", guest: person.name, title: row.poll.title, rows, comment: person.comment || "", answered, total: row.invitees.length,
-            best: best ? describeOption(best) : "", link: `${base}/#/teacher-hub`,
+            best: best ? describeOption(best) : "", link: `${base}/#/workhub`,
           }));
         }
       }

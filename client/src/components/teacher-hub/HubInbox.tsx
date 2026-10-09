@@ -1,4 +1,4 @@
-// Teacher Hub: emails forwarded in. The open Hub picks up what arrived at the teacher's forwarding address
+// Arise WorkHub: emails forwarded in. The open Hub picks up what arrived at the teacher's forwarding address
 // and adds each one to Emails, flagged, and to the to-do list. The Emails tab shows the address.
 // The rules are in shared/hubInbox.ts; the server side is server/hubInbox.ts.
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";

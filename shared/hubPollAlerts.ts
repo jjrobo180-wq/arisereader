@@ -1,4 +1,4 @@
-// Teacher Hub: the replies to the teacher's polls, newest first, for the bell in the Hub's header.
+// Arise WorkHub: the replies to the teacher's polls, newest first, for the bell in the Hub's header.
 export type AlertPoll = {
   id: string; title: string; status: "open" | "booked";
   options: { id: string; label: string }[];

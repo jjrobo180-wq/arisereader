@@ -1,4 +1,4 @@
-// Teacher Hub: the bell in the header. It lights up when someone answers one of your meeting polls.
+// Arise WorkHub: the bell in the header. It lights up when someone answers one of your meeting polls.
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { pollReplies, type AlertPoll } from "@shared/hubPollAlerts";

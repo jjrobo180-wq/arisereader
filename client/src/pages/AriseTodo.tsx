@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
@@ -8,7 +8,7 @@ import {
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
-  CalendarRange, Smile, Vote, Bell, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
+  CalendarRange, Smile, Vote, Bell, BookOpen, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
 } from "lucide-react";
 import { cleanFamily, emptyFamily, isCurrentFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
@@ -30,6 +30,11 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar } from "@/components/family-hub/ui";
 import HubSwitch from "@/components/HubSwitch";
+import { HubTrialNote } from "@/components/HubTrialNote";
+import { useLifeHubTrial } from "@/components/TodoGate";
+
+// The parent portal (A.R.I.S.E. Reader for families) lives in LifeHub for parent accounts.
+const ParentDashboard = lazy(() => import("./ParentDashboard"));
 import "./todoNight.css";
 
 type Priority = "low" | "normal" | "high";
@@ -61,7 +66,7 @@ const short = (value: unknown, max: number) => typeof value === "string" ? value
 const isDate = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + "T12:00:00"));
 const fresh = (): Data => ({ version: 2, lists: DEFAULT_LISTS.map(list => ({ ...list })), tasks: [], family: emptyFamily() });
 const validate = (value: unknown): Data => {
-  if (!value || typeof value !== "object") throw new Error("This is not an A.R.I.S.E. To-Do backup.");
+  if (!value || typeof value !== "object") throw new Error("This is not an Arise LifeHub backup.");
   const raw = value as Record<string, unknown>;
   if ((raw.version !== 1 && raw.version !== 2) || !Array.isArray(raw.lists) || !Array.isArray(raw.tasks) || raw.tasks.length > 5000 || raw.lists.length > 100) {
     throw new Error("This backup is not supported or is too large.");
@@ -140,10 +145,10 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell,
+  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
 };
-const SECTION_ORDER: FamilySection[] = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"];
+const SECTION_ORDER: FamilySection[] = ["home", "reader", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -182,7 +187,9 @@ export default function AriseTodo() {
     setData(previous => { const family = update(previous.family); return family === previous.family ? previous : { ...previous, family }; });
   }, [setData]);
   const [section, setSectionState] = useState<FamilySection>(() => {
-    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && SECTION_ORDER.includes(saved) ? saved : "home"; } catch { return "home"; }
+    // Parents start on their A.R.I.S.E. Reader tab (the parent portal) until they pick another.
+    const first: FamilySection = user?.role === "parent" ? "reader" : "home";
+    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && SECTION_ORDER.includes(saved) ? saved : first; } catch { return first; }
   });
   const setSection = (next: FamilySection) => {
     setSectionState(next);
@@ -256,7 +263,7 @@ export default function AriseTodo() {
     await sync.flush();
     if (sync.view.kind !== "saved" && !window.confirm("Some changes may not have reached the cloud. Sign out anyway? A local safety copy is kept on this device.")) return;
     logout();
-    navigate("/to-do");
+    navigate("/lifehub");
   };
   useEffect(() => {
     if (!message) return;
@@ -364,7 +371,7 @@ export default function AriseTodo() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (file.size > 5_000_000) { setMessage("File too large. Choose a To-Do backup under 5 MB."); return; }
+    if (file.size > 5_000_000) { setMessage("File too large. Choose a LifeHub backup under 5 MB."); return; }
     try {
       const restored = validate(JSON.parse(await file.text()));
       if (!window.confirm(`Restore ${restored.tasks.length} tasks and ${restored.lists.length} lists? This replaces the tasks saved in your account across devices. Export a backup first if needed.`)) return;
@@ -386,7 +393,9 @@ export default function AriseTodo() {
   const family = data.family;
   const members = family.members;
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
-  const sections = SECTION_ORDER.filter(id => isOn(id, family));
+  // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
+  const sections = SECTION_ORDER.filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const trial = useLifeHubTrial();
   const shown: FamilySection = sections.includes(section) ? section : "home";
   const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : 0;
   const makeId = uid;
@@ -402,6 +411,7 @@ export default function AriseTodo() {
     : shown === "mood" ? <Mood {...common} />
     : shown === "news" ? <News {...common} />
     : shown === "notifications" ? <NotificationSettings {...common} />
+    : shown === "reader" ? <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><ParentDashboard embedded /></Suspense>
     : shown === "polls" ? <Polls {...common} />
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
@@ -411,7 +421,7 @@ export default function AriseTodo() {
 
   if (!user) return <AriseTodoSignIn />;
   if (!sync.loaded) return <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#f6f7fc] px-4 text-center text-slate-800">
-    {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved To-Do lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
+    {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved LifeHub lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
@@ -421,7 +431,7 @@ export default function AriseTodo() {
         <div className="flex items-center justify-between gap-2 px-5 py-5 lg:px-6 lg:py-7">
           <button onClick={() => navigate("/")} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to A.R.I.S.E. Reader">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6d5ce7] text-white shadow-[0_5px_14px_#6d5ce72b]"><CheckCheck className="h-5 w-5" /></span>
-            <span className="min-w-0"><span className="block text-xs font-extrabold tracking-[.16em] text-[#7e76aa]">A.R.I.S.E.</span><span className="block text-xl font-black tracking-tight">To-Do<span className="text-[#7968e5]">.</span></span></span>
+            <span className="min-w-0"><span className="block text-xs font-extrabold tracking-[.16em] text-[#7e76aa]">ARISE</span><span className="block text-xl font-black tracking-tight">LifeHub<span className="text-[#7968e5]">.</span></span></span>
           </button>
           <div className="flex items-center gap-2 lg:hidden"><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-10 w-10 items-center justify-center rounded-xl ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={20} /></button><button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf]" aria-label="Add task"><Plus /></button></div>
         </div>
@@ -484,6 +494,7 @@ export default function AriseTodo() {
           </section>}
 
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
+          <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
           {shown !== "tasks" && <div className="mt-2">{familyContent}</div>}
           {shown === "tasks" && <>
 
@@ -549,7 +560,7 @@ export default function AriseTodo() {
               <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
                 <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-600" /><h3 className="text-sm font-extrabold">Your tasks, your account</h3></div>
                 <p className="mt-2 text-xs leading-5 text-slate-500">Everything is saved to your signed-in A.R.I.S.E. account and syncs between your devices. A safety copy stays in this browser if your connection drops. Family members are names on your account, not separate logins.</p>
-                <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore To-Do backup" />
+                <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore LifeHub backup" />
                 <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
               <EmailForwardCard token={token} />
@@ -563,7 +574,7 @@ export default function AriseTodo() {
 
     {editing && <div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-7">
-        <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">A.R.I.S.E. To-Do</p><h2 id="todo-modal-title" className="mt-1 text-xl font-black">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+        <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">Arise LifeHub</p><h2 id="todo-modal-title" className="mt-1 text-xl font-black">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
         <form onSubmit={saveTask} className="space-y-4">
           <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => setEditing({ ...editing, title: event.target.value })} className={inputClass + " mt-1.5"} placeholder="What needs to get done?" /></label>
           <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={3} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>

@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do: private cloud workspace for every signed-in account.
+// Arise LifeHub: private cloud workspace for every signed-in account.
 // Uses the site's own session tokens, not Supabase Auth identities.
 import type { Express, RequestHandler } from "express";
 import bcrypt from "bcryptjs";
@@ -65,7 +65,7 @@ async function readWorkspace(userId: number) {
 function rejectPreview(req: any, res: any): boolean {
   // An admin preview account is not a real person's private to-do workspace.
   if (!Number.isSafeInteger(Number(req.user?.id)) || !req.user || req.adminPreview) {
-    res.status(403).json({ message: "Sign in to a regular account to use A.R.I.S.E. To-Do." });
+    res.status(403).json({ message: "Sign in to a regular account to use Arise LifeHub." });
     return true;
   }
   return false;
@@ -128,13 +128,13 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     if (rejectPreview(req, res)) return;
     res.set("Cache-Control", "no-store");
     const { workspace, baseUpdatedAt, overwrite } = req.body || {};
-    if (!validateWorkspace(workspace)) return res.status(400).json({ message: "This To-Do workspace has invalid task or list data." });
+    if (!validateWorkspace(workspace)) return res.status(400).json({ message: "This LifeHub workspace has invalid task or list data." });
     // Family data is stored only in its cleaned, size-limited shape.
     if (workspace.version === 2) workspace.family = cleanFamily(workspace.family);
     const bytes = Buffer.byteLength(JSON.stringify(workspace), "utf8");
-    if (bytes > MAX_BYTES) return res.status(413).json({ message: "Your To-Do workspace has reached its space limit. Export a backup before removing old items." });
+    if (bytes > MAX_BYTES) return res.status(413).json({ message: "Your LifeHub workspace has reached its space limit. Export a backup before removing old items." });
     if (baseUpdatedAt !== null && (typeof baseUpdatedAt !== "string" || !Number.isFinite(Date.parse(baseUpdatedAt)))) {
-      return res.status(400).json({ message: "Missing saved version. Refresh your To-Do list first." });
+      return res.status(400).json({ message: "Missing saved version. Refresh your LifeHub list first." });
     }
     if (overwrite !== undefined && overwrite !== true && overwrite !== false) return res.status(400).json({ message: "Invalid overwrite option." });
     const userId = Number(req.user.id);

@@ -1,6 +1,6 @@
 // Family calendar: a month view with one color per calendar, a filter per person,
 // and switchable layers for tasks, bills and trips. Teachers can also switch on their
-// Teacher Hub calendar: its events are read live from the Hub and shown here, read-only.
+// Arise WorkHub calendar: its events are read live from the Hub and shown here, read-only.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, MapPin, Plane, Plus, Receipt, Repeat2, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -11,13 +11,13 @@ import { ShareButton } from "./ShareLink";
 
 export type CalendarTask = { id: string; title: string; due: string; time: string; assignee: string; done: boolean };
 type Item = { key: string; kind: "event" | "task" | "bill" | "trip" | "hub"; title: string; time: string; color: string; event?: FamilyEvent; members: string[]; hub?: HubItem };
-/** An event from the teacher's Teacher Hub calendar (GET /api/teacher-hub/calendar). */
+/** An event from the teacher's Arise WorkHub calendar (GET /api/teacher-hub/calendar). */
 type HubItem = { id: string; title: string; date: string; start: string; end: string; location: string; done: boolean };
 const HUB_COLOR = "#0d9488";
 
 /**
- * The teacher's Hub events for the days on screen, while the Teacher Hub calendar is switched on.
- * `state` says why there are none: still loading, no Teacher Hub, or the Hub couldn't be reached.
+ * The teacher's Hub events for the days on screen, while the Arise WorkHub calendar is switched on.
+ * `state` says why there are none: still loading, no Arise WorkHub, or the Hub couldn't be reached.
  */
 function useHubEvents(on: boolean, from: string, to: string) {
   const { token } = useAuth();
@@ -47,7 +47,7 @@ const blankEvent = (date: string, calendarId: string, id: string): FamilyEvent =
 
 export default function FamilyCalendar({ family, setFamily, today, makeId, say, tasks, onOpenTasks }: SectionProps & { tasks: CalendarTask[]; onOpenTasks: () => void }) {
   const { user } = useAuth();
-  /** Teachers (and the admin) have a Teacher Hub calendar to show. */
+  /** Teachers (and the admin) have a Arise WorkHub calendar to show. */
   const teacher = !!user && (user.role === "teacher" || !!user.isAdmin);
   const [month, setMonth] = useState(() => today.slice(0, 7));
   const [picked, setPicked] = useState(today);
@@ -137,12 +137,12 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
       <div className="space-y-5">
         <Panel eyebrow={picked === today ? "Today" : "Selected day"} title={shortDate(picked, { weekday: "long", month: "long", day: "numeric" })} right={<button onClick={() => add()} className={plain} aria-label="Add event on this day"><Plus size={16} /></button>}>
           {dayItems.length ? <ul className="space-y-2">{dayItems.map((it) => <li key={it.key}>
-            <button onClick={() => it.event ? setEditing({ ...it.event }) : it.kind === "task" ? onOpenTasks() : it.kind === "hub" ? window.location.assign("/#/teacher-hub") : undefined} className="flex w-full items-start gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-violet-200">
+            <button onClick={() => it.event ? setEditing({ ...it.event }) : it.kind === "task" ? onOpenTasks() : it.kind === "hub" ? window.location.assign("/#/workhub") : undefined} className="flex w-full items-start gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-violet-200">
               <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: it.color }} />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-bold text-slate-800">{it.title}</span>
                 <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-slate-500">
-                  {it.kind === "hub" && <span className="inline-flex items-center gap-1" style={{ color: HUB_COLOR }}><GraduationCap size={11} /> Teacher Hub{it.hub?.done ? " · done" : ""}</span>}
+                  {it.kind === "hub" && <span className="inline-flex items-center gap-1" style={{ color: HUB_COLOR }}><GraduationCap size={11} /> Arise WorkHub{it.hub?.done ? " · done" : ""}</span>}
                   {it.kind === "task" && <span>Task</span>}{it.kind === "bill" && <span className="inline-flex items-center gap-1"><Receipt size={11} /> Bill</span>}{it.kind === "trip" && <span className="inline-flex items-center gap-1"><Plane size={11} /> Trip</span>}
                   {it.time && <span>{clock12(it.time)}{it.event?.endTime ? `–${clock12(it.event.endTime)}` : it.hub?.end ? `–${clock12(it.hub.end)}` : ""}</span>}
                   {(it.event?.location || it.hub?.location) && <span className="inline-flex items-center gap-1"><MapPin size={11} />{it.event?.location || it.hub?.location}</span>}
@@ -164,14 +164,14 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
           {teacher && <div className="mt-1 rounded-xl border border-teal-100 bg-teal-50/60 p-2.5" data-testid="todo-hub-calendar">
             <div className="flex min-h-10 items-center gap-3">
               <span className="h-3.5 w-3.5 shrink-0 rounded" style={{ background: HUB_COLOR }} />
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold"><GraduationCap size={14} className="mr-1 inline text-teal-700" />Teacher Hub</span>
-              <Toggle on={family.layers.hub} label="Show Teacher Hub calendar" onChange={(on) => setFamily((f) => ({ ...f, layers: { ...f.layers, hub: on } }))} />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold"><GraduationCap size={14} className="mr-1 inline text-teal-700" />Arise WorkHub</span>
+              <Toggle on={family.layers.hub} label="Show Arise WorkHub calendar" onChange={(on) => setFamily((f) => ({ ...f, layers: { ...f.layers, hub: on } }))} />
             </div>
             {hubOn && <p className="pl-6 text-[11px] font-semibold text-slate-500">
               {hub.state === "loading" ? "Loading your Hub calendar…"
-                : hub.state === "locked" ? <>Teacher Hub isn’t on for this account. <a href="/#/billing" className="font-bold text-teal-700 underline">Get Teacher Hub</a></>
+                : hub.state === "locked" ? <>Arise WorkHub isn’t on for this account. <a href="/#/billing" className="font-bold text-teal-700 underline">Get Arise WorkHub</a></>
                 : hub.state === "error" ? "Couldn’t reach your Hub calendar. It will try again when you change months."
-                : <>Events from your Hub, shown here read-only. <a href="/#/teacher-hub" className="inline-flex items-center gap-0.5 font-bold text-teal-700 underline">Edit in the Hub<ExternalLink size={10} /></a></>}
+                : <>Events from your Hub, shown here read-only. <a href="/#/workhub" className="inline-flex items-center gap-0.5 font-bold text-teal-700 underline">Edit in the Hub<ExternalLink size={10} /></a></>}
             </p>}
           </div>}
           <form onSubmit={addCalendar} className="mt-3 flex gap-2"><input value={newCal} onChange={(e) => setNewCal(e.target.value)} maxLength={40} placeholder="New calendar (e.g. Soccer)" aria-label="New calendar name" className={inputClass + " min-w-0"} /><button type="submit" className={primary} aria-label="Add calendar"><Plus size={17} /></button></form>

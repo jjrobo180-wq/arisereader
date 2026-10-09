@@ -1,4 +1,4 @@
-// Building blocks for the A.R.I.S.E. To-Do Family Hub, in the To-Do's own look.
+// Building blocks for the Arise LifeHub Family Hub, in the LifeHub's own look.
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 import type { Family, Member } from "@shared/familyHub";

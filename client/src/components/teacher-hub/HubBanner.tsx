@@ -1,4 +1,4 @@
-// Teacher Hub: the big "Your teacher workspace" box on Home, with a Style button to change its color,
+// Arise WorkHub: the big "Your teacher workspace" box on Home, with a Style button to change its color,
 // add a picture, and make it smaller or larger.
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Check, ImagePlus, Loader2, Paintbrush, Trash2 } from "lucide-react";

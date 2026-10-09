@@ -9,7 +9,8 @@
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ],
   "shortcuts": [
-    { "name": "Teacher Hub", "short_name": "Hub", "url": "/#/teacher-hub", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+    { "name": "Arise WorkHub", "short_name": "WorkHub", "url": "/#/workhub", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Arise LifeHub", "short_name": "LifeHub", "url": "/#/lifehub", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ],
   "theme_color": "#0b0a16",
   "background_color": "#0b0a16",

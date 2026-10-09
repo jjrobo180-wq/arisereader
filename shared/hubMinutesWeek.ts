@@ -1,4 +1,4 @@
-// Teacher Hub: service minutes sectioned off by the blocks (periods) of the school day.
+// Arise WorkHub: service minutes sectioned off by the blocks (periods) of the school day.
 // A week is a grid: a row for each block, a column for each day. A cell holds the students seen in that
 // block on that day, and the ones due in it. What a cell holds comes from the sessions that were logged
 // and from each plan's block and day guide.

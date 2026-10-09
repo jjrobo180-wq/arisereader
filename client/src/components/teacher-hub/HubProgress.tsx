@@ -1,4 +1,4 @@
-// Teacher Hub: IEP goal progress monitoring and service-minute tracking (push-in, pull-out and the rest).
+// Arise WorkHub: IEP goal progress monitoring and service-minute tracking (push-in, pull-out and the rest).
 // The rules are in shared/hubProgress.ts.
 import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Clock, Pencil, Plus, Trash2, Users } from "lucide-react";

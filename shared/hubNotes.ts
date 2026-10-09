@@ -1,4 +1,4 @@
-// Teacher Hub notes. A note is either about a student (a check-in, a concern, a progress note) or
+// Arise WorkHub notes. A note is either about a student (a check-in, a concern, a progress note) or
 // it is not about any one student: a staff meeting, a team meeting, a training, an idea to keep.
 import type { NoteItem, Workspace } from "./teacherHub";
 

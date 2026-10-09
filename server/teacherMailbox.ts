@@ -284,7 +284,7 @@ export type MailboxService = ReturnType<typeof createMailboxService>;
 
 export function registerMailboxRoutes(app: Express, authMiddleware: RequestHandler, deps: { gate(req: any, res: any): Promise<unknown | null>; service: MailboxService; appUrl: string }) {
   const base = deps.appUrl.replace(/\/+$/, "");
-  const back = (result: string) => `${base}/?mailbox=${encodeURIComponent(result)}#/teacher-hub`;
+  const back = (result: string) => `${base}/?mailbox=${encodeURIComponent(result)}#/workhub`;
 
   app.get("/api/teacher-hub/mailbox", authMiddleware, async (req: any, res) => {
     if (!(await deps.gate(req, res))) return;

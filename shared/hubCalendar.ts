@@ -1,4 +1,4 @@
-// Teacher Hub calendar: what is still ahead, the week and month grids, and open time.
+// Arise WorkHub calendar: what is still ahead, the week and month grids, and open time.
 import { cleanWeekly, type FreeWindow } from "./availability";
 
 export type CalEvent = { id?: string; date: string; start: string; end: string };

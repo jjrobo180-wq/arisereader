@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do reminders, sent to phones the same way as Teacher Hub reminders.
+// Arise LifeHub reminders, sent to phones the same way as Arise WorkHub reminders.
 // What is sent, when and how often follows the person's choices in family.notify (shared/todoNotify.ts):
 //  - A morning summary (from the chosen time to noon, once a day): tasks, events, chores, bills, trips, polls.
 //  - A heads-up a few minutes before a family event or a task that has a time.
@@ -14,7 +14,7 @@ import { pollOpen } from "./todoShare";
 import { inQuiet, spreadTimes, toMinutes as clockMinutes, SEND_WINDOW_MINUTES, type Weekday } from "./todoNotify";
 import { caloriesLeft, dayTotals, goalsFor, healthPeople, ME_ID } from "./familyHealth";
 
-export const TODO_REMINDER_URL = "/#/to-do";
+export const TODO_REMINDER_URL = "/#/lifehub";
 export type TodoReminder = HubReminder & { news?: { topic: string; place: string; index: number } };
 const MEAL_WORD: Record<Meal, string> = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", snacks: "snacks" };
 
@@ -86,7 +86,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
           trips.length ? `${trips.map((t) => t.name).join(", ")} starts today!` : "",
           polls.length ? `Vote closes today: ${polls[0].question}` : "",
         ].filter(Boolean).join(" ");
-        out.push({ key, title: "Today in A.R.I.S.E. To-Do", body: [bits.length ? `${bits.join(", ")}.` : "", extra].filter(Boolean).join(" "), url: TODO_REMINDER_URL });
+        out.push({ key, title: "Today in Arise LifeHub", body: [bits.length ? `${bits.join(", ")}.` : "", extra].filter(Boolean).join(" "), url: TODO_REMINDER_URL });
       }
     }
     // Tomorrow's unpaid bills, so there's a day to pay them (autopay ones look after themselves).
@@ -169,7 +169,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
       if (stillDue) bits.push(`${stillDue} still due`);
       if (healthOn && !kid && totals.items) bits.push(`${Math.round(caloriesLeft(goals.calories, totals)).toLocaleString("en-US")} calories left`);
       if (healthOn && totals.water) bits.push(`${totals.water} of ${goals.water} cups of water`);
-      out.push({ key, title: "Your day in A.R.I.S.E. To-Do", body: `${bits.join(" · ")}.`, url: TODO_REMINDER_URL });
+      out.push({ key, title: "Your day in Arise LifeHub", body: `${bits.join(" · ")}.`, url: TODO_REMINDER_URL });
     }
   }
   return out;

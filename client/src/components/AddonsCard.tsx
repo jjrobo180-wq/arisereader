@@ -1,10 +1,10 @@
-// The add-ons card: Arise History, Arise Math, Arise Social and A.R.I.S.E. To-Do.
+// The add-ons card: Arise History, Arise Math, Arise Social and Arise LifeHub.
 // It shows each person what they have, a live countdown of their 30-day free trial, and the right
 // way to keep it: parents buy the Learning Bundle (all three) for the family, teachers add each app
 // for their class on top of the Class plan, and students are told to ask a grown-up.
 // Prices and rules live in shared/plans.ts.
 // `compact` is the quiet version for a page that isn't about plans: every add-on together
-// as one group of buttons (Teacher Hub and To-Do for teachers, then the three apps), with
+// as one group of buttons (Arise WorkHub and LifeHub for teachers, then the three apps), with
 // where the free trial stands and the way to the plan page. Its buttons don't wait on the
 // add-ons request, so a teacher can always reach them.
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -83,8 +83,8 @@ const REASON: Record<string, string> = {
   "social-plan": "Included with your Arise Social plan",
   admin: "Included for admins",
   demo: "Included in this sample account",
-  hub: "Included with Teacher Hub",
-  "todo-plan": "Included with your To-Do plan",
+  hub: "Included with Arise WorkHub",
+  "todo-plan": "Included with your LifeHub plan",
 };
 
 export default function AddonsCard({ returnPath = "/billing", showTodo = true, compact = false }: { returnPath?: string; showTodo?: boolean; compact?: boolean }) {
@@ -131,8 +131,8 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     if (!user) return null;
     const teacher = user.role === "teacher" || !!user.isAdmin;
     const tiles = [
-      ...(teacher ? [{ href: "/#/teacher-hub", label: "Teacher Hub", icon: ClipboardList, tone: "text-teal-300", testId: "button-teacher-hub" }] : []),
-      ...(user.role !== "student" ? [{ href: "/#/to-do", label: "To-Do", icon: CheckSquare, tone: "text-emerald-400", testId: "button-teacher-todo" }] : []),
+      ...(teacher ? [{ href: "/#/workhub", label: "Arise WorkHub", icon: ClipboardList, tone: "text-teal-300", testId: "button-teacher-hub" }] : []),
+      ...(user.role !== "student" ? [{ href: "/#/lifehub", label: "LifeHub", icon: CheckSquare, tone: "text-emerald-400", testId: "button-teacher-todo" }] : []),
       { href: "/history/", label: "Arise History", icon: Landmark, tone: "text-amber-400", testId: "button-teacher-history" },
       { href: "/math/", label: "Arise Math", icon: Calculator, tone: "text-cyan-400", testId: "button-teacher-math" },
       { href: "/social/", label: "Arise Social", icon: Users, tone: "text-violet-400", testId: "button-teacher-social" },
@@ -263,21 +263,21 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         <div className="mt-5 border-t border-white/10 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-base font-black"><BookOpen className="h-4 w-4 text-emerald-400" />A.R.I.S.E. To-Do</p>
-              <p className="text-sm text-muted-foreground">{role === "teacher" ? "Comes with Teacher Hub: one subscription, both tools." : `Lists, chores, the family calendar and more: ${money(data.prices.todoCents)}/month after your free trial.`}</p>
+              <p className="flex items-center gap-2 text-base font-black"><BookOpen className="h-4 w-4 text-emerald-400" />Arise LifeHub</p>
+              <p className="text-sm text-muted-foreground">{role === "teacher" ? "Comes with Arise WorkHub: one subscription, both tools." : `Lists, chores, the family calendar and more: ${money(data.prices.todoCents)}/month after your free trial.`}</p>
             </div>
-            <a className={ghost} href="/#/to-do">Open To-Do</a>
+            <a className={ghost} href="/#/lifehub">Open LifeHub</a>
           </div>
           <div className="mt-3 space-y-3">
-            {t.via === "trial" && t.trialEndsAt && <TrialMeter endsAt={t.trialEndsAt} total={data.trialDays} label="To-Do free trial" />}
-            {role === "teacher" && data.hub?.via === "free-month" && data.hub.endsAt && <TrialMeter endsAt={data.hub.endsAt} total={data.trialDays} label="Teacher Hub & To-Do free trial" />}
+            {t.via === "trial" && t.trialEndsAt && <TrialMeter endsAt={t.trialEndsAt} total={data.trialDays} label="LifeHub free trial" />}
+            {role === "teacher" && data.hub?.via === "free-month" && data.hub.endsAt && <TrialMeter endsAt={data.hub.endsAt} total={data.trialDays} label="Arise WorkHub & LifeHub free trial" />}
             {t.access && t.via && t.via !== "trial" && REASON[t.via] && !(role === "teacher" && data.hub?.via === "free-month") && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
-            {!t.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Get Teacher Hub to keep using To-Do." : "Your To-Do free trial has ended."}</p>}
+            {!t.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Get Arise WorkHub to keep using LifeHub." : "Your LifeHub free trial has ended."}</p>}
             <div className="flex flex-wrap gap-2">
               {role === "parent" && (t.paidByYou
-                ? <button type="button" className={ghost} disabled={!!busy} onClick={() => go("tm", "/api/billing/addon-portal", { product: "todo", returnPath })}>Manage To-Do billing</button>
-                : !t.plan?.live && <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go("t", "/api/billing/addon-checkout", { product: "todo", returnPath })} data-testid="addons-buy-todo">{busy === "t" ? "Opening…" : `${t.via === "trial" ? "Keep" : "Get"} To-Do · ${money(data.prices.todoCents)}/month`}</button>)}
-              {role === "teacher" && data.hub?.via !== "hub-teacher-plan" && data.hub?.via !== "hub-school-plan" && <a className={ghost} href="/#/billing">Teacher Hub: {money(data.prices.hubCents)}/month</a>}
+                ? <button type="button" className={ghost} disabled={!!busy} onClick={() => go("tm", "/api/billing/addon-portal", { product: "todo", returnPath })}>Manage LifeHub billing</button>
+                : !t.plan?.live && <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go("t", "/api/billing/addon-checkout", { product: "todo", returnPath })} data-testid="addons-buy-todo">{busy === "t" ? "Opening…" : `${t.via === "trial" ? "Keep" : "Get"} LifeHub · ${money(data.prices.todoCents)}/month`}</button>)}
+              {role === "teacher" && data.hub?.via !== "hub-teacher-plan" && data.hub?.via !== "hub-school-plan" && <a className={ghost} href="/#/billing">Arise WorkHub: {money(data.prices.hubCents)}/month</a>}
             </div>
           </div>
         </div>

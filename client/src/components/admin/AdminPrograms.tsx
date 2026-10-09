@@ -11,8 +11,8 @@ type Program = { id: string; name: string; access: boolean };
 
 const DETAILS: Record<string, { icon: LucideIcon; about: string; href: string }> = {
   reader: { icon: BookOpen, about: "The library, quizzes, live class games and the teacher dashboard.", href: "/#/teacher-dashboard" },
-  hub: { icon: ClipboardList, about: "Caseloads, IEP timelines, lessons, minutes and notes.", href: "/#/teacher-hub" },
-  todo: { icon: CheckSquare, about: "Lists, the calendar, chores, polls, trips and notes.", href: "/#/to-do" },
+  hub: { icon: ClipboardList, about: "Caseloads, IEP timelines, lessons, minutes and notes.", href: "/#/workhub" },
+  todo: { icon: CheckSquare, about: "Lists, the calendar, chores, polls, trips and notes.", href: "/#/lifehub" },
   math: { icon: Calculator, about: "Math practice that levels up, with points and a leaderboard.", href: "/math/" },
   history: { icon: Landmark, about: "History Reads and quizzes with points and a leaderboard.", href: "/history/" },
   social: { icon: Users, about: "Career paths to explore, with posts teachers approve.", href: "/social/" },

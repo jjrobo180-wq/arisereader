@@ -1,5 +1,5 @@
-// Forward emails into A.R.I.S.E. To-Do: each forwarded email becomes a task in the "Email" list.
-// Same forwarding system as the Teacher Hub (server/hubInbox.ts), under /api/arise-todo/inbox.
+// Forward emails into Arise LifeHub: each forwarded email becomes a task in the "Email" list.
+// Same forwarding system as the Arise WorkHub (server/hubInbox.ts), under /api/arise-todo/inbox.
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Mail, RefreshCw } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -14,7 +14,7 @@ async function call(token: string | null, path: string, init: RequestInit = {}):
   return b;
 }
 
-/** While To-Do is open: picks up forwarded emails when it opens, every minute, and when the page comes back into view. */
+/** While LifeHub is open: picks up forwarded emails when it opens, every minute, and when the page comes back into view. */
 export function useEmailInbox(token: string | null, enabled: boolean, onEmails: (items: InboxItem[]) => void) {
   const latest = useRef(onEmails);
   latest.current = onEmails;
@@ -52,7 +52,7 @@ export function EmailForwardCard({ token }: { token: string | null }) {
 
   return <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
     <div className="flex items-center gap-2"><Mail size={18} className="text-violet-600" /><h3 className="text-sm font-extrabold">Forward emails here</h3></div>
-    {!view ? <p className="mt-2 text-xs text-slate-500">{note || "Loading…"}</p> : !view.ready ? <p className="mt-2 text-xs leading-5 text-slate-500">Email forwarding isn't switched on for the site yet. The site admin can turn it on in the Teacher Hub's email setup.</p> : <>
+    {!view ? <p className="mt-2 text-xs text-slate-500">{note || "Loading…"}</p> : !view.ready ? <p className="mt-2 text-xs leading-5 text-slate-500">Email forwarding isn't switched on for the site yet. The site admin can turn it on in the Arise WorkHub's email setup.</p> : <>
       <p className="mt-2 text-xs leading-5 text-slate-500">Forward any email (a bill, a school flyer, an appointment) to your private address and it shows up as a task in your “Email” list.</p>
       {view.address ? <div className="mt-3 flex gap-2"><code className="min-w-0 flex-1 break-all rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold">{view.address}</code>
         <button onClick={() => { void navigator.clipboard?.writeText(view.address!).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }} className={plain} aria-label="Copy address">{copied ? <Check size={15} /> : <Copy size={15} />}</button></div>

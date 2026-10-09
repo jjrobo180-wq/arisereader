@@ -1,4 +1,4 @@
-// Teacher Hub: several students added to a block at once.
+// Arise WorkHub: several students added to a block at once.
 // Tick the students, pick the minutes, and one save puts them in the block every week, so they are there
 // each day they are due and never have to be added again. The same pop-up can log minutes for one day only.
 // A screenshot of a schedule, a roster or a list can be read to tick the students for you; nothing is

@@ -1,4 +1,4 @@
-// Teacher Hub: the look of the big "Your teacher workspace" box on Home. A teacher picks its color, adds a picture
+// Arise WorkHub: the look of the big "Your teacher workspace" box on Home. A teacher picks its color, adds a picture
 // and chooses how tall it is. Saved in profile.banner, so it follows them to every device.
 import { cleanColor } from "./hubPins";
 

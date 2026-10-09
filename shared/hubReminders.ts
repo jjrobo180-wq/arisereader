@@ -1,4 +1,4 @@
-// Teacher Hub reminders: what is worth a phone notification right now.
+// Arise WorkHub reminders: what is worth a phone notification right now.
 //  - A morning summary (7:00 to noon, once a day) of what is on today.
 //  - A heads-up 15 minutes before an event that has a start time.
 import { calendarEvents } from "./hubHidden";
@@ -6,7 +6,7 @@ import { clock12, type Workspace } from "./teacherHub";
 
 export type HubReminder = { key: string; title: string; body: string; url: string };
 
-export const HUB_REMINDER_URL = "/#/teacher-hub";
+export const HUB_REMINDER_URL = "/#/workhub";
 export const EVENT_HEADS_UP_MINUTES = 15;
 export const MORNING_FROM_HOUR = 7;
 export const MORNING_UNTIL_HOUR = 12;
@@ -60,7 +60,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
       if (bits.length) {
         const first = events.filter((e) => e.start).sort((a, b) => a.start.localeCompare(b.start))[0];
         const next = first ? ` First up: ${first.title} at ${clock12(first.start)}.` : "";
-        out.push({ key, title: "Today in your Teacher Hub", body: `${bits.join(", ")}.${next}`, url: HUB_REMINDER_URL });
+        out.push({ key, title: "Today in your Arise WorkHub", body: `${bits.join(", ")}.${next}`, url: HUB_REMINDER_URL });
       }
     }
   }

@@ -62,11 +62,11 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "good", title: "Premium is free for you this school year", lines: [
         "You signed up before October 1, 2026, so you keep everything at no cost.",
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
-        "The add-ons further down this page (Teacher Hub, Arise Math, Arise History and Arise Social) are optional and paid separately.",
+        "The add-ons further down this page (Arise WorkHub, Arise Math, Arise History and Arise Social) are optional and paid separately.",
       ] };
     case "free-month":
       return { tone: "good", title: "You're on a 30-day free trial", lines: [
-        "Your Class plan (the teacher account) and Teacher Hub are open to you at no cost, and so are Arise Math, Arise History and Arise Social for your class.",
+        "Your Class plan (the teacher account) and Arise WorkHub are open to you at no cost, and so are Arise Math, Arise History and Arise Social for your class.",
         `Your free trial runs until ${day(plan.endsAt)}. There is nothing to pay before then, and no card is needed.`,
       ] };
     case "rules-off":
@@ -102,7 +102,7 @@ export default function Billing() {
   // Start the stepper at what they pay for now, and never below what their class needs.
   const paidSeats = plan?.teacherPlan?.live ? plan.teacherPlan.seats : 0;
   useEffect(() => { setBlocks((b) => Math.max(b, needed, Math.round(paidSeats / PLANS.teacher.studentsPerBlock))); }, [needed, paidSeats]);
-  // The same for Teacher Hub, counted against the students in the Hub caseload.
+  // The same for Arise WorkHub, counted against the students in the Hub caseload.
   const hub = plan?.hub;
   const hubStudents = hub?.students ?? 0;
   const hubNeeded = useMemo(() => blocksFor(hubStudents), [hubStudents]);
@@ -164,7 +164,7 @@ export default function Billing() {
 
         {confirm === "checking" && <p className="bl-banner" role="status">Checking your payment…</p>}
         {confirm === "done" && <p className="bl-banner good" role="status">Payment received. Premium is on.</p>}
-        {confirm === "done-hub" && <p className="bl-banner good" role="status">Payment received. Teacher Hub is on. <button type="button" className="bl-text" onClick={() => navigate("/teacher-hub")}>Open Teacher Hub</button></p>}
+        {confirm === "done-hub" && <p className="bl-banner good" role="status">Payment received. Arise WorkHub is on. <button type="button" className="bl-text" onClick={() => navigate("/workhub")}>Open Arise WorkHub</button></p>}
         {confirm === "done-addon" && <p className="bl-banner good" role="status">Payment received. Your add-on is on.</p>}
         {confirm === "late" && <p className="bl-banner" role="status">We couldn't confirm the payment yet. If your card was charged, Premium will switch on within a few minutes. Refresh this page to check.</p>}
 
@@ -252,7 +252,7 @@ export default function Billing() {
             setBlocks={setHubBlocks}
             busy={busy}
             go={go}
-            open={() => navigate("/teacher-hub")}
+            open={() => navigate("/workhub")}
             pricing={() => navigate("/pricing")}
           />
         )}
@@ -272,7 +272,7 @@ function Stepper({ blocks, min, onChange }: { blocks: number; min: number; onCha
   );
 }
 
-/** Teacher Hub, the add-on: what the teacher has, and buying or changing it. */
+/** Arise WorkHub, the add-on: what the teacher has, and buying or changing it. */
 function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing }: {
   plan: PlanInfo;
   hub: NonNullable<PlanInfo["hub"]>;
@@ -291,21 +291,21 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
   const freeMonth = hub.via === "free-month";
   return (
     <div className="bl-hub" data-testid="billing-hub">
-      <h2 className="bl-h2">Teacher Hub <span className="bl-tag">Add-on</span></h2>
-      <p className="bl-hub-lede">Your private workspace for caseloads, IEP timelines, lessons, notes, attendance, grades, parent contact and schedules. Teacher Hub is sold on its own and isn't part of Premium.</p>
+      <h2 className="bl-h2">Arise WorkHub <span className="bl-tag">Add-on</span></h2>
+      <p className="bl-hub-lede">Your private workspace for caseloads, IEP timelines, lessons, notes, attendance, grades, parent contact and schedules. Arise WorkHub is sold on its own and isn't part of Premium.</p>
 
       {hub.access ? (
         <div className="bl-status good">
-          <h2>{freeMonth ? "Teacher Hub is on your 30-day free trial" : hub.via === "hub-school-plan" ? "You have Teacher Hub through your school" : "You have Teacher Hub"}</h2>
+          <h2>{freeMonth ? "Arise WorkHub is on your 30-day free trial" : hub.via === "hub-school-plan" ? "You have Arise WorkHub through your school" : "You have Arise WorkHub"}</h2>
           {freeMonth
-            ? <p>Your free trial runs until {day(hub.endsAt)}, with no limit on the students in your caseload. A.R.I.S.E. To-Do comes with it.</p>
+            ? <p>Your free trial runs until {day(hub.endsAt)}, with no limit on the students in your caseload. Arise LifeHub comes with it.</p>
             : hub.via === "hub-school-plan"
               ? <p>{plan.school?.name || "Your school"}'s plan covers up to {count(hub.seats ?? H.schoolStudentCap)} students, and every teacher there gets their own Hub.</p>
               : <p>Your plan covers up to {count(hub.seats ?? 0)} students in your caseload. You have {count(hub.students)}.</p>}
           <p>{freeMonth
-            ? `After that, Teacher Hub is ${usd(H.monthlyCents)} a month for each ${H.studentsPerBlock} students, or ${usd(H.schoolYearlyCents)} a year for a whole school. You'll be able to pay on this page when the time comes, and everything you saved stays in your account.`
+            ? `After that, Arise WorkHub is ${usd(H.monthlyCents)} a month for each ${H.studentsPerBlock} students, or ${usd(H.schoolYearlyCents)} a year for a whole school. You'll be able to pay on this page when the time comes, and everything you saved stays in your account.`
             : own?.paidOnline ? `It renews on ${day(hub.endsAt)}.` : hub.endsAt ? `It runs until ${day(hub.endsAt)}.` : "It has no end date."}</p>
-          <button type="button" className="pr-pill pr-pill-sm" onClick={open} data-testid="billing-open-hub">Open Teacher Hub</button>
+          <button type="button" className="pr-pill pr-pill-sm" onClick={open} data-testid="billing-open-hub">Open Arise WorkHub</button>
         </div>
       ) : (
         <>
@@ -325,7 +325,7 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
               <h3>Whole school</h3>
               <p className="bl-price"><b>{usd(H.schoolYearlyCents)}</b> a year</p>
               {plan.school
-                ? <p>Gives every teacher at {plan.school.name} their own Teacher Hub, for up to {count(H.schoolStudentCap)} students.</p>
+                ? <p>Gives every teacher at {plan.school.name} their own Arise WorkHub, for up to {count(H.schoolStudentCap)} students.</p>
                 : <p>Your account isn't connected to a school yet, so a school plan can't be bought from it.</p>}
               <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("hub-school", "/api/billing/checkout", { kind: "hub_school", returnTo: siteAddress() })} data-testid="billing-buy-hub-school">
                 {busy === "hub-school" ? "Opening the payment page…" : `Pay ${usd(H.schoolYearlyCents)} a year`}
@@ -333,13 +333,13 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
               <small>Runs a full 12 months.</small>
             </div>
           </div>
-          <p className="bl-foot">After a teacher's 30-day free trial, Teacher Hub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Teacher Hub includes</button></p>
+          <p className="bl-foot">After a teacher's 30-day free trial, Arise WorkHub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Arise WorkHub includes</button></p>
         </>
       )}
 
       {own?.paidOnline && (
         <div className="bl-card">
-          <h2>Change your Teacher Hub plan</h2>
+          <h2>Change your Arise WorkHub plan</h2>
           <p>Each block covers {H.studentsPerBlock} students for {usd(H.monthlyCents)} a month. Your caseload has {count(hub.students)} students.</p>
           <HubStepper blocks={blocks} min={min} onChange={setBlocks} />
           <div className="bl-actions">
@@ -352,7 +352,7 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
       )}
       {school?.canManage && (
         <div className="bl-card">
-          <h2>Your school's Teacher Hub plan</h2>
+          <h2>Your school's Arise WorkHub plan</h2>
           <p>The teacher who paid for it can change the card, see receipts or cancel.</p>
           <div className="bl-actions"><button type="button" className="pr-pill pr-pill-ghost" disabled={!!busy} onClick={() => go("hub-school-portal", "/api/billing/portal", { kind: "hub_school", returnTo: siteAddress() })}>{busy === "hub-school-portal" ? "Opening…" : "Manage school billing"}</button></div>
         </div>

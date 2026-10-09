@@ -1,4 +1,4 @@
-// Teacher Hub saving, one step at a time.
+// Arise WorkHub saving, one step at a time.
 //
 // The page hands every change to this. It waits a moment for typing to stop, sends one save at
 // a time, remembers which saved copy each save started from (so another phone or computer can't

@@ -1,4 +1,4 @@
-// Teacher Hub: what a teacher's workspace holds, and the rules for adding to it
+// Arise WorkHub: what a teacher's workspace holds, and the rules for adding to it
 // in bulk (from AI, a photo, a file, pasted text or a connected calendar).
 //
 // The page is client/src/pages/TeacherHub.tsx. The workspace is saved as one
@@ -170,7 +170,7 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
+  "overview", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 

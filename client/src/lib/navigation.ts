@@ -34,7 +34,7 @@ export function authenticatedHome(user: NavigationUser | null | undefined) {
   if (user.isAdmin) return "/admin";
   if (user.role === "teacher") return "/teacher-dashboard";
   if (user.role === "parent") return "/parent-dashboard";
-  if (user.role === "todo") return "/to-do";
+  if (user.role === "todo") return "/lifehub";
   return user.is_eye_gaze_user ? "/eye-gaze-home" : "/library";
 }
 

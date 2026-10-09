@@ -1,4 +1,4 @@
-// Teacher Hub: the Notes tab. A note is about a student (a check-in, a concern) or it is not about
+// Arise WorkHub: the Notes tab. A note is about a student (a check-in, a concern) or it is not about
 // any one student (a staff meeting, a team meeting, a training). Notes can be searched and changed.
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Check, Pencil, Plus, Trash2, User, Users } from "lucide-react";

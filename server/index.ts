@@ -35,10 +35,10 @@ app.use("/api/eye-gaze/my-world/upload", express.raw({
   limit: "20mb",
 }));
 
-// Teacher Hub: a workspace with a full caseload and connected calendars is bigger than the usual
+// Arise WorkHub: a workspace with a full caseload and connected calendars is bigger than the usual
 // request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
-// To-Do workspaces can exceed the default 100 KB JSON request size.
+// LifeHub workspaces can exceed the default 100 KB JSON request size.
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).
 app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));

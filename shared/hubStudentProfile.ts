@@ -1,4 +1,4 @@
-// Teacher Hub: one student's whole picture. Everything the Hub holds under a student's name
+// Arise WorkHub: one student's whole picture. Everything the Hub holds under a student's name
 // (IEP dates, goals, service minutes, meetings, notes, parent contact, behavior, attendance,
 // grades, schedule, reading records) gathered in one place, newest first.
 import { daysBetween } from "./hubDates";

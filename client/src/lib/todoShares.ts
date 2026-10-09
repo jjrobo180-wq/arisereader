@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do share links on the owner's side: the links they've made, votes that came in
+// Arise LifeHub share links on the owner's side: the links they've made, votes that came in
 // through poll links, and making / turning off a link. One copy for the whole page, so the
 // "Share link" buttons and the list in Family & settings always agree.
 import { useEffect, useSyncExternalStore } from "react";

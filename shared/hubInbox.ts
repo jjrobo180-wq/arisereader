@@ -1,4 +1,4 @@
-// Teacher Hub: emails forwarded in. Each teacher gets a private address (hub-xxxx@...). Forward a work
+// Arise WorkHub: emails forwarded in. Each teacher gets a private address (hub-xxxx@...). Forward a work
 // email to it and it lands in the Hub's Emails, flagged, and on the to-do list.
 //
 // The server keeps what arrives in a small "waiting" list. The open Hub picks those up and adds them

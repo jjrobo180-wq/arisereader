@@ -1,4 +1,4 @@
-// Teacher Hub: "Add with AI". The teacher types or pastes something, adds photos
+// Arise WorkHub: "Add with AI". The teacher types or pastes something, adds photos
 // or screenshots, or uploads a file. The server reads it and sends back suggested
 // items; the teacher checks them here, fixes anything that is off, and only then
 // are they added to the Hub.

@@ -1,4 +1,4 @@
-// Teacher Hub: the blocks (periods) of the school day. Service minutes are sectioned off by them:
+// Arise WorkHub: the blocks (periods) of the school day. Service minutes are sectioned off by them:
 // Block 1 to Block 5 to start with, and the teacher can rename them or add more.
 // A block stands in for the time of day, so minutes carry a block and no clock time.
 

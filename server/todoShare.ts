@@ -1,8 +1,8 @@
-// A.R.I.S.E. To-Do share links. The owner copies a private link to one part of their Family Hub
+// Arise LifeHub share links. The owner copies a private link to one part of their Family Hub
 // (a poll, a list, the calendar, bills, a trip, chores, goals, one person's food & fitness) and
 // sends it to family. Whoever has the link can see that part, and vote in a poll, without an account.
-// The link shows the owner's To-Do as it is now (nothing is copied), and stops working when the owner
-// turns it off or their To-Do ends. Guest votes are kept beside the To-Do, never written into it,
+// The link shows the owner's LifeHub as it is now (nothing is copied), and stops working when the owner
+// turns it off or their LifeHub ends. Guest votes are kept beside the LifeHub, never written into it,
 // so a vote can't collide with the owner saving on their phone.
 import type { Express, RequestHandler } from "express";
 import { randomBytes } from "crypto";
@@ -14,7 +14,7 @@ type Db = { from: (table: string) => any };
 export type TodoShareDeps = {
   db: Db;
   appUrl: string;
-  /** Whether the owner still has To-Do (a link stops working when their To-Do ends). */
+  /** Whether the owner still has LifeHub (a link stops working when their LifeHub ends). */
   ownerAllowed: (userId: number) => Promise<boolean>;
   /** The owner's first name, for the page ("Dana shared this with you"). */
   ownerName: (userId: number) => Promise<string>;
@@ -42,7 +42,7 @@ export function registerTodoShareRoutes(app: Express, authMiddleware: RequestHan
   const owner = (req: any, res: any): number | null => {
     const id = Number(req.user?.id);
     if (!Number.isSafeInteger(id) || req.adminPreview) {
-      res.status(403).json({ message: "Sign in to your own account to share from A.R.I.S.E. To-Do." });
+      res.status(403).json({ message: "Sign in to your own account to share from Arise LifeHub." });
       return null;
     }
     return id;
@@ -61,7 +61,7 @@ export function registerTodoShareRoutes(app: Express, authMiddleware: RequestHan
     return out;
   };
 
-  /* ---------------- the owner's links (behind the To-Do add-on gate) ---------------- */
+  /* ---------------- the owner's links (behind the LifeHub add-on gate) ---------------- */
 
   app.get("/api/arise-todo/shares", authMiddleware, async (req: any, res) => {
     const userId = owner(req, res);
@@ -140,7 +140,7 @@ export function registerTodoShareRoutes(app: Express, authMiddleware: RequestHan
     const token = String(req.params.token || "");
     const to = TOKEN.test(token) ? `/#/share/${token}` : "/";
     res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
-    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Shared from A.R.I.S.E. To-Do</title></head><body><script>location.replace(${JSON.stringify(to)});</script><noscript><a href="${to}">Open the shared page</a></noscript></body></html>`);
+    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Shared from Arise LifeHub</title></head><body><script>location.replace(${JSON.stringify(to)});</script><noscript><a href="${to}">Open the shared page</a></noscript></body></html>`);
   });
 
   /** Finds a working link, or answers for it. */

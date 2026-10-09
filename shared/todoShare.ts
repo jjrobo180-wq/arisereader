@@ -1,7 +1,7 @@
-// A.R.I.S.E. To-Do share links: a private link the owner copies and sends to family, so they can
+// Arise LifeHub share links: a private link the owner copies and sends to family, so they can
 // see one part of the Family Hub (or vote in a poll) without making an account.
 // Only what the link was made for is ever sent: a bills link never carries tasks, a poll link
-// never carries the rest of the hub. Everything here is read live from the owner's saved To-Do.
+// never carries the rest of the hub. Everything here is read live from the owner's saved LifeHub.
 import {
   addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, cleanFamily, eventsOn, fromDay, isDay, weekStart,
   type Family, type Member,

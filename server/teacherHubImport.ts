@@ -1,4 +1,4 @@
-// Teacher Hub: filling the workspace quickly.
+// Arise WorkHub: filling the workspace quickly.
 //
 // A teacher types or pastes something, adds photos or screenshots, or uploads a
 // file. This turns it into suggested items for the Hub's lists. The page shows
@@ -27,7 +27,7 @@ export type AiPart =
 export type AiRequest = { system: string; parts: AiPart[] };
 
 export type HubImportDeps = {
-  /** The Teacher Hub check: answers the request and returns null when this person can't use the Hub. */
+  /** The Arise WorkHub check: answers the request and returns null when this person can't use the Hub. */
   gate(req: any, res: any): Promise<unknown | null>;
   /** Is there an AI service to ask? */
   aiConfigured?: () => boolean;
@@ -97,7 +97,7 @@ export function hubImportPrompt(today: string, timeZone: string, students: strin
   const caseload = students.length
     ? `The teacher's caseload is: ${students.map((name) => JSON.stringify(name)).join(", ")}. When a name in the material clearly means one of them (a first name, a nickname, a misspelling), write it exactly as it is in the caseload. Otherwise write the name as given.`
     : "The teacher has no students in the Hub yet, so write names as given.";
-  return `You fill in a teacher's private planning workspace, called Teacher Hub, from whatever the teacher hands you: typed or pasted text, photos and screenshots (a reminders app, a notes app, a calendar, a whiteboard, a paper list, a spreadsheet), and files.
+  return `You fill in a teacher's private planning workspace, called Arise WorkHub, from whatever the teacher hands you: typed or pasted text, photos and screenshots (a reminders app, a notes app, a calendar, a whiteboard, a paper list, a spreadsheet), and files.
 
 Today is ${weekday}, ${today}. The teacher's time zone is ${timeZone}.
 

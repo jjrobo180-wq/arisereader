@@ -1,4 +1,4 @@
-// Teacher Hub: goal progress monitoring and service-minute tracking.
+// Arise WorkHub: goal progress monitoring and service-minute tracking.
 import { addDays, daysBetween } from "./hubDates";
 import type { Goal, ServiceLog, ServicePlan } from "./teacherHub";
 

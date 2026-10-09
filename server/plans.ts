@@ -5,11 +5,11 @@
 // "does this person have Premium?", locks what needs it, and takes payment
 // through Stripe.
 //
-// Teacher Hub is a separate add-on with its own plans ("hub_teacher" and
+// Arise WorkHub is a separate add-on with its own plans ("hub_teacher" and
 // "hub_school"), bought the same way. Plan rules, the free year and always-free
 // schools don't apply to it.
 //
-// Every teacher's first month is free, for Premium and Teacher Hub alike (see
+// Every teacher's first month is free, for Premium and Arise WorkHub alike (see
 // freeMonthFrom in shared/plans.ts). Nothing is stored for it: it is worked out
 // from the day the account was made.
 //
@@ -57,7 +57,7 @@ export type PlanDeps = {
   studentParentIds?(studentId: number): Promise<number[]>;
   /** A teacher's approved students. */
   teacherStudentIds?(teacherId: number): Promise<number[]>;
-  /** Students in a teacher's Teacher Hub caseload. Left out, counted as 0. */
+  /** Students in a teacher's Arise WorkHub caseload. Left out, counted as 0. */
   countHubStudents?(teacherId: number): Promise<number>;
   schoolName(schoolId: number): Promise<string>;
   /** Every school on the site, for the admin's list of always-free schools. */
@@ -425,7 +425,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const current = async (kind: PlanKind, id: number | null | undefined): Promise<PlanGrant | null> => {
     const ownerId = posInt(id);
     if (!ownerId) return null;
-    // An always-free school is free for Premium only, not for Teacher Hub.
+    // An always-free school is free for Premium only, not for Arise WorkHub.
     if (kind === "school" && (await isFreeSchool(ownerId))) return freeGrant(ownerId);
     let g = await readGrant(kind, ownerId);
     try {
@@ -470,7 +470,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return value;
   };
 
-  /** Can this teacher open Teacher Hub, and how many students may its caseload hold? */
+  /** Can this teacher open Arise WorkHub, and how many students may its caseload hold? */
   const hubAccess = async (user: AnyUser | null | undefined): Promise<HubAccess> => {
     if (!user || !posInt(user.id)) return { access: false, via: null, seats: null, endsAt: null };
     const key = `hub|${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
@@ -661,7 +661,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const hub = isHubKind(kind);
-      const what = hub ? "Teacher Hub" : "Premium";
+      const what = hub ? "Arise WorkHub" : "Premium";
       const schoolId = schoolOf(teacher);
       if (isSchoolKind(kind) && !schoolId) throw new Refused("Your account is not connected to a school yet, so a school plan can't be bought from it.", 409);
       const ownerId = isSchoolKind(kind) ? schoolId! : teacher.id;
@@ -682,7 +682,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const blocks = clampBlocks(req.body?.blocks);
       if (kind === "hub_teacher" && deps.countHubStudents) {
         const students = await deps.countHubStudents(teacher.id);
-        if (seatsFor(blocks) < students) throw new Refused(`Your Teacher Hub caseload has ${students} students, so your plan needs to cover at least that many.`, 409);
+        if (seatsFor(blocks) < students) throw new Refused(`Your Arise WorkHub caseload has ${students} students, so your plan needs to cover at least that many.`, 409);
       }
       const metadata: Record<string, string> = { kind, ownerId: String(ownerId), buyerId: String(teacher.id) };
       if (!isSchoolKind(kind)) metadata.blocks = String(blocks);
@@ -693,8 +693,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const price = priceOf(kind);
       const productName = kind === "school" ? `A.R.I.S.E. Premium for a school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
         : kind === "teacher" ? `A.R.I.S.E. Premium for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
-        : kind === "hub_school" ? `A.R.I.S.E. Teacher Hub for a school (up to ${PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)`
-        : `A.R.I.S.E. Teacher Hub for a teacher (per ${PLANS.hub.studentsPerBlock} students)`;
+        : kind === "hub_school" ? `Arise WorkHub for a school (up to ${PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)`
+        : `Arise WorkHub for a teacher (per ${PLANS.hub.studentsPerBlock} students)`;
       const session = await stripe("POST", "/checkout/sessions", {
         mode: "subscription",
         client_reference_id: `${kind}:${ownerId}`,
@@ -791,10 +791,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
   });
 
-  // ─── Add-ons: the Learning Bundle (History, Math, Social) and To-Do ─────────
-  // Parents: $10 a month for the family's Learning Bundle, $10 a month for To-Do.
+  // ─── Add-ons: the Learning Bundle (History, Math, Social) and LifeHub ─────────
+  // Parents: $10 a month for the family's Learning Bundle, $10 a month for LifeHub.
   // Teachers: $50 a month for the Learning Bundle for their class (on top of Premium,
-  // up to 100 students); To-Do comes with Teacher Hub. Every account gets 30 free days.
+  // up to 100 students); LifeHub comes with Arise WorkHub. Every account gets 30 free days.
   // A teacher's class plan replaces a family's plan once it covers every child in the
   // family: the family plan is cancelled and the unused days refunded to the card.
 
@@ -872,7 +872,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         hub: user.role === "teacher" ? await hubAccess(user) : null,
       });
     } catch (e: any) {
-      console.error("[plans] To-Do check failed:", e?.message);
+      console.error("[plans] LifeHub check failed:", e?.message);
       return { access: true, via: null, endsAt: null, trialEndsAt: null };
     }
   };
@@ -940,8 +940,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       throw new Refused("Ask a parent or your teacher to add it for you.", 403);
     }
     if (product === "todo") {
-      if (user.role === "teacher") throw new Refused("A.R.I.S.E. To-Do comes with Teacher Hub. Get Teacher Hub on your plan page.", 409);
-      if (user.role !== "parent") throw new Refused("To-Do plans are for parent accounts.", 403);
+      if (user.role === "teacher") throw new Refused("Arise LifeHub comes with Arise WorkHub. Get Arise WorkHub on your plan page.", 409);
+      if (user.role !== "parent") throw new Refused("LifeHub plans are for parent accounts.", 403);
       return "todo_family";
     }
     if (product === "bundle") {
@@ -1020,7 +1020,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "add-ons"); }
   });
 
-  /** Starts a Stripe Checkout page for an add-on: the Learning Bundle or To-Do. */
+  /** Starts a Stripe Checkout page for an add-on: the Learning Bundle or LifeHub. */
   app.post("/api/billing/addon-checkout", auth, async (req: any, res: any) => {
     try {
       const buyer: AnyUser = req.user;
@@ -1044,7 +1044,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "bundle_family" ? "A.R.I.S.E. Learning Bundle for a family (History, Math, Social)"
-        : "A.R.I.S.E. To-Do for a family";
+        : "Arise LifeHub for a family";
       const back = addonReturn(req);
       const session = await stripe("POST", "/checkout/sessions", {
         mode: "subscription",
@@ -1096,8 +1096,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       ]);
       res.json({ programs: [
         { id: "reader", name: "A.R.I.S.E. Reader and Class tools", access: reader.premium },
-        { id: "hub", name: "Teacher Hub", access: hub.access },
-        { id: "todo", name: "A.R.I.S.E. To-Do", access: todo.access },
+        { id: "hub", name: "Arise WorkHub", access: hub.access },
+        { id: "todo", name: "Arise LifeHub", access: todo.access },
         ...APP_IDS.map((app, i) => ({ id: app, name: APP_NAMES[app], access: apps[i].access })),
       ] });
     } catch (e) { fail(res, e, "admin programs"); }

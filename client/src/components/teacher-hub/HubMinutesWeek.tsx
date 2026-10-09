@@ -1,4 +1,4 @@
-// Teacher Hub: service minutes sectioned off by the blocks (periods) of the school day.
+// Arise WorkHub: service minutes sectioned off by the blocks (periods) of the school day.
 // A row for each block and a column for each day; on a phone, one day at a time with its blocks stacked.
 // It opens on today, and any earlier day can be opened to add or fix what was forgotten.
 // The rules are in shared/hubMinutesWeek.ts and shared/hubBlocks.ts.

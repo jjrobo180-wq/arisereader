@@ -1,4 +1,4 @@
-// Teacher Hub: the people on one student's IEP team, and the student's disabilities.
+// Arise WorkHub: the people on one student's IEP team, and the student's disabilities.
 //
 // A student can have a social worker, an OT, a nurse, a speech pathologist and a
 // gen ed teacher. Not every student has every one, so each is optional. They are

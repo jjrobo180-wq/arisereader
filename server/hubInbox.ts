@@ -1,4 +1,4 @@
-// Teacher Hub: emails forwarded in (shared/hubInbox.ts).
+// Arise WorkHub: emails forwarded in (shared/hubInbox.ts).
 //
 // The email service (Resend) receives mail for the site's receiving domain and calls the webhook below
 // for each one. The webhook checks the call really came from Resend, finds whose Hub address it was sent
@@ -159,7 +159,7 @@ export function registerHubInboxRoutes(app: Express, auth: RequestHandler, deps:
     } catch (error) { fail(res, error); }
   });
 
-  // The same forwarding address works for the Teacher Hub (teachers with the Hub) and A.R.I.S.E. To-Do
+  // The same forwarding address works for the Arise WorkHub (teachers with the Hub) and Arise LifeHub
   // (anyone signed in). Mail waits in one list per account; whichever app is open takes it.
   const signedIn: Gate = async (req, res) => {
     if (!Number.isSafeInteger(Number(req.user?.id)) || req.adminPreview) { res.status(403).json({ message: "Sign in to your own account to forward email." }); return false; }

@@ -1,4 +1,4 @@
-// Teacher Hub: the IEP guide. It no longer has a tab of its own: step 1 of the meeting steps shows its details and team
+// Arise WorkHub: the IEP guide. It no longer has a tab of its own: step 1 of the meeting steps shows its details and team
 // (GuideDetails) and step 5 shows its checklist and messages (GuideChecklist). One guide per student's IEP or re-evaluation
 // meeting: a checklist to work through, the meeting's details, who is on the
 // student's team, and the messages that go out. The checklist and its rules are

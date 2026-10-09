@@ -1,4 +1,4 @@
-// Is the database ready for everything in the Teacher Hub?
+// Is the database ready for everything in the Arise WorkHub?
 //
 // Some Hub features need tables or columns that are added by pasting a short piece of SQL into
 // Supabase. When that has not been done, a feature can quietly stop working. This looks for each
@@ -135,7 +135,7 @@ export function sqlEditorUrl(supabaseUrl: string = process.env.SUPABASE_URL || "
 }
 
 type SetupDeps = {
-  /** The Teacher Hub gate: answers the request itself and returns null when this person can't use the Hub. */
+  /** The Arise WorkHub gate: answers the request itself and returns null when this person can't use the Hub. */
   gate(req: any, res: any): Promise<unknown | null>;
   db?: Db;
   url?: string;

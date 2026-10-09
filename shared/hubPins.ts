@@ -1,4 +1,4 @@
-// Teacher Hub: pinned banners. A teacher pins up to five to-dos, events or meetings
+// Arise WorkHub: pinned banners. A teacher pins up to five to-dos, events or meetings
 // and they show as colored banners across the top of the Hub.
 import type { HubEvent, Meeting, Task, Workspace } from "./teacherHub";
 

@@ -1,4 +1,4 @@
-// Teacher Hub: other people's calendars (a social worker's, a psychologist's, another teacher's).
+// Arise WorkHub: other people's calendars (a social worker's, a psychologist's, another teacher's).
 // How to ask someone for their calendar's link, with a message to copy or send, and what is on the
 // calendars that are followed. Their events are never put on the teacher's own calendar.
 // The rules are in shared/hubOthers.ts.

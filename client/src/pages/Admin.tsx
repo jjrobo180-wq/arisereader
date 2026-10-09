@@ -160,7 +160,8 @@ let adminCache: { students: Student[]; books: BookItem[] } = {
   books: [],
 };
 
-export default function Admin() {
+/** The admin console. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader group (no sticky page header). */
+export default function Admin({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, token, logout, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -4241,8 +4242,8 @@ Generate exactly 10 questions.`;
   };
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-card/85 backdrop-blur-md">
+    <div className={embedded ? "w-full max-w-full overflow-hidden rounded-3xl bg-background" : "min-h-screen w-full max-w-full overflow-x-hidden bg-background"} data-testid={embedded ? "workhub-admin" : undefined}>
+      <header className={embedded ? "w-full border-b border-border bg-card/85" : "sticky top-0 z-40 w-full border-b border-border bg-card/85 backdrop-blur-md"}>
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-3 sm:px-4 lg:px-6">
           <button type="button" onClick={() => { setTab("overview"); window.scrollTo({ top: 0 }); }} className="flex min-w-0 items-center gap-2.5" aria-label="Admin overview">
             <span className="arise-icon-tile grid h-9 w-9 shrink-0 place-items-center rounded-xl"><ShieldCheck className="h-[18px] w-[18px]" /></span>
@@ -4252,10 +4253,10 @@ Generate exactly 10 questions.`;
             </span>
           </button>
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
-            <button type="button" onClick={() => navigate("/teacher-hub")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Teacher Hub" title="Your Teacher Hub" data-testid="button-admin-teacher-hub">
+            {!embedded && <button type="button" onClick={() => navigate("/workhub")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Arise WorkHub" title="Your Arise WorkHub" data-testid="button-admin-teacher-hub">
               <ClipboardList className="h-5 w-5 text-teal-400" />
-              <span className="hidden text-sm font-semibold sm:inline">Teacher Hub</span>
-            </button>
+              <span className="hidden text-sm font-semibold sm:inline">Arise WorkHub</span>
+            </button>}
             <button type="button" onClick={() => navigate("/leaderboard")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
               <Trophy className="h-5 w-5 text-amber-400" />
               <span className="hidden text-sm font-semibold sm:inline">Leaderboard</span>
@@ -4274,7 +4275,7 @@ Generate exactly 10 questions.`;
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[220px]">
                 <DropdownMenuLabel className="text-xs text-muted-foreground">{user?.displayName || "Admin"}</DropdownMenuLabel>
-                <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/teacher-hub")}><ClipboardList className="h-4 w-4" />My Teacher Hub</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/workhub")}><ClipboardList className="h-4 w-4" />My Arise WorkHub</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/progress")}><Brain className="h-4 w-4" />Student progress</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/polls")}><BarChart3 className="h-4 w-4" />Polls</DropdownMenuItem>
                 <DropdownMenuSeparator />

@@ -1,4 +1,4 @@
-// Teacher Hub calendar: keeping up with events. An event can be checked off as done, snoozed
+// Arise WorkHub calendar: keeping up with events. An event can be checked off as done, snoozed
 // (pushed back an hour, a day or a week), or rescheduled; and the ones that are over and were
 // never checked off are gathered up so the teacher can say what happened.
 import { clockOf, isPast, shiftDay, type Now } from "./hubCalendar";

@@ -1188,7 +1188,7 @@ export async function registerRoutes(
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
   });
-  // Private To-Do accounts and cross-device task syncing (for anyone, not just teachers).
+  // Private LifeHub accounts and cross-device task syncing (for anyone, not just teachers).
   // Paid add-ons (shared/plans.ts): a request without the add-on gets 402 and the page shows how to get it.
   // An admin, or an admin previewing the site as a student, always gets in.
   const addonGate = (open: (method: string, path: string) => boolean, allowed: (user: any) => Promise<boolean>, code: string, message: string) =>
@@ -1202,14 +1202,14 @@ export async function registerRoutes(
         } catch { next(); }
       }).catch(next);
     };
-  // A.R.I.S.E. To-Do: $10 a month for parents after their 30 free days; teachers get it with Teacher Hub.
+  // Arise LifeHub: $10 a month for parents after their 30 free days; teachers get it with Arise WorkHub.
   app.use("/api/arise-todo", addonGate(
     (method, path) => method === "POST" && path === "/api/arise-todo/register",
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
-    "todo_required", "A.R.I.S.E. To-Do is an add-on for parents ($10 a month) and comes with Teacher Hub for teachers.",
+    "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
   registerAriseTodoRoutes(app, authMiddleware);
-  // Share links from To-Do (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
+  // Share links from LifeHub (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
   const todoOwnerAllowed = async (id: number) => {
     const owner: any = await storage.getUser(id);
     if (!owner) return false;
@@ -1222,7 +1222,7 @@ export async function registerRoutes(
   registerFoodLookupRoutes(app, authMiddleware);
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
-  // Teacher Hub, the paid add-on: only teachers with a Teacher Hub plan can open it.
+  // Arise WorkHub, the paid add-on: only teachers with a Arise WorkHub plan can open it.
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
@@ -1231,7 +1231,7 @@ export async function registerRoutes(
   const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
   // Tells the site owner when the database is missing something the Hub needs (and what to paste to fix it).
   registerHubSetupRoutes(app, authMiddleware, { gate: hubGate });
-  // Teacher Hub: work emails forwarded to a teacher's private address land in their Hub, flagged and on the to-do list.
+  // Arise WorkHub: work emails forwarded to a teacher's private address land in their Hub, flagged and on the to-do list.
   registerHubInboxRoutes(app, authMiddleware, {
     gate: hubGate,
     getSetting: (key) => storage.getSetting(key),
@@ -1276,7 +1276,7 @@ export async function registerRoutes(
     }, text: textConfig ? createTextService(textConfig) : undefined });
   // Reminders from the Apple Reminders app (an iPhone Shortcut sends them), one way into the Hub.
   registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
-  // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
+  // Notifications for the Home Screen app (Web Push): Arise WorkHub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), todoAllowed: todoOwnerAllowed });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);

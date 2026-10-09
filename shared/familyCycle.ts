@@ -1,4 +1,4 @@
-// Cycle tracker for the A.R.I.S.E. To-Do: periods from logged flow days, averages and predictions.
+// Cycle tracker for the Arise LifeHub: periods from logged flow days, averages and predictions.
 // Predictions use the usual calendar method (ovulation about 14 days before the next period).
 // They're estimates for planning, not birth control or medical advice.
 import { addDays, daysBetween, type CycleLog } from "./familyHub";

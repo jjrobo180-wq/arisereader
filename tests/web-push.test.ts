@@ -123,7 +123,7 @@ test("morning summary: once a day, only in the morning, only when there is somet
   const zone = "America/Denver";
   const [morning] = dueHubReminders(workspace(), at("2026-10-06T14:00:00Z"), zone); // 8:00 am there
   assert.equal(morning.key, "morning:2026-10-06");
-  assert.equal(morning.title, "Today in your Teacher Hub");
+  assert.equal(morning.title, "Today in your Arise WorkHub");
   assert.match(morning.body, /2 events, 1 meeting, 2 tasks \(1 overdue\)\. First up: IEP meeting at 9:00 AM\./);
   assert.deepEqual(dueHubReminders(workspace(), at("2026-10-06T14:00:00Z"), zone, { [morning.key]: 1 }), []);
   assert.deepEqual(dueHubReminders(workspace(), at("2026-10-06T10:00:00Z"), zone), []); // 4 am

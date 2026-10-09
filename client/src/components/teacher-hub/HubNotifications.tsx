@@ -1,4 +1,4 @@
-// Teacher Hub: put the Hub on the iPhone Home Screen and turn on notifications (Web Push).
+// Arise WorkHub: put the Hub on the iPhone Home Screen and turn on notifications (Web Push).
 // iPhones only allow notifications for a site that was added to the Home Screen first.
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Loader2, Share, SquarePlus } from "lucide-react";
@@ -47,7 +47,7 @@ export default function HubNotifications({ token }: { token: string | null }) {
       if (Notification.permission === "denied") return live && setPhase("blocked");
       try {
         const sub = await currentSubscription();
-        // The same phone may get A.R.I.S.E. To-Do reminders; ask whether Hub ones are on.
+        // The same phone may get Arise LifeHub reminders; ask whether Hub ones are on.
         const on = !!sub && Notification.permission === "granted" && !!(await api(token, "/api/push/status", { endpoint: sub.endpoint }).catch(() => ({ hub: true }))).hub;
         if (live) setPhase(on ? "on" : "off");
       } catch { if (live) setPhase("off"); }
@@ -79,7 +79,7 @@ export default function HubNotifications({ token }: { token: string | null }) {
       const sub = await currentSubscription();
       if (sub) {
         const result = await api(token, "/api/push/unsubscribe", { endpoint: sub.endpoint, app: "hub" }).catch(() => ({}));
-        if (!result.stillUsed) await sub.unsubscribe(); // keep it when To-Do reminders still use it
+        if (!result.stillUsed) await sub.unsubscribe(); // keep it when LifeHub reminders still use it
       }
       setPhase("off");
     } finally { setBusy(false); }
