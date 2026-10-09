@@ -2118,7 +2118,7 @@ export async function registerRoutes(
 
       // Track login count for students (for leaderboard popup)
       let loginCount = 0;
-      if (!user.isAdmin && user.role !== 'teacher' && user.role !== 'parent') {
+      if (!user.isAdmin && user.role === 'student') {
         const rawCounts = await storage.getSetting('login_counts');
         let counts: Record<string, number> = {};
         if (rawCounts) { try { counts = JSON.parse(rawCounts); } catch {} }
