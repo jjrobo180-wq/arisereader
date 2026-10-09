@@ -1,0 +1,69 @@
+/* A.R.I.S.E. To-Do night mode: the light colors swapped for dark ones, only inside .todo-night
+   (the same approach as the Teacher Hub's hubNight.css). */
+.todo-night { color-scheme: dark; background: #0e0d1a; color: #e6e4f2; }
+
+/* Surfaces */
+.todo-night .bg-\[\#f6f7fc\] { background-color: #0e0d1a; }
+.todo-night .bg-white, .todo-night .hover\:bg-white:hover { background-color: #17162b; }
+.todo-night .bg-slate-50, .todo-night .bg-slate-50\/60, .todo-night .bg-slate-50\/70,
+.todo-night .hover\:bg-slate-50:hover, .todo-night .hover\:bg-\[\#fcfbff\]:hover { background-color: #1f1d38; }
+.todo-night .bg-slate-100, .todo-night .hover\:bg-slate-100:hover { background-color: #26244a; }
+.todo-night .bg-slate-800 { background-color: #e6e4f2; color: #17162b; }
+.todo-night .bg-slate-300 { background-color: #3b3961; }
+.todo-night .bg-\[\#292446\] { background-color: #2e2a5c; }
+
+/* Lines */
+.todo-night .border-slate-100, .todo-night .border-slate-200, .todo-night .border-slate-300,
+.todo-night .border-\[\#e7e8f0\], .todo-night .border-\[\#e7e8ef\], .todo-night .border-\[\#ececf3\], .todo-night .border-\[\#e4e6f0\],
+.todo-night .divide-slate-100 > * { border-color: #2c2a4c; }
+.todo-night .border-black\/5 { border-color: transparent; }
+.todo-night .ring-slate-200 { --tw-ring-color: #34325a; }
+.todo-night .ring-slate-800 { --tw-ring-color: #e6e4f2; }
+.todo-night .ring-violet-200, .todo-night .ring-indigo-200, .todo-night .ring-rose-200 { --tw-ring-color: #3d3a6b; }
+
+/* Text */
+.todo-night .text-slate-900, .todo-night .text-slate-800, .todo-night .text-\[\#232139\], .todo-night .text-\[\#242238\],
+.todo-night .text-\[\#2d2555\], .todo-night .hover\:text-slate-800:hover { color: #f1effa; }
+.todo-night .text-slate-700, .todo-night .text-slate-600, .todo-night .hover\:text-slate-700:hover { color: #cfcce3; }
+.todo-night .text-slate-500, .todo-night .text-slate-400 { color: #9a97b8; }
+.todo-night .text-slate-300, .todo-night .text-slate-200 { color: #5d5a80; }
+.todo-night .text-\[\#7e76aa\] { color: #a29dcc; }
+
+/* Violet accents (light tints become deep ones; violet text becomes lighter) */
+.todo-night .bg-violet-50, .todo-night .bg-violet-50\/50, .todo-night .bg-\[\#f4f2ff\], .todo-night .bg-\[\#eeeafe\], .todo-night .bg-\[\#f4f1ff\],
+.todo-night .bg-indigo-50, .todo-night .hover\:bg-violet-50:hover, .todo-night .hover\:bg-violet-50\/40:hover { background-color: rgba(139, 124, 255, 0.16); }
+.todo-night .bg-violet-100, .todo-night .hover\:bg-violet-100:hover { background-color: rgba(139, 124, 255, 0.26); }
+.todo-night .text-violet-500, .todo-night .text-violet-600, .todo-night .text-violet-700, .todo-night .text-violet-900,
+.todo-night .text-\[\#7869d7\], .todo-night .text-\[\#7866e1\], .todo-night .text-\[\#7968e5\], .todo-night .text-\[\#715fe3\],
+.todo-night .text-\[\#6854cf\], .todo-night .text-\[\#5f4dc8\], .todo-night .text-\[\#6c5cce\], .todo-night .text-indigo-700, .todo-night .text-indigo-900,
+.todo-night .hover\:text-violet-500:hover, .todo-night .hover\:text-violet-600:hover, .todo-night .hover\:text-violet-700:hover,
+.todo-night .group:hover .group-hover\:text-violet-600, .todo-night .group:hover .group-hover\:text-violet-700 { color: #b9b0ff; }
+.todo-night .placeholder\:text-violet-500::placeholder { color: #b9b0ff; }
+.todo-night .border-violet-200, .todo-night .border-indigo-200, .todo-night .hover\:border-violet-200:hover, .todo-night .hover\:border-violet-300:hover { border-color: #4a4590; }
+
+/* Status colors */
+.todo-night .bg-emerald-50, .todo-night .hover\:bg-emerald-100:hover { background-color: rgba(52, 211, 153, 0.15); }
+.todo-night .border-emerald-200 { border-color: rgba(52, 211, 153, 0.4); }
+.todo-night .text-emerald-600, .todo-night .text-emerald-700, .todo-night .text-emerald-800 { color: #6ee7b7; }
+.todo-night .bg-rose-50, .todo-night .hover\:bg-rose-100:hover { background-color: rgba(244, 63, 94, 0.15); }
+.todo-night .border-rose-100, .todo-night .border-rose-200 { border-color: rgba(244, 63, 94, 0.35); }
+.todo-night .text-rose-500, .todo-night .text-rose-600, .todo-night .text-rose-700, .todo-night .text-rose-800,
+.todo-night .hover\:text-rose-500:hover, .todo-night .hover\:text-rose-600:hover { color: #fda4af; }
+.todo-night .bg-amber-50 { background-color: rgba(245, 158, 11, 0.15); }
+.todo-night .border-amber-200, .todo-night .border-amber-300 { border-color: rgba(245, 158, 11, 0.4); }
+.todo-night .text-amber-600, .todo-night .text-amber-700, .todo-night .text-amber-800 { color: #fcd34d; }
+.todo-night .bg-sky-50, .todo-night .bg-blue-50 { background-color: rgba(56, 189, 248, 0.15); }
+.todo-night .text-sky-600, .todo-night .text-blue-600 { color: #7dd3fc; }
+.todo-night .bg-orange-50 { background-color: rgba(251, 146, 60, 0.15); }
+.todo-night .text-orange-600 { color: #fdba74; }
+
+/* Form fields */
+.todo-night input, .todo-night select, .todo-night textarea { background-color: #121126; color: #e6e4f2; border-color: #34325a; }
+.todo-night input::placeholder, .todo-night textarea::placeholder { color: #6f6c94; }
+.todo-night input[type="date"]::-webkit-calendar-picker-indicator, .todo-night input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.85); }
+
+/* Notes keep their paper colors, so their writing stays dark. */
+.todo-night .note-card, .todo-night textarea.note-card { color: #1e1b33; }
+.todo-night .note-card .text-slate-800, .todo-night .note-card .text-slate-700, .todo-night .note-card .text-slate-600 { color: #1e1b33; }
+.todo-night .note-card .text-slate-400 { color: #6b6890; }
+.todo-night .toggle-knob { background-color: #ffffff; }

@@ -30,7 +30,7 @@ export default function Notes({ family, setFamily, makeId, say }: SectionProps) 
       action={<button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New note</button>} />
     {family.notes.length > 0 && <div className="relative max-w-md"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes" aria-label="Search notes" className={inputClass + " pl-10"} /></div>}
     {notes.length ? <div className="columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
-      {notes.map((n) => <article key={n.id} className="group break-inside-avoid rounded-2xl border border-black/5 p-4 shadow-[0_3px_16px_#17152b0a]" style={{ background: n.color }}>
+      {notes.map((n) => <article key={n.id} className="note-card group break-inside-avoid rounded-2xl border border-black/5 p-4 shadow-[0_3px_16px_#17152b0a]" style={{ background: n.color }}>
         <div className="flex items-start gap-2">
           <button onClick={() => setEditing({ ...n })} className="min-w-0 flex-1 text-left">
             {n.title && <h3 className="break-words text-base font-black text-slate-800">{n.title}</h3>}
@@ -45,7 +45,7 @@ export default function Notes({ family, setFamily, makeId, say }: SectionProps) 
     {editing && <Modal title={family.notes.some((n) => n.id === editing.id) ? "Edit note" : "New note"} onClose={() => setEditing(null)} wide>
       <form onSubmit={save} className="space-y-4">
         <input autoFocus maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} placeholder="Title" aria-label="Title" className={inputClass + " text-base font-bold"} />
-        <textarea rows={10} maxLength={5000} value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} placeholder="Write anything…" aria-label="Note" className={inputClass + " py-3 leading-6"} style={{ background: editing.color }} />
+        <textarea rows={10} maxLength={5000} value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} placeholder="Write anything…" aria-label="Note" className={inputClass + " note-card py-3 leading-6"} style={{ background: editing.color }} />
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold text-slate-500">Color</span>
           {NOTE_COLORS.map((c) => <button key={c} type="button" onClick={() => setEditing({ ...editing, color: c })} aria-pressed={editing.color === c} aria-label={`Color ${c}`} className={`h-8 w-8 rounded-full border-2 ${editing.color === c ? "border-violet-500" : "border-slate-200"}`} style={{ background: c }} />)}

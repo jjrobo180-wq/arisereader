@@ -55,7 +55,7 @@ export default function Chores({ family, setFamily, today, makeId, say }: Sectio
 
     {family.members.length > 0 && <div className="flex flex-wrap gap-2">
       <button onClick={() => setWho("")} aria-pressed={!who} className={`min-h-10 rounded-xl px-4 text-xs font-bold ring-1 ${!who ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>Everyone</button>
-      {family.members.map((m) => <button key={m.id} onClick={() => setWho(who === m.id ? "" : m.id)} aria-pressed={who === m.id} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold ring-1" style={who === m.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : { background: "#fff", color: "#475569", boxShadow: "0 0 0 1px #e2e8f0" }}><span>{m.emoji || "🙂"}</span>{m.name}</button>)}
+      {family.members.map((m) => <button key={m.id} onClick={() => setWho(who === m.id ? "" : m.id)} aria-pressed={who === m.id} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold ring-1 bg-white text-slate-600 ring-slate-200" style={who === m.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span>{m.emoji || "🙂"}</span>{m.name}</button>)}
     </div>}
 
     {!family.chores.length ? <Panel><Empty icon={<Sparkles size={26} />} title="No chores yet" action={<button onClick={() => setDraft(blank())} className={soft}><Plus size={16} /> Add the first chore</button>}>Start with a few daily jobs. You can rotate a chore between kids so it changes hands every week.</Empty></Panel> : <>
