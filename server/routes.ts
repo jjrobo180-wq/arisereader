@@ -11,7 +11,10 @@ import { supabase, getAdminSupabase } from "./supabase";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
-import { INVITE_PRIZES_KEY, readInvitePrizes } from "../shared/invitePrizes";
+import { INVITE_PRIZES_KEY, invitePrizeLines, readInvitePrizes } from "../shared/invitePrizes";
+import { registerFamilyEmailRoutes } from "./familyEmails";
+import { monthStanding, type ChildProgress } from "../shared/familyEmails";
+import { schoolYearMonth } from "../shared/schoolMonth";
 import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
@@ -60,7 +63,7 @@ import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
-import { randomBytes, randomUUID } from "node:crypto";
+import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { raw, text as expressText } from "express";
 
 // Email helper using Resend REST API
@@ -9682,6 +9685,83 @@ Important:
       if (error) throw new Error(error.message);
       return (data || []).map((u: any) => ({ id: Number(u.id), username: u.username, displayName: u.display_name, role: u.role, isAdmin: !!u.is_admin, archived: !!u.archived_at, isEyeGazeUser: !!u.is_eye_gaze_user }));
     },
+  });
+
+  // Automatic family emails: a weekly progress update to each connected parent, and a friendly nudge when a
+  // child hasn't passed a quiz in a while. The admin turns them on and off; they start off.
+  const familyEmailKey = (() => {
+    const source = process.env.MAILBOX_ENCRYPTION_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    if (!source) { console.warn("[family-email] no server secret: stop links will only work until the server restarts"); return randomBytes(32); }
+    return Buffer.from(hkdfSync("sha256", source, "arise-family-email", "family-email-stop-v1", 32));
+  })();
+  registerFamilyEmailRoutes(app, authMiddleware, {
+    getSetting: (key) => storage.getSetting(key),
+    saveSetting: (key, value) => storage.upsertSetting(key, value),
+    families: async () => {
+      const links = await readParentStudentLinks();
+      const parentIds = Object.keys(links).map(Number).filter((id) => Number.isSafeInteger(id) && id > 0);
+      if (!parentIds.length) return [];
+      const childIds = Array.from(new Set(parentIds.flatMap((id) => normalizeLinkedIds(links[String(id)]))));
+      const { data, error } = await supabase.from("users").select("id, username, display_name, role, email, is_admin, archived_at").in("id", [...parentIds, ...childIds]);
+      if (error) throw new Error(error.message);
+      const byId = new Map((data || []).map((u: any) => [Number(u.id), u]));
+      const isChild = (u: any) => !!u && !u.archived_at && !u.is_admin && (!u.role || u.role === "student") && !isSampleAccount(u);
+      return parentIds.flatMap((parentId) => {
+        const parent: any = byId.get(parentId);
+        if (!parent || parent.archived_at || parent.role !== "parent" || !String(parent.email || "").includes("@")) return [];
+        const children = normalizeLinkedIds(links[String(parentId)]).map((id) => byId.get(id)).filter(isChild).map((u: any) => ({ id: Number(u.id), name: String(u.display_name || u.username || "Your child") }));
+        return [{ parentId, parentName: String(parent.display_name || ""), email: String(parent.email).trim(), children }];
+      });
+    },
+    progress: async (children, nowMs) => {
+      const ids = children.map((c) => c.id);
+      const out = new Map<number, ChildProgress>();
+      if (!ids.length) return out;
+      const weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000;
+      const passed = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
+      // Every passed quiz these children have, for "this week" and for when they last passed one.
+      const [books, eye, custom] = await Promise.all([
+        supabase.from("attempts").select("user_id, book_id, points_earned, score, total, completed_at").in("user_id", ids).gt("book_id", 0).limit(20000),
+        supabase.from("eye_gaze_attempts").select("user_id, score, total, completed_at").in("user_id", ids).limit(20000),
+        supabase.from("custom_eye_gaze_attempts").select("user_id, score, total, completed_at").eq("status", "completed").in("user_id", ids).limit(20000),
+      ]);
+      for (const r of [books, eye, custom]) if (r.error) throw new Error(r.error.message);
+      const quizzes = [
+        ...(books.data || []).filter(passed).map((a: any) => ({ id: Number(a.user_id), at: Date.parse(a.completed_at), points: Number(a.points_earned) || 0, bookId: Number(a.book_id) })),
+        ...[...(eye.data || []), ...(custom.data || [])].filter(passed).map((a: any) => ({ id: Number(a.user_id), at: Date.parse(a.completed_at), points: 10, bookId: 0 })),
+      ].filter((q) => Number.isFinite(q.at));
+      const weekBookIds = Array.from(new Set(quizzes.filter((q) => q.at >= weekAgo && q.bookId > 0).map((q) => q.bookId)));
+      const titles = new Map<number, string>();
+      if (weekBookIds.length) {
+        const { data } = await supabase.from("books").select("id, title").in("id", weekBookIds);
+        for (const b of data || []) titles.set(Number((b as any).id), String((b as any).title || ""));
+      }
+      const all = new Map((await storage.getLeaderboard()).map((e: any) => [Number(e.id), Number(e.totalPoints) || 0]));
+      const month = (await storage.getMonthlyLeaderboard(schoolYearMonth(nowMs))).map((e: any) => ({ id: Number(e.id), totalPoints: Number(e.totalPoints) || 0 }));
+      let grades: Record<string, string> = {};
+      try { grades = JSON.parse((await storage.getSetting("user_grades")) || "{}"); } catch { /* no grades */ }
+      const bandOf = (id: number) => (grades[String(id)] ? gradeToBand(String(grades[String(id)])) : null);
+      for (const c of children) {
+        const mine = quizzes.filter((q) => q.id === c.id);
+        const week = mine.filter((q) => q.at >= weekAgo);
+        out.set(c.id, {
+          childId: c.id, name: c.name,
+          weekPassed: week.length,
+          weekPoints: Math.round(week.reduce((n, q) => n + q.points, 0) * 10) / 10,
+          weekBooks: Array.from(new Set(week.map((q) => titles.get(q.bookId) || "").filter(Boolean))),
+          totalPoints: all.get(c.id) ?? 0,
+          lastPassedAt: mine.length ? Math.max(...mine.map((q) => q.at)) : null,
+          ...monthStanding(month, c.id, bandOf),
+        });
+      }
+      return out;
+    },
+    prizes: async (nowMs) => invitePrizeLines(readInvitePrizes(await storage.getSetting(INVITE_PRIZES_KEY)), nowMs, APP_URL),
+    emailConfigured,
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html),
+    siteUrl: APP_URL,
+    signKey: familyEmailKey,
+    now: () => Date.now(),
   });
 
   // A teacher or the admin emails a student's parent (who needs no account yet) about the program and how to sign up.
