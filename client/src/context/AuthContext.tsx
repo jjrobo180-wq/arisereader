@@ -89,6 +89,19 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
   }
 }
 
+// Pages outside the app (Arise Social at /social/) send people here to sign in or sign up,
+// and ask to be taken back afterwards. Only known pages are allowed, so this can't be used to send someone elsewhere.
+const RETURN_KEY = "arise_return_to";
+const RETURN_PAGES = new Set(["/social/"]);
+function returnIfAsked() {
+  try {
+    const to = sessionStorage.getItem(RETURN_KEY);
+    if (!to) return;
+    sessionStorage.removeItem(RETURN_KEY);
+    if (RETURN_PAGES.has(to)) window.location.assign(to);
+  } catch {}
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<{ user: AuthUser | null; token: string | null }>(loadSessionCookie());
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
@@ -223,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
     persistSession(data.user, data.token);
+    returnIfAsked();
   }, [persistSession]);
 
   const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; independent?: boolean; directorySchool?: string }) => {
@@ -239,6 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     resetAuthenticatedNavigation(data.user);
     persistSession(data.user, data.token);
+    returnIfAsked();
   }, [persistSession]);
 
   const refreshUser = useCallback(async () => {

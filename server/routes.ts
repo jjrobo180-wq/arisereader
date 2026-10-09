@@ -42,6 +42,7 @@ import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./tea
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
+import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
@@ -1341,6 +1342,23 @@ export async function registerRoutes(
     try { const raw = await storage.getSetting("user_grades"); const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; }
     catch { return {}; }
   };
+  // Arise Social (/social/): career discovery for students, with their parents and teachers.
+  // It uses the regular accounts; see server/ariseSocial.ts and migrations/arise_social.sql.
+  const toSocialUser = (u: any): SocialUser | null => u ? ({
+    id: Number(u.id), role: u.isAdmin ? "admin" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : "student",
+    displayName: String(u.displayName || u.username || ""), teacherId: u.teacherId ? Number(u.teacherId) : null,
+    schoolId: u.school_id ? Number(u.school_id) : null, approvedByTeacher: u.approvedByTeacher !== false, archived: !!u.archivedAt,
+  }) : null;
+  registerAriseSocialRoutes(app, authMiddleware, {
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      parentsOf: (studentId) => getStudentParentIds(studentId),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
   /** What anyone may see about a teacher on the public sign-up pages. */
   const publicTeacher = (t: any) => ({ id: t.id, display_name: t.display_name, displayName: t.display_name, role: t.role, school_id: t.school_id });
   /** The signed-in session for a public route, if the request carries one. */

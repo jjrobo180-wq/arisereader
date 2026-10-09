@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Arise Social: a safe career-discovery network where K–12 students, parents, and teachers explore every path after school, from trades and the military to college.">
+<title>Arise Social</title>
+<meta name="description" content="Arise Social: a safe career-discovery network where K–12 students explore trades, the military, teaching, health care, tech and college paths, with their teachers and parents.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/favicon.ico">
-<title>Arise Social</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
@@ -358,31 +358,61 @@ tr:last-child td{border-bottom:0}
 @media (max-width:780px){.toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:90}
 @media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+
+/* ---------- signed-out landing, menus, states ---------- */
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.landing{max-width:1100px;margin:0 auto;padding-inline:16px;padding-block:28px 64px;display:flex;flex-direction:column;gap:18px}
+.land-hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:28px;align-items:center;padding:28px}
+.land-hero h1{font-size:clamp(2rem,4.6vw,3rem);line-height:1.05;letter-spacing:-.03em}
+.land-hero h1 em{font-style:normal;background:linear-gradient(100deg,var(--cover-a),var(--cover-b) 55%,var(--cover-c));-webkit-background-clip:text;background-clip:text;color:transparent}
+.land-hero p.lead{font-size:1.05rem;color:var(--muted);margin-top:12px;max-width:52ch}
+.join{display:flex;flex-direction:column;gap:8px}
+.join .btn{justify-content:flex-start;padding:12px 18px;font-size:.95rem;min-height:48px}
+.join .btn small{margin-left:auto;font-weight:600;opacity:.75;font-size:.78rem}
+.land-art{border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:var(--card)}
+.land-art .cover.tall{height:120px}
+.land-art .inner{padding:0 18px 18px}
+.land-art .av.lg{margin-top:-36px}
+.points{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.points .card b{display:flex;gap:8px;align-items:center;font-size:.95rem;margin-bottom:4px}
+.points .card b svg{width:18px;height:18px;color:var(--leaf)}
+@media (max-width:820px){.land-hero{grid-template-columns:1fr;padding:20px}}
+.notice{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:var(--primary-soft);color:var(--fg);font-size:.9rem}
+.notice svg{width:20px;height:20px;color:var(--primary-text);flex:none;margin-top:1px}
+.skeleton{height:110px;border-radius:var(--r);background:linear-gradient(90deg,var(--card) 0%,var(--card-2) 50%,var(--card) 100%);background-size:200% 100%;animation:shimmer 1.2s infinite linear}
+@keyframes shimmer{to{background-position:-200% 0}}
+.post-menu{margin-left:auto;align-self:flex-start}
+.kid-chips{display:flex;gap:8px;flex-wrap:wrap}
+.roster{width:100%;border-collapse:collapse;min-width:520px;font-size:.86rem}
+.roster td,.roster th{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left}
+.roster th{font-size:.72rem;color:var(--muted);background:var(--card-2)}
+.roster td.tnum,.roster th.tnum{text-align:right}
+.center-page{max-width:560px;margin:60px auto;padding-inline:16px;text-align:center}
+.center-page .card{padding:28px}
+.me-btn{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:var(--muted);padding:0 0 0 12px;border-left:1px solid var(--line);height:36px;justify-content:center}
+.menu{position:absolute;right:16px;top:58px;background:var(--card);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;min-width:220px;z-index:50}
+.menu a,.menu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;padding:10px 12px;border-radius:8px;text-decoration:none;color:var(--fg);font-weight:600;font-size:.88rem;text-align:left}
+.menu a:hover,.menu button:hover{background:var(--card-2)}
+.menu .who{padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.menu .who b{display:block}
+.menu .who span{font-size:.78rem;color:var(--muted)}
+.menu svg{width:18px;height:18px;color:var(--muted)}
 </style>
 </head>
 <body>
-<div class="demo"><div class="demo-in">
-  <span>Arise Social preview · <a href="https://www.arisereader.com/" style="color:inherit">A.R.I.S.E. Reader</a></span>
-  <div class="ctl">View as <div class="seg" id="roleSeg" role="group" aria-label="View as"></div></div>
-  <div class="ctl">Grades <div class="seg" id="bandSeg" role="group" aria-label="Grade band"></div></div>
-</div></div>
-<header class="top"><div class="top-in">
-  <svg class="logo" viewBox="0 0 40 40" aria-label="Arise Social">
+<header class="top"><div class="top-in" id="topIn">
+  <a href="/social/" aria-label="Arise Social home" style="display:flex"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
     <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2a8f"/><stop offset="1" stop-color="#6d4fd8"/></linearGradient>
     <linearGradient id="sg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef5a45"/><stop offset="1" stop-color="#ffb23f"/></linearGradient></defs>
     <rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
-  </svg>
+  </svg></a>
   <span class="wordmark">Arise <b>Social</b></span>
-  <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="q" placeholder="Search careers" aria-label="Search careers"></label>
+  <label class="search" id="searchWrap" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="q" placeholder="Search careers" aria-label="Search careers"></label>
   <nav class="topnav" id="nav" aria-label="Sections"></nav>
-  <div class="me" id="me"></div>
+  <div id="me"></div>
 </div></header>
 
-<div class="app">
-  <aside class="left" id="left"></aside>
-  <main id="main"></main>
-  <aside class="rail" id="rail"></aside>
-</div>
+<div id="root"></div>
 <nav class="bottom" id="bottom" aria-label="Sections"></nav>
 <div id="modalRoot"></div>
 <canvas id="confetti"></canvas>
@@ -405,7 +435,6 @@ const I = {
   event:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>',
   passport:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
   paths:'<path d="M6 21V11a4 4 0 0 1 4-4h8"/><path d="M15 4l3 3-3 3"/><path d="M6 11a4 4 0 0 0-4-4"/>',
-  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
   shield:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/>',
   check:'<path d="M5 12l5 5 9-10"/>',
   inbox:'<path d="M3 13h5l1.5 3h5l1.5-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/>',
@@ -422,454 +451,335 @@ const I = {
   same:'<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
   ask:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/>',
   bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
-  image:'<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>'
+  trash:'<path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
+  out:'<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'
 };
 const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cc = k => `var(--${k})`;
 
-/* ================= DATA ================= */
-const BANDS = {
-  k2:  {label:'K–2',  crew:'Explorers',   kid:{name:'Ava M.',    first:'Ava',    grade:'Grade 1',  school:'Maple Elementary'}, teacher:'Mr. Okafor',  parent:'Dana M.'},
-  g35: {label:'3–5',  crew:'Builders',    kid:{name:'Mateo R.',  first:'Mateo',  grade:'Grade 4',  school:'Maple Elementary'}, teacher:'Ms. Chen',    parent:'Luis R.'},
-  g68: {label:'6–8',  crew:'Trailblazers',kid:{name:'Jaylen W.', first:'Jaylen', grade:'Grade 7',  school:'Lincoln Middle'},   teacher:'Ms. Rivera',  parent:'Keisha W.'},
-  g912:{label:'9–12', crew:'Launchers',   kid:{name:'Priya S.',  first:'Priya',  grade:'Grade 11', school:'Eastview High'},    teacher:'Mr. Delgado', parent:'Anand S.'}
-};
-const BAND_KEYS = ['k2','g35','g68','g912'];
-const young = b => b==='k2' || b==='g35';
-
-const CLUSTERS = {
-  build: {name:'Build & Fix',      start:{k2:'Help a grown-up fix something at home and hand them the tools.', g35:'Take apart an old toy or radio (with permission) and name the parts.', g68:'Try shop, robotics, or a maker club. Fix one small thing a month.', g912:'Take a CTE or trades class, look up pre-apprenticeship programs, and join SkillsUSA.'}},
-  serve: {name:'Protect & Serve',  start:{k2:'Learn your address and how to call 911 in an emergency.', g35:'Join scouts or a team where you practice teamwork and first aid.', g68:'Build fitness habits, try a leadership role, and read about each military branch.', g912:'Visit JROTC, talk to a recruiter with a parent, and try a practice ASVAB.'}},
-  teach: {name:'Teach & Lead',     start:{k2:'Teach a stuffed animal (or a sibling) something you learned today.', g35:'Be a reading buddy for a younger kid.', g68:'Tutor a classmate or help coach a younger team.', g912:'Look into Educators Rising, dual-enrollment education classes, and summer camp counselor jobs.'}},
-  heal:  {name:'Heal & Care',      start:{k2:'Practice washing hands the doctor way: 20 seconds.', g35:'Learn basic first aid and how the heart pumps.', g68:'Take a health science elective or a youth CPR class.', g912:'Earn CPR/First Aid, look at HOSA, and ask about CNA or EMT courses for teens.'}},
-  help:  {name:'Help People',      start:{k2:'Notice when a friend is sad and ask how you can help.', g35:'Help with a food or coat drive at school.', g68:'Volunteer with a community group once a month.', g912:'Take psychology or sociology, and volunteer somewhere that serves families.'}},
-  create:{name:'Create',           start:{k2:'Draw, build, or cook something new every week.', g35:'Make a comic, a short video, or a recipe card.', g68:'Start a portfolio folder with your best work.', g912:'Take art, culinary, or media classes and post work to your school portfolio.'}},
-  tech:  {name:'Code & Tech',      start:{k2:'Play unplugged coding games (follow-the-arrows).', g35:'Try block coding and build a tiny game.', g68:'Join a coding or cyber club and finish one real project.', g912:'Take AP CS or a CTE IT pathway, try CyberPatriot, and build projects you can show.'}},
-  nature:{name:'Grow & Explore',   start:{k2:'Plant a seed and check on it every day.', g35:'Keep a nature journal of animals and plants near you.', g68:'Join a garden club, 4-H, or FFA.', g912:'Take ag science or biology, and look for park or farm summer jobs.'}},
-  fly:   {name:'Engineer & Fly',   start:{k2:'Build the tallest tower you can from cups or blocks.', g35:'Build and test paper airplanes. Which flies farthest?', g68:'Try a bridge challenge, rocketry, or a STEM club.', g912:'Take physics and math, and look at Civil Air Patrol or an aviation maintenance program.'}}
-};
-const CL_KEYS = Object.keys(CLUSTERS);
-
-// pay: approx U.S. median annual wage in $k (BLS OEWS May 2024). Placeholders for the prototype.
-const CAREERS = [
-  {id:'plumber', name:'Plumber', c:'build', soc:'47-2152', pay:63, paths:['Apprenticeship','License'], train:'4–5 yr apprenticeship, paid', kid:'Plumbers make sure clean water comes in and dirty water goes out.', teen:'Install and repair the pipes, fixtures, and water heaters in homes and buildings. High demand, and you get paid while you train.', tools:['Pipe wrench','PEX crimper','Camera snake']},
-  {id:'electrician', name:'Electrician', c:'build', soc:'47-2111', pay:62, paths:['Apprenticeship','License'], train:'4–5 yr apprenticeship, paid', kid:'Electricians bring power to lights, plugs, and machines safely.', teen:'Wire new buildings, troubleshoot circuits, and install solar panels and EV chargers. Math and problem-solving every day.', tools:['Multimeter','Wire strippers','Conduit bender']},
-  {id:'autotech', name:'Auto Technician', c:'build', soc:'49-3023', pay:50, paths:['Trade school','On the job'], train:'6 mo–2 yr program + certifications', kid:'Auto techs find out what is wrong with a car and fix it.', teen:'Diagnose engines, brakes, and electrical systems, including hybrids and EVs, using scan tools and computers.', tools:['OBD-II scanner','Torque wrench','Lift']},
-  {id:'welder', name:'Welder', c:'build', soc:'51-4121', pay:52, paths:['Trade school','Apprenticeship'], train:'Months to 2 yr + certifications', kid:'Welders join metal together with super-hot light.', teen:'Fuse metal for bridges, ships, pipelines, and art. Certified welders can travel for high-paying jobs.', tools:['MIG welder','Auto-dark helmet','Angle grinder']},
-  {id:'hvac', name:'HVAC Technician', c:'build', soc:'49-9021', pay:60, paths:['Trade school','Apprenticeship'], train:'6 mo–2 yr + EPA certification', kid:'HVAC techs keep buildings warm in winter and cool in summer.', teen:'Install and repair heating, cooling, and ventilation systems, including heat pumps that save energy.', tools:['Gauge manifold','Leak detector','Thermostat']},
-  {id:'carpenter', name:'Carpenter', c:'build', soc:'47-2031', pay:59, paths:['Apprenticeship','On the job'], train:'3–4 yr apprenticeship, paid', kid:'Carpenters build houses, stairs, and cabinets out of wood.', teen:'Frame buildings, build forms for concrete, and finish trim. Many carpenters go on to run their own business.', tools:['Framing square','Circular saw','Chalk line']},
-  {id:'military', name:'Military Service Member', c:'serve', soc:'55-0000', pay:null, paths:['Military'], train:'Basic training + job school (weeks to months)', kid:'Soldiers, sailors, airmen, Marines, and Guardians protect our country.', teen:'The Army, Navy, Air Force, Marines, Coast Guard, and Space Force have hundreds of jobs, from mechanic to medic to cyber. You get paid training, and programs like the GI Bill can help pay for college.', tools:['Teamwork','Fitness','Your job specialty']},
-  {id:'firefighter', name:'Firefighter', c:'serve', soc:'33-2011', pay:60, paths:['On the job','Certificate'], train:'Fire academy + EMT certification', kid:'Firefighters put out fires and help people in emergencies.', teen:'Respond to fires, car crashes, and medical calls. Most departments also want EMT certification.', tools:['Hose & nozzle','SCBA air pack','Thermal camera']},
-  {id:'teacher', name:'Elementary Teacher', c:'teach', soc:'25-2021', pay:64, paths:['4-year','License'], train:'Bachelor’s degree + state license', kid:'Teachers help kids learn to read, count, and discover new things.', teen:'Plan lessons, figure out how each kid learns best, and lead a classroom. Many states have grants for future teachers.', tools:['Lesson plans','Read-alouds','Classroom tech']},
-  {id:'counselor', name:'School Counselor', c:'teach', soc:'21-1012', pay:65, paths:['4-year','License'], train:'Master’s degree + license', kid:'School counselors help kids with feelings, friends, and big choices.', teen:'Help students plan classes, apply for college or careers, and get support when life is hard.', tools:['Listening','Planning tools','Scholarship lists']},
-  {id:'librarian', name:'Librarian', c:'teach', soc:'25-4022', pay:65, paths:['4-year'], train:'Master’s in library science', kid:'Librarians help you find the perfect book.', teen:'Run reading programs, teach research skills, and manage digital collections. Readers welcome.', tools:['Catalog systems','Story time','Research databases']},
-  {id:'nurse', name:'Registered Nurse', c:'heal', soc:'29-1141', pay:94, paths:['2-year','4-year','License'], train:'2–4 yr nursing degree + NCLEX exam', kid:'Nurses take care of people when they are sick or hurt.', teen:'Check on patients, give medicine, and work with doctors. You can start with a 2-year degree and specialize later.', tools:['Stethoscope','Patient chart','IV pump']},
-  {id:'emt', name:'EMT / Paramedic', c:'heal', soc:'29-2042', pay:42, paths:['Certificate'], train:'EMT: weeks to months; Paramedic: 1–2 yr', kid:'EMTs ride in ambulances and help people fast.', teen:'Give emergency care on the scene and on the way to the hospital. Some high schools offer EMT classes for seniors.', tools:['Defibrillator','Trauma kit','Radio']},
-  {id:'hygienist', name:'Dental Hygienist', c:'heal', soc:'29-1292', pay:94, paths:['2-year','License'], train:'Associate degree + license', kid:'Dental hygienists clean teeth and teach you to brush.', teen:'Clean teeth, take X-rays, and spot problems early. Strong pay with a 2-year degree.', tools:['Scaler','X-ray sensor','Ultrasonic cleaner']},
-  {id:'vettech', name:'Vet Technician', c:'heal', soc:'29-2056', pay:46, paths:['2-year'], train:'Associate degree + credential', kid:'Vet techs help animal doctors take care of pets.', teen:'Assist veterinarians with exams, surgery, and lab tests for animals of every size.', tools:['Microscope','Pet scale','Vaccines']},
-  {id:'socialworker', name:'Social Worker', c:'help', soc:'21-1021', pay:59, paths:['4-year','License'], train:'Bachelor’s; Master’s for clinical work', kid:'Social workers help families get what they need to be safe and happy.', teen:'Connect kids and families with food, housing, health care, and support. Every day is about people.', tools:['Case notes','Community resources','Listening']},
-  {id:'stylist', name:'Hair Stylist', c:'create', soc:'39-5012', pay:36, paths:['Trade school','License'], train:'Cosmetology program (~1 yr) + license', kid:'Stylists cut, color, and style hair.', teen:'Build a client list, learn color chemistry, and many stylists own their own salon or chair.', tools:['Shears','Color bowl','Booking app']},
-  {id:'designer', name:'Graphic Designer', c:'create', soc:'27-1024', pay:61, paths:['4-year','Certificate'], train:'Portfolio + degree or certificate', kid:'Designers make posters, logos, and the pictures on boxes.', teen:'Design brands, apps, packaging, and social posts. Your portfolio matters as much as your diploma.', tools:['Sketchbook','Design software','Color & type']},
-  {id:'chef', name:'Chef', c:'create', soc:'35-1011', pay:61, paths:['On the job','Trade school'], train:'Kitchen experience; culinary school optional', kid:'Chefs invent recipes and cook for lots of people.', teen:'Run a kitchen, create menus, and lead a team. Start as a line cook and work your way up.', tools:['Chef’s knife','Mise en place','Plating']},
-  {id:'softdev', name:'Software Developer', c:'tech', soc:'15-1252', pay:133, paths:['4-year','Certificate'], train:'Degree, bootcamp, or self-taught + projects', kid:'Software developers write the instructions that make apps and games work.', teen:'Build apps, websites, and systems. Projects you build in high school can start your portfolio.', tools:['Code editor','Git','Testing']},
-  {id:'cyber', name:'Cybersecurity Analyst', c:'tech', soc:'15-1212', pay:125, paths:['4-year','Military','Certificate'], train:'Degree or certifications (e.g., Security+)', kid:'Cyber heroes keep computers and secrets safe from hackers.', teen:'Protect networks, investigate attacks, and test defenses. The military trains many cyber specialists.', tools:['Firewall','Network scanner','Logs']},
-  {id:'farmer', name:'Farmer / Rancher', c:'nature', soc:'11-9013', pay:null, paths:['On the job','4-year'], train:'Hands-on experience; ag degree helps', kid:'Farmers grow the food we eat and raise animals.', teen:'Manage crops, animals, equipment, and a business. Drones and sensors are changing how farms work.', tools:['Tractor','Soil tests','Drones']},
-  {id:'ranger', name:'Park Ranger', c:'nature', soc:'19-1031', pay:null, paths:['4-year','On the job'], train:'Degree in natural resources; seasonal jobs first', kid:'Park rangers protect forests and help visitors explore.', teen:'Lead hikes, protect wildlife, and keep parks safe. Many start with summer seasonal jobs.', tools:['Map & compass','Radio','Field guide']},
-  {id:'engineer', name:'Civil Engineer', c:'fly', soc:'17-2051', pay:99, paths:['4-year','License'], train:'Bachelor’s in engineering + PE license', kid:'Engineers design bridges, roads, and water systems.', teen:'Plan the roads, bridges, and water systems a city runs on, using math, physics, and design software.', tools:['CAD software','Survey data','Load calcs']},
-  {id:'aviationmech', name:'Aircraft Mechanic', c:'fly', soc:'49-3011', pay:78, paths:['Trade school','Military'], train:'18–24 mo FAA-approved school', kid:'Aircraft mechanics fix airplanes so they fly safely.', teen:'Inspect and repair engines and systems on planes and helicopters. FAA certification is your ticket.', tools:['Borescope','Torque wrench','Maintenance manual']},
-  {id:'pilot', name:'Airline Pilot', c:'fly', soc:'53-2011', pay:220, paths:['Certificate','4-year','Military'], train:'Flight school + 1,500 flight hours', kid:'Pilots fly airplanes full of people around the world.', teen:'Fly passenger or cargo jets. Many pilots start in the military or flight school and build hours as instructors.', tools:['Flight deck','Weather briefs','Checklists']}
-];
-const C = id => CAREERS.find(c => c.id===id);
-
-const QUESTS = {
-  k2:[
-    {id:'k2a', c:'build', title:'Pipe Detective', xp:20, steps:['Find 3 places water comes out at home','Ask a grown-up where the water goes after','Draw one pipe you found']},
-    {id:'k2b', c:'help',  title:'Helper Hero Drawing', xp:15, steps:['Pick a helper in your town','Draw them at work','Tell a grown-up what they do']},
-    {id:'k2c', c:'fly',   title:'Tallest Tower', xp:20, steps:['Gather 20 cups or blocks','Build as tall as you can','Try again with a wider bottom']},
-    {id:'k2d', c:'teach', title:'Read & Earn', xp:25, steps:['Open A.R.I.S.E. Reader','Read a book about a job','Pass the quiz'], reader:true}
-  ],
-  g35:[
-    {id:'g35a', c:'build', title:'Tool Safari', xp:25, steps:['Open a toolbox with an adult','Name 5 tools','Say what each one does']},
-    {id:'g35b', c:'help',  title:'Interview a Grown-Up', xp:30, steps:['Pick an adult you know','Ask: What do you do all day?','Ask: How did you learn your job?','Share one surprise with your class']},
-    {id:'g35c', c:'build', title:'Car Check (with an adult)', xp:25, steps:['Find the tire pressure sticker in the door','Check one tire with a gauge','Write the number down']},
-    {id:'g35d', c:'teach', title:'Read & Earn', xp:30, steps:['Open A.R.I.S.E. Reader','Read a career book','Pass the quiz'], reader:true}
-  ],
-  g68:[
-    {id:'g68a', c:'build', title:'Fix One Thing', xp:40, steps:['Find something small that is broken (squeaky hinge, loose screw)','Watch one how-to with an adult','Fix it and post a before/after']},
-    {id:'g68b', c:'build', title:'Paycheck Challenge', xp:40, steps:['Pick two careers from Explore','Look up typical pay','Make a one-month budget for each']},
-    {id:'g68c', c:'tech',  title:'Visit a CTE Class', xp:35, steps:['Find a CTE, robotics, or shop class at your school','Ask the teacher one question','Rate it: would you take it?']},
-    {id:'g68d', c:'serve', title:'Shadow a Pro (virtual)', xp:30, steps:['Watch a Pro Spotlight in Explore','Write down 3 facts','Ask the pro a question']}
-  ],
-  g912:[
-    {id:'g912a', c:'build', title:'Find an Apprenticeship', xp:50, steps:['Search apprenticeship.gov for your area','Pick one program','Write down how to apply and the deadline']},
-    {id:'g912b', c:'help',  title:'Draft Your Resume', xp:50, steps:['List jobs, volunteering, and activities','Add 3 skills with proof','Get feedback from a teacher']},
-    {id:'g912c', c:'teach', title:'Compare Two Paths', xp:45, steps:['Pick two paths from Paths','Compare time, cost, and pay','Talk it over with a parent']},
-    {id:'g912d', c:'serve', title:'Meet a Recruiter or Counselor', xp:40, steps:['Book a meeting (bring a parent if you want)','Ask 3 questions from your list','Write your next step']}
-  ]
-};
-
-const SEED_POSTS = {
-  k2:[
-    {id:'p1', who:'Mr. Okafor', role:'teacher', scope:'class', ago:'1h', text:'Our class planted bean seeds today! Who can guess how many days until they sprout?', c:'nature', r:{cool:14,me:9,teach:2,wow:6}},
-    {id:'p2', who:'Leo T.', role:'kid', scope:'class', ago:'3h', proof:{q:'Tallest Tower', c:'fly'}, text:'My tower was 24 cups tall!', r:{cool:11,me:4,teach:3,wow:8}},
-    {id:'p3', who:'Officer Grant', role:'pro', scope:'school', ago:'1d', pro:'Firefighter · Station 4', text:'Thanks for the drawings, Maple Elementary! They are on our fire station wall now.', c:'serve', r:{cool:22,me:10,teach:1,wow:15}}
-  ],
-  g35:[
-    {id:'p1', who:'Ms. Chen', role:'teacher', scope:'class', ago:'2h', text:'Great Tool Safari pictures this week. Friday we have a carpenter coming to build birdhouses with us!', c:'build', r:{cool:18,me:12,teach:2,wow:7}},
-    {id:'p2', who:'Zoe K.', role:'kid', scope:'class', ago:'5h', proof:{q:'Interview a Grown-Up', c:'help'}, text:'My aunt is a nurse. She said the hardest part is night shifts but the best part is helping babies.', r:{cool:9,me:5,teach:4,wow:10}},
-    {id:'p3', who:'Sam P.', role:'kid', scope:'class', ago:'1d', proof:{q:'Car Check', c:'build'}, text:'Our tire needed 35 PSI and it had 31! We filled it up.', r:{cool:7,me:3,teach:6,wow:4}}
-  ],
-  g68:[
-    {id:'p1', who:'Marcus J.', role:'pro', scope:'school', ago:'40m', pro:'Master Plumber · 18 yrs', text:'Asked: “Do plumbers need math?” Yes. Every day I figure out pipe slope, water pressure, and how to price a job. If you like puzzles, you would like plumbing.', c:'build', r:{cool:31,me:12,teach:9,wow:14}},
-    {id:'p2', who:'Destiny A.', role:'kid', scope:'class', ago:'2h', proof:{q:'Fix One Thing', c:'build'}, text:'Fixed the wobbly leg on our kitchen table. Just needed a longer screw lol', r:{cool:16,me:8,teach:5,wow:3}},
-    {id:'p3', who:'Ms. Rivera', role:'teacher', scope:'class', ago:'4h', text:'Reminder: Thursday is our virtual visit with Sgt. Morales from Air Force aircraft maintenance. Bring one question!', c:'fly', r:{cool:12,me:6,teach:0,wow:2}},
-    {id:'p4', who:'Kenji L.', role:'kid', scope:'class', ago:'1d', proof:{q:'Paycheck Challenge', c:'build'}, text:'Electrician vs graphic designer: pretty close on pay, but the electrician gets paid during training. Did not know that.', r:{cool:10,me:4,teach:7,wow:9}}
-  ],
-  g912:[
-    {id:'p1', who:'Mr. Delgado', role:'teacher', scope:'class', ago:'1h', text:'Family FAFSA Night is next week. Even if you are going to an apprenticeship, filing can unlock aid for certificate programs too.', c:'teach', r:{cool:15,me:7,teach:3,wow:2}},
-    {id:'p2', who:'Alexis R.', role:'kid', scope:'school', ago:'3h', proof:{q:'Find an Apprenticeship', c:'build'}, text:'Applied to the IBEW electrical apprenticeship! Aptitude test is in December. Studying algebra again lol', r:{cool:28,me:9,teach:6,wow:19}},
-    {id:'p3', who:'Dr. Imani Brooks', role:'pro', scope:'school', ago:'1d', pro:'ER Nurse → Nurse Practitioner', text:'I started as a CNA at 17. You do not have to know your whole path. Just pick the next step.', c:'heal', r:{cool:40,me:22,teach:5,wow:17}},
-    {id:'p4', who:'Jordan T.', role:'kid', scope:'class', ago:'2d', proof:{q:'Meet a Recruiter', c:'serve'}, text:'Talked to a Navy recruiter with my mom. Nuclear field sounds intense but they pay for all of it.', r:{cool:13,me:5,teach:4,wow:11}}
-  ]
-};
-const STICKERS = [['cool','Respect'],['me','Same'],['teach','How?'],['wow','Big']];
-
-const EVENTS = [
-  {id:'e1', bands:['k2','g35'], title:'Build-a-Birdhouse with a Carpenter', host:'Ms. Chen + Tony R., Carpenters Local 55', hostType:'pro', date:'2026-10-16', time:'1:00 PM', fmt:'In class', seats:28, going:21, c:'build'},
-  {id:'e2', bands:['k2','g35'], title:'Fire Station Field Trip', host:'Mr. Okafor', hostType:'teacher', date:'2026-10-23', time:'9:30 AM', fmt:'Field trip', seats:40, going:33, c:'serve'},
-  {id:'e3', bands:['g68'], title:'Virtual Visit: Air Force Aircraft Maintenance', host:'Ms. Rivera + SSgt. Morales', hostType:'pro', date:'2026-10-15', time:'10:15 AM', fmt:'Live video', seats:120, going:87, c:'fly'},
-  {id:'e4', bands:['g68','g912'], title:'Robotics & Cyber Club Open House', host:'Mr. Patel, CTE Teacher', hostType:'teacher', date:'2026-10-20', time:'3:30 PM', fmt:'After school', seats:60, going:41, c:'tech'},
-  {id:'e5', bands:['g912'], title:'Family FAFSA Night', host:'Mr. Delgado, School Counselor', hostType:'teacher', date:'2026-10-14', time:'6:00 PM', fmt:'Families · In person', seats:150, going:96, c:'teach'},
-  {id:'e6', bands:['g912'], title:'Trades Signing Day Prep: Apprenticeship Applications', host:'Denver Building Trades + Mr. Delgado', hostType:'pro', date:'2026-10-28', time:'4:00 PM', fmt:'Workshop', seats:50, going:38, c:'build'},
-  {id:'e7', bands:['g912','g68'], title:'Scrubs Day: Hospital Careers Tour', host:'HOSA Chapter + Denver Health volunteers', hostType:'pro', date:'2026-11-06', time:'8:30 AM', fmt:'Field trip', seats:30, going:29, c:'heal'},
-  {id:'e8', bands:['k2','g35','g68','g912'], title:'Career Day: 30 Grown-Ups, 30 Jobs', host:'Arise Social + PTA', hostType:'teacher', date:'2026-11-13', time:'9:00 AM', fmt:'Whole school', seats:400, going:212, c:'help'}
-];
-
-const SCHOLARSHIPS = [
-  {name:'Pell Grant (via FAFSA)', for:'College, community college, and many certificate programs', type:'Federal grant', url:'https://studentaid.gov'},
-  {name:'mikeroweWORKS Work Ethic Scholarship', for:'Students entering skilled trades training', type:'Trades', url:'https://mikeroweworks.org'},
-  {name:'ROTC Scholarships', for:'Students planning to become military officers through college', type:'Military', url:'https://www.todaysmilitary.com'},
-  {name:'Coca-Cola Scholars', for:'High school seniors who lead and serve', type:'Merit / service', url:'https://www.coca-colascholarsfoundation.org'},
-  {name:'The Gates Scholarship', for:'Pell-eligible minority high school seniors', type:'Need-based', url:'https://www.thegatesscholarship.org'},
-  {name:'QuestBridge National College Match', for:'High-achieving students from low-income families', type:'Need-based', url:'https://www.questbridge.org'},
-  {name:'Jack Kent Cooke College Scholarship', for:'High-achieving seniors with financial need', type:'Need-based', url:'https://www.jkcf.org'}
-];
-
-const ROAD = [
-  {g:6,  items:['Try 3 clubs or electives','Collect 10 passport stamps']},
-  {g:7,  items:['Take a career interest quiz','Talk to 3 adults about their jobs']},
-  {g:8,  items:['Choose high school classes on purpose (CTE, honors, JROTC)','Visit a CTE center or career academy']},
-  {g:9,  items:['Make a 4-year class plan with your counselor','Start a brag sheet of activities and awards']},
-  {g:10, items:['Job shadow or volunteer','Ask about dual enrollment and certifications']},
-  {g:11, items:['Take the SAT/ACT, ASVAB, or an apprenticeship aptitude test','Visit colleges, trade schools, or recruiters','Start a scholarship list']},
-  {g:12, items:['File the FAFSA (opens each fall)','Apply: college, apprenticeship, or enlistment','Compare offers and choose your launch']}
-];
-
-const LEVELS = ['Curious','Explorer','Tinkerer','Apprentice','Pro','Mentor','Legend'];
-const BADGES = [
-  {id:'first', name:'First Quest', test:s=>Object.values(s.quests).some(q=>q.done)},
-  {id:'stamps5', name:'5 Collected', test:s=>s.stamps.length>=5},
-  {id:'clusters', name:'4 Clusters', test:s=>new Set(s.stamps.map(id=>C(id).c)).size>=4},
-  {id:'event', name:'Showed Up', test:s=>Object.values(s.rsvp).includes('going')},
-  {id:'streak7', name:'7-Day Streak', test:s=>s.streak>=7},
-  {id:'poster', name:'Shared a Win', test:s=>s.myPosts.length>0}
-];
-
-
-
-const PROS = [
-  {id:'pr1', name:'Marcus J.', hl:'Master Plumber · 18 years · Denver', c:'build', bands:['g35','g68','g912']},
-  {id:'pr2', name:'Dr. Imani Brooks', hl:'ER Nurse → Nurse Practitioner', c:'heal', bands:['g68','g912']},
-  {id:'pr3', name:'SSgt. Elena Morales', hl:'U.S. Air Force · Aircraft Maintenance', c:'fly', bands:['g68','g912']},
-  {id:'pr4', name:'Tony R.', hl:'Carpenter · Carpenters Local 55', c:'build', bands:['k2','g35','g68']},
-  {id:'pr5', name:'Officer Grant', hl:'Firefighter · Station 4', c:'serve', bands:['k2','g35']},
-  {id:'pr6', name:'Rina K.', hl:'Software Developer · Started at a bootcamp', c:'tech', bands:['g68','g912']},
-  {id:'pr7', name:'Ms. Alvarez', hl:'Vet Technician · Animal Hospital', c:'heal', bands:['k2','g35']}
-];
+/* ================= SIGN-IN + API ================= */
+function sessionToken(){
+  try {
+    const raw = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('arise_session='));
+    if (!raw) return null;
+    const bin = atob(raw.slice('arise_session='.length));
+    let data; try { data = JSON.parse(decodeURIComponent(escape(bin))); } catch { data = JSON.parse(bin); }
+    return data && data.token ? String(data.token) : null;
+  } catch { return null; }
+}
+class ApiError extends Error { constructor(msg, code, body){ super(msg); this.code = code; this.body = body; } }
+async function api(path, opts = {}){
+  const headers = { 'Content-Type':'application/json' };
+  const t = sessionToken(); if (t) headers.Authorization = `Bearer ${t}`;
+  let res;
+  try { res = await fetch('/api/social' + path, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store' }); }
+  catch { throw new ApiError('Can’t reach Arise Social. Check your connection and try again.', 0); }
+  let body = null; try { body = await res.json(); } catch {}
+  if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
+  return body;
+}
+/** Sends people to the main site to sign up or sign in, and back here afterwards. */
+function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/social/'); } catch {} location.href = path; }
 
 /* ================= STATE ================= */
-const today = new Date('2026-10-08T12:00:00').toDateString();
-const KEY = 'arise-social-v1';
-const fresh = () => ({
-  role:'kid', band:'g68', tab:'feed', xp:340, streak:6, lastActive:'yesterday',
-  daily:{date:today, xp:0}, stamps:['plumber','nurse','softdev'], saved:['electrician'],
-  quests:{}, rsvp:{}, reacts:{}, myPosts:[], pending:[], spun:null, filterC:'all', filterP:'all', feedScope:'all',
-  road:{}, settings:{scope:'class', ask:true, limit:45, weekly:true}, hosted:[], follows:['pr1'], composeOpen:false, q:''
-});
-let S;
-try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)||'{}')); } catch(e){ S = fresh(); }
-if (S.daily.date !== today) S.daily = {date:today, xp:0};
-S.composeOpen = false; S.q = '';
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
-
-const B = () => BANDS[S.band];
-const level = () => Math.floor(S.xp/120);
-const DAILY_GOAL = 60;
-
-function addXP(n, why){
-  if (S.lastActive !== today){ S.streak += 1; S.lastActive = today; }
-  S.xp += n; S.daily.xp += n;
-  toast(`+${n} XP · ${why}`);
-  if (S.daily.xp >= DAILY_GOAL && S.daily.xp - n < DAILY_GOAL) setTimeout(()=>toast('Daily goal reached. Now go try it for real.'), 1700);
-}
-
-/* ================= NAV ================= */
-const TABS = {
-  kid: b => [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(b)?[]:[['paths','Paths','paths']]).concat([['passport','Profile','passport']]),
-  parent: () => [['overview','Home','home'],['explore','Explore','explore'],['events','Events','event'],['paths','Paths','paths'],['safety','Safety','shield']],
-  teacher: () => [['class','My Class','class'],['approvals','Approvals','inbox'],['events','Events','event'],['explore','Explore','explore']]
-};
-function tabs(){ return TABS[S.role](S.band); }
-function badgeFor(id){
-  if (id==='approvals') return S.pending.filter(p=>p.band===S.band).length;
-  if (id==='overview') return Object.values(S.rsvp).filter(v=>v==='requested').length;
-  return 0;
-}
-function meName(){ return S.role==='kid'?B().kid.name:S.role==='parent'?B().parent:B().teacher; }
-function renderChrome(){
-  const roles=[['kid','Kid'],['parent','Parent'],['teacher','Teacher']];
-  document.getElementById('roleSeg').innerHTML = roles.map(([k,l])=>`<button data-act="role" data-v="${k}" aria-pressed="${S.role===k}">${l}</button>`).join('');
-  document.getElementById('bandSeg').innerHTML = BAND_KEYS.map(k=>`<button data-act="band" data-v="${k}" aria-pressed="${S.band===k}">${BANDS[k].label}</button>`).join('');
-  const t = tabs();
-  if (!t.find(x=>x[0]===S.tab)) S.tab = t[0][0];
-  document.getElementById('nav').innerHTML = t.map(([id,l,ic])=>{const n=badgeFor(id);return `<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${n?`<span class="dot">${n}</span>`:''}</button>`}).join('');
-  document.getElementById('me').innerHTML = `${av(meName(),'xs')}<span>Me</span>`;
-  document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
-}
+let CAT = null;                 // catalog: careers, quests, roadmap...
+let ME = null;                  // /me response
+const S = { tab:'feed', filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
+const C = id => CAT.careers.find(c => c.id === id);
+const role = () => ME?.user.role || 'guest';
+const P = () => ME?.profile;
+const young = b => b === 'k2' || b === 'g35';
+function bandNow(){ if (role()==='student') return ME.user.band; if (role()==='parent'){ const k = currentChild(); return k ? k.band : 'g68'; } return 'g912'; }
+function currentChild(){ const kids = S.children || []; return kids.find(k => k.id === S.childId) || kids[0] || null; }
+const BADGE_NAMES = {'first-quest':'First Quest','five-collected':'5 Collected','four-clusters':'4 Career Areas','week-streak':'7-Day Streak'};
 
 /* ================= SHARED BITS ================= */
-const cc = k => `var(--${k})`;
-const avColor = name => { const cs=['primary','coral','teach','tech','nature','help','create','serve']; let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))%997; return cs[h%cs.length]; };
-const initials = n => n.split(/\s+/).filter(Boolean).map(w=>w[0]).join('').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase();
+const avColor = name => { const cs=['primary','coral','teach','tech','nature','help','create','serve']; let h=0; for(const ch of String(name)) h=(h*31+ch.charCodeAt(0))%997; return cs[h%cs.length]; };
+const initials = n => String(n).split(/\s+/).filter(Boolean).map(w=>w[0]).join('').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || '?';
 const av = (n, size) => `<div class="av ${size||''}" style="--c:${cc(avColor(n))}${size==='xs'?';width:26px;height:26px;font-size:.6rem':''}">${esc(initials(n))}</div>`;
 const ico = (k, size) => `<div class="ico ${size||''}" style="--c:${cc(k)}">${svg(k)}</div>`;
-const tick = `<span class="verified" title="Verified">${svg('check')}</span>`;
+const tick = `<span class="verified" title="Verified teacher">${svg('check')}</span>`;
 const fmtDate = d => { const x=new Date(d+'T12:00:00'); return {m:x.toLocaleString('en-US',{month:'short'}).toUpperCase(), d:x.getDate(), w:x.toLocaleString('en-US',{weekday:'short'})}; };
-function topClusters(n){
-  const m={}; [...S.stamps,...S.saved].forEach(id=>{const c=C(id).c; m[c]=(m[c]||0)+1;});
-  return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>CLUSTERS[x[0]].name);
+function ago(iso){ const s=(Date.now()-Date.parse(iso))/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m'; if(s<86400) return Math.floor(s/3600)+'h'; if(s<604800) return Math.floor(s/86400)+'d'; return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function topClusters(profile, n){ const m={}; [...profile.collected,...profile.saved].forEach(id=>{const c=C(id); if(c) m[c.c]=(m[c.c]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>CAT.clusters[x[0]].name); }
+function careerOfTheDay(){ const d = ME?.today || new Date().toISOString().slice(0,10); let h=0; for(const ch of d) h=(h*33+ch.charCodeAt(0))%9973; return CAT.careers[h % CAT.careers.length]; }
+let toastT;
+function toast(msg){ document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; document.body.appendChild(t); clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),3000); }
+const fail = e => toast(e?.message || 'Something went wrong. Please try again.');
+
+/* ================= NAV ================= */
+function tabs(){
+  const r = role();
+  if (r==='student') return [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]).concat([['profile','Profile','passport']]);
+  if (r==='teacher') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
+  if (r==='admin') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
+  if (r==='parent') return [['family','Home','feed'],['explore','Explore','explore'],['paths','Paths','paths']];
+  return [];
 }
-function kidHeadline(){ const t=topClusters(2); return `${B().kid.grade} at ${B().kid.school}${t.length?` · Into ${t.join(' and ')}`:''}`; }
+function badgeFor(id){ return id==='approvals' && S.approvals ? S.approvals.length : 0; }
+function renderChrome(){
+  const t = tabs();
+  if (t.length && !t.find(x=>x[0]===S.tab)) S.tab = t[0][0];
+  document.getElementById('searchWrap').hidden = !CAT || !ME;
+  document.getElementById('nav').innerHTML = t.map(([id,l,ic])=>{const n=badgeFor(id);return `<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${n?`<span class="dot">${n}</span>`:''}</button>`}).join('');
+  document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
+  const me = document.getElementById('me');
+  if (!ME) me.innerHTML = `<div class="top-actions"><button class="btn ghost" data-act="signin">Log in</button><button class="btn primary" data-act="join">Join now</button></div>`;
+  else me.innerHTML = `<button class="me-btn" data-act="menu" aria-expanded="${S.menu}">${av(ME.user.name,'xs')}<span>Me</span></button>${S.menu?`<div class="menu" role="menu"><div class="who"><b>${esc(ME.user.name)}</b><span>${esc(roleLine())}</span></div>${role()==='student'?`<button data-act="tab" data-v="profile">${svg('passport')}My profile</button>`:''}<a href="/">${svg('book')}Open A.R.I.S.E. Reader</a></div>`:''}`;
+  document.body.style.paddingBottom = '';
+}
+function roleLine(){
+  const u = ME.user;
+  if (u.role==='student') return `${u.grade?`Grade ${u.grade}`:'Student'}${u.teacherName?` · ${u.teacherName}’s class`:''}`;
+  if (u.role==='teacher') return 'Teacher';
+  if (u.role==='parent') return 'Parent';
+  return 'Admin';
+}
+
+/* ================= SIGNED-OUT LANDING ================= */
+function landingHTML(){
+  const sample = ['plumber','nurse','cyber','electrician','pilot','teacher','chef','military'].map(C).filter(Boolean);
+  return `<div class="landing">
+    <section class="card land-hero">
+      <div>
+        <span class="eyebrow">From A.R.I.S.E. Reader · Grades K–12</span>
+        <h1 style="margin-top:8px">Find work you’d <em>actually love.</em></h1>
+        <p class="lead">Arise Social is where students explore every kind of career, from the trades and the military to teaching, health care, tech, and college paths. They try real-world quests, collect careers, and share wins with their class. Teachers approve every post, and parents follow along.</p>
+        <div class="join" style="margin-top:20px;max-width:420px">
+          <button class="btn primary" data-act="join">${svg('plus')}Sign up as a student</button>
+          <button class="btn outline" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button>
+          <button class="btn outline" data-act="go" data-v="/teacher-signup">${svg('teach')}I’m a teacher</button>
+          <p class="muted small" style="margin-top:4px">Already have an A.R.I.S.E. Reader account? <a href="/" data-act="signin">Log in</a> and you’re in.</p>
+        </div>
+      </div>
+      <div class="land-art"><div class="cover tall"></div><div class="inner">${av('Jaylen W.','lg')}<h3 style="margin-top:8px">Your career profile</h3><p class="muted small">Collect careers, finish quests, and build a profile that grows with you from kindergarten to graduation.</p>
+        <div class="row" style="margin-top:12px;gap:6px">${sample.slice(0,6).map(c=>`<span class="chip cl" style="--c:${cc(c.c)}">${esc(c.name)}</span>`).join('')}</div></div></div>
+    </section>
+    <div class="points">
+      ${[['Teacher-approved','Every student post is checked by their own teacher before anyone else sees it.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Parents in the loop','Parents see progress, approve events for younger kids, and choose who sees posts.'],['Every path counts','Apprenticeships, military, community college, certificates, and four-year college, side by side.']].map(([t,d])=>`<div class="card"><b>${svg('check')}${t}</b><p class="muted small">${d}</p></div>`).join('')}
+    </div>
+    <div class="card"><div class="card-h"><div><h2>Look around first</h2><p class="muted small" style="margin-top:2px">Tap any career to see what the job is like and how to get started at every age.</p></div></div>
+      <div class="grid careers">${sample.map(careerCard).join('')}</div></div>
+  </div>`;
+}
 
 /* ================= LEFT + RIGHT COLUMNS ================= */
 function leftHTML(){
-  if (S.role==='teacher'){
-    const pend = S.pending.filter(p=>p.band===S.band).length;
-    return `<div class="card flush mini"><div class="cover"></div>${av(B().teacher,'lg')}
-      <div class="who"><b>${esc(B().teacher)} ${tick}</b><span>Teacher · ${esc(B().kid.school)} · Grades ${B().label}</span></div>
+  const r = role();
+  if (r==='student'){
+    const p = P(), u = ME.user;
+    const tops = topClusters(p,2);
+    return `<div class="card flush mini"><div class="cover"></div>${av(u.name,'lg')}
+      <div class="who"><b>${esc(u.name)}</b><span>${esc(roleLine())}${tops.length?` · Into ${esc(tops.join(' and '))}`:''}</span></div>
       <div class="divider" style="margin:0"></div>
-      <button class="kv" data-act="tab" data-v="approvals" style="border:0;background:transparent;width:100%"><span>Waiting for approval</span><b>${pend}</b></button>
-      <div class="kv"><span>Students</span><b>24</b></div>
-      <div class="kv" style="padding-bottom:14px"><span>Events hosted</span><b>${eventList().filter(e=>e.mine).length+3}</b></div></div>`;
+      <button class="kv" data-act="tab" data-v="profile" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Careers collected</span><b class="tnum">${p.collected.length}</b></button>
+      <div class="kv"><span>Day streak</span><b class="tnum">${p.streak}</b></div>
+      <div class="kv" style="padding-bottom:12px"><span>Level ${p.level+1} · ${esc(p.levelName)}</span><b class="tnum">${p.levelXp}/${CAT.xp.perLevel}</b></div>
+      <div class="mini-goal"><div class="row"><span>Today’s goal</span><span class="tnum muted">${p.daily_xp}/${CAT.xp.dailyGoal} XP</span></div><div class="bar sun"><i style="width:${Math.min(100,p.daily_xp/CAT.xp.dailyGoal*100)}%"></i></div></div></div>
+      <div class="card"><div class="card-h" style="margin-bottom:8px"><h3 style="font-size:.88rem">Saved careers</h3><span class="muted small tnum">${p.saved.length}</span></div>
+      <div class="side-list">${p.saved.map(id=>C(id)).filter(Boolean).map(c=>`<button data-act="open" data-id="${c.id}">${ico(c.c,'sm')}${esc(c.name)}</button>`).join('') || '<span class="muted small">Tap Save on any career.</span>'}</div></div>`;
   }
-  const k=B().kid, into=S.xp%120;
-  const kidCard = `<div class="card flush mini"><div class="cover"></div>${av(k.name,'lg')}
-    <div class="who"><b>${esc(k.name)}</b><span>${esc(kidHeadline())}</span></div>
-    <div class="divider" style="margin:0"></div>
-    <button class="kv" data-act="tab" data-v="passport" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Careers collected</span><b class="tnum">${S.stamps.length}</b></button>
-    <div class="kv"><span>Day streak</span><b class="tnum">${S.streak}</b></div>
-    <div class="kv" style="padding-bottom:12px"><span>Level ${level()+1} · ${LEVELS[Math.min(level(),LEVELS.length-1)]}</span><b class="tnum">${into}/120</b></div>
-    <div class="mini-goal"><div class="row"><span>Today’s goal</span><span class="tnum muted">${S.daily.xp}/${DAILY_GOAL} XP</span></div><div class="bar sun"><i style="width:${Math.min(100,S.daily.xp/DAILY_GOAL*100)}%"></i></div></div></div>`;
-  const savedCard = `<div class="card"><div class="card-h" style="margin-bottom:8px"><h3 style="font-size:.88rem">Saved careers</h3><span class="muted small tnum">${S.saved.length}</span></div>
-    <div class="side-list">${S.saved.map(id=>`<button data-act="open" data-id="${id}">${ico(C(id).c,'sm')}${esc(C(id).name)}</button>`).join('') || '<span class="muted small">Tap Save on any career.</span>'}</div></div>`;
-  if (S.role==='parent') return `<div class="eyebrow" style="padding:0 4px">${esc(B().parent)}’s family</div>` + kidCard + savedCard;
-  return kidCard + savedCard;
-}
-function proRow(p){
-  const on = S.follows.includes(p.id);
-  return `<div class="follow-row">${av(p.name,'sm')}<div class="who"><b>${esc(p.name)} ${tick}</b><span>${esc(p.hl)}</span>
-    <button class="btn sm ${on?'':'outline'}" data-act="follow" data-id="${p.id}">${on?svg('check')+'Following':svg('plus')+'Follow'}</button></div></div>`;
+  if (r==='teacher' || r==='admin'){
+    const ci = S.classInfo;
+    return `<div class="card flush mini"><div class="cover"></div>${av(ME.user.name,'lg')}
+      <div class="who"><b>${esc(ME.user.name)} ${tick}</b><span>${r==='admin'?'Admin':'Teacher'}</span></div>
+      <div class="divider" style="margin:0"></div>
+      <button class="kv" data-act="tab" data-v="approvals" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Waiting for approval</span><b class="tnum">${S.approvals?S.approvals.length:'–'}</b></button>
+      ${ci?`<div class="kv"><span>Students</span><b class="tnum">${ci.totals.students}</b></div><div class="kv" style="padding-bottom:14px"><span>Active this week</span><b class="tnum">${ci.totals.activeWeek}</b></div>`:'<div style="height:10px"></div>'}</div>`;
+  }
+  if (r==='parent'){
+    const kids = S.children || [];
+    return `<div class="card"><h3 style="font-size:.9rem;margin-bottom:8px">Your family</h3><div class="side-list">${kids.map(k=>`<button data-act="child" data-id="${k.id}" ${currentChild()?.id===k.id?'style="background:var(--card-2)"':''}>${av(k.name,'sm')}${esc(k.name)}</button>`).join('') || '<span class="muted small">No children linked yet.</span>'}</div>
+      <a class="btn sm" style="margin-top:10px" href="/parent-dashboard">Link a child</a></div>`;
+  }
+  return '';
 }
 function railHTML(){
-  const pros = PROS.filter(p=>p.bands.includes(S.band)).slice(0,3);
-  const up = eventList()[0];
-  let html = `<div class="card"><div class="card-h" style="margin-bottom:4px"><h3 style="font-size:.95rem">Pros to follow</h3></div>
-    ${pros.map(proRow).join('')}<p class="muted small" style="margin-top:6px">Every pro is background-checked. Pros post publicly and can’t message kids.</p></div>`;
+  const c = careerOfTheDay();
+  let html = `<div class="card"><span class="eyebrow">Career spotlight</span><button class="row" data-act="open" data-id="${c.id}" style="border:0;background:transparent;padding:0;margin-top:10px;text-align:left;flex-wrap:nowrap;align-items:flex-start">${ico(c.c)}<div><b style="display:block">${esc(c.name)}</b><span class="muted small">${esc(young(bandNow())?c.kid:(c.teen.match(/^[^.]*\./)||[c.teen])[0])}</span></div></button></div>`;
+  const up = (role()==='parent' ? (currentChild()?.events||[]) : (S.events||[]))[0];
   if (up){ const d=fmtDate(up.date); html += `<div class="card"><h3 style="font-size:.95rem;margin-bottom:10px">Next up</h3>
     <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><div class="date" style="width:52px;flex:none"><div class="m">${d.m}</div><div class="d">${d.d}</div><div class="w">${d.w}</div></div>
-    <div style="min-width:0"><b style="font-size:.88rem;display:block;line-height:1.3">${esc(up.title)}</b><span class="muted small">${up.time} · ${esc(up.fmt)}</span></div></div>
-    <button class="btn sm" style="margin-top:12px" data-act="tab" data-v="events">See all events</button></div>`; }
-  html += `<div class="card"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${ico('teach','sm')}<div><b style="font-size:.86rem">From A.R.I.S.E. Reader</b><p class="muted small">Books about jobs count double this week. Finish one and the quest completes itself.</p></div></div></div>`;
+    <div style="min-width:0"><b style="font-size:.88rem;display:block;line-height:1.3">${esc(up.title)}</b><span class="muted small">${esc([up.time,up.format].filter(Boolean).join(' · '))}</span></div></div></div>`; }
+  html += `<div class="card"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${ico('teach','sm')}<div><b style="font-size:.86rem">A.R.I.S.E. Reader</b><p class="muted small">Books about jobs are a great way into a career. <a href="/">Open the library</a>.</p></div></div></div>`;
   return html;
 }
 
 /* ================= FEED ================= */
-const RX = {cool:'fist', me:'same', teach:'ask', wow:'bolt'};
-const RXC = {cool:'var(--primary)', me:'var(--sun)', teach:'var(--leaf)', wow:'var(--coral)'};
+const RX = [['respect','Respect','fist','var(--primary)'],['same','Same','same','var(--sun)'],['how','How?','ask','var(--leaf)'],['big','Big','bolt','var(--coral)']];
 function postHTML(p){
-  const isPro = p.role==='pro', isT = p.role==='teacher';
-  const hl = isPro ? esc(p.pro) : isT ? `Teacher · ${esc(B().kid.school)}` : `${B().kid.grade} · ${p.scope==='school'?esc(B().kid.school):esc(B().teacher)+'’s class'}`;
-  const proObj = isPro ? PROS.find(x=>x.name===p.who) : null;
-  const followBtn = proObj && S.role==='kid' && !S.follows.includes(proObj.id) ? `<button class="btn sm ghost" style="color:var(--primary-text)" data-act="follow" data-id="${proObj.id}">${svg('plus')}Follow</button>` : '';
-  const proof = p.proof ? `<div class="proof" style="--c:${cc(p.proof.c)}"><div class="band"></div><div class="info">${ico(p.proof.c)}<div><b>Quest cleared: ${esc(p.proof.q)}</b><span>${CLUSTERS[p.proof.c].name}</span></div></div></div>` : '';
-  const counts = p.r || {};
-  const mine = S.reacts[p.id];
-  const total = STICKERS.reduce((t,[k])=>t+(counts[k]||0)+(mine===k?1:0),0);
-  const top = STICKERS.map(([k])=>[k,(counts[k]||0)+(mine===k?1:0)]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,3);
-  const bubbles = top.map(([k])=>`<i style="background:${RXC[k]};color:#fff">${svg(RX[k],'style="width:9px;height:9px;stroke-width:3"')}</i>`).join('');
-  const pending = p.status==='pending';
-  return `<article class="card post ${pending?'pending':''}">
-    <div class="post-head">${av(p.who)}<div class="who"><b>${esc(p.who)} ${isPro||isT?tick:''}</b><span class="hl">${hl}</span><span class="tm">${p.ago} · ${svg(p.scope==='school'?'globe':'users')}</span></div>${followBtn}</div>
-    ${p.text?`<p class="body">${esc(p.text)}</p>`:''}
-    ${proof}
-    ${pending?`<div class="pendbar pill-wait">Only you can see this until ${esc(B().teacher)} approves it.</div>`:
-    `<div class="counts"><span class="row" style="gap:6px"><span class="bub">${bubbles}</span><span class="tnum">${total?total:'Be the first to react'}</span></span><span>${S.role==='kid'?'Class space':''}</span></div>
-    <div class="actions-bar">${STICKERS.map(([k,l])=>`<button class="react" data-act="react" data-id="${p.id}" data-v="${k}" aria-pressed="${mine===k}">${svg(RX[k])}<span>${l}</span></button>`).join('')}</div>`}
-  </article>`;
+  const staff = p.authorRole==='teacher'||p.authorRole==='admin';
+  const hl = staff ? 'Teacher' : p.scope==='school' ? 'Student · whole school' : 'Student · class';
+  const proof = p.quest ? `<div class="proof" style="--c:${cc(p.quest.c)}"><div class="band"></div><div class="info">${ico(p.quest.c)}<div><b>Quest cleared: ${esc(p.quest.title)}</b><span>${esc(CAT.clusters[p.quest.c]?.name||'')}</span></div></div></div>`
+    : p.career ? `<div class="proof" style="--c:${cc(p.career.c)}"><div class="band"></div><div class="info">${ico(p.career.c)}<div><b>${esc(p.career.name)}</b><span>${esc(CAT.clusters[p.career.c]?.name||'')}</span></div></div></div>` : '';
+  const total = RX.reduce((t,[k])=>t+(p.reactions[k]||0),0);
+  const bubbles = RX.filter(([k])=>p.reactions[k]>0).sort((a,b)=>p.reactions[b[0]]-p.reactions[a[0]]).slice(0,3).map(([,, i, col])=>`<i style="background:${col};color:#fff">${svg(i,'style="width:9px;height:9px;stroke-width:3"')}</i>`).join('');
+  const del = p.canDelete ? `<button class="btn sm ghost post-menu" data-act="delpost" data-id="${p.id}" aria-label="Delete post">${S.confirmDelete===p.id?'Tap again to delete':svg('trash')}</button>` : '';
+  let foot;
+  if (p.status==='pending') foot = `<div class="pendbar pill-wait">Only you can see this until your teacher approves it.</div>`;
+  else if (p.status==='rejected') foot = `<div class="pendbar" style="background:var(--card-2)">Your teacher sent this back. You can delete it and try again.</div>`;
+  else foot = `<div class="counts"><span class="row" style="gap:6px"><span class="bub">${bubbles}</span><span class="tnum">${total||'Be the first to react'}</span></span><span>${p.scope==='school'?'Whole school':'Class'}</span></div>
+    ${role()==='parent'?'':`<div class="actions-bar">${RX.map(([k,l,i])=>`<button class="react" data-act="react" data-id="${p.id}" data-v="${k}" aria-pressed="${p.myReaction===k}">${svg(i)}<span>${l}</span></button>`).join('')}</div>`}`;
+  return `<article class="card post ${p.status==='pending'?'pending':''}">
+    <div class="post-head">${av(p.author)}<div class="who"><b>${esc(p.author)} ${staff?tick:''}</b><span class="hl">${hl}</span><span class="tm">${ago(p.createdAt)} · ${svg(p.scope==='school'?'globe':'users')}</span></div>${del}</div>
+    ${p.body?`<p class="body">${esc(p.body)}</p>`:''}${proof}${foot}</article>`;
 }
 function composer(){
-  const k = B().kid;
-  const head = `<div class="start">${av(k.name)}<button class="pillinput" data-act="compose">${young(S.band)?'Share something with your class':'Post a win, a question, or something you tried'}</button></div>`;
-  if (!S.composeOpen){
-    return `<div class="card composer">${head}
-      <div class="opts"><button data-act="compose">${svg('quest','style="color:var(--sun)"')}Quest win</button><button data-act="tab" data-v="explore">${svg('explore','style="color:var(--primary)"')}Career</button><button data-act="compose">${svg('image','style="color:var(--leaf)"')}Photo</button></div></div>`;
-  }
-  const done = QUESTS[S.band].filter(q=>S.quests[q.id]?.done);
-  if (young(S.band)){
-    return `<div class="card composer">${head}<div class="expand">
+  const u = ME.user;
+  if (!u.canPost) return `<div class="notice">${svg('info')}<div><b>${esc(u.postBlock||'Posting isn’t open yet.')}</b><br><span class="muted">You can still explore careers, do quests, and build your profile.</span></div></div>`;
+  const yb = role()==='student' && young(u.band);
+  const head = `<div class="start">${av(u.name)}<button class="pillinput" data-act="compose">${yb?'Share something with your class':role()==='student'?'Post a win, a question, or something you tried':'Share something with your class'}</button></div>`;
+  if (!S.composeOpen) return `<div class="card composer">${head}${role()==='student'?`<div class="opts"><button data-act="compose">${svg('quest','style="color:var(--sun)"')}Quest win</button><button data-act="tab" data-v="explore">${svg('explore','style="color:var(--primary)"')}Career</button></div>`:''}</div>`;
+  if (yb) return `<div class="card composer">${head}<div class="expand">
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-        <label class="f">Pick a sentence<select id="cStart"><option>I want to be a</option><option>I learned something cool about a</option><option>Today I pretended to be a</option></select></label>
-        <label class="f">Pick a job<select id="cCareer">${CAREERS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
+        <label class="f">Pick a sentence<select id="cStart">${CAT.starters.map((s,i)=>`<option value="${i}">${esc(s)}…</option>`).join('')}</select></label>
+        <label class="f">Pick a job<select id="cCareer">${CAT.careers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
       </div>
-      <div class="row" style="justify-content:space-between"><span class="muted small">${esc(B().teacher)} checks posts before your class sees them.</span><div class="row"><button class="btn ghost" data-act="compose">Cancel</button><button class="btn primary" data-act="post">Post</button></div></div></div></div>`;
-  }
+      <div class="row" style="justify-content:space-between"><span class="muted small">${esc(u.teacherName||'Your teacher')} checks posts before your class sees them.</span><div class="row"><button class="btn ghost" data-act="compose">Cancel</button><button class="btn primary" data-act="post">Post</button></div></div></div></div>`;
+  const done = role()==='student' ? CAT.quests[u.band].filter(q=>P().quests[q.id]==='done') : [];
   return `<div class="card composer">${head}<div class="expand">
-    <textarea id="cText" maxlength="280" placeholder="What did you try? What surprised you?"></textarea>
-    <label class="f">Attach a finished quest<select id="cQuest"><option value="">None</option>${done.map(q=>`<option value="${q.id}">${esc(q.title)}</option>`).join('')}</select></label>
-    <div class="row" style="justify-content:space-between"><span class="muted small">${done.length?'':'Finish a quest to attach it. '}Teacher-approved · first name and last initial only</span><div class="row"><button class="btn ghost" data-act="compose">Cancel</button><button class="btn primary" data-act="post">Post</button></div></div></div></div>`;
+    <textarea id="cText" maxlength="${CAT.limits.postLength}" placeholder="${role()==='student'?'What did you try? What surprised you?':'Share news, a career fact, or a shout-out'}"></textarea>
+    ${role()==='student'?`<label class="f">Attach a finished quest<select id="cQuest"><option value="">None</option>${done.map(q=>`<option value="${q.id}">${esc(q.title)}</option>`).join('')}</select></label>`:`<label class="f">Who sees it<select id="cScope"><option value="class">My class</option><option value="school">My whole school</option></select></label>`}
+    <div class="row" style="justify-content:space-between"><span class="muted small">${role()==='student'?'Your teacher approves posts first · first name and last initial only':'Teacher posts go live right away.'}</span><div class="row"><button class="btn ghost" data-act="compose">Cancel</button><button class="btn primary" data-act="post">Post</button></div></div></div></div>`;
 }
 function viewFeed(){
-  const scopes=[['all','Everything'],['class','My class'],['school','My school'],['pro','Pros']];
-  let posts = [...S.myPosts.filter(p=>p.band===S.band).slice().reverse(), ...S.pending.filter(p=>p.band===S.band && p.author==='kid' && p.kind==='post').slice().reverse().map(p=>({...p,status:'pending'})), ...SEED_POSTS[S.band]];
-  if (S.feedScope==='pro') posts = posts.filter(p=>p.role==='pro');
-  else if (S.feedScope!=='all') posts = posts.filter(p=>p.scope===S.feedScope && p.role!=='pro');
+  const posts = S.feed;
+  const emptyMsg = role()==='student' ? (ME.user.canPost ? 'Nothing here yet. Finish a quest and be the first to share it.' : 'Your class feed will show up here once you’re in a class.') : 'No posts yet. Say hello to your class.';
   return composer() +
-    `<div class="safety">${svg('shield')}<span>Your class space. Only classmates, teachers, and verified pros can see it. No private messages, ever.</span></div>
-     <div class="sortline"><span>Show:</span>${scopes.map(([k,l])=>`<button class="chip ${S.feedScope===k?'on':''}" data-act="scope" data-v="${k}">${l}</button>`).join('')}</div>
-     ${posts.map(postHTML).join('') || '<div class="card empty">Nothing here yet.</div>'}`;
+    `<div class="safety">${svg('shield')}<span>${role()==='student'?'Your class space. Only your classmates and teachers can see it. No private messages, ever.':'Students’ posts appear here after a teacher approves them. There are no private messages.'}</span></div>
+     ${posts===null?'<div class="skeleton"></div><div class="skeleton"></div>': posts.length? posts.map(postHTML).join('') : `<div class="card empty">${emptyMsg}</div>`}`;
 }
 
 /* ================= EXPLORE ================= */
+function careerCard(c){
+  const collected = role()==='student' && P().collected.includes(c.id);
+  return `<button class="ccard" data-act="open" data-id="${c.id}" style="--c:${cc(c.c)}">
+    ${collected?`<span class="stamped">${svg('check')}Collected</span>`:''}
+    <div class="band"></div><div class="ico">${svg(c.c)}</div>
+    <div class="in"><h3>${esc(c.name)}</h3><p>${esc(young(bandNow())?c.kid:(c.teen.match(/^[^.]*\./)||[c.teen])[0])}</p>
+    <div class="tags">${c.paths.slice(0,2).map(p=>`<span class="chip tag">${esc(p)}</span>`).join('')}</div></div></button>`;
+}
 function viewExplore(){
   const pathsAll = ['Apprenticeship','Trade school','Military','2-year','4-year','Certificate','On the job'];
   const q = S.q.trim().toLowerCase();
-  let list = CAREERS.filter(c => (S.filterC==='all'||c.c===S.filterC) && (S.filterP==='all'||c.paths.includes(S.filterP)) && (!q || (c.name+' '+CLUSTERS[c.c].name).toLowerCase().includes(q)));
-  const spunToday = S.spun && S.spun.date===today;
-  return `<div class="card spin"><div><span class="eyebrow">Career of the Day</span><div class="spin-window" id="spinWin">${spunToday?esc(C(S.spun.id).name):'Spin to find today’s career'}</div>
-      <p class="muted small">${spunToday?'Open it, read up, and add it to your collection. New spin tomorrow.':'+10 XP for your first spin each day.'}</p></div>
-      <button class="btn primary" data-act="${spunToday?'open':'spin'}" ${spunToday?`data-id="${S.spun.id}"`:''}>${spunToday?'Open':'Spin'}</button></div>
-    <div class="card stack">
-      <div><h2>Every path counts</h2><p class="muted small" style="margin-top:2px">${CAREERS.length} careers in this preview. College is one path; here are the rest too.${q?` Showing results for “${esc(S.q)}”.`:''}</p></div>
-      <div class="filters"><button class="chip ${S.filterC==='all'?'on':''}" data-act="fc" data-v="all">All areas</button>${CL_KEYS.map(k=>`<button class="chip ${S.filterC===k?'on':''}" data-act="fc" data-v="${k}">${CLUSTERS[k].name}</button>`).join('')}</div>
-      ${young(S.band)?'':`<div class="filters"><span class="eyebrow" style="align-self:center;margin-right:4px">How you get there:</span><button class="chip ${S.filterP==='all'?'on':''}" data-act="fp" data-v="all">Any</button>${pathsAll.map(p=>`<button class="chip ${S.filterP===p?'on':''}" data-act="fp" data-v="${p}">${p}</button>`).join('')}</div>`}
+  const list = CAT.careers.filter(c => (S.filterC==='all'||c.c===S.filterC) && (S.filterP==='all'||c.paths.includes(S.filterP)) && (!q || (c.name+' '+CAT.clusters[c.c].name).toLowerCase().includes(q)));
+  const p = P(); const spun = role()==='student' && p.spun && p.spun.day===ME.today ? C(p.spun.career) : null;
+  const spin = role()==='student' ? `<div class="card spin"><div><span class="eyebrow">Career of the Day</span><div class="spin-window" id="spinWin">${spun?esc(spun.name):'Spin to find today’s career'}</div>
+      <p class="muted small">${spun?'Open it, read up, and add it to your collection. New spin tomorrow.':`+${CAT.xp.spin} XP for your first spin each day.`}</p></div>
+      <button class="btn primary" data-act="${spun?'open':'spin'}" ${spun?`data-id="${spun.id}"`:''}>${spun?'Open':'Spin'}</button></div>` : '';
+  return `${spin}<div class="card stack">
+      <div><h2>Every path counts</h2><p class="muted small" style="margin-top:2px">${CAT.careers.length} careers so far. College is one path; here are the rest too.${q?` Showing results for “${esc(S.q)}”.`:''}</p></div>
+      <div class="filters"><button class="chip ${S.filterC==='all'?'on':''}" data-act="fc" data-v="all">All areas</button>${Object.entries(CAT.clusters).map(([k,v])=>`<button class="chip ${S.filterC===k?'on':''}" data-act="fc" data-v="${k}">${esc(v.name)}</button>`).join('')}</div>
+      ${young(bandNow())?'':`<div class="filters"><span class="eyebrow" style="align-self:center;margin-right:4px">How you get there:</span><button class="chip ${S.filterP==='all'?'on':''}" data-act="fp" data-v="all">Any</button>${pathsAll.map(x=>`<button class="chip ${S.filterP===x?'on':''}" data-act="fp" data-v="${x}">${x}</button>`).join('')}</div>`}
     </div>
-    <div class="grid careers">${list.map(c=>`<button class="ccard" data-act="open" data-id="${c.id}" style="--c:${cc(c.c)}">
-      ${S.stamps.includes(c.id)?`<span class="stamped">${svg('check')}Collected</span>`:''}
-      <div class="band"></div><div class="ico">${svg(c.c)}</div>
-      <div class="in"><h3>${esc(c.name)}</h3><p>${esc(young(S.band)?c.kid:(c.teen.match(/^[^.]*\./)||[c.teen])[0])}</p>
-      <div class="tags">${c.paths.slice(0,2).map(p=>`<span class="chip tag">${p}</span>`).join('')}</div></div></button>`).join('') || '<div class="card empty" style="grid-column:1/-1">No careers match. Try “All areas” or “Any”.</div>'}</div>`;
+    <div class="grid careers">${list.map(careerCard).join('') || '<div class="card empty" style="grid-column:1/-1">No careers match. Try “All areas” or “Any”.</div>'}</div>`;
 }
 function careerModal(id){
-  const c = C(id), cl = CLUSTERS[c.c], yb = young(S.band);
-  const bandOrder = [['k2','K–2'],['g35','3–5'],['g68','6–8'],['g912','9–12']];
-  const saved = S.saved.includes(id);
-  const pro = PROS.find(p=>p.c===c.c);
+  const c = C(id), cl = CAT.clusters[c.c], band = bandNow(), yb = young(band);
+  const order = [['k2','K–2'],['g35','3–5'],['g68','6–8'],['g912','9–12']];
+  const student = role()==='student';
+  const saved = student && P().saved.includes(id), got = student && P().collected.includes(id);
+  const actions = !ME ? `<button class="btn primary" data-act="join">${svg('plus')}Sign up to collect careers</button>`
+    : student ? `${got?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}In your collection</span>`:`<button class="btn primary" data-act="collect" data-id="${id}">${svg('plus')}Add to collection · +${CAT.xp.collect} XP</button>`}
+      <button class="btn ${saved?'':'outline'}" data-act="save" data-id="${id}">${svg('heart')}${saved?'Saved':'Save'}</button>` : '';
   return `<div class="scrim" data-act="close"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt" data-stop style="--c:${cc(c.c)}">
     <div class="band"><button class="x" data-act="close" aria-label="Close">${svg('x')}</button></div>
-    <div class="modal-top">${ico(c.c,'lg')}<h2 id="mt">${esc(c.name)}</h2><span class="muted small">${cl.name}${yb?'':` · SOC ${c.soc}`}</span></div>
+    <div class="modal-top">${ico(c.c,'lg')}<h2 id="mt">${esc(c.name)}</h2><span class="muted small">${esc(cl.name)}${yb?'':` · SOC ${esc(c.soc)}`}</span></div>
     <div class="modal-body">
-      <div class="row">
-        ${S.role==='kid'?(S.stamps.includes(id)?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}In your collection</span>`:`<button class="btn primary" data-act="stamp" data-id="${id}">${svg('plus')}Add to collection · +10 XP</button>`):''}
-        <button class="btn ${saved?'':'outline'}" data-act="save" data-id="${id}">${svg('heart')}${saved?'Saved':'Save'}</button>
-        <button class="btn ghost" data-act="reader">${svg('book')}Books about this job</button>
-      </div>
+      ${actions?`<div class="row">${actions}</div>`:''}
       <p style="font-size:1rem">${esc(yb?c.kid:c.teen)}</p>
       <div class="facts">
         <div class="fact"><span>Training</span><b>${esc(c.train)}</b></div>
         ${yb?'':`<div class="fact"><span>Typical pay</span><b>${c.pay?`About $${c.pay}k a year`:'Varies a lot'}</b></div>`}
-        <div class="fact"><span>Ways in</span><b>${c.paths.join(' · ')}</b></div>
+        <div class="fact"><span>Ways in</span><b>${esc(c.paths.join(' · '))}</b></div>
       </div>
       <div><h3 style="font-size:.9rem;margin-bottom:8px">Tools you’d use</h3><div class="row" style="gap:6px">${c.tools.map(t=>`<span class="chip tag">${esc(t)}</span>`).join('')}</div></div>
-      <div><h3 style="font-size:.9rem;margin-bottom:6px">Start now</h3><div class="startnow">${bandOrder.map(([k,l])=>`<div class="${k===S.band?'me':''}"><b>${l}</b><span>${esc(cl.start[k])}</span></div>`).join('')}</div></div>
-      ${pro && !yb ? `<div class="card" style="box-shadow:0 0 0 1px var(--line)">${proRow(pro)}</div>`:''}
-      ${!yb && S.role==='kid'?`<div class="stack" style="gap:8px"><h3 style="font-size:.9rem">Ask a verified ${esc(c.name.toLowerCase())}</h3><div class="row" style="flex-wrap:nowrap"><input type="text" id="askQ" maxlength="140" placeholder="Do you need to be good at math?"><button class="btn primary" data-act="ask" data-id="${id}">Ask</button></div><span class="muted small">Your teacher checks questions first. Pros answer in public, never in private.</span></div>`:''}
-      ${yb?'':`<p class="muted" style="font-size:.74rem">Pay is an approximate U.S. median from the Bureau of Labor Statistics and will be live-linked at launch.</p>`}
+      <div><h3 style="font-size:.9rem;margin-bottom:6px">Start now</h3><div class="startnow">${order.map(([k,l])=>`<div class="${k===band&&ME?'me':''}"><b>${l}</b><span>${esc(cl.start[k])}</span></div>`).join('')}</div></div>
+      ${yb?'':`<p class="muted" style="font-size:.74rem">Pay is an approximate U.S. median from the Bureau of Labor Statistics (May 2024). It varies by state and experience.</p>`}
     </div></div></div>`;
 }
 
 /* ================= QUESTS ================= */
 function viewQuests(){
-  const qs = QUESTS[S.band];
-  const doneN = qs.filter(q=>S.quests[q.id]?.done).length;
-  return `<div class="card"><div class="card-h" style="margin:0"><div><h2>This week’s quests</h2><p class="muted small" style="margin-top:2px">Real things you do off the screen. Check off the steps, then share it with your class.</p></div><span class="chip tag tnum">${doneN}/${qs.length} done</span></div></div>
+  const qs = CAT.quests[ME.user.band], p = P();
+  const doneN = qs.filter(q=>p.quests[q.id]==='done').length;
+  return `<div class="card"><div class="card-h" style="margin:0"><div><h2>Your quests</h2><p class="muted small" style="margin-top:2px">Real things you do off the screen. Check off the steps, then share it with your class.</p></div><span class="chip tag tnum">${doneN}/${qs.length} done</span></div></div>
   <div class="grid quests">${qs.map(q=>{
-    const st = S.quests[q.id] || {steps:q.steps.map(()=>false), done:false};
-    const all = st.steps.every(Boolean);
+    const st = p.quests[q.id]; const done = st==='done'; const steps = Array.isArray(st) ? st : q.steps.map(()=>false);
+    const all = done || steps.every(Boolean);
     return `<div class="card quest">
-      <div class="row" style="flex-wrap:nowrap">${ico(q.c,'sm')}<div style="min-width:0;flex:1"><h3>${esc(q.title)}</h3><span class="muted small">${CLUSTERS[q.c].name}</span></div><span class="xp">+${q.xp} XP</span></div>
-      <div class="steps">${q.steps.map((s,i)=>`<button class="step" data-act="step" data-id="${q.id}" data-i="${i}" aria-pressed="${!!st.steps[i]}" ${st.done?'disabled':''}><span class="box">${st.steps[i]?svg('check'):''}</span><span>${esc(s)}</span></button>`).join('')}</div>
-      <div class="row">${st.done?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}Complete</span>${young(S.band)?'':`<button class="btn outline sm" data-act="sharequest" data-id="${q.id}">Share it</button>`}`
-        : `${q.reader?`<button class="btn sm" data-act="reader">${svg('book')}Open Reader</button>`:''}<button class="btn primary sm" data-act="complete" data-id="${q.id}" ${all?'':'disabled'}>Complete quest</button>`}</div>
+      <div class="row" style="flex-wrap:nowrap">${ico(q.c,'sm')}<div style="min-width:0;flex:1"><h3>${esc(q.title)}</h3><span class="muted small">${esc(CAT.clusters[q.c].name)}</span></div><span class="xp">+${q.xp} XP</span></div>
+      <div class="steps">${q.steps.map((s,i)=>{const on=done||!!steps[i]; return `<button class="step" data-act="step" data-id="${q.id}" data-i="${i}" aria-pressed="${on}" ${done?'disabled':''}><span class="box">${on?svg('check'):''}</span><span>${esc(s)}</span></button>`}).join('')}</div>
+      <div class="row">${done?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}Complete</span>${young(ME.user.band)||!ME.user.canPost?'':`<button class="btn outline sm" data-act="sharequest" data-id="${q.id}">Share it</button>`}`
+        : `${q.reader?`<a class="btn sm" href="/library">${svg('book')}Open Reader</a>`:''}<button class="btn primary sm" data-act="complete" data-id="${q.id}" ${all?'':'disabled'}>Complete quest</button>`}</div>
     </div>`}).join('')}</div>`;
 }
 
 /* ================= EVENTS ================= */
-function eventList(){
-  const own = S.hosted.filter(e=>e.bands.includes(S.band));
-  return [...own, ...EVENTS.filter(e=>e.bands.includes(S.band))].sort((a,b)=>a.date.localeCompare(b.date));
+const FORMATS = ['In class','Live video','Field trip','After school','Families · In person'];
+function eventRow(e, action){
+  const d = fmtDate(e.date);
+  return `<div class="event"><div class="date"><div class="m">${d.m}</div><div class="d">${d.d}</div><div class="w">${d.w}</div></div>
+    <div style="min-width:0"><h3>${esc(e.title)}</h3>${e.host?`<p class="muted small" style="margin-top:2px;display:flex;gap:5px;align-items:center;flex-wrap:wrap">${esc(e.host)} ${tick}</p>`:''}
+    <div class="meta">${e.time?`<span class="chip tag">${esc(e.time)}</span>`:''}${e.format?`<span class="chip tag">${esc(e.format)}</span>`:''}${CAT.clusters[e.cluster]?`<span class="chip cl" style="--c:${cc(e.cluster)}">${esc(CAT.clusters[e.cluster].name)}</span>`:''}<span class="chip tag">${e.scope==='school'?'Whole school':'Class'}</span></div>
+    <div class="actions">${action}<span class="seats tnum">${e.going} of ${e.seats} spots taken</span></div></div></div>`;
 }
 function viewEvents(){
-  const evs = eventList();
-  const host = S.role==='teacher' ? `<div class="card stack"><h2>Host an event</h2>
+  const r = role(); const evs = S.events;
+  const host = r==='teacher' ? `<div class="card stack"><h2>Host an event</h2>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-      <label class="f">Title<input type="text" id="evT" placeholder="Shadow a Welder Day"></label>
-      <label class="f">Date<input type="date" id="evD" value="2026-11-02"></label>
-      <label class="f">Career area<select id="evC">${CL_KEYS.map(k=>`<option value="${k}">${CLUSTERS[k].name}</option>`).join('')}</select></label>
-      <label class="f">Format<select id="evF"><option>In class</option><option>Live video</option><option>Field trip</option><option>Families · In person</option></select></label>
-    </div><div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="host">${svg('plus')}Publish to grades ${B().label}</button></div></div>` : '';
-  return `${host}<div class="card"><div class="card-h"><div><h2>Events</h2><p class="muted small" style="margin-top:2px">Hosted by verified teachers, counselors, and background-checked pros.</p></div></div>
-    ${evs.map(e=>{
-      const d = fmtDate(e.date), st = S.rsvp[e.id], going = e.going + (st==='going'?1:0), full = going>=e.seats && st!=='going';
-      let action='';
-      if (S.role==='kid'){
-        if (young(S.band)) action = st==='going'?`<span class="chip pill-ok">You’re going</span>`:st==='requested'?`<span class="chip pill-wait">Asked my grown-up</span>`:`<button class="btn outline sm" data-act="rsvp" data-id="${e.id}">Ask my grown-up</button>`;
-        else action = st==='going'?`<button class="btn ok sm" data-act="rsvp" data-id="${e.id}">${svg('check')}Attending</button>`:`<button class="btn outline sm" data-act="rsvp" data-id="${e.id}" ${full?'disabled':''}>${full?'Full':'Attend'}</button>`;
-      } else if (S.role==='parent'){
-        action = st==='requested'?`<button class="btn primary sm" data-act="approve-rsvp" data-id="${e.id}">Approve ${esc(B().kid.first)}’s request</button>`:st==='going'?`<span class="chip pill-ok">${esc(B().kid.first)} is going</span>`:`<button class="btn outline sm" data-act="rsvp-parent" data-id="${e.id}">Sign ${esc(B().kid.first)} up</button>`;
-      } else action = e.mine?`<span class="chip pill-ok">You’re hosting</span>`:`<button class="btn outline sm" data-act="assign">Share with class</button>`;
-      return `<div class="event"><div class="date"><div class="m">${d.m}</div><div class="d">${d.d}</div><div class="w">${d.w}</div></div>
-        <div style="min-width:0"><h3>${esc(e.title)}</h3><p class="muted small" style="margin-top:2px;display:flex;gap:5px;align-items:center;flex-wrap:wrap">${esc(e.host)} ${tick}</p>
-        <div class="meta"><span class="chip tag">${e.time}</span><span class="chip tag">${esc(e.fmt)}</span><span class="chip cl" style="--c:${cc(e.c)}">${CLUSTERS[e.c].name}</span></div>
-        <div class="actions">${action}<span class="seats tnum">${going} of ${e.seats} spots taken</span></div></div></div>`;
-    }).join('')}</div>`;
+      <label class="f">Title<input type="text" id="evT" maxlength="${CAT.limits.eventTitle}" placeholder="Shadow a Welder Day"></label>
+      <label class="f">Date<input type="date" id="evD" min="${ME.today}" value="${ME.today}"></label>
+      <label class="f">Time<input type="text" id="evTime" maxlength="20" placeholder="10:00 AM"></label>
+      <label class="f">Career area<select id="evC">${Object.entries(CAT.clusters).map(([k,v])=>`<option value="${k}">${esc(v.name)}</option>`).join('')}</select></label>
+      <label class="f">Format<select id="evF">${FORMATS.map(f=>`<option>${f}</option>`).join('')}</select></label>
+      <label class="f">Spots<input type="text" id="evS" inputmode="numeric" value="30"></label>
+      <label class="f">For<select id="evScope"><option value="class">My class</option><option value="school">My whole school</option></select></label>
+    </div><div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="host">${svg('plus')}Publish event</button></div></div>` : '';
+  let list;
+  if (evs===null) list = '<div class="skeleton"></div>';
+  else if (!evs.length) list = `<p class="muted">${r==='teacher'?'No upcoming events yet. Host one above.':'No upcoming events yet. Your teacher will post them here.'}</p>`;
+  else list = evs.map(e=>{
+    let action = '';
+    if (r==='student'){
+      const yb = young(ME.user.band), st = e.myStatus, full = e.going>=e.seats && st!=='going';
+      if (st==='going') action = `<button class="btn ok sm" data-act="rsvp" data-id="${e.id}" data-v="leave">${svg('check')}Going</button>`;
+      else if (st==='requested') action = `<span class="chip pill-wait">Waiting for your grown-up</span>`;
+      else action = `<button class="btn outline sm" data-act="rsvp" data-id="${e.id}" data-v="join" ${full?'disabled':''}>${full?'Full':yb?'Ask my grown-up':'Attend'}</button>`;
+    } else if (e.mine || r==='admin') action = `<button class="btn sm" data-act="delevent" data-id="${e.id}">${S.confirmDelete===e.id?'Tap again to cancel event':'Cancel event'}</button>`;
+    return eventRow(e, action);
+  }).join('');
+  return `${host}<div class="card"><div class="card-h"><div><h2>Upcoming events</h2><p class="muted small" style="margin-top:2px">Hosted by verified teachers for their class or school.</p></div></div>${list}</div>`;
 }
 
 /* ================= PROFILE ================= */
-function viewPassport(){
-  const k = B().kid, yb = young(S.band);
-  const byC = CL_KEYS.map(x=>({k:x, n:S.stamps.filter(id=>C(id).c===x).length})).sort((a,b)=>b.n-a.n);
+function viewProfile(){
+  const u = ME.user, p = P(), yb = young(u.band);
+  const byC = Object.keys(CAT.clusters).map(x=>({k:x, n:p.collected.filter(id=>C(id)?.c===x).length})).sort((a,b)=>b.n-a.n);
   const max = Math.max(1, ...byC.map(x=>x.n));
-  const done = Object.entries(S.quests).filter(([id,q])=>q.done).map(([id])=>Object.values(QUESTS).flat().find(q=>q.id===id)).filter(Boolean);
-  const top = topClusters(2);
-  return `<div class="card flush prof"><div class="cover tall"></div><div class="head">${av(k.name,'xl')}
-      <h1>${esc(k.name)}</h1><p class="hl">${esc(kidHeadline())}</p>
-      <p class="loc">${esc(B().crew)} · Level ${level()+1} ${LEVELS[Math.min(level(),LEVELS.length-1)]} · <a href="#" data-act="tab" data-v="passport">${S.follows.length} following</a></p>
-      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="tab" data-v="explore">${svg('plus')}Add careers</button><button class="btn outline" data-act="shareprof">Share with family</button></div>
-      ${yb?'':`<div class="open-to"><b>Open to</b><span>${top.length?`Job shadows and summer programs in ${top.join(' and ')}`:'Job shadows, summer programs, and club invites'}</span></div>`}
+  const done = CAT.quests[u.band].filter(q=>p.quests[q.id]==='done');
+  const tops = topClusters(p,2);
+  return `<div class="card flush prof"><div class="cover tall"></div><div class="head">${av(u.name,'xl')}
+      <h1>${esc(u.name)}</h1><p class="hl">${esc(roleLine())}${tops.length?` · Into ${esc(tops.join(' and '))}`:''}</p>
+      <p class="loc">${esc(CAT.bands[u.band].crew)} · Level ${p.level+1} ${esc(p.levelName)} · ${p.xp} XP · ${p.streak}-day streak</p>
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="tab" data-v="explore">${svg('plus')}Add careers</button><button class="btn outline" data-act="tab" data-v="quests">Do a quest</button></div>
+      ${yb?'':`<div class="open-to"><b>Open to</b><span>${tops.length?`Job shadows and summer programs in ${esc(tops.join(' and '))}`:'Job shadows, summer programs, and club invites'}</span></div>`}
     </div></div>
-    <div class="card"><h2 style="margin-bottom:10px">About</h2><p>${top.length?`Exploring ${top.join(' and ').toLowerCase()} so far. ${S.streak}-day streak, ${S.xp} XP, and ${S.stamps.length} careers collected.`:'Just getting started.'}</p></div>
-    <div class="card"><div class="card-h"><h2>Collection</h2><span class="muted small tnum">${S.stamps.length} of ${CAREERS.length}</span></div>
-      <div class="stamps">${CAREERS.map(c=>{const got=S.stamps.includes(c.id);return `<button class="stamp ${got?'got':''}" data-act="open" data-id="${c.id}"><div class="ico" style="--c:${cc(c.c)}">${svg(got?c.c:'lock')}</div><span>${esc(c.name)}</span></button>`}).join('')}</div></div>
-    <div class="card"><h2 style="margin-bottom:12px">Quests completed</h2>${done.length?done.map(q=>`<div class="list-item">${ico(q.c,'sm')}<div><b>${esc(q.title)}</b><span>${CLUSTERS[q.c].name} · +${q.xp} XP</span></div></div>`).join(''):`<p class="muted">No quests finished yet. <a href="#" data-act="tab" data-v="quests">Start one</a>.</p>`}</div>
+    <div class="card"><div class="card-h"><h2>Collection</h2><span class="muted small tnum">${p.collected.length} of ${CAT.careers.length}</span></div>
+      <div class="stamps">${CAT.careers.map(c=>{const got=p.collected.includes(c.id);return `<button class="stamp ${got?'got':''}" data-act="open" data-id="${c.id}"><div class="ico" style="--c:${cc(c.c)}">${svg(got?c.c:'lock')}</div><span>${esc(c.name)}</span></button>`}).join('')}</div></div>
+    <div class="card"><h2 style="margin-bottom:12px">Quests completed</h2>${done.length?done.map(q=>`<div class="list-item">${ico(q.c,'sm')}<div><b>${esc(q.title)}</b><span>${esc(CAT.clusters[q.c].name)} · +${q.xp} XP</span></div></div>`).join(''):`<p class="muted">No quests finished yet. <a href="#" data-act="tab" data-v="quests">Start one</a>.</p>`}</div>
     <div class="grid two">
-      <div class="card"><h2 style="margin-bottom:12px">Interests</h2><div class="cbars">${byC.slice(0,5).map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${CLUSTERS[x.k].name}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div></div>
-      <div class="card"><h2 style="margin-bottom:12px">Badges</h2><div class="badges">${BADGES.map(b=>`<div class="badge ${b.test(S)?'':'locked'}"><i>${svg(b.test(S)?'star':'lock')}</i>${b.name}</div>`).join('')}</div></div>
+      <div class="card"><h2 style="margin-bottom:12px">Interests</h2><div class="cbars">${byC.slice(0,5).map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${esc(CAT.clusters[x.k].name)}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div></div>
+      <div class="card"><h2 style="margin-bottom:12px">Badges</h2><div class="badges">${Object.entries(BADGE_NAMES).map(([id,n])=>{const on=p.badges.includes(id);return `<div class="badge ${on?'':'locked'}"><i>${svg(on?'star':'lock')}</i>${n}</div>`}).join('')}</div></div>
     </div>`;
 }
 
 /* ================= PATHS ================= */
 function viewPaths(){
-  const g = parseInt(B().kid.grade.replace(/\D/g,''),10);
+  const student = role()==='student';
+  const grade = student ? parseInt(String(ME.user.grade||'').replace(/\D/g,''),10) : (currentChild() ? parseInt(String(currentChild().grade||'').replace(/\D/g,''),10) : NaN);
   const rows = [
     ['4-year college','4 years','~$11.6k/yr tuition (public, in-state)','Some, through work-study','Teacher, engineer, nurse (BSN)'],
     ['Community college','2 years','~$4k/yr tuition','Often, part-time','Nurse (ADN), dental hygienist, vet tech'],
@@ -878,201 +788,235 @@ function viewPaths(){
     ['Trade / certificate','Weeks to 2 years','Varies widely','Sometimes','Welder, HVAC, EMT, stylist'],
     ['Start working','Right away','None','Yes','Line cook, farm hand, retail management']
   ];
+  const road = student ? CAT.roadmap.filter(r=>!Number.isFinite(grade) || r.g>=Math.max(6,grade-1)) : CAT.roadmap;
   return `<div class="card"><h2>Six ways to launch</h2><p class="muted small" style="margin:2px 0 12px">None of these is the “backup plan.” Compare them side by side.</p>
   <div class="table-wrap"><table><thead><tr><th>Path</th><th>Time</th><th>Cost</th><th>Earn while you learn?</th><th>Examples</th></tr></thead>
   <tbody>${rows.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td class="muted">${r[4]}</td></tr>`).join('')}</tbody></table></div>
-  <p class="muted" style="font-size:.74rem;margin-top:10px">Tuition figures are approximate national averages (College Board, 2024–25). Confirm locally.</p></div>
+  <p class="muted" style="font-size:.74rem;margin-top:10px">Tuition figures are approximate national averages (College Board, 2024–25). Check your local schools.</p></div>
   <div class="grid two">
-    <div class="card"><h2 style="margin-bottom:12px">Your roadmap</h2><div class="road">${(S.role==='parent'?ROAD:ROAD.filter(r=>r.g>=Math.max(6,g-1))).map(r=>`<div class="road-g ${r.g===g?'now':''}"><span class="gnum">${r.g}</span><div class="items">${r.items.map((it,i)=>{const key=r.g+'-'+i, on=!!S.road[key];return `<button class="step" data-act="road" data-v="${key}" aria-pressed="${on}"><span class="box">${on?svg('check'):''}</span><span>${esc(it)}</span></button>`}).join('')}</div></div>`).join('')}</div></div>
+    <div class="card"><h2 style="margin-bottom:12px">${student?'Your roadmap':'Grade-by-grade roadmap'}</h2><div class="road">${road.map(r=>`<div class="road-g ${r.g===grade?'now':''}"><span class="gnum">${r.g}</span><div class="items">${r.items.map((it,i)=>{const key=r.g+'-'+i, on=student && P().road.includes(key); return student?`<button class="step" data-act="road" data-v="${key}" aria-pressed="${on}"><span class="box">${on?svg('check'):''}</span><span>${esc(it)}</span></button>`:`<div class="step" style="cursor:default"><span class="box"></span><span>${esc(it)}</span></div>`}).join('')}</div></div>`).join('')}</div></div>
     <div class="card"><h2>Scholarships and aid</h2><p class="muted small" style="margin:2px 0 6px">Deadlines change every year, so check each program’s site.</p>
-      <div>${SCHOLARSHIPS.map(s=>`<div class="sch">${ico('star','sm').replace('--c:var(--star)','--c:var(--sun)')}<div style="min-width:0"><b>${esc(s.name)}</b><span class="muted small">${esc(s.for)}</span></div><a class="btn outline sm" href="${s.url}" target="_blank" rel="noopener">Visit</a></div>`).join('')}</div></div>
+      <div>${CAT.scholarships.map(s=>`<div class="sch"><div class="ico sm" style="--c:var(--sun)">${svg('star')}</div><div style="min-width:0"><b>${esc(s.name)}</b><span class="muted small">${esc(s.for)}</span></div><a class="btn outline sm" href="${esc(s.url)}" target="_blank" rel="noopener">Visit</a></div>`).join('')}</div></div>
   </div>`;
 }
 
 /* ================= PARENT ================= */
-function viewOverview(){
-  const k = B().kid;
-  const reqs = Object.entries(S.rsvp).filter(([id,v])=>v==='requested').map(([id])=>[...EVENTS,...S.hosted].find(e=>e.id===id)).filter(Boolean);
-  const byC = CL_KEYS.map(x=>({k:x, n:S.stamps.filter(id=>C(id).c===x).length + S.saved.filter(id=>C(id).c===x).length})).sort((a,b)=>b.n-a.n).slice(0,4);
+function viewFamily(){
+  const kids = S.children;
+  if (kids===null) return '<div class="skeleton"></div>';
+  if (!kids.length) return `<div class="card"><h2>Link your child to get started</h2><p class="muted" style="margin-top:6px">Once your child’s A.R.I.S.E. Reader account is linked to yours, you’ll see their careers, quests, and events here.</p><a class="btn primary" style="margin-top:14px" href="/parent-dashboard">Go to your parent dashboard</a></div>`;
+  const k = currentChild(), p = k.profile;
+  const byC = Object.keys(CAT.clusters).map(x=>({k:x, n:p.collected.filter(id=>C(id)?.c===x).length + p.saved.filter(id=>C(id)?.c===x).length})).sort((a,b)=>b.n-a.n).slice(0,4);
   const max = Math.max(1,...byC.map(x=>x.n));
-  const last = C(S.stamps[S.stamps.length-1]||'plumber');
+  const last = C(p.collected[p.collected.length-1]);
   const starters = [
-    `“You added ${last.name} to your collection. What part of that job sounded fun, and what sounded hard?”`,
+    last ? `“You added ${last.name} to your collection. What part of that job sounded fun, and what sounded hard?”` : `“If you could try any job for one day, what would it be?”`,
     `“If you could shadow any grown-up for one day, who would it be?”`,
-    young(S.band)?`“What do you want to build, fix, or help with when you grow up?”`:`“Which path in the comparison surprised you most?”`
+    young(k.band)?`“What do you want to build, fix, or help with when you grow up?”`:`“Which path in the comparison surprised you most?”`
   ];
-  return `<div class="card"><span class="eyebrow">${esc(k.first)}’s week</span><h1 style="margin-top:4px">${esc(k.first)} explored ${S.stamps.length} careers and kept a ${S.streak}-day streak.</h1>
-    <div class="statgrid"><div><b class="tnum">${S.xp}</b><span>Total XP</span></div><div><b class="tnum">${Object.values(S.quests).filter(q=>q.done).length}</b><span>Quests done</span></div><div><b class="tnum">${S.daily.xp}</b><span>XP today</span></div><div><b>${S.settings.limit} min</b><span>Daily limit</span></div></div></div>
-  ${reqs.length?`<div class="card stack" style="box-shadow:0 0 0 2px var(--sun)"><h3>Needs your OK</h3>${reqs.map(e=>`<div class="row" style="justify-content:space-between"><span>${esc(k.first)} wants to go to <b>${esc(e.title)}</b></span><button class="btn primary sm" data-act="approve-rsvp" data-id="${e.id}">Approve</button></div>`).join('')}</div>`:''}
+  const reqs = k.events.filter(e=>e.status==='requested');
+  return `${kids.length>1?`<div class="kid-chips">${kids.map(c=>`<button class="chip ${c.id===k.id?'on':''}" data-act="child" data-id="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
+  <div class="card"><span class="eyebrow">${esc(k.firstName)}’s progress</span><h1 style="margin-top:4px">${esc(k.firstName)} has explored ${p.collected.length} career${p.collected.length===1?'':'s'}${p.streak?` and has a ${p.streak}-day streak`:''}.</h1>
+    <div class="statgrid"><div><b class="tnum">${p.xp}</b><span>Total XP</span></div><div><b class="tnum">${Object.values(p.quests).filter(q=>q==='done').length}</b><span>Quests done</span></div><div><b class="tnum">${p.daily_xp}</b><span>XP today</span></div><div><b>Level ${p.level+1}</b><span>${esc(p.levelName)}</span></div></div>
+    ${k.hasClass?'':`<div class="notice" style="margin-top:14px">${svg('info')}<span>${esc(k.firstName)} isn’t in an approved class yet, so posting and events are closed for now. Everything else works.</span></div>`}</div>
+  ${reqs.length?`<div class="card stack" style="box-shadow:0 0 0 2px var(--sun)"><h3>Needs your OK</h3>${reqs.map(e=>`<div class="row" style="justify-content:space-between"><span>${esc(k.firstName)} wants to go to <b>${esc(e.title)}</b></span><div class="row"><button class="btn sm" data-act="prsvp" data-id="${e.id}" data-v="leave">No thanks</button><button class="btn primary sm" data-act="prsvp" data-id="${e.id}" data-v="approve">Approve</button></div></div>`).join('')}</div>`:''}
   <div class="grid two">
-    <div class="card"><h2 style="margin-bottom:12px">Where ${esc(k.first)} is leaning</h2><div class="cbars">${byC.map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${CLUSTERS[x.k].name}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div><p class="muted small" style="margin-top:10px">Based on careers collected and saved.</p></div>
+    <div class="card"><h2 style="margin-bottom:12px">Where ${esc(k.firstName)} is leaning</h2>${p.collected.length+p.saved.length?`<div class="cbars">${byC.map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${esc(CAT.clusters[x.k].name)}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div>`:'<p class="muted">Nothing collected yet. This fills in as they explore.</p>'}</div>
     <div class="card stack"><h2>Dinner-table starters</h2>${starters.map(s=>`<div class="starter">${esc(s)}</div>`).join('')}</div>
   </div>
-  <div class="card"><h2 style="margin-bottom:8px">Coming up for grades ${B().label}</h2>${eventList().slice(0,3).map(e=>{const d=fmtDate(e.date);return `<div class="kv2"><span>${esc(e.title)}</span><span class="muted tnum">${d.m} ${d.d}</span></div>`}).join('')}<button class="btn sm" data-act="tab" data-v="events" style="margin-top:10px">All events</button></div>`;
-}
-function viewSafety(){
-  const s = S.settings, k = B().kid;
-  const opt = (key, vals) => `<div class="filters">${vals.map(([v,l])=>`<button class="chip ${s[key]==v?'on':''}" data-act="set" data-k="${key}" data-v="${v}">${l}</button>`).join('')}</div>`;
-  return `<div class="card"><h2 style="margin-bottom:14px">${esc(k.first)}’s privacy and safety</h2>
-    <div class="setting"><b>Who can see ${esc(k.first)}’s posts</b>${opt('scope',[['class','Class only'],['grade','Whole grade'],['school','Whole school']])}</div>
-    <div class="setting"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><b>Ask-a-Pro questions</b><p class="muted small">Teacher-checked and answered publicly. Never private.</p></div><button class="toggle" data-act="toggle" data-k="ask" aria-pressed="${s.ask}" aria-label="Ask-a-Pro questions"></button></div></div>
-    <div class="setting"><b>Daily time limit</b>${opt('limit',[[30,'30 min'],[45,'45 min'],[60,'60 min']])}<p class="muted small">When time is up, Arise Social suggests an off-screen quest instead.</p></div>
-    <div class="setting"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><b>Weekly summary email</b><p class="muted small">Quests, careers, and conversation starters every Sunday.</p></div><button class="toggle" data-act="toggle" data-k="weekly" aria-pressed="${s.weekly}" aria-label="Weekly summary email"></button></div></div>
-  </div>
-  <div class="card"><h2 style="margin-bottom:10px">Always on</h2>
-    ${['No private messages between kids, or between kids and adults','Every adult is a verified teacher or background-checked pro','Kids show first name and last initial only','A teacher approves posts and questions first','No ads, and kids’ data is never sold','Parent approval required for accounts under 13 (COPPA)'].map(t=>`<div class="list-item" style="align-items:center">${svg('check','style="width:18px;height:18px;color:var(--leaf);flex:none"')}<span style="color:var(--fg);font-size:.9rem">${t}</span></div>`).join('')}
+  <div class="card"><h2 style="margin-bottom:8px">Events for ${esc(k.firstName)}</h2>${k.events.length?k.events.map(e=>eventRow(e, e.status==='going'?`<span class="chip pill-ok">Going</span><button class="btn sm ghost" data-act="prsvp" data-id="${e.id}" data-v="leave">Remove</button>`:e.status==='requested'?`<button class="btn primary sm" data-act="prsvp" data-id="${e.id}" data-v="approve">Approve</button>`:`<button class="btn outline sm" data-act="prsvp" data-id="${e.id}" data-v="join">Sign ${esc(k.firstName)} up</button>`)).join(''):'<p class="muted">No upcoming events.</p>'}</div>
+  <div class="card"><h2 style="margin-bottom:14px">Privacy and safety</h2>
+    <div class="setting"><b>Who can see ${esc(k.firstName)}’s posts</b><div class="filters">${[['class','Class only'],['school','Whole school']].map(([v,l])=>`<button class="chip ${p.postScope===v?'on':''}" data-act="scope" data-v="${v}">${l}</button>`).join('')}</div></div>
+    ${['No private messages between kids, or between kids and adults','Every post is approved by the student’s own teacher first','Students show first name and last initial only'].map(t=>`<div class="list-item" style="align-items:center">${svg('check','style="width:18px;height:18px;color:var(--leaf);flex:none"')}<span style="color:var(--fg);font-size:.9rem">${t}</span></div>`).join('')}
   </div>`;
 }
 
 /* ================= TEACHER ================= */
-function viewClass(){
-  const pend = S.pending.filter(p=>p.band===S.band).length;
-  const counts = CL_KEYS.map((k,i)=>({k,n:[14,6,9,11,5,8,12,4,7][i]})).sort((a,b)=>b.n-a.n);
-  const max = counts[0].n;
-  return `<div class="card"><span class="eyebrow">${esc(B().kid.school)} · Grades ${B().label}</span><h1 style="margin-top:4px">24 students, 61 quests done this week</h1>
-    <div class="statgrid"><div><b class="tnum">21</b><span>Active this week</span></div><div><b class="tnum">${pend}</b><span>Waiting for you</span></div><div><b class="tnum">${eventList().length}</b><span>Upcoming events</span></div></div>
-    ${pend?`<button class="btn primary" style="margin-top:14px" data-act="tab" data-v="approvals">Review ${pend} item${pend>1?'s':''}</button>`:''}</div>
-  <div class="grid two">
-    <div class="card"><h2 style="margin-bottom:12px">What your class is exploring</h2><div class="cbars">${counts.slice(0,6).map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${CLUSTERS[x.k].name}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div><p class="muted small" style="margin-top:10px">Sample class data. Use it to pick your next guest speaker.</p></div>
-    <div class="card"><h2 style="margin-bottom:8px">Assign a quest</h2>${QUESTS[S.band].map(q=>`<div class="list-item" style="align-items:center">${ico(q.c,'sm')}<b style="flex:1;min-width:0">${esc(q.title)}</b><button class="btn outline sm" data-act="assign">Assign</button></div>`).join('')}</div>
-  </div>`;
-}
 function viewApprovals(){
-  const list = S.pending.filter(p=>p.band===S.band);
-  return `<div class="card"><h2>Approvals</h2><p class="muted small" style="margin-top:2px">Kids’ posts and questions for pros land here first. Try it: switch to Kid, post a win, then come back.</p></div>
-  ${list.length?list.map(p=>`<div class="card stack"><div class="post-head" style="padding:0">${av(p.who)}<div class="who"><b>${esc(p.who)}</b><span class="hl">${p.kind==='question'?`Question for a verified ${esc(C(p.careerId).name.toLowerCase())}`:'Post to class'} · just now</span></div></div>
-    ${p.text?`<p>${esc(p.text)}</p>`:''}${p.proof?`<span class="chip cl" style="--c:${cc(p.proof.c)};align-self:flex-start">Quest: ${esc(p.proof.q)}</span>`:''}
-    <div class="row"><button class="btn ok sm" data-act="approve" data-id="${p.id}">${svg('check')}Approve</button><button class="btn sm" data-act="reject" data-id="${p.id}">Send back</button></div></div>`).join('')
+  const list = S.approvals;
+  return `<div class="card"><h2>Approvals</h2><p class="muted small" style="margin-top:2px">Your students’ posts wait here until you approve them. Nobody else sees them before that.</p></div>
+  ${list===null?'<div class="skeleton"></div>':list.length?list.map(p=>`<div class="card stack"><div class="post-head" style="padding:0">${av(p.author)}<div class="who"><b>${esc(p.author)}</b><span class="hl">${p.scope==='school'?'Wants to share with the whole school':'Post to class'} · ${ago(p.createdAt)}</span></div></div>
+    ${p.body?`<p>${esc(p.body)}</p>`:''}${p.quest?`<span class="chip cl" style="--c:${cc(p.quest.c)};align-self:flex-start">Quest: ${esc(p.quest.title)}</span>`:''}
+    <div class="row"><button class="btn ok sm" data-act="review" data-id="${p.id}" data-v="approve">${svg('check')}Approve</button><button class="btn sm" data-act="review" data-id="${p.id}" data-v="reject">Send back</button></div></div>`).join('')
   : `<div class="card empty">You’re all caught up.</div>`}`;
 }
-
-const VIEWS = {feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, passport:viewPassport, paths:viewPaths, overview:viewOverview, safety:viewSafety, class:viewClass, approvals:viewApprovals};
-
-function render(){
-  renderChrome();
-  document.getElementById('main').innerHTML = VIEWS[S.tab]();
-  document.getElementById('left').innerHTML = leftHTML();
-  document.getElementById('rail').innerHTML = railHTML();
-  save();
+function viewClass(){
+  const ci = S.classInfo;
+  if (!ci) return '<div class="skeleton"></div>';
+  const counts = Object.entries(ci.clusters).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const max = Math.max(1, ...counts.map(x=>x[1]));
+  return `<div class="card"><span class="eyebrow">Your class</span><h1 style="margin-top:4px">${ci.totals.students} student${ci.totals.students===1?'':'s'}, ${ci.totals.questsDone} quest${ci.totals.questsDone===1?'':'s'} done</h1>
+    <div class="statgrid"><div><b class="tnum">${ci.totals.activeWeek}</b><span>Active this week</span></div><div><b class="tnum">${ci.totals.pending}</b><span>Waiting for you</span></div><div><b class="tnum">${(S.events||[]).length}</b><span>Upcoming events</span></div></div>
+    ${ci.totals.pending?`<button class="btn primary" style="margin-top:14px" data-act="tab" data-v="approvals">Review ${ci.totals.pending} post${ci.totals.pending>1?'s':''}</button>`:''}</div>
+  <div class="card"><h2 style="margin-bottom:12px">What your class is exploring</h2>${counts.length?`<div class="cbars">${counts.map(([k,n])=>`<div class="cbar" style="--c:${cc(k)}"><span>${esc(CAT.clusters[k]?.name||k)}</span><div class="bar"><i style="width:${n/max*100}%"></i></div><span class="tnum">${n}</span></div>`).join('')}</div><p class="muted small" style="margin-top:10px">Careers your students have collected. Handy for picking your next guest speaker.</p>`:'<p class="muted">Nothing collected yet. Share the link <b>arisereader.com/social</b> with your class.</p>'}</div>
+  <div class="card"><h2 style="margin-bottom:10px">Students</h2>${ci.students.length?`<div class="table-wrap"><table class="roster"><thead><tr><th>Student</th><th class="tnum">Level</th><th class="tnum">Careers</th><th class="tnum">Quests</th><th class="tnum">Streak</th></tr></thead><tbody>${ci.students.map(s=>`<tr><td>${esc(s.name)}</td><td class="tnum">${s.level}</td><td class="tnum">${s.collected}</td><td class="tnum">${s.questsDone}</td><td class="tnum">${s.streak}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Students appear here once you’ve approved them in A.R.I.S.E. Reader.</p>'}</div>`;
 }
 
-/* ================= ACTIONS ================= */
+/* ================= RENDER ================= */
+const VIEWS = { feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
+function render(){
+  renderChrome();
+  const root = document.getElementById('root');
+  if (!CAT) { root.innerHTML = `<div class="center-page"><div class="skeleton"></div></div>`; return; }
+  if (!ME) { root.innerHTML = landingHTML(); document.getElementById('bottom').hidden = true; return; }
+  document.getElementById('bottom').hidden = false;
+  root.innerHTML = `<div class="app"><aside class="left" id="left">${leftHTML()}</aside><main id="main">${(VIEWS[S.tab]||viewFeed)()}</main><aside class="rail" id="rail">${railHTML()}</aside></div>`;
+}
+function renderMain(){ const m = document.getElementById('main'); if (m) m.innerHTML = (VIEWS[S.tab]||viewFeed)(); }
 let modalId = null;
 function openModal(id){ modalId=id; document.getElementById('modalRoot').innerHTML = careerModal(id); document.querySelector('.modal .x')?.focus(); }
 function closeModal(){ modalId=null; document.getElementById('modalRoot').innerHTML=''; }
 function refreshModal(){ if(modalId) document.getElementById('modalRoot').innerHTML = careerModal(modalId); }
-let toastT;
-function toast(msg){
-  document.querySelectorAll('.toast').forEach(t=>t.remove());
-  const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; document.body.appendChild(t);
-  clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2600);
+function centerMessage(title, body, action){ renderChrome(); document.getElementById('bottom').hidden = true; document.getElementById('root').innerHTML = `<div class="center-page"><div class="card"><h2>${esc(title)}</h2><p class="muted" style="margin-top:8px">${esc(body)}</p>${action||''}</div></div>`; }
+
+/* ================= DATA LOADING ================= */
+async function load(what){
+  try {
+    if (what==='feed') { S.feed = (await api('/feed')).posts; }
+    if (what==='approvals') { S.approvals = (await api('/approvals')).posts; }
+    if (what==='events') { S.events = (await api('/events')).events; }
+    if (what==='children') { S.children = (await api('/children')).children; if (!S.childId && S.children[0]) S.childId = S.children[0].id; }
+    if (what==='class') { S.classInfo = await api('/class'); }
+  } catch (e) { if (e.code===401) return signedOut(); fail(e); }
+  render();
 }
-const uid = () => 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function loadForRole(){
+  const r = role();
+  if (r==='parent') return load('children');
+  load('feed'); load('events');
+  if (r==='teacher' || r==='admin') load('approvals');
+  if (r==='teacher') load('class');
+}
+function signedOut(){ ME = null; render(); }
+function setProfile(p){ if (ME && p) ME.profile = p; }
 
-document.getElementById('q').addEventListener('input', e=>{
-  S.q = e.target.value; if (S.tab!=='explore'){ S.tab='explore'; render(); e.target.focus(); }
-  else document.getElementById('main').innerHTML = viewExplore();
-});
+/* ================= ACTIONS ================= */
+document.getElementById('q').addEventListener('input', e=>{ S.q = e.target.value; if (S.tab!=='explore'){ S.tab='explore'; render(); const q=document.getElementById('q'); q.focus(); } else renderMain(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modalId) closeModal(); if(S.menu){ S.menu=false; renderChrome(); } } });
 
-document.addEventListener('click', e=>{
-  const el = e.target.closest('[data-act]'); if(!el) return;
+document.addEventListener('click', async e=>{
+  const el = e.target.closest('[data-act]');
+  if (S.menu && !e.target.closest('.menu') && !(el && el.dataset.act==='menu')) { S.menu=false; renderChrome(); }
+  if (!el) return;
   if (el.dataset.act==='close' && e.target.closest('[data-stop]') && !e.target.closest('.x')) return;
-  if (el.tagName==='A') e.preventDefault();
+  if (el.tagName==='A' && el.dataset.act) e.preventDefault();
   const a = el.dataset.act, v = el.dataset.v, id = el.dataset.id;
-  switch(a){
-    case 'role': S.role=v; S.tab=tabs()[0][0]; S.composeOpen=false; render(); window.scrollTo(0,0); break;
-    case 'band': S.band=v; S.composeOpen=false; render(); break;
-    case 'tab': S.tab=v; closeModal(); render(); window.scrollTo(0,0); break;
-    case 'scope': S.feedScope=v; render(); break;
-    case 'fc': S.filterC=v; render(); break;
-    case 'fp': S.filterP=v; render(); break;
-    case 'open': openModal(id); break;
-    case 'close': closeModal(); break;
-    case 'compose': S.composeOpen=!S.composeOpen; render(); if(S.composeOpen) (document.getElementById('cText')||document.getElementById('cStart'))?.focus(); break;
-    case 'follow': S.follows = S.follows.includes(id)?S.follows.filter(x=>x!==id):[...S.follows,id]; toast(S.follows.includes(id)?`Following ${PROS.find(p=>p.id===id).name}`:'Unfollowed'); refreshModal(); render(); break;
-    case 'stamp': if(!S.stamps.includes(id)){ S.stamps.push(id); addXP(10,'Added to collection'); burst(); } refreshModal(); render(); break;
-    case 'save': S.saved = S.saved.includes(id)?S.saved.filter(x=>x!==id):[...S.saved,id]; toast(S.saved.includes(id)?'Saved':'Removed from saved'); refreshModal(); render(); break;
-    case 'reader': toast('Opens A.R.I.S.E. Reader’s career book shelf'); break;
-    case 'shareprof': toast(`${B().kid.first}’s profile shared with family`); break;
-    case 'ask': {
-      const q = document.getElementById('askQ'); const t=(q?.value||'').trim();
-      if(!S.settings.ask){ toast('A parent turned off Ask-a-Pro'); break; }
-      if(!t){ toast('Type a question first'); q?.focus(); break; }
-      S.pending.push({id:uid(), band:S.band, author:'kid', kind:'question', careerId:id, who:B().kid.name, role:'kid', scope:'class', ago:'just now', text:t, r:{}});
-      q.value=''; toast(`Sent to ${B().teacher} to check`); save(); break;
-    }
-    case 'spin': spin(); break;
-    case 'react': if(S.role!=='kid'){ toast('Reactions are for students in this preview'); break; } S.reacts[id] = S.reacts[id]===v ? undefined : v; render(); break;
-    case 'post': {
-      let text='', proof=null;
-      if (young(S.band)){ const c=C(document.getElementById('cCareer').value); text=`${document.getElementById('cStart').value} ${c.name.toLowerCase()}!`; }
-      else {
-        text=(document.getElementById('cText').value||'').trim(); const qid=document.getElementById('cQuest').value;
-        if(qid){ const q=QUESTS[S.band].find(x=>x.id===qid); proof={q:q.title, c:q.c}; }
-        if(!text && !proof){ toast('Write something or attach a quest'); break; }
+  if (a!=='delpost' && a!=='delevent') S.confirmDelete = null;
+  try {
+    switch(a){
+      case 'join': goSignIn('/register'); break;
+      case 'signin': goSignIn('/'); break;
+      case 'go': goSignIn(v); break;
+      case 'menu': S.menu = !S.menu; renderChrome(); break;
+      case 'tab': S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') load('approvals'); break;
+      case 'fc': S.filterC=v; renderMain(); break;
+      case 'fp': S.filterP=v; renderMain(); break;
+      case 'open': openModal(id); break;
+      case 'close': closeModal(); break;
+      case 'child': S.childId = Number(id); render(); break;
+      case 'compose': S.composeOpen=!S.composeOpen; renderMain(); if(S.composeOpen) (document.getElementById('cText')||document.getElementById('cStart'))?.focus(); break;
+      case 'collect': { el.disabled = true; const r = await api('/collect',{method:'POST',body:{careerId:id}}); setProfile(r.profile); if (r.gained){ toast(`+${r.gained} XP · Added to your collection`); burst(); } refreshModal(); render(); break; }
+      case 'save': { const r = await api('/save',{method:'POST',body:{careerId:id}}); setProfile(r.profile); toast(r.profile.saved.includes(id)?'Saved':'Removed from saved'); refreshModal(); render(); break; }
+      case 'spin': await spin(); break;
+      case 'step': { const r = await api(`/quests/${encodeURIComponent(id)}/step`,{method:'POST',body:{step:Number(el.dataset.i)}}); setProfile(r.profile); renderMain(); break; }
+      case 'complete': { el.disabled = true; const r = await api(`/quests/${encodeURIComponent(id)}/complete`,{method:'POST'}); setProfile(r.profile); if (r.gained){ toast(`+${r.gained} XP · Quest complete`); burst(); } render(); break; }
+      case 'road': { const r = await api('/roadmap',{method:'POST',body:{key:v}}); setProfile(r.profile); renderMain(); break; }
+      case 'post': {
+        const body = {};
+        if (role()==='student' && young(ME.user.band)) { body.starter = Number(document.getElementById('cStart').value); body.careerId = document.getElementById('cCareer').value; }
+        else { body.text = document.getElementById('cText').value; const q = document.getElementById('cQuest'); if (q && q.value) body.questId = q.value; const sc = document.getElementById('cScope'); if (sc) body.scope = sc.value; }
+        el.disabled = true;
+        const r = await api('/posts',{method:'POST',body}).finally(()=>{ el.disabled=false; });
+        S.composeOpen = false; S.feed = [r.post, ...(S.feed||[])];
+        toast(r.post.status==='pending' ? 'Sent to your teacher for a quick check' : 'Posted');
+        renderMain(); break;
       }
-      S.pending.push({id:uid(), band:S.band, author:'kid', kind:'post', who:B().kid.name, role:'kid', scope:S.settings.scope==='class'?'class':'school', ago:'just now', text, proof, r:{}});
-      S.composeOpen=false; toast(`Sent to ${B().teacher} for a quick check`); render(); break;
+      case 'sharequest': { const r = await api('/posts',{method:'POST',body:{questId:id}}); S.feed = [r.post, ...(S.feed||[])]; toast('Sent to your teacher for a quick check'); S.tab='feed'; render(); window.scrollTo(0,0); break; }
+      case 'delpost': {
+        if (S.confirmDelete!==id){ S.confirmDelete=id; renderMain(); break; }
+        await api(`/posts/${id}`,{method:'DELETE'}); S.confirmDelete=null;
+        S.feed = (S.feed||[]).filter(p=>p.id!==id); toast('Post deleted'); renderMain(); break;
+      }
+      case 'react': {
+        const p = (S.feed||[]).find(x=>x.id===id); if (!p) break;
+        const r = await api(`/posts/${id}/react`,{method:'POST',body:{kind: p.myReaction===v ? null : v}});
+        S.feed = S.feed.map(x=>x.id===id ? r.post : x); renderMain(); break;
+      }
+      case 'review': {
+        await api(`/posts/${id}/review`,{method:'POST',body:{decision:v}});
+        S.approvals = (S.approvals||[]).filter(p=>p.id!==id);
+        toast(v==='approve'?'Approved. It’s live for the class.':'Sent back');
+        render(); if (v==='approve') load('feed'); if (S.classInfo) load('class'); break;
+      }
+      case 'host': {
+        const body = { title:document.getElementById('evT').value, date:document.getElementById('evD').value, time:document.getElementById('evTime').value, cluster:document.getElementById('evC').value, format:document.getElementById('evF').value, seats:Number(document.getElementById('evS').value)||30, scope:document.getElementById('evScope').value };
+        el.disabled = true;
+        const r = await api('/events',{method:'POST',body}).finally(()=>{ el.disabled=false; });
+        S.events = [...(S.events||[]), r.event].sort((x,y)=>x.date.localeCompare(y.date));
+        toast('Event published'); render(); break;
+      }
+      case 'delevent': {
+        if (S.confirmDelete!==id){ S.confirmDelete=id; renderMain(); break; }
+        await api(`/events/${id}`,{method:'DELETE'}); S.confirmDelete=null;
+        S.events = (S.events||[]).filter(x=>x.id!==id); toast('Event cancelled'); render(); break;
+      }
+      case 'rsvp': {
+        const r = await api(`/events/${id}/rsvp`,{method:'POST',body:{action:v}});
+        S.events = S.events.map(x=>x.id===id ? {...x, ...r.event} : x);
+        toast(r.event.myStatus==='requested' ? 'Sent to your grown-up' : r.event.myStatus==='going' ? 'You’re going' : 'Removed');
+        render(); break;
+      }
+      case 'prsvp': {
+        const k = currentChild();
+        const r = await api(`/events/${id}/rsvp`,{method:'POST',body:{action:v, studentId:k.id}});
+        k.events = k.events.map(x=>x.id===id ? {...x, going:r.event.going, status:r.event.myStatus} : x);
+        toast(r.event.myStatus==='going' ? `${k.firstName} is going` : 'Updated'); render(); break;
+      }
+      case 'scope': {
+        const k = currentChild();
+        await api(`/children/${k.id}/settings`,{method:'PUT',body:{postScope:v}});
+        k.profile.postScope = v; toast(v==='school'?'Posts can be seen by the whole school':'Posts stay in the class'); render(); break;
+      }
     }
-    case 'sharequest': {
-      const q=QUESTS[S.band].find(x=>x.id===id);
-      S.pending.push({id:uid(), band:S.band, author:'kid', kind:'post', who:B().kid.name, role:'kid', scope:'class', ago:'just now', text:'', proof:{q:q.title,c:q.c}, r:{}});
-      toast(`Sent to ${B().teacher} for a quick check`); S.tab='feed'; render(); window.scrollTo(0,0); break;
-    }
-    case 'step': {
-      const q=QUESTS[S.band].find(x=>x.id===id); const st=S.quests[id]||{steps:q.steps.map(()=>false),done:false};
-      st.steps[+el.dataset.i]=!st.steps[+el.dataset.i]; S.quests[id]=st; render(); break;
-    }
-    case 'complete': {
-      const q=QUESTS[S.band].find(x=>x.id===id); const st=S.quests[id]; if(!st||!st.steps.every(Boolean)) break;
-      st.done=true; addXP(q.xp, q.title); burst(); render(); break;
-    }
-    case 'rsvp': {
-      if (young(S.band)){ S.rsvp[id]='requested'; toast('Sent to your grown-up'); }
-      else { S.rsvp[id] = S.rsvp[id]==='going'?undefined:'going'; if(S.rsvp[id]==='going') addXP(15,'Signed up for an event'); }
-      render(); break;
-    }
-    case 'approve-rsvp': S.rsvp[id]='going'; toast(`${B().kid.first} is going`); render(); break;
-    case 'rsvp-parent': S.rsvp[id]='going'; toast(`${B().kid.first} is signed up`); render(); break;
-    case 'host': {
-      const t=document.getElementById('evT').value.trim(); if(!t){ toast('Add a title first'); document.getElementById('evT').focus(); break; }
-      S.hosted.push({id:uid(), bands:[S.band], title:t, host:B().teacher, hostType:'teacher', date:document.getElementById('evD').value||'2026-11-02', time:'10:00 AM', fmt:document.getElementById('evF').value, seats:30, going:0, c:document.getElementById('evC').value, mine:true});
-      toast('Published. Families get a notice.'); render(); break;
-    }
-    case 'approve': {
-      const i=S.pending.findIndex(p=>p.id===id); if(i<0) break; const p=S.pending.splice(i,1)[0];
-      if(p.kind==='post') S.myPosts.push({...p, ago:'just now', status:'live'});
-      toast(p.kind==='post'?'Approved. It’s live in the class space.':'Sent to a verified pro to answer'); render(); break;
-    }
-    case 'reject': S.pending=S.pending.filter(p=>p.id!==id); toast('Sent back with a note'); render(); break;
-    case 'assign': toast('Shared with your class'); break;
-    case 'road': S.road[v]=!S.road[v]; render(); break;
-    case 'set': S.settings[el.dataset.k] = isNaN(+v)?v:+v; render(); break;
-    case 'toggle': S.settings[el.dataset.k] = !S.settings[el.dataset.k]; render(); break;
-  }
+  } catch (err) { if (err.code===401) return signedOut(); fail(err); renderMain(); }
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalId) closeModal(); });
 
-function spin(){
+async function spin(){
   const win=document.getElementById('spinWin'); const btn=document.querySelector('[data-act="spin"]'); if(!win||!btn) return;
   btn.disabled=true; win.classList.add('rolling');
+  const req = api('/spin',{method:'POST'});
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const pick = CAREERS[Math.floor(Math.random()*CAREERS.length)];
-  let n=0, total=reduce?1:18;
-  const tick=()=>{ n++; win.textContent = n<total ? CAREERS[Math.floor(Math.random()*CAREERS.length)].name : pick.name;
-    if(n<total) setTimeout(tick, 40+n*9); else { win.classList.remove('rolling'); S.spun={date:today,id:pick.id}; addXP(10,'Daily spin'); render(); openModal(pick.id); } };
-  tick();
+  let n=0; const total=reduce?1:16;
+  await new Promise(done=>{ const tickF=()=>{ n++; win.textContent = CAT.careers[Math.floor(Math.random()*CAT.careers.length)].name; if(n<total) setTimeout(tickF, 40+n*9); else done(); }; tickF(); });
+  const r = await req;
+  setProfile(r.profile);
+  if (r.gained) toast(`+${r.gained} XP · Daily spin`);
+  render(); openModal(r.career);
 }
-
 function burst(){
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const cv=document.getElementById('confetti'), ctx=cv.getContext('2d'); cv.width=innerWidth; cv.height=innerHeight;
   const cols=['#3f3bd6','#6d4fd8','#ffb23f','#ef5a45','#1e9e62'];
-  const ps=Array.from({length:70},()=>({x:innerWidth/2,y:innerHeight*0.45,vx:(Math.random()-.5)*14,vy:-Math.random()*12-4,s:Math.random()*6+4,c:cols[Math.floor(Math.random()*cols.length)],r:Math.random()*6,vr:(Math.random()-.5)*.3}));
-  let f=0; (function loop(){ ctx.clearRect(0,0,cv.width,cv.height); ps.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(0,0,p.s/2,0,Math.PI*2);ctx.fill();ctx.restore();}); if(++f<80) requestAnimationFrame(loop); else ctx.clearRect(0,0,cv.width,cv.height); })();
+  const ps=Array.from({length:70},()=>({x:innerWidth/2,y:innerHeight*0.45,vx:(Math.random()-.5)*14,vy:-Math.random()*12-4,s:Math.random()*6+4,c:cols[Math.floor(Math.random()*cols.length)]}));
+  let f=0; (function loop(){ ctx.clearRect(0,0,cv.width,cv.height); ps.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.s/2,0,Math.PI*2);ctx.fill();}); if(++f<80) requestAnimationFrame(loop); else ctx.clearRect(0,0,cv.width,cv.height); })();
 }
 
-render();
+/* ================= START ================= */
+(async function start(){
+  render();
+  try { CAT = await api('/catalog'); }
+  catch (e) { return centerMessage('Arise Social can’t load right now', e.message || 'Please try again in a minute.', '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>'); }
+  if (!sessionToken()) return render();
+  try { ME = await api('/me'); }
+  catch (e) {
+    if (e.code===401) { ME = null; return render(); }
+    if (e.body && e.body.setup) return centerMessage('Almost ready', 'Arise Social is still being set up. Please check back soon.');
+    return centerMessage('Arise Social can’t load right now', e.message, '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>');
+  }
+  S.tab = role()==='parent' ? 'family' : 'feed';
+  render();
+  loadForRole();
+})();
 </script>
 
 </body>
