@@ -148,7 +148,8 @@ interface QuestionForm {
   correct: string;
 }
 
-type AdminTab = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
+import type { AdminSection } from "@/lib/adminSections";
+type AdminTab = AdminSection;
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
 type SettingsSection = "programs" | "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
 const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
@@ -161,7 +162,7 @@ let adminCache: { students: Student[]; books: BookItem[] } = {
 };
 
 /** The admin console. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader group (no sticky page header). */
-export default function Admin({ embedded = false }: { embedded?: boolean } = {}) {
+export default function Admin({ embedded = false, section, onSection, hideNav = false }: { embedded?: boolean; section?: AdminTab; onSection?: (next: AdminTab) => void; hideNav?: boolean } = {}) {
   const { user, token, logout, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -220,9 +221,11 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
   const bellActionRef = useRef(-1);
   const [inboxOpen, setInboxOpen] = useState<{ userId: number; nonce: number } | null>(null);
   // Which part of the page is showing. Kept for the browser tab, so a refresh comes back here.
-  const [tab, setTabState] = useState<AdminTab>(() => {
+  const [innerTab, setTabState] = useState<AdminTab>(() => {
     try { const saved = sessionStorage.getItem(TAB_STORAGE) as AdminTab | null; return saved && ADMIN_TABS.includes(saved) ? saved : "overview"; } catch { return "overview"; }
   });
+  // Arise WorkHub drives this from its one Reader menu; on its own page it keeps its own.
+  const tab = section ?? innerTab;
   const [peopleTab, setPeopleTab] = useState<PeopleTab>("students");
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("alerts");
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -522,8 +525,9 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
 
   const setTab = useCallback((next: AdminTab) => {
     setTabState(next);
+    onSection?.(next);
     try { sessionStorage.setItem(TAB_STORAGE, next); } catch {}
-  }, []);
+  }, [onSection]);
 
   /** Shows a tab (and part of it), then scrolls to an element on it and briefly highlights it. */
   const goTo = useCallback((next: AdminTab, targetId?: string, sub?: { people?: PeopleTab; settings?: SettingsSection }) => {
@@ -4288,7 +4292,7 @@ Generate exactly 10 questions.`;
             </DropdownMenu>
           </div>
         </div>
-        <nav aria-label="Admin sections" className="border-t border-border/60 lg:hidden">
+        {!hideNav && <nav aria-label="Admin sections" className="border-t border-border/60 lg:hidden">
           <div className="mx-auto max-w-7xl px-2 py-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -4311,15 +4315,15 @@ Generate exactly 10 questions.`;
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </nav>
+        </nav>}
       </header>
 
       <div className="mx-auto flex w-full max-w-7xl gap-6 px-3 sm:px-4 lg:px-6">
-        <aside className="hidden w-56 shrink-0 lg:block">
+        {!hideNav && <aside className="hidden w-56 shrink-0 lg:block">
           <nav aria-label="Admin sections" className="sticky top-14 space-y-1 py-6">
             {NAV.map((item) => navButton(item, "side"))}
           </nav>
-        </aside>
+        </aside>}
         <main className="min-w-0 flex-1 py-4 pb-24 sm:py-6">
           {tab === "overview" && overviewTab}
           {tab === "stats" && (

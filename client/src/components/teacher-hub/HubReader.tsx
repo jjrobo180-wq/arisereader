@@ -3,6 +3,7 @@
 import { Suspense, lazy } from "react";
 import { BookOpen, Calculator, CheckCheck, Landmark, Users } from "lucide-react";
 import HubReaderScope from "@/components/HubReaderScope";
+import type { AdminSection } from "@/lib/adminSections";
 
 const Admin = lazy(() => import("@/pages/Admin"));
 
@@ -35,8 +36,9 @@ export function ProgramLinks({ hideLifeHub = false }: { hideLifeHub?: boolean })
   </section>;
 }
 
-export function AdminTab({ night = false }: { night?: boolean }) {
+export function AdminTab({ night = false, section, onSection }: { night?: boolean; section?: AdminSection; onSection?: (next: AdminSection) => void }) {
   return <HubReaderScope which="work" night={night}>
-    <Suspense fallback={<Loading what="the admin console" />}><Admin embedded /></Suspense>
+    {/* hideNav: the console's own menus are off, because WorkHub's Reader menu lists its sections. */}
+    <Suspense fallback={<Loading what="the admin console" />}><Admin embedded hideNav section={section} onSection={onSection} /></Suspense>
   </HubReaderScope>;
 }

@@ -81,6 +81,7 @@ import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
+import { ADMIN_SECTIONS, adminSectionLabel, type AdminSection } from "@/lib/adminSections";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNote";
 
@@ -367,6 +368,8 @@ function TeacherHubPage() {
   // The group's categories dropdown (replaces a second row of sub-tabs). Hooks stay up here:
   // anything below the early returns changes the hook count between renders and React throws.
   const [subMenu, setSubMenu] = useState(false);
+  // Which admin-console section the Reader menu has open (the console no longer has its own menu).
+  const [adminSection, setAdminSection] = useState<AdminSection>("overview");
   const subRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!subMenu) return;
@@ -731,18 +734,34 @@ function TeacherHubPage() {
               <button type="button" onClick={() => setSubMenu((v) => !v)} aria-haspopup="menu" aria-expanded={subMenu} aria-label={`${group.label} categories`} data-testid="hub-subtabs-button"
                 className="flex min-h-11 w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 sm:px-4">
                 {tabIcon(tab)}
-                <span className="min-w-0 flex-1 truncate">{SUB_LABELS[tab] ?? group.label}</span>
+                <span className="min-w-0 flex-1 truncate">{tab === "admin" ? `Admin console · ${adminSectionLabel(adminSection)}` : SUB_LABELS[tab] ?? group.label}</span>
                 <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${subMenu ? "rotate-180" : ""}`} />
               </button>
               {subMenu && (
                 <div role="menu" aria-label={group.label} data-testid="hub-subtabs-menu"
                   className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                  {subTabs.map((t) => (
+                  {subTabs.filter((t) => t !== "admin").map((t) => (
                     <button key={t} type="button" role="menuitem" aria-current={tab === t ? "page" : undefined} onClick={() => { setTab(t); setSubMenu(false); }} data-testid={`hub-subtab-${t}`}
                       className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${tab === t ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-50"}`}>
                       {tabIcon(t)} {SUB_LABELS[t] ?? t}
                     </button>
                   ))}
+                  {subTabs.includes("admin") && (
+                    <>
+                      <div className="mt-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Admin console</div>
+                      {ADMIN_SECTIONS.map((s) => {
+                        const on = tab === "admin" && adminSection === s.id;
+                        return (
+                          <button key={s.id} type="button" role="menuitem" aria-current={on ? "page" : undefined}
+                            onClick={() => { setAdminSection(s.id); setTab("admin"); setSubMenu(false); }}
+                            data-testid={s.id === "overview" ? "hub-subtab-admin" : `hub-subtab-admin-${s.id}`}
+                            className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${on ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-50"}`}>
+                            <s.icon className="h-4 w-4 shrink-0" /> {s.label}
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -814,7 +833,7 @@ function TeacherHubPage() {
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
           {isReaderTab(tab) && <ReaderTools tab={tab} openTab={setTab} night={night} />}
-          {tab === "admin" && user.isAdmin && <AdminTab night={night} />}
+          {tab === "admin" && user.isAdmin && <AdminTab night={night} section={adminSection} onSection={setAdminSection} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
           {tab === "attendance" && <Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} />}
