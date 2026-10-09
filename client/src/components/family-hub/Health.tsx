@@ -1,22 +1,23 @@
 // Food & fitness: a MyFitnessPal-style diary for adults (calories, macros, exercise, water, steps, weight)
 // and a healthy-habits tracker for kids (fruits & veggies, water, active minutes, what they ate, no numbers).
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Apple, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { canScan, estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import type { FoundFood } from "@shared/foodLookup";
 import { MEALS, addDays, type FoodEntry, type HealthGoals, type Meal, type Member, type SavedFood } from "@shared/familyHub";
 import {
-  ACTIVITIES, COMMON_FOODS, DEFAULT_WEIGHT_LB, caloriesLeft, dayTotals, entryTotals, exerciseCalories, goalsFor, latestWeight, macroGrams, recentFoods, setDay,
+  ACTIVITIES, COMMON_FOODS, healthPeople, DEFAULT_WEIGHT_LB, caloriesLeft, dayTotals, entryTotals, exerciseCalories, goalsFor, latestWeight, macroGrams, recentFoods, setDay,
 } from "@shared/familyHealth";
-import { Bar, Empty, Label, Modal, PageHead, Panel, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
+import { Bar, Label, Modal, PageHead, Panel, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 
 const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snacks: "Snacks" };
 const fmt = (n: number) => Math.round(n).toLocaleString();
 type Pick = { name: string; serving: string; calories: number; protein: number; carbs: number; fat: number };
 
 export default function Health({ family, setFamily, today, makeId, say }: SectionProps) {
-  const people = family.members;
+  const { user } = useAuth();
+  const people = healthPeople(family, (user?.displayName || "").split(" ")[0]);
   const [who, setWho] = useState(() => (people.find((m) => m.kind === "adult") || people[0])?.id || "");
   const [date, setDate] = useState(today);
   const [adding, setAdding] = useState<Meal | null>(null);
@@ -25,12 +26,9 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
   const [weightDraft, setWeightDraft] = useState("");
   const health = family.health;
   const member = people.find((m) => m.id === who) || people[0];
+  const solo = people.length === 1;
   const setHealth = (fn: (h: typeof health) => typeof health) => setFamily((f) => ({ ...f, health: fn(f.health) }));
 
-  if (!member) return <div className="space-y-6">
-    <PageHead eyebrow="Food & fitness" title="Food & fitness" blurb="A food diary and fitness tracker for everyone in the family." />
-    <Panel><Empty icon={<Apple size={26} />} title="Add your family first">Go to “Family & settings” and add each person. Then everyone gets their own diary.</Empty></Panel>
-  </div>;
 
   const kid = member.kind === "kid";
   const goals = goalsFor(health, member);
@@ -52,7 +50,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
       action={<button onClick={() => setEditGoals(true)} className={plain + " min-h-11"}><Settings2 size={16} /> Goals</button>} />
 
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-2">{people.map((m) => <button key={m.id} onClick={() => setWho(m.id)} aria-pressed={m.id === member.id}
+      <div className="flex flex-wrap gap-2">{!solo && people.map((m) => <button key={m.id} onClick={() => setWho(m.id)} aria-pressed={m.id === member.id}
         className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-2.5 pr-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200"
         style={m.id === member.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span className="text-base leading-none">{m.emoji || "🙂"}</span>{m.name}</button>)}</div>
       <div className="flex items-center gap-2">
