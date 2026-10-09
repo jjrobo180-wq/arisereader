@@ -9,8 +9,9 @@ import {
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
+  ChevronUp, ChevronDown,
 } from "lucide-react";
-import { cleanFamily, emptyFamily, isCurrentFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
+import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -150,7 +151,9 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
 };
-const SECTION_ORDER: FamilySection[] = ["home", "reader", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"];
+// Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
+// Tasks and Notifications is the family's own toggleable block, in the order they chose.
+const sectionOrderFor = (family: Family): FamilySection[] => ["home", "reader", "tasks", ...orderedToggleable(family), "notifications", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -193,8 +196,9 @@ export default function AriseTodo() {
     try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); return "reader"; } } catch { /* fine */ }
     // Parents start on their A.R.I.S.E. Reader tab (the parent portal) until they pick another.
     const first: FamilySection = user?.role === "parent" ? "reader" : "home";
-    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && SECTION_ORDER.includes(saved) ? saved : first; } catch { return first; }
+    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
+  const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
   // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
   useEffect(() => {
     try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); setSectionState("reader"); } } catch { /* fine */ }
@@ -402,7 +406,25 @@ export default function AriseTodo() {
   const members = family.members;
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
-  const sections = SECTION_ORDER.filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const sections = sectionOrderFor(family).filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
+  // Home, Reader, Tasks, Notifications and Family & settings stay put.
+  const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
+    const current = cleanSectionOrder(f.sectionOrder);
+    const at = current.indexOf(id);
+    const to = at + dir;
+    if (at < 0 || to < 0 || to >= current.length) return f;
+    const next = [...current];
+    [next[at], next[to]] = [next[to], next[at]];
+    return { ...f, sectionOrder: next };
+  });
+  const moveSectionTo = (id: FamilySection, beforeId: FamilySection | null) => setFamily((f) => {
+    const current = cleanSectionOrder(f.sectionOrder).filter((s) => s !== id);
+    const at = beforeId && (TOGGLEABLE as readonly FamilySection[]).includes(beforeId) ? current.indexOf(beforeId) : current.length;
+    if (at < 0) return f;
+    current.splice(at, 0, id);
+    return { ...f, sectionOrder: current };
+  });
   const trial = useLifeHubTrial();
   const shown: FamilySection = sections.includes(section) ? section : "home";
   // Doses still to take today show on the Pills tab.
@@ -439,15 +461,45 @@ export default function AriseTodo() {
   return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""}`}>
     <div className="flex min-h-screen w-full flex-col lg:flex-row">
       <aside className="w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-72">
-        <div className="flex items-center justify-between gap-2 px-5 py-5 lg:px-6 lg:py-7">
-          <button onClick={() => navigate("/")} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to A.R.I.S.E. Reader">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6d5ce7] text-white shadow-[0_5px_14px_#6d5ce72b]"><CheckCheck className="h-5 w-5" /></span>
-            <span className="min-w-0"><span className="block text-xs font-extrabold tracking-[.16em] text-[#7e76aa]">ARISE</span><span className="block text-xl font-black tracking-tight">LifeHub<span className="text-[#7968e5]">.</span></span></span>
+        <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-5 sm:py-5 lg:px-6 lg:py-7">
+          <button onClick={() => navigate("/")} className="flex min-w-0 items-center gap-2 text-left sm:gap-3" aria-label="Back to A.R.I.S.E. Reader">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#6d5ce7] text-white shadow-[0_5px_14px_#6d5ce72b] sm:h-10 sm:w-10 sm:rounded-2xl"><CheckCheck className="h-4 w-4 sm:h-5 sm:w-5" /></span>
+            <span className="min-w-0"><span className="hidden text-xs font-extrabold tracking-[.16em] text-[#7e76aa] sm:block">ARISE</span><span className="block text-base font-black tracking-tight sm:text-xl">LifeHub<span className="text-[#7968e5]">.</span></span></span>
           </button>
-          <div className="flex items-center gap-2 lg:hidden"><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-10 w-10 items-center justify-center rounded-xl ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={20} /></button><button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf]" aria-label="Add task"><Plus /></button></div>
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden"><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={18} className="sm:hidden" /><Bell size={20} className="hidden sm:block" /></button><button onClick={openAdd} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] sm:h-10 sm:w-10" aria-label="Add task"><Plus size={18} className="sm:hidden" /><Plus className="hidden sm:block" /></button></div>
         </div>
-        <nav aria-label="Family Hub" className="flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none] lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          {sections.map(id => { const Icon = SECTION_ICONS[id]; return <button key={id} onClick={() => setSection(id)} aria-current={shown === id ? "page" : undefined} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}</button>; })}
+        <nav aria-label="Family Hub" className="flex gap-1 overflow-x-auto px-3 pb-2.5 [scrollbar-width:none] sm:px-4 sm:pb-3 lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+          {sections.map((id, i) => {
+            const Icon = SECTION_ICONS[id];
+            const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
+            const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
+            const posInToggleable = toggleableShown.indexOf(id);
+            return (
+              <div
+                key={id}
+                draggable={movable}
+                onDragStart={movable ? (e) => { setDraggingSection(id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+                onDragEnd={movable ? () => setDraggingSection(null) : undefined}
+                onDragOver={movable && draggingSection && draggingSection !== id ? (e) => e.preventDefault() : undefined}
+                onDrop={movable && draggingSection && draggingSection !== id ? (e) => { e.preventDefault(); moveSectionTo(draggingSection, id); setDraggingSection(null); } : undefined}
+                className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition lg:w-full ${draggingSection === id ? "opacity-40" : ""}`}
+              >
+                <button
+                  onClick={() => setSection(id)}
+                  aria-current={shown === id ? "page" : undefined}
+                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm lg:w-full ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+                >
+                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
+                </button>
+                {movable && (
+                  <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 lg:flex">
+                    <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveSectionBy(id, 1)} disabled={posInToggleable >= toggleableShown.length - 1} aria-label={`Move ${SECTION_INFO[id].label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </nav>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
@@ -472,7 +524,7 @@ export default function AriseTodo() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 pb-12 pt-6 sm:px-7 lg:px-9 lg:pt-10 xl:px-12">
+      <main className="min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12">
         <div className="mx-auto max-w-[1250px]">
           {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
