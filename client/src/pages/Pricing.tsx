@@ -1,7 +1,8 @@
 // Plans and pricing. Public: anyone can open it without an account.
 // Free is for students and their parents; Class is for teachers and schools
-// (the plan the rest of the code calls Premium). The add-ons (Teacher Hub, the
-// Learning Bundle and A.R.I.S.E. To-Do) are listed inside the Class card.
+// (the plan the rest of the code calls Premium). Each card lists its add-ons right
+// under its prices: Teacher Hub, the Learning Bundle and A.R.I.S.E. To-Do for a
+// class, and the Learning Bundle and To-Do for a family.
 // A teacher's first month of Class and Teacher Hub is free.
 // Every price and limit on this page comes from shared/plans.ts.
 import type { ReactNode } from "react";
@@ -37,86 +38,70 @@ function List({ items }: { items: Item[] }) {
 
 const FREE_STUDENTS: Item[] = [
   "Free books, poems and kids' news, all read right on the site",
-  "Quizzes for the books in the library, with points for every pass",
-  "A rank on the leaderboard for their grade band",
-  "Levels, streaks, badges, daily missions and printable certificates",
-  { text: "Every game world and multiplayer game", note: "10 minutes a day, or unlimited for the week after passing a book quiz" },
-  "Avatar World: characters, pets and homes bought with Reader Coins they earn by reading",
+  "Quizzes for library books, or any book on request, with points for every pass",
+  "A leaderboard rank, levels, streaks, badges, daily missions and printable certificates",
+  { text: "Every game world and multiplayer game, plus Avatar World with Reader Coins earned by reading", note: "10 minutes a day, or unlimited for the week after passing a book quiz" },
   "Study Squad with starter sets and sets they write themselves",
-  "A quiz for any book, on request",
   "Eye Gazer mode and read-aloud for non-verbal and eye-gaze learners",
 ];
 const FREE_PARENTS: Item[] = [
   "A parent account to follow their child's quizzes, scores and points",
   "Game limits they set: lock games, cap daily play, or make game time something passed quizzes earn",
   "A proctor code for quizzes at home, and review of camera-checked quizzes",
-  "Their own prizes: add one for their child to read for",
 ];
 const PREMIUM_TEACHER: Item[] = [
-  "A teacher account and dashboard for the whole class",
-  "Live class games in seven game-show styles. Students join with a code, and AI writes the questions from your topic.",
-  "Control over play for the class: lock games for a student, set daily limits, make game time something passed quizzes earn, and close games during class hours",
-  "See who read what: every student's quizzes, scores and points",
-  "Your own prizes: add them for your class or school, and they fit straight into the leaderboards and competitions",
-  "Scenes: AI-drawn story scenes to present and quiz live",
-  "A teacher proctor password, and review of camera-checked quizzes",
-  "Study Squad sets shared with the class, and printable parent invite letters",
+  "A teacher dashboard for the whole class, with every student's quizzes, scores and points",
+  { text: "Live class games in seven game-show styles, and Scenes: AI-drawn story scenes to present and quiz live", note: "Students join with a code, and AI writes the questions from your topic" },
+  "Game controls for the class: lock games for a student, set daily limits, make game time something passed quizzes earn, and close games during class hours",
+  "Your own prizes for a class or school, shown right in the leaderboards and competitions",
+  "A teacher proctor password, review of camera-checked quizzes, shared Study Squad sets and printable parent invite letters",
 ];
 const PREMIUM_FAMILIES: Item[] = [
-  "Everything in Free, including the books, poems and kids' news to read right on the site",
-  "Free parent accounts for every family in the class",
-  "Prizes to read for, added by their teachers or parents and shown right in the school's leaderboards and competitions",
-  "Personal rewards a teacher sets for one student",
+  "Everything in Free, with free parent accounts for every family in the class",
+  "Prizes to read for from their teachers or parents, and personal rewards a teacher sets for one student",
   "AI study sets, and lessons built from topics they pick",
 ];
 
-const HUB_WORKSPACE: Item[] = [
-  "Caseloads with accommodations, reading and math levels, IEP and reevaluation dates",
-  "An IEP and meeting timeline, with what's coming up on the home page",
-  "Lesson plans, reminders and to-dos, one-time or recurring",
-  "Check-ins, concerns and meeting notes for each student",
-  "Attendance with a CSV export, a gradebook with averages, and behavior points",
-  "Parent contact logs, weekly student schedules with overlap warnings, and an email organizer",
-  "Add with AI: paste a list, snap a screenshot of your reminders or notes, or upload Excel, Word or PDF, and check it before it's saved",
-  "A calendar that can connect to Google, Outlook or Apple calendars",
-];
 const BUNDLE_APPS: Item[] = [
-  "Arise History: true stories, quizzes, points and class leaderboards",
+  "Arise History: true stories, quizzes, points and leaderboards",
   "Arise Math: practice for every grade that levels up as students do",
-  "Arise Social: explore trades, the military, teaching, health care, tech and college paths with the class",
-  "Teachers approve every student post in Arise Social, and there are no private messages",
-];
-const BUNDLE_HOW: Item[] = [
-  `30 days free for every student, parent and teacher. No card needed.`,
-  `Families: ${usd(BU.familyMonthlyCents)} a month covers the parent and every linked child`,
-  `Teachers: ${usd(BU.teacherMonthlyCents)} a month on top of Class for a class of up to ${BU.teacherSeats} students`,
-  "When a teacher's class plan covers every child in a family that's paying, the family's plan stops and the unused days are refunded to their card",
+  "Arise Social: explore trades, the military, teaching, health care, tech and college paths. Teachers approve every student post, and there are no private messages.",
 ];
 const hubBlock = H.studentsPerBlock.toLocaleString("en-US");
-const HUB_HOW: Item[] = [
-  `One teacher: ${usd(H.monthlyCents)} a month for up to ${hubBlock} students, plus ${usd(H.monthlyCents)} a month for each extra ${hubBlock}`,
-  `Whole school: ${usd(H.schoolYearlyCents)} a year for up to ${H.schoolStudentCap.toLocaleString("en-US")} students. Every teacher gets their own Hub, for a full 12 months.`,
-  "Private to each teacher, and saved to their account on any device",
-  "Works on a phone, tablet or computer",
-  "Tabs you don't use can be hidden",
-  "Sold on its own: it works with or without Class",
-];
 
-// The add-ons, listed inside the Class card. `more` opens under "What's included".
-type Addon = { id: string; name: string; about: string; amount: string; per: string; more: [string, Item[]][] };
-const ADDONS: Addon[] = [
-  { id: "hub", name: "Teacher Hub",
-    about: `A private workspace for caseloads, IEP timelines, lessons, notes, attendance and grades. A.R.I.S.E. To-Do comes with it, and a teacher's first month is free. A whole school is ${usd(H.schoolYearlyCents)} a year.`,
-    amount: usd(H.monthlyCents), per: "a month per teacher",
-    more: [["In the Hub", HUB_WORKSPACE], ["How it works", HUB_HOW]] },
-  { id: "bundle", name: "Learning Bundle",
-    about: `Arise History, Arise Math and Arise Social for a class of up to ${BU.teacherSeats} students, on top of Class. Everyone gets 30 days free first. A family can get it on its own for ${usd(BU.familyMonthlyCents)} a month.`,
-    amount: usd(BU.teacherMonthlyCents), per: "a month per class",
-    more: [["In the bundle", BUNDLE_APPS], ["How it works", BUNDLE_HOW]] },
-  { id: "todo", name: "A.R.I.S.E. To-Do",
-    about: `Lists, chores, the family calendar, polls, trips, money and notes. Teachers get it with Teacher Hub: one subscription for both. Families get 30 days free, then it's ${usd(TD.familyMonthlyCents)} a month.`,
-    amount: "Included", per: "with Teacher Hub",
-    more: [] },
+// The add-ons listed under each card's prices. A row shows the name, a few words
+// and the price; tapping it opens the rest.
+type Addon = { id: string; name: string; tag: string; amount: string; per: string; detail: string; items: Item[] };
+const CLASS_ADDONS: Addon[] = [
+  { id: "hub", name: "Teacher Hub", tag: "Caseloads, IEP timelines, lessons and grades",
+    amount: usd(H.monthlyCents), per: "a month",
+    detail: `One teacher: ${usd(H.monthlyCents)} a month for up to ${hubBlock} students, plus ${usd(H.monthlyCents)} for each extra ${hubBlock}. Whole school: ${usd(H.schoolYearlyCents)} a year for up to ${H.schoolStudentCap.toLocaleString("en-US")} students, a full 12 months. It works with or without Class, and a teacher's first month is free.`,
+    items: [
+      "Caseloads with accommodations, reading and math levels, and an IEP and meeting timeline",
+      "Lesson plans, reminders and to-dos, plus check-ins, concerns and meeting notes for each student",
+      "Attendance, a gradebook, behavior points, parent contact logs and weekly student schedules",
+      "Add with AI: paste a list, snap a screenshot, or upload Excel, Word or PDF, and check it before it's saved",
+      "A calendar that connects to Google, Outlook or Apple, and an email organizer",
+      "Private to each teacher, on a phone, tablet or computer",
+    ] },
+  { id: "bundle", name: "Learning Bundle", tag: "Arise History, Arise Math and Arise Social",
+    amount: usd(BU.teacherMonthlyCents), per: "a month",
+    detail: `For a class of up to ${BU.teacherSeats} students, on top of Class. 30 days free first, no card needed. A family that was paying gets its unused days refunded once the class plan covers all of its children.`,
+    items: BUNDLE_APPS },
+  { id: "todo", name: "A.R.I.S.E. To-Do", tag: "Comes with Teacher Hub",
+    amount: "Included", per: "",
+    detail: "Lists, chores, the family calendar, polls, trips, money and notes. Teachers get it with Teacher Hub: one subscription for both.",
+    items: [] },
+];
+const FAMILY_ADDONS: Addon[] = [
+  { id: "family-bundle", name: "Learning Bundle", tag: "Arise History, Arise Math and Arise Social",
+    amount: usd(BU.familyMonthlyCents), per: "a month",
+    detail: "One plan covers the parent and every linked child. 30 days free first, no card needed. If a teacher's class plan covers every child, the family's plan stops and the unused days are refunded to their card.",
+    items: BUNDLE_APPS },
+  { id: "family-todo", name: "A.R.I.S.E. To-Do", tag: "Lists, chores and the family calendar",
+    amount: usd(TD.familyMonthlyCents), per: "a month",
+    detail: "Lists, chores, the family calendar, polls, trips, money and notes, saved to your account on every device. 30 days free first.",
+    items: [] },
 ];
 
 type Cell = boolean | string;
@@ -195,6 +180,27 @@ function Price({ who, detail, amount, per, premium }: { who: string; detail: Rea
   );
 }
 
+function Addons({ title, addons, foot, testId }: { title: string; addons: Addon[]; foot: ReactNode; testId: string }) {
+  return (
+    <div className="pr-addons" data-testid={testId}>
+      <h3>{title}</h3>
+      {addons.map((a) => (
+        <details key={a.id} className="pr-addon" data-testid={`pricing-${a.id}`}>
+          <summary>
+            <span className="pr-addon-name"><b>{a.name}</b><small>{a.tag}</small></span>
+            <span className="pr-addon-amount"><b>{a.amount}</b>{a.per && <small>{a.per}</small>}</span>
+          </summary>
+          <div className="pr-addon-more">
+            <p>{a.detail}</p>
+            {a.items.length > 0 && <List items={a.items} />}
+          </div>
+        </details>
+      ))}
+      <p className="pr-addons-foot">{foot}</p>
+    </div>
+  );
+}
+
 export default function Pricing() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -240,6 +246,8 @@ export default function Pricing() {
             <Price who="Students" detail="Any student, with or without a school." amount="$0" per="always" />
             <Price who="Parents" detail={`One parent profile can follow up to ${kids} children.`} amount="$0" per="always" />
           </div>
+          <Addons title="Add-ons for families" addons={FAMILY_ADDONS} testId="pricing-family-addons"
+            foot={<>Optional. Every account starts with 30 days of both free, no card needed. <button type="button" className="pr-text" onClick={startFree}>Start free</button></>} />
           <p className="pr-about">Free books, poems and kids' news to read right on the site, plus quizzes, the leaderboard and the games. No trial and no end date.</p>
           <button type="button" className="pr-pill pr-pill-ghost pr-wide" onClick={startFree} data-testid="pricing-start-free">Start reading free</button>
           <div className="pr-group"><h3>For students</h3><List items={FREE_STUDENTS} /></div>
@@ -254,37 +262,13 @@ export default function Pricing() {
               <Price premium who="One teacher" detail={`Up to ${block} students. Add ${usd(T.monthlyCents)} a month for each extra ${block} students.`} amount={usd(T.monthlyCents)} per="a month" />
               <Price premium who="Whole school" detail={`Up to ${schoolCap} students, and every teacher gets their own account. Runs a full 12 months, so summer reading clubs and competitions are covered.`} amount={usd(S.yearlyCents)} per="a year" />
             </div>
+            <Addons title="Add-ons" addons={CLASS_ADDONS} testId="pricing-addons"
+              foot={<>Not included with Class, the free 2026–27 school year or a no-charge school. <button type="button" className="pr-text" onClick={getAddon} data-testid="pricing-get-hub">Get an add-on</button></>} />
             <p className="pr-about">The tools to run reading in a classroom, on top of everything in Free. Parents of the class get their accounts free too. A teacher's first month is free.</p>
             <button type="button" className="pr-pill pr-wide" onClick={getClass} data-testid="pricing-get-premium">Get Class</button>
             <div className="pr-group premium"><h3>For the teacher</h3><List items={PREMIUM_TEACHER} /></div>
             <div className="pr-group premium"><h3>For their students and parents</h3><List items={PREMIUM_FAMILIES} /></div>
             <div className="pr-note premium"><b>Signed up before October 1, 2026?</b><span>Your school's teachers and students keep everything free for the full 2026–27 school year.</span></div>
-
-            <div className="pr-addons" data-testid="pricing-addons">
-              <div className="pr-addons-head">
-                <h3>Add-ons</h3>
-                <p>Optional extras for a teacher or school, paid separately from Class.</p>
-              </div>
-              <ul className="pr-addon-list">
-                {ADDONS.map((a) => (
-                  <li key={a.id} className="pr-addon" data-testid={`pricing-${a.id}`}>
-                    <div className="pr-addon-top">
-                      <b>{a.name}</b>
-                      <div className="pr-addon-amount"><b>{a.amount}</b><span>{a.per}</span></div>
-                    </div>
-                    <p>{a.about}</p>
-                    {a.more.length > 0 && (
-                      <details>
-                        <summary>What's included</summary>
-                        <div className="pr-addon-more">{a.more.map(([title, items]) => <div key={title} className="pr-group"><h4>{title}</h4><List items={items} /></div>)}</div>
-                      </details>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <button type="button" className="pr-pill pr-pill-sm pr-pill-ghost" onClick={getAddon} data-testid="pricing-get-hub">Get an add-on</button>
-              <p className="pr-addons-foot">Add-ons aren't part of Class, the free 2026–27 school year, or a school that has Class at no charge.</p>
-            </div>
           </article>
         </div>
       </section>
@@ -305,7 +289,7 @@ export default function Pricing() {
                   {g.rows.map(([what, free, premium]) => (
                     <tr key={what}>
                       <th scope="row">{what}</th>
-                      {[free, premium].map((cell, i) => <td key={i}>{cell === true ? <Yes /> : cell === false ? <No /> : cell}</td>)}
+                      {[free, premium].map((cell, i) => <td key={i} data-plan={i === 0 ? "Free" : "Class"}>{cell === true ? <Yes /> : cell === false ? <No /> : cell}</td>)}
                     </tr>
                   ))}
                 </tbody>
