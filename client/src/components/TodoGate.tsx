@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import AddonsCard from "@/components/AddonsCard";
 import { HubEndedNote, type HubTrial } from "@/components/HubTrialNote";
+import HubReaderScope from "@/components/HubReaderScope";
 
 const ParentDashboard = lazy(() => import("@/pages/ParentDashboard"));
 
@@ -48,7 +49,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
           {parent ? <>
             <HubEndedNote which="life" onUpgrade={() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" })} />
             <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>}>
-              <ParentDashboard embedded />
+              <HubReaderScope which="life"><ParentDashboard embedded /></HubReaderScope>
             </Suspense>
           </> : <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h1 className="text-xl font-black">LifeHub comes with Arise WorkHub</h1>

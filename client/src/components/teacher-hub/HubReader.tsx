@@ -3,6 +3,7 @@
 // and, for admins, the admin console. These are loaded only when opened.
 import { Suspense, lazy } from "react";
 import { BookOpen, Calculator, CheckCheck, Landmark, Users } from "lucide-react";
+import HubReaderScope from "@/components/HubReaderScope";
 
 const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
 const Admin = lazy(() => import("@/pages/Admin"));
@@ -36,13 +37,17 @@ export function ProgramLinks({ hideLifeHub = false }: { hideLifeHub?: boolean })
   </section>;
 }
 
-export function ReaderTab({ hideLifeHub }: { hideLifeHub?: boolean }) {
+export function ReaderTab({ hideLifeHub, night = false }: { hideLifeHub?: boolean; night?: boolean }) {
   return <>
     <ProgramLinks hideLifeHub={hideLifeHub} />
-    <Suspense fallback={<Loading what="your Reader tools" />}><TeacherDashboard embedded /></Suspense>
+    <HubReaderScope which="work" night={night}>
+      <Suspense fallback={<Loading what="your Reader tools" />}><TeacherDashboard embedded night={night} /></Suspense>
+    </HubReaderScope>
   </>;
 }
 
-export function AdminTab() {
-  return <Suspense fallback={<Loading what="the admin console" />}><Admin embedded /></Suspense>;
+export function AdminTab({ night = false }: { night?: boolean }) {
+  return <HubReaderScope which="work" night={night}>
+    <Suspense fallback={<Loading what="the admin console" />}><Admin embedded /></Suspense>
+  </HubReaderScope>;
 }
