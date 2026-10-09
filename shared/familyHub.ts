@@ -9,19 +9,6 @@ export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
 export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news"];
 
-/** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
- *  every toggleable section appears exactly once, keeping the saved order where valid and
- *  appending anything missing (new sections, or a section dropped from a stale save) at the end. */
-export function cleanSectionOrder(v: unknown): FamilySection[] {
-  const saved = Array.isArray(v) ? v.filter((s): s is FamilySection => TOGGLEABLE.includes(s as FamilySection)) : [];
-  const seen = new Set(saved);
-  return [...saved, ...TOGGLEABLE.filter((s) => !seen.has(s))];
-}
-
-/** The toggleable sections in the family's chosen order, each paired with its fixed spot in the
- *  menu (the section right before it). Rendering splices this block in after that anchor. */
-export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder);
-
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
 export type Chore = { id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number };
 export type ChoreDone = { id: string; choreId: string; date: string; memberId: string; points: number };
@@ -105,8 +92,6 @@ export type Layers = { tasks: boolean; bills: boolean; trips: boolean; chores: b
 export type Family = {
   members: Member[];
   sections: Partial<Record<FamilySection, boolean>>;
-  /** The order the toggleable sections show in the menu, left to right / top to bottom. See cleanSectionOrder. */
-  sectionOrder: FamilySection[];
   layers: Layers;
   chorePointsCount: boolean;
   chores: Chore[];
@@ -158,7 +143,7 @@ export const DEFAULT_BUDGET: BudgetCategory[] = [
 ];
 
 export const emptyFamily = (): Family => ({
-  members: [], sections: {}, sectionOrder: [...TOGGLEABLE], layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
+  members: [], sections: {}, layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
   bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
@@ -234,7 +219,6 @@ export function cleanFamily(input: unknown): Family {
   return {
     members,
     sections,
-    sectionOrder: cleanSectionOrder(raw.sectionOrder),
     layers,
     chorePointsCount: bool(raw.chorePointsCount, true),
     chores: rows(raw.chores, LIMITS.chores, (r) => {
@@ -524,7 +508,7 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals"];
+  const arrays = ["members", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
     && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";

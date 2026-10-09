@@ -179,9 +179,6 @@ export type Workspace = {
   version: number;
   profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
-  /** The order the menu's groups show in, Home aside: group ids as strings, kept loose here to
-   *  avoid a circular import with shared/hubTabGroups.ts. See cleanGroupOrder there. */
-  groupOrder?: string[];
   students: Student[];
   meetings: Meeting[];
   lessons: Lesson[];
@@ -218,7 +215,6 @@ export function emptyWorkspace(): Workspace {
     version: 1,
     profile: { school: "", gradeBand: "", subject: "" },
     visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, true])) as Record<HubTab, boolean>,
-    groupOrder: [],
     students: [], meetings: [], lessons: [], tasks: [], notes: [], ariseRecords: [], behavior: [], attendance: [],
     assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], goals: [], services: [], serviceLogs: [], events: [], calendars: [],
     guides: [], spedContacts: [], guideLinks: [], pins: [],
@@ -236,7 +232,6 @@ export function normalizeWorkspace(raw: any): Workspace {
     ...raw,
     profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}) },
     visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
-    groupOrder: Array.isArray(raw.groupOrder) ? raw.groupOrder.filter((x: unknown) => typeof x === "string") : [],
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
   out.pins = cleanPins(raw.pins);

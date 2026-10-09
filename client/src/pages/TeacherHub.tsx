@@ -10,8 +10,6 @@ import {
   CheckCircle2,
   CheckSquare,
   CheckCheck,
-  ChevronDown,
-  ChevronUp,
   ClipboardCheck,
   Clock3,
   GraduationCap,
@@ -48,7 +46,7 @@ import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@s
 import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
 import { cleanSenderName } from "@shared/hubMeetings";
 import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
-import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
+import { HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
 import "@/components/teacher-hub/hubNight.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import { HubModal } from "@/components/teacher-hub/HubModal";
@@ -561,35 +559,17 @@ function TeacherHubPage() {
 
   // The admin console shows for admins only.
   const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
-  const menu = visibleGroups(visible, workspace.groupOrder);
+  const menu = visibleGroups(visible);
   const group = groupOf(tab);
-  // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits. Home never moves.
-  const moveGroupBy = (id: HubGroupId, dir: -1 | 1) => setWorkspace((prev) => {
-    const current = cleanGroupOrder(prev.groupOrder);
-    const at = current.indexOf(id);
-    const to = at + dir;
-    if (at < 0 || to < 0 || to >= current.length) return prev;
-    const next = [...current];
-    [next[at], next[to]] = [next[to], next[at]];
-    return { ...prev, groupOrder: next };
-  });
-  const moveGroupTo = (id: HubGroupId, beforeId: HubGroupId | null) => setWorkspace((prev) => {
-    const current = cleanGroupOrder(prev.groupOrder).filter((g) => g !== id);
-    const at = beforeId ? current.indexOf(beforeId) : current.length;
-    if (at < 0) return prev;
-    current.splice(at, 0, id);
-    return { ...prev, groupOrder: current };
-  });
-  const [draggingGroup, setDraggingGroup] = useState<HubGroupId | null>(null);
   const subTabs = groupTabs(group.id, visible);
 
   return (
     <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:gap-4 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="min-w-0 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
-            <div className="hidden text-xs font-bold uppercase tracking-[.22em] text-slate-400 sm:block">Arise</div>
-            <div className="truncate text-base font-bold tracking-tight sm:text-xl">WorkHub</div>
+            <div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">Arise</div>
+            <div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div>
           </a>
           <div className="flex shrink-0 items-center gap-2">
             <span className="hidden sm:contents"><HubSwitch current="hub" night={night} /></span>
@@ -616,44 +596,25 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
-        <aside className="min-w-0 sticky top-[57px] z-30 -mx-3 bg-slate-100/95 px-3 py-1 backdrop-blur sm:top-[65px] sm:-mx-4 sm:px-4 md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
-          <div className="flex snap-x gap-1.5 overflow-x-auto rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white p-1.5 shadow-sm sm:gap-2 sm:p-2 md:h-full md:flex-col md:overflow-y-auto">
+      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-4 px-4 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
+        <aside className="min-w-0 sticky top-[69px] z-30 -mx-4 bg-slate-100/95 px-4 py-1 backdrop-blur md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
+          <div className="flex snap-x gap-2 overflow-x-auto rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white p-2 shadow-sm md:h-full md:flex-col md:overflow-y-auto">
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
             </div>
-            {menu.map((item, i) => {
-              const movable = item.id !== "home";
-              return (
-                <div
-                  key={item.id}
-                  draggable={movable}
-                  onDragStart={movable ? (e) => { setDraggingGroup(item.id); e.dataTransfer.effectAllowed = "move"; } : undefined}
-                  onDragEnd={movable ? () => setDraggingGroup(null) : undefined}
-                  onDragOver={movable && draggingGroup && draggingGroup !== item.id ? (e) => e.preventDefault() : undefined}
-                  onDrop={movable && draggingGroup && draggingGroup !== item.id ? (e) => { e.preventDefault(); moveGroupTo(draggingGroup, item.id); setDraggingGroup(null); } : undefined}
-                  className={`group/navitem flex shrink-0 snap-start items-stretch gap-0.5 rounded-xl transition md:w-full ${draggingGroup === item.id ? "opacity-40" : ""}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setTab(openGroup(item.id, visible, lastInGroup))}
-                    aria-current={group.id === item.id ? "page" : undefined}
-                    data-testid={`hub-menu-${item.id}`}
-                    className={`flex min-h-10 min-w-0 flex-1 cursor-grab items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-medium transition active:cursor-grabbing sm:min-h-11 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
-                  >
-                    {GROUP_ICON[item.id]}
-                    <span className="truncate whitespace-nowrap md:whitespace-normal">{groupLabel(item.id, visible)}</span>
-                  </button>
-                  {movable && (
-                    <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
-                      <button type="button" onClick={() => moveGroupBy(item.id, -1)} disabled={i <= 1} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
-                      <button type="button" onClick={() => moveGroupBy(item.id, 1)} disabled={i >= menu.length - 1} aria-label={`Move ${groupLabel(item.id, visible)} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+            {menu.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setTab(openGroup(item.id, visible, lastInGroup))}
+                aria-current={group.id === item.id ? "page" : undefined}
+                data-testid={`hub-menu-${item.id}`}
+                className={`flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition md:w-full ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
+              >
+                {GROUP_ICON[item.id]}
+                <span className="whitespace-nowrap md:whitespace-normal">{groupLabel(item.id, visible)}</span>
+              </button>
+            ))}
           </div>
         </aside>
 
@@ -677,30 +638,26 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
-              <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
+              <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu.</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)
-                  .map((g) => ({ ...g, tabs: g.tabs.filter((t) => !isReaderTab(t) && t !== "admin") })).filter((g) => g.tabs.length)
-                  .map((g) => {
-                    return (
-                      <div key={g.id} className="rounded-xl border border-slate-200 p-2" data-testid={`customize-${g.id}`}>
-                        {g.tabs.length > 1 && <div className="flex items-center gap-2 px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{GROUP_ICON[g.id]}{g.label}</div>}
-                        {g.tabs.map((t) => (
-                          <label key={t} className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-sm">
-                            <span className="flex items-center gap-2">{g.tabs.length > 1 ? tabIcon(t) : GROUP_ICON[g.id]}{g.tabs.length > 1 ? SUB_LABELS[t] : g.label}</span>
-                            <input
-                              type="checkbox" className="h-5 w-5 shrink-0"
-                              checked={workspace.visibleTabs[t] !== false}
-                              onChange={(e) => setWorkspace((prev) => ({
-                                ...prev,
-                                visibleTabs: { ...prev.visibleTabs, [t]: e.target.checked },
-                              }))}
-                            />
-                          </label>
-                        ))}
-                      </div>
-                    );
-                  })}
+                {HUB_GROUPS.filter((g) => g.id !== "home").map((g) => ({ ...g, tabs: g.tabs.filter((t) => !isReaderTab(t) && t !== "admin") })).filter((g) => g.tabs.length).map((g) => (
+                  <div key={g.id} className="rounded-xl border border-slate-200 p-2" data-testid={`customize-${g.id}`}>
+                    {g.tabs.length > 1 && <div className="flex items-center gap-2 px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{GROUP_ICON[g.id]}{g.label}</div>}
+                    {g.tabs.map((t) => (
+                      <label key={t} className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-sm">
+                        <span className="flex items-center gap-2">{g.tabs.length > 1 ? tabIcon(t) : GROUP_ICON[g.id]}{g.tabs.length > 1 ? SUB_LABELS[t] : g.label}</span>
+                        <input
+                          type="checkbox" className="h-5 w-5 shrink-0"
+                          checked={workspace.visibleTabs[t] !== false}
+                          onChange={(e) => setWorkspace((prev) => ({
+                            ...prev,
+                            visibleTabs: { ...prev.visibleTabs, [t]: e.target.checked },
+                          }))}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                ))}
               </div>
               <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
             </Card>

@@ -1,7 +1,7 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Apple, CalendarDays, Check, Droplets, Pill, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
-import { MEMBER_COLORS, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
+import { MEMBER_COLORS, TOGGLEABLE, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
 
@@ -67,8 +67,8 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
       </Panel>
 
       <Panel eyebrow="Switches" title="Turn features on or off">
-        <p className="mb-3 text-sm text-slate-500">Hiding a feature keeps everything saved in it. Turn it back on any time. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
-        <ul className="divide-y divide-slate-100">{orderedToggleable(family).map((s) => {
+        <p className="mb-3 text-sm text-slate-500">Hiding a feature keeps everything saved in it. Turn it back on any time.</p>
+        <ul className="divide-y divide-slate-100">{TOGGLEABLE.map((s) => {
           const info = SECTION_INFO[s];
           const on = family.sections[s] !== false;
           return <li key={s} className="flex items-center gap-3 py-3">

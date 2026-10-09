@@ -1,23 +1,7 @@
 // Building blocks for the Arise LifeHub Family Hub, in the LifeHub's own look.
-import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown, X } from "lucide-react";
+import { useEffect, type ReactNode } from "react";
+import { X } from "lucide-react";
 import type { Family, Member } from "@shared/familyHub";
-
-// Which panels are folded shut, remembered on this phone or computer.
-const COLLAPSED_KEY = "arise-lifehub-collapsed";
-function readCollapsed(): string[] {
-  try {
-    const saved = JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]");
-    return Array.isArray(saved) ? saved.filter((k) => typeof k === "string") : [];
-  } catch { return []; }
-}
-function saveCollapsed(key: string, closed: boolean) {
-  try {
-    const keys = new Set(readCollapsed());
-    if (closed) keys.add(key); else keys.delete(key);
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(Array.from(keys)));
-  } catch { /* the choice just isn't remembered */ }
-}
 
 export type SetFamily = (update: (family: Family) => Family) => void;
 export type SectionProps = {
@@ -35,28 +19,13 @@ export const soft = buttonClass + " bg-violet-50 text-violet-700 hover:bg-violet
 export const plain = buttonClass + " border border-slate-200 bg-white text-slate-600 hover:bg-slate-50";
 export const danger = buttonClass + " border border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100";
 
-/** A titled box, in the LifeHub's own look. With a `collapseKey` its heading folds the box
- *  shut and open, and it stays the way it was left until the person changes it again. */
-export function Panel({ title, eyebrow, right, children, className = "", collapseKey }: { title?: ReactNode; eyebrow?: string; right?: ReactNode; children: ReactNode; className?: string; collapseKey?: string }) {
-  const [closed, setClosed] = useState(() => !!collapseKey && readCollapsed().includes(collapseKey));
-  const folds = !!collapseKey && !!title;
-  const toggle = () => { saveCollapsed(collapseKey!, !closed); setClosed(!closed); };
-  return <section className={`min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5 ${className}`} data-collapsed={folds && closed ? "true" : undefined}>
-    {(title || right) && <div className={`flex flex-wrap items-center justify-between gap-3 ${folds && closed ? "" : "mb-4"}`}>
-      <div className="min-w-0">
-        {eyebrow && <p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p>}
-        {title && (folds ? (
-          <button type="button" onClick={toggle} aria-expanded={!closed} title={closed ? "Show" : "Hide"} data-testid={`lifehub-fold-${collapseKey}`}
-            className="-ml-1.5 mt-0.5 flex min-h-11 items-center gap-1.5 rounded-xl px-1.5 text-left text-lg font-black text-[#232139] hover:bg-slate-50">
-            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${closed ? "-rotate-90" : ""}`} />
-            <span className="min-w-0 break-words">{title}</span>
-          </button>
-        ) : <h2 className="mt-0.5 text-lg font-black text-[#232139]">{title}</h2>)}
-      </div>
-      {!(folds && closed) && right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
+export function Panel({ title, eyebrow, right, children, className = "" }: { title?: ReactNode; eyebrow?: string; right?: ReactNode; children: ReactNode; className?: string }) {
+  return <section className={`min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5 ${className}`}>
+    {(title || right) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0">{eyebrow && <p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p>}{title && <h2 className="mt-0.5 text-lg font-black text-[#232139]">{title}</h2>}</div>
+      {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </div>}
-    {/* Hidden, not removed, so what was typed or picked inside is still there when it opens again. */}
-    <div hidden={folds && closed}>{children}</div>
+    {children}
   </section>;
 }
 
