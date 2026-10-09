@@ -27,9 +27,9 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const pinned = on("notes") ? family.notes.filter((n) => n.pinned).slice(0, 4) : [];
   const kids = family.members.filter((m) => m.kind === "kid");
 
-  return <div className="space-y-6">
+  return <div className="space-y-4 sm:space-y-6">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">Here's what's happening with your family today.</p></div>
+      <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:mt-2">Here's what's happening with your family today.</p></div>
     </header>
 
     {!family.members.length && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
@@ -38,15 +38,15 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
 
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
       <button onClick={() => go("tasks")} className="text-left"><Stat label="Tasks due" value={dueTasks.length} icon={<ListTodo size={17} />} tint="bg-violet-50 text-violet-600" /></button>
       {on("chores") && <button onClick={() => go("chores")} className="text-left"><Stat label="Chores left today" value={choresLeft.length} icon={<Sparkles size={17} />} tint="bg-emerald-50 text-emerald-600" /></button>}
       {on("calendar") && <button onClick={() => go("calendar")} className="text-left"><Stat label="Events today" value={events.length} icon={<CalendarDays size={17} />} tint="bg-sky-50 text-sky-600" /></button>}
       {on("money") && <button onClick={() => go("money")} className="text-left"><Stat label="Bills due this week" value={bills.length} icon={<Receipt size={17} />} tint="bg-rose-50 text-rose-600" /></button>}
     </div>
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="space-y-6">
+    <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="space-y-4 sm:space-y-6">
         <Panel eyebrow="Today" title="Agenda" right={<Sun size={18} className="text-amber-500" />}>
           {events.length || dueTasks.length ? <ul className="space-y-2">
             {events.map((e) => <li key={e.id}><button onClick={() => go("calendar")} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-violet-200">
@@ -87,7 +87,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
         </Panel>}
       </div>
 
-      <aside className="space-y-5">
+      <aside className="space-y-4 sm:space-y-5">
         {trip && <button onClick={() => go("trips")} className="block w-full overflow-hidden rounded-[1.5rem] bg-[linear-gradient(115deg,#2b2a8f,#6d4fd8_60%,#f29a14_130%)] p-5 text-left text-white shadow-[0_12px_24px_#2924461f]">
           <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-white/75"><Plane size={14} /> Next trip</p>
           <p className="mt-2 text-xl font-black">{trip.name}</p>

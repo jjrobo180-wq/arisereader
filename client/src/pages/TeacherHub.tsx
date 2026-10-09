@@ -566,10 +566,10 @@ function TeacherHubPage() {
   return (
     <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:gap-4 md:px-6">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="min-w-0 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
-            <div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">Arise</div>
-            <div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div>
+            <div className="hidden text-xs font-bold uppercase tracking-[.22em] text-slate-400 sm:block">Arise</div>
+            <div className="truncate text-base font-bold tracking-tight sm:text-xl">WorkHub</div>
           </a>
           <div className="flex shrink-0 items-center gap-2">
             <span className="hidden sm:contents"><HubSwitch current="hub" night={night} /></span>
@@ -596,9 +596,9 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-4 px-4 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
-        <aside className="min-w-0 sticky top-[69px] z-30 -mx-4 bg-slate-100/95 px-4 py-1 backdrop-blur md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
-          <div className="flex snap-x gap-2 overflow-x-auto rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white p-2 shadow-sm md:h-full md:flex-col md:overflow-y-auto">
+      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
+        <aside className="min-w-0 sticky top-[57px] z-30 -mx-3 bg-slate-100/95 px-3 py-1 backdrop-blur sm:top-[65px] sm:-mx-4 sm:px-4 md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
+          <div className="flex snap-x gap-1.5 overflow-x-auto rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white p-1.5 shadow-sm sm:gap-2 sm:p-2 md:h-full md:flex-col md:overflow-y-auto">
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
@@ -609,7 +609,7 @@ function TeacherHubPage() {
                 onClick={() => setTab(openGroup(item.id, visible, lastInGroup))}
                 aria-current={group.id === item.id ? "page" : undefined}
                 data-testid={`hub-menu-${item.id}`}
-                className={`flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition md:w-full ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
+                className={`flex min-h-10 shrink-0 snap-start items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-medium transition sm:min-h-11 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm md:w-full ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
               >
                 {GROUP_ICON[item.id]}
                 <span className="whitespace-nowrap md:whitespace-normal">{groupLabel(item.id, visible)}</span>
