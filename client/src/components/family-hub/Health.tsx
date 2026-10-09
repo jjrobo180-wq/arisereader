@@ -1,7 +1,7 @@
 // Food & fitness: a MyFitnessPal-style diary for adults (calories, macros, exercise, water, steps, weight)
 // and a healthy-habits tracker for kids (fruits & veggies, water, active minutes, what they ate, no numbers).
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
+import { BarChart3, BookOpen, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { canScan, estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import type { FoundFood } from "@shared/foodLookup";
@@ -13,6 +13,7 @@ import {
 } from "@shared/familyHealth";
 import { Bar, Label, Modal, PageHead, Panel, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
+import HealthCharts from "./HealthCharts";
 
 const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snacks: "Snacks" };
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -27,6 +28,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
   const [moving, setMoving] = useState(false);
   const [editGoals, setEditGoals] = useState(false);
   const [weightDraft, setWeightDraft] = useState("");
+  const [view, setView] = useState<"diary" | "charts">("diary");
   const health = family.health;
   const member = people.find((m) => m.id === who) || people[0];
   const solo = people.length === 1;
@@ -60,10 +62,16 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
       <div className="flex flex-wrap gap-2">{!solo && people.map((m) => <button key={m.id} onClick={() => setWho(m.id)} aria-pressed={m.id === member.id}
         className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-2.5 pr-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200"
         style={m.id === member.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span className="text-base leading-none">{m.emoji || "🙂"}</span>{m.name}</button>)}</div>
-      {!needsIntake && <div className="flex items-center gap-2">
+      {!needsIntake && <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto">
+        <div className="inline-flex rounded-xl bg-slate-100 p-1 text-sm font-bold" role="tablist" aria-label="Food & fitness view">
+          {([["diary", "Diary", BookOpen], ["charts", "Charts", BarChart3]] as const).map(([id, label, Icon]) => <button key={id} role="tab" aria-selected={view === id} onClick={() => setView(id)}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-4 ${view === id ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}><Icon size={16} />{label}</button>)}
+        </div>
+        {view === "diary" && <div className="flex items-center gap-2">
         <button onClick={() => setDate(addDays(date, -1))} className={plain} aria-label="Previous day"><ChevronLeft size={17} /></button>
         <button onClick={() => setDate(today)} className={plain + " min-w-[120px]"}>{dateLabel}</button>
         <button onClick={() => setDate(addDays(date, 1))} disabled={date >= today} className={plain} aria-label="Next day"><ChevronRight size={17} /></button>
+        </div>}
       </div>}
     </div>
 
@@ -77,7 +85,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
         }));
         setIntake(false);
         say(`Your plan is ready: ${plan.calories.toLocaleString()} calories a day`);
-      }} /> : <>
+      }} /> : view === "charts" ? <HealthCharts key={member.id} health={health} member={member} goals={goals} today={today} /> : <>
     {!kid && profile && <PlanStrip profile={profile} goals={goals} today={today} latest={latestWeight(health, member.id).latest?.weight} onUpdate={() => setIntake(true)} />}
     {kid ? <KidDay member={member} goals={goals} totals={totals} onFruit={(n) => setHealth((h) => setDay(h, member.id, date, { fruitVeg: totals.fruitVeg + n }))} />
       : <Summary goals={goals} totals={totals} />}

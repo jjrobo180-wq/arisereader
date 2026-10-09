@@ -7,7 +7,9 @@ import { generateVapidKeys, isPushServiceUrl, sendWebPush, type PushMessage, typ
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { dueHubReminders, HUB_REMINDER_URL } from "../shared/hubReminders";
 import { normalizeWorkspace } from "../shared/teacherHub";
-import { dueTodoReminders, TODO_REMINDER_URL } from "../shared/todoReminders";
+import { dueTodoReminders, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
+import { NEWS_TOPICS } from "../shared/todoNews";
+import { fetchHeadlines } from "./todoNews";
 
 type Gate = (req: any, res: any) => Promise<unknown | null>;
 type Row = { id: number; user_id: number; endpoint: string; p256dh: string; auth: string; time_zone: string; sent: Record<string, number> | null; hub?: boolean | null; todo?: boolean | null };
@@ -128,6 +130,27 @@ async function sendTo(row: Row, due: { key: string; title: string; body: string;
   return count;
 }
 
+let headlinesFor: (topic: string, place: string) => Promise<{ title: string; source: string }[]> = async (topic, place) =>
+  ((await fetchHeadlines(topic === "local" && !place ? "top" : topic, topic === "local" ? place : ""))?.items || []);
+/** For tests: where news reminders get their headlines. */
+export function setHeadlineSource(source: typeof headlinesFor) { headlinesFor = source; }
+
+/** Fills in news reminders with a current headline. One that can't get a headline is left out
+ *  (and not marked sent), so it is tried again on the next pass while its time window is open. */
+async function withHeadlines(list: TodoReminder[]): Promise<TodoReminder[]> {
+  if (!list.some((r) => r.news)) return list;
+  const out: TodoReminder[] = [];
+  for (const reminder of list) {
+    if (!reminder.news) { out.push(reminder); continue; }
+    const items = await headlinesFor(reminder.news.topic, reminder.news.place).catch(() => []);
+    const pick = items[reminder.news.index % Math.max(1, items.length)];
+    if (!pick) continue;
+    const label = NEWS_TOPICS.find((t) => t.id === reminder.news!.topic)?.label || "News";
+    out.push({ key: reminder.key, url: reminder.url, title: `📰 ${label}${pick.source ? ` · ${pick.source}` : ""}`, body: pick.title });
+  }
+  return out;
+}
+
 let todoAllowed: (userId: number) => Promise<boolean> = async () => true;
 
 /** One pass: send the A.R.I.S.E. To-Do reminders that are due. */
@@ -146,6 +169,7 @@ export async function sendDueTodoReminders(nowMs = Date.now(), rows?: Row[]): Pr
       const devices = devicesOf.get(userId) || [];
       const due = devices.map((row) => dueTodoReminders((space as any).workspace, nowMs, row.time_zone || "UTC", row.sent || {}));
       if (!due.some((list) => list.length)) continue;
+      for (let d = 0; d < due.length; d++) due[d] = await withHeadlines(due[d]);
       // Reminders stop when someone's To-Do ends (checked only when there is something to send).
       if (!(await todoAllowed(userId).catch(() => true))) continue;
       for (let d = 0; d < devices.length; d++) sentCount += await sendTo(devices[d], due[d], nowMs, keys);

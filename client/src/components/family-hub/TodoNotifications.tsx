@@ -109,7 +109,7 @@ export default function TodoNotifications() {
       {phase === "unavailable" && <p>Notifications aren't switched on for the site yet. Please try again later.</p>}
       {phase === "blocked" && <p>Notifications are blocked. Open your phone's <b>Settings</b>, find <b>A.R.I.S.E.</b> (or your browser), allow notifications, then come back here.</p>}
       {phase === "off" && <>
-        <p>Get a morning summary of today's tasks, events, chores and bills, a heads-up 15 minutes before anything with a time, and a nudge the day before a bill is due.</p>
+        <p>Turn notifications on for this phone or computer, then pick below which ones you get and how many: a morning summary, heads-ups before tasks and events, bills, water, meals, workouts, news and more.</p>
         <button type="button" onClick={turnOn} disabled={busy} className={primary + " min-h-11"}>{busy ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />} Turn on reminders</button>
       </>}
       {phase === "on" && <>

@@ -2,9 +2,11 @@
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "family"] as const;
+import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
+
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
-/** Sections that can be switched off. Home, Tasks and Family members always show. */
+/** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
 export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news"];
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
@@ -98,6 +100,8 @@ export type Family = {
   moods: MoodEntry[];
   goals: Goal[];
   news: NewsPrefs;
+  /** Which phone notifications to send, when, and how many (see shared/todoNotify.ts). */
+  notify: NotifyPrefs;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -128,6 +132,7 @@ export const emptyFamily = (): Family => ({
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
   bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
+  notify: defaultNotify(),
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -309,6 +314,7 @@ export function cleanFamily(input: unknown): Family {
       const topics = n && Array.isArray(n.topics) ? [...new Set(n.topics.filter((t: unknown) => typeof t === "string" && /^[A-Za-z]{2,20}$/.test(t as string)))].slice(0, 12) as string[] : ["top", "local", "NATION"];
       return { topics: topics.length ? topics : ["top"], place: n ? str(n.place, 60) : "" };
     })(),
+    notify: cleanNotify(raw.notify),
   };
 }
 
@@ -469,5 +475,5 @@ export function isCurrentFamily(f: unknown): f is Family {
   const arrays = ["members", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "moods", "goals"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
-    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
+    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
 }

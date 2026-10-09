@@ -3,7 +3,6 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Apple, CalendarDays, Check, Droplets, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
 import { MEMBER_COLORS, TOGGLEABLE, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
-import TodoNotifications from "./TodoNotifications";
 import { SharedLinks } from "./ShareLink";
 
 const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "🎨", "🎮", "🌸", "🚀", "👑", "🐻", "🦊", "🐢"];
@@ -17,6 +16,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   cycle: { label: "Cycle", detail: "Period and cycle tracker", icon: <Droplets size={17} /> },
   mood: { label: "Mood", detail: "Daily mood check-in and patterns", icon: <SmilePlus size={17} /> },
   news: { label: "News", detail: "Today's headlines and local news", icon: <Newspaper size={17} /> },
+  notifications: { label: "Notifications", detail: "Choose your reminders and how many", icon: null },
   health: { label: "Food & fitness", detail: "Food diary, exercise, water, steps and weight", icon: <Apple size={17} /> },
   polls: { label: "Polls", detail: "Dinner ideas, weekend plans and votes", icon: <Vote size={17} /> },
   trips: { label: "Trips", detail: "Trip planner and packing lists", icon: <Plane size={17} /> },
@@ -82,7 +82,6 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
       </Panel>
     </div>
     <div className="grid gap-6 xl:grid-cols-2">
-      <TodoNotifications />
       <SharedLinks say={say} />
     </div>
 

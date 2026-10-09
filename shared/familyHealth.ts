@@ -240,3 +240,50 @@ export function checkIntake(p: HealthProfile, today: string): IntakeProblem | nu
 export function trackerPeople(family: { members: Member[] }, myName: string): Member[] {
   return [{ id: ME_ID, name: "Me", emoji: "🙂", color: "#6e5ae0", kind: "adult" }, ...family.members];
 }
+
+/* ---------------- Charts ---------------- */
+export type HealthDay = { date: string; calories: number; protein: number; carbs: number; fat: number; burned: number; minutes: number; water: number; steps: number; fruitVeg: number; logged: boolean };
+
+/** One row per date for a person's charts (food, macros, exercise, water, steps), worked out in one pass. */
+export function healthSeries(health: Health, memberId: string, dates: string[]): HealthDay[] {
+  const want = new Set(dates);
+  const rows = new Map<string, HealthDay>(dates.map((date) => [date, { date, calories: 0, protein: 0, carbs: 0, fat: 0, burned: 0, minutes: 0, water: 0, steps: 0, fruitVeg: 0, logged: false }]));
+  for (const f of health.food) {
+    if (f.memberId !== memberId || !want.has(f.date)) continue;
+    const r = rows.get(f.date)!, t = entryTotals(f);
+    r.calories += t.calories; r.protein += t.protein; r.carbs += t.carbs; r.fat += t.fat; r.logged = true;
+  }
+  for (const x of health.exercise) {
+    if (x.memberId !== memberId || !want.has(x.date)) continue;
+    const r = rows.get(x.date)!;
+    r.burned += x.calories; r.minutes += x.minutes;
+  }
+  for (const d of health.days) {
+    if (d.memberId !== memberId || !want.has(d.date)) continue;
+    const r = rows.get(d.date)!;
+    r.water = d.water; r.steps = d.steps; r.fruitVeg = d.fruitVeg;
+  }
+  return dates.map((date) => { const r = rows.get(date)!; return { ...r, protein: round1(r.protein), carbs: round1(r.carbs), fat: round1(r.fat) }; });
+}
+
+/** Days grouped into weeks (oldest first) for long ranges: averages of the days that have a value,
+ *  except exercise, which is the week's total. Each row is dated by the week's first day. */
+export function weeklySeries(days: HealthDay[]): HealthDay[] {
+  const out: HealthDay[] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    const week = days.slice(i, i + 7);
+    const avg = (key: keyof HealthDay, only: (d: HealthDay) => boolean) => {
+      const has = week.filter(only);
+      return has.length ? round1(has.reduce((s, d) => s + (d[key] as number), 0) / has.length) : 0;
+    };
+    const ate = (d: HealthDay) => d.logged;
+    out.push({
+      date: week[0].date,
+      calories: Math.round(avg("calories", ate)), protein: avg("protein", ate), carbs: avg("carbs", ate), fat: avg("fat", ate),
+      burned: week.reduce((s, d) => s + d.burned, 0), minutes: week.reduce((s, d) => s + d.minutes, 0),
+      water: avg("water", (d) => d.water > 0), steps: Math.round(avg("steps", (d) => d.steps > 0)), fruitVeg: avg("fruitVeg", (d) => d.fruitVeg > 0),
+      logged: week.some(ate),
+    });
+  }
+  return out;
+}

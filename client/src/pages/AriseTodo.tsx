@@ -8,7 +8,7 @@ import {
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
-  CalendarRange, Smile, Vote, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
+  CalendarRange, Smile, Vote, Bell, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
 } from "lucide-react";
 import { cleanFamily, emptyFamily, isCurrentFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
@@ -25,6 +25,7 @@ import Goals from "@/components/family-hub/Goals";
 import Cycle from "@/components/family-hub/Cycle";
 import Mood from "@/components/family-hub/Mood";
 import News from "@/components/family-hub/News";
+import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar } from "@/components/family-hub/ui";
@@ -139,10 +140,10 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper,
+  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
 };
-const SECTION_ORDER: FamilySection[] = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "family"];
+const SECTION_ORDER: FamilySection[] = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -400,6 +401,7 @@ export default function AriseTodo() {
     : shown === "cycle" ? <Cycle {...common} />
     : shown === "mood" ? <Mood {...common} />
     : shown === "news" ? <News {...common} />
+    : shown === "notifications" ? <NotificationSettings {...common} />
     : shown === "polls" ? <Polls {...common} />
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
@@ -421,7 +423,7 @@ export default function AriseTodo() {
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6d5ce7] text-white shadow-[0_5px_14px_#6d5ce72b]"><CheckCheck className="h-5 w-5" /></span>
             <span className="min-w-0"><span className="block text-xs font-extrabold tracking-[.16em] text-[#7e76aa]">A.R.I.S.E.</span><span className="block text-xl font-black tracking-tight">To-Do<span className="text-[#7968e5]">.</span></span></span>
           </button>
-          <button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] lg:hidden" aria-label="Add task"><Plus /></button>
+          <div className="flex items-center gap-2 lg:hidden"><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-10 w-10 items-center justify-center rounded-xl ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={20} /></button><button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf]" aria-label="Add task"><Plus /></button></div>
         </div>
         <nav aria-label="Family Hub" className="flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none] lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
           {sections.map(id => { const Icon = SECTION_ICONS[id]; return <button key={id} onClick={() => setSection(id)} aria-current={shown === id ? "page" : undefined} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}</button>; })}
