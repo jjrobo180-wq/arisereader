@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { Apple, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Eye, Hand, Move, Volume2, VolumeX, Wheat } from "lucide-react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { API_BASE } from "@/lib/queryClient";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
 
@@ -55,10 +54,12 @@ type Obstacle = { minX: number; maxX: number; minZ: number; maxZ: number; pad?: 
 const commonsAudio = (file: string) =>
   "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + encodeURIComponent(file);
 
+// All farm models come from one host that lets other sites load its files. (The cow and horse
+// used to come from poly.pizza, which now blocks every request that isn't a person in a browser
+// tab, so those six animals never appeared.)
 const MODEL = {
-  // served through our own server: the original host doesn't allow browsers on other sites to load them
-  cow: `${API_BASE}/api/farm-models/cow`,
-  horse: `${API_BASE}/api/farm-models/horse`,
+  cow: "https://cdn.3dassets.dev/assets/29184/v1/model.glb", // Holstein dairy cow
+  horse: "https://cdn.3dassets.dev/assets/29181/v1/model.glb", // draught horse
   pig: "https://cdn.3dassets.dev/assets/29194/v1/model.glb",
   sheep: "https://cdn.3dassets.dev/assets/29189/v1/model.glb",
   goat: "https://cdn.3dassets.dev/assets/29192/v1/model.glb",
@@ -66,6 +67,12 @@ const MODEL = {
   duck: "https://cdn.3dassets.dev/assets/29201/v1/model.glb",
   dog: "https://cdn.3dassets.dev/assets/29204/v1/model.glb",
 } satisfies Record<AnimalKind, string>;
+
+// Young animals with a model of their own (the others are smaller copies of the adult).
+const YOUNG_MODEL = {
+  calf: "https://cdn.3dassets.dev/assets/29187/v1/model.glb",
+  foal: "https://cdn.3dassets.dev/assets/29180/v1/model.glb",
+};
 
 const BASE = {
   cow: { sound: "Moo", soundFile: "Single Cow Moo.ogg", soundSeconds: 3.2, fact: "Cows are social animals that graze on grass and hay.", height: 1.65, speed: 0.46 },
@@ -100,9 +107,10 @@ const animal = (
   z: number,
   area: AnimalDef["area"],
   scale = 1,
+  model: string = MODEL[kind],
 ): AnimalDef => ({
   id, kind, name, x: x * SPACE, z: z * SPACE, area,
-  model: MODEL[kind],
+  model,
   sound: BASE[kind].sound,
   soundFile: BASE[kind].soundFile,
   soundSeconds: BASE[kind].soundSeconds,
@@ -114,10 +122,10 @@ const animal = (
 const ANIMALS: AnimalDef[] = [
   animal("cow-1", "cow", "Bessie the Cow", -9.2, 2.1, HERD_AREA),
   animal("cow-2", "cow", "Daisy the Cow", -6.6, 5.6, HERD_AREA, 0.96),
-  animal("calf-1", "cow", "Little Calf", -8.0, 4.2, HERD_AREA, 0.58),
+  animal("calf-1", "cow", "Little Calf", -8.0, 4.2, HERD_AREA, 0.58, YOUNG_MODEL.calf),
   animal("horse-1", "horse", "Maple the Horse", -1.6, 0.3, HORSE_AREA),
   animal("horse-2", "horse", "Sunny the Horse", 3.0, 4.6, HORSE_AREA, 0.94),
-  animal("foal-1", "horse", "Little Foal", 0.8, 3.0, HORSE_AREA, 0.62),
+  animal("foal-1", "horse", "Little Foal", 0.8, 3.0, HORSE_AREA, 0.62, YOUNG_MODEL.foal),
   animal("pig-1", "pig", "Rosie the Pig", 3.8, 7.0, YARD_AREA),
   animal("pig-2", "pig", "Poppy the Pig", 5.3, 6.0, YARD_AREA, 0.92),
   animal("piglet-1", "pig", "Little Piglet", 4.5, 5.0, YARD_AREA, 0.58),

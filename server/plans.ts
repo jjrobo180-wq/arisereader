@@ -19,7 +19,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, grantLive, hubAccessFor, isFreeSchoolName, isHubKind, isPlanKind,
+  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, grantLive, hubAccessFor, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, socialAccessFor,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
 } from "../shared/plans";
@@ -46,6 +46,8 @@ export type PlanDeps = {
   countTeacherStudents(teacherId: number): Promise<number>;
   /** Students at a school. */
   countSchoolStudents(schoolId: number): Promise<number>;
+  /** Children linked to a parent account, so a parent can pay for a child's Arise Social. Left out, nobody can. */
+  parentChildIds?(parentId: number): Promise<number[]>;
   /** Students in a teacher's Teacher Hub caseload. Left out, counted as 0. */
   countHubStudents?(teacherId: number): Promise<number>;
   schoolName(schoolId: number): Promise<string>;
@@ -79,7 +81,7 @@ const KEY = {
 };
 
 /** What a teacher without Premium may still reach: signing in and out, their plan, and paying for it. */
-const TEACHER_OPEN = ["/api/teacher-hub", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
+const TEACHER_OPEN = ["/api/social", "/api/social-plan", "/api/teacher-hub", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
 
 // Never 401 or 503 here: the app retries those for several seconds before showing the message.
 class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
@@ -175,7 +177,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const readIndex = async (fresh = false): Promise<Index> => {
     const raw = parse<Partial<Index>>(await (fresh ? readFresh(KEY.index) : read(KEY.index)), {});
     const ids = (v: unknown) => (Array.isArray(v) ? [...new Set(v.map(posInt).filter(Boolean))] : []);
-    return { teacher: ids(raw.teacher), school: ids(raw.school), hub_teacher: ids(raw.hub_teacher), hub_school: ids(raw.hub_school) };
+    return { teacher: ids(raw.teacher), school: ids(raw.school), hub_teacher: ids(raw.hub_teacher), hub_school: ids(raw.hub_school), social: ids(raw.social) };
   };
   type Pending = { sessionId: string; buyerId: number; at: string };
   const readPending = async (kind: PlanKind, id: number): Promise<Pending | null> => {
@@ -223,8 +225,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // The key includes the role: an admin previewing the site as a student is a different answer from the admin.
   const cache = new Map<string, { at: number; value: Entitlement }>();
   const hubCache = new Map<string, { at: number; value: HubAccess }>();
+  const socialCache = new Map<number, { at: number; value: boolean }>();
   const CACHE_MS = 30_000;
-  const forget = () => { cache.clear(); hubCache.clear(); };
+  const forget = () => { cache.clear(); hubCache.clear(); socialCache.clear(); };
 
   // One change at a time. A plan is read, compared and written in one step, so two
   // Stripe messages arriving together can't overwrite each other.
@@ -639,6 +642,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** Starts a Stripe Checkout page for a teacher plan or a school plan and returns its address. */
   app.post("/api/billing/checkout", auth, async (req: any, res: any) => {
     try {
+      if (req.body?.kind === "social") throw new Refused("Arise Social is added from its own page.", 400);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const hub = isHubKind(kind);
@@ -723,6 +727,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** A link to Stripe's own page for changing the card, seeing receipts or cancelling. */
   app.post("/api/billing/portal", auth, async (req: any, res: any) => {
     try {
+      if (req.body?.kind === "social") throw new Refused("Arise Social billing is managed from its own page.", 400);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const grant = await readGrant(kind, isSchoolKind(kind) ? schoolOf(teacher) : teacher.id);
@@ -771,6 +776,118 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
   });
 
+  // ─── Arise Social ──────────────────────────────────────────────────────────
+  // $5 a month for each account that uses it. A parent can pay for a linked child.
+  // Students can't pay for themselves.
+
+  /** Can this account use Arise Social? A database hiccup lets them in rather than locking out someone who paid. */
+  const socialAccess = async (user: AnyUser | null | undefined): Promise<boolean> => {
+    if (!user || !posInt(user.id)) return false;
+    if (user.isAdmin || isDemoAccount(user.username)) return true;
+    const hit = socialCache.get(user.id);
+    if (hit && now() - hit.at < CACHE_MS) return hit.value;
+    try {
+      const value = socialAccessFor(person(user), await current("social", user.id), now());
+      socialCache.set(user.id, { at: now(), value });
+      return value;
+    } catch (e: any) {
+      console.error("[plans] Arise Social check failed:", e?.message);
+      return true;
+    }
+  };
+  const firstAndInitial = (name: unknown) => {
+    const w = String(name || "").trim().split(/\s+/).filter(Boolean);
+    return w.length > 1 ? `${w[0]} ${w[w.length - 1][0].toUpperCase()}.` : w[0] || "Your child";
+  };
+  const linkedChildren = async (parent: AnyUser): Promise<number[]> =>
+    parent.role === "parent" && deps.parentChildIds ? (await deps.parentChildIds(parent.id)).map(posInt).filter(Boolean) : [];
+  /** The Arise Social page this request came from, to send the buyer back to. */
+  const socialPage = (req: any) => `${new URL(siteOf(req)).origin}/social/`;
+
+  /** Arise Social for the signed-in account, and for each linked child when it is a parent. */
+  app.get("/api/social-plan", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.adminPreview && req.realUser ? req.realUser : req.user;
+      const mine = await readGrant("social", user.id);
+      const children = [];
+      for (const id of await linkedChildren(user)) {
+        const child = await deps.getUser(id);
+        if (!child || child.role !== "student") continue;
+        const g = await readGrant("social", id);
+        children.push({ id, name: firstAndInitial(child.displayName), access: await socialAccess(child), plan: grantView(g), paidByYou: !!g && g.buyerId === user.id });
+      }
+      res.set("Cache-Control", "no-store");
+      res.json({
+        payment: !!(await stripeKey()), monthlyCents: PLANS.social.monthlyCents,
+        access: await socialAccess(user), plan: grantView(mine), paidByYou: !!mine && mine.buyerId === user.id,
+        canBuy: user.role === "teacher" || user.role === "parent", children,
+      });
+    } catch (e) { fail(res, e, "social plan"); }
+  });
+
+  /** Starts a Stripe Checkout page for Arise Social: for yourself, or (parents) for a linked child. */
+  app.post("/api/billing/social-checkout", auth, async (req: any, res: any) => {
+    try {
+      const buyer: AnyUser = req.user;
+      if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has Arise Social.", 409);
+      const forId = posInt(req.body?.forUserId) || buyer.id;
+      if (forId === buyer.id) {
+        if (buyer.role !== "teacher" && buyer.role !== "parent") throw new Refused("Ask a parent or guardian to add Arise Social for you.", 403);
+        if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
+      } else {
+        if (!(await linkedChildren(buyer)).includes(forId)) throw new Refused("That student is not linked to your account.", 403);
+        const child = await deps.getUser(forId);
+        if (!child || child.role !== "student") throw new Refused("That student could not be found.", 404);
+      }
+      const owner = forId === buyer.id ? buyer : await deps.getUser(forId);
+      if (owner && (await socialAccess(owner))) throw new Refused(forId === buyer.id ? "You already have Arise Social." : "This student already has Arise Social.", 409);
+      const pending = await readPending("social", forId);
+      if (pending && pending.buyerId !== buyer.id && now() - Date.parse(pending.at) < 30 * 60_000) {
+        throw new Refused("Someone else has just started paying for this account. Try again in half an hour.", 409);
+      }
+      const metadata: Record<string, string> = { kind: "social", ownerId: String(forId), buyerId: String(buyer.id) };
+      const email = typeof buyer.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email) ? buyer.email : undefined;
+      const own = await readGrant("social", buyer.id);
+      const customer = own?.buyerId === buyer.id ? own.stripeCustomerId : undefined;
+      const page = socialPage(req);
+      const session = await stripe("POST", "/checkout/sessions", {
+        mode: "subscription",
+        client_reference_id: `social:${forId}`,
+        ...(customer ? { customer } : email ? { customer_email: email } : {}),
+        line_items: [{
+          quantity: 1,
+          price_data: {
+            currency: "usd", unit_amount: PLANS.social.monthlyCents, recurring: { interval: "month" },
+            product_data: { name: forId === buyer.id ? "Arise Social" : `Arise Social for ${firstAndInitial(owner?.displayName)}` },
+          },
+        }],
+        metadata,
+        subscription_data: { metadata },
+        success_url: `${page}?paid={CHECKOUT_SESSION_ID}`,
+        cancel_url: page,
+      });
+      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
+      if (typeof session.id === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(session.id)) {
+        await write(KEY.pending("social", forId), JSON.stringify({ sessionId: session.id, buyerId: buyer.id, at: iso(now()) }));
+      }
+      res.json({ url: session.url });
+    } catch (e) { fail(res, e, "social checkout"); }
+  });
+
+  /** Stripe's page for changing the card or cancelling an Arise Social plan you paid for. */
+  app.post("/api/billing/social-portal", auth, async (req: any, res: any) => {
+    try {
+      const buyer: AnyUser = req.user;
+      const forId = posInt(req.body?.forUserId) || buyer.id;
+      const grant = await readGrant("social", forId);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for this plan.", 409);
+      if (grant.buyerId !== buyer.id) throw new Refused("Only the person who paid for this plan can manage its billing.", 403);
+      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: socialPage(req) });
+      if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
+      res.json({ url: session.url });
+    } catch (e) { fail(res, e, "social portal"); }
+  });
+
   // ─── Admin ─────────────────────────────────────────────────────────────────
   app.get("/api/admin/plans", auth, admin, async (_req: any, res: any) => {
     try {
@@ -780,8 +897,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         for (const id of index[kind]) {
           const g = await readGrant(kind, id);
           if (!g) continue;
-          const name = isSchoolKind(kind) ? await deps.schoolName(id) : (await deps.getUser(id))?.displayName || `Teacher ${id}`;
+          const name = isSchoolKind(kind) ? await deps.schoolName(id) : (await deps.getUser(id))?.displayName || `${kind === "social" ? "Account" : "Teacher"} ${id}`;
           const students = isSchoolKind(kind) ? await deps.countSchoolStudents(id)
+            : kind === "social" ? 0
             : kind === "hub_teacher" ? (deps.countHubStudents ? await deps.countHubStudents(id) : 0)
             : await deps.countTeacherStudents(id);
           rows.push({ kind, ownerId: id, name, students, source: g.source, status: g.status, seats: g.seats, endsAt: g.endsAt, live: grantLive(g, now()), note: g.note || "" });
@@ -839,7 +957,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const kind: PlanKind | null = isPlanKind(req.body?.kind) ? req.body.kind : null;
       const ownerId = posInt(req.body?.ownerId);
       if (!kind || !ownerId) throw new Refused("Choose a teacher or a school.");
-      if (!isSchoolKind(kind)) {
+      if (kind === "social") {
+        if (!(await deps.getUser(ownerId))) throw new Refused("That account could not be found.");
+      } else if (!isSchoolKind(kind)) {
         const t = await deps.getUser(ownerId);
         if (!t || t.role !== "teacher") throw new Refused("That account is not a teacher.");
       } else if (!(await deps.schoolName(ownerId))) throw new Refused("That school could not be found.");
@@ -887,7 +1007,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, hubAccess, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
+  return { entitlement, hubAccess, socialAccess, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

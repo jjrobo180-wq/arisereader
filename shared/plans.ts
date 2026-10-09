@@ -28,6 +28,14 @@ export const PLANS = {
     schoolYearlyCents: 70000,
     schoolStudentCap: 1000,
   },
+  /**
+   * Arise Social (/social/), the career-discovery add-on: $5 a month for each account that uses it.
+   * Students, parents and teachers each need their own; a parent can pay for a linked child.
+   * Like Teacher Hub it is always paid: plan rules, the free year and free schools don't apply.
+   */
+  social: {
+    monthlyCents: 500,
+  },
   /** One parent profile can follow this many children on the Free plan. */
   parentMaxChildren: 5,
   /**
@@ -60,8 +68,8 @@ export function clampBlocks(blocks: unknown): number {
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
  * "hub_teacher" and "hub_school" are the Teacher Hub add-on.
  */
-export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school";
-export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher"];
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social"];
 export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
 export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
 export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
@@ -72,6 +80,7 @@ export const teacherKindOf = (kind: PlanKind): PlanKind => (isHubKind(kind) ? "h
 export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "year"; seats: (blocks: number) => number } {
   if (kind === "school") return { cents: PLANS.school.yearlyCents, interval: "year", seats: () => PLANS.school.studentCap };
   if (kind === "hub_school") return { cents: PLANS.hub.schoolYearlyCents, interval: "year", seats: () => PLANS.hub.schoolStudentCap };
+  if (kind === "social") return { cents: PLANS.social.monthlyCents, interval: "month", seats: () => 1 };
   const t = kind === "hub_teacher" ? PLANS.hub : PLANS.teacher;
   return { cents: t.monthlyCents, interval: "month", seats: (blocks) => clampBlocks(blocks) * t.studentsPerBlock };
 }
@@ -267,6 +276,20 @@ export function hubAccessFor(person: PlanPerson | null | undefined, facts: { now
   if (grantLive(school, now) && school!.kind === "hub_school" && !school!.free) return { access: true, via: "hub-school-plan", seats: school!.seats, endsAt: school!.endsAt };
   return none;
 }
+
+// ─── Arise Social ────────────────────────────────────────────────────────────
+
+/**
+ * Can this person use Arise Social? Only with an Arise Social plan of their own
+ * (bought by them, or for a child by a parent), as the site admin, or as a sample
+ * account. It does not depend on plan rules being on.
+ */
+export function socialAccessFor(person: PlanPerson | null | undefined, grant: PlanGrant | null | undefined, now = Date.now()): boolean {
+  if (!person) return false;
+  if (person.isAdmin || person.role === "admin" || isDemoAccount(person.username)) return true;
+  return !!grant && grant.kind === "social" && grantLive(grant, now);
+}
+export const SOCIAL_REQUIRED = "social_required";
 
 export const HUB_REQUIRED = "hub_required";
 export const hubMessage = "Teacher Hub is a paid add-on. Get it on your plan page.";

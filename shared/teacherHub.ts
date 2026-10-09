@@ -7,6 +7,7 @@
 import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
 import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
+import { cleanBanner } from "./hubBanner";
 import type { StepPlan } from "./meetingSteps";
 
 /** The longest a disability can be typed. */
@@ -39,6 +40,8 @@ export type Lesson = { id: string; title: string; subject: string; group: string
 export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
   notes?: string;
+  /** Set when the to-do came from the Apple Reminders app (see shared/appleReminders.ts): which reminder it is. */
+  appleId?: string;
   /** Set when the to-do was made from a saved email (see shared/hubEmails.ts). */
   emailId?: string;
   /** When it was checked off (a moment, not a day), so it can be offered back for a day. */
@@ -85,7 +88,13 @@ export type ServiceLog = { id: string; student: string; date: string; kind: stri
   part?: string;
   teacher?: string;
 };
-export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean };
+export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean;
+  /** For a forwarded email: when it was first sent, as written ("Thursday, October 8, 2026 9:57 AM"). */
+  sent?: string;
+  /** For a forwarded email: the message itself, without the forwarding notes. `body` keeps the whole email. */
+  message?: string;
+  /** A forwarded email not opened yet: shown as New. */
+  unread?: boolean };
 
 /** Something on the teacher's calendar. `start` and `end` are "HH:MM", or "" for an all-day event. */
 export type HubEvent = {
@@ -153,19 +162,21 @@ export type IepGuide = {
   parent1Phone: string;
   parent2: string;
   parent2Phone: string;
+  parent1Email?: string;
+  parent2Email?: string;
   /** Who is assigned to this student: a role's id to the id of one of the teacher's saved contacts. */
   team: Record<string, string>;
   sections: GuideSection[];
 };
 
 export const HUB_TABS = [
-  "overview", "calendar", "caseload", "goals", "minutes", "iep", "guide", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
+  "overview", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email",
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 
 export type Workspace = {
   version: number;
-  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string };
+  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
   students: Student[];
   meetings: Meeting[];
@@ -218,7 +229,7 @@ export function normalizeWorkspace(raw: any): Workspace {
   const out: any = {
     ...base,
     ...raw,
-    profile: { ...base.profile, ...(raw.profile || {}) },
+    profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}) },
     visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];

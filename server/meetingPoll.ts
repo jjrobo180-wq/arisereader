@@ -207,6 +207,23 @@ export function pollBookedEmail(p: { guest: string; teacher: string; title: stri
 </div>`;
 }
 
+const ANSWER_WORDS: Record<PollAnswer, string> = { yes: "Works", maybe: "Maybe", no: "Can't" };
+const ANSWER_COLORS: Record<PollAnswer, string> = { yes: "#6ee7b7", maybe: "#fcd34d", no: "#fca5a5" };
+
+/** What the teacher gets when someone answers their poll. */
+export function pollResponseEmail(p: { teacher: string; guest: string; title: string; rows: { label: string; answer?: PollAnswer }[]; comment: string; answered: number; total: number; best: string; link: string }): string {
+  const done = p.answered >= p.total && p.total > 0;
+  return `<div style="${CARD}">
+  <h1 style="margin:0 0 8px;color:#c4b5fd;font-size:22px;">A.R.I.S.E. Reader</h1>
+  <h2 style="margin:20px 0 8px;color:#f8fafc;font-size:21px;">${esc(p.guest)} answered your poll</h2>
+  <p style="line-height:1.6;color:#cbd5e1;font-size:16px;">Hi ${esc(p.teacher)}, ${esc(p.guest)} replied about <b>${esc(p.title)}</b>. ${p.answered} of ${p.total} ${p.total === 1 ? "person has" : "people have"} answered${done ? ", so everyone is in" : ""}.</p>
+  <ul style="margin:12px 0;padding-left:20px;color:#e2e8f0;font-size:15px;line-height:1.8;">${p.rows.map((r) => `<li>${esc(r.label)}: <b style="color:${r.answer ? ANSWER_COLORS[r.answer] : "#94a3b8"}">${r.answer ? ANSWER_WORDS[r.answer] : "No answer"}</b></li>`).join("")}</ul>
+  ${p.comment ? `<p style="line-height:1.6;color:#cbd5e1;font-size:15px;border-left:3px solid #7c3aed;padding-left:12px;">${esc(p.comment)}</p>` : ""}
+  ${p.best ? `<p style="color:#e2e8f0;font-size:15px;">Best time so far: <b>${esc(p.best)}</b></p>` : ""}
+  <p style="margin:24px 0;"><a href="${esc(p.link)}" style="${BUTTON}">Open my Teacher Hub</a></p>
+</div>`;
+}
+
 // ---- Routes -------------------------------------------------------------
 
 export type MeetingPollDeps = {
@@ -219,6 +236,11 @@ export type MeetingPollDeps = {
   };
   /** Text messages (Twilio), if the site has that set up. */
   text?: { send(to: string, body: string): Promise<{ sent: boolean; error?: string }> };
+  /** Tells the teacher when someone answers: their account email, and a notification on their phone. */
+  teacher?: {
+    contact(teacherId: number): Promise<{ email: string; name: string } | null>;
+    notify(teacherId: number, message: { title: string; body: string; url?: string; tag?: string }): Promise<number>;
+  };
   appUrl: string;
   store?: PollStore;
   availability?: AvailabilityStore;
@@ -260,6 +282,38 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       invitees: invitees.map((i) => ({ id: i.id, name: i.name, email: i.email, phone: i.phone || "", link: linkFor(i.token), role: i.role, answers: i.answers || {}, comment: i.comment || "", respondedAt: i.responded_at, emailSent: i.email_sent, linked: !!i.user_id, fit: i.user_id && weekly.get(i.user_id)?.length ? Object.fromEntries(poll.options.map((o) => [o.id, fitOption(weekly.get(i.user_id!)!, o)])) : {} })),
       tally: tally.options, best: tally.best,
     };
+  }
+
+
+  /**
+   * Tells the teacher a person answered: a phone notification every time, and one email the first time that person answers
+   * (changing an answer later doesn't send another email). The Hub also shows it in its bell. Never makes the reply fail.
+   */
+  async function announce(pollId: string, teacherId: number, personId: string, first: boolean) {
+    try {
+      const row = await store.get(teacherId, pollId);
+      const person = row?.invitees.find((i) => i.id === personId);
+      if (!row || !person) return;
+      const people = row.invitees.map((i) => ({ name: i.name, answers: i.answers || {}, respondedAt: i.responded_at }));
+      const tally = tallyPoll(row.poll.options, people);
+      const answered = row.invitees.filter((i) => i.responded_at).length;
+      const best = row.poll.options.find((o) => o.id === tally.best);
+      const rows = row.poll.options.map((o) => ({ label: describeOption(o), answer: person.answers?.[o.id] }));
+      const yes = rows.filter((r) => r.answer === "yes").length;
+      const body = `${person.name}: ${yes ? `${yes} ${yes === 1 ? "time works" : "times work"}` : "no times work"}. ${answered} of ${row.invitees.length} answered.`;
+      await deps.teacher?.notify(teacherId, { title: `${person.name} answered ${row.poll.title}`, body, url: "/#/teacher-hub", tag: `poll-${row.poll.id}` });
+      if (first && deps.teacher) {
+        const who = await deps.teacher.contact(teacherId);
+        if (who?.email) {
+          await deps.sendEmail(who.email, `${person.name} answered: ${row.poll.title}`, pollResponseEmail({
+            teacher: who.name || "there", guest: person.name, title: row.poll.title, rows, comment: person.comment || "", answered, total: row.invitees.length,
+            best: best ? describeOption(best) : "", link: `${base}/#/teacher-hub`,
+          }));
+        }
+      }
+    } catch (error: any) {
+      console.error("[meeting-poll] could not tell the teacher about an answer", error?.message);
+    }
   }
 
   type Note = { fellBack: boolean; reason?: string };
@@ -466,7 +520,9 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
       if (found.poll.status === "booked") return res.status(409).json({ message: "A time has already been chosen, so this poll is closed." });
       const answers = cleanAnswers(req.body?.answers, found.poll.options);
       if (!Object.keys(answers).length) return res.status(400).json({ message: "Pick an answer for at least one time." });
+      const first = !found.invitee.responded_at;
       await store.saveAnswers(found.invitee.id, answers, cleanComment(req.body?.comment), new Date(now()).toISOString());
+      void announce(found.poll.id, found.poll.teacher_id, found.invitee.id, first);
       res.json({ ok: true });
     } catch (error: any) { console.error("[meeting-poll] invited answer failed", error?.message); res.status(500).json({ message: "Could not save your answers." }); }
   });
@@ -546,7 +602,9 @@ export function registerMeetingPollRoutes(app: Express, authMiddleware: RequestH
     if (!Object.keys(answers).length) return res.status(400).json({ message: "Pick an answer for at least one time." });
     try {
       replies.fail(found.invitee.id);
+      const first = !found.invitee.responded_at;
       await store.saveAnswers(found.invitee.id, answers, cleanComment(req.body?.comment), new Date(now()).toISOString());
+      void announce(found.poll.id, found.poll.teacher_id, found.invitee.id, first);
       res.json({ ok: true });
     } catch (error: any) {
       console.error("[meeting-poll] reply failed", error?.message);

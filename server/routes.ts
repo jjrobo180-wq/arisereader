@@ -9,6 +9,7 @@ import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
+import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
 import { INVITE_PRIZES_KEY, invitePrizeLines, readInvitePrizes } from "../shared/invitePrizes";
 import { registerFamilyEmailRoutes } from "./familyEmails";
@@ -42,8 +43,10 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
-import { registerPushRoutes } from "./pushNotifications";
+import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
+import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
+import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
@@ -61,7 +64,7 @@ import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEm
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
 import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
-import { raw } from "express";
+import { raw, text as expressText } from "express";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -1166,6 +1169,8 @@ export async function registerRoutes(
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
     countHubStudents: (teacherId) => countHubStudents(teacherId),
+    // a parent can pay for a linked child's Arise Social
+    parentChildIds: (parentId) => getParentStudentIds(parentId),
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
     // a school someone added at sign-up is never free just because of what it is called
@@ -1183,6 +1188,35 @@ export async function registerRoutes(
   const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
   // Tells the site owner when the database is missing something the Hub needs (and what to paste to fix it).
   registerHubSetupRoutes(app, authMiddleware, { gate: hubGate });
+  // Teacher Hub: work emails forwarded to a teacher's private address land in their Hub, flagged and on the to-do list.
+  registerHubInboxRoutes(app, authMiddleware, {
+    gate: hubGate,
+    getSetting: (key) => storage.getSetting(key),
+    saveSetting: (key, value) => storage.upsertSetting(key, value),
+    accountEmail: async (teacherId) => (await storage.getUser(teacherId))?.email || null,
+    fetchReceived: async (emailId, apiKey) => {
+      // Reading received email needs a Resend key with "Full access". Try the key saved in the Hub setup
+      // first, then the site's own email key, then the email proxy, and report why each one failed.
+      const path = `/emails/receiving/${encodeURIComponent(emailId)}`;
+      const routes: { name: string; url: string; headers: Record<string, string> }[] = [];
+      if (apiKey) routes.push({ name: "setup key", url: `https://api.resend.com${path}`, headers: { Authorization: `Bearer ${apiKey}` } });
+      if (RESEND_API_KEY && RESEND_API_KEY !== apiKey) routes.push({ name: "site key", url: `https://api.resend.com${path}`, headers: { Authorization: `Bearer ${RESEND_API_KEY}` } });
+      if (PROXY_URL && PROXY_TOKEN) routes.push({ name: "proxy", url: `${PROXY_URL}${path}`, headers: { "x-api-key": PROXY_TOKEN } });
+      if (!routes.length) throw new Error("no Resend API key on the site");
+      const reasons: string[] = [];
+      for (const route of routes) {
+        try {
+          const response = await fetch(route.url, { headers: route.headers, signal: AbortSignal.timeout(15000) });
+          if (response.ok) return await response.json();
+          const text = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 120);
+          reasons.push(`${route.name} ${response.status}${text ? ` ${text}` : ""}`);
+        } catch (error: any) { reasons.push(`${route.name} ${error?.message || "failed"}`); }
+      }
+      console.error(`[hub-inbox] could not fetch email ${emailId}: ${reasons.join("; ")}`);
+      throw new Error(reasons.join("; "));
+    },
+    now: () => Date.now(),
+  });
   let mailbox: ReturnType<typeof createMailboxService> | undefined;
   try {
     mailbox = createMailboxService({ store: createSupabaseMailboxStore(), config: configFromEnv(), appUrl: APP_URL, key: secretKey() });
@@ -1191,7 +1225,14 @@ export async function registerRoutes(
     console.warn("[mailbox] connecting a teacher's own mailbox is off:", error?.message);
   }
   const textConfig = textConfigFromEnv();
-  registerMeetingPollRoutes(app, authMiddleware, { gate: hubGate, sendEmail, appUrl: APP_URL, mailbox, text: textConfig ? createTextService(textConfig) : undefined });
+  registerMeetingPollRoutes(app, authMiddleware, {
+    gate: hubGate, sendEmail, appUrl: APP_URL, mailbox,
+    teacher: {
+      contact: async (id) => { const u: any = await storage.getUser(id); const email = String(u?.email || "").trim(); return email ? { email, name: String(u?.displayName || u?.username || "") } : null; },
+      notify: (id, message) => notifyUser(id, message),
+    }, text: textConfig ? createTextService(textConfig) : undefined });
+  // Reminders from the Apple Reminders app (an iPhone Shortcut sends them), one way into the Hub.
+  registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
   // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerClubPlayRoutes(app, authMiddleware);
@@ -1306,6 +1347,28 @@ export async function registerRoutes(
     try { const raw = await storage.getSetting("user_grades"); const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; }
     catch { return {}; }
   };
+  // Arise Social (/social/): career discovery for students, with their parents and teachers.
+  // It uses the regular accounts; see server/ariseSocial.ts and migrations/arise_social.sql.
+  const toSocialUser = (u: any): SocialUser | null => u ? ({
+    id: Number(u.id), role: u.isAdmin ? "admin" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : "student",
+    displayName: String(u.displayName || u.username || ""), teacherId: u.teacherId ? Number(u.teacherId) : null,
+    schoolId: u.school_id ? Number(u.school_id) : null, approvedByTeacher: u.approvedByTeacher !== false, archived: !!u.archivedAt,
+  }) : null;
+  registerAriseSocialRoutes(app, authMiddleware, {
+    // Arise Social is a $5/month add-on for each account (shared/plans.ts). An admin previewing as a student gets in.
+    access: {
+      self: async (req: any) => !!(req.adminPreview || req.realUser?.isAdmin) || plans.socialAccess(req.user),
+      user: async (id) => plans.socialAccess(await storage.getUser(id)),
+    },
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      parentsOf: (studentId) => getStudentParentIds(studentId),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
   /** What anyone may see about a teacher on the public sign-up pages. */
   const publicTeacher = (t: any) => ({ id: t.id, display_name: t.display_name, displayName: t.display_name, role: t.role, school_id: t.school_id });
   /** The signed-in session for a public route, if the request carries one. */
@@ -2109,33 +2172,6 @@ export async function registerRoutes(
     res.json({ totalBooks: allBooks.length, withPoints: withPoints.length, mambaFound: !!mamba, mambaId: mamba?.id });
   });
 
-  // Two farm animal models are hosted on a site that browsers may not load from other sites
-  // (it sends no CORS header), so the server fetches them once and serves them itself.
-  const FARM_MODELS: Record<string, string> = {
-    cow: "https://static.poly.pizza/382b3d4a-a7c9-4c03-9858-3df630d90047.glb",
-    horse: "https://static.poly.pizza/d37dbc87-ca61-4b2c-a2da-d2f0c4240bef.glb",
-  };
-  const farmModelCache = new Map<string, Buffer>();
-  app.get("/api/farm-models/:name", async (req, res) => {
-    const name = String(req.params.name || "");
-    const url = FARM_MODELS[name];
-    if (!url) return res.status(404).end();
-    try {
-      let bytes = farmModelCache.get(name);
-      if (!bytes) {
-        const upstream = await fetch(url, { headers: { "User-Agent": "ARISEReader/1.0 (https://www.arisereader.com)" }, signal: AbortSignal.timeout(20000) });
-        if (!upstream.ok) return res.status(502).end();
-        bytes = Buffer.from(await upstream.arrayBuffer());
-        if (bytes.length < 25_000_000) farmModelCache.set(name, bytes);
-      }
-      res.setHeader("Content-Type", "model/gltf-binary");
-      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
-      res.send(bytes);
-    } catch {
-      res.status(502).end();
-    }
-  });
-
   app.get("/api/book-cover/:id", async (req, res) => {
     try {
       const bookId = Number(req.params.id);
@@ -2458,24 +2494,6 @@ export async function registerRoutes(
   app.get("/api/tutorial/books", async (_req, res) => {
     const books = await storage.getAllBooks();
     res.json(books);
-  });
-
-  // Public quiz endpoint for tutorial (no auth, no attempt tracking, strips correct answers)
-  app.get("/api/tutorial/books/:id/quiz", async (req, res) => {
-    const bookId = parseInt(req.params.id);
-    const book = await storage.getBook(bookId);
-    if (!book) return res.status(404).json({ message: "Book not found" });
-    const allQuestions = await storage.getQuestionsByBook(bookId);
-    const safeQuestions = allQuestions.map(q => ({
-      id: q.id,
-      questionText: q.questionText,
-      optionA: q.optionA,
-      optionB: q.optionB,
-      optionC: q.optionC,
-      optionD: q.optionD,
-      questionOrder: q.questionOrder,
-    }));
-    res.json({ book, questions: safeQuestions });
   });
 
   app.get("/api/books/:id", authMiddleware, async (req, res) => {
@@ -11503,7 +11521,9 @@ Important:
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getCustomEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-      const staff = isStaffViewer(req) || Number(quiz.creator_user_id) === Number(req.user.id);
+      // A quiz's maker may see its answers, except the public sample logins (anyone can use them).
+      const maker = Number(quiz.creator_user_id) === Number(req.user.id) && !isDemoStudent(req.user);
+      const staff = isStaffViewer(req) || maker;
       if (!staff && !(await customQuizVisibleTo(req.user, quiz))) return res.status(404).json({ message: "Quiz not found" });
       const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);

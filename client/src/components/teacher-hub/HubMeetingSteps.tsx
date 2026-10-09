@@ -1,12 +1,15 @@
-// Teacher Hub: the ten-step guide for getting an IEP or re-evaluation meeting done.
+// Teacher Hub: the ten steps for getting an IEP or re-evaluation meeting done, all in one pop-up.
 // Step 1 adds the meeting with its IEP deadline (filled in from the student's caseload
-// date), step 2 finds a time for everyone before that deadline. Any step can be skipped
+// date) and who is coming (team and parents), step 2 finds a time for everyone before that
+// deadline, and step 5 is the checklist and messages. Nothing leaves this screen. Any step can be skipped
 // and come back to; the progress is kept on the meeting.
 import { useEffect, useState, type FormEvent, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, Check, ChevronRight, Plus, SkipForward, Undo2, X } from "lucide-react";
 import { MEETING_STEPS, STEP_COUNT, cleanPlan, emptyPlan, markDone, markSkipped, stepState } from "@shared/meetingSteps";
 import { addMeetingWithDeadline, deadlineLabel, deadlineWords, meetingDeadline, savesToStudent, studentDeadline } from "@shared/meetingDeadline";
 import { newGuideFor } from "@shared/hubStudentTeam";
+import type { GuideSender } from "@shared/hubGuide";
+import { GuideChecklist, GuideDetails } from "./HubGuide";
 import type { Meeting, Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
 
@@ -22,9 +25,9 @@ const HELP: Record<number, { text: string; todo?: string }> = {
   10: { text: "Finish the paperwork, send the final copy to the parents and the team, and file everything.", todo: "Finish paperwork and send the final copy" },
 };
 
-export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard, setWizard, studentOptions, openGuide, showPolls, pollBody }: {
+export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard, setWizard, studentOptions, sender, showPolls, pollBody }: {
   workspace: Workspace; setWorkspace: Setter; makeId: () => string; wizard: WizardState; setWizard: (next: WizardState | null) => void;
-  studentOptions: () => ReactNode; openGuide: (guideId: string) => void; showPolls: () => void;
+  studentOptions: () => ReactNode; sender: GuideSender; showPolls: () => void;
   pollBody: (meeting: Meeting, onSent: () => void) => ReactNode;
 }) {
   const meeting = wizard.meetingId ? workspace.meetings.find((m) => m.id === wizard.meetingId) : undefined;
@@ -60,8 +63,15 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
   function addMeeting(e: FormEvent) {
     e.preventDefault();
     const id = makeId();
-    setWorkspace((p) => addMeetingWithDeadline(p, knowTime ? form : { ...form, date: "", time: "" }, id, markDone(emptyPlan(), 1)));
-    setWizard({ step: 2, meetingId: id });
+    const kind = /reeval/i.test(form.type) ? "Re-evaluation" : "IEP meeting";
+    setWorkspace((p) => {
+      const next = addMeetingWithDeadline(p, knowTime ? form : { ...form, date: "", time: "" }, id, markDone(emptyPlan(), 1));
+      // The meeting's guide starts with it: the student's team is already on it, and it holds the parents and the checklist.
+      if (next.guides.some((g) => g.student === form.student)) return next;
+      const g = newGuideFor(next, form.student, kind, makeId);
+      return { ...next, guides: [...next.guides, knowTime ? { ...g, meetingDate: form.date, meetingTime: form.time, room: form.room.trim() } : { ...g, room: form.room.trim() }] };
+    });
+    setWizard({ step: 1, meetingId: id });
   }
   function addTodo(title: string) {
     if (!meeting) return;
@@ -69,12 +79,12 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
     setAdded((a) => ({ ...a, [step]: true }));
   }
   const guide = meeting ? workspace.guides.find((g) => g.student === meeting.student) : undefined;
-  function startGuide() {
-    if (!meeting) return;
-    const g = newGuideFor(workspace, meeting.student, /reeval/i.test(meeting.type) ? "Re-evaluation" : "IEP meeting", makeId);
-    setWorkspace((p) => ({ ...p, guides: [...p.guides, g], meetings: p.meetings.map((m) => (m.id === meeting.id ? { ...m, plan: markDone(cleanPlan(m.plan), 5) } : m)) }));
-    setWizard(null); openGuide(g.id);
-  }
+  // A meeting added before the steps held the guide gets its guide the first time it is opened here.
+  useEffect(() => {
+    if (!meeting || guide || !meeting.student) return;
+    const kind = /reeval/i.test(meeting.type) ? "Re-evaluation" : "IEP meeting";
+    setWorkspace((p) => (p.guides.some((g) => g.student === meeting.student) ? p : { ...p, guides: [...p.guides, newGuideFor(p, meeting.student, kind, makeId)] }));
+  }, [meeting?.id, !!guide]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const skippedList = plan.skipped.filter((n) => n !== step);
   const pill = "inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold";
@@ -147,7 +157,12 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
               <TextArea aria-label="Meeting notes" placeholder="Meeting notes / checklist (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </form>
           )}
-          {step === 1 && meeting && <p className="text-sm text-slate-600">This meeting is on your timeline. You can fix its date or notes there any time.</p>}
+          {step === 1 && meeting && (
+            <>
+              <p className="text-sm text-slate-600">This meeting is on your timeline. Next, say who is coming. Step 2 asks them for times, and the team and parents you set here are already filled in.</p>
+              {guide && <GuideDetails guide={guide} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} />}
+            </>
+          )}
 
           {step === 2 && (meeting ? pollBody(meeting, () => { setPlan((p) => markDone(p, 2)); go(3); }) : <NeedMeeting go={() => go(1)} />)}
 
@@ -159,12 +174,9 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
             <p className="text-sm text-slate-600">Booking a time tells everyone for you. If you chose to send things yourself, open the poll and use “Tell everyone” to send the final time from your own email or phone.</p>
             <GhostButton onClick={showPolls}>Open my polls</GhostButton>
           </>}
-          {step === 5 && (meeting ? <>
-            <p className="text-sm text-slate-600">The guide is your checklist for this student's meeting, with notes and who is on the team.</p>
-            {guide
-              ? <PrimaryButton onClick={() => { setPlan((p) => markDone(p, 5)); setWizard(null); openGuide(guide.id); }}>Open the guide for {meeting.student}</PrimaryButton>
-              : <PrimaryButton onClick={startGuide}><Plus className="h-4 w-4" /> Start the guide for {meeting.student}</PrimaryButton>}
-          </> : <NeedMeeting go={() => go(1)} />)}
+          {step === 5 && (meeting ? (guide
+            ? <GuideChecklist guide={guide} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} sender={sender} />
+            : <p className="text-sm text-slate-600">Getting the checklist ready…</p>) : <NeedMeeting go={() => go(1)} />)}
           {HELP[step] && <>
             <p className="text-sm text-slate-600">{HELP[step].text}</p>
             {HELP[step].todo && meeting && (added[step]

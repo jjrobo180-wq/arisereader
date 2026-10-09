@@ -2,6 +2,11 @@
 // Run with: npx tsx --test tests/site-audit-fixes.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import express from "express";
+import { serveStatic } from "../server/static";
 import { LETTERS, choiceOrder, filledLetters, shuffleChoices, storedLetter } from "../server/quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "../server/attemptLimiter";
 import { monthStartMs, nextYearMonth } from "../server/schoolTime";
@@ -86,6 +91,42 @@ test("wrong passwords: 10 misses, then wait; a right password clears the count",
   assert.equal(waitWords(12 * 60_000), "12 minutes");
   assert.equal(clientAddress({ headers: { "x-forwarded-for": "203.0.113.5, 10.0.0.1" } }), "203.0.113.5");
   assert.equal(clientAddress({ headers: {}, ip: "10.1.1.1" }), "10.1.1.1");
+});
+
+test("missing files and API addresses get a real 404; app pages still open", async () => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "arise-dist-"));
+  fs.mkdirSync(path.join(dist, "assets"));
+  fs.writeFileSync(path.join(dist, "index.html"), "<!doctype html><title>app</title>");
+  fs.writeFileSync(path.join(dist, "assets", "app.js"), "console.log(1)");
+  const app = express();
+  serveStatic(app, dist);
+  const server = app.listen(0);
+  await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+  try {
+    const port = (server.address() as any).port;
+    const get = async (p: string) => {
+      const res = await fetch(`http://127.0.0.1:${port}${p}`);
+      return { status: res.status, type: res.headers.get("content-type") || "", body: await res.text() };
+    };
+    assert.equal((await get("/assets/app.js")).status, 200, "a file that exists");
+    for (const p of ["/assets/does-not-exist.js", "/assets/old-build.css?v=2", "/favicon.ico", "/sitemap.xml"]) {
+      const r = await get(p);
+      assert.equal(r.status, 404, p);
+      assert.ok(!r.body.includes("<title>app</title>"), `${p} must not answer with the app page`);
+    }
+    const api = await get("/api/this-route-does-not-exist");
+    assert.equal(api.status, 404);
+    assert.match(api.type, /json/);
+    for (const p of ["/", "/library", "/quiz/36", "/parent-signup?code=a.b", "/fyp/share/0a1b2c", "/index.html"]) {
+      const r = await get(p);
+      assert.equal(r.status, 200, p);
+      assert.ok(r.body.includes("<title>app</title>"), `${p} opens the app`);
+    }
+  } finally {
+    server.close();
+    server.closeAllConnections();
+    fs.rmSync(dist, { recursive: true, force: true });
+  }
 });
 
 test("monthly leaderboard months start at midnight Mountain Time", () => {

@@ -52,9 +52,9 @@ const blankTime = () => ({ date: "", start: "", end: "" });
 type Guest = { name: string; email: string; phone: string; role: string };
 const blankGuest = (role = "Parent or guardian"): Guest => ({ name: "", email: "", phone: "", role });
 
-export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId, start, onStarted, account, wizard, setWizard, studentOptions, openGuide }: {
+export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId, start, onStarted, account, wizard, setWizard, studentOptions }: {
   token: string | null; workspace: Workspace; setWorkspace: Setter; makeId: () => string; start: PollStart; onStarted: () => void; account: { name: string; email: string };
-  wizard: WizardState | null; setWizard: (next: WizardState | null) => void; studentOptions: () => ReactNode; openGuide: (guideId: string) => void;
+  wizard: WizardState | null; setWizard: (next: WizardState | null) => void; studentOptions: () => ReactNode;
 }) {
   const [polls, setPolls] = useState<PollView[] | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -107,7 +107,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
         <InvitedPolls token={token} setNotice={setNotice} />
         {wizard && (
           <MeetingWizard
-            workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} openGuide={openGuide}
+            workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} sender={{ name: cleanSenderName(workspace.profile.senderName || account.name), school: workspace.profile.school }}
             showPolls={() => { setWizard(null); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
             pollBody={(meeting, onSent) => (
               <Composer embedded box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account}
@@ -179,7 +179,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [picked, setPicked] = useState<Record<string, boolean>>(() => Object.fromEntries(asked.filter(({ person }) => team.some((c) => c.id === person.id)).map(({ person }) => [person.id, true])));
   // Someone on the team with no email saved yet gets a row of their own, so the email can be typed here.
   const noEmail: Guest[] = asked.filter(({ person }) => !team.some((c) => c.id === person.id)).map(({ person, role }) => ({ name: person.name, email: "", phone: "", role: roleLabel(role) }));
-  const parents: Guest[] = [...[[guide?.parent1, guide?.parent1Phone], [guide?.parent2, guide?.parent2Phone]].filter(([n, ph]) => (n || "").trim() || (ph || "").trim()).map(([n, ph]) => ({ name: (n || "").trim(), email: "", phone: (ph || "").trim(), role: "Parent or guardian" })), ...noEmail];
+  const parents: Guest[] = [...[[guide?.parent1, guide?.parent1Phone, guide?.parent1Email], [guide?.parent2, guide?.parent2Phone, guide?.parent2Email]].filter(([n, ph, em]) => (n || "").trim() || (ph || "").trim() || (em || "").trim()).map(([n, ph, em]) => ({ name: (n || "").trim(), email: (em || "").trim(), phone: (ph || "").trim(), role: "Parent or guardian" })), ...noEmail];
   const [guests, setGuests] = useState<Guest[]>(parents.length ? parents : [blankGuest()]);
   const mailboxReady = !!box?.connected && !box.connected.needsReconnect;
   type Via = "self" | "mailbox" | "site";
