@@ -7,7 +7,7 @@ import { Suspense, createContext, lazy, useContext, useEffect, useState, type Re
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import AddonsCard from "@/components/AddonsCard";
+import HubAddons from "@/components/hub-pieces/HubAddons";
 import { HubEndedNote, type HubTrial } from "@/components/HubTrialNote";
 
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
@@ -58,7 +58,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
             <p className="mt-1 text-sm leading-6 text-slate-600">Your WorkHub free month has ended, so LifeHub is locked too. Everything you saved is kept. Your A.R.I.S.E. Reader tools are still in WorkHub.</p>
             <a href="#/workhub" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">Open WorkHub</a>
           </section>}
-          {!parent && <div className="rounded-2xl bg-[#0d0b1a] p-4 text-white"><AddonsCard returnPath="/billing" /></div>}
+          {!parent && <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5"><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">Add-ons</p><h2 className="mb-4 mt-0.5 text-lg font-black text-[#232139]">Plans and add-ons</h2><HubAddons which="life" /></section>}
         </main>
         {note && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{note}</div>}
       </div>

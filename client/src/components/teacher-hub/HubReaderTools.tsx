@@ -1,8 +1,8 @@
 // Arise WorkHub's A.R.I.S.E. Reader group, built the WorkHub way: each part of the teacher's Reader
 // account is its own WorkHub tab (Overview, Students, Approvals, Parents, Quizzes, Game time, Prizes),
 // made of WorkHub cards, buttons, lists and pop-ups. Everything the old teacher dashboard did is here.
-// A few self-contained Reader pieces (camera-quiz review, comprehension grading, prizes, play time,
-// email invites, add-ons) sit inside WorkHub cards and take WorkHub's colors (HubReaderScope).
+// The Reader pieces inside (camera-quiz review, comprehension grading, prizes, play time, email
+// invites, add-ons) are the hub-built ones in components/hub-pieces.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import {
@@ -11,15 +11,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import AddonsCard from "@/components/AddonsCard";
 import BannerTap from "@/components/BannerTap";
-import FamilyEmailInvite from "@/components/FamilyEmailInvite";
-import ParentEmailInvite from "@/components/ParentEmailInvite";
-import NoProctorReview from "@/components/NoProctorReview";
-import ComprehensionReview from "@/components/ComprehensionReview";
-import PlayTimeManager from "@/components/PlayTimeManager";
-import { PrizeManager } from "@/components/prizes/PrizeManager";
-import HubReaderScope from "@/components/HubReaderScope";
+import HubAddons from "@/components/hub-pieces/HubAddons";
+import HubPlayTime from "@/components/hub-pieces/HubPlayTime";
+import HubComprehension from "@/components/hub-pieces/HubComprehension";
+import HubCameraQuizzes from "@/components/hub-pieces/HubCameraQuizzes";
+import { HubPrizeManager } from "@/components/hub-pieces/HubPrizes";
+import { HubFamilyInvite, HubParentInvite } from "@/components/hub-pieces/HubInvites";
 import { printParentInvites } from "@/lib/parentInvites";
 import type { HubTab } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
@@ -266,7 +264,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       </div>
 
       <ProgramLinks />
-      <Card title="Add-ons for your class" collapseKey="reader-addons"><HubReaderScope which="work" night={night}><AddonsCard compact returnPath="/billing" /></HubReaderScope></Card>
+      <Card title="Add-ons for your class" collapseKey="reader-addons"><HubAddons which="work" /></Card>
     </>}
 
     {tab === "readerStudents" && <StudentsTab
@@ -310,7 +308,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       <Card title="Parent codes and letters" right={<PrimaryButton onClick={() => printLetters()}><Printer className="h-4 w-4" /> Print letters for my class</PrimaryButton>}>
         <p className="text-sm text-slate-600">Give each family their private code or sign-up link, print letters, and see which parent and guardian accounts are already connected to your students.</p>
       </Card>
-      <Card title="Invite families by email" collapseKey="reader-family-email"><HubReaderScope which="work" night={night}><FamilyEmailInvite /></HubReaderScope></Card>
+      <Card title="Invite a family that isn't signed up yet" collapseKey="reader-family-email"><HubFamilyInvite which="work" /></Card>
       <Card title="Your students' families">
         {!parents ? <Empty>Loading…</Empty> : parents.length ? <ul className="space-y-3">{parents.map((s) =>
           <Row key={s.id} title={s.displayName} sub={`@${s.username}`} right={<Pill tone={s.parents.length ? "green" : "amber"}>{s.parents.length ? `${s.parents.length} linked` : "Not linked"}</Pill>}>
@@ -324,7 +322,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
             </div>
             {s.parents.length > 0 && <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">{s.parents.map((p) =>
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="min-w-0"><span className="font-medium text-slate-800">{p.displayName}</span> <span className="text-slate-500">@{p.username}{p.email ? ` · ${p.email}` : ""}</span></span><Pill tone={p.accountApproved ? "green" : "slate"}>{p.accountApproved ? "Active" : "Pending"}</Pill></li>)}</ul>}
-            <div className="mt-3 border-t border-slate-100 pt-3"><HubReaderScope which="work" night={night}><ParentEmailInvite studentId={s.id} studentName={s.displayName} /></HubReaderScope></div>
+            <div className="mt-3 border-t border-slate-100 pt-3"><HubParentInvite which="work" studentId={s.id} studentName={s.displayName} /></div>
           </Row>)}</ul> : <Empty>No students are assigned to you.</Empty>}
       </Card>
     </>}
@@ -338,14 +336,14 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
           {growth.length ? <ul className="space-y-2">{growth.map((a: any) => <Row key={a.id} title={a.studentName || "Student"} sub={`Score ${a.score}/${a.totalQuestions} · ${a.wcpm ? `${a.wcpm} words a minute` : "no reading speed"}`} />)}</ul> : <Empty>No growth checks yet.</Empty>}
         </Card>
       </div>
-      <Card><HubReaderScope which="work" night={night}><ComprehensionReview title="Reading comprehension to grade" onPendingChange={setToGrade} /></HubReaderScope></Card>
-      <Card><HubReaderScope which="work" night={night}><NoProctorReview title="Camera quizzes from your students" /></HubReaderScope></Card>
+      <Card title={`Reading comprehension to grade${toGrade ? ` (${toGrade})` : ""}`}><HubComprehension which="work" onPendingChange={setToGrade} /></Card>
+      <Card title="Camera quizzes"><HubCameraQuizzes which="work" /></Card>
     </>}
 
     {tab === "readerGames" && <>
       <Card title="Game time" collapseKey="reader-playtime">
         <p className="mb-3 text-sm text-slate-600">Passing a book quiz unlocks unlimited A.R.I.S.E. games for the rest of that week (Monday to Sunday). You can turn that off for any student, lock their games, or set limits. Your locks always win.</p>
-        <HubReaderScope which="work" night={night}><PlayTimeManager /></HubReaderScope>
+        <HubPlayTime which="work" />
       </Card>
       {isTeacher && <Card title="Class closing hours" collapseKey="reader-closing">
         {!closing ? <Empty>Loading…</Empty> : <div className="space-y-4">
@@ -376,7 +374,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       </Card>
     </>}
 
-    {tab === "readerPrizes" && <Card title="Prizes"><p className="mb-3 text-sm text-slate-600">Prizes you put up for your class or school, and hand out yourself.</p><HubReaderScope which="work" night={night}><PrizeManager token={token} role="teacher" /></HubReaderScope></Card>}
+    {tab === "readerPrizes" && <Card title="Prizes"><HubPrizeManager which="work" token={token} role="teacher" /></Card>}
 
     {action && <StudentAction action={action} request={request} teachers={school?.teachers || []} onClose={() => setAction(null)}
       onDone={(text, reload) => { done(text); setAction(null); if (reload) { void loadSchool(); void loadClass(); } }} />}
