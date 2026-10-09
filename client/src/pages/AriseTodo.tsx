@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/context/AuthContext";
+import { useTodoCloud } from "@/lib/useTodoCloud";
+import AriseTodoSignIn from "./AriseTodoSignIn";
 import {
   ArrowLeft, CalendarDays, Check, CheckCircle2,
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
-  Sun, CalendarClock, CheckCheck, Download, ShieldCheck
+  Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle
 } from "lucide-react";
 
 type Priority = "low" | "normal" | "high";
@@ -69,6 +72,36 @@ const read = (): Data => {
     return stored ? validate(JSON.parse(stored)) : fresh();
   } catch { return fresh(); }
 };
+const isValidTodo = (value: unknown): value is Data => {
+  try {
+    const data = validate(value);
+    return !!data.lists.length && data.tasks.length <= 5000;
+  } catch { return false; }
+};
+const mergeTodo = (cloud: Data, old: Data): Data => {
+  const lists = cloud.lists.map(list => ({ ...list }));
+  const listIds = new Set(lists.map(list => list.id));
+  const rename = new Map<string, string>();
+  for (const list of old.lists) {
+    const byName = lists.find(row => row.name.toLowerCase() === list.name.toLowerCase());
+    if (byName) { rename.set(list.id, byName.id); continue; }
+    const key = listIds.has(list.id) ? uid() : list.id;
+    lists.push({ ...list, id: key });
+    listIds.add(key);
+    rename.set(list.id, key);
+  }
+  const tasks = cloud.tasks.map(task => ({ ...task }));
+  const existing = new Map(tasks.map(task => [task.id, JSON.stringify(task)]));
+  for (const task of old.tasks) {
+    const candidate = { ...task, listId: rename.get(task.listId) || lists[0].id };
+    const duplicate = existing.get(candidate.id);
+    if (duplicate === JSON.stringify(candidate)) continue;
+    candidate.id = duplicate ? uid() : candidate.id;
+    tasks.push(candidate);
+    existing.set(candidate.id, JSON.stringify(candidate));
+  }
+  return { version: 1, lists, tasks };
+};
 const nextDate = (due: string, repeat: Repeat): string => {
   if (!isDate(due) || repeat === "none") return "";
   const date = new Date(`${due}T12:00:00`);
@@ -93,7 +126,14 @@ const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 roun
 
 export default function AriseTodo() {
   const [, navigate] = useLocation();
-  const [data, setData] = useState<Data>(read);
+  const { user, token, logout } = useAuth();
+  const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
+  const { workspace: data, setWorkspace: setData } = sync;
+  const [legacy, setLegacy] = useState<Data | null>(() => {
+    const old = read();
+    return old.tasks.length || old.lists.some(list => !DEFAULT_LISTS.some(def => def.id === list.id && def.name === list.name)) ? old : null;
+  });
+  const [skipLegacy, setSkipLegacy] = useState(false);
   const [selectedList, setSelectedList] = useState("all");
   const [view, setView] = useState<View>("all");
   const [search, setSearch] = useState("");
@@ -101,23 +141,33 @@ export default function AriseTodo() {
   const [newListName, setNewListName] = useState("");
   const [addingList, setAddingList] = useState(false);
   const [message, setMessage] = useState("");
-  const [storageError, setStorageError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const currentDay = today();
 
   useEffect(() => {
-    try { localStorage.setItem(STORE, JSON.stringify(data)); setStorageError(""); }
-    catch { setStorageError("This browser could not save changes. Export a backup to keep your tasks."); }
-  }, [data]);
-  useEffect(() => {
-    const sync = (event: StorageEvent) => {
-      if (event.key === STORE && event.newValue) {
-        try { setData(validate(JSON.parse(event.newValue))); } catch {}
-      }
-    };
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
-  }, []);
+    setSkipLegacy(!!user && localStorage.getItem(`arise-todo-legacy-dismissed:${user.id}`) === "1");
+  }, [user?.id]);
+  const dismissLegacy = () => {
+    if (user) localStorage.setItem(`arise-todo-legacy-dismissed:${user.id}`, "1");
+    setSkipLegacy(true);
+  };
+  const importOldTasks = () => {
+    if (!legacy) return;
+    const candidate = mergeTodo(data, legacy);
+    if (candidate.tasks.length > 5000 || candidate.lists.length > 100 || new TextEncoder().encode(JSON.stringify(candidate)).length > 2_000_000) {
+      setMessage("Your old tasks exceed cloud storage limits. Please export a backup first."); return;
+    }
+    setData(candidate);
+    dismissLegacy();
+    setLegacy(null);
+    setMessage("Old tasks added to your account. Cloud sync is saving them.");
+  };
+  const signOut = async () => {
+    await sync.flush();
+    if (sync.view.kind !== "saved" && !window.confirm("Some changes may not have reached the cloud. Sign out anyway? A local safety copy is kept on this device.")) return;
+    logout();
+    navigate("/to-do");
+  };
   useEffect(() => {
     if (!message) return;
     const timeout = window.setTimeout(() => setMessage(""), 4500);
@@ -223,14 +273,14 @@ export default function AriseTodo() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (file.size > 16_000_000) { setMessage("File too large. Choose a To-Do backup under 16 MB."); return; }
+    if (file.size > 2_000_000) { setMessage("File too large. Choose a To-Do backup under 2 MB."); return; }
     try {
       const restored = validate(JSON.parse(await file.text()));
-      if (!window.confirm(`Restore ${restored.tasks.length} tasks and ${restored.lists.length} lists? This will replace tasks on this device.`)) return;
+      if (!window.confirm(`Restore ${restored.tasks.length} tasks and ${restored.lists.length} lists? This replaces the tasks saved in your account across devices. Export a backup first if needed.`)) return;
       setData(restored);
       setSelectedList("all");
       setView("all");
-      setMessage("Backup restored");
+      setMessage("Backup restored. Syncing it to your account…");
     } catch (error) { setMessage(error instanceof Error ? error.message : "This file is not a valid backup."); }
   };
   const selectedName = data.lists.find(list => list.id === selectedList)?.name || "All lists";
@@ -241,6 +291,12 @@ export default function AriseTodo() {
     { id: "upcoming", title: "Upcoming", icon: CalendarClock, count: upcoming.length },
     { id: "completed", title: "Completed", icon: CheckCheck, count: completed },
   ];
+
+  if (!user) return <AriseTodoSignIn />;
+  if (!sync.loaded) return <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#f6f7fc] px-4 text-center text-slate-800">
+    {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved To-Do lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
+  </div>;
+  const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
   return <div className="min-h-screen bg-[#f6f7fc] text-slate-900">
     <div className="flex min-h-screen w-full flex-col lg:flex-row">
@@ -278,7 +334,30 @@ export default function AriseTodo() {
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
             <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
           </header>
-          {storageError && <div role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">{storageError}</div>}
+
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 font-bold text-slate-600 ring-1 ring-slate-200"><Users size={15} /> {user.displayName || user.username}</span>
+            <span role="status" className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={15} /> : <RefreshCw size={15} />}{saveStatus}</span>
+            <button onClick={() => void signOut()} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold text-slate-500 hover:bg-white hover:text-rose-600"><LogOut size={15} /> Sign out</button>
+          </div>
+          {sync.view.kind === "retrying" && <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"><CloudOff size={18} /> Connection interrupted. Your changes are kept on this device and will be retried. <button className="underline" onClick={sync.retry}>Retry now</button></div>}
+          {sync.view.kind === "blocked" && <section className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert">
+            <div className="flex items-center gap-2"><AlertCircle size={18} /><strong>{sync.view.block === "conflict" ? "Tasks changed on another device" : "Cloud save needs attention"}</strong></div>
+            <p className="mt-2 font-normal">{sync.view.message || "Your changes are not yet saved to the cloud."}</p>
+            <div className="mt-3 flex flex-wrap gap-2">{sync.view.block === "conflict" ? <>
+              <button onClick={() => void sync.useNewest().catch((e: Error) => setMessage(e.message))} className={buttonClass + " bg-white text-rose-800 ring-1 ring-rose-200"}>Use newest cloud copy</button>
+              <button onClick={sync.keepMine} className={buttonClass + " bg-rose-700 text-white"}>Replace cloud copy with mine</button>
+            </> : <button onClick={sync.retry} className={buttonClass + " bg-white text-rose-800 ring-1 ring-rose-200"}>Retry save</button>}</div>
+          </section>}
+          {sync.recovery && <section className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900" role="alert">
+            <p className="font-black">Unsaved tasks found on this device</p><p className="mt-1">You have an older local draft that never finished syncing. Choose which copy to use.</p>
+            <div className="mt-3 flex flex-wrap gap-2"><button onClick={sync.recoverMine} className={buttonClass + " bg-violet-700 text-white"}>Recover my local tasks</button><button onClick={sync.discardRecovery} className={buttonClass + " bg-white text-violet-700 ring-1 ring-violet-200"}>Use cloud tasks</button></div>
+          </section>}
+          {legacy && !skipLegacy && !sync.recovery && <section className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+            <p className="font-black">Move your old browser tasks to your account?</p><p className="mt-1">{legacy.tasks.length} tasks and {legacy.lists.length} lists were saved in this browser before account syncing. They won't be moved without your permission.</p>
+            <div className="mt-3 flex flex-wrap gap-2"><button onClick={importOldTasks} className={buttonClass + " bg-indigo-700 text-white"}>Add old tasks to my account</button><button onClick={dismissLegacy} className={buttonClass + " bg-white text-indigo-700 ring-1 ring-indigo-200"}>Not now</button></div>
+          </section>}
+
           {message && <div role="status" className="mt-5 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm font-semibold text-violet-800">{message}</div>}
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -335,8 +414,8 @@ export default function AriseTodo() {
                 {upcoming.length ? <div className="mt-4 space-y-3">{upcoming.slice(0, 5).map(task => <button key={task.id} onClick={() => setEditing({ ...task })} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 pb-3 text-left last:border-b-0 last:pb-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{prettyDate(task.due)}</span></button>)}</div> : <p className="mt-3 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
               </section>
               <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
-                <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-600" /><h3 className="text-sm font-extrabold">Your data, your device</h3></div>
-                <p className="mt-2 text-xs leading-5 text-slate-500">This version saves tasks in this browser only. It does not yet sync lists or assignments with other people or devices.</p>
+                <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-600" /><h3 className="text-sm font-extrabold">Your tasks, your account</h3></div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">Everything is saved to your signed-in A.R.I.S.E. account and syncs between your devices. A safety copy stays in this browser if your connection drops. Assignments are still labels, not invitations to other people.</p>
                 <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore To-Do backup" />
                 <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
