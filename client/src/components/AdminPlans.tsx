@@ -29,9 +29,9 @@ function cookieToken(): string | null {
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "No end date");
 const select = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 const KIND_LABEL: Record<PlanKind, string> = {
-  school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Teacher Hub · School", hub_teacher: "Teacher Hub · Teacher",
+  school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Arise WorkHub · School", hub_teacher: "Arise WorkHub · Teacher",
   social: "Arise Social · Account (old)", bundle_family: "Learning Bundle · Family", bundle_teacher: "Learning Bundle · Class (old)",
-  todo_family: "To-Do · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "Arise Social · Class",
+  todo_family: "LifeHub · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "Arise Social · Class",
 };
 /** Plans given to one parent account, picked by its ID. */
 const byAccountId = (k: PlanKind) => k === "social" || k === "bundle_family" || k === "todo_family";
@@ -93,12 +93,12 @@ export default function AdminPlans() {
   };
   const grant = async () => {
     if (!ownerId) { setNote({ ok: false, text: isSchool(kind) ? "Choose a school." : "Choose a teacher." }); return; }
-    const what = kind.startsWith("hub_") ? "Teacher Hub" : "Premium";
+    const what = kind.startsWith("hub_") ? "Arise WorkHub" : "Premium";
     const ok = await post("grant", "/api/admin/plans/grant", { kind, ownerId: Number(ownerId), months: Number(months), blocks: Number(blocks), note: grantNote }, `${what} is on for them.`);
     if (ok) { setOwnerId(""); setGrantNote(""); }
   };
   const revoke = async (row: PlanRow) => {
-    const what = row.kind.startsWith("hub_") ? "Teacher Hub" : "Premium";
+    const what = row.kind.startsWith("hub_") ? "Arise WorkHub" : "Premium";
     if (!window.confirm(`Switch ${what} off for ${row.name}?`)) return;
     await post(`revoke-${row.kind}-${row.ownerId}`, "/api/admin/plans/revoke", { kind: row.kind, ownerId: row.ownerId }, `${what} is off for them.`);
   };
@@ -141,7 +141,7 @@ export default function AdminPlans() {
               </div>
               <p className="text-sm text-muted-foreground">
                 {data.enforced
-                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Every teacher gets a 30-day free trial, with Teacher Hub included. Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
+                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Every teacher gets a 30-day free trial, with Arise WorkHub included. Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
                   : "Nothing is locked for anyone. Turn the rules on when you are ready for the Free and Premium plans to apply."}
               </p>
             </div>
@@ -207,13 +207,13 @@ export default function AdminPlans() {
                   <select className={select} value={kind} onChange={(e) => { setKind(e.target.value as PlanKind); setOwnerId(""); }}>
                     <option value="school">Premium: a whole school (up to {PLANS.school.studentCap.toLocaleString("en-US")} students)</option>
                     <option value="teacher">Premium: one teacher</option>
-                    <option value="hub_school">Teacher Hub: a whole school (up to {PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)</option>
-                    <option value="hub_teacher">Teacher Hub: one teacher</option>
+                    <option value="hub_school">Arise WorkHub: a whole school (up to {PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)</option>
+                    <option value="hub_teacher">Arise WorkHub: one teacher</option>
                     <option value="math_class">Arise Math: one teacher's class</option>
                     <option value="history_class">Arise History: one teacher's class</option>
                     <option value="social_class">Arise Social: one teacher's class</option>
                     <option value="bundle_family">Learning Bundle: one family (parent account ID)</option>
-                    <option value="todo_family">A.R.I.S.E. To-Do: one family (parent account ID)</option>
+                    <option value="todo_family">Arise LifeHub: one family (parent account ID)</option>
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -248,14 +248,14 @@ export default function AdminPlans() {
                 )}
               </div>
               <Input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} maxLength={120} placeholder="Note for yourself (optional), such as PO 1234" />
-              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Teacher Hub on" : kind === "teacher" || kind === "school" ? "Switch Premium on" : `Switch ${KIND_LABEL[kind].split(" · ")[0]} on`}</Button>
+              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Arise WorkHub on" : kind === "teacher" || kind === "school" ? "Switch Premium on" : `Switch ${KIND_LABEL[kind].split(" · ")[0]} on`}</Button>
             </div>
 
             {/* Online payment */}
             <div className="space-y-3 pt-4 border-t border-border">
               <Label className="text-sm font-medium">Online payment (Stripe)</Label>
               <p className="text-sm text-muted-foreground">
-                Premium and Teacher Hub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Apart from a teacher's 30-day free trial, Teacher Hub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
+                Premium and Arise WorkHub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Apart from a teacher's 30-day free trial, Arise WorkHub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
               </p>
               <div className="space-y-1 text-sm">
                 <div className={data.stripe.keySet ? "text-green-400" : "text-muted-foreground"}>

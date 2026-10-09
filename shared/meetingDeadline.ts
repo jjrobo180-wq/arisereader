@@ -1,4 +1,4 @@
-// Teacher Hub: the IEP deadline of a meeting. Step 1 of the meeting steps asks for the
+// Arise WorkHub: the IEP deadline of a meeting. Step 1 of the meeting steps asks for the
 // deadline (not a meeting time); step 2 then suggests times before it. The deadline is the
 // same date as the student's "IEP deadline" (or "Reevaluation deadline") on the caseload,
 // so entering it in either place fills in the other.

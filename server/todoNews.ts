@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do: current news headlines (see shared/todoNews.ts). Cached for 10 minutes per feed.
+// Arise LifeHub: current news headlines (see shared/todoNews.ts). Cached for 10 minutes per feed.
 import type { Express, RequestHandler } from "express";
 import { newsFeedUrl, parseNewsRss, type Headline } from "../shared/todoNews";
 
@@ -13,7 +13,7 @@ export async function fetchHeadlines(topic: string, q = ""): Promise<{ items: He
   const hit = cache.get(url);
   if (hit && Date.now() - hit.at < TTL) return hit;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (ARISE To-Do news)", Accept: "application/rss+xml, application/xml" }, signal: AbortSignal.timeout(8000) });
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (ARISE LifeHub news)", Accept: "application/rss+xml, application/xml" }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error(`status ${r.status}`);
     const fresh = { at: Date.now(), items: parseNewsRss(await r.text()) };
     cache.set(url, fresh);

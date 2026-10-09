@@ -1,5 +1,5 @@
 // Notifications for phones and browsers (Web Push): turning them on, and sending
-// Teacher Hub and A.R.I.S.E. To-Do reminders to the devices that asked for them.
+// Arise WorkHub and Arise LifeHub reminders to the devices that asked for them.
 // One row per device; `hub` and `todo` say which reminders that device turned on.
 import type { Express, RequestHandler } from "express";
 import { supabase } from "./supabase";
@@ -71,7 +71,7 @@ export async function notifyUser(userId: number, message: PushMessage, only?: Pu
   return delivered;
 }
 
-/** Devices saved before To-Do reminders existed were all Teacher Hub devices. */
+/** Devices saved before LifeHub reminders existed were all Arise WorkHub devices. */
 const wants = (row: Row, app: PushApp) => (app === "hub" ? row.hub !== false : row.todo === true);
 
 const PAGE = 500;
@@ -90,7 +90,7 @@ async function allSubscriptions(): Promise<Row[]> {
   return rows;
 }
 
-/** One pass: send the Teacher Hub reminders that are due. */
+/** One pass: send the Arise WorkHub reminders that are due. */
 export async function sendDueHubReminders(nowMs = Date.now()): Promise<number> {
   const keys = await pushKeys();
   if (!keys) return 0;
@@ -121,7 +121,7 @@ async function sendTo(row: Row, due: { key: string; title: string; body: string;
   const next: Record<string, number> = {};
   for (const [key, at] of Object.entries(row.sent || {})) if (nowMs - Number(at) < KEEP_SENT_MS) next[key] = Number(at);
   for (const reminder of due) next[reminder.key] = nowMs; // mark first, so a slow phone service can't cause a repeat
-  row.sent = next; // a device with Hub and To-Do reminders keeps both sets of marks
+  row.sent = next; // a device with Hub and LifeHub reminders keeps both sets of marks
   await supabase.from("push_subscriptions").update({ sent: next, last_used_at: new Date(nowMs).toISOString() }).eq("id", row.id);
   let count = 0;
   for (const reminder of due) {
@@ -153,7 +153,7 @@ async function withHeadlines(list: TodoReminder[]): Promise<TodoReminder[]> {
 
 let todoAllowed: (userId: number) => Promise<boolean> = async () => true;
 
-/** One pass: send the A.R.I.S.E. To-Do reminders that are due. */
+/** One pass: send the Arise LifeHub reminders that are due. */
 export async function sendDueTodoReminders(nowMs = Date.now(), rows?: Row[]): Promise<number> {
   const keys = await pushKeys();
   if (!keys) return 0;
@@ -163,14 +163,14 @@ export async function sendDueTodoReminders(nowMs = Date.now(), rows?: Row[]): Pr
   let sentCount = 0;
   for (let i = 0; i < userIds.length; i += WORKSPACE_CHUNK) {
     const { data: spaces, error } = await supabase.from("arise_todo_workspaces").select("user_id, workspace").in("user_id", userIds.slice(i, i + WORKSPACE_CHUNK));
-    if (error) { console.error("[push] could not read To-Do lists for reminders", error.message); continue; }
+    if (error) { console.error("[push] could not read LifeHub lists for reminders", error.message); continue; }
     for (const space of spaces || []) {
       const userId = Number((space as any).user_id);
       const devices = devicesOf.get(userId) || [];
       const due = devices.map((row) => dueTodoReminders((space as any).workspace, nowMs, row.time_zone || "UTC", row.sent || {}));
       if (!due.some((list) => list.length)) continue;
       for (let d = 0; d < due.length; d++) due[d] = await withHeadlines(due[d]);
-      // Reminders stop when someone's To-Do ends (checked only when there is something to send).
+      // Reminders stop when someone's LifeHub ends (checked only when there is something to send).
       if (!(await todoAllowed(userId).catch(() => true))) continue;
       for (let d = 0; d < devices.length; d++) sentCount += await sendTo(devices[d], due[d], nowMs, keys);
     }
@@ -185,7 +185,7 @@ export function startHubReminderTicker() {
     ticking = true;
     const now = Date.now();
     try { await sendDueHubReminders(now); } catch (error: any) { console.error("[push] reminder pass failed", error?.message); }
-    try { await sendDueTodoReminders(now); } catch (error: any) { console.error("[push] To-Do reminder pass failed", error?.message); }
+    try { await sendDueTodoReminders(now); } catch (error: any) { console.error("[push] LifeHub reminder pass failed", error?.message); }
     finally { ticking = false; }
   }, TICK_MS);
   timer.unref?.();
@@ -276,13 +276,13 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     if (wait) return res.status(429).json({ message: `That's a lot of tests. Try again in ${waitWords(wait)}.` });
     testSends.fail(who);
     const delivered = await notifyUser(Number(req.user.id), which === "hub"
-      ? { title: "Notifications are on", body: "You'll get reminders from your Teacher Hub here.", url: HUB_REMINDER_URL, tag: "test" }
-      : { title: "Notifications are on", body: "You'll get reminders from A.R.I.S.E. To-Do here.", url: TODO_REMINDER_URL, tag: "todo-test" }, which);
+      ? { title: "Notifications are on", body: "You'll get reminders from your Arise WorkHub here.", url: HUB_REMINDER_URL, tag: "test" }
+      : { title: "Notifications are on", body: "You'll get reminders from Arise LifeHub here.", url: TODO_REMINDER_URL, tag: "todo-test" }, which);
     if (!delivered) return res.status(409).json({ message: "No phone is signed up yet. Turn notifications on first." });
     res.json({ ok: true, delivered });
   };
 
-  // Teacher Hub reminders are part of the Hub, so only Hub teachers can turn them on.
+  // Arise WorkHub reminders are part of the Hub, so only Hub teachers can turn them on.
   app.post("/api/push/subscribe", authMiddleware, async (req: any, res) => {
     if (!(await deps.hubGate(req, res))) return;
     return subscribe("hub")(req, res);
@@ -298,7 +298,7 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     res.json(data ? { hub: wants(data as Row, "hub"), todo: wants(data as Row, "todo") } : { hub: false, todo: false });
   });
 
-  // A.R.I.S.E. To-Do reminders sit behind the To-Do add-on gate (everything under /api/arise-todo).
+  // Arise LifeHub reminders sit behind the LifeHub add-on gate (everything under /api/arise-todo).
   const realAccount = (req: any, res: any, next: any) => {
     if (req.adminPreview || !Number.isSafeInteger(Number(req.user?.id))) return res.status(403).json({ message: "Sign in to your own account to turn on reminders." });
     next();

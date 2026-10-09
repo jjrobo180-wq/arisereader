@@ -1,4 +1,4 @@
-// Teacher Hub: reminders sent from the Apple Reminders app (by an iPhone Shortcut) become to-dos.
+// Arise WorkHub: reminders sent from the Apple Reminders app (by an iPhone Shortcut) become to-dos.
 // One way only: Apple Reminders to the Hub. Nothing is written back to the Reminders app.
 import type { Task } from "./teacherHub";
 

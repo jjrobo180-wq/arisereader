@@ -1,4 +1,4 @@
-// Teacher Hub: the Calendar tab. Events the teacher types in, events added with
+// Arise WorkHub: the Calendar tab. Events the teacher types in, events added with
 // AI or from a calendar file, and calendars connected by their link (Google,
 // Outlook, Apple or any other calendar that can be shared as a link).
 import { PinButton } from "./HubPins";

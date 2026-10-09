@@ -1,9 +1,9 @@
 // Plans and pricing. Public: anyone can open it without an account.
 // Free is for students and their parents; Class is for teachers and schools
 // (the plan the rest of the code calls Premium). Each card lists its add-ons right
-// under its prices: Teacher Hub, Arise Math, Arise History, Arise Social and
-// A.R.I.S.E. To-Do for a class, and the Learning Bundle and To-Do for a family.
-// Class and Teacher Hub start with a 30-day free trial, and so does every add-on.
+// under its prices: Arise WorkHub, Arise Math, Arise History, Arise Social and
+// Arise LifeHub for a class, and the Learning Bundle and LifeHub for a family.
+// Class and Arise WorkHub start with a 30-day free trial, and so does every add-on.
 // Every price and limit on this page comes from shared/plans.ts.
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
@@ -74,7 +74,7 @@ const hubBlock = H.studentsPerBlock.toLocaleString("en-US");
 // and the price; tapping it opens the rest.
 type Addon = { id: string; name: string; tag: string; amount: string; per: string; detail: string; items: Item[] };
 const CLASS_ADDONS: Addon[] = [
-  { id: "hub", name: "Teacher Hub", tag: "Caseloads, IEP timelines, lessons and grades",
+  { id: "hub", name: "Arise WorkHub", tag: "Caseloads, IEP timelines, lessons and grades",
     amount: usd(H.monthlyCents), per: "a month",
     detail: `One teacher: ${usd(H.monthlyCents)} a month for up to ${hubBlock} students, plus ${usd(H.monthlyCents)} for each extra ${hubBlock}. Whole school: ${usd(H.schoolYearlyCents)} a year for up to ${H.schoolStudentCap.toLocaleString("en-US")} students, a full 12 months. It works with or without Class, and starts with a ${DAYS}-day free trial.`,
     items: [
@@ -97,9 +97,9 @@ const CLASS_ADDONS: Addon[] = [
     amount: usd(CA.socialCents), per: "a month",
     detail: `For a class of up to ${CA.seats} students, on top of Class. ${DAYS} days free first, no card needed. When a class has all three, families who were paying for the Learning Bundle get their unused days refunded.`,
     items: ["Trades, the military, teaching, health care, tech and college paths, with quests and events", "You approve every student post, and there are no private messages"] },
-  { id: "todo", name: "A.R.I.S.E. To-Do", tag: "Comes with Teacher Hub",
+  { id: "todo", name: "Arise LifeHub", tag: "Comes with Arise WorkHub",
     amount: "Included", per: "",
-    detail: "Lists, chores, the family calendar, polls, trips, money and notes. Teachers get it with Teacher Hub: one subscription for both.",
+    detail: "Lists, chores, the family calendar, polls, trips, money and notes. Teachers get it with Arise WorkHub: one subscription for both.",
     items: [] },
 ];
 const FAMILY_ADDONS: Addon[] = [
@@ -107,7 +107,7 @@ const FAMILY_ADDONS: Addon[] = [
     amount: usd(BU.familyMonthlyCents), per: "a month",
     detail: `One plan covers the parent and every linked child. ${DAYS} days free first, no card needed. If every child's teacher adds all three for the class, the family's plan stops and the unused days are refunded to their card.`,
     items: BUNDLE_APPS },
-  { id: "family-todo", name: "A.R.I.S.E. To-Do", tag: "Lists, chores and the family calendar",
+  { id: "family-todo", name: "Arise LifeHub", tag: "Lists, chores and the family calendar",
     amount: usd(TD.familyMonthlyCents), per: "a month",
     detail: "Lists, chores, the family calendar, polls, trips, money and notes, saved to your account on every device. 30 days free first.",
     items: [] },
@@ -163,21 +163,21 @@ const QUESTIONS: [string, string][] = [
   ["Who gives the prizes?",
     "Parents, teachers and schools do. A.R.I.S.E. doesn't hand out prizes on any plan. On Free, a parent can add their own prize for their child. On Class, a teacher or school can also add prizes for a class or the whole school, and they show up right in the leaderboards and competitions."],
   ["Is there a free trial for teachers?",
-    `Yes. Every teacher gets ${DAYS} days free of the Class plan and Teacher Hub (with A.R.I.S.E. To-Do), plus ${DAYS} days of Arise Math, Arise History and Arise Social for the class. It starts the day you make your teacher account, no card is needed, and your dashboard counts down the days. Teachers who already had an account on ${mountainDay(PLANS.freeMonthFrom)} have theirs until ${mountainDay(freeMonthEnd(null))}.`],
+    `Yes. Every teacher gets ${DAYS} days free of the Class plan and Arise WorkHub (with Arise LifeHub), plus ${DAYS} days of Arise Math, Arise History and Arise Social for the class. It starts the day you make your teacher account, no card is needed, and your dashboard counts down the days. Teachers who already had an account on ${mountainDay(PLANS.freeMonthFrom)} have theirs until ${mountainDay(freeMonthEnd(null))}.`],
   ["How much is Class?",
     `A teacher pays ${usd(T.monthlyCents)} a month for up to ${block} students, plus ${usd(T.monthlyCents)} a month for each extra ${block}. A school pays ${usd(S.yearlyCents)} a year for up to ${schoolCap} students, and every teacher gets their own account. A school's year is a full 12 months, so summer reading clubs and competitions are covered.`],
   ["My school already uses A.R.I.S.E. What changes for us?",
     "Nothing this school year. Teachers and students at any school who signed up before October 1, 2026 keep everything they have today, free, for the full 2026–27 school year."],
-  ["What is Teacher Hub?",
+  ["What is Arise WorkHub?",
     `A separate add-on: a private workspace for caseloads, IEP timelines, lessons, notes, attendance, grades, parent contact and schedules. It is ${usd(H.monthlyCents)} a month for up to ${H.studentsPerBlock.toLocaleString("en-US")} students, plus ${usd(H.monthlyCents)} a month for each extra ${H.studentsPerBlock.toLocaleString("en-US")}, or ${usd(H.schoolYearlyCents)} a year for a whole school of up to ${H.schoolStudentCap.toLocaleString("en-US")} students.`],
   ["How much are Arise Math, Arise History and Arise Social?",
     `Every student, parent and teacher gets ${DAYS} days free, no card needed, with a countdown on their page. After that, a teacher adds each one for their class (up to ${CA.seats} students) on top of Class: Arise Math ${usd(CA.mathCents)}, Arise History ${usd(CA.historyCents)} and Arise Social ${usd(CA.socialCents)} a month. A family gets all three together in the Learning Bundle for ${usd(BU.familyMonthlyCents)} a month, for the parent and every linked child.`],
   ["We pay for the Learning Bundle and our child's teacher added the apps too. Do we keep paying?",
     "No. Once every child you've linked is in a class that has all three (Math, History and Social), your family plan stops and we refund the unused part of the month to your card."],
-  ["What does A.R.I.S.E. To-Do cost?",
-    `Parents get ${DAYS} days free, then it's ${usd(TD.familyMonthlyCents)} a month. Teachers get it with Teacher Hub: one subscription for both.`],
-  ["Is Teacher Hub included with Class or a free school?",
-    `No. After a teacher's ${DAYS}-day free trial, Teacher Hub is paid on its own. It isn't part of Class, the free 2026–27 school year, or any school that has Class at no charge.`],
+  ["What does Arise LifeHub cost?",
+    `Parents get ${DAYS} days free, then it's ${usd(TD.familyMonthlyCents)} a month. Teachers get it with Arise WorkHub: one subscription for both.`],
+  ["Is Arise WorkHub included with Class or a free school?",
+    `No. After a teacher's ${DAYS}-day free trial, Arise WorkHub is paid on its own. It isn't part of Class, the free 2026–27 school year, or any school that has Class at no charge.`],
 ];
 
 function Price({ who, detail, amount, per, premium }: { who: string; detail: ReactNode; amount: string; per: string; premium?: boolean }) {
@@ -218,7 +218,7 @@ export default function Pricing() {
   // A teacher goes to their plan page, where Class is bought. Anyone else starts by making a teacher account.
   const getClass = () => navigate(user?.isAdmin ? "/admin" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
   // The add-ons are bought on the plan page too.
-  const getAddon = () => navigate(user?.isAdmin ? "/teacher-hub" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
+  const getAddon = () => navigate(user?.isAdmin ? "/workhub" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
   const toCompare = () => document.getElementById("pr-compare")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (

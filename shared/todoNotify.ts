@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do: which phone notifications someone wants, when, and how many of each.
+// Arise LifeHub: which phone notifications someone wants, when, and how many of each.
 // Saved with the family workspace (so it follows the account to every device) and read by the
 // server's reminder pass in shared/todoReminders.ts.
 import type { Meal } from "./familyHub";
@@ -26,7 +26,7 @@ export const HEADS_UP_CHOICES = [5, 10, 15, 30, 60];
 export const WATER_MAX = 16;
 export const NEWS_MAX = 6;
 
-/** Out of the box: the reminders the To-Do always sent (morning summary, 15-minute heads-up, bills).
+/** Out of the box: the reminders the LifeHub always sent (morning summary, 15-minute heads-up, bills).
  *  Everything new starts off, so nobody is surprised by extra notifications. */
 export const defaultNotify = (): NotifyPrefs => ({
   memberId: "",

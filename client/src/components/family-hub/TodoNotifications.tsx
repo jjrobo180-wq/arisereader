@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do reminders on this phone or computer (Web Push), like Teacher Hub's:
+// Arise LifeHub reminders on this phone or computer (Web Push), like Arise WorkHub's:
 // a morning summary of the day, a heads-up 15 minutes before timed events and tasks,
 // and a nudge the day before a bill is due. iPhones need the site on the Home Screen first.
 import { useEffect, useState } from "react";
@@ -80,7 +80,7 @@ export default function TodoNotifications() {
       const sub = await currentSubscription();
       if (sub) {
         const result = await api(token, "/api/arise-todo/push/unsubscribe", { endpoint: sub.endpoint }).catch(() => ({}));
-        if (!result.stillUsed) await sub.unsubscribe(); // keep it when Teacher Hub reminders still use it
+        if (!result.stillUsed) await sub.unsubscribe(); // keep it when Arise WorkHub reminders still use it
       }
       setPhase("off");
     } finally { setBusy(false); }
@@ -97,7 +97,7 @@ export default function TodoNotifications() {
     <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid="todo-notifications">
       {phase === "checking" && <div className="flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> Checking…</div>}
       {phase === "install" && <>
-        <p className="font-semibold text-slate-800">On iPhone, add To-Do to your Home Screen first. Then you can turn reminders on.</p>
+        <p className="font-semibold text-slate-800">On iPhone, add LifeHub to your Home Screen first. Then you can turn reminders on.</p>
         <ol className="space-y-2">
           <li className="flex items-start gap-2"><Share size={16} className="mt-1 shrink-0 text-violet-600" /><span>Open this page in <b>Safari</b> and tap <b>Share</b> (the square with an arrow).</span></li>
           <li className="flex items-start gap-2"><SquarePlus size={16} className="mt-1 shrink-0 text-violet-600" /><span>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</span></li>

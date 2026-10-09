@@ -1,4 +1,4 @@
-// Signing out should stop Teacher Hub reminders on this phone or computer: they carry students' names,
+// Signing out should stop Arise WorkHub reminders on this phone or computer: they carry students' names,
 // and the next person to pick the device up must not see them. Only this device is turned off; the
 // teacher's other phones keep theirs. Never in the way of signing out: it gives up quietly.
 import { API_BASE } from "@/lib/queryClient";

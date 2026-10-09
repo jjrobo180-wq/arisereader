@@ -68,7 +68,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     return () => window.removeEventListener("eye-gaze-profile-photo-updated", handler);
   }, []);
 
-  if (!isEyeGazer || location === "/to-do") return <>{children}</>;
+  if (!isEyeGazer || location === "/to-do" || location === "/lifehub") return <>{children}</>;
 
   const nav = [
     { label: "Home", icon: Home, path: "/eye-gaze-home" },

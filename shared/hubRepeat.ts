@@ -1,4 +1,4 @@
-// Teacher Hub calendar: events that repeat. A repeating event is saved once, with its rhythm; the
+// Arise WorkHub calendar: events that repeat. A repeating event is saved once, with its rhythm; the
 // days it falls on are worked out when the calendar is drawn. One of those days (an "occurrence")
 // can be checked off, moved or removed on its own without touching the rest.
 import { addDays, addMonths } from "./hubDates";

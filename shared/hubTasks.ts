@@ -1,4 +1,4 @@
-// Teacher Hub: sorting, filtering and repeating to-dos.
+// Arise WorkHub: sorting, filtering and repeating to-dos.
 import { addDays, addMonths, dueState } from "./hubDates";
 import type { Task } from "./teacherHub";
 

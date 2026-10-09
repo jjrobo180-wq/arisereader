@@ -1,4 +1,4 @@
-// Teacher Hub: the ten steps of getting an IEP or re-evaluation meeting done.
+// Arise WorkHub: the ten steps of getting an IEP or re-evaluation meeting done.
 // A teacher can skip a step and come back to it; the meeting remembers where they are.
 
 export type StepPlan = { done: number[]; skipped: number[] };

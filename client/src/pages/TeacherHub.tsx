@@ -77,6 +77,8 @@ import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQu
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
+import { AdminTab, ReaderTab } from "@/components/teacher-hub/HubReader";
+import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNote";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -95,7 +97,9 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
   { id: "tasks", label: "Tasks", icon: <CheckSquare className="h-4 w-4" /> },
   { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
-  { id: "arise", label: "A.R.I.S.E.", icon: <BookHeart className="h-4 w-4" /> },
+  { id: "reader", label: "Teacher tools", icon: <GraduationCap className="h-4 w-4" /> },
+  { id: "arise", label: "Reading records", icon: <BookHeart className="h-4 w-4" /> },
+  { id: "admin", label: "Admin console", icon: <Settings2 className="h-4 w-4" /> },
   { id: "behavior", label: "Behavior", icon: <Sparkles className="h-4 w-4" /> },
   { id: "attendance", label: "Attendance", icon: <ClipboardCheck className="h-4 w-4" /> },
   { id: "gradebook", label: "Gradebook", icon: <GraduationCap className="h-4 w-4" /> },
@@ -145,7 +149,7 @@ function TeacherHubLogin() {
       <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[1.05fr_.95fr]">
         <div className="bg-slate-950 p-6 text-white sm:p-8 md:p-12">
           <div className="mb-6 text-xs font-semibold md:mb-16 uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</div>
-          <h1 className="max-w-lg text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Teacher Hub</h1>
+          <h1 className="max-w-lg text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Arise WorkHub</h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-slate-300">
             Your private teacher workspace for caseloads, IEP timelines, lessons, tasks, student notes,
             attendance, grades, family communication, A.R.I.S.E. records, schedules, and more.
@@ -174,7 +178,7 @@ function TeacherHubLogin() {
             </div>
             {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
             <PrimaryButton type="submit" disabled={busy}>
-              {busy ? "Signing in…" : "Open Teacher Hub"}
+              {busy ? "Signing in…" : "Open Arise WorkHub"}
             </PrimaryButton>
           </div>
           <div className="mt-8 border-t border-slate-100 pt-6">
@@ -193,8 +197,8 @@ function TeacherHubLogin() {
   );
 }
 
-/** Shown to a teacher without a Teacher Hub plan. */
-function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
+/** Shown to a teacher without a Arise WorkHub plan. */
+function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?: boolean }) {
   const H = PLANS.hub;
   const features = [
     "Caseloads with accommodations, IEP and reevaluation dates",
@@ -207,14 +211,14 @@ function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
     "Connect your Google, Outlook or Apple calendar",
   ];
   return (
-    <div className="min-h-screen bg-slate-100 px-3 py-6 sm:px-5 sm:py-12">
+    <div className={embedded ? "" : "min-h-screen bg-slate-100 px-3 py-6 sm:px-5 sm:py-12"}>
       <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[1.05fr_.95fr]">
         <div className="bg-slate-950 p-6 text-white sm:p-8 md:p-12">
           <div className="mb-6 flex flex-wrap items-center gap-3 md:mb-12">
             <span className="text-xs font-semibold uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</span>
             <span className="rounded-full border border-teal-300/50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-teal-200">Add-on</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Teacher Hub</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Arise WorkHub</h1>
           <p className="mt-4 text-base leading-7 text-slate-300">Your private teacher workspace, saved to your account and waiting on any device.</p>
           <ul className="mt-6 space-y-3 text-sm leading-6 text-slate-200">
             {features.map((f) => (
@@ -224,8 +228,8 @@ function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
         </div>
         <div className="flex flex-col gap-5 p-6 sm:p-8 md:p-12">
           <div>
-            <p className="text-sm font-semibold text-slate-500">Teacher Hub is a paid add-on</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Get Teacher Hub</h2>
+            <p className="text-sm font-semibold text-slate-500">Arise WorkHub is a paid add-on</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Get Arise WorkHub</h2>
           </div>
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 p-4">
@@ -237,13 +241,38 @@ function HubPaywall({ isAdmin }: { isAdmin: boolean }) {
               <div className="shrink-0 text-right"><div className="text-xl font-bold text-slate-950">{usd(H.schoolYearlyCents)}</div><div className="text-xs text-slate-500">a year</div></div>
             </div>
           </div>
-          <p className="text-sm text-slate-600">Teacher Hub starts with a 30-day free trial. After that it is sold on its own, and isn't included with A.R.I.S.E. Premium or a free school account. Everything you saved is kept.</p>
+          <p className="text-sm text-slate-600">Arise WorkHub starts with a 30-day free trial. After that it is sold on its own, and isn't included with A.R.I.S.E. Premium or a free school account. Everything you saved is kept.</p>
           <div className="flex flex-col gap-3 sm:flex-row">
-            {!isAdmin && <a href="#/billing" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 text-base font-semibold text-white hover:bg-slate-800" data-testid="hub-get">Get Teacher Hub</a>}
-            <a href="#/teacher-dashboard" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 px-5 text-base font-semibold text-slate-700 hover:bg-slate-50">Back to dashboard</a>
+            {!isAdmin && <a href="#/billing" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 text-base font-semibold text-white hover:bg-slate-800" data-testid="hub-get">Get Arise WorkHub</a>}
+            {!embedded && <a href="#/workhub" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 px-5 text-base font-semibold text-slate-700 hover:bg-slate-50">Back to WorkHub</a>}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** WorkHub once the free month is over: the A.R.I.S.E. Reader tools stay, everything else is locked. */
+function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolean }) {
+  const [plans, setPlans] = useState(false);
+  return (
+    <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 md:px-6">
+          <div className="min-w-0"><div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">Arise</div><div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div></div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden sm:contents"><HubSwitch current="hub" /></span>
+            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" /></button>
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto max-w-[1500px] space-y-4 px-4 py-4 pb-[max(5rem,env(safe-area-inset-bottom))] md:px-6" data-testid="workhub-reader-only">
+        <HubEndedNote which="work" upgradeHref="#/billing">
+          <button type="button" onClick={() => setPlans((v) => !v)} aria-expanded={plans} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">{plans ? "Hide plans" : "See plans"}</button>
+        </HubEndedNote>
+        {plans && <div className="-mx-3 sm:mx-0"><HubPaywall isAdmin={isAdmin} embedded /></div>}
+        <ReaderTab hideLifeHub />
+      </main>
     </div>
   );
 }
@@ -257,7 +286,16 @@ export default function TeacherHub() {
 function TeacherHubPage() {
   const { user, token, logout } = useAuth();
   // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
-  const [tab, setTab] = useState<HubTab>(() => (/[?&]mailbox=/.test(window.location.search) ? "iep" : "overview"));
+  // The old teacher dashboard address opens the A.R.I.S.E. Reader tab (see OpenHubTab in App.tsx).
+  const [tab, setTab] = useState<HubTab>(() => {
+    if (/[?&]mailbox=/.test(window.location.search)) return "iep";
+    try {
+      const asked = sessionStorage.getItem("workhub_tab");
+      sessionStorage.removeItem("workhub_tab");
+      if (asked === "reader" || asked === "admin") return asked;
+    } catch { /* Home */ }
+    return "overview";
+  });
   const [customize, setCustomize] = useState(false);
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
@@ -286,6 +324,7 @@ function TeacherHubPage() {
   // Opening the Hub and keeping it saved (see useHubWorkspace).
   const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
   const { workspace, setWorkspace, loaded, loadError, needsPlan, seats, view, bytes } = sync;
+  const trial = useHubTrial(token, "work", canUseHub && !user?.isAdmin);
   const toasts = useToasts();
   const latest = useRef(workspace);
   latest.current = workspace;
@@ -438,7 +477,7 @@ function TeacherHubPage() {
         <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
           <h1 className="mt-4 text-2xl font-bold text-slate-950">Teacher accounts only</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Sign in with an approved teacher account to open the Teacher Hub.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Sign in with an approved teacher account to open the Arise WorkHub.</p>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <GhostButton onClick={logout}><LogOut className="h-4 w-4" /> Sign out</GhostButton>
             <a href="#/teacher-signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create teacher account</a>
@@ -453,20 +492,21 @@ function TeacherHubPage() {
       <div className="min-h-screen bg-slate-100 px-5 py-16">
         <div className="mx-auto flex max-w-xl items-center justify-center gap-3 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-          <span className="text-sm font-medium text-slate-700">Opening your Teacher Hub…</span>
+          <span className="text-sm font-medium text-slate-700">Opening your Arise WorkHub…</span>
         </div>
       </div>
     );
   }
 
-  if (needsPlan) return <HubPaywall isAdmin={!!user.isAdmin} />;
+  // After the free month: only the A.R.I.S.E. Reader tools stay (the rest of WorkHub is kept, but locked).
+  if (needsPlan) return <ReaderOnly signOut={signOut} isAdmin={!!user.isAdmin} />;
 
   if (loadError) {
     return (
       <div className="min-h-screen bg-slate-100 px-5 py-16">
         <div className="mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
           <AlertTriangle className="mx-auto h-10 w-10 text-red-500" />
-          <h1 className="mt-4 text-2xl font-bold text-slate-950">Teacher Hub could not open</h1>
+          <h1 className="mt-4 text-2xl font-bold text-slate-950">Arise WorkHub could not open</h1>
           <p className="mt-2 text-sm text-slate-600">{loadError}</p>
           <button className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white" onClick={sync.reload}>
             Try again
@@ -476,17 +516,19 @@ function TeacherHubPage() {
     );
   }
 
-  const menu = visibleGroups(workspace.visibleTabs);
+  // The admin console shows for admins only.
+  const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
+  const menu = visibleGroups(visible);
   const group = groupOf(tab);
-  const subTabs = groupTabs(group.id, workspace.visibleTabs);
+  const subTabs = groupTabs(group.id, visible);
 
   return (
     <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:gap-4 md:px-6">
-          <a href={user.isAdmin ? "#/admin" : "#/teacher-dashboard"} className="min-w-0 rounded-xl" aria-label={user.isAdmin ? "Back to admin" : "Back to your dashboard"} title={user.isAdmin ? "Back to admin" : "Back to your dashboard"}>
-            <div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">A.R.I.S.E.</div>
-            <div className="truncate text-lg font-bold tracking-tight sm:text-xl">Teacher Hub</div>
+          <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="min-w-0 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
+            <div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">Arise</div>
+            <div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div>
           </a>
           <div className="flex shrink-0 items-center gap-2">
             <span className="hidden sm:contents"><HubSwitch current="hub" night={night} /></span>
@@ -502,7 +544,7 @@ function TeacherHubPage() {
               <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" data-testid="hub-more"><MoreHorizontal className="h-5 w-5" /></button>
               {more && (
                 <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl" data-testid="hub-more-menu">
-                  <a role="menuitem" href="#/to-do" onClick={() => setMore(false)} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><CheckCheck className="h-4 w-4" />Switch to To-Do</a>
+                  <a role="menuitem" href="#/lifehub" onClick={() => setMore(false)} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><CheckCheck className="h-4 w-4" />Switch to LifeHub</a>
                   <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
                   <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize tabs</button>
                   <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
@@ -523,19 +565,20 @@ function TeacherHubPage() {
             {menu.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setTab(openGroup(item.id, workspace.visibleTabs, lastInGroup))}
+                onClick={() => setTab(openGroup(item.id, visible, lastInGroup))}
                 aria-current={group.id === item.id ? "page" : undefined}
                 data-testid={`hub-menu-${item.id}`}
                 className={`flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition md:w-full ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
               >
                 {GROUP_ICON[item.id]}
-                <span className="whitespace-nowrap md:whitespace-normal">{groupLabel(item.id, workspace.visibleTabs)}</span>
+                <span className="whitespace-nowrap md:whitespace-normal">{groupLabel(item.id, visible)}</span>
               </button>
             ))}
           </div>
         </aside>
 
         <main className="min-w-0 space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
+          <HubTrialNote trial={trial} which="work" upgradeHref="#/billing" />
           <HubSetupBanner token={token} isAdmin={!!user.isAdmin} />
           <PinBanners workspace={workspace} setWorkspace={setWorkspace} />
           <SizeNotice bytes={bytes} onDownload={() => downloadHubCopy(workspace)} />
@@ -556,7 +599,7 @@ function TeacherHubPage() {
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
               <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu.</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {HUB_GROUPS.filter((g) => g.id !== "home").map((g) => (
+                {HUB_GROUPS.filter((g) => g.id !== "home").map((g) => ({ ...g, tabs: g.tabs.filter((t) => t !== "reader" && t !== "admin") })).filter((g) => g.tabs.length).map((g) => (
                   <div key={g.id} className="rounded-xl border border-slate-200 p-2" data-testid={`customize-${g.id}`}>
                     {g.tabs.length > 1 && <div className="flex items-center gap-2 px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{GROUP_ICON[g.id]}{g.label}</div>}
                     {g.tabs.map((t) => (
@@ -655,6 +698,8 @@ function TeacherHubPage() {
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
+          {tab === "reader" && <ReaderTab />}
+          {tab === "admin" && user.isAdmin && <AdminTab />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
           {tab === "attendance" && <Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} />}

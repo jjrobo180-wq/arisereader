@@ -1,4 +1,4 @@
-// Teacher Hub: the quick "add" pop-up (the + button on every screen, and Add event on the calendar).
+// Arise WorkHub: the quick "add" pop-up (the + button on every screen, and Add event on the calendar).
 // One short form that adds a calendar event, a reminder in "Reminders & to-dos", or both.
 import { isRepeat } from "./hubRepeat";
 import { clock12, type HubEvent, type Task, type Workspace } from "./teacherHub";

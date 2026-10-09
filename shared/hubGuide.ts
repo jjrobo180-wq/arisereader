@@ -1,4 +1,4 @@
-// Teacher Hub: the IEP guide. A teacher starts one guide for a student's IEP or
+// Arise WorkHub: the IEP guide. A teacher starts one guide for a student's IEP or
 // re-evaluation meeting. It is a copy of the checklist below that is theirs to
 // work through: steps are checked off, given notes, reworded, deleted or added.
 //

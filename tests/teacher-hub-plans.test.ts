@@ -122,7 +122,7 @@ test("checkout for a Teacher Hub teacher plan: $10 a month per 100 students", as
   assert.equal(f.get("line_items[0][quantity]"), "2");
   assert.equal(f.get("line_items[0][price_data][unit_amount]"), "1000");
   assert.equal(f.get("line_items[0][price_data][recurring][interval]"), "month");
-  assert.match(f.get("line_items[0][price_data][product_data][name]")!, /Teacher Hub for a teacher/);
+  assert.match(f.get("line_items[0][price_data][product_data][name]")!, /Arise WorkHub for a teacher/);
   assert.equal(f.get("metadata[kind]"), "hub_teacher");
 });
 

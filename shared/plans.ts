@@ -2,10 +2,10 @@
 //
 // Free is for students and their parents. Premium is for teachers and
 // schools, and their students get the Premium extras through them.
-// Teacher Hub is a separate add-on for teachers and schools, sold at the same
+// Arise WorkHub is a separate add-on for teachers and schools, sold at the same
 // prices as Premium. It is not part of the free year or a free school.
 // Every teacher gets a 30-day free trial of both: Premium (the teacher account,
-// called Class on the pricing page) and Teacher Hub.
+// called Class on the pricing page) and Arise WorkHub.
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
@@ -22,7 +22,7 @@ export const PLANS = {
     yearlyCents: 70000,
     studentCap: 1000,
   },
-  /** Teacher Hub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
+  /** Arise WorkHub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
   hub: {
     monthlyCents: 1000,
     studentsPerBlock: 100,
@@ -33,7 +33,7 @@ export const PLANS = {
   /**
    * Arise Social (/social/), the career-discovery add-on: $5 a month for each account that uses it.
    * Students, parents and teachers each need their own; a parent can pay for a linked child.
-   * Like Teacher Hub it is always paid: plan rules, the free year and free schools don't apply.
+   * Like Arise WorkHub it is always paid: plan rules, the free year and free schools don't apply.
    */
   social: {
     monthlyCents: 500,
@@ -62,12 +62,12 @@ export const PLANS = {
     socialCents: 700,
     seats: 100,
   },
-  /** A.R.I.S.E. To-Do for parents: $10 a month. Teachers get it with Teacher Hub. */
+  /** Arise LifeHub for parents: $10 a month. Teachers get it with Arise WorkHub. */
   todo: {
     familyMonthlyCents: 1000,
   },
   /**
-   * Every account gets 30 free days of the Learning Bundle and To-Do, no card needed.
+   * Every account gets 30 free days of the Learning Bundle and LifeHub, no card needed.
    * The days start when the account is made; for an account that was already there,
    * they start here instead: midnight on October 9, 2026, Mountain time.
    */
@@ -86,7 +86,7 @@ export const PLANS = {
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
   graceDays: 3,
   /**
-   * Every teacher's free trial: Premium (the teacher account) and Teacher Hub. It starts
+   * Every teacher's free trial: Premium (the teacher account) and Arise WorkHub. It starts
    * when the account is made. For a teacher who already had an account when the free
    * time began, it starts here instead: 8:36 pm on October 8, 2026, Mountain time.
    */
@@ -114,7 +114,7 @@ export function clampBlocks(blocks: unknown): number {
 
 /**
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
- * "hub_teacher" and "hub_school" are the Teacher Hub add-on.
+ * "hub_teacher" and "hub_school" are the Arise WorkHub add-on.
  */
 export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class";
 export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class"];
@@ -358,13 +358,13 @@ export function parentCanLink(linkedCount: number, opts: { enforced: boolean; pr
   return linkedCount < PLANS.parentMaxChildren;
 }
 
-// ─── Teacher Hub ─────────────────────────────────────────────────────────────
+// ─── Arise WorkHub ─────────────────────────────────────────────────────────────
 
 export type HubVia = "admin" | "hub-teacher-plan" | "hub-school-plan" | "free-month";
 export type HubAccess = { access: boolean; via: HubVia | null; seats: number | null; endsAt: string | null };
 
 /**
- * Can this person open Teacher Hub? With a Teacher Hub plan of their own or their
+ * Can this person open Arise WorkHub? With a Arise WorkHub plan of their own or their
  * school's, during a teacher's free month, or as the site admin. Unlike Premium it
  * does not depend on plan rules being on, and there is no free year, free school
  * or sample account.
@@ -397,7 +397,7 @@ export function socialAccessFor(person: PlanPerson | null | undefined, grant: Pl
 }
 export const SOCIAL_REQUIRED = "social_required";
 
-// ─── Free trial, Learning Bundle and To-Do ───────────────────────────────────
+// ─── Free trial, Learning Bundle and LifeHub ───────────────────────────────────
 
 /** When this account's 30 free days end (ISO). */
 export function trialEnd(createdAt: unknown): string {
@@ -415,8 +415,8 @@ export type AddonVia =
   | "class-plan"       // a teacher's class add-on for this app (the teacher, or a student in the class)
   | "social-plan"      // an Arise Social plan bought before the Learning Bundle existed
   | "child-in-class"   // a parent whose every linked child is covered by a class plan
-  | "hub"              // To-Do for a teacher, through Teacher Hub
-  | "todo-plan"        // To-Do for a parent
+  | "hub"              // LifeHub for a teacher, through Arise WorkHub
+  | "todo-plan"        // LifeHub for a parent
   | "trial";
 export type AddonAccess = { access: boolean; via: AddonVia | null; endsAt: string | null; trialEndsAt: string | null };
 
@@ -465,8 +465,8 @@ export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, 
 }
 
 /**
- * Can this person use A.R.I.S.E. To-Do? Parents with a To-Do plan or in their trial; teachers
- * with Teacher Hub (paid or in its free month). Everyone else keeps To-Do as before.
+ * Can this person use Arise LifeHub? Parents with a LifeHub plan or in their trial; teachers
+ * with Arise WorkHub (paid or in its free month). Everyone else keeps LifeHub as before.
  */
 export function todoAccessFor(person: PlanPerson | null | undefined, facts: { now?: number; todoGrant?: PlanGrant | null; hub?: HubAccess | null }): AddonAccess {
   const none: AddonAccess = { access: false, via: null, endsAt: null, trialEndsAt: null };
@@ -487,7 +487,7 @@ export const BUNDLE_REQUIRED = "bundle_required";
 export const TODO_REQUIRED = "todo_required";
 
 export const HUB_REQUIRED = "hub_required";
-export const hubMessage = "Teacher Hub is a paid add-on. Get it on your plan page.";
+export const hubMessage = "Arise WorkHub is a paid add-on. Get it on your plan page.";
 
 /** The message shown when something needs Premium. */
 export const PREMIUM_REQUIRED = "premium_required";

@@ -1,10 +1,10 @@
-// A.R.I.S.E. To-Do · Family Hub: everything a household keeps beside its to-do lists.
+// Arise LifeHub · Family Hub: everything a household keeps beside its to-do lists.
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
 export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news"];
@@ -73,7 +73,7 @@ export type Goal = {
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
 
-/** `hub`: a teacher's Teacher Hub calendar, read live from the Hub (nothing from it is copied here). */
+/** `hub`: a teacher's Arise WorkHub calendar, read live from the Hub (nothing from it is copied here). */
 export type Layers = { tasks: boolean; bills: boolean; trips: boolean; chores: boolean; hub: boolean };
 
 export type Family = {

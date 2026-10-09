@@ -1,4 +1,4 @@
-// Teacher Hub: bring reminders from the Apple Reminders app into the to-do list, one way. An iPhone Shortcut
+// Arise WorkHub: bring reminders from the Apple Reminders app into the to-do list, one way. An iPhone Shortcut
 // sends them to a private link; the Hub takes them in when it is open (and every minute while it is).
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Check, Copy, Loader2, RefreshCw } from "lucide-react";

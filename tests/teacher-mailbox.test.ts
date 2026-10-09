@@ -195,8 +195,8 @@ test("routes: start, callback back to the Hub, and disconnect", async () => {
   const start = await call("POST /api/teacher-hub/mailbox/start", { body: { provider: "google" } });
   const state = new URL(start.body.url).searchParams.get("state")!;
   assert.equal((await call("GET /api/mailbox/callback/google", { query: { state: "bad", code: "c" } })).redirect.startsWith(`${APP}/?mailbox=failed`), true);
-  assert.equal((await call("GET /api/mailbox/callback/google", { query: { error: "access_denied" } })).redirect, `${APP}/?mailbox=cancelled#/teacher-hub`);
-  assert.equal((await call("GET /api/mailbox/callback/google", { query: { state, code: "c" } })).redirect, `${APP}/?mailbox=connected#/teacher-hub`);
+  assert.equal((await call("GET /api/mailbox/callback/google", { query: { error: "access_denied" } })).redirect, `${APP}/?mailbox=cancelled#/workhub`);
+  assert.equal((await call("GET /api/mailbox/callback/google", { query: { state, code: "c" } })).redirect, `${APP}/?mailbox=connected#/workhub`);
   assert.equal((await call("GET /api/teacher-hub/mailbox", {})).body.connected.email, "m@s.org");
   assert.equal((await call("POST /api/teacher-hub/mailbox/disconnect", {})).code, 200);
   assert.equal((await call("GET /api/teacher-hub/mailbox", {})).body.connected, null);

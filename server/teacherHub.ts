@@ -1,6 +1,6 @@
-// Teacher Hub: a teacher's private workspace, saved to their account.
+// Arise WorkHub: a teacher's private workspace, saved to their account.
 //
-// Teacher Hub is a paid add-on. Only a teacher with a Teacher Hub plan of their
+// Arise WorkHub is a paid add-on. Only a teacher with a Arise WorkHub plan of their
 // own or their school's (or the site admin) can open or save it, and the
 // caseload can't grow past the students the plan covers.
 //
@@ -16,7 +16,7 @@ import { calendarEvents } from "../shared/hubHidden";
 type HubUser = { id?: number; role?: string; isAdmin?: boolean };
 
 export type TeacherHubDeps = {
-  /** Does this person have Teacher Hub? */
+  /** Does this person have Arise WorkHub? */
   hubAccess(user: HubUser): Promise<HubAccess>;
   /** Where workspaces are kept. Tests give their own. */
   store?: WorkspaceStore;
@@ -129,15 +129,15 @@ export function hubStudentCount(workspace: unknown): number {
   return Array.isArray(students) ? students.length : 0;
 }
 
-/** Students in a teacher's saved Teacher Hub caseload. */
+/** Students in a teacher's saved Arise WorkHub caseload. */
 export async function countHubStudents(teacherId: number, store: WorkspaceStore = createSupabaseWorkspaceStore()): Promise<number> {
   const row = await store.get(teacherId);
   return hubStudentCount(row?.workspace);
 }
 
 /**
- * The check every Teacher Hub request starts with. It answers the request itself
- * (and returns null) when this person can't use Teacher Hub.
+ * The check every Arise WorkHub request starts with. It answers the request itself
+ * (and returns null) when this person can't use Arise WorkHub.
  */
 export function createHubGate(deps: TeacherHubDeps) {
   return async (req: any, res: any): Promise<HubAccess | null> => {
@@ -150,7 +150,7 @@ export function createHubGate(deps: TeacherHubDeps) {
       hub = await deps.hubAccess(req.user);
     } catch (error: any) {
       console.error("[teacher-hub] plan check failed", error?.message);
-      res.status(500).json({ message: "Could not check your Teacher Hub plan. Try again in a moment." });
+      res.status(500).json({ message: "Could not check your Arise WorkHub plan. Try again in a moment." });
       return null;
     }
     if (!hub.access) {
@@ -164,7 +164,7 @@ export function createHubGate(deps: TeacherHubDeps) {
 const today = () => new Date().toISOString().slice(0, 10);
 
 function seatsMessage(seats: number) {
-  return `Your Teacher Hub plan covers ${seats.toLocaleString("en-US")} students. Add more on your plan page to grow your caseload.`;
+  return `Your Arise WorkHub plan covers ${seats.toLocaleString("en-US")} students. Add more on your plan page to grow your caseload.`;
 }
 
 export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHandler, deps: TeacherHubDeps) {
@@ -187,12 +187,12 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
       return res.json({ workspace: row?.workspace ?? {}, updatedAt: row?.updatedAt || null, seats: hub.seats });
     } catch (error: any) {
       console.error("[teacher-hub] failed to load workspace", error);
-      return res.status(500).json({ message: "Could not load your Teacher Hub workspace." });
+      return res.status(500).json({ message: "Could not load your Arise WorkHub workspace." });
     }
   });
 
   /**
-   * The teacher's own Hub calendar between two days, for A.R.I.S.E. To-Do's "Teacher Hub" calendar.
+   * The teacher's own Hub calendar between two days, for Arise LifeHub's "Arise WorkHub" calendar.
    * Read-only, and only what a calendar needs: repeats are worked out, hidden events and other
    * people's calendars are left out (the same events the Hub's own calendar shows).
    */
@@ -215,7 +215,7 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
       return res.json({ events });
     } catch (error: any) {
       console.error("[teacher-hub] failed to load the calendar", error);
-      return res.status(500).json({ message: "Could not load your Teacher Hub calendar." });
+      return res.status(500).json({ message: "Could not load your Arise WorkHub calendar." });
     }
   });
 
@@ -236,7 +236,7 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
     }
 
     if (Buffer.byteLength(serialized, "utf8") > MAX_WORKSPACE_BYTES) {
-      return res.status(413).json({ message: "This Teacher Hub workspace is too large to save.", code: "hub_too_large" });
+      return res.status(413).json({ message: "This Arise WorkHub workspace is too large to save.", code: "hub_too_large" });
     }
 
     // Which saved copy this one started from. Left out by a page opened before this check existed.
@@ -279,7 +279,7 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
       return res.json({ success: true, updatedAt: savedAt });
     } catch (error: any) {
       console.error("[teacher-hub] failed to save workspace", error);
-      return res.status(500).json({ message: "Could not save your Teacher Hub workspace." });
+      return res.status(500).json({ message: "Could not save your Arise WorkHub workspace." });
     }
   });
 

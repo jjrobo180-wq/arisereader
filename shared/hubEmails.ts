@@ -1,4 +1,4 @@
-// Teacher Hub: saved emails that need something done. An email can be flagged (it floats to the top),
+// Arise WorkHub: saved emails that need something done. An email can be flagged (it floats to the top),
 // and it can be put on the to-do list, where it is checked off like any other to-do. The to-do
 // remembers which email it came from, so the email shows whether it is still waiting or done.
 import type { EmailItem, Task, Workspace } from "./teacherHub";

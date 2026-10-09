@@ -1,4 +1,4 @@
-// Reads calendars into Teacher Hub: a calendar file (.ics) or a calendar's link
+// Reads calendars into Arise WorkHub: a calendar file (.ics) or a calendar's link
 // from Google, Outlook, Apple or anywhere else that publishes one. Every calendar
 // app can hand out its events in this one format, so the Hub can show them
 // without the teacher signing the Hub in to their mail account.

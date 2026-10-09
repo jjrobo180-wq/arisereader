@@ -1,4 +1,4 @@
-// Saving the Teacher Hub: the rules the page and the server both follow.
+// Saving the Arise WorkHub: the rules the page and the server both follow.
 //
 // The whole workspace is saved as one JSON object per teacher, so two things have to be
 // watched: that it stays under the size limit, and that a second phone or computer
@@ -54,9 +54,9 @@ export function blockMessage(block: SaveBlock, serverMessage = ""): string {
     case "too_large":
       return "Your Hub is full, so it can't save. Delete old attendance, notes or saved emails to make room.";
     case "seats_full":
-      return serverMessage || "Your Teacher Hub plan is full. Add more students on your plan page to keep growing your caseload.";
+      return serverMessage || "Your Arise WorkHub plan is full. Add more students on your plan page to keep growing your caseload.";
     case "plan":
-      return "Your Teacher Hub plan has ended, so changes can't be saved.";
+      return "Your Arise WorkHub plan has ended, so changes can't be saved.";
     case "signed_out":
       return "You were signed out, so changes can't be saved. Sign in again. What you typed is still on this screen.";
     case "rejected":

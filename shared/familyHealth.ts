@@ -1,4 +1,4 @@
-// Food & fitness for the A.R.I.S.E. To-Do Family Hub: a starter food list, activities,
+// Food & fitness for the Arise LifeHub Family Hub: a starter food list, activities,
 // goals and the daily math (calories remaining = goal − food + exercise).
 import type { ActivityLevel, DayEntry, DietStyle, FoodEntry, Health, HealthGoals, HealthProfile, Member, SavedFood, Sex } from "./familyHub";
 

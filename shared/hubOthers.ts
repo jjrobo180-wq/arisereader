@@ -1,4 +1,4 @@
-// Teacher Hub: other people's calendars.
+// Arise WorkHub: other people's calendars.
 //
 // A teacher plans meetings with people who keep their own calendars: a social worker, a psychologist,
 // a speech teacher, another teacher. Any of them can share a link to their calendar, and the teacher

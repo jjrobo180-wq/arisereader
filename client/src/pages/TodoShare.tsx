@@ -1,4 +1,4 @@
-// The page family opens from a To-Do share link. No account needed: the link is the key.
+// The page family opens from a LifeHub share link. No account needed: the link is the key.
 // Shows one part of someone's Family Hub as it is right now, or a poll to vote in.
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRoute } from "wouter";
@@ -60,7 +60,7 @@ export default function TodoShare() {
   return <div className="min-h-screen bg-[#f6f7fc] px-4 py-8 text-slate-900" data-testid="todo-share">
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 flex items-center justify-between gap-3 text-sm font-semibold text-slate-500">
-        <span>A.R.I.S.E. To-Do</span>
+        <span>Arise LifeHub</span>
         {data && <button type="button" onClick={() => void load()} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 hover:text-violet-700" aria-label="Refresh"><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> Refresh</button>}
       </div>
       {!data && !error && <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>}

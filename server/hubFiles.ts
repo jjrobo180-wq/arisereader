@@ -1,4 +1,4 @@
-// Reads the text out of files a teacher uploads to Teacher Hub: Excel (.xlsx),
+// Reads the text out of files a teacher uploads to Arise WorkHub: Excel (.xlsx),
 // Word (.docx), and plain text files. Both Office formats are ZIP files of XML,
 // so they are read here with Node's own zlib and nothing has to be installed.
 import { inflateRawSync } from "node:zlib";

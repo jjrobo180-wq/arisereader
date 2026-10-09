@@ -1,4 +1,4 @@
-// The small building blocks every Teacher Hub screen is made of.
+// The small building blocks every Arise WorkHub screen is made of.
 import { forwardRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 

@@ -1,4 +1,4 @@
-// Teacher Hub: reminders from the Apple Reminders app, one way into the Hub.
+// Arise WorkHub: reminders from the Apple Reminders app, one way into the Hub.
 //
 // An iPhone Shortcut sends the teacher's reminders to a private link (no sign-in, so the link is the key).
 // They wait in an inbox until the Hub is open, which turns them into to-dos through its normal save, so
@@ -84,8 +84,8 @@ export function registerAppleReminderRoutes(app: Express, authMiddleware: Reques
     const who = clientAddress(req);
     if (badLinks.retryAfter(who)) return res.status(429).json({ message: "Too many tries. Please wait and try again." });
     const found = checkAppleToken(deps.key(), String(req.params.token || ""));
-    if (!found) { badLinks.fail(who); return res.status(404).json({ message: "That link is not valid. Copy a fresh one from your Teacher Hub." }); }
-    if (found.version !== (await readVersion(found.userId))) return res.status(410).json({ message: "That link was replaced. Copy the new one from your Teacher Hub." });
+    if (!found) { badLinks.fail(who); return res.status(404).json({ message: "That link is not valid. Copy a fresh one from your Arise WorkHub." }); }
+    if (found.version !== (await readVersion(found.userId))) return res.status(410).json({ message: "That link was replaced. Copy the new one from your Arise WorkHub." });
     if (sends.retryAfter(String(found.userId))) return res.status(429).json({ message: "Too many sends this hour. Try again later." });
     const items = cleanReminders(req.body);
     if (!items.length) return res.status(400).json({ message: "No reminders came through. Each one needs a title." });

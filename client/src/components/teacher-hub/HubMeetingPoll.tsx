@@ -1,4 +1,4 @@
-// Teacher Hub: asking everyone which times work for an IEP or re-evaluation meeting.
+// Arise WorkHub: asking everyone which times work for an IEP or re-evaluation meeting.
 // The teacher offers a few times and picks the people (parents, staff, anyone else).
 // Each gets an email with their own link; answers show up here, and the teacher books a time.
 import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";

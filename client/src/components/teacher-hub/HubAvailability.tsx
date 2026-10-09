@@ -1,4 +1,4 @@
-// Teacher Hub: weekly availability (the times someone can usually meet), answering a poll for someone, and the polls other people invited you to.
+// Arise WorkHub: weekly availability (the times someone can usually meet), answering a poll for someone, and the polls other people invited you to.
 // The page says "availability" everywhere. In the code and the saved data the same times are still called free windows.
 import { useCallback, useEffect, useState } from "react";
 import { Check, Loader2, Plus, Trash2, X } from "lucide-react";

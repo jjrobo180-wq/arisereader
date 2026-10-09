@@ -297,6 +297,12 @@ function AuthenticatedNavigationTracker() {
   return null;
 }
 
+/** Opens a hub on one of its tabs (the tab is passed through this tab's session storage). */
+function OpenHubTab({ to, storageKey, value }: { to: string; storageKey: string; value: string }) {
+  try { (storageKey === "arise-todo-section" ? localStorage : sessionStorage).setItem(storageKey, value); } catch { /* opens on its usual first tab */ }
+  return <Redirect to={to} replace />;
+}
+
 function AppRoutes() {
   const { user, isLoading } = useAuth();
   // Eye-gaze mode is only for non-privileged learner accounts. Admin,
@@ -312,6 +318,9 @@ function AppRoutes() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch>
+      <Route path="/lifehub">
+        <TodoGate><AriseTodo /></TodoGate>
+      </Route>
       <Route path="/to-do">
         <TodoGate><AriseTodo /></TodoGate>
       </Route>
@@ -319,13 +328,13 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/register-independent">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
@@ -339,17 +348,21 @@ function AppRoutes() {
       <Route path="/parent-signup">
         <ParentSignup />
       </Route>
+      {/* The parent portal and the teacher dashboard now live inside the hubs (Arise LifeHub and Arise WorkHub). */}
       <Route path="/parent-dashboard">
-        <ProtectedRoute><ParentDashboard /></ProtectedRoute>
+        {user && user.role !== "parent" ? <ProtectedRoute><ParentDashboard /></ProtectedRoute> : <OpenHubTab to="/lifehub" storageKey="arise-todo-section" value="reader" />}
       </Route>
       <Route path="/teacher-dashboard">
-        <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
+        <OpenHubTab to="/workhub" storageKey="workhub_tab" value="reader" />
+      </Route>
+      <Route path="/workhub">
+        <TeacherHub />
       </Route>
       <Route path="/teacher-hub">
         <TeacherHub />
       </Route>
       <Route path="/hub">
-        <Redirect to="/teacher-hub" replace />
+        <Redirect to="/workhub" replace />
       </Route>
       <Route path="/teacher-scenes">
         {user && (user.role === "teacher" || user.isAdmin)
@@ -651,7 +664,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/to-do", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren"];
+const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);

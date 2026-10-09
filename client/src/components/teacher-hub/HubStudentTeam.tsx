@@ -1,4 +1,4 @@
-// Teacher Hub: a student's disabilities and the people on their IEP team.
+// Arise WorkHub: a student's disabilities and the people on their IEP team.
 //
 // StudentTeamFields is the part of the student form where they are typed. It has no
 // save button of its own: it is saved with the student, by "Add student" or "Save changes".

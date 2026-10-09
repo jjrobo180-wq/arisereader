@@ -40,7 +40,8 @@ type ClubClosingSchedule = { enabled: boolean; start: string; end: string; days:
 
 type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "camera-quizzes" | "comprehension" | "grade-changes" | "growth-check" | "club-controls" | "prizes";
 
-export default function TeacherDashboard() {
+/** The teacher's A.R.I.S.E. Reader tools. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader tab, without its own page header. */
+export default function TeacherDashboard({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [tab, setTab] = useState<Tab>(() => {
@@ -409,9 +410,10 @@ export default function TeacherDashboard() {
   const pendingCount = allPending.length + pendingQuizzes.length;
 
   if (!user || !authorized) return null;
-  return <main style={styles.page}>
-    <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><NotificationBell refreshKey={bellRefreshKey} onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} /><button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>
-    {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={styles.content}>
+  const bell = <NotificationBell refreshKey={bellRefreshKey} onNavigate={(type, id) => { if (type === "request") setTab("book-requests"); else if (type === "user") setTab("pending"); else if (type === "ai_quiz") setTab("all-students"); }} />;
+  return <main style={embedded ? { ...styles.page, minHeight: 0, borderRadius: 24, padding: "18px clamp(12px, 3vw, 32px) 32px" } : styles.page} data-testid={embedded ? "workhub-reader-dashboard" : undefined}>
+    {embedded ? <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, maxWidth: 1200, margin: "0 auto" }}><h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em" }}>Teacher tools</h2>{bell}</div> : <header style={styles.header}><button onClick={() => navigate("/library")} style={styles.subtleButton} data-testid="button-back-library"><ArrowLeft size={19} /> Library</button><h1 style={styles.title}>Teacher Dashboard</h1><div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>{bell}<button onClick={() => { if (window.confirm("Are you sure you want to log out?")) { logout(); navigate("/"); } }} style={styles.subtleButton} data-testid="button-teacher-logout">Logout <LogOut size={19} /></button></div></header>}
+    {!accountApproved ? <section style={styles.notice} role="status" data-testid="status-teacher-pending">Your account is pending approval by the administrator.</section> : <section style={embedded ? { ...styles.content, marginTop: 18 } : styles.content}>
       <button onClick={() => navigate("/teacher-arise-2")} style={styles.arise2Banner} data-testid="button-teacher-arise-2">
         <span style={styles.arise2Icon}><Sparkles size={20} /></span>
         <span style={{ flex: 1, minWidth: 0 }}>

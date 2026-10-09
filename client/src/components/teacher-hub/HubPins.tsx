@@ -1,4 +1,4 @@
-// Teacher Hub: pinned banners across the top (up to five) and the Pin button for a to-do, event or meeting.
+// Arise WorkHub: pinned banners across the top (up to five) and the Pin button for a to-do, event or meeting.
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Check, Pencil, Pin as PinIcon, PinOff, X } from "lucide-react";
 import { MAX_PINS, PIN_COLORS, cleanColor, isPinned, resolvePins, textOn, togglePin, type PinKind } from "@shared/hubPins";

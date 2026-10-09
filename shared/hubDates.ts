@@ -1,4 +1,4 @@
-// Teacher Hub: dates the way a person says them ("Today", "Tomorrow", "Mon, Oct 12").
+// Arise WorkHub: dates the way a person says them ("Today", "Tomorrow", "Mon, Oct 12").
 // All days are YYYY-MM-DD and are compared as calendar days, so a time zone never shifts them.
 
 const DAY = 86_400_000;

@@ -21,7 +21,7 @@ export type PlanInfo = {
   students?: number;
   teacherPlan?: PlanView | null;
   school?: { id: number; name: string; students: number; plan: PlanView | null } | null;
-  /** Teacher Hub, the add-on. Teachers and the admin only. */
+  /** Arise WorkHub, the add-on. Teachers and the admin only. */
   hub?: HubInfo;
 };
 export type HubInfo = {

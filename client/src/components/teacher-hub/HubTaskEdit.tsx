@@ -1,4 +1,4 @@
-// Teacher Hub: the pop-up that adds a to-do or changes one that is already on the list, and
+// Arise WorkHub: the pop-up that adds a to-do or changes one that is already on the list, and
 // checking to-dos off with a way back. Used by Reminders & to-dos and by the To do card on Home.
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Trash2, Undo2 } from "lucide-react";

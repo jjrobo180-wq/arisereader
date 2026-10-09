@@ -43,7 +43,7 @@ const authHeaders = (token: string | null): Record<string, string> => (token ? {
 /** The workspace out of a server answer, or an error if the answer is not a Hub. */
 function workspaceFrom(data: any): Workspace {
   if (!data || typeof data.workspace !== "object" || data.workspace === null || Array.isArray(data.workspace)) {
-    throw new Error("Teacher Hub sent back something unexpected, so nothing was opened or changed. Try again in a moment.");
+    throw new Error("Arise WorkHub sent back something unexpected, so nothing was opened or changed. Try again in a moment.");
   }
   return normalizeWorkspace(data.workspace);
 }
@@ -73,7 +73,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
       .then(async (r) => {
         const data = await r.json().catch(() => null);
         if (r.status === 402 && data?.code === HUB_REQUIRED) return { needsPlan: true } as const;
-        if (!r.ok) throw new Error(data?.message || "Could not load Teacher Hub.");
+        if (!r.ok) throw new Error(data?.message || "Could not load Arise WorkHub.");
         return { data, start: workspaceFrom(data) } as const;
       })
       .then((result) => {
@@ -109,7 +109,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
       })
       .catch((err) => {
         if (cancelled) return;
-        setLoadError(err?.message || "Could not load Teacher Hub.");
+        setLoadError(err?.message || "Could not load Arise WorkHub.");
         setLoaded(true);
       });
     return () => { cancelled = true; };

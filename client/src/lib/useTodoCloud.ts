@@ -1,4 +1,4 @@
-// Account-backed To-Do sync: local safety copy + automatic cloud saves,
+// Account-backed LifeHub sync: local safety copy + automatic cloud saves,
 // periodic cross-device refresh, and an explicit choice when two devices edit at once.
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { API_BASE } from "@/lib/queryClient";

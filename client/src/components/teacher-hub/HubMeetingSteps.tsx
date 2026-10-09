@@ -1,4 +1,4 @@
-// Teacher Hub: the ten steps for getting an IEP or re-evaluation meeting done, all in one pop-up.
+// Arise WorkHub: the ten steps for getting an IEP or re-evaluation meeting done, all in one pop-up.
 // Step 1 adds the meeting with its IEP deadline (filled in from the student's caseload
 // date) and who is coming (team and parents), step 2 finds a time for everyone before that
 // deadline, and step 5 is the checklist and messages. Nothing leaves this screen. Any step can be skipped

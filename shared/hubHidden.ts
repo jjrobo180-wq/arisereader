@@ -1,4 +1,4 @@
-// Teacher Hub calendar: hiding events that are on the teacher's calendar but are not theirs to go to
+// Arise WorkHub calendar: hiding events that are on the teacher's calendar but are not theirs to go to
 // (a family calendar's "Ari: parallel play" that someone else takes her to). A hidden event is not
 // shown, does not count as busy, and sends no reminder. Nothing is deleted: it can be shown again.
 import { isOthers } from "./hubOthers";

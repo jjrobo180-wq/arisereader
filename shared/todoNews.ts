@@ -1,4 +1,4 @@
-// Current news for the A.R.I.S.E. To-Do: headlines read from Google News RSS feeds.
+// Current news for the Arise LifeHub: headlines read from Google News RSS feeds.
 export type Headline = { title: string; source: string; link: string; published: string };
 export const NEWS_TOPICS = [
   { id: "top", label: "Top stories" }, { id: "local", label: "Local" }, { id: "NATION", label: "U.S." }, { id: "WORLD", label: "World" },

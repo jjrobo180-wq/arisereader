@@ -1,4 +1,4 @@
-// Teacher Hub: booking a meeting time. A meeting owns exactly one calendar event, so booking
+// Arise WorkHub: booking a meeting time. A meeting owns exactly one calendar event, so booking
 // again (a "Switch" to another time) moves it instead of adding a second one.
 import { markDone } from "./meetingSteps";
 import type { HubEvent, Workspace } from "./teacherHub";

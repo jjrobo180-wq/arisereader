@@ -1,4 +1,4 @@
-// Teacher Hub: tabs that belong together share one place in the menu (goals and minutes, tasks and notes...). Inside, a row of buttons switches
+// Arise WorkHub: tabs that belong together share one place in the menu (goals and minutes, tasks and notes...). Inside, a row of buttons switches
 // between them. The tabs themselves (and "Customize tabs") are unchanged, so a link to
 // "tasks" still opens Tasks, now inside "Tasks & Notes".
 import type { HubTab } from "./teacherHub";
@@ -7,6 +7,8 @@ export type HubGroupId = "home" | "calendar" | "caseload" | "progress" | "iep" |
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
   { id: "home", label: "Home", tabs: ["overview"] },
+  // Arise WorkHub is the space for every A.R.I.S.E. program: the Reader's teacher tools come first.
+  { id: "arise", label: "A.R.I.S.E. Reader", tabs: ["reader", "arise", "admin"] },
   { id: "calendar", label: "Calendar & Schedules", tabs: ["calendar", "schedules"] },
   { id: "caseload", label: "Caseload", tabs: ["caseload"] },
   { id: "iep", label: "IEP & Meetings", tabs: ["iep"] },
@@ -15,7 +17,6 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "classroom", label: "Lessons & Grades", tabs: ["lessons", "gradebook"] },
   { id: "behavior", label: "Behavior & Attendance", tabs: ["behavior", "attendance"] },
   { id: "family", label: "Parents & Email", tabs: ["parents", "email"] },
-  { id: "arise", label: "A.R.I.S.E.", tabs: ["arise"] },
 ];
 
 /** What a tab is called on the row of buttons inside its group. */
@@ -27,6 +28,7 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   lessons: "Lessons", gradebook: "Gradebook",
   behavior: "Behavior", attendance: "Attendance",
   parents: "Parents", email: "Email",
+  reader: "Teacher tools", arise: "Reading records", admin: "Admin console",
 };
 
 /** A group's name when only one of its tabs shows. */
@@ -36,7 +38,9 @@ export function groupOf(tab: HubTab) {
   return HUB_GROUPS.find((g) => g.tabs.includes(tab)) ?? HUB_GROUPS[0];
 }
 
-const shown = (visible: Partial<Record<HubTab, boolean>>, tab: HubTab) => tab === "overview" || visible[tab] !== false;
+/** Home and the Reader's teacher tools always show; the admin console only when the page says so (admins). */
+export const ALWAYS_SHOWN: readonly HubTab[] = ["overview", "reader"];
+const shown = (visible: Partial<Record<HubTab, boolean>>, tab: HubTab) => ALWAYS_SHOWN.includes(tab) || (tab === "admin" ? visible.admin === true : visible[tab] !== false);
 
 /** The tabs of a group the teacher has not hidden. */
 export function groupTabs(groupId: HubGroupId, visible: Partial<Record<HubTab, boolean>>): HubTab[] {

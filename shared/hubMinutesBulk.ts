@@ -1,4 +1,4 @@
-// Teacher Hub: minutes for several students at once.
+// Arise WorkHub: minutes for several students at once.
 // The teacher ticks the students (or a screenshot is read and ticks them), and one save logs a session
 // for each of them, or sets the minutes each of them needs every week. The pop-up is
 // client/src/components/teacher-hub/HubMinutesBulk.tsx; the screenshot is read in server/teacherHubImport.ts.

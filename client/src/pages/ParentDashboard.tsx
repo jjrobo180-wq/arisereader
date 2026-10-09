@@ -76,7 +76,8 @@ const DEFAULT_REGULAR_CONTROLS: RegularControls = {
   weeklyUnlimitedOnPass: true,
 };
 
-export default function ParentDashboard() {
+/** The parent portal. `embedded`: shown inside Arise LifeHub's A.R.I.S.E. Reader tab (no page header or sign-out). */
+export default function ParentDashboard({ embedded = false }: { embedded?: boolean } = {}) {
   const { token, user, logout } = useAuth();
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<number | null>(() => {
@@ -281,12 +282,12 @@ export default function ParentDashboard() {
   };
 
   if (loading) {
-    return <div className="min-h-screen grid place-items-center arise-page-bg"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className={`${embedded ? "min-h-[50vh] rounded-3xl" : "min-h-screen"} grid place-items-center arise-page-bg`}><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   return (
-    <div className="min-h-screen arise-page-bg">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl shadow-sm">
+    <div className={embedded ? "overflow-hidden rounded-3xl arise-page-bg" : "min-h-screen arise-page-bg"} data-testid={embedded ? "lifehub-parent-portal" : undefined}>
+      <header className={embedded ? "border-b border-white/10 bg-[#0d0b1a]/92" : "sticky top-0 z-50 border-b border-white/10 bg-[#0d0b1a]/92 backdrop-blur-xl shadow-sm"}>
         <div className="max-w-6xl mx-auto px-4 min-h-16 py-2 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[.2em] arise-gradient-text">A.R.I.S.E. Family</p>
@@ -298,9 +299,9 @@ export default function ParentDashboard() {
           <Button variant="outline" size="sm" onClick={() => setShowLink(v => !v)}>
             <UserPlus className="w-4 h-4 mr-1" /> Add child
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
+          {!embedded && <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4" /><span className="hidden sm:inline ml-1">Logout</span>
-          </Button>
+          </Button>}
         </div>
       </header>
 
@@ -633,7 +634,7 @@ export default function ParentDashboard() {
         )}
 
         {/* Optional add-ons go last, so the free parent tools above are what a parent meets first. */}
-        <AddonsCard returnPath="/billing" />
+        <div id="parent-plans" className="scroll-mt-4"><AddonsCard returnPath="/billing" /></div>
       </main>
     </div>
   );

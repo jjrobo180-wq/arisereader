@@ -3,13 +3,13 @@ import App from "./App";
 import "./index.css";
 import "./login-mobile-fix.css";
 
-// arisereader.com/hub (or /teacher-hub) goes straight to the Teacher Hub sign-in.
+// arisereader.com/hub (or /teacher-hub) goes straight to the Arise WorkHub sign-in.
 {
   const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
-  if (path === "/hub" || path === "/teacher-hub") {
-    window.history.replaceState(null, "", "/" + window.location.search + "#/teacher-hub");
-  } else if (path === "/to-do" || path === "/todo" || path === "/arise-todo") {
-    window.history.replaceState(null, "", "/" + window.location.search + "#/to-do");
+  if (path === "/hub" || path === "/teacher-hub" || path === "/workhub") {
+    window.history.replaceState(null, "", "/" + window.location.search + "#/workhub");
+  } else if (path === "/to-do" || path === "/todo" || path === "/arise-todo" || path === "/lifehub") {
+    window.history.replaceState(null, "", "/" + window.location.search + "#/lifehub");
   }
 }
 

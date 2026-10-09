@@ -1,4 +1,4 @@
-// Teacher Hub: one student's whole picture. Opened from the Caseload: everything the Hub holds
+// Arise WorkHub: one student's whole picture. Opened from the Caseload: everything the Hub holds
 // for that student in one place, each part with a way to jump to the tab where it is kept.
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
