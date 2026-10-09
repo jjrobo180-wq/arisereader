@@ -46,6 +46,7 @@ import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
+import { registerAriseMathRoutes } from "./ariseMath";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
@@ -1366,6 +1367,17 @@ export async function registerRoutes(
       studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
       childrenOf: (parentId) => getParentStudentIds(parentId),
       parentsOf: (studentId) => getStudentParentIds(studentId),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
+  // Arise Math (/math/): math practice with points, a class leaderboard, assignments and live review.
+  // Same accounts as Arise Social; see server/ariseMath.ts and migrations/arise_math.sql.
+  registerAriseMathRoutes(app, authMiddleware, {
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
       notify: (id, message) => notifyUser(id, message),
     },
   });
