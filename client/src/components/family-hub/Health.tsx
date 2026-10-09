@@ -1,7 +1,10 @@
 // Food & fitness: a MyFitnessPal-style diary for adults (calories, macros, exercise, water, steps, weight)
 // and a healthy-habits tracker for kids (fruits & veggies, water, active minutes, what they ate, no numbers).
-import { useMemo, useState, type FormEvent } from "react";
-import { Apple, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Minus, Plus, Scale, Search, Settings2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Apple, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { canScan, estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
+import type { FoundFood } from "@shared/foodLookup";
 import { MEALS, addDays, type FoodEntry, type HealthGoals, type Meal, type Member, type SavedFood } from "@shared/familyHub";
 import {
   ACTIVITIES, COMMON_FOODS, DEFAULT_WEIGHT_LB, caloriesLeft, dayTotals, entryTotals, exerciseCalories, goalsFor, latestWeight, macroGrams, recentFoods, setDay,
@@ -244,24 +247,84 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
   meal: Meal; kid: boolean; memberId: string; saved: SavedFood[]; recent: FoodEntry[];
   onAdd: (meal: Meal, pick: Pick, servings: number, save: boolean) => void; onClose: () => void;
 }) {
+  const { token } = useAuth();
   const [meal, setMeal] = useState<Meal>(startMeal);
-  const [tab, setTab] = useState<"search" | "recent" | "quick">(recent.length ? "recent" : "search");
+  const [tab, setTab] = useState<"search" | "recent" | "scan" | "ai" | "quick">("search");
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<Pick | null>(null);
   const [servings, setServings] = useState("1");
   const [quick, setQuick] = useState({ name: "", serving: "", calories: "", protein: "", carbs: "", fat: "", save: true });
+  const [online, setOnline] = useState<{ q: string; foods: FoundFood[]; busy: boolean; error: string }>({ q: "", foods: [], busy: false, error: "" });
+  const [ai, setAi] = useState<{ text: string; image: string | null; busy: boolean; error: string; foods: FoundFood[]; done: boolean }>({ text: "", image: null, busy: false, error: "", foods: [], done: false });
+  const [code, setCode] = useState("");
+  const [scan, setScan] = useState<{ busy: boolean; error: string; camera: boolean }>({ busy: false, error: "", camera: false });
+  const video = useRef<HTMLVideoElement>(null);
   const library = useMemo(() => [...saved.map((f) => ({ ...f, mine: true })), ...COMMON_FOODS.map((f) => ({ ...f, mine: false }))], [saved]);
-  const results = library.filter((f) => !q.trim() || f.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 40);
+  const term = q.trim().toLowerCase();
+  const results = library.filter((f) => !term || f.name.toLowerCase().includes(term)).slice(0, term ? 8 : 40);
   const add = (p: Pick, n: number, save = false) => { onAdd(meal, p, n, save); setPicked(null); setServings("1"); };
+  const fromFound = (f: FoundFood): Pick => ({ name: (f.brand && !f.name.toLowerCase().includes(f.brand.toLowerCase()) ? `${f.name} (${f.brand})` : f.name).slice(0, 100), serving: f.serving, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat });
 
-  const row = (p: Pick & { mine?: boolean }, key: string) => <li key={key}>
+  // Search the food databases as you type (after a short pause).
+  useEffect(() => {
+    if (tab !== "search" || term.length < 2) { setOnline((o) => ({ ...o, busy: false })); return; }
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => {
+      setOnline((o) => ({ ...o, busy: true, error: "" }));
+      searchFoods(token, term, ctrl.signal)
+        .then((foods) => setOnline({ q: term, foods, busy: false, error: "" }))
+        .catch((e: Error) => { if (!ctrl.signal.aborted) setOnline({ q: term, foods: [], busy: false, error: e.message }); });
+    }, 450);
+    return () => { window.clearTimeout(timer); ctrl.abort(); };
+  }, [term, tab, token]);
+
+  // Camera barcode scanning where the browser supports it.
+  useEffect(() => {
+    if (!scan.camera) return;
+    let stream: MediaStream | null = null;
+    let stopped = false;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        if (stopped || !video.current) return;
+        video.current.srcObject = stream;
+        await video.current.play();
+        const detector = new (window as any).BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+        while (!stopped && video.current) {
+          const found = await detector.detect(video.current).catch(() => []);
+          const value = found?.[0]?.rawValue;
+          if (value && /^\d{8,14}$/.test(value)) { stopped = true; setScan((s) => ({ ...s, camera: false })); void findBarcode(value); break; }
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      } catch {
+        setScan({ busy: false, camera: false, error: "The camera couldn't start. Type the numbers under the barcode instead." });
+      }
+    })();
+    return () => { stopped = true; stream?.getTracks().forEach((t) => t.stop()); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scan.camera]);
+
+  const findBarcode = async (value: string) => {
+    setCode(value);
+    setScan({ busy: true, error: "", camera: false });
+    try { const food = await lookupBarcode(token, value); setScan({ busy: false, error: "", camera: false }); setPicked(fromFound(food)); setServings("1"); }
+    catch (e: any) { setScan({ busy: false, error: e?.message || "That product wasn't found.", camera: false }); }
+  };
+  const estimate = async () => {
+    setAi((a) => ({ ...a, busy: true, error: "", foods: [], done: false }));
+    try { const foods = await estimateMeal(token, ai.text.trim(), ai.image); setAi((a) => ({ ...a, busy: false, foods, done: true, error: foods.length ? "" : "No food found. Try describing it in more detail." })); }
+    catch (e: any) { setAi((a) => ({ ...a, busy: false, error: e?.message || "The meal couldn't be estimated." })); }
+  };
+
+  const row = (p: Pick & { mine?: boolean; tag?: string }, key: string) => <li key={key}>
     <button onClick={() => { setPicked(p); setServings("1"); }} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 px-3 py-2.5 text-left hover:border-violet-200 hover:bg-[#fcfbff]">
       <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-800">{p.name}{p.mine && <span className="ml-2 rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-600">My food</span>}</span>
-        <span className="text-[11px] text-slate-500">{p.serving}{!kid && ` · P ${p.protein}g · C ${p.carbs}g · F ${p.fat}g`}</span></span>
+        <span className="block truncate text-[11px] text-slate-500">{p.serving}{!kid && ` · P ${p.protein}g · C ${p.carbs}g · F ${p.fat}g`}{p.tag ? ` · ${p.tag}` : ""}</span></span>
       {!kid && <span className="text-sm font-black text-slate-700">{fmt(p.calories)}</span>}
-      <Plus size={16} className="text-violet-500" />
+      <Plus size={16} className="shrink-0 text-violet-500" />
     </button>
   </li>;
+  const tabs = ([["search", "Search"], ["recent", "Recent"], ["scan", "Barcode"], ...(kid ? [] : [["ai", "Describe or photo"]]), ["quick", kid ? "Type it in" : "Quick add"]] as [typeof tab, string][]);
 
   return <Modal title="Add food" eyebrow={MEAL_LABEL[meal]} onClose={onClose} wide>
     <div className="mb-4 flex flex-wrap gap-1.5">{MEALS.map((m) => <button key={m} onClick={() => setMeal(m)} aria-pressed={meal === m} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${meal === m ? "bg-violet-600 text-white ring-violet-600" : "bg-white text-slate-500 ring-slate-200"}`}>{MEAL_LABEL[m]}</button>)}</div>
@@ -271,15 +334,53 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
       {!kid && Number(servings) > 0 && <div className="grid grid-cols-4 gap-2 text-center">{[["Calories", picked.calories, ""], ["Protein", picked.protein, "g"], ["Carbs", picked.carbs, "g"], ["Fat", picked.fat, "g"]].map(([l, v, u]) => <div key={l as string} className="rounded-xl bg-slate-50 py-2"><p className="text-base font-black">{l === "Calories" ? Math.round((v as number) * Number(servings)) : Math.round((v as number) * Number(servings) * 10) / 10}{u}</p><p className="text-[10px] font-bold text-slate-500">{l}</p></div>)}</div>}
       <div className="flex gap-2"><button onClick={() => Number(servings) > 0 && add(picked, Math.round(Number(servings) * 100) / 100)} disabled={!(Number(servings) > 0)} className={primary + " flex-1"}><Check size={17} /> Add to {MEAL_LABEL[meal].toLowerCase()}</button><button onClick={() => setPicked(null)} className={plain}>Back</button></div>
     </div> : <>
-      <div className="mb-4 inline-flex rounded-xl bg-slate-100 p-1 text-xs font-bold">
-        {([["recent", "Recent"], ["search", "Search"], ["quick", kid ? "Type it in" : "Quick add"]] as const).map(([k, l]) => <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`min-h-9 rounded-lg px-3 ${tab === k ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}>{l}</button>)}
+      <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
+        {tabs.map(([k, l]) => <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`min-h-9 flex-1 whitespace-nowrap rounded-lg px-3 ${tab === k ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}>{l}</button>)}
       </div>
-      {tab === "recent" && (recent.length ? <ul className="space-y-1.5">{recent.map((f) => row({ name: f.name, serving: f.servings === 1 ? "1 serving" : `${f.servings} servings`, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat }, f.id))}</ul> : <p className="text-sm text-slate-500">Foods you add will show up here for one-tap logging.</p>)}
+
       {tab === "search" && <>
-        <div className="relative mb-3"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search foods (banana, chicken, pizza…)" aria-label="Search foods" className={inputClass + " pl-10"} /></div>
-        {results.length ? <ul className="max-h-[46vh] space-y-1.5 overflow-y-auto pr-1">{results.map((f, i) => row(f, f.name + i))}</ul> : <p className="text-sm text-slate-500">Not in the list. Use “{kid ? "Type it in" : "Quick add"}” to add it, and save it to your foods.</p>}
-        {!kid && <p className="mt-3 text-[11px] text-slate-400">Nutrition values are typical averages. Check the label for exact numbers.</p>}
+        <div className="relative mb-3"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any food, brand or restaurant item" aria-label="Search foods" className={inputClass + " pl-10"} /></div>
+        <div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1">
+          {results.length > 0 && <div>{term && <p className="mb-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400">Common foods</p>}<ul className="space-y-1.5">{results.map((f, i) => row(f, f.name + i))}</ul></div>}
+          {term.length >= 2 && <div>
+            <p className="mb-1.5 flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-slate-400">Food database {online.busy && <Loader2 size={13} className="animate-spin" />}</p>
+            {online.error ? <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{online.error}</p>
+              : online.q === term && !online.busy && !online.foods.length ? <p className="text-xs text-slate-500">No matches. Try a simpler name, or use “{kid ? "Type it in" : "Describe or photo"}”.</p>
+              : <ul className="space-y-1.5">{(online.q === term ? online.foods : []).map((f, i) => row({ ...fromFound(f), tag: f.source === "usda" ? "USDA" : "Open Food Facts" }, `o${i}`))}</ul>}
+          </div>}
+        </div>
+        {!kid && <p className="mt-3 text-[11px] text-slate-400">Nutrition comes from the USDA food database and Open Food Facts. Check the package label for exact numbers.</p>}
       </>}
+
+      {tab === "recent" && (recent.length ? <ul className="space-y-1.5">{recent.map((f) => row({ name: f.name, serving: f.servings === 1 ? "1 serving" : `${f.servings} servings`, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat }, f.id))}</ul> : <p className="text-sm text-slate-500">Foods you add will show up here for one-tap logging.</p>)}
+
+      {tab === "scan" && <div className="space-y-4">
+        {scan.camera ? <div className="overflow-hidden rounded-2xl bg-black"><video ref={video} className="aspect-video w-full object-cover" muted playsInline /><button onClick={() => setScan((s) => ({ ...s, camera: false }))} className="w-full bg-black/80 py-2 text-xs font-bold text-white">Stop camera</button></div>
+          : canScan() && <button onClick={() => setScan({ busy: false, error: "", camera: true })} className={primary + " w-full min-h-12"}><ScanBarcode size={18} /> Scan with camera</button>}
+        <form onSubmit={(e) => { e.preventDefault(); const v = code.replace(/\D/g, ""); if (/^\d{8,14}$/.test(v)) void findBarcode(v); }} className="flex gap-2">
+          <input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Numbers under the barcode" aria-label="Barcode number" className={inputClass + " min-w-0"} />
+          <button type="submit" className={plain} disabled={scan.busy || !/^\d{8,14}$/.test(code.replace(/\D/g, ""))}>{scan.busy ? <Loader2 size={16} className="animate-spin" /> : "Look up"}</button>
+        </form>
+        {scan.error && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{scan.error}</p>}
+        {!canScan() && <p className="text-xs text-slate-500">This browser can't scan with the camera, so type the numbers printed under the barcode.</p>}
+      </div>}
+
+      {tab === "ai" && <div className="space-y-3">
+        <textarea autoFocus rows={3} maxLength={600} value={ai.text} onChange={(e) => setAi({ ...ai, text: e.target.value })} placeholder="What did you eat? e.g. “2 slices of pepperoni pizza, a side salad with ranch and a Coke”" aria-label="Describe the meal" className={inputClass + " py-3"} />
+        <div className="flex flex-wrap items-center gap-2">
+          <label className={plain + " cursor-pointer"}><Camera size={16} /> {ai.image ? "Change photo" : "Add a photo"}<input type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; try { const image = await shrinkPhoto(f); setAi((a) => ({ ...a, image })); } catch (err: any) { setAi((a) => ({ ...a, error: err.message })); } }} /></label>
+          {ai.image && <span className="relative"><img src={ai.image} alt="Meal photo" className="h-12 w-12 rounded-lg object-cover" /><button onClick={() => setAi({ ...ai, image: null })} className="absolute -right-1.5 -top-1.5 rounded-full bg-slate-800 px-1.5 text-[10px] font-bold text-white" aria-label="Remove photo">×</button></span>}
+          <button onClick={() => void estimate()} disabled={ai.busy || (!ai.text.trim() && !ai.image)} className={primary + " ml-auto"}>{ai.busy ? <><Loader2 size={16} className="animate-spin" /> Estimating…</> : <><Sparkles size={16} /> Estimate calories</>}</button>
+        </div>
+        {ai.error && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{ai.error}</p>}
+        {ai.foods.length > 0 && <div className="space-y-2 rounded-2xl border border-slate-100 p-3">
+          <div className="flex items-center justify-between gap-2"><p className="text-sm font-black">About {fmt(ai.foods.reduce((s, f) => s + f.calories, 0))} calories</p>
+            <button onClick={() => { ai.foods.forEach((f) => onAdd(meal, fromFound(f), 1, false)); setAi({ text: "", image: null, busy: false, error: "", foods: [], done: false }); }} className={soft + " min-h-9 text-xs"}><Plus size={14} /> Add all to {MEAL_LABEL[meal].toLowerCase()}</button></div>
+          <ul className="space-y-1.5">{ai.foods.map((f, i) => row({ ...fromFound(f), tag: "estimate" }, `a${i}`))}</ul>
+          <p className="text-[11px] text-slate-400">AI estimates can be off, especially for portions. Tap an item to adjust servings before adding.</p>
+        </div>}
+      </div>}
+
       {tab === "quick" && <form onSubmit={(e) => {
         e.preventDefault();
         const name = quick.name.trim();
