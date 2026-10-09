@@ -2,10 +2,10 @@
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
-export const FAMILY_SECTIONS = ["home", "tasks", "chores", "calendar", "behavior", "health", "polls", "trips", "money", "notes", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["chores", "calendar", "behavior", "health", "polls", "trips", "money", "notes"];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news"];
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
 export type Chore = { id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number };
@@ -55,6 +55,22 @@ export type HealthProfile = {
 export type Health = { profiles: Record<string, HealthProfile>; goals: Record<string, HealthGoals>; food: FoodEntry[]; exercise: ExerciseEntry[]; days: DayEntry[]; weights: WeightEntry[]; foods: SavedFood[] };
 export const emptyHealth = (): Health => ({ profiles: {}, goals: {}, food: [], exercise: [], days: [], weights: [], foods: [] });
 
+/* Cycle tracker */
+export type Flow = "none" | "spotting" | "light" | "medium" | "heavy";
+export const FLOWS: Flow[] = ["spotting", "light", "medium", "heavy"];
+export type CycleLog = { id: string; memberId: string; date: string; flow: Flow; symptoms: string[]; note: string };
+/* Mood tracker */
+export type MoodEntry = { id: string; memberId: string; date: string; mood: number; tags: string[]; note: string };
+/* Goals */
+export type GoalCategory = "personal" | "health" | "money" | "family" | "career" | "learning" | "home";
+export type Goal = {
+  id: string; title: string; why: string; category: GoalCategory; memberId: string; due: string;
+  kind: "steps" | "number"; target: number; current: number; unit: string;
+  milestones: { id: string; title: string; done: boolean }[]; done: boolean; createdAt: string; doneAt: string;
+};
+/* News */
+export type NewsPrefs = { topics: string[]; place: string };
+
 export type Layers = { tasks: boolean; bills: boolean; trips: boolean; chores: boolean };
 
 export type Family = {
@@ -77,6 +93,10 @@ export type Family = {
   income: number;
   notes: Note[];
   health: Health;
+  cycleLogs: CycleLog[];
+  moods: MoodEntry[];
+  goals: Goal[];
+  news: NewsPrefs;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -106,7 +126,7 @@ export const emptyFamily = (): Family => ({
   members: [], sections: {}, layers: { tasks: true, bills: true, trips: true, chores: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
-  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(),
+  bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -145,7 +165,7 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
   return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -262,6 +282,32 @@ export function cleanFamily(input: unknown): Family {
       return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40) } : null;
     }),
     health: cleanHealth(raw.health),
+    cycleLogs: rows(raw.cycleLogs, LIMITS.cycleLogs, (r) => {
+      const date = day(r.date);
+      const symptoms = Array.isArray(r.symptoms) ? [...new Set(r.symptoms.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 30)))].slice(0, 20) as string[] : [];
+      const flow = oneOf(r.flow, ["none", "spotting", "light", "medium", "heavy"] as const, "none");
+      return date && r.memberId && (flow !== "none" || symptoms.length || str(r.note, 300).trim()) ? { id: id(r.id), memberId: id(r.memberId), date, flow, symptoms, note: str(r.note, 300) } : null;
+    }, true),
+    moods: rows(raw.moods, LIMITS.moods, (r) => {
+      const date = day(r.date);
+      const tags = Array.isArray(r.tags) ? [...new Set(r.tags.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 30)))].slice(0, 15) as string[] : [];
+      return date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, mood: int(r.mood, 1, 5, 3), tags, note: str(r.note, 500) } : null;
+    }, true),
+    goals: rows(raw.goals, LIMITS.goals, (r) => {
+      const title = str(r.title, 120).trim();
+      return title ? {
+        id: id(r.id), title, why: str(r.why, 500), category: oneOf(r.category, ["personal", "health", "money", "family", "career", "learning", "home"] as const, "personal"),
+        memberId: id(r.memberId), due: day(r.due), kind: oneOf(r.kind, ["steps", "number"] as const, "steps"),
+        target: num(r.target, 0, 1e9), current: num(r.current, -1e9, 1e9), unit: str(r.unit, 20),
+        milestones: rows(r.milestones, 50, (m) => { const t = str(m.title, 120).trim(); return t ? { id: id(m.id), title: t, done: bool(m.done) } : null; }),
+        done: bool(r.done), createdAt: str(r.createdAt, 40), doneAt: str(r.doneAt, 40),
+      } : null;
+    }),
+    news: (() => {
+      const n = obj(raw.news);
+      const topics = n && Array.isArray(n.topics) ? [...new Set(n.topics.filter((t: unknown) => typeof t === "string" && /^[A-Za-z]{2,20}$/.test(t as string)))].slice(0, 12) as string[] : ["top", "local", "NATION"];
+      return { topics: topics.length ? topics : ["top"], place: n ? str(n.place, 60) : "" };
+    })(),
   };
 }
 
@@ -419,8 +465,8 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes"];
+  const arrays = ["members", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "moods", "goals"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
-    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
+    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
 }

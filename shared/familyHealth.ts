@@ -235,3 +235,8 @@ export function checkIntake(p: HealthProfile, today: string): IntakeProblem | nu
   if (p.goal === "gain" && !(p.goalWeight > p.weight && p.goalWeight <= 700)) return { field: "goalWeight", message: "Your goal weight should be above your current weight." };
   return null;
 }
+
+/** For personal trackers (cycle, mood): you first, then your family. */
+export function trackerPeople(family: { members: Member[] }, myName: string): Member[] {
+  return [{ id: ME_ID, name: "Me", emoji: "🙂", color: "#6e5ae0", kind: "adult" }, ...family.members];
+}

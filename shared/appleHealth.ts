@@ -72,3 +72,30 @@ export function applySync(health: Health, days: SyncDay[]): Health {
   }
   return changed ? next : health;
 }
+
+/** The Health Auto Export app's REST format: {"data":{"metrics":[{"name":"step_count","units":"count","data":[{"date":"2026-10-09 00:00:00 -0600","qty":8421}]}]}}.
+ *  Adds up steps and active energy per day, keeps the last weight of each day, and converts kJ and kg. Newest 60 days at most. */
+export function cleanAutoExport(body: unknown): Omit<SyncDay, "memberId">[] {
+  const metrics = (body as any)?.data?.metrics;
+  if (!Array.isArray(metrics)) return [];
+  const days = new Map<string, { steps: number | null; activeCalories: number | null; weight: number | null }>();
+  const day = (d: string) => { let x = days.get(d); if (!x) { x = { steps: null, activeCalories: null, weight: null }; days.set(d, x); } return x; };
+  for (const m of metrics.slice(0, 20)) {
+    const name = String(m?.name || "").toLowerCase();
+    const units = String(m?.units || "").toLowerCase();
+    const kind = name === "step_count" || name === "steps" ? "steps" : name === "active_energy" || name === "active_energy_burned" ? "active" : name === "weight_body_mass" || name === "body_mass" || name === "weight" ? "weight" : null;
+    if (!kind || !Array.isArray(m?.data)) continue;
+    for (const point of m.data.slice(-2000)) {
+      const date = String(point?.date || "").slice(0, 10);
+      const qty = toNumber(point?.qty ?? point?.Avg ?? point?.avg);
+      if (!isDay(date) || qty === null || qty < 0) continue;
+      const d = day(date);
+      if (kind === "steps") d.steps = (d.steps ?? 0) + qty;
+      if (kind === "active") d.activeCalories = (d.activeCalories ?? 0) + (units === "kj" ? qty / 4.184 : qty);
+      if (kind === "weight") d.weight = /kg/.test(units) ? qty * 2.20462 : qty;
+    }
+  }
+  return [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-60)
+    .map(([date, d]) => cleanSyncBody({ date, steps: d.steps, activeCalories: d.activeCalories, weight: d.weight }, date))
+    .filter((d): d is Omit<SyncDay, "memberId"> => !!d);
+}

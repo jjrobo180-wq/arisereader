@@ -29,3 +29,18 @@ test("a weight typed in by hand that day is not overwritten", () => {
   const h = cleanHealth({ weights: [{ id: "w1", memberId: "me", date: "2026-10-09", weight: 150 }] });
   assert.equal(applySync(h, [{ memberId: "me", date: "2026-10-09", steps: null, activeCalories: null, weight: 152 }]), h);
 });
+
+test("Health Auto Export posts: hourly steps summed, kJ and kg converted, newest days kept", async () => {
+  const { cleanAutoExport } = await import("../shared/appleHealth");
+  const days = cleanAutoExport({ data: { metrics: [
+    { name: "step_count", units: "count", data: [{ date: "2026-10-08 09:00:00 -0600", qty: 4000 }, { date: "2026-10-08 18:00:00 -0600", qty: 2500 }, { date: "2026-10-09 08:00:00 -0600", qty: 1200 }] },
+    { name: "active_energy", units: "kJ", data: [{ date: "2026-10-09 00:00:00 -0600", qty: 2092 }] },
+    { name: "weight_body_mass", units: "kg", data: [{ date: "2026-10-09 07:00:00 -0600", qty: 70 }] },
+    { name: "heart_rate", units: "count/min", data: [{ date: "2026-10-09", qty: 60 }] },
+  ] } });
+  assert.deepEqual(days, [
+    { date: "2026-10-08", steps: 6500, activeCalories: null, weight: null },
+    { date: "2026-10-09", steps: 1200, activeCalories: 500, weight: 154.3 },
+  ]);
+  assert.deepEqual(cleanAutoExport({ nope: 1 }), []);
+});

@@ -2,6 +2,8 @@
 import { Apple, CalendarDays, Check, ChevronRight, ListTodo, Plane, Receipt, Sparkles, Star, StickyNote, Sun, UserPlus, Vote } from "lucide-react";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { pollIsOpen } from "./Polls";
+import { MOODS } from "./Mood";
+import { goalProgress } from "./Goals";
 import { caloriesLeft, dayTotals, goalsFor, healthPeople } from "@shared/familyHealth";
 import type { CalendarTask } from "./FamilyCalendar";
 import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type SectionProps } from "./ui";
@@ -92,6 +94,21 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           <p className="mt-1 text-sm text-white/80">{daysBetween(today, trip.start) > 0 ? `${daysBetween(today, trip.start)} day${daysBetween(today, trip.start) === 1 ? "" : "s"} to go` : "Happening now"} · {shortDate(trip.start, { month: "short", day: "numeric" })}</p>
           {trip.packing.length > 0 && <div className="mt-3"><div className="h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white" style={{ width: `${(trip.packing.filter((p) => p.packed).length / trip.packing.length) * 100}%` }} /></div><p className="mt-1 text-[11px] text-white/70">{trip.packing.filter((p) => p.packed).length} of {trip.packing.length} packed</p></div>}
         </button>}
+
+        {on("mood") && (() => {
+          const me = { id: "me" };
+          const todayMood = family.moods.find((m) => m.memberId === me.id && m.date === today);
+          return <Panel eyebrow="Mood" title={todayMood ? `Feeling ${MOODS[todayMood.mood - 1].label.toLowerCase()} today` : "How are you today?"} right={<button onClick={() => go("mood")} className="text-xs font-bold text-violet-600">Tracker</button>}>
+            <div className="grid grid-cols-5 gap-1">{MOODS.map((m) => <button key={m.value} aria-pressed={todayMood?.mood === m.value} aria-label={m.label} title={m.label}
+              onClick={() => { setFamily((f) => { const id = `${me.id}:${today}`; const old = f.moods.find((x) => x.id === id); return { ...f, moods: [...f.moods.filter((x) => x.id !== id), { id, memberId: me.id, date: today, tags: [], note: "", ...old, mood: m.value }] }; }); say(`Mood logged: ${m.label}`); }}
+              className="rounded-xl py-2 text-2xl transition hover:bg-slate-50" style={todayMood?.mood === m.value ? { background: m.color + "22", boxShadow: `inset 0 0 0 2px ${m.color}` } : undefined}>{m.face}</button>)}</div>
+          </Panel>;
+        })()}
+
+        {on("goals") && family.goals.some((g) => !g.done) && <Panel eyebrow="Goals" title="In progress" right={<button onClick={() => go("goals")} className="text-xs font-bold text-violet-600">All goals</button>}>
+          <ul className="space-y-3">{family.goals.filter((g) => !g.done).slice(0, 4).map((g) => <li key={g.id}><button onClick={() => go("goals")} className="block w-full text-left">
+            <div className="mb-1 flex justify-between gap-2 text-xs"><span className="truncate font-bold text-slate-700">{g.title}</span><span className="font-black text-violet-600">{Math.round(goalProgress(g) * 100)}%</span></div><Bar value={goalProgress(g)} max={1} /></button></li>)}</ul>
+        </Panel>}
 
         {on("health") && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>}>
           <ul className="space-y-2.5">{healthPeople(family, name).map((m) => {

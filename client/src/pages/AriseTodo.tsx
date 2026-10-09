@@ -8,7 +8,7 @@ import {
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
-  CalendarRange, Smile, Vote, Plane, Wallet, StickyNote, Settings2, Moon, Apple,
+  CalendarRange, Smile, Vote, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
 } from "lucide-react";
 import { cleanFamily, emptyFamily, isCurrentFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
@@ -20,6 +20,11 @@ import Trips from "@/components/family-hub/Trips";
 import Money from "@/components/family-hub/Money";
 import Notes from "@/components/family-hub/Notes";
 import Health from "@/components/family-hub/Health";
+import Goals from "@/components/family-hub/Goals";
+import Cycle from "@/components/family-hub/Cycle";
+import Mood from "@/components/family-hub/Mood";
+import News from "@/components/family-hub/News";
+import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar } from "@/components/family-hub/ui";
 import HubSwitch from "@/components/HubSwitch";
@@ -133,10 +138,10 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple,
+  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
 };
-const SECTION_ORDER: FamilySection[] = ["home", "tasks", "chores", "calendar", "behavior", "health", "polls", "trips", "money", "notes", "family"];
+const SECTION_ORDER: FamilySection[] = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -183,6 +188,23 @@ export default function AriseTodo() {
     window.scrollTo({ top: 0 });
   };
   const [memberFilter, setMemberFilter] = useState("");
+  // Forwarded emails become tasks in an "Email" list (made the first time one arrives).
+  useEmailInbox(user ? token : null, !!user && sync.loaded && !sync.recovery, items => {
+    setData(previous => {
+      let lists = previous.lists;
+      let email = lists.find(list => list.name.toLowerCase() === "email");
+      if (!email) { email = { id: uid(), name: "Email", color: "#619ee6" }; lists = [...lists, email]; }
+      const have = new Set(previous.tasks.map(task => task.id));
+      const fresh = items.filter(item => !have.has(`email-${item.id}`)).map(item => ({
+        id: `email-${item.id}`.slice(0, 100), title: (item.subject || `Email from ${item.from}`).slice(0, 200),
+        notes: [`From: ${item.from}`, item.sent ? `Sent: ${item.sent}` : "", "", (item.message || item.body || "").trim()].filter((line, i) => i === 2 || line).join("\n").slice(0, 2000),
+        listId: email!.id, assignee: "", due: "", time: "", priority: "normal" as Priority, repeat: "none" as Repeat, done: false, createdAt: new Date().toISOString(),
+      }));
+      if (!fresh.length) return previous;
+      setMessage(`${fresh.length} forwarded email${fresh.length === 1 ? "" : "s"} added to your Email list`);
+      return { ...previous, lists, tasks: [...previous.tasks, ...fresh] };
+    });
+  });
   // Night mode: remembered on this device; until chosen, it follows the device's dark-mode setting.
   const [night, setNight] = useState(() => {
     try {
@@ -373,6 +395,10 @@ export default function AriseTodo() {
     : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "behavior" ? <Behavior {...common} />
     : shown === "health" ? <Health {...common} />
+    : shown === "goals" ? <Goals {...common} />
+    : shown === "cycle" ? <Cycle {...common} />
+    : shown === "mood" ? <Mood {...common} />
+    : shown === "news" ? <News {...common} />
     : shown === "polls" ? <Polls {...common} />
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
@@ -523,6 +549,7 @@ export default function AriseTodo() {
                 <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore To-Do backup" />
                 <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
+              <EmailForwardCard token={token} />
               <button onClick={() => navigate("/")} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> A.R.I.S.E. Reader</button>
             </aside>
           </div>

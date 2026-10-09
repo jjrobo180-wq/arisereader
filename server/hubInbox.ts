@@ -148,7 +148,7 @@ export async function receiveWebhook(deps: HubInboxDeps, headers: Record<string,
 
 export type Gate = (req: any, res: any) => Promise<boolean>;
 
-export function registerHubInboxRoutes(app: Express, auth: RequestHandler, deps: HubInboxDeps & { gate: Gate }): void {
+export function registerHubInboxRoutes(app: Express, auth: RequestHandler, deps: HubInboxDeps & { gate: Gate; todoGate?: Gate }): void {
   const fail = (res: any, error: any) => { console.error("[hub-inbox] failed:", error?.message); res.status(500).json({ message: "That did not work. Please try again." }); };
 
   app.post("/api/hub-inbox/webhook", async (req: any, res) => {
@@ -159,50 +159,60 @@ export function registerHubInboxRoutes(app: Express, auth: RequestHandler, deps:
     } catch (error) { fail(res, error); }
   });
 
-  /** The teacher's address, who they accept mail from, and the forwarded emails waiting for their Hub. */
-  app.get("/api/teacher-hub/inbox", auth, async (req: any, res) => {
-    if (!(await deps.gate(req, res))) return;
-    try {
-      const teacherId = Number(req.user.id);
-      const config = readConfig(await deps.getSetting(INBOX_CONFIG_KEY));
-      const token = tokenOf(await readTokens(deps), teacherId);
-      const allowed = await readSenders(deps, teacherId);
-      const own = [...allowed.senders, addressOf(await deps.accountEmail(teacherId))].filter(Boolean);
-      const waiting = readInbox(await deps.getSetting(inboxItemsKey(teacherId))).filter((x) => !x.taken).map((x) => fillInboxItem(x, own));
-      res.set("Cache-Control", "no-store").json({ ready: !!(config.domain && config.secret), address: config.domain && token ? inboxAddress(token, config.domain) : null, ...allowed, waiting });
-    } catch (error) { fail(res, error); }
-  });
+  // The same forwarding address works for the Teacher Hub (teachers with the Hub) and A.R.I.S.E. To-Do
+  // (anyone signed in). Mail waits in one list per account; whichever app is open takes it.
+  const signedIn: Gate = async (req, res) => {
+    if (!Number.isSafeInteger(Number(req.user?.id)) || req.adminPreview) { res.status(403).json({ message: "Sign in to your own account to forward email." }); return false; }
+    return true;
+  };
+  const mounts: [string, Gate][] = [["/api/teacher-hub/inbox", deps.gate], ["/api/arise-todo/inbox", deps.todoGate ?? signedIn]];
+  for (const [prefix, gate] of mounts) {
+    /** The teacher's address, who they accept mail from, and the forwarded emails waiting for their Hub. */
+    app.get(prefix, auth, async (req: any, res) => {
+      if (!(await gate(req, res))) return;
+      try {
+        const teacherId = Number(req.user.id);
+        const config = readConfig(await deps.getSetting(INBOX_CONFIG_KEY));
+        const token = tokenOf(await readTokens(deps), teacherId);
+        const allowed = await readSenders(deps, teacherId);
+        const own = [...allowed.senders, addressOf(await deps.accountEmail(teacherId))].filter(Boolean);
+        const waiting = readInbox(await deps.getSetting(inboxItemsKey(teacherId))).filter((x) => !x.taken).map((x) => fillInboxItem(x, own));
+        res.set("Cache-Control", "no-store").json({ ready: !!(config.domain && config.secret), address: config.domain && token ? inboxAddress(token, config.domain) : null, ...allowed, waiting });
+      } catch (error) { fail(res, error); }
+    });
 
-  app.post("/api/teacher-hub/inbox/address", auth, async (req: any, res) => {
-    if (!(await deps.gate(req, res))) return;
-    try {
-      const config = readConfig(await deps.getSetting(INBOX_CONFIG_KEY));
-      if (!config.domain) return res.status(503).json({ message: "Forwarding isn't set up on the site yet." });
-      const token = await newAddress(deps, Number(req.user.id));
-      res.json({ address: inboxAddress(token, config.domain) });
-    } catch (error) { fail(res, error); }
-  });
+    app.post(`${prefix}/address`, auth, async (req: any, res) => {
+      if (!(await gate(req, res))) return;
+      try {
+        const config = readConfig(await deps.getSetting(INBOX_CONFIG_KEY));
+        if (!config.domain) return res.status(503).json({ message: "Forwarding isn't set up on the site yet." });
+        const token = await newAddress(deps, Number(req.user.id));
+        res.json({ address: inboxAddress(token, config.domain) });
+      } catch (error) { fail(res, error); }
+    });
 
-  app.put("/api/teacher-hub/inbox/senders", auth, async (req: any, res) => {
-    if (!(await deps.gate(req, res))) return;
-    try {
-      const value = { senders: cleanSenders(req.body?.senders), anyone: req.body?.anyone === true };
-      await deps.saveSetting(inboxSendersKey(Number(req.user.id)), JSON.stringify(value));
-      res.json(value);
-    } catch (error) { fail(res, error); }
-  });
+    app.put(`${prefix}/senders`, auth, async (req: any, res) => {
+      if (!(await gate(req, res))) return;
+      try {
+        const value = { senders: cleanSenders(req.body?.senders), anyone: req.body?.anyone === true };
+        await deps.saveSetting(inboxSendersKey(Number(req.user.id)), JSON.stringify(value));
+        res.json(value);
+      } catch (error) { fail(res, error); }
+    });
 
-  /** The Hub took these into the workspace: they stop being offered. They are kept a while, marked taken. */
-  app.post("/api/teacher-hub/inbox/taken", auth, async (req: any, res) => {
-    if (!(await deps.gate(req, res))) return;
-    try {
-      const ids = new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
-      const key = inboxItemsKey(Number(req.user.id));
-      const list = readInbox(await deps.getSetting(key)).map((x) => (ids.has(x.id) ? { ...x, taken: true } : x));
-      await deps.saveSetting(key, JSON.stringify(list));
-      res.json({ ok: true });
-    } catch (error) { fail(res, error); }
-  });
+    /** The Hub took these into the workspace: they stop being offered. They are kept a while, marked taken. */
+    app.post(`${prefix}/taken`, auth, async (req: any, res) => {
+      if (!(await gate(req, res))) return;
+      try {
+        const ids = new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
+        const key = inboxItemsKey(Number(req.user.id));
+        const list = readInbox(await deps.getSetting(key)).map((x) => (ids.has(x.id) ? { ...x, taken: true } : x));
+        await deps.saveSetting(key, JSON.stringify(list));
+        res.json({ ok: true });
+      } catch (error) { fail(res, error); }
+    });
+
+  }
 
   // The admin sets the receiving domain and the webhook's signing secret once. The secret is never sent back.
   app.get("/api/admin/hub-inbox", auth, async (req: any, res) => {
