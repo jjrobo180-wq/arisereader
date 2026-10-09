@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2, Users } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2, Users, Calculator, Landmark } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
+import AddonsCard from "@/components/AddonsCard";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
@@ -1356,6 +1357,16 @@ export default function Library() {
                           </button>
                         )}
                         {!user?.is_eye_gaze_user && (
+                          <a href="/math/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <Calculator className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Arise Math</span>
+                          </a>
+                        )}
+                        {!user?.is_eye_gaze_user && (
+                          <a href="/history/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <Landmark className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Arise History</span>
+                          </a>
+                        )}
+                        {!user?.is_eye_gaze_user && (
                           <a href="/social/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                             <Users className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Arise Social<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </a>
@@ -1560,6 +1571,7 @@ export default function Library() {
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">PLAY GAMES</span>
           </button>
         )}
+        {user?.role === "student" && !user?.is_eye_gaze_user && <div className="mb-5"><AddonsCard showTodo={false} /></div>}
                 <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
           onReadingLevelUp={() => navigate("/reading-level-up")}

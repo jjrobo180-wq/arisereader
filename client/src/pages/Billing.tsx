@@ -8,6 +8,7 @@ import { usePlan, type PlanInfo } from "@/lib/plan";
 import { PLANS, blocksFor, seatsFor, teacherMonthlyCents, usd } from "@shared/plans";
 import "./pricing.css";
 import "./billing.css";
+import AddonsCard from "@/components/AddonsCard";
 
 const day = (isoDate: string | null | undefined) => {
   if (!isoDate) return "";
@@ -91,7 +92,7 @@ export default function Billing() {
   const [blocks, setBlocks] = useState(1);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [confirm, setConfirm] = useState<"none" | "checking" | "done" | "done-hub" | "late">(() => (paidSession() ? "checking" : "none"));
+  const [confirm, setConfirm] = useState<"none" | "checking" | "done" | "done-hub" | "done-addon" | "late">(() => (paidSession() ? "checking" : "none"));
   const [hubBlocks, setHubBlocks] = useState(1);
   const confirmed = useRef(false);
 
@@ -120,7 +121,7 @@ export default function Billing() {
     if (!id || !token || confirmed.current) return;
     confirmed.current = true;
     post("/api/billing/confirm", { sessionId: id })
-      .then(async (data) => { await refresh(); setConfirm(String(data?.plan?.kind || "").startsWith("hub_") ? "done-hub" : "done"); })
+      .then(async (data) => { await refresh(); const k = String(data?.plan?.kind || ""); setConfirm(k.startsWith("hub_") ? "done-hub" : /^(bundle|todo|social)/.test(k) ? "done-addon" : "done"); })
       .catch(async () => { await refresh(); setConfirm("late"); })
       .finally(clearPaidSession);
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -163,6 +164,7 @@ export default function Billing() {
         {confirm === "checking" && <p className="bl-banner" role="status">Checking your payment…</p>}
         {confirm === "done" && <p className="bl-banner good" role="status">Payment received. Premium is on.</p>}
         {confirm === "done-hub" && <p className="bl-banner good" role="status">Payment received. Teacher Hub is on. <button type="button" className="bl-text" onClick={() => navigate("/teacher-hub")}>Open Teacher Hub</button></p>}
+        {confirm === "done-addon" && <p className="bl-banner good" role="status">Payment received. Your add-on is on.</p>}
         {confirm === "late" && <p className="bl-banner" role="status">We couldn't confirm the payment yet. If your card was charged, Premium will switch on within a few minutes. Refresh this page to check.</p>}
 
         {loading && !plan && <p className="bl-banner" role="status">Loading your plan…</p>}
@@ -177,6 +179,8 @@ export default function Billing() {
         )}
 
         {error && <p className="bl-banner bad" role="alert">{error}</p>}
+
+        {isTeacher && <div style={{ margin: "18px 0" }}><AddonsCard key={confirm} returnPath="/billing" /></div>}
 
         {isTeacher && ownPlan?.paidOnline && plan && (
           <div className="bl-card">

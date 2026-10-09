@@ -90,6 +90,7 @@ const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
+import TodoGate from "@/components/TodoGate";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -311,7 +312,7 @@ function AppRoutes() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch>
       <Route path="/to-do">
-        <AriseTodo />
+        <TodoGate><AriseTodo /></TodoGate>
       </Route>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}

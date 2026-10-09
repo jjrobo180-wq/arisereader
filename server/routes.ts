@@ -1174,6 +1174,8 @@ export async function registerRoutes(
     countHubStudents: (teacherId) => countHubStudents(teacherId),
     // a parent can pay for a linked child's Arise Social
     parentChildIds: (parentId) => getParentStudentIds(parentId),
+    studentParentIds: (studentId) => getStudentParentIds(studentId),
+    teacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").map((u: any) => Number(u.id)),
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
     // a school someone added at sign-up is never free just because of what it is called
@@ -1183,6 +1185,25 @@ export async function registerRoutes(
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
   });
   // Private To-Do accounts and cross-device task syncing (for anyone, not just teachers).
+  // Paid add-ons (shared/plans.ts): a request without the add-on gets 402 and the page shows how to get it.
+  // An admin, or an admin previewing the site as a student, always gets in.
+  const addonGate = (open: (method: string, path: string) => boolean, allowed: (user: any) => Promise<boolean>, code: string, message: string) =>
+    (req: any, res: any, next: any) => {
+      const path = String(req.originalUrl || req.url || "").split("?")[0];
+      if (open(String(req.method || "GET"), path)) return next();
+      authMiddleware(req, res, async () => {
+        try {
+          if (req.adminPreview || req.realUser?.isAdmin || req.user?.isAdmin || (await allowed(req.user))) return next();
+          res.status(402).json({ message, code });
+        } catch { next(); }
+      }).catch(next);
+    };
+  // A.R.I.S.E. To-Do: $10 a month for parents after their 30 free days; teachers get it with Teacher Hub.
+  app.use("/api/arise-todo", addonGate(
+    (method, path) => method === "POST" && path === "/api/arise-todo/register",
+    async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
+    "todo_required", "A.R.I.S.E. To-Do is an add-on for parents ($10 a month) and comes with Teacher Hub for teachers.",
+  ));
   registerAriseTodoRoutes(app, authMiddleware);
   // Teacher Hub, the paid add-on: only teachers with a Teacher Hub plan can open it.
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
@@ -1376,6 +1397,15 @@ export async function registerRoutes(
   });
   // Arise Math (/math/): math practice with points, a class leaderboard, assignments and live review.
   // Same accounts as Arise Social; see server/ariseMath.ts and migrations/arise_math.sql.
+  // Arise History and Arise Math are in the Learning Bundle (with Arise Social). The catalog and
+  // "who am I" stay open so each page can show its free-trial countdown or how to get the bundle.
+  for (const base of ["/api/math", "/api/history"]) {
+    app.use(base, addonGate(
+      (method, path) => method === "GET" && (path === `${base}/catalog` || path === `${base}/me`),
+      (user) => plans.bundleAccess(user),
+      "bundle_required", "Arise History, Arise Math and Arise Social are in the Learning Bundle. Start it from your plan page.",
+    ));
+  }
   registerAriseMathRoutes(app, authMiddleware, {
     directory: {
       user: async (id) => toSocialUser(await storage.getUser(id)),

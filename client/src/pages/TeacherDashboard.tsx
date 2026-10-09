@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy, ClipboardList, PenLine } from "lucide-react";
+import AddonsCard from "@/components/AddonsCard";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
@@ -420,6 +421,7 @@ export default function TeacherDashboard() {
         </span>
         <ChevronRight size={22} style={{ flexShrink: 0, opacity: 0.75 }} />
       </button>
+      {!user.isAdmin && <div style={{ marginBottom: 18 }}><AddonsCard returnPath="/billing" /></div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 18 }}>
         <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0 }}>Host a live quiz</button>
         <button onClick={() => navigate("/study")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#173b33" }} data-testid="button-teacher-study">

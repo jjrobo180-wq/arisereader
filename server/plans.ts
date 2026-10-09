@@ -23,7 +23,8 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, clampBlocks, entitlementFor, freeMonthEnd, grantLive, hubAccessFor, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, socialAccessFor,
+  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, bundleAccessFor, clampBlocks, entitlementFor, freeMonthEnd, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
+  type AddonAccess,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
 } from "../shared/plans";
@@ -50,8 +51,12 @@ export type PlanDeps = {
   countTeacherStudents(teacherId: number): Promise<number>;
   /** Students at a school. */
   countSchoolStudents(schoolId: number): Promise<number>;
-  /** Children linked to a parent account, so a parent can pay for a child's Arise Social. Left out, nobody can. */
+  /** Children linked to a parent account: a family's Learning Bundle covers them. */
   parentChildIds?(parentId: number): Promise<number[]>;
+  /** Parents linked to a student. */
+  studentParentIds?(studentId: number): Promise<number[]>;
+  /** A teacher's approved students. */
+  teacherStudentIds?(teacherId: number): Promise<number[]>;
   /** Students in a teacher's Teacher Hub caseload. Left out, counted as 0. */
   countHubStudents?(teacherId: number): Promise<number>;
   schoolName(schoolId: number): Promise<string>;
@@ -85,7 +90,7 @@ const KEY = {
 };
 
 /** What a teacher without Premium may still reach: signing in and out, their plan, and paying for it. */
-const TEACHER_OPEN = ["/api/social", "/api/social-plan", "/api/teacher-hub", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
+const TEACHER_OPEN = ["/api/social", "/api/addons", "/api/teacher-hub", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
 
 // Never 401 or 503 here: the app retries those for several seconds before showing the message.
 class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
@@ -181,7 +186,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const readIndex = async (fresh = false): Promise<Index> => {
     const raw = parse<Partial<Index>>(await (fresh ? readFresh(KEY.index) : read(KEY.index)), {});
     const ids = (v: unknown) => (Array.isArray(v) ? [...new Set(v.map(posInt).filter(Boolean))] : []);
-    return { teacher: ids(raw.teacher), school: ids(raw.school), hub_teacher: ids(raw.hub_teacher), hub_school: ids(raw.hub_school), social: ids(raw.social) };
+    return Object.fromEntries(PLAN_KINDS.map((k) => [k, ids(raw[k])])) as Index;
   };
   type Pending = { sessionId: string; buyerId: number; at: string };
   const readPending = async (kind: PlanKind, id: number): Promise<Pending | null> => {
@@ -229,9 +234,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // The key includes the role: an admin previewing the site as a student is a different answer from the admin.
   const cache = new Map<string, { at: number; value: Entitlement }>();
   const hubCache = new Map<string, { at: number; value: HubAccess }>();
-  const socialCache = new Map<number, { at: number; value: boolean }>();
+  const addonCache = new Map<string, { at: number; value: AddonAccess }>();
   const CACHE_MS = 30_000;
-  const forget = () => { cache.clear(); hubCache.clear(); socialCache.clear(); };
+  const forget = () => { cache.clear(); hubCache.clear(); addonCache.clear(); };
 
   // One change at a time. A plan is read, compared and written in one step, so two
   // Stripe messages arriving together can't overwrite each other.
@@ -253,15 +258,15 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const stripeKey = async () => (deps.envStripeKey?.() || (await read(KEY.stripeKey)) || "").trim();
   const webhookSecret = async () => (deps.envWebhookSecret?.() || (await read(KEY.webhookSecret)) || "").trim();
 
-  const stripe = async (method: "GET" | "POST", path: string, params?: Record<string, unknown>): Promise<any> => {
+  const stripe = async (method: "GET" | "POST" | "DELETE", path: string, params?: Record<string, unknown>): Promise<any> => {
     const key = await stripeKey();
     if (!key) throw new Refused("Online payment is not set up yet.", 409);
     let res: Response;
     try {
       res = await doFetch(`https://api.stripe.com/v1${path}`, {
         method,
-        headers: { Authorization: `Bearer ${key}`, ...(method === "POST" ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) },
-        body: method === "POST" ? stripeForm(params || {}) : undefined,
+        headers: { Authorization: `Bearer ${key}`, ...(method !== "GET" ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) },
+        body: method !== "GET" && params ? stripeForm(params) : undefined,
       });
     } catch {
       throw new Refused("Could not reach the payment service. Try again in a moment.", 502);
@@ -355,7 +360,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
 
   /** Saves a plan from Stripe unless we already hold newer news about it, or it would wrongly switch off a plan that is running. */
-  const applyStripeGrant = (incoming: PlanGrant) => serial(async () => {
+  const applyStripeGrant = async (incoming: PlanGrant) => {
+    await saveStripeGrant(incoming);
+    await afterGrant(incoming);
+  };
+  const saveStripeGrant = (incoming: PlanGrant) => serial(async () => {
     let next = incoming;
     const held = await readGrant(next.kind, next.ownerId, true);
     if (held) {
@@ -648,7 +657,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** Starts a Stripe Checkout page for a teacher plan or a school plan and returns its address. */
   app.post("/api/billing/checkout", auth, async (req: any, res: any) => {
     try {
-      if (req.body?.kind === "social") throw new Refused("Arise Social is added from its own page.", 400);
+      if (isPlanKind(req.body?.kind) && isAddonKind(req.body.kind)) throw new Refused("Add-ons are bought with their own button.", 400);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const hub = isHubKind(kind);
@@ -733,7 +742,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** A link to Stripe's own page for changing the card, seeing receipts or cancelling. */
   app.post("/api/billing/portal", auth, async (req: any, res: any) => {
     try {
-      if (req.body?.kind === "social") throw new Refused("Arise Social billing is managed from its own page.", 400);
+      if (isPlanKind(req.body?.kind) && isAddonKind(req.body.kind)) throw new Refused("Add-on billing is managed with its own button.", 400);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const grant = await readGrant(kind, isSchoolKind(kind) ? schoolOf(teacher) : teacher.id);
@@ -782,24 +791,20 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
   });
 
-  // ─── Arise Social ──────────────────────────────────────────────────────────
-  // $5 a month for each account that uses it. A parent can pay for a linked child.
-  // Students can't pay for themselves.
+  // ─── Add-ons: the Learning Bundle (History, Math, Social) and To-Do ─────────
+  // Parents: $10 a month for the family's Learning Bundle, $10 a month for To-Do.
+  // Teachers: $50 a month for the Learning Bundle for their class (on top of Premium,
+  // up to 100 students); To-Do comes with Teacher Hub. Every account gets 30 free days.
+  // A teacher's class plan replaces a family's plan once it covers every child in the
+  // family: the family plan is cancelled and the unused days refunded to the card.
 
-  /** Can this account use Arise Social? A database hiccup lets them in rather than locking out someone who paid. */
-  const socialAccess = async (user: AnyUser | null | undefined): Promise<boolean> => {
-    if (!user || !posInt(user.id)) return false;
-    if (user.isAdmin || isDemoAccount(user.username)) return true;
-    const hit = socialCache.get(user.id);
-    if (hit && now() - hit.at < CACHE_MS) return hit.value;
-    try {
-      const value = socialAccessFor(person(user), await current("social", user.id), now());
-      socialCache.set(user.id, { at: now(), value });
-      return value;
-    } catch (e: any) {
-      console.error("[plans] Arise Social check failed:", e?.message);
-      return true;
-    }
+  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing" };
+  const addonReturn = (req: any) => {
+    const origin = new URL(siteOf(req)).origin;
+    const asked = String(req.body?.returnPath || "/billing");
+    const target = ADDON_PAGES[asked] ?? ADDON_PAGES["/billing"];
+    const [path, hash] = target.split("#");
+    return { done: `${origin}${path}?paid={CHECKOUT_SESSION_ID}${hash ? `#${hash}` : ""}`, back: `${origin}${target}` };
   };
   const firstAndInitial = (name: unknown) => {
     const w = String(name || "").trim().split(/\s+/).filter(Boolean);
@@ -807,91 +812,226 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const linkedChildren = async (parent: AnyUser): Promise<number[]> =>
     parent.role === "parent" && deps.parentChildIds ? (await deps.parentChildIds(parent.id)).map(posInt).filter(Boolean) : [];
-  /** The Arise Social page this request came from, to send the buyer back to. */
-  const socialPage = (req: any) => `${new URL(siteOf(req)).origin}/social/`;
+  /** The class plan covering this student, if their teacher approved them into a class that has one. */
+  const classPlanOf = async (student: AnyUser | null | undefined): Promise<PlanGrant | null> => {
+    if (!student || student.role !== "student" || student.approvedByTeacher === false || !posInt(student.teacherId)) return null;
+    const g = await current("bundle_teacher", Number(student.teacherId));
+    return grantLive(g, now()) ? g : null;
+  };
+  const childrenCoveredByClass = async (parent: AnyUser): Promise<boolean> => {
+    const ids = await linkedChildren(parent);
+    if (!ids.length) return false;
+    for (const id of ids) if (!(await classPlanOf(await deps.getUser(id)))) return false;
+    return true;
+  };
 
-  /** Arise Social for the signed-in account, and for each linked child when it is a parent. */
-  app.get("/api/social-plan", auth, async (req: any, res: any) => {
+  /** Learning Bundle access for this account, and why. Remembered briefly; a database hiccup lets the person in. */
+  const bundleStatus = async (user: AnyUser | null | undefined): Promise<AddonAccess> => {
+    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
+    const key = `b|${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
+    const hit = addonCache.get(key);
+    if (hit && now() - hit.at < CACHE_MS) return hit.value;
+    try {
+      const facts: Parameters<typeof bundleAccessFor>[1] = { now: now(), socialGrant: await current("social", user.id) };
+      if (user.role === "teacher") facts.ownGrant = await current("bundle_teacher", user.id);
+      else if (user.role === "parent") {
+        facts.ownGrant = await current("bundle_family", user.id);
+        facts.allChildrenInClassPlans = await childrenCoveredByClass(user);
+      } else {
+        const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
+        facts.parentGrants = await Promise.all(parents.map((p) => current("bundle_family", p)));
+        facts.classGrant = await classPlanOf(user);
+      }
+      const value = bundleAccessFor(person(user), facts);
+      addonCache.set(key, { at: now(), value });
+      return value;
+    } catch (e: any) {
+      console.error("[plans] Learning Bundle check failed:", e?.message);
+      return { access: true, via: null, endsAt: null, trialEndsAt: null };
+    }
+  };
+  const bundleAccess = async (user: AnyUser | null | undefined) => (await bundleStatus(user)).access;
+  /** Arise Social is part of the Learning Bundle. */
+  const socialAccess = bundleAccess;
+
+  const todoStatus = async (user: AnyUser | null | undefined): Promise<AddonAccess> => {
+    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
+    try {
+      return todoAccessFor(person(user), {
+        now: now(),
+        todoGrant: user.role === "parent" ? await current("todo_family", user.id) : null,
+        hub: user.role === "teacher" ? await hubAccess(user) : null,
+      });
+    } catch (e: any) {
+      console.error("[plans] To-Do check failed:", e?.message);
+      return { access: true, via: null, endsAt: null, trialEndsAt: null };
+    }
+  };
+
+  // ── Refunds: a teacher's class plan takes over from a family's plan ──
+  const REFUND_KEY = (parentId: number) => `addon_refund_${parentId}`;
+  /**
+   * Cancels a family's paid Learning Bundle now and refunds the unused part of the
+   * month to the card it was paid with. If Stripe can't say which payment that was,
+   * the unused days go on the family's Stripe balance instead.
+   */
+  const refundFamilyPlan = async (grant: PlanGrant, reason: string) => {
+    if (grant.source !== "stripe" || !grant.stripeSubscriptionId) return;
+    let refundedCents = 0;
+    const sub = await stripe("GET", `${subscriptionPath(grant.stripeSubscriptionId)}?expand%5B%5D=latest_invoice`);
+    if (sub?.status === "canceled") return;
+    const item = sub?.items?.data?.[0];
+    const start = Number(sub?.current_period_start ?? item?.current_period_start) * 1000;
+    const end = Number(sub?.current_period_end ?? item?.current_period_end) * 1000;
+    const invoice = sub?.latest_invoice && typeof sub.latest_invoice === "object" ? sub.latest_invoice : null;
+    const paid = Number(invoice?.amount_paid) || 0;
+    const pi = typeof invoice?.payment_intent === "string" ? invoice.payment_intent : invoice?.payment_intent?.id;
+    const charge = typeof invoice?.charge === "string" ? invoice.charge : invoice?.charge?.id;
+    const unused = end > start && now() < end ? (end - now()) / (end - start) : 0;
+    const amount = Math.floor(paid * Math.min(1, Math.max(0, unused)));
+    if (amount > 0 && (pi || charge)) {
+      await stripe("POST", "/refunds", { ...(pi ? { payment_intent: pi } : { charge }), amount, metadata: { reason: "covered_by_class_plan" } });
+      refundedCents = amount;
+      await stripe("DELETE", subscriptionPath(grant.stripeSubscriptionId));
+    } else {
+      // No payment to point a refund at: Stripe puts the unused time on the family's balance.
+      await stripe("DELETE", subscriptionPath(grant.stripeSubscriptionId), { prorate: "true", invoice_now: "true" });
+    }
+    await serial(async () => {
+      await saveGrant({ ...grant, status: "canceled", updatedAt: iso(now()), note: reason });
+      await write(REFUND_KEY(grant.ownerId), JSON.stringify({ cents: refundedCents, toCard: refundedCents > 0, at: iso(now()), reason }));
+    });
+  };
+  /** Once every child in a paying family is covered by a class plan, refund the family. */
+  const creditFamilyIfCovered = async (parentId: number) => {
+    const parent = await deps.getUser(parentId);
+    if (!parent || parent.role !== "parent") return;
+    const fam = await readGrant("bundle_family", parentId, true);
+    if (!fam || fam.source !== "stripe" || !grantLive(fam, now())) return;
+    if (!(await childrenCoveredByClass(parent))) return;
+    await refundFamilyPlan(fam, "Every child is now covered by their teacher's class plan.");
+  };
+  /** Runs after a plan is saved. A teacher's new class plan may take over some families' plans. */
+  const afterGrant = async (grant: PlanGrant) => {
+    if (grant.kind !== "bundle_teacher" || !grantLive(grant, now()) || !deps.teacherStudentIds || !deps.studentParentIds) return;
+    try {
+      forget();
+      const parents = new Set<number>();
+      for (const sid of await deps.teacherStudentIds(grant.ownerId)) for (const pid of await deps.studentParentIds(sid)) parents.add(pid);
+      for (const pid of parents) await creditFamilyIfCovered(pid).catch((e: any) => console.error("[plans] family refund failed:", pid, e?.message));
+    } catch (e: any) {
+      console.error("[plans] family refunds after a class plan failed:", e?.message);
+    }
+  };
+
+  const productKind = (user: AnyUser, product: unknown): PlanKind => {
+    if (product === "todo") {
+      if (user.role === "teacher") throw new Refused("A.R.I.S.E. To-Do comes with Teacher Hub. Get Teacher Hub on your plan page.", 409);
+      if (user.role !== "parent") throw new Refused("To-Do plans are for parent accounts.", 403);
+      return "todo_family";
+    }
+    if (product === "bundle") {
+      if (user.role === "teacher") return "bundle_teacher";
+      if (user.role === "parent") return "bundle_family";
+      throw new Refused("Ask a parent or your teacher to add the Learning Bundle for you.", 403);
+    }
+    throw new Refused("Choose an add-on.", 400);
+  };
+  const addonView = async (user: AnyUser, kind: PlanKind, status: AddonAccess) => {
+    const g = await readGrant(kind, user.id);
+    return {
+      ...status,
+      trialDaysLeft: status.trialEndsAt ? Math.max(0, Math.ceil((Date.parse(status.trialEndsAt) - now()) / DAY)) : null,
+      plan: grantView(g), paidByYou: !!g && g.buyerId === user.id && !!g.stripeCustomerId,
+    };
+  };
+
+  /** Everything the add-on cards show: access, trial countdowns, plans and prices. */
+  app.get("/api/addons", auth, async (req: any, res: any) => {
     try {
       const user: AnyUser = req.adminPreview && req.realUser ? req.realUser : req.user;
-      const mine = await readGrant("social", user.id);
-      const children = [];
-      for (const id of await linkedChildren(user)) {
-        const child = await deps.getUser(id);
-        if (!child || child.role !== "student") continue;
-        const g = await readGrant("social", id);
-        children.push({ id, name: firstAndInitial(child.displayName), access: await socialAccess(child), plan: grantView(g), paidByYou: !!g && g.buyerId === user.id });
+      if (user.role === "parent") await creditFamilyIfCovered(user.id).catch(() => {});
+      const bundleKind: PlanKind = user.role === "teacher" ? "bundle_teacher" : "bundle_family";
+      const body: any = {
+        role: user.isAdmin ? "admin" : user.role || "student",
+        payment: !!(await stripeKey()), trialDays: PLANS.trialDays,
+        prices: { familyBundleCents: PLANS.bundle.familyMonthlyCents, teacherBundleCents: PLANS.bundle.teacherMonthlyCents, teacherSeats: PLANS.bundle.teacherSeats, todoCents: PLANS.todo.familyMonthlyCents, hubCents: PLANS.hub.monthlyCents },
+        bundle: await addonView(user, bundleKind, await bundleStatus(user)),
+        todo: await addonView(user, "todo_family", await todoStatus(user)),
+      };
+      if (user.role === "teacher" && !user.isAdmin) {
+        body.premium = (await entitlement(user)).premium;
+        body.students = await deps.countTeacherStudents(user.id);
+        body.hub = await hubAccess(user);
+      }
+      if (user.role === "parent") {
+        const kids = [];
+        for (const id of await linkedChildren(user)) {
+          const child = await deps.getUser(id);
+          if (child && child.role === "student") kids.push({ id, name: firstAndInitial(child.displayName), coveredByClass: !!(await classPlanOf(child)) });
+        }
+        body.children = kids;
+        body.refund = parse<any>(await read(REFUND_KEY(user.id)), null);
       }
       res.set("Cache-Control", "no-store");
-      res.json({
-        payment: !!(await stripeKey()), monthlyCents: PLANS.social.monthlyCents,
-        access: await socialAccess(user), plan: grantView(mine), paidByYou: !!mine && mine.buyerId === user.id,
-        canBuy: user.role === "teacher" || user.role === "parent", children,
-      });
-    } catch (e) { fail(res, e, "social plan"); }
+      res.json(body);
+    } catch (e) { fail(res, e, "add-ons"); }
   });
 
-  /** Starts a Stripe Checkout page for Arise Social: for yourself, or (parents) for a linked child. */
-  app.post("/api/billing/social-checkout", auth, async (req: any, res: any) => {
+  /** Starts a Stripe Checkout page for an add-on: the Learning Bundle or To-Do. */
+  app.post("/api/billing/addon-checkout", auth, async (req: any, res: any) => {
     try {
       const buyer: AnyUser = req.user;
-      if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has Arise Social.", 409);
-      const forId = posInt(req.body?.forUserId) || buyer.id;
-      if (forId === buyer.id) {
-        if (buyer.role !== "teacher" && buyer.role !== "parent") throw new Refused("Ask a parent or guardian to add Arise Social for you.", 403);
-        if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
-      } else {
-        if (!(await linkedChildren(buyer)).includes(forId)) throw new Refused("That student is not linked to your account.", 403);
-        const child = await deps.getUser(forId);
-        if (!child || child.role !== "student") throw new Refused("That student could not be found.", 404);
+      if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has every add-on.", 409);
+      if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
+      const kind = productKind(buyer, req.body?.product);
+      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
+      if (kind === "bundle_teacher") {
+        if (!(await entitlement(buyer)).premium) throw new Refused("The Learning Bundle for a class is added on top of A.R.I.S.E. Premium. Get Premium on your plan page first.", 409);
+        const students = await deps.countTeacherStudents(buyer.id);
+        if (students > PLANS.bundle.teacherSeats) throw new Refused(`The class plan covers up to ${PLANS.bundle.teacherSeats} students, and you have ${students}.`, 409);
       }
-      const owner = forId === buyer.id ? buyer : await deps.getUser(forId);
-      if (owner && (await socialAccess(owner))) throw new Refused(forId === buyer.id ? "You already have Arise Social." : "This student already has Arise Social.", 409);
-      const pending = await readPending("social", forId);
-      if (pending && pending.buyerId !== buyer.id && now() - Date.parse(pending.at) < 30 * 60_000) {
-        throw new Refused("Someone else has just started paying for this account. Try again in half an hour.", 409);
-      }
-      const metadata: Record<string, string> = { kind: "social", ownerId: String(forId), buyerId: String(buyer.id) };
+      if (kind === "bundle_family" && (await childrenCoveredByClass(buyer))) throw new Refused("Your children's teachers already cover the Learning Bundle for them, so there's nothing to buy.", 409);
+      const pending = await readPending(kind, buyer.id);
+      if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
+      const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
       const email = typeof buyer.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email) ? buyer.email : undefined;
-      const own = await readGrant("social", buyer.id);
-      const customer = own?.buyerId === buyer.id ? own.stripeCustomerId : undefined;
-      const page = socialPage(req);
+      let customer: string | undefined;
+      for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
+      const name = kind === "bundle_teacher" ? `A.R.I.S.E. Learning Bundle for a class (History, Math, Social; up to ${PLANS.bundle.teacherSeats} students)`
+        : kind === "bundle_family" ? "A.R.I.S.E. Learning Bundle for a family (History, Math, Social)"
+        : "A.R.I.S.E. To-Do for a family";
+      const back = addonReturn(req);
       const session = await stripe("POST", "/checkout/sessions", {
         mode: "subscription",
-        client_reference_id: `social:${forId}`,
+        client_reference_id: `${kind}:${buyer.id}`,
         ...(customer ? { customer } : email ? { customer_email: email } : {}),
-        line_items: [{
-          quantity: 1,
-          price_data: {
-            currency: "usd", unit_amount: PLANS.social.monthlyCents, recurring: { interval: "month" },
-            product_data: { name: forId === buyer.id ? "Arise Social" : `Arise Social for ${firstAndInitial(owner?.displayName)}` },
-          },
-        }],
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: { name } } }],
         metadata,
         subscription_data: { metadata },
-        success_url: `${page}?paid={CHECKOUT_SESSION_ID}`,
-        cancel_url: page,
+        success_url: back.done,
+        cancel_url: back.back,
       });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The payment page could not be opened. Nothing was charged.", 502);
       if (typeof session.id === "string" && /^cs_[A-Za-z0-9_]{8,200}$/.test(session.id)) {
-        await write(KEY.pending("social", forId), JSON.stringify({ sessionId: session.id, buyerId: buyer.id, at: iso(now()) }));
+        await write(KEY.pending(kind, buyer.id), JSON.stringify({ sessionId: session.id, buyerId: buyer.id, at: iso(now()) }));
       }
       res.json({ url: session.url });
-    } catch (e) { fail(res, e, "social checkout"); }
+    } catch (e) { fail(res, e, "add-on checkout"); }
   });
 
-  /** Stripe's page for changing the card or cancelling an Arise Social plan you paid for. */
-  app.post("/api/billing/social-portal", auth, async (req: any, res: any) => {
+  /** Stripe's page for changing the card or cancelling an add-on you paid for. */
+  app.post("/api/billing/addon-portal", auth, async (req: any, res: any) => {
     try {
       const buyer: AnyUser = req.user;
-      const forId = posInt(req.body?.forUserId) || buyer.id;
-      const grant = await readGrant("social", forId);
-      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for this plan.", 409);
-      if (grant.buyerId !== buyer.id) throw new Refused("Only the person who paid for this plan can manage its billing.", 403);
-      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: socialPage(req) });
+      const kind = productKind(buyer, req.body?.product);
+      const grant = await readGrant(kind, buyer.id);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for this add-on.", 409);
+      if (grant.buyerId !== buyer.id) throw new Refused("Only the person who paid for this can manage its billing.", 403);
+      const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: addonReturn(req).back });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
       res.json({ url: session.url });
-    } catch (e) { fail(res, e, "social portal"); }
+    } catch (e) { fail(res, e, "add-on portal"); }
   });
 
   // ─── Admin ─────────────────────────────────────────────────────────────────
@@ -903,9 +1043,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         for (const id of index[kind]) {
           const g = await readGrant(kind, id);
           if (!g) continue;
-          const name = isSchoolKind(kind) ? await deps.schoolName(id) : (await deps.getUser(id))?.displayName || `${kind === "social" ? "Account" : "Teacher"} ${id}`;
+          const name = isSchoolKind(kind) ? await deps.schoolName(id) : (await deps.getUser(id))?.displayName || `${isAddonKind(kind) ? "Account" : "Teacher"} ${id}`;
           const students = isSchoolKind(kind) ? await deps.countSchoolStudents(id)
-            : kind === "social" ? 0
+            : kind === "bundle_teacher" ? await deps.countTeacherStudents(id)
+            : isAddonKind(kind) ? 0
             : kind === "hub_teacher" ? (deps.countHubStudents ? await deps.countHubStudents(id) : 0)
             : await deps.countTeacherStudents(id);
           rows.push({ kind, ownerId: id, name, students, source: g.source, status: g.status, seats: g.seats, endsAt: g.endsAt, live: grantLive(g, now()), note: g.note || "" });
@@ -966,6 +1107,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (!kind || !ownerId) throw new Refused("Choose a teacher or a school.");
       if (kind === "social") {
         if (!(await deps.getUser(ownerId))) throw new Refused("That account could not be found.");
+      } else if (kind === "bundle_family" || kind === "todo_family") {
+        const p = await deps.getUser(ownerId);
+        if (!p || p.role !== "parent") throw new Refused("That account is not a parent.");
       } else if (!isSchoolKind(kind)) {
         const t = await deps.getUser(ownerId);
         if (!t || t.role !== "teacher") throw new Refused("That account is not a teacher.");
@@ -982,6 +1126,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         if (held?.source === "stripe" && grantLive(held, now())) throw new Refused("This plan is being paid online already.", 409);
         await saveGrant(grant);
       });
+      await afterGrant(grant);
       res.json({ ok: true });
     } catch (e) { fail(res, e, "grant"); }
   });
@@ -1014,7 +1159,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, hubAccess, socialAccess, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
+  return { entitlement, hubAccess, socialAccess, bundleStatus, bundleAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;
