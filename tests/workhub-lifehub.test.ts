@@ -87,3 +87,15 @@ test("inside the hubs, every Reader piece is the hub-built one (no site pieces d
     for (const c of list) assert.ok(text.includes(c), `${file}: ${c}`);
   }
 });
+
+test("there's no way back to the old screens: old addresses and admins land in the hubs", () => {
+  const app = read("client/src/App.tsx");
+  assert.ok(!/pages\/(TeacherDashboard|ParentDashboard)/.test(app), "the old dashboards are gone");
+  assert.ok(!app.includes('import("./pages/Admin")'), "the admin page only opens inside WorkHub");
+  assert.match(app, /<Route path="\/admin">\s*<OpenHubTab to="\/workhub" storageKey="workhub_tab" value="admin" \/>/);
+  assert.match(app, /<Route path="\/parent-dashboard">\s*<OpenHubTab to="\/lifehub" storageKey="lifehub_tab" value="reader" \/>/);
+  assert.match(app, /<Route path="\/teacher-dashboard">\s*<OpenHubTab to="\/workhub" storageKey="workhub_tab" value="reader" \/>/);
+  assert.equal((app.match(/user\.isAdmin \? <OpenHubTab to="\/workhub" storageKey="workhub_tab" value="admin" \/>/g) || []).length, 3);
+  assert.match(read("client/src/pages/TeacherHub.tsx"), /sessionStorage\.getItem\("workhub_tab"\)[\s\S]*\}, \[location\]\);/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /sessionStorage\.getItem\("lifehub_tab"\)[\s\S]*\}, \[location\]\);/);
+});

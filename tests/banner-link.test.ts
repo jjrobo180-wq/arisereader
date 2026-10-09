@@ -39,6 +39,6 @@ test("every banner can be tapped, and the admin can set where it goes", () => {
   const library = read("client/src/pages/Library.tsx");
   assert.ok(library.includes("<BannerTap link={studentBanner.link}") && library.includes("<BannerTap link={teacherBanner.link}"));
   assert.equal(library.split("</BannerTap>").length - 1, 2);
-  assert.ok(read("client/src/pages/TeacherDashboard.tsx").includes("<BannerTap link={teacherBanner.link}"));
+  assert.ok(read("client/src/components/teacher-hub/HubReaderTools.tsx").includes("<BannerTap link={banner.link}"));
   for (const name of ["studentBanner", "teacherBanner", "loginBanner"]) assert.ok(admin.includes(`data-testid="${name}-link"`), name);
 });

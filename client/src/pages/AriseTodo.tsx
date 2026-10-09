@@ -176,7 +176,7 @@ const inputClass = "w-full min-h-11 rounded-xl border border-slate-200 bg-white 
 const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500";
 
 export default function AriseTodo() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { user, token, logout } = useAuth();
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
@@ -189,10 +189,16 @@ export default function AriseTodo() {
     setData(previous => { const family = update(previous.family); return family === previous.family ? previous : { ...previous, family }; });
   }, [setData]);
   const [section, setSectionState] = useState<FamilySection>(() => {
+    // The old parent dashboard address opens the Reader tab (see OpenHubTab in App.tsx).
+    try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); return "reader"; } } catch { /* fine */ }
     // Parents start on their A.R.I.S.E. Reader tab (the parent portal) until they pick another.
     const first: FamilySection = user?.role === "parent" ? "reader" : "home";
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && SECTION_ORDER.includes(saved) ? saved : first; } catch { return first; }
   });
+  // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
+  useEffect(() => {
+    try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); setSectionState("reader"); } } catch { /* fine */ }
+  }, [location]);
   const setSection = (next: FamilySection) => {
     setSectionState(next);
     try { localStorage.setItem(SECTION_KEY, next); } catch {}

@@ -40,6 +40,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useLocation } from "wouter";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
@@ -325,6 +326,17 @@ function TeacherHubPage() {
     } catch { /* Home */ }
     return "overview";
   });
+  // Going to an old address (the old dashboard, #/admin, or back to one) while WorkHub is open picks the tab here.
+  const [location] = useLocation();
+  useEffect(() => {
+    try {
+      const asked = sessionStorage.getItem("workhub_tab");
+      if (!asked) return;
+      sessionStorage.removeItem("workhub_tab");
+      if (asked === "admin") setTab("admin");
+      else if (asked === "reader") setTab(readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")));
+    } catch { /* stays where it is */ }
+  }, [location]);
   const [customize, setCustomize] = useState(false);
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
