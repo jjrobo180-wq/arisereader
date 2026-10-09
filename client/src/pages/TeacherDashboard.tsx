@@ -434,6 +434,9 @@ export default function TeacherDashboard() {
         <button onClick={() => navigate("/teacher-hub")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#0f172a", justifyContent: "center" }} data-testid="button-teacher-hub">
           <ClipboardList size={18} /> Teacher Hub <span style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(94,234,212,.55)", color: "#99f6e4", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase" }}>Add-on</span>
         </button>
+        <a href="/social/" style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(115deg,#2b2a8f 0%,#6d4fd8 60%,#ef8a3a 120%)", justifyContent: "center", textDecoration: "none", boxSizing: "border-box" }} data-testid="button-teacher-social">
+          <Users size={18} /> Arise Social <span style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(255,214,138,.6)", color: "#ffe2a8", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase" }}>Add-on</span>
+        </a>
         {!user.isAdmin && <button onClick={() => navigate("/billing")} style={{ ...styles.subtleButton, width: "100%", justifyContent: "center" }} data-testid="button-teacher-plan">
           Your plan
         </button>}
