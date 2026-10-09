@@ -10,7 +10,7 @@ import {
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Plane, Wallet, StickyNote, Settings2, Moon, Apple,
 } from "lucide-react";
-import { cleanFamily, emptyFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
+import { cleanFamily, emptyFamily, isCurrentFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -119,8 +119,19 @@ const mergeTodo = (cloud: Data, old: Data): Data => {
   return { ...cloud, version: 2, lists, tasks };
 };
 /** The cloud may still hold a version 1 workspace (no family yet): open it as version 2. */
-const upgrade = (value: Data | Record<string, unknown>): Data =>
-  (value as Data).version === 2 && (value as Data).family ? value as Data : validate(value);
+/** Opens any saved workspace in today's shape: version 1 (no family yet) and version 2 data saved by an
+ *  older page (missing newer parts like calorie plans) are filled in. The same input always gives the
+ *  same object back, so nothing is saved again just for being opened. */
+const upgraded = new WeakMap<object, Data>();
+const upgrade = (value: Data | Record<string, unknown>): Data => {
+  const d = value as Data;
+  if (d.version === 2 && isCurrentFamily(d.family)) return d;
+  const known = upgraded.get(value as object);
+  if (known) return known;
+  const next = d.version === 2 && d.family ? { ...d, family: cleanFamily(d.family) } : validate(value);
+  upgraded.set(value as object, next);
+  return next;
+};
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,

@@ -105,3 +105,20 @@ test("bills: due dates, states and the month's money", () => {
   const f = { ...emptyFamily(), income: 4000, bills: [rent, phone], expenses: [{ id: "e", categoryId: "b-groceries", amount: 200, date: "2026-10-03", note: "" }, { id: "e2", categoryId: "b-groceries", amount: 50, date: "2026-09-30", note: "" }] };
   assert.deepEqual(monthSummary(f, "2026-10"), { billsTotal: 1580, billsPaid: 1500, billsLeft: 80, spent: 200, budgeted: 0, leftover: 2220 });
 });
+
+test("family data saved by an older page is recognized and filled in", async () => {
+  const { isCurrentFamily } = await import("../shared/familyHub");
+  assert.ok(isCurrentFamily(emptyFamily()));
+  const old = JSON.parse(JSON.stringify(emptyFamily()));
+  delete old.health.profiles;
+  old.members = [{ id: "m1", name: "Maya", emoji: "", color: "#7566e8", kind: "kid" }];
+  assert.equal(isCurrentFamily(old), false);
+  const fixed = cleanFamily(old);
+  assert.ok(isCurrentFamily(fixed));
+  assert.deepEqual(fixed.health.profiles, {});
+  assert.equal(fixed.members[0].name, "Maya");
+  const older = JSON.parse(JSON.stringify(emptyFamily()));
+  delete older.health;
+  assert.equal(isCurrentFamily(older), false);
+  assert.ok(isCurrentFamily(cleanFamily(older)));
+});

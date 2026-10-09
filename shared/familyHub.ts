@@ -411,3 +411,16 @@ export function monthSummary(f: Family, month: string) {
 export const spentIn = (f: Family, categoryId: string, month: string) =>
   f.expenses.filter((e) => e.categoryId === categoryId && monthKey(e.date) === month).reduce((s, e) => s + e.amount, 0);
 export const money = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: n % 1 ? 2 : 0 });
+
+/** Whether saved family data already has every part the current page expects. Data saved by an
+ *  older version (for example before Food & fitness or calorie plans) is missing some parts and is
+ *  run through cleanFamily first, which fills them in without changing anything already there. */
+export function isCurrentFamily(f: unknown): f is Family {
+  const r = obj(f);
+  const h = r && obj(r.health);
+  if (!r || !h) return false;
+  const arrays = ["members", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes"];
+  const healthArrays = ["food", "exercise", "days", "weights", "foods"];
+  return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
+    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
+}
