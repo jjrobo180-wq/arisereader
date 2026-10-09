@@ -9,13 +9,15 @@ import { FAMILY_SECTIONS, TOGGLEABLE } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("WorkHub: the Reader group comes right after Home, its teacher tools always show, the admin console only for admins", () => {
+test("WorkHub: the Reader group comes right after Home with its own WorkHub tabs; admin console only for admins", () => {
   assert.equal(HUB_GROUPS[1].id, "arise");
   assert.equal(HUB_GROUPS[1].label, "A.R.I.S.E. Reader");
+  const reader = ["reader", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
   const visible = emptyWorkspace().visibleTabs;
-  assert.deepEqual(groupTabs("arise", { ...visible, admin: false }), ["reader", "arise"]);
-  assert.deepEqual(groupTabs("arise", { ...visible, admin: true }), ["reader", "arise", "admin"]);
-  assert.deepEqual(groupTabs("arise", { ...visible, reader: false, arise: false, admin: false }), ["reader"], "the Reader tools can't be hidden");
+  assert.deepEqual(groupTabs("arise", { ...visible, admin: false }), [...reader, "arise"]);
+  assert.deepEqual(groupTabs("arise", { ...visible, admin: true }), [...reader, "arise", "admin"]);
+  const hidden = Object.fromEntries(reader.map((t) => [t, false]));
+  assert.deepEqual(groupTabs("arise", { ...visible, ...hidden, arise: false, admin: false }), reader, "the Reader tabs can't be hidden");
   assert.ok(visibleGroups({ ...visible, arise: false }).some((g) => g.id === "arise"));
 });
 
@@ -47,13 +49,14 @@ test("after a trial: WorkHub and LifeHub keep only the A.R.I.S.E. Reader tools, 
   assert.match(life, /<HubTrialNote trial=\{trial\} which="life"/);
 });
 
-test("the A.R.I.S.E. Reader screens take the hub's look (light in day mode, their own dark look at night)", () => {
-  const reader = read("client/src/components/teacher-hub/HubReader.tsx");
-  assert.match(reader, /<HubReaderScope which="work" night=\{night\}>/);
-  assert.match(reader, /<TeacherDashboard embedded night=\{night\} \/>/);
+test("the teacher's Reader account is rebuilt from WorkHub parts, with every old dashboard feature", () => {
+  const tools = read("client/src/components/teacher-hub/HubReaderTools.tsx");
+  assert.match(tools, /from "\.\/ui"/);
+  assert.match(tools, /HubModal/);
+  for (const api of ["/api/teacher/students", "/api/teacher/pending-students", "/api/teacher-admin/all-students", "/api/teacher-admin/pending-quizzes", "/api/teacher-admin/book-requests",
+    "/api/grade-change-requests", "/api/teacher/parent-connections", "/api/teacher/club-arise/controls", "/api/teacher/club-closing-hours", "/api/proctor-password",
+    "/api/teacher/growth-check/overview", "/reset-password", "/rewards", "/reassign"]) assert.ok(tools.includes(api), api);
+  for (const piece of ["ComprehensionReview", "NoProctorReview", "PrizeManager", "PlayTimeManager", "FamilyEmailInvite", "ParentEmailInvite", "AddonsCard"]) assert.ok(tools.includes(`<${piece}`), piece);
+  assert.doesNotMatch(read("client/src/pages/TeacherHub.tsx"), /<TeacherDashboard/);
   assert.match(read("client/src/pages/AriseTodo.tsx"), /<HubReaderScope which="life" night=\{night\}><ParentDashboard embedded \/>/);
-  const dash = read("client/src/pages/TeacherDashboard.tsx");
-  assert.match(dash, /const styles = hubLook \? hubStyles : darkStyles;/);
-  const css = read("client/src/components/hubReader.css");
-  assert.match(css, /\.hub-reader \.arise-page-bg \{ background: transparent; \}/);
 });

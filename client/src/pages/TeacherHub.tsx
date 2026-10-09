@@ -77,7 +77,8 @@ import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQu
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
-import { AdminTab, ReaderTab } from "@/components/teacher-hub/HubReader";
+import { AdminTab } from "@/components/teacher-hub/HubReader";
+import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNote";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
@@ -97,7 +98,13 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
   { id: "tasks", label: "Tasks", icon: <CheckSquare className="h-4 w-4" /> },
   { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
-  { id: "reader", label: "Teacher tools", icon: <GraduationCap className="h-4 w-4" /> },
+  { id: "reader", label: "Overview", icon: <BookHeart className="h-4 w-4" /> },
+  { id: "readerStudents", label: "Students", icon: <Users className="h-4 w-4" /> },
+  { id: "readerApprovals", label: "Approvals", icon: <CheckCircle2 className="h-4 w-4" /> },
+  { id: "readerParents", label: "Parents", icon: <MessageSquare className="h-4 w-4" /> },
+  { id: "readerQuizzes", label: "Quizzes & grading", icon: <ClipboardCheck className="h-4 w-4" /> },
+  { id: "readerGames", label: "Game time", icon: <Timer className="h-4 w-4" /> },
+  { id: "readerPrizes", label: "Prizes", icon: <Sparkles className="h-4 w-4" /> },
   { id: "arise", label: "Reading records", icon: <BookHeart className="h-4 w-4" /> },
   { id: "admin", label: "Admin console", icon: <Settings2 className="h-4 w-4" /> },
   { id: "behavior", label: "Behavior", icon: <Sparkles className="h-4 w-4" /> },
@@ -253,8 +260,21 @@ function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?
 }
 
 /** WorkHub once the free month is over: the A.R.I.S.E. Reader tools stay, everything else is locked. */
+/** Which A.R.I.S.E. Reader tab an old teacher-dashboard link means ("comprehension", "parents"...). */
+function readerTabFor(old: string | null): ReaderTab {
+  try { sessionStorage.removeItem("teacher_dashboard_tab"); } catch { /* fine */ }
+  const map: Record<string, ReaderTab> = {
+    students: "readerStudents", "all-students": "readerStudents", pending: "readerApprovals", "book-requests": "readerApprovals", "grade-changes": "readerApprovals",
+    parents: "readerParents", proctor: "readerQuizzes", "camera-quizzes": "readerQuizzes", comprehension: "readerQuizzes", "growth-check": "readerQuizzes",
+    "club-controls": "readerGames", prizes: "readerPrizes",
+  };
+  return (old && map[old]) || "reader";
+}
+
+/** WorkHub once the free month is over: the A.R.I.S.E. Reader tabs stay, everything else is locked. */
 function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolean }) {
   const [plans, setPlans] = useState(false);
+  const [tab, setTab] = useState<ReaderTab>(() => { try { return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")); } catch { return "reader"; } });
   return (
     <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -271,7 +291,15 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
           <button type="button" onClick={() => setPlans((v) => !v)} aria-expanded={plans} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">{plans ? "Hide plans" : "See plans"}</button>
         </HubEndedNote>
         {plans && <div className="-mx-3 sm:mx-0"><HubPaywall isAdmin={isAdmin} embedded /></div>}
-        <ReaderTab hideLifeHub />
+        <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="A.R.I.S.E. Reader">
+          {READER_TABS.map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+              className={`flex min-h-11 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition ${tab === t ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}>
+              {tabIcon(t)} {SUB_LABELS[t] ?? t}
+            </button>
+          ))}
+        </div>
+        <ReaderTools tab={tab} openTab={(t) => { if (isReaderTab(t)) setTab(t); }} night={false} />
       </main>
     </div>
   );
@@ -292,7 +320,8 @@ function TeacherHubPage() {
     try {
       const asked = sessionStorage.getItem("workhub_tab");
       sessionStorage.removeItem("workhub_tab");
-      if (asked === "reader" || asked === "admin") return asked;
+      if (asked === "admin") return asked;
+      if (asked === "reader") return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab"));
     } catch { /* Home */ }
     return "overview";
   });
@@ -599,7 +628,7 @@ function TeacherHubPage() {
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
               <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu.</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {HUB_GROUPS.filter((g) => g.id !== "home").map((g) => ({ ...g, tabs: g.tabs.filter((t) => t !== "reader" && t !== "admin") })).filter((g) => g.tabs.length).map((g) => (
+                {HUB_GROUPS.filter((g) => g.id !== "home").map((g) => ({ ...g, tabs: g.tabs.filter((t) => !isReaderTab(t) && t !== "admin") })).filter((g) => g.tabs.length).map((g) => (
                   <div key={g.id} className="rounded-xl border border-slate-200 p-2" data-testid={`customize-${g.id}`}>
                     {g.tabs.length > 1 && <div className="flex items-center gap-2 px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{GROUP_ICON[g.id]}{g.label}</div>}
                     {g.tabs.map((t) => (
@@ -698,7 +727,7 @@ function TeacherHubPage() {
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
-          {tab === "reader" && <ReaderTab night={night} />}
+          {isReaderTab(tab) && <ReaderTools tab={tab} openTab={setTab} night={night} />}
           {tab === "admin" && user.isAdmin && <AdminTab night={night} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
